@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.db
+*.log
+
+# Environment
+.env
+.env.local
+*.bak
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose*.yml
+!docker-compose.planka.yml
+
+# Project specific
+project-mgmt/

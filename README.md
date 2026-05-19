@@ -1,7 +1,10 @@
 # ERP Stack
 
-ERP Stack ประกอบด้วย 4 services หลัก: Plane, Planka, BookStack, OpenObserve
-รันบนเซิร์ฟเวอร์เดียวด้วย Docker Compose
+ERP Stack ประกอบด้วย 6 services หลัก: Plane, Planka, BookStack, OpenObserve, SiYuan, Brain Server
+รันบนเซิร์ฟเวอร์เดียว
+
+> **📖 ก่อนเริ่มทำงานอะไรก็ตาม อ่าน [ARCHITECTURE.md](ARCHITECTURE.md) ให้เข้าใจก่อน**
+> เป็น Single Source of Truth สำหรับสถาปัตยกรรมและ workflow ทั้งหมด
 
 ## 🖥️ Server
 
@@ -14,40 +17,16 @@ ERP Stack ประกอบด้วย 4 services หลัก: Plane, Planka,
 
 ## 📦 Services
 
-### 1. Plane — Project Management
-| รายการ | ค่า |
-|--------|-----|
-| URL | `http://89.167.82.205:54510` |
-| Status | ✅ Sign-in ใช้ได้, Workspace แรกสร้างแล้ว |
+> ดูรายละเอียดทั้งหมดได้ใน [ARCHITECTURE.md](ARCHITECTURE.md#4-services-ทั้งหมด)
 
-### 2. Planka — Kanban Board
-| รายการ | ค่า |
-|--------|-----|
-| URL | `http://89.167.82.205:54511` |
-| API Token | ✅ สร้างไว้แล้ว (Board + Task) |
-
-### 3. BookStack — Documentation/Wiki
-| รายการ | ค่า |
-|--------|-----|
-| URL | `http://89.167.82.205:54512` |
-| API Token | ✅ สร้างไว้แล้ว |
-
-### 4. OpenObserve — Logging & Monitoring
-| รายการ | ค่า |
-|--------|-----|
-| URL | `http://89.167.82.205:54514` |
-| Auth | Basic Auth (Service Account) |
-| Username | `brain-server@openobserve.local` |
-| Password | `sg7PFmXAIiG3W0Ny` |
-
-**วิธีเรียก API:**
-```bash
-echo -n "brain-server@openobserve.local:sg7PFmXAIiG3W0Ny" | base64
-# ได้: YnJhaW4tc2VydmVyQG9wZW5vYnNlcnZlLmxvY2FsOnNnN1BGbVhBSWlHM1cwTnk=
-
-curl -H "Authorization: Basic YnJhaW4tc2VydmVyQG9wZW5vYnNlcnZlLmxvY2FsOnNnN1BGbVhBSWlHM1cwTnk=" \
-  http://89.167.82.205:54514/api/default/users
-```
+| Service | URL | บทบาท |
+|---------|-----|--------|
+| **Plane** | `http://89.167.82.205:54510` | Project Management (Task Manager หลัก) |
+| **SiYuan** | `http://89.167.82.205:54511` | Knowledge Base |
+| **Planka** | `http://89.167.82.205:54513` | Kanban Board |
+| **OpenObserve** | `http://89.167.82.205:54514` | Logging & Monitoring |
+| **BookStack** | `http://89.167.82.205:54515` | Documentation / Wiki |
+| **Brain Server** | `http://89.167.82.205:8101` | AI Agent Gateway (15 tools) |
 
 ## 🐙 GitHub
 

@@ -26,3 +26,4 @@ docker-compose*.yml
 
 # Project specific
 project-mgmt/
+.browser_screenshots/

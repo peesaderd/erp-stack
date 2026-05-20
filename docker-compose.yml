@@ -1,0 +1,18 @@
+# ERP Stack - Docker Compose
+# This file includes all services for the ERP system.
+# Run: docker compose -f docker-compose.network.yml up -d  (first time only)
+# Then: docker compose up -d
+#
+# Individual services can be started separately:
+#   docker compose -f docker-compose.plane.yml up -d
+#   docker compose -f docker-compose.planka.yml up -d
+#   docker compose -f docker-compose.bookstack.yml up -d
+#   docker compose -f docker-compose.openobserve.yml up -d
+#   docker compose -f docker-compose.siyuan.yml up -d
+
+include:
+  - docker-compose.plane.yml
+  - docker-compose.planka.yml
+  - docker-compose.bookstack.yml
+  - docker-compose.openobserve.yml
+  - docker-compose.siyuan.yml

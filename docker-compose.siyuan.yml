@@ -1,0 +1,17 @@
+services:
+  siyuan:
+    image: b3log/siyuan:latest
+    container_name: siyuan
+    restart: unless-stopped
+    ports:
+      - "54511:6806"
+    volumes:
+      - /opt/project-mgmt/siyuan/data:/siyuan/workspace
+    environment:
+      - SIYUAN_ACCESS_AUTH_CODE=Noteforge@2026
+    networks:
+      - project-mgmt
+
+networks:
+  project-mgmt:
+    external: true

@@ -13,7 +13,7 @@ ERP Stack ประกอบด้วย 6 services หลัก: Plane, Planka,
 | IP | `89.167.82.205` |
 | SSH | `ssh openhands@89.167.82.205` |
 | Password | `OpenHands@ERP2026` |
-| Disk | 150G (ใช้ ~91G, เหลือ 54G) |
+| Disk | 150G (ใช้ ~127G, เหลือ 17G) |
 
 ## 📦 Services
 
@@ -60,6 +60,25 @@ docker compose restart [service-name]
 cd /workspace
 docker compose logs -f [service-name]
 ```
+
+## 🗄️ Docker Compose Files
+
+| File | Service |
+|------|---------|
+| `docker-compose.yml` | รวมทุก services |
+| `docker-compose.network.yml` | Shared networks |
+| `docker-compose.plane.yml` | Plane (Project Management) |
+| `docker-compose.planka.yml` | Planka (Kanban) |
+| `docker-compose.bookstack.yml` | BookStack (Documentation) |
+| `docker-compose.siyuan.yml` | SiYuan (Knowledge Base) |
+| `docker-compose.openobserve.yml` | OpenObserve (Logging) |
+
+## 🧠 Brain Server
+
+Brain Server เป็นโปรเจคใหม่สำหรับ AI-powered development automation
+- **Plane**: Project "Brain Server" ใน workspace `erp-roadmap` — `http://89.167.82.205:54510`
+- **Planka**: Project "Brain Server" Board "Brain Server Board" — `http://89.167.82.205:54513`
+- ดูสถานะล่าสุดได้ใน [STATUS.md](STATUS.md)
 
 ## ⚠️ ข้อควรระวัง
 - อย่า expose port services ตรงสู่ internet โดยไม่มีการป้องกัน

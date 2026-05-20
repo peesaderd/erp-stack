@@ -1,0 +1,139 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: plane-postgres
+    restart: unless-stopped
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: plane
+      POSTGRES_DB: plane
+      POSTGRES_PASSWORD: plane@2026
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U plane"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - project-mgmt
+
+  redis:
+    image: redis:7-alpine
+    container_name: plane-redis
+    restart: unless-stopped
+    command: redis-server --requirepass redis@2026
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - project-mgmt
+
+  minio:
+    image: minio/minio:latest
+    container_name: plane-minio
+    restart: unless-stopped
+    command: server /export --console-address ":9001"
+    volumes:
+      - miniodata:/export
+    environment:
+      MINIO_ROOT_USER: plane
+      MINIO_ROOT_PASSWORD: plane@2026
+    networks:
+      - project-mgmt
+
+  api:
+    image: makeplane/plane-backend:stable
+    container_name: plane-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file: plane.env
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py collectstatic --noinput &&
+             python manage.py runserver 0.0.0.0:8000"
+    networks:
+      - project-mgmt
+
+  worker:
+    image: makeplane/plane-backend:stable
+    container_name: plane-worker
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file: plane.env
+    command: celery -A plane worker -l info
+    networks:
+      - project-mgmt
+
+  beat:
+    image: makeplane/plane-backend:stable
+    container_name: plane-beat
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file: plane.env
+    command: celery -A plane beat -l info
+    networks:
+      - project-mgmt
+
+  web:
+    image: makeplane/plane-frontend:stable
+    container_name: plane-web
+    restart: unless-stopped
+    env_file: plane.env
+    networks:
+      - project-mgmt
+
+  space:
+    image: makeplane/plane-space:stable
+    container_name: plane-space
+    restart: unless-stopped
+    env_file: plane.env
+    networks:
+      - project-mgmt
+
+  admin:
+    image: makeplane/plane-admin:stable
+    container_name: plane-admin
+    restart: unless-stopped
+    env_file: plane.env
+    networks:
+      - project-mgmt
+
+  proxy:
+    image: makeplane/plane-proxy:stable
+    container_name: plane-proxy
+    restart: unless-stopped
+    ports:
+      - "54512:80"
+    depends_on:
+      - api
+      - web
+      - space
+      - admin
+    env_file: plane.env
+    networks:
+      - project-mgmt
+
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:
+
+networks:
+  project-mgmt:
+    external: true

@@ -1,0 +1,3 @@
+# Shared network for all project-mgmt services
+# Run: docker network create project-mgmt
+name: project-mgmt

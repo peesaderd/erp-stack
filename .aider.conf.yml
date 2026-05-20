@@ -1,0 +1,17 @@
+# Aider Configuration - Optimized for Groq Free Tier (Max Token Saving)
+model: groq/llama-3.1-8b-instant
+map-tokens: 64
+no-auto-commits: true
+yes-always: true
+cache-prompts: false
+show-model-warnings: false
+max-chat-history-tokens: 512
+suggest-shell-commands: false
+lint: false
+no-check-update: true
+no-analytics: true
+no-restore-chat-history: true
+no-stream: true
+no-detect-urls: true
+attribute-author: false
+attribute-committer: false

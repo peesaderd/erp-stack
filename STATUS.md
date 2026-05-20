@@ -75,6 +75,7 @@
 
 - [ ] **OpenObserve**: หาวิธีเรียก API ให้ถูกต้อง (ปัจจุบัน 401)
 - [ ] **Plane**: ทดสอบ sign-in ผ่าน frontend
+- [x] **PM2 Layer**: สร้าง reverse proxy plane-proxy (id 53) ที่ port 54510 → 54512
 
 ---
 

@@ -37,3 +37,6 @@ project-mgmt/
 # Inner Monologue Agent
 .inner-monologue-memory/
 .hitl-flags/
+
+# Aider
+.aider*

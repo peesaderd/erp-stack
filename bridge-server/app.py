@@ -12,6 +12,18 @@ from config import settings
 
 app = FastAPI(title="ERP Bridge Server", version="1.0.0")
 
+def _parse_session_cookie(cookie_str: str) -> str | None:
+    """Extract session-id value from 'session-id=xxx' format."""
+    if not cookie_str:
+        return None
+    for part in cookie_str.split(";"):
+        part = part.strip()
+        if part.startswith("session-id="):
+            return part[len("session-id="):]
+    if cookie_str.startswith("session-id="):
+        return cookie_str[len("session-id="):]
+    return cookie_str if cookie_str else None
+
 class PlaneAPIWrapper:
     """Wrapper for Plane API with automatic session refresh."""
 
@@ -160,32 +172,12 @@ async def log_to_openobserve(level: str, source: str, event: str, data: dict):
     except Exception as exc:
         print(f"[Bridge] Failed to log to OpenObserve: {exc}")
 
-
 # ---------------------------------------------------------------------------
 # Plane session auto-refresh
 # ---------------------------------------------------------------------------
-
-_plane_session_key: str | None = None
-
-
-def _parse_session_cookie(cookie_str: str) -> str | None:
-    """Extract session-id value from 'session-id=xxx' format."""
-    if not cookie_str:
-        return None
-    for part in cookie_str.split(";"):
-        part = part.strip()
-        if part.startswith("session-id="):
-            return part[len("session-id="):]
-    if cookie_str.startswith("session-id="):
-        return cookie_str[len("session-id="):]
-    return cookie_str if cookie_str else None
-
-
 async def refresh_plane_session():
     """Login to Plane and update the session cookie in settings."""
     return await plane_api.refresh_session()
-
-
 def get_plane_session_cookie() -> str:
     """Return the current Plane session cookie value."""
     return plane_api.get_session_cookie()
@@ -479,7 +471,7 @@ async def full_health_check():
 
         try:
             # Use a simple endpoint that requires authentication
-            resp = await plane_api.request("GET", "/api/workspaces/erp/projects/", timeout=5.0)
+            resp = await plane_api.request("GET", "/api/workspaces/erp-company/projects/", timeout=5.0)
             latency = int((time.time() - start_time) * 1000)
             if resp.status_code == 200:
                 plane_status = {"status": "connected", "latency_ms": latency}
@@ -529,9 +521,9 @@ async def full_health_check():
 
         try:
             url = f"{settings.bookstack_base_url}/api/books"
-            auth = (settings.bookstack_token_id, settings.bookstack_token_secret)
+            headers = {"Authorization": f"Token {settings.bookstack_token_id}:{settings.bookstack_token_secret}"}
             async with httpx.AsyncClient(timeout=5.0) as client:
-                resp = await client.get(url, auth=auth)
+                resp = await client.get(url, headers=headers)
                 latency = int((time.time() - start_time) * 1000)
                 if resp.status_code == 200:
                     bookstack_status = {"status": "connected", "latency_ms": latency}
@@ -554,14 +546,15 @@ async def full_health_check():
         start_time = time.time()
 
         try:
-            url = f"{settings.openobserve_base_url}/api/{settings.openobserve_org}/auth/login"
+            url = f"{settings.openobserve_base_url}/api/{settings.openobserve_org}/streams"
+            auth_cred = f"{settings.openobserve_login}:{settings.openobserve_password}"
+            import base64
+            auth_header = "Basic " + base64.b64encode(auth_cred.encode()).decode()
+            headers = {"Authorization": auth_header}
             async with httpx.AsyncClient(timeout=5.0) as client:
-                resp = await client.post(url, json={
-                    "login": settings.openobserve_login,
-                    "password": settings.openobserve_password,
-                })
+                resp = await client.get(url, headers=headers)
                 latency = int((time.time() - start_time) * 1000)
-                if resp.status_code == 200 and resp.json().get("token", {}).get("access_token"):
+                if resp.status_code == 200:
                     openobserve_status = {"status": "connected", "latency_ms": latency}
                 else:
                     openobserve_status = {

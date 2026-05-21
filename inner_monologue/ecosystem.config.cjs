@@ -1,7 +1,7 @@
 module.exports = {
   apps: [{
     name: 'inner-monologue-agent',
-    script: '/openhands/micromamba/envs/openhands/bin/python',
+    script: '/usr/bin/python3',
     cwd: '/workspace/erp-stack',
     args: [
       '-m', 'inner_monologue.main',

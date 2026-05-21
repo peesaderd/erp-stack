@@ -1,22 +1,50 @@
-"""FastAPI CRUD Router สำหรับ Module/Template/Entity/Plugin/App"""
+"""FastAPI CRUD Router สำหรับ Module/Template/Entity/Plugin/App
 
-from fastapi import APIRouter, HTTPException, Depends
-from sqlmodel import Session, select
-from typing import List
+มี endpoints:
+- POST/GET list/GET by id/PUT/PATCH/DELETE สำหรับทุก entity
+- search query parameter สำหรับ list endpoints
+"""
+
+from fastapi import APIRouter, HTTPException, Depends, Query
+from sqlmodel import Session, select, func
+from typing import List, Optional
 
 from models.entity import (
-    Module, ModuleCreate, ModuleRead,
-    Template, TemplateCreate, TemplateRead,
-    Entity, EntityCreate, EntityRead,
-    Plugin, PluginCreate, PluginRead,
-    App, AppCreate, AppRead,
+    Module, ModuleCreate, ModuleUpdate, ModuleRead,
+    Template, TemplateCreate, TemplateUpdate, TemplateRead,
+    Entity, EntityCreate, EntityUpdate, EntityRead,
+    Plugin, PluginCreate, PluginUpdate, PluginRead,
+    App, AppCreate, AppUpdate, AppRead,
 )
 from core.database import get_session
 
 router = APIRouter(prefix="/api/v1")
 
 
-# ─── Module CRUD ─────────────────────────────────────────────────────────
+# ─── Helper ──────────────────────────────────────────────────────────────
+
+def _apply_search(stmt, model, search: Optional[str]):
+    """เพิ่มเงื่อนไข search ใน query — ค้นหาจาก name, slug, description"""
+    if not search:
+        return stmt
+    pattern = f"%{search}%"
+    return stmt.where(
+        model.name.ilike(pattern)
+        | model.slug.ilike(pattern)
+        | model.description.ilike(pattern)
+    )
+
+
+def _patch_model(db_obj, update_data: dict):
+    """อัปเดตเฉพาะ field ที่ส่งมา (ไม่ใช่ None)"""
+    for key, val in update_data.items():
+        if val is not None:
+            setattr(db_obj, key, val)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Module CRUD
+# ═══════════════════════════════════════════════════════════════════════════
 
 @router.post("/modules", response_model=ModuleRead)
 def create_module(module: ModuleCreate, session: Session = Depends(get_session)):
@@ -28,8 +56,19 @@ def create_module(module: ModuleCreate, session: Session = Depends(get_session))
 
 
 @router.get("/modules", response_model=List[ModuleRead])
-def list_modules(session: Session = Depends(get_session)):
-    return session.exec(select(Module)).all()
+def list_modules(
+    search: Optional[str] = Query(None, description="ค้นหาจาก name, slug, description"),
+    enabled: Optional[bool] = Query(None, description="กรองตามสถานะ"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    session: Session = Depends(get_session),
+):
+    stmt = select(Module)
+    stmt = _apply_search(stmt, Module, search)
+    if enabled is not None:
+        stmt = stmt.where(Module.enabled == enabled)
+    stmt = stmt.offset(skip).limit(limit)
+    return session.exec(stmt).all()
 
 
 @router.get("/modules/{module_id}", response_model=ModuleRead)
@@ -37,6 +76,17 @@ def get_module(module_id: int, session: Session = Depends(get_session)):
     module = session.get(Module, module_id)
     if not module:
         raise HTTPException(status_code=404, detail="Module not found")
+    return module
+
+
+@router.put("/modules/{module_id}", response_model=ModuleRead)
+def update_module(module_id: int, data: ModuleUpdate, session: Session = Depends(get_session)):
+    module = session.get(Module, module_id)
+    if not module:
+        raise HTTPException(status_code=404, detail="Module not found")
+    _patch_model(module, data.model_dump())
+    session.commit()
+    session.refresh(module)
     return module
 
 
@@ -50,7 +100,9 @@ def delete_module(module_id: int, session: Session = Depends(get_session)):
     return {"ok": True}
 
 
-# ─── Template CRUD ───────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════════
+# Template CRUD
+# ═══════════════════════════════════════════════════════════════════════════
 
 @router.post("/templates", response_model=TemplateRead)
 def create_template(template: TemplateCreate, session: Session = Depends(get_session)):
@@ -62,8 +114,22 @@ def create_template(template: TemplateCreate, session: Session = Depends(get_ses
 
 
 @router.get("/templates", response_model=List[TemplateRead])
-def list_templates(session: Session = Depends(get_session)):
-    return session.exec(select(Template)).all()
+def list_templates(
+    search: Optional[str] = Query(None, description="ค้นหาจาก name, slug, description"),
+    template_type: Optional[str] = Query(None, description="กรองตามประเภท (entity/module/plugin)"),
+    module_id: Optional[int] = Query(None, description="กรองตาม module"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    session: Session = Depends(get_session),
+):
+    stmt = select(Template)
+    stmt = _apply_search(stmt, Template, search)
+    if template_type:
+        stmt = stmt.where(Template.template_type == template_type)
+    if module_id is not None:
+        stmt = stmt.where(Template.module_id == module_id)
+    stmt = stmt.offset(skip).limit(limit)
+    return session.exec(stmt).all()
 
 
 @router.get("/templates/{template_id}", response_model=TemplateRead)
@@ -74,7 +140,30 @@ def get_template(template_id: int, session: Session = Depends(get_session)):
     return template
 
 
-# ─── Entity CRUD ─────────────────────────────────────────────────────────
+@router.put("/templates/{template_id}", response_model=TemplateRead)
+def update_template(template_id: int, data: TemplateUpdate, session: Session = Depends(get_session)):
+    template = session.get(Template, template_id)
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+    _patch_model(template, data.model_dump())
+    session.commit()
+    session.refresh(template)
+    return template
+
+
+@router.delete("/templates/{template_id}")
+def delete_template(template_id: int, session: Session = Depends(get_session)):
+    template = session.get(Template, template_id)
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+    session.delete(template)
+    session.commit()
+    return {"ok": True}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Entity CRUD
+# ═══════════════════════════════════════════════════════════════════════════
 
 @router.post("/entities", response_model=EntityRead)
 def create_entity(entity: EntityCreate, session: Session = Depends(get_session)):
@@ -86,8 +175,22 @@ def create_entity(entity: EntityCreate, session: Session = Depends(get_session))
 
 
 @router.get("/entities", response_model=List[EntityRead])
-def list_entities(session: Session = Depends(get_session)):
-    return session.exec(select(Entity)).all()
+def list_entities(
+    search: Optional[str] = Query(None, description="ค้นหาจาก name, slug, description"),
+    module_id: Optional[int] = Query(None, description="กรองตาม module"),
+    tag: Optional[str] = Query(None, description="กรองตาม tag (ค้นหาใน tags field)"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    session: Session = Depends(get_session),
+):
+    stmt = select(Entity)
+    stmt = _apply_search(stmt, Entity, search)
+    if module_id is not None:
+        stmt = stmt.where(Entity.module_id == module_id)
+    if tag:
+        stmt = stmt.where(Entity.tags.ilike(f"%{tag}%"))
+    stmt = stmt.offset(skip).limit(limit)
+    return session.exec(stmt).all()
 
 
 @router.get("/entities/{entity_id}", response_model=EntityRead)
@@ -98,7 +201,30 @@ def get_entity(entity_id: int, session: Session = Depends(get_session)):
     return entity
 
 
-# ─── Plugin CRUD ─────────────────────────────────────────────────────────
+@router.put("/entities/{entity_id}", response_model=EntityRead)
+def update_entity(entity_id: int, data: EntityUpdate, session: Session = Depends(get_session)):
+    entity = session.get(Entity, entity_id)
+    if not entity:
+        raise HTTPException(status_code=404, detail="Entity not found")
+    _patch_model(entity, data.model_dump())
+    session.commit()
+    session.refresh(entity)
+    return entity
+
+
+@router.delete("/entities/{entity_id}")
+def delete_entity(entity_id: int, session: Session = Depends(get_session)):
+    entity = session.get(Entity, entity_id)
+    if not entity:
+        raise HTTPException(status_code=404, detail="Entity not found")
+    session.delete(entity)
+    session.commit()
+    return {"ok": True}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Plugin CRUD
+# ═══════════════════════════════════════════════════════════════════════════
 
 @router.post("/plugins", response_model=PluginRead)
 def create_plugin(plugin: PluginCreate, session: Session = Depends(get_session)):
@@ -110,8 +236,19 @@ def create_plugin(plugin: PluginCreate, session: Session = Depends(get_session))
 
 
 @router.get("/plugins", response_model=List[PluginRead])
-def list_plugins(session: Session = Depends(get_session)):
-    return session.exec(select(Plugin)).all()
+def list_plugins(
+    search: Optional[str] = Query(None, description="ค้นหาจาก name, slug, description"),
+    enabled: Optional[bool] = Query(None, description="กรองตามสถานะ"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    session: Session = Depends(get_session),
+):
+    stmt = select(Plugin)
+    stmt = _apply_search(stmt, Plugin, search)
+    if enabled is not None:
+        stmt = stmt.where(Plugin.enabled == enabled)
+    stmt = stmt.offset(skip).limit(limit)
+    return session.exec(stmt).all()
 
 
 @router.get("/plugins/{plugin_id}", response_model=PluginRead)
@@ -122,7 +259,30 @@ def get_plugin(plugin_id: int, session: Session = Depends(get_session)):
     return plugin
 
 
-# ─── App CRUD ────────────────────────────────────────────────────────────
+@router.put("/plugins/{plugin_id}", response_model=PluginRead)
+def update_plugin(plugin_id: int, data: PluginUpdate, session: Session = Depends(get_session)):
+    plugin = session.get(Plugin, plugin_id)
+    if not plugin:
+        raise HTTPException(status_code=404, detail="Plugin not found")
+    _patch_model(plugin, data.model_dump())
+    session.commit()
+    session.refresh(plugin)
+    return plugin
+
+
+@router.delete("/plugins/{plugin_id}")
+def delete_plugin(plugin_id: int, session: Session = Depends(get_session)):
+    plugin = session.get(Plugin, plugin_id)
+    if not plugin:
+        raise HTTPException(status_code=404, detail="Plugin not found")
+    session.delete(plugin)
+    session.commit()
+    return {"ok": True}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# App CRUD
+# ═══════════════════════════════════════════════════════════════════════════
 
 @router.post("/apps", response_model=AppRead)
 def create_app(app: AppCreate, session: Session = Depends(get_session)):
@@ -134,8 +294,19 @@ def create_app(app: AppCreate, session: Session = Depends(get_session)):
 
 
 @router.get("/apps", response_model=List[AppRead])
-def list_apps(session: Session = Depends(get_session)):
-    return session.exec(select(App)).all()
+def list_apps(
+    search: Optional[str] = Query(None, description="ค้นหาจาก name, slug, description"),
+    enabled: Optional[bool] = Query(None, description="กรองตามสถานะ"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    session: Session = Depends(get_session),
+):
+    stmt = select(App)
+    stmt = _apply_search(stmt, App, search)
+    if enabled is not None:
+        stmt = stmt.where(App.enabled == enabled)
+    stmt = stmt.offset(skip).limit(limit)
+    return session.exec(stmt).all()
 
 
 @router.get("/apps/{app_id}", response_model=AppRead)
@@ -144,3 +315,40 @@ def get_app(app_id: int, session: Session = Depends(get_session)):
     if not app:
         raise HTTPException(status_code=404, detail="App not found")
     return app
+
+
+@router.put("/apps/{app_id}", response_model=AppRead)
+def update_app(app_id: int, data: AppUpdate, session: Session = Depends(get_session)):
+    app = session.get(App, app_id)
+    if not app:
+        raise HTTPException(status_code=404, detail="App not found")
+    _patch_model(app, data.model_dump())
+    session.commit()
+    session.refresh(app)
+    return app
+
+
+@router.delete("/apps/{app_id}")
+def delete_app(app_id: int, session: Session = Depends(get_session)):
+    app = session.get(App, app_id)
+    if not app:
+        raise HTTPException(status_code=404, detail="App not found")
+    session.delete(app)
+    session.commit()
+    return {"ok": True}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Stats
+# ═══════════════════════════════════════════════════════════════════════════
+
+@router.get("/stats")
+def get_stats(session: Session = Depends(get_session)):
+    """ดูสถิติของระบบ — จำนวน entity แต่ละประเภท"""
+    return {
+        "modules": session.exec(select(func.count(Module.id))).one(),
+        "templates": session.exec(select(func.count(Template.id))).one(),
+        "entities": session.exec(select(func.count(Entity.id))).one(),
+        "plugins": session.exec(select(func.count(Plugin.id))).one(),
+        "apps": session.exec(select(func.count(App.id))).one(),
+    }

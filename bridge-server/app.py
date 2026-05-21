@@ -183,43 +183,12 @@ def _parse_session_cookie(cookie_str: str) -> str | None:
 
 async def refresh_plane_session():
     """Login to Plane and update the session cookie in settings."""
-    global _plane_session_key
-    csrf_url = f"{settings.plane_base_url}/auth/get-csrf-token/"
-    login_url = f"{settings.plane_base_url}/auth/sign-in/"
-    async with httpx.AsyncClient(timeout=10) as client:
-        # Step 1: get CSRF token
-        resp = await client.get(csrf_url)
-        csrf_token = resp.json().get("csrf_token", "")
-        csrfcookie = resp.cookies.get("csrftoken", "")
-        # Step 2: login with form data
-        headers = {
-            "Content-Type": "application/x-www-form-urlencoded",
-            "X-CSRFToken": csrf_token,
-            "Referer": settings.plane_base_url,
-        }
-        if csrfcookie:
-            client.cookies.set("csrftoken", csrfcookie)
-        login_resp = await client.post(
-            login_url,
-            data={"email": settings.plane_email, "password": settings.plane_password},
-            headers=headers,
-            follow_redirects=False,
-        )
-        session_key = login_resp.cookies.get("session-id")
-        if session_key:
-            _plane_session_key = session_key
-            settings.plane_cookie = f"session-id={session_key}"
-            print(f"[Bridge] Plane session refreshed: {session_key[:16]}...")
-            return True
-        print(f"[Bridge] Plane session refresh failed (status={login_resp.status_code})")
-        return False
+    return await plane_api.refresh_session()
 
 
 def get_plane_session_cookie() -> str:
     """Return the current Plane session cookie value."""
-    if _plane_session_key:
-        return f"session-id={_plane_session_key}"
-    return settings.plane_cookie
+    return plane_api.get_session_cookie()
 
 
 # ---------------------------------------------------------------------------

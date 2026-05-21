@@ -11,7 +11,7 @@ module.exports = {
     ],
     env: {
       PYTHONPATH: '/home/openhands/erp-stack',
-      DEEPSEEK_API_KEY: process.env.DEEPSEEK_API_KEY || '',
+      DEEPSEEK_API_KEY: 'sk-704a41bad6e249dc83a0f7e344871149',
       GROQ_API_KEY: process.env.GROQ_API_KEY || '',
       MISTRAL_API_KEY: process.env.MISTRAL_API_KEY || '',
     },

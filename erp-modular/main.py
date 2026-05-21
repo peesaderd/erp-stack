@@ -84,17 +84,27 @@ def get_agent_logs(limit: int = 50, status: str = ""):
 
 @app.post("/agent/logs")
 def post_agent_log(
-    activity: str,
-    detail: str = "",
-    status: str = "info",
-    request: Request = None,
+    request: Request,
 ):
     """รับ Log จาก Agent ภายนอก (เช่น inner-monologue-agent)"""
+    # รองรับทั้ง JSON body และ query params
+    try:
+        body = request.json() if request.headers.get("content-type", "").startswith("application/json") else {}
+    except Exception:
+        body = {}
+
+    activity = body.get("activity", request.query_params.get("activity", ""))
+    detail = body.get("detail", request.query_params.get("detail", ""))
+    status = body.get("status", request.query_params.get("status", "info"))
+
+    if not activity:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="activity is required")
+
     # ตรวจสอบ secret token ถ้ามี
     auth_header = request.headers.get("Authorization", "") if request else ""
     expected_token = "erp-agent-log-2026"
     if auth_header and not auth_header.endswith(expected_token):
-        # ถ้ามี Authorization header แต่ไม่ตรง — ไม่อนุญาต
         if auth_header.startswith("Bearer "):
             from fastapi import HTTPException
             raise HTTPException(status_code=403, detail="Invalid token")

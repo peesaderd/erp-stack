@@ -20,6 +20,7 @@ from .resilience import (
     FallbackProvider,
     CircuitBreaker,
     CircuitBreakerOpenError,
+    StuckDetector,
     parse_structured_response,
     extract_json,
 )
@@ -212,6 +213,12 @@ class InnerMonologueAgent:
         # Resilience components
         self.retry_strategy = RetryStrategy(max_retries=3, base_delay=1.0, max_delay=30.0)
         self.circuit_breaker = CircuitBreaker(failure_threshold=5, recovery_timeout=60.0)
+        self.stuck_detector = StuckDetector(
+            same_action_threshold=3,
+            same_thought_threshold=3,
+            no_progress_rounds=6,
+            max_consecutive_errors=4,
+        )
         self._setup_fallback_providers()
 
         # โหลดประวัติเก่า
@@ -266,6 +273,7 @@ class InnerMonologueAgent:
         self._done = False
         self._round = 0
         self._conversation_history = []
+        self.stuck_detector.reset()
 
         self.heartbeat.start(task)
         self.hitl.clear_flags()
@@ -408,7 +416,8 @@ class InnerMonologueAgent:
     # ──────────────────────────── Core Loop ────────────────────────────
 
     def _loop(self) -> str:
-        """ReAct Loop หลัก - วนจนกว่าจะได้ข้อสรุป"""
+        """ReAct Loop หลัก - วนจนกว่าจะได้ข้อสรุป
+        มี Stuck Detection + Auto-Recovery ในตัว"""
         while self._round < self._max_rounds:
             self._round += 1
 
@@ -417,6 +426,7 @@ class InnerMonologueAgent:
             if thought_data is None:
                 # ถ้า JSON ไม่ถูกต้องแม้จะ retry แล้ว ให้ข้ามรอบ
                 self.heartbeat.beat("error", f"รอบที่ {self._round}: JSON ไม่ถูกต้อง (คิด)")
+                self.stuck_detector.check(self._round, "", "", "", is_error=True)
                 continue
 
             thought_content = thought_data["content"]
@@ -428,6 +438,7 @@ class InnerMonologueAgent:
             action_data = self._act(thought_data)
             if action_data is None:
                 self.heartbeat.beat("error", f"รอบที่ {self._round}: JSON ไม่ถูกต้อง (action)")
+                self.stuck_detector.check(self._round, thought_content, "", "", is_error=True)
                 continue
 
             action_type = action_data["action_type"]
@@ -440,6 +451,32 @@ class InnerMonologueAgent:
             self._history.append({"type": "action", "content": f"{action_type}: {action_content}", "round": self._round})
             self.memory.add_entry("action", f"{action_type}: {action_content}")
             self.heartbeat.beat("act", f"{action_type}: {action_content[:80]}")
+
+            # ─── Stuck Detection ก่อน Observe ───
+            stuck_info = self.stuck_detector.check(
+                self._round,
+                thought_content,
+                action_type,
+                action_content,
+                is_error=False,
+            )
+            if stuck_info:
+                reason = stuck_info["reason"]
+                print(f"\n  ⚠️ [StuckDetector] {reason}")
+                self.heartbeat.beat("stuck", reason)
+
+                # Auto-recovery: ให้ LLM รู้ว่าติดและต้องเปลี่ยนวิธี
+                recovery_prompt = self.stuck_detector.get_recovery_prompt(stuck_info)
+                recovery_response = self._call_llm(recovery_prompt)
+                print(f"  🔄 Auto-recovery: {recovery_response[:100]}...")
+
+                # ลอง parse recovery response
+                recovery_data = parse_structured_response(recovery_response, "done")
+                if recovery_data:
+                    return self._finalize(recovery_data.get("content", "สรุปจาก stuck recovery"))
+
+                # ถ้า recovery ไม่ได้ผล → force done
+                return self._finalize(f"⚠️ ตรวจจับได้ว่าติดลูป: {reason}")
 
             # 3. OBSERVE - รัน action
             observation = self._observe(action_type, action_content)

@@ -163,6 +163,161 @@ class CircuitBreakerOpenError(Exception):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# Stuck Detection
+# ═══════════════════════════════════════════════════════════════════════════
+
+class StuckDetector:
+    """ตรวจจับว่า Agent วนลูปหรือติดอยู่ — พร้อม auto-recovery"""
+
+    def __init__(
+        self,
+        same_action_threshold: int = 3,    # action ซ้ำกันกี่รอบถึงถือว่าติด
+        same_thought_threshold: int = 3,   # thought ซ้ำกันกี่รอบถึงถือว่าติด
+        no_progress_rounds: int = 6,       # กี่รอบแล้วไม่มีความคืบหน้า
+        max_consecutive_errors: int = 4,   # error ติดกันกี่รอบถึงถือว่าติด
+    ):
+        self.same_action_threshold = same_action_threshold
+        self.same_thought_threshold = same_thought_threshold
+        self.no_progress_rounds = no_progress_rounds
+        self.max_consecutive_errors = max_consecutive_errors
+
+        # State
+        self._last_action: str = ""
+        self._same_action_count = 0
+        self._last_thought: str = ""
+        self._same_thought_count = 0
+        self._consecutive_errors = 0
+        self._rounds_since_progress = 0
+        self._last_unique_action: str = ""
+        self._recovery_attempted = False
+
+    def check(
+        self,
+        round_num: int,
+        thought: str,
+        action_type: str,
+        action_content: str,
+        is_error: bool = False,
+    ) -> Optional[dict]:
+        """ตรวจสอบว่า Agent ติดหรือไม่
+        คืนค่า None ถ้าปกติ, คืนค่า dict ถ้าติด:
+            {"stuck": True, "reason": str, "recovery": str}
+        """
+        action_key = f"{action_type}:{action_content.strip()[:50]}" if action_type else ""
+        thought_key = thought.strip()[:50] if thought else ""
+
+        # ─── 1. Consecutive errors ───
+        if is_error:
+            self._consecutive_errors += 1
+            if self._consecutive_errors >= self.max_consecutive_errors:
+                return {
+                    "stuck": True,
+                    "reason": f"error ติดกัน {self._consecutive_errors} รอบ",
+                    "recovery": "simplify_task",
+                }
+            # ยังไม่ถึง threshold — แค่ increment แล้ว return None
+            # ไม่เช็ค action/thought ซ้ำ เพราะเป็น error
+            return None
+
+        # ไม่ใช่ error — reset error count
+        self._consecutive_errors = 0
+
+        # ─── 2. Same action detection ───
+        if action_key and action_key == self._last_action:
+            self._same_action_count += 1
+        else:
+            self._same_action_count = 0
+            self._last_unique_action = action_key
+        self._last_action = action_key
+
+        if self._same_action_count >= self.same_action_threshold:
+            return {
+                "stuck": True,
+                "reason": f"action ซ้ำ {self._same_action_count} รอบ: {action_key}",
+                "recovery": "try_different_approach",
+            }
+
+        # ─── 3. Same thought detection ───
+        if thought_key and thought_key == self._last_thought:
+            self._same_thought_count += 1
+        else:
+            self._same_thought_count = 0
+        self._last_thought = thought_key
+
+        if self._same_thought_count >= self.same_thought_threshold:
+            return {
+                "stuck": True,
+                "reason": f"thought ซ้ำ {self._same_thought_count} รอบ: {thought_key}",
+                "recovery": "try_different_approach",
+            }
+
+        # ─── 4. No progress detection ───
+        if action_type in ("terminal", "file", "read"):
+            if action_key == self._last_unique_action:
+                self._rounds_since_progress += 1
+            else:
+                self._rounds_since_progress = 0
+        else:
+            self._rounds_since_progress = 0
+
+        if self._rounds_since_progress >= self.no_progress_rounds:
+            return {
+                "stuck": True,
+                "reason": f"ไม่มีความคืบหน้า {self._rounds_since_progress} รอบ (แค่ explore อย่างเดียว)",
+                "recovery": "force_conclusion",
+            }
+
+        return None
+
+    def get_recovery_prompt(self, stuck_info: dict) -> str:
+        """สร้าง prompt สำหรับ auto-recovery เมื่อ Agent ติด"""
+        reason = stuck_info.get("reason", "ไม่ทราบสาเหตุ")
+        recovery = stuck_info.get("recovery", "try_different_approach")
+
+        prompts = {
+            "try_different_approach": (
+                "คุณกำลังทำงานซ้ำๆ โดยไม่ได้ผลลัพธ์ใหม่\n"
+                "ให้เปลี่ยนวิธีการ:\n"
+                "- ถ้าสำรวจไปหลายรอบแล้ว → สรุปผลเลย\n"
+                "- ถ้ารันคำสั่งเดิมซ้ำ → ลองคำสั่งอื่น\n"
+                "- ถ้าอ่านไฟล์เดิมซ้ำ → ใช้ข้อมูลที่มีสรุปเลย"
+            ),
+            "simplify_task": (
+                "คุณเจอข้อผิดพลาดหลายครั้งติดต่อกัน\n"
+                "ให้:\n"
+                "- ลดความซับซ้อนของงาน\n"
+                "- ถ้า error ไม่หาย → สรุปว่าทำไม่ได้และแนะนำวิธีแก้\n"
+                "- อย่าพยายามซ้ำในสิ่งเดิม"
+            ),
+            "force_conclusion": (
+                "คุณสำรวจมานานแล้ว但没有ได้ข้อสรุป\n"
+                "ให้:\n"
+                "- ใช้ข้อมูลที่มีอยู่ตอนนี้สรุปผล\n"
+                "- ถ้าข้อมูลไม่พอ → สรุปว่าขาดอะไรและแนะนำแนวทาง\n"
+                "- อย่าสำรวจเพิ่ม"
+            ),
+        }
+
+        recovery_msg = prompts.get(recovery, prompts["force_conclusion"])
+        return f"""⚠️ ตรวจพบว่าคุณติดลูป: {reason}
+
+{recovery_msg}
+
+ให้ตอบ type="done" พร้อม summary ทันที"""
+
+    def reset(self):
+        """รีเซ็ตสถานะทั้งหมด"""
+        self._last_action = ""
+        self._same_action_count = 0
+        self._last_thought = ""
+        self._same_thought_count = 0
+        self._consecutive_errors = 0
+        self._rounds_since_progress = 0
+        self._last_unique_action = ""
+        self._recovery_attempted = False
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # JSON Schema Validation
 # ═══════════════════════════════════════════════════════════════════════════
 

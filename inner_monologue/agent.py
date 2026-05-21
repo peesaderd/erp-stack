@@ -610,8 +610,9 @@ class InnerMonologueAgent:
     def _handle_file(self, action: str) -> str:
         """จัดการกับ file action"""
         action = action.strip()
-        if action.startswith("read "):
-            path = action[5:].strip()
+        if action.startswith("read:") or action.startswith("read "):
+            prefix = "read:" if action.startswith("read:") else "read "
+            path = action[len(prefix):].strip()
             full_path = os.path.join(self.workspace, path) if not path.startswith("/") else path
             try:
                 with open(full_path, "r", encoding="utf-8") as f:
@@ -620,9 +621,10 @@ class InnerMonologueAgent:
                 return f"Error: ไม่พบไฟล์ {path}"
             except Exception as e:
                 return f"Error อ่านไฟล์: {e}"
-        elif action.startswith("write "):
-            # write: path\ncontent
-            rest = action[6:].strip()
+        elif action.startswith("write:") or action.startswith("write "):
+            # write: path\ncontent  หรือ write path\ncontent
+            prefix = "write:" if action.startswith("write:") else "write "
+            rest = action[len(prefix):].strip()
             if "\n" in rest:
                 path, content = rest.split("\n", 1)
                 path = path.strip()
@@ -631,12 +633,13 @@ class InnerMonologueAgent:
                     os.makedirs(os.path.dirname(full_path), exist_ok=True)
                     with open(full_path, "w", encoding="utf-8") as f:
                         f.write(content)
-                    return f"เขียนไฟล์ {path} สำเร็จ"
+                    return f"เขียนไฟล์ {path} สำเร็จ ({len(content)} ตัวอักษร)"
                 except Exception as e:
                     return f"Error เขียนไฟล์: {e}"
-            return "Error: รูปแบบไม่ถูกต้อง ใช้: write: path\\ncontent"
-        elif action.startswith("list "):
-            path = action[5:].strip()
+            return "Error: รูปแบบไม่ถูกต้อง ใช้: write: path/to/file\\nเนื้อหาไฟล์..."
+        elif action.startswith("list:") or action.startswith("list "):
+            prefix = "list:" if action.startswith("list:") else "list "
+            path = action[len(prefix):].strip()
             full_path = os.path.join(self.workspace, path) if not path.startswith("/") else path
             try:
                 items = os.listdir(full_path)

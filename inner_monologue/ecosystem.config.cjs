@@ -2,11 +2,11 @@ module.exports = {
   apps: [{
     name: 'inner-monologue-agent',
     script: '/usr/bin/python3',
-    cwd: '/workspace/erp-stack',
+    cwd: '/home/openhands/erp-stack',
     args: [
       '-m', 'inner_monologue.main',
       '--model', 'mistral/mistral-large-latest',
-      '--workspace', '/workspace/erp-stack',
+      '--workspace', '/home/openhands/erp-stack',
       'รัน Agent รอรับคำสั่ง...',
     ],
     env: {
@@ -15,9 +15,9 @@ module.exports = {
     // Restart if memory exceeds 200MB
     max_memory_restart: '200M',
     // Log configuration
-    error_file: '/workspace/erp-stack/inner_monologue/logs/agent-error.log',
-    out_file: '/workspace/erp-stack/inner_monologue/logs/agent-out.log',
-    log_file: '/workspace/erp-stack/inner_monologue/logs/agent-combined.log',
+    error_file: './logs/agent-error.log',
+    out_file: './logs/agent-out.log',
+    log_file: './logs/agent-combined.log',
     time: true,
     // Auto-restart on crash
     autorestart: true,

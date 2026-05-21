@@ -1,10 +1,12 @@
 """
 Inner Monologue Agent — ตัวแทนที่มีกระบวนการคิดภายใน (Inner Monologue)
 ใช้ ReAct Loop: Thought → Action → Observation
+ใช้ Structured Output (JSON) เพื่อป้องกัน hallucination
 """
 
 import json
 import os
+import re
 import subprocess
 import time
 from typing import Optional
@@ -15,10 +17,69 @@ from .self_reflection import SelfReflection
 from .hitl import HITL
 
 
+# ──────────────────────────── JSON Schema ────────────────────────────
+
+THOUGHT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "type": {"type": "string", "enum": ["thought"]},
+        "content": {"type": "string", "description": "สิ่งที่กำลังคิด ใช้ภาษาไทย"},
+        "suggested_action": {"type": "string", "description": "action ที่คิดว่าจะทำต่อไป (optional)"},
+    },
+    "required": ["type", "content"],
+}
+
+ACTION_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "type": {"type": "string", "enum": ["action"]},
+        "action_type": {"type": "string", "enum": ["terminal", "file", "code", "done"]},
+        "content": {"type": "string", "description": "รายละเอียดของ action"},
+    },
+    "required": ["type", "action_type", "content"],
+}
+
+DONE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "type": {"type": "string", "enum": ["done"]},
+        "content": {"type": "string", "description": "สรุปผลลัพธ์"},
+        "summary": {"type": "string", "description": "รายละเอียดเพิ่มเติม (optional)"},
+    },
+    "required": ["type", "content"],
+}
+
+ALLOWED_TYPES = {"thought", "action", "done"}
+ALLOWED_ACTION_TYPES = {"terminal", "file", "code", "done"}
+
+JSON_SYSTEM_INSTRUCTION = """
+## รูปแบบการตอบสนอง
+คุณต้องตอบในรูปแบบ JSON เท่านั้น ห้ามมีข้อความอื่นนอกเหนือจาก JSON
+
+### ถ้าต้องการคิด:
+```json
+{"type": "thought", "content": "สิ่งที่กำลังคิด", "suggested_action": "action ที่จะทำ"}
+```
+
+### ถ้าต้องการลงมือทำ:
+```json
+{"type": "action", "action_type": "terminal", "content": "ls -la /workspace/"}
+```
+action_type มีค่าได้: "terminal", "file", "code", "done"
+
+### ถ้าต้องการสรุปว่าเสร็จ:
+```json
+{"type": "done", "content": "สรุปผล", "summary": "รายละเอียดเพิ่มเติม"}
+```
+
+ห้ามตอบหลาย JSON ในครั้งเดียว ห้ามมีข้อความอธิบายเพิ่มเติมนอก JSON
+ตอบได้ครั้งละ 1 JSON object เท่านั้น"""
+
+
 class MockLLM:
     """LLM จำลองสำหรับทดสอบ — ไม่ต้องใช้ API จริง
     ตอบทีละขั้นตอนเพื่อให้เห็น ReAct Loop ครบวงจร
-    จำ state ได้: รอบ 1 = think, รอบ 2 = act, รอบ 3 = done"""
+    จำ state ได้: think → act → observe → think → act → observe → done"""
 
     def __init__(self, responses: Optional[list[str]] = None):
         self.responses = responses or []
@@ -33,45 +94,39 @@ class MockLLM:
 
         prompt = messages[-1]["content"] if messages else ""
 
-        # act prompt — ตอบ action
-        if "terminal:" in prompt or "action ที่จะทำ" in prompt:
-            return "⚡ ACTION: terminal: ls -la /workspace/"
+        # act prompt — มี JSON example ที่มี "action_type"
+        if '"action_type"' in prompt and '"type": "action"' in prompt:
+            # ถ้า think_count >= 3 แสดงว่าคิดครบแล้ว → สั่ง done
+            if self._think_count >= 3:
+                return '{"type": "action", "action_type": "done", "content": "วิเคราะห์เสร็จสมบูรณ์"}'
+            return '{"type": "action", "action_type": "terminal", "content": "ls -la /workspace/"}'
 
-        # done — คิดครบ 3 รอบแล้ว
-        if self._think_count >= 3:
-            return "✅ DONE: วิเคราะห์เสร็จสมบูรณ์"
-
-        # think prompt
+        # think prompt — มี JSON example ที่มี "type": "thought"
         self._think_count += 1
         thoughts = [
-            "🧠 THOUGHT: ฉันควรสำรวจโครงสร้างโปรเจคก่อน เพื่อดูว่ามีอะไรบ้าง",
-            "🧠 THOUGHT: ฉันเห็นโครงสร้างโปรเจคแล้ว ควรวิเคราะห์ว่าแต่ละส่วนคืออะไร",
-            "🧠 THOUGHT: ฉันได้ข้อมูลครบแล้ว สามารถสรุปผลได้",
+            '{"type": "thought", "content": "ฉันควรสำรวจโครงสร้างโปรเจคก่อน เพื่อดูว่ามีอะไรบ้าง", "suggested_action": "terminal: ls -la /workspace/"}',
+            '{"type": "thought", "content": "ฉันเห็นโครงสร้างโปรเจคแล้ว ควรวิเคราะห์ว่าแต่ละส่วนคืออะไร", "suggested_action": "terminal: cat README.md"}',
+            '{"type": "thought", "content": "ฉันได้ข้อมูลครบแล้ว สามารถสรุปผลได้", "suggested_action": "done"}',
         ]
         return thoughts[min(self._think_count - 1, len(thoughts) - 1)]
 
 
 class InnerMonologueAgent:
-    """Agent ที่มี Inner Monologue — คิดก่อนทำ ดูผลก่อนคิดต่อ"""
+    """Agent ที่มี Inner Monologue — คิดก่อนทำ ดูผลก่อนคิดต่อ
+    ใช้ Structured Output (JSON) เพื่อป้องกัน hallucination"""
 
     SYSTEM_PROMPT = """คุณคือ Inner Monologue Agent ที่มีกระบวนการคิดภายใน (Inner Monologue)
 
 กฎการทำงาน:
 1. คิดทบทวนก่อนลงมือทำทุกครั้ง
 2. ใช้ขั้นตอน: คิด -> ทำ -> ดูผล -> คิดต่อ
-3. เมื่อได้ข้อสรุปแล้ว ให้เขียน READY_FOR_REVIEW.txt
+3. เมื่อได้ข้อสรุปแล้ว ให้ตอบ JSON type "done"
 4. ถ้าต้องการข้อมูลเพิ่ม ให้ใช้ tools ที่มี
 
 เครื่องมือที่มี:
 - terminal: รันคำสั่ง bash
 - file: อ่าน/เขียนไฟล์
 - code: แก้ไขโค้ด
-
-รูปแบบการตอบ:
-🧠 THOUGHT: สิ่งที่กำลังคิด (ใช้ภาษาไทย)
-⚡ ACTION: terminal: <คำสั่ง bash>
-📊 OBSERVATION: ผลลัพธ์ที่ได้
-✅ DONE: เมื่อเสร็จแล้ว
 
 ข้อควรปฏิบัติ:
 - คิดทีละขั้นตอน อย่าด่วนสรุป
@@ -147,6 +202,96 @@ class InnerMonologueAgent:
     def get_history(self) -> list[dict]:
         return self._history
 
+    # ──────────────────────────── JSON Parser ────────────────────────────
+
+    def _parse_json_response(self, response: str, expected_type: Optional[str] = None) -> Optional[dict]:
+        """Parse JSON จาก LLM response — รองรับ JSON ใน ```json ... ``` block"""
+        if not response or not response.strip():
+            return None
+
+        text = response.strip()
+
+        # ดึง JSON จาก ```json ... ``` block
+        json_match = re.search(r'```(?:json)?\s*\n?(\{.*?\})\n?\s*```', text, re.DOTALL)
+        if json_match:
+            text = json_match.group(1).strip()
+
+        # ลบ BOM และอักขระซ่อนเร้น
+        text = text.strip('\ufeff').strip()
+
+        # ถ้ายังขึ้นต้นด้วย { ไม่ได้ แสดงว่าไม่ใช่ JSON
+        if not text.startswith('{'):
+            return None
+
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError:
+            return None
+
+        # ตรวจสอบว่าเป็น dict
+        if not isinstance(data, dict):
+            return None
+
+        # ตรวจสอบ type field
+        msg_type = data.get("type", "")
+        if msg_type not in ALLOWED_TYPES:
+            return None
+
+        # ถ้ามี expected_type ตรวจสอบตรงกัน
+        if expected_type and msg_type != expected_type:
+            return None
+
+        # ตรวจสอบ schema ตาม type
+        if msg_type == "thought":
+            if "content" not in data or not isinstance(data["content"], str):
+                return None
+            return {"type": "thought", "content": data["content"], "suggested_action": data.get("suggested_action", "")}
+
+        elif msg_type == "action":
+            action_type = data.get("action_type", "")
+            if action_type not in ALLOWED_ACTION_TYPES:
+                return None
+            content = data.get("content", "")
+            if not isinstance(content, str) or not content.strip():
+                return None
+            return {"type": "action", "action_type": action_type, "content": content.strip()}
+
+        elif msg_type == "done":
+            content = data.get("content", "")
+            if not isinstance(content, str) or not content.strip():
+                return None
+            return {"type": "done", "content": content.strip(), "summary": data.get("summary", "")}
+
+        return None
+
+    def _call_llm_structured(self, prompt: str, expected_type: str, max_retries: int = 3) -> Optional[dict]:
+        """เรียก LLM และบังคับให้ตอบ JSON ตาม schema ที่กำหนด
+        ถ้า JSON ไม่ถูกต้อง จะ retry พร้อมแจ้ง error ให้ LLM แก้ไข"""
+        for attempt in range(max_retries):
+            response = self._call_llm(prompt)
+            parsed = self._parse_json_response(response, expected_type)
+
+            if parsed is not None:
+                return parsed
+
+            # ถ้า retry ครั้งสุดท้ายแล้ว ไม่ต้องส่ง prompt แก้ไข
+            if attempt >= max_retries - 1:
+                return None
+
+            # สร้าง error prompt สำหรับ retry
+            error_msg = f"คำตอบก่อนหน้านี้ไม่ถูกต้อง: {response[:200]}"
+            prompt = f"""{error_msg}
+
+กรุณาตอบเป็น JSON ที่ถูกต้องเท่านั้น:
+- type ต้องเป็น "{expected_type}"
+- ห้ามมีข้อความอื่นนอกเหนือจาก JSON
+- ใช้รูปแบบ:
+```json
+{{"type": "{expected_type}", ...}}
+```"""
+
+        return None
+
     # ──────────────────────────── Core Loop ────────────────────────────
 
     def _loop(self) -> str:
@@ -154,79 +299,73 @@ class InnerMonologueAgent:
         while self._round < self._max_rounds:
             self._round += 1
 
-            # 1. THINK
-            thought = self._think()
-            self._history.append({"type": "thought", "content": thought, "round": self._round})
-            self.memory.add_entry("thought", thought)
-            self.heartbeat.beat("think", f"รอบที่ {self._round}", thought)
+            # 1. THINK — คิดเป็น JSON
+            thought_data = self._think()
+            if thought_data is None:
+                # ถ้า JSON ไม่ถูกต้องแม้จะ retry แล้ว ให้ข้ามรอบ
+                self.heartbeat.beat("error", f"รอบที่ {self._round}: JSON ไม่ถูกต้อง (คิด)")
+                continue
 
-            # เช็คว่าคิดว่าเสร็จหรือยัง
-            if "[DONE]" in thought or "✅" in thought or "READY_FOR_REVIEW" in thought:
-                return self._finalize(thought)
+            thought_content = thought_data["content"]
+            self._history.append({"type": "thought", "content": thought_content, "round": self._round})
+            self.memory.add_entry("thought", thought_content)
+            self.heartbeat.beat("think", f"รอบที่ {self._round}", thought_content)
 
-            # 2. ACT
-            action = self._act(thought)
-            self._history.append({"type": "action", "content": action, "round": self._round})
-            self.memory.add_entry("action", action)
-            self.heartbeat.beat("act", action[:80])
+            # 2. ACT — ตัดสินใจ action เป็น JSON
+            action_data = self._act(thought_data)
+            if action_data is None:
+                self.heartbeat.beat("error", f"รอบที่ {self._round}: JSON ไม่ถูกต้อง (action)")
+                continue
 
-            # 3. OBSERVE
-            observation = self._observe(action)
+            action_type = action_data["action_type"]
+            action_content = action_data["content"]
+
+            # ถ้า action_type เป็น done → เสร็จ
+            if action_type == "done":
+                return self._finalize(action_content)
+
+            self._history.append({"type": "action", "content": f"{action_type}: {action_content}", "round": self._round})
+            self.memory.add_entry("action", f"{action_type}: {action_content}")
+            self.heartbeat.beat("act", f"{action_type}: {action_content[:80]}")
+
+            # 3. OBSERVE — รัน action
+            observation = self._observe(action_type, action_content)
             self._history.append({"type": "observation", "content": observation, "round": self._round})
             self.memory.add_entry("observation", observation)
             self.heartbeat.beat("observe", observation[:80])
 
             # อัปเดต Flag
-            self.hitl.flag_in_progress(f"รอบ {self._round}: {thought[:50]}")
+            self.hitl.flag_in_progress(f"รอบ {self._round}: {thought_content[:50]}")
 
         # เกินรอบ
         summary = f"⚠️ เกิน {self._max_rounds} รอบแล้ว — หยุดการทำงาน"
         self.heartbeat.beat("done", summary)
         return self._finalize(summary)
 
-    def _think(self) -> str:
-        """คิด — เรียก LLM เพื่อหาว่าควรทำอะไรต่อ"""
+    def _think(self) -> Optional[dict]:
+        """คิด — เรียก LLM เพื่อหาว่าควรทำอะไรต่อ
+        คืนค่า dict: {"type": "thought", "content": str, "suggested_action": str}
+        หรือ None ถ้า JSON ไม่ถูกต้อง"""
         prompt = self._build_think_prompt()
-        response = self._call_llm(prompt)
-        return response.strip()
+        return self._call_llm_structured(prompt, "thought")
 
-    def _act(self, thought: str) -> str:
-        """ตัดสินใจ action จาก thought — ดึง action ที่จะทำออกมา"""
-        prompt = self._build_act_prompt(thought)
-        response = self._call_llm(prompt)
-        # ตัด emoji prefix เฉพาะสำหรับ action (ไม่ตัด done)
-        cleaned = self._clean_action(response)
-        return cleaned or response.strip()
+    def _act(self, thought_data: dict) -> Optional[dict]:
+        """ตัดสินใจ action จาก thought
+        คืนค่า dict: {"type": "action", "action_type": str, "content": str}
+        หรือ None ถ้า JSON ไม่ถูกต้อง"""
+        prompt = self._build_act_prompt(thought_data)
+        return self._call_llm_structured(prompt, "action")
 
-    def _clean_action(self, action: str) -> str:
-        """ลบ emoji prefix และ label ต่างๆ ออกจาก action string"""
-        import re
-        # ลบ emoji + label เช่น "⚡ ACTION: ", "🧠 THOUGHT: ", "✅ DONE: "
-        cleaned = re.sub(r'^[^\w\s]*\s*(?:ACTION|THOUGHT|DONE|OBSERVATION)?\s*:\s*', '', action.strip())
-        # ถ้า cleaned ว่าง ให้ใช้ original
-        return cleaned.strip() or action.strip()
-
-    def _observe(self, action: str) -> str:
+    def _observe(self, action_type: str, action_content: str) -> str:
         """ดูผลลัพธ์ — รัน action และเก็บผล"""
-        action = action.strip()
-        cleaned = self._clean_action(action)
-
-        # ตรวจสอบว่าเป็น action ประเภทไหน (ลองทั้ง original และ cleaned)
-        for candidate in [cleaned, action]:
-            if candidate.startswith("terminal:"):
-                cmd = candidate[9:].strip()
-                return self._run_terminal(cmd)
-            elif candidate.startswith("file:"):
-                file_action = candidate[5:].strip()
-                return self._handle_file(file_action)
-            elif candidate.startswith("code:"):
-                code_action = candidate[5:].strip()
-                return self._handle_code(code_action)
-            elif candidate.startswith("done:") or candidate.startswith("[DONE]"):
-                return candidate
-
-        # ถ้าไม่ระบุ action type ให้ถือว่าเป็น terminal
-        return self._run_terminal(cleaned)
+        if action_type == "terminal":
+            return self._run_terminal(action_content)
+        elif action_type == "file":
+            return self._handle_file(action_content)
+        elif action_type == "code":
+            return self._handle_code(action_content)
+        else:
+            return f"Error: ไม่รู้จัก action type: {action_type}"
 
     # ──────────────────────────── LLM Call ────────────────────────────
 
@@ -247,6 +386,16 @@ class InnerMonologueAgent:
         # Fallback: requests โดยตรง
         return self._call_requests(prompt)
 
+    def _build_system_context(self) -> str:
+        """สร้าง system context รวม SYSTEM_PROMPT + JSON instruction + memory"""
+        parts = [self.SYSTEM_PROMPT, JSON_SYSTEM_INSTRUCTION]
+
+        context = self.memory.get_context(max_entries=10)
+        if context:
+            parts.append(f"\n## บริบทจากประวัติ:\n{context}")
+
+        return "\n".join(parts)
+
     def _call_litellm(self, prompt: str) -> str:
         """เรียก LLM ผ่าน litellm — รองรับหลาย provider"""
         import litellm
@@ -258,11 +407,8 @@ class InnerMonologueAgent:
             return self._llm.completion([{"role": "user", "content": prompt}]) if self._llm else "Error: ไม่มี API key"
 
         # Mistral จุกจิกเรื่อง system prompt ถ้าใช้ role system ซ้อนกันหลายอัน
-        # ใช้ system message เดียวรวม context
-        system_context = self.SYSTEM_PROMPT
-        context = self.memory.get_context(max_entries=10)
-        if context:
-            system_context += f"\n\n## บริบทจากประวัติ:\n{context}"
+        # ใช้ system message เดียวรวม context + JSON instruction
+        system_context = self._build_system_context()
 
         messages = [{"role": "system", "content": system_context}]
 
@@ -277,7 +423,7 @@ class InnerMonologueAgent:
                 model=model,
                 messages=messages,
                 max_tokens=2048,
-                temperature=0.7,
+                temperature=0.3,  # ลด temperature เพื่อให้ JSON แม่นยำขึ้น
                 api_key=api_key,
             )
             content = response.choices[0].message.content
@@ -298,11 +444,8 @@ class InnerMonologueAgent:
 
         model = self.llm_config.get("model", "mistral-large-latest")
 
-        # รวม system prompt + context เป็นอันเดียว (Mistral จุกจิกเรื่อง system ซ้อน)
-        system_context = self.SYSTEM_PROMPT
-        context = self.memory.get_context(max_entries=10)
-        if context:
-            system_context += f"\n\n## บริบทจากประวัติ:\n{context}"
+        # รวม system prompt + JSON instruction + context เป็นอันเดียว
+        system_context = self._build_system_context()
 
         messages = [{"role": "system", "content": system_context}]
         for msg in self._conversation_history[-6:]:
@@ -320,7 +463,7 @@ class InnerMonologueAgent:
                     "model": model,
                     "messages": messages,
                     "max_tokens": 2048,
-                    "temperature": 0.7,
+                    "temperature": 0.3,  # ลด temperature เพื่อให้ JSON แม่นยำขึ้น
                 },
                 timeout=30,
             )
@@ -356,12 +499,23 @@ class InnerMonologueAgent:
                 history_lines.append(f"[รอบ {r}] {t.upper()}: {c}")
             parts.append("## ประวัติการทำงาน:\n" + "\n".join(history_lines) + "\n")
 
-        parts.append("## ขั้นตอน:\n1. คิดทบทวนสถานการณ์ปัจจุบันจากประวัติ\n2. กำหนดว่าต้องทำอะไรต่อ\n3. ถ้าได้ข้อสรุปแล้ว ให้ขึ้นต้นด้วย [DONE]")
+        parts.append("""## ขั้นตอน:
+1. คิดทบทวนสถานการณ์ปัจจุบันจากประวัติ
+2. กำหนดว่าต้องทำอะไรต่อ
+3. ถ้าได้ข้อสรุปแล้ว ให้ตอบ type เป็น "done"
+
+ตอบเป็น JSON เท่านั้น:
+```json
+{"type": "thought", "content": "สิ่งที่กำลังคิด", "suggested_action": "action ที่จะทำ"}
+```""")
 
         return "\n".join(parts)
 
-    def _build_act_prompt(self, thought: str) -> str:
+    def _build_act_prompt(self, thought_data: dict) -> str:
         """สร้าง prompt สำหรับตัดสินใจ action — รวม observation ล่าสุด"""
+        thought_content = thought_data.get("content", "")
+        suggested = thought_data.get("suggested_action", "")
+
         # หา observation ล่าสุด
         last_obs = ""
         for h in reversed(self._history):
@@ -369,21 +523,25 @@ class InnerMonologueAgent:
                 last_obs = h["content"][:500]
                 break
 
-        prompt = f"""จากความคิดนี้: "{thought}"
+        prompt = f"""จากความคิดนี้: "{thought_content}"
 """
+        if suggested:
+            prompt += f"\nข้อเสนอแนะ: action ที่แนะนำคือ {suggested}\n"
+
         if last_obs:
             prompt += f"""\nผลลัพธ์ล่าสุดที่ได้:\n{last_obs}\n"""
 
-        prompt += """\nจงเลือก action ที่จะทำ โดยตอบในรูปแบบใดรูปแบบหนึ่งต่อไปนี้:
-- terminal: <คำสั่ง bash>
-- file: read <path> | write <path> | list <dir>
-- code: <คำอธิบายการแก้ไขโค้ด>
-- done: <สรุปผล>
+        prompt += """\nจงเลือก action ที่จะทำ โดยตอบเป็น JSON:
 
-ตัวอย่าง:
-- terminal: ls -la /workspace/
-- file: read /workspace/file.txt
-- done: วิเคราะห์เสร็จแล้ว พบว่า..."""
+```json
+{"type": "action", "action_type": "terminal", "content": "ls -la /workspace/"}
+```
+
+action_type มีค่าได้: "terminal", "file", "code", "done"
+- terminal: รันคำสั่ง bash
+- file: read <path> | write <path>\\n<content> | list <dir>
+- code: แก้ไขโค้ด
+- done: เมื่องานเสร็จสมบูรณ์"""
 
         return prompt
 
@@ -461,7 +619,7 @@ class InnerMonologueAgent:
 
     def _finalize(self, result: str) -> str:
         """สรุปผลและเขียน Flag File"""
-        summary = result.replace("[DONE]", "").replace("✅", "").strip()
+        summary = result.strip()
 
         # เขียน READY_FOR_REVIEW.txt
         ready_path = os.path.join(self.workspace, "READY_FOR_REVIEW.txt")

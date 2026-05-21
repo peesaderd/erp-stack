@@ -156,7 +156,7 @@ class InnerMonologueAgent:
         self._done = False
         self._history: list[dict] = []
         self._current_task = ""
-        self._max_rounds = 10
+        self._max_rounds = 20
         self._round = 0
         self._conversation_history: list[dict] = []  # สำหรับส่งให้ LLM
         self._response_cache: dict[str, str] = {}  # cache: prompt hash → response
@@ -572,7 +572,12 @@ class InnerMonologueAgent:
 
 ## คำสั่ง:
 - OUTPUT ONLY JSON. No text before or after.
-- รูปแบบ: {"type": "action", "action_type": "terminal|file|code|done", "content": "..."}"""
+- รูปแบบ: {"type": "action", "action_type": "terminal|file|code|done", "content": "..."}
+
+## รูปแบบ file action:
+- เขียนไฟล์: {"type": "action", "action_type": "file", "content": "write: path/to/file.py\\nเนื้อหาไฟล์..."}
+- อ่านไฟล์: {"type": "action", "action_type": "file", "content": "read: path/to/file.py"}
+- ดูรายการ: {"type": "action", "action_type": "file", "content": "list: path/to/dir"}"""
 
         return prompt
 

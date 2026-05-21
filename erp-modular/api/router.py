@@ -5,6 +5,7 @@
 - search query parameter สำหรับ list endpoints
 - Template Engine: render template
 - Plugin Registry: install/activate/deactivate/uninstall
+- Auth: JWT + RBAC (optional — ใช้ require_auth เมื่อต้องการ)
 """
 
 from fastapi import APIRouter, HTTPException, Depends, Query, Body
@@ -20,6 +21,7 @@ from models.entity import (
 )
 from core.database import get_session
 from core.template_engine import TemplateEngine
+from .auth import TokenData, require_auth, require_permission, require_role, PERM_ADMIN
 
 router = APIRouter(prefix="/api/v1")
 

@@ -121,10 +121,11 @@ def main():
         result_dir = os.path.join(task_dir, "..", ".agent-results")
         os.makedirs(task_dir, exist_ok=True)
         os.makedirs(result_dir, exist_ok=True)
-        print(f"\n  🧠 Agent Daemon เริ่มทำงานแล้ว")
-        print(f"  📥 รอรับ task ที่: {task_dir}/")
-        print(f"  📤 ผลลัพธ์จะอยู่ที่: {result_dir}/")
-        print(f"  ⏹ กด Ctrl+C เพื่อหยุด\n")
+        # flush=True เพื่อให้ PM2 เห็น log ทันที
+        print(f"\n  🧠 Agent Daemon เริ่มทำงานแล้ว", flush=True)
+        print(f"  📥 รอรับ task ที่: {task_dir}/", flush=True)
+        print(f"  📤 ผลลัพธ์จะอยู่ที่: {result_dir}/", flush=True)
+        print(f"  ⏹ กด Ctrl+C เพื่อหยุด\n", flush=True)
 
         processed = set()
         while True:
@@ -141,8 +142,8 @@ def main():
                         task_content = task_data.get("task", "")
                         task_id = task_data.get("id", task_file.replace(".json", ""))
 
-                        print(f"\n  📥 ได้รับ task: {task_id}")
-                        print(f"     {task_content[:100]}")
+                        print(f"\n  📥 ได้รับ task: {task_id}", flush=True)
+                        print(f"     {task_content[:100]}", flush=True)
 
                         # รัน Agent
                         result = agent.run(task_content)
@@ -158,11 +159,11 @@ def main():
                                 "timestamp": time.strftime('%Y-%m-%d %H:%M:%S'),
                             }, f, ensure_ascii=False, indent=2)
 
-                        print(f"  📤 ผลลัพธ์: {result_path}")
+                        print(f"  📤 ผลลัพธ์: {result_path}", flush=True)
                     except json.JSONDecodeError:
-                        print(f"  ❌ task {task_file} JSON ไม่ถูกต้อง")
+                        print(f"  ❌ task {task_file} JSON ไม่ถูกต้อง", flush=True)
                     except Exception as e:
-                        print(f"  ❌ task {task_file} error: {e}")
+                        print(f"  ❌ task {task_file} error: {e}", flush=True)
                     finally:
                         # ลบ task file ทิ้ง
                         try:
@@ -177,7 +178,7 @@ def main():
 
                 time.sleep(1)
             except KeyboardInterrupt:
-                print("\n\n  ⏹ หยุด Agent Daemon")
+                print("\n\n  ⏹ หยุด Agent Daemon", flush=True)
                 sys.exit(0)
 
     # ──── ปกติ: รัน task เดียวแล้วจบ ────

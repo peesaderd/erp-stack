@@ -131,7 +131,27 @@ class InnerMonologueAgent:
 2. ผลซ้ำ 3 รอบ → done บอกติด loop
 3. ไม่แน่ใจ → done บอกต้องการคำแนะนำ
 4. OUTPUT ONLY JSON. No text outside JSON.
-5. งานง่าย (date/time) → done หลังได้ข้อมูล"""
+5. งานง่าย (date/time) → done หลังได้ข้อมูล
+
+## Micro-agents (ความรู้เฉพาะทาง):
+
+### Python/SQLModel:
+- SQLModel table=True class: ห้ามใช้ Dict, List, Optional[Dict], Optional[List] ใช้ str แทนแล้ว JSON.stringify ตอนใช้งาน
+- ก่อน import ให้ pip install dependencies ก่อนเสมอ
+- ถ้า import ล้มเหลว ให้ตรวจสอบว่า dependencies ครบหรือยัง
+- ใช้ .venv/bin/activate (ไม่ใช่ source เพราะ shell เป็น /bin/sh)
+
+### Shell:
+- shell นี้เป็น /bin/sh ไม่ใช่ bash — ใช้ . venv/bin/activate แทน source
+- ใช้ python3 (ไม่ใช่ python)
+- ถ้าคำสั่งใช้เวลาเกิน 30 วิ จะ timeout
+
+### File Operations:
+- ก่อนเขียนทับไฟล์ ให้อ่านไฟล์เดิมก่อนเสมอ (read: path)
+- ถ้าไฟล์มีอยู่แล้ว ควรแก้ไขเฉพาะส่วนที่จำเป็น ไม่เขียนทับทั้งไฟล์
+- ใช้ write: path/to/file\\nเนื้อหา สำหรับเขียนไฟล์ใหม่
+- ใช้ read: path/to/file สำหรับอ่านไฟล์
+- ใช้ list: path/to/dir สำหรับดูรายการใน directory"""
 
     def __init__(
         self,
@@ -143,6 +163,7 @@ class InnerMonologueAgent:
         workspace: str = "/workspace",
         mock: bool = False,
         mock_responses: Optional[list[str]] = None,
+        hitl_callback: Optional[callable] = None,
     ):
         self.llm_config = llm_config or {}
         self.memory = memory or ConversationMemory()
@@ -151,12 +172,13 @@ class InnerMonologueAgent:
         self.hitl = hitl or HITL(workspace=workspace)
         self.workspace = workspace
         self.mock = mock
+        self.hitl_callback = hitl_callback
 
         self._llm = MockLLM(responses=mock_responses) if mock else None
         self._done = False
         self._history: list[dict] = []
         self._current_task = ""
-        self._max_rounds = 20
+        self._max_rounds = 40  # เพิ่มจาก 20 เป็น 40
         self._round = 0
         self._conversation_history: list[dict] = []  # สำหรับส่งให้ LLM
         self._response_cache: dict[str, str] = {}  # cache: prompt hash → response
@@ -167,6 +189,9 @@ class InnerMonologueAgent:
 
         # โหลดประวัติเก่า
         self.memory.load()
+
+        # เชื่อม Condenser function — ให้ memory ใช้ LLM ของ Agent ในการ summarize
+        self.memory.set_condense_fn(self._call_llm_for_condense)
 
     # ──────────────────────────── Public API ────────────────────────────
 
@@ -426,6 +451,84 @@ class InnerMonologueAgent:
             return '{"type": "done", "content": "Rate limit exceeded", "summary": "API rate limit หมดทุก provider กรุณารอแล้วลองใหม่"}'
         return f"Error เรียก LLM: {last_error}"
 
+    def _call_llm_for_condense(self, prompt: str) -> str:
+        """เรียก LLM สำหรับ Condense โดยเฉพาะ — ไม่มี JSON parsing, ไม่มี cache
+        คืนค่า plain text response"""
+        if self.mock and self._llm:
+            messages = [{"role": "user", "content": prompt}]
+            return self._llm.completion(messages)
+
+        providers = [
+            self.llm_config,
+            {"model": "deepseek/deepseek-chat", "api_key": os.environ.get("DEEPSEEK_API_KEY")},
+            {"model": "groq/llama-3.3-70b-versatile", "api_key": os.environ.get("GROQ_API_KEY")},
+            {"model": "mistral/mistral-large-latest", "api_key": os.environ.get("MISTRAL_API_KEY")},
+        ]
+
+        for provider in providers:
+            if not provider or not provider.get("api_key"):
+                continue
+            try:
+                return self._call_via_requests_raw(prompt, provider)
+            except Exception:
+                continue
+
+        return "สรุป: ไม่สามารถเชื่อมต่อ LLM เพื่อสรุปความจำได้"
+
+    def _call_via_requests_raw(self, prompt: str, provider: dict) -> str:
+        """เรียก LLM ผ่าน requests POST — คืนค่า plain text (ไม่ใช่ JSON)"""
+        import requests
+
+        api_key = provider.get("api_key")
+        model = provider.get("model", "mistral/mistral-large-latest")
+
+        if not api_key:
+            raise ValueError("No API key")
+
+        if "groq" in model:
+            url = "https://api.groq.com/openai/v1/chat/completions"
+            api_model = model.split("/", 1)[-1]
+        elif "mistral" in model:
+            url = "https://api.mistral.ai/v1/chat/completions"
+            api_model = model.split("/", 1)[-1]
+        elif "deepseek" in model:
+            url = "https://api.deepseek.com/v1/chat/completions"
+            api_model = model.split("/", 1)[-1]
+        else:
+            raise ValueError(f"Unknown provider in model: {model}")
+
+        messages = [{"role": "user", "content": prompt}]
+
+        # Rate limiter
+        elapsed = time.time() - self._last_request_time
+        if elapsed < self._min_request_interval:
+            time.sleep(self._min_request_interval - elapsed)
+        self._last_request_time = time.time()
+
+        resp = requests.post(
+            url,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": api_model,
+                "messages": messages,
+                "max_tokens": 1024,
+                "temperature": 0.3,
+            },
+            timeout=30,
+        )
+
+        if resp.status_code == 429:
+            retry_after = int(resp.headers.get("Retry-After", 5))
+            time.sleep(retry_after)
+            raise RateLimitError(f"Rate limit exceeded, retry after {retry_after}s")
+
+        resp.raise_for_status()
+        data = resp.json()
+        return data["choices"][0]["message"]["content"]
+
     def _build_system_context(self) -> str:
         """สร้าง system context รวม SYSTEM_PROMPT + JSON instruction + memory"""
         parts = [self.SYSTEM_PROMPT, JSON_SYSTEM_INSTRUCTION]
@@ -533,7 +636,27 @@ class InnerMonologueAgent:
                 history_lines.append(f"[รอบ {r}] {t.upper()}: {c}")
             parts.append("## ประวัติการทำงาน:\n" + "\n".join(history_lines) + "\n")
 
-        parts.append("""## ขั้นตอน:
+        # Planning Step — ถ้ายังไม่มี history ให้สำรวจก่อน
+        if not self._history:
+            parts.append("""## ขั้นตอน (Planning Step):
+นี่คือรอบแรก — ยังไม่ได้ลงมือทำอะไรเลย
+
+### ต้องทำ 3 ขั้นตอนก่อนลงมือ:
+1. **EXPLORE**: สำรวจโครงสร้างโปรเจคก่อน (list: workspace, read ไฟล์สำคัญ)
+2. **PLAN**: วางแผนว่าต้องทำอะไรบ้าง ลำดับก่อนหลัง
+3. **EXECUTE**: ลงมือทำตามแผน
+
+### คำถามที่ต้องตอบให้ได้ก่อนลงมือ:
+- workspace มีไฟล์อะไรอยู่แล้วบ้าง?
+- dependencies มีอะไร? ติดตั้งแล้วหรือยัง?
+- โครงสร้างโปรเจคเป็นยังไง?
+- อะไรต้องทำก่อน? อะไรทำทีหลัง?
+
+### คำสั่ง:
+- OUTPUT ONLY JSON. No text before or after.
+- รูปแบบ: {"type": "thought", "content": "สิ่งที่คิด (ไทย สั้นๆ)", "suggested_action": "optional"}""")
+        else:
+            parts.append("""## ขั้นตอน:
 1. คิดทบทวนสถานการณ์ปัจจุบันจากประวัติ
 2. กำหนดว่าต้องทำอะไรต่อ
 3. ถ้าได้ข้อสรุปแล้ว ให้ตอบ type เป็น "done"
@@ -608,7 +731,7 @@ class InnerMonologueAgent:
             return f"Error รันคำสั่ง: {e}"
 
     def _handle_file(self, action: str) -> str:
-        """จัดการกับ file action"""
+        """จัดการกับ file action — มี HITL ก่อนเขียนทับไฟล์ที่มีอยู่"""
         action = action.strip()
         if action.startswith("read:") or action.startswith("read "):
             prefix = "read:" if action.startswith("read:") else "read "
@@ -629,6 +752,33 @@ class InnerMonologueAgent:
                 path, content = rest.split("\n", 1)
                 path = path.strip()
                 full_path = os.path.join(self.workspace, path) if not path.startswith("/") else path
+
+                # HITL: ถ้าไฟล์มีอยู่แล้ว ให้ถามผู้ใช้ก่อน
+                if os.path.exists(full_path):
+                    # อ่านไฟล์เดิมเพื่อเปรียบเทียบ
+                    try:
+                        with open(full_path, "r", encoding="utf-8") as f:
+                            old_content = f.read()
+                    except Exception:
+                        old_content = ""
+
+                    # สร้าง flag รออนุมัติ
+                    self.hitl.flag_waiting_for_approval(
+                        f"เขียนทับไฟล์ {path}",
+                        f"ไฟล์นี้มีอยู่แล้ว ({len(old_content)} ตัวอักษร) ต้องการเขียนทับหรือไม่?"
+                    )
+
+                    # ถ้ามี HITL callback ให้เรียก
+                    if self.hitl_callback:
+                        self.hitl_callback("waiting_for_approval", {
+                            "action": f"เขียนทับไฟล์ {path}",
+                            "reason": f"ไฟล์นี้มีอยู่แล้ว ({len(old_content)} ตัวอักษร)",
+                            "old_content_preview": old_content[:500],
+                            "new_content_preview": content[:500],
+                        })
+
+                    return f"⏳ HITL: รออนุมัติก่อนเขียนทับไฟล์ {path} — ไฟล์นี้มีอยู่แล้ว ({len(old_content)} ตัวอักษร) กรุณาตรวจสอบ flag ใน .hitl-flags/WAITING_FOR_APPROVAL.txt"
+
                 try:
                     os.makedirs(os.path.dirname(full_path), exist_ok=True)
                     with open(full_path, "w", encoding="utf-8") as f:

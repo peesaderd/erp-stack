@@ -2,23 +2,30 @@
 Memory — Persistent Memory + Condenser สำหรับ Inner Monologue Agent
 
 ให้ Agent จำประวัติข้ามวัน และสรุปความจำเมื่อบทสนหายาวเกิน
+ใช้ LLM จริงในการ Condense (summarize) เพื่อให้ได้สรุปที่มีคุณภาพ
 """
 
 import json
 import os
+import time
 from datetime import datetime
 from typing import Optional
 
 
 class ConversationMemory:
-    """บันทึกและโหลดประวัติการสนทนาทั้งหมด พร้อม Condenser"""
+    """บันทึกและโหลดประวัติการสนทนาทั้งหมด พร้อม Condenser แบบ LLM-based"""
 
     def __init__(self, persistence_dir: str = "./.inner-monologue-memory"):
         self.persistence_dir = persistence_dir
         self.history: list[dict] = []
         self.summary: Optional[str] = None
-        self.max_history_length = 50  # จำนวนประวัติสูงสุดก่อนสรุป
+        self.max_history_length = 30  # จำนวนประวัติสูงสุดก่อนสรุป (ลดลงเพราะ LLM summarize)
+        self._llm_condense_fn = None  # จะถูก set โดย Agent
         os.makedirs(self.persistence_dir, exist_ok=True)
+
+    def set_condense_fn(self, fn):
+        """ตั้งค่า function สำหรับเรียก LLM เพื่อ summarize"""
+        self._llm_condense_fn = fn
 
     def _history_path(self) -> str:
         return os.path.join(self.persistence_dir, "history.json")
@@ -29,7 +36,7 @@ class ConversationMemory:
     def add_entry(self, entry_type: str, content: str, metadata: Optional[dict] = None):
         """เพิ่มบันทึกใหม่ในประวัติ"""
         entry = {
-            "type": entry_type,  # "thought", "action", "observation", "user", "agent"
+            "type": entry_type,  # "thought", "action", "observation", "user", "agent", "error"
             "content": content,
             "timestamp": datetime.now().isoformat(),
             "metadata": metadata or {},
@@ -49,30 +56,40 @@ class ConversationMemory:
         """ดึงประวัติทั้งหมด"""
         return self.history
 
-    def get_context(self, max_entries: int = 20) -> str:
-        """สร้าง context string สำหรับส่งให้ LLM"""
+    def get_context(self, max_entries: int = 15) -> str:
+        """สร้าง context string สำหรับส่งให้ LLM
+        - ถ้ามี summary ให้ใส่ก่อน
+        - ตามด้วยประวัติล่าสุด
+        - รวมข้อผิดพลาดที่เคยเจอ"""
         parts = []
 
         # ถ้ามี summary ให้ใส่ก่อน
         if self.summary:
-            parts.append(f"[สรุปความจำ]: {self.summary}\n")
+            parts.append(f"[สรุปความจำจากรอบก่อน]: {self.summary}\n")
 
         # เอาประวัติล่าสุด
         recent = self.get_recent(max_entries)
-        for entry in recent:
-            icon = {
-                "thought": "🧠",
-                "action": "⚡",
-                "observation": "📊",
-                "user": "👤",
-                "agent": "🤖",
-            }.get(entry["type"], "❓")
-            parts.append(f"{icon} {entry['content']}")
+        if recent:
+            parts.append("[ประวัติล่าสุด]:")
+            for entry in recent:
+                icon = {
+                    "thought": "🧠",
+                    "action": "⚡",
+                    "observation": "📊",
+                    "user": "👤",
+                    "agent": "🤖",
+                    "error": "❌",
+                }.get(entry["type"], "❓")
+                # ตัด content ให้สั้นลง
+                content = entry["content"]
+                if len(content) > 150:
+                    content = content[:150] + "..."
+                parts.append(f"  {icon} [{entry['type']}] {content}")
 
         return "\n".join(parts)
 
     def condense(self):
-        """สรุปประวัติเก่า (Condenser) — เก็บเฉพาะส่วนสำคัญ"""
+        """สรุปประวัติเก่า (Condenser) — ใช้ LLM ถ้ามี ไม่ก็ fallback วิธีเดิม"""
         if not self.history:
             return
 
@@ -81,10 +98,21 @@ class ConversationMemory:
         # ส่วนที่เหลือให้สรุป
         to_summarize = self.history[:-10]
 
-        # สรุปแบบง่าย: ดึงเฉพาะ thought และ observation ที่สำคัญ
+        # ถ้ามี LLM condense function ให้ใช้
+        if self._llm_condense_fn:
+            try:
+                self._condense_via_llm(to_summarize)
+                self.history = keep
+                self._save()
+                self._save_summary()
+                return
+            except Exception:
+                pass  # fallback ไปวิธีเดิม
+
+        # Fallback: สรุปแบบง่าย
         key_points = []
         for entry in to_summarize:
-            if entry["type"] in ("thought", "observation", "agent"):
+            if entry["type"] in ("thought", "observation", "agent", "error"):
                 content = entry["content"]
                 if len(content) > 50:
                     key_points.append(content[:80])
@@ -97,6 +125,37 @@ class ConversationMemory:
         self.history = keep
         self._save()
         self._save_summary()
+
+    def _condense_via_llm(self, to_summarize: list[dict]):
+        """ใช้ LLM สรุปประวัติ"""
+        # สร้างข้อความที่จะให้ summarize
+        entries_text = []
+        for entry in to_summarize:
+            t = entry["type"]
+            c = entry["content"]
+            if len(c) > 200:
+                c = c[:200] + "..."
+            entries_text.append(f"[{t}] {c}")
+
+        history_text = "\n".join(entries_text)
+        old_summary = self.summary or "ไม่มี"
+
+        prompt = f"""ประวัติการทำงานเดิม:
+{old_summary}
+
+ประวัติล่าสุดที่ต้องสรุป:
+{history_text}
+
+กรุณาสรุปเป็นภาษาไทย สั้นๆ ใจความสำคัญ:
+- สิ่งที่ทำไปแล้ว
+- ปัญหาที่เจอ
+- สิ่งที่ต้องทำต่อ"""
+
+        response = self._llm_condense_fn(prompt)
+        if response:
+            self.summary = response.strip()
+        else:
+            raise ValueError("LLM returned empty summary")
 
     def save(self):
         """บันทึกประวัติทั้งหมดลง disk"""

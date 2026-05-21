@@ -92,6 +92,17 @@ def main():
         print('   python -m inner_monologue.main "วิเคราะห์ ERP"')
         sys.exit(1)
 
+    # HITL callback — แจ้งผู้ใช้เมื่อรออนุมัติ
+    def _on_hitl(event: str, data: dict):
+        """เมื่อ Agent รอการอนุมัติ ให้แจ้งผู้ใช้"""
+        if event == "waiting_for_approval":
+            action = data.get("action", "")
+            reason = data.get("reason", "")
+            print(f"\n  ⏳ HITL: {action}")
+            print(f"     เหตุผล: {reason}")
+            print(f"     ตรวจสอบได้ที่: {os.path.join(args.workspace, '.hitl-flags', 'WAITING_FOR_APPROVAL.txt')}")
+            print()
+
     # สร้าง Agent และรัน
     agent = InnerMonologueAgent(
         llm_config={
@@ -104,6 +115,7 @@ def main():
         hitl=hitl,
         workspace=args.workspace,
         mock=args.mock,
+        hitl_callback=_on_hitl,
     )
 
     try:

@@ -15,6 +15,14 @@ from .heartbeat import Heartbeat
 from .memory import ConversationMemory
 from .self_reflection import SelfReflection
 from .hitl import HITL
+from .resilience import (
+    RetryStrategy,
+    FallbackProvider,
+    CircuitBreaker,
+    CircuitBreakerOpenError,
+    parse_structured_response,
+    extract_json,
+)
 
 
 class RateLimitError(Exception):
@@ -201,6 +209,11 @@ class InnerMonologueAgent:
         self._last_request_time = 0.0
         self._min_request_interval = 1.1  # 1.1 วินาทีระหว่าง request (Mistral ~55 RPM)
 
+        # Resilience components
+        self.retry_strategy = RetryStrategy(max_retries=3, base_delay=1.0, max_delay=30.0)
+        self.circuit_breaker = CircuitBreaker(failure_threshold=5, recovery_timeout=60.0)
+        self._setup_fallback_providers()
+
         # โหลดประวัติเก่า
         self.memory.load()
 
@@ -209,6 +222,41 @@ class InnerMonologueAgent:
 
         # เชื่อม Self-Reflection กับ LLM
         self.self_reflection.set_llm_fn(self._call_llm_for_condense)
+
+    # ──────────────────────────── Resilience Setup ──────────────────────
+
+    def _setup_fallback_providers(self):
+        """ตั้งค่า Fallback Provider Chain — ลอง provider เรียงตามลำดับ"""
+        providers = []
+
+        # Primary: Deepseek
+        deepseek_key = os.getenv("DEEPSEEK_API_KEY") or os.getenv("LLM_API_KEY")
+        if deepseek_key:
+            providers.append({
+                "name": "deepseek",
+                "model": "deepseek/deepseek-chat",
+                "api_key": deepseek_key,
+            })
+
+        # Fallback 1: Groq
+        groq_key = os.getenv("GROQ_API_KEY")
+        if groq_key:
+            providers.append({
+                "name": "groq",
+                "model": "groq/llama-3.3-70b-versatile",
+                "api_key": groq_key,
+            })
+
+        # Fallback 2: Mistral
+        mistral_key = os.getenv("MISTRAL_API_KEY")
+        if mistral_key:
+            providers.append({
+                "name": "mistral",
+                "model": "mistral/mistral-large-latest",
+                "api_key": mistral_key,
+            })
+
+        self.fallback_provider = FallbackProvider(providers) if providers else None
 
     # ──────────────────────────── Public API ────────────────────────────
 
@@ -322,18 +370,20 @@ class InnerMonologueAgent:
 
         return None
 
-    def _call_llm_structured(self, prompt: str, expected_type: str, max_retries: int = 1) -> Optional[dict]:
+    def _call_llm_structured(self, prompt: str, expected_type: str, max_retries: int = 2) -> Optional[dict]:
         """เรียก LLM และบังคับให้ตอบ JSON ตาม schema ที่กำหนด
+        ใช้ parse_structured_response จาก resilience module
         ถ้า JSON ไม่ถูกต้อง จะ retry พร้อมแจ้ง error ให้ LLM แก้ไข"""
         for attempt in range(max_retries):
             response = self._call_llm(prompt)
-            parsed = self._parse_json_response(response, expected_type)
 
+            # ใช้ parse_structured_response จาก resilience module
+            parsed = parse_structured_response(response, expected_type)
             if parsed is not None:
                 return parsed
 
             # ถ้า LLM ตอบ "done" แทน "thought" หรือ "action" ให้ยอมรับ
-            done_parsed = self._parse_json_response(response, "done")
+            done_parsed = parse_structured_response(response, "done")
             if done_parsed is not None and expected_type in ("thought", "action"):
                 return {"type": "action", "action_type": "done", "content": done_parsed["content"], "summary": done_parsed.get("summary", "")}
 
@@ -438,15 +488,30 @@ class InnerMonologueAgent:
 
     def _call_llm(self, prompt: str) -> str:
         """เรียก LLM - รองรับทั้ง Mock, litellm, และ requests โดยตรง
-        ถ้า provider แรก rate limit หมด จะลอง provider ถัดไป"""
+        ใช้ FallbackProvider + CircuitBreaker + RetryStrategy"""
         # Mock mode
         if self.mock and self._llm:
             messages = [{"role": "user", "content": prompt}]
             return self._llm.completion(messages)
 
-        # Providers เรียงตามลำดับความสำคัญ
+        # ใช้ FallbackProvider ถ้ามี
+        if self.fallback_provider:
+            try:
+                return self.circuit_breaker.call(
+                    self.fallback_provider.execute,
+                    self._call_via_requests,
+                    prompt,
+                )
+            except CircuitBreakerOpenError:
+                # Circuit breaker open — รอ recovery
+                return '{"type": "done", "content": "Circuit breaker open", "summary": "Provider มีปัญหาต่อเนื่อง กรุณารอแล้วลองใหม่"}'
+            except Exception as e:
+                # FallbackProvider ล้ม — ลอง provider ปกติ
+                pass
+
+        # Fallback: ลอง providers เรียงตามลำดับ
         providers = [
-            self.llm_config,  # Provider หลักจาก config
+            self.llm_config,
             {"model": "deepseek/deepseek-chat", "api_key": os.environ.get("DEEPSEEK_API_KEY")},
             {"model": "groq/llama-3.3-70b-versatile", "api_key": os.environ.get("GROQ_API_KEY")},
             {"model": "mistral/mistral-large-latest", "api_key": os.environ.get("MISTRAL_API_KEY")},
@@ -457,17 +522,11 @@ class InnerMonologueAgent:
             if not provider or not provider.get("api_key"):
                 continue
             try:
-                return self._call_via_requests(prompt, provider)
+                return self.retry_strategy.execute(self._call_via_requests, prompt, provider)
             except Exception as e:
-                error_str = str(e)
                 last_error = str(e)
-                # ถ้า rate limit ให้ลอง provider ถัดไป
-                if 'rate limit' in error_str.lower() or '429' in error_str or '1300' in error_str:
-                    continue
-                # Error อื่นให้ลอง provider ถัดไป
                 continue
 
-        # ถ้าทุก provider ล้มเหลว
         if 'rate limit' in last_error.lower() or '429' in last_error or '1300' in last_error:
             return '{"type": "done", "content": "Rate limit exceeded", "summary": "API rate limit หมดทุก provider กรุณารอแล้วลองใหม่"}'
         return f"Error เรียก LLM: {last_error}"

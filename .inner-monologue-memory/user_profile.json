@@ -1,0 +1,9 @@
+{
+  "preferences": {},
+  "patterns": [],
+  "past_mistakes": [
+    "พบ error 429 (Rate limit exceeded) จาก Mistral จึงต้องรอสักครู่ก่อนทำงานต่อ และจะตอบกลับด้วย JSON ที"
+  ],
+  "known_topics": {},
+  "interaction_count": 25
+}

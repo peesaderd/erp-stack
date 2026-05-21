@@ -31,13 +31,27 @@ def main():
 
     args = parser.parse_args()
 
-    # API key — ไม่บังคับถ้าใช้ mock
-    api_key = os.environ.get("MISTRAL_API_KEY")
-    if not api_key and not args.mock:
-        print("❌ กรุณาตั้งค่า MISTRAL_API_KEY ใน environment variable")
-        print("   export MISTRAL_API_KEY='your-key-here'")
-        print("   หรือใช้ --mock เพื่อทดสอบโดยไม่ต้องใช้ API")
-        sys.exit(1)
+    # API key — ตรวจสอบตาม model ที่เลือก
+    model = args.model
+    if "deepseek" in model:
+        api_key = os.environ.get("DEEPSEEK_API_KEY")
+        if not api_key and not args.mock:
+            print("❌ กรุณาตั้งค่า DEEPSEEK_API_KEY ใน environment variable")
+            print("   export DEEPSEEK_API_KEY='your-key-here'")
+            sys.exit(1)
+    elif "groq" in model:
+        api_key = os.environ.get("GROQ_API_KEY")
+        if not api_key and not args.mock:
+            print("❌ กรุณาตั้งค่า GROQ_API_KEY ใน environment variable")
+            print("   export GROQ_API_KEY='your-key-here'")
+            sys.exit(1)
+    else:
+        api_key = os.environ.get("MISTRAL_API_KEY")
+        if not api_key and not args.mock:
+            print("❌ กรุณาตั้งค่า MISTRAL_API_KEY ใน environment variable")
+            print("   export MISTRAL_API_KEY='your-key-here'")
+            print("   หรือใช้ --mock เพื่อทดสอบโดยไม่ต้องใช้ API")
+            sys.exit(1)
 
     # สร้าง components
     memory = ConversationMemory(persistence_dir=args.memory_dir)

@@ -12,6 +12,102 @@ from config import settings
 
 app = FastAPI(title="ERP Bridge Server", version="1.0.0")
 
+class PlaneAPIWrapper:
+    """Wrapper for Plane API with automatic session refresh."""
+
+    def __init__(self):
+        self.client = httpx.AsyncClient(timeout=10)
+        self._session_key = None
+        # Initialize with existing cookie if available
+        if settings.plane_cookie:
+            self._session_key = _parse_session_cookie(settings.plane_cookie)
+
+    def get_session_cookie(self) -> str:
+        """Return the current Plane session cookie value."""
+        if self._session_key:
+            return f"session-id={self._session_key}"
+        return settings.plane_cookie
+
+    async def refresh_session(self):
+        """Login to Plane and update the session cookie."""
+        csrf_url = f"{settings.plane_base_url}/auth/get-csrf-token/"
+        login_url = f"{settings.plane_base_url}/auth/sign-in/"
+
+        # Step 1: get CSRF token
+        resp = await self.client.get(csrf_url)
+        csrf_token = resp.json().get("csrf_token", "")
+        csrfcookie = resp.cookies.get("csrftoken", "")
+
+        # Step 2: login with form data
+        headers = {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "X-CSRFToken": csrf_token,
+            "Referer": settings.plane_base_url,
+        }
+        if csrfcookie:
+            self.client.cookies.set("csrftoken", csrfcookie)
+
+        login_resp = await self.client.post(
+            login_url,
+            data={"email": settings.plane_email, "password": settings.plane_password},
+            headers=headers,
+            follow_redirects=False,
+        )
+
+        session_key = login_resp.cookies.get("session-id")
+        if session_key:
+            self._session_key = session_key
+            settings.plane_cookie = f"session-id={session_key}"
+            print(f"[Bridge] Plane session refreshed: {session_key[:16]}...")
+            return True
+
+        print(f"[Bridge] Plane session refresh failed (status={login_resp.status_code})")
+        return False
+
+    async def request(self, method: str, path: str, **kwargs):
+        """
+        Make a request to Plane API with automatic session refresh on 401.
+
+        For paths starting with '/api/', session cookie will be included.
+        If a 401 response is received, the session will be refreshed and
+        the request will be retried once.
+        """
+        url = f"{settings.plane_base_url}{path}"
+
+        # For API requests, include session cookie
+        if path.startswith("/api/"):
+            headers = kwargs.get("headers", {})
+            headers["Cookie"] = self.get_session_cookie()
+            kwargs["headers"] = headers
+
+        try:
+            resp = await self.client.request(method, url, **kwargs)
+
+            # If 401 and path is an API path, refresh session and retry
+            if resp.status_code == 401 and path.startswith("/api/"):
+                print("[Bridge] Plane session expired, refreshing...")
+                await self.refresh_session()
+
+                # Update cookie in headers
+                headers = kwargs.get("headers", {})
+                headers["Cookie"] = self.get_session_cookie()
+                kwargs["headers"] = headers
+
+                resp = await self.client.request(method, url, **kwargs)
+
+            return resp
+
+        except Exception as exc:
+            print(f"[Bridge] Plane API request failed: {exc}")
+            raise
+
+    async def close(self):
+        """Close the HTTP client."""
+        await self.client.aclose()
+
+# Create module-level instance
+plane_api = PlaneAPIWrapper()
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -172,16 +268,27 @@ async def _sync_plane_issue_to_planka(issue: dict):
         "X-API-Key": settings.planka_api_token,
         "Content-Type": "application/json",
     }
-    async with httpx.AsyncClient(timeout=5) as client:
-        try:
-            await client.post(url, headers=headers, json={
-                "name": f"[Plane] {name}",
-                "type": "project",
-                "position": 1,
-            })
-        except Exception as exc:
-            print(f"[Bridge] Planka sync failed: {exc}")
+    try:
+        await plane_api.client.post(url, headers=headers, json={
+            "name": f"[Plane] {name}",
+            "type": "project",
+            "position": 1,
+        })
+    except Exception as exc:
+        print(f"[Bridge] Planka sync failed: {exc}")
 
+
+async def _get_plane_issue_details(issue_id: str):
+    """Get detailed information about a Plane issue using the wrapper."""
+    try:
+        resp = await plane_api.request("GET", f"/api/issues/{issue_id}/")
+        if resp.status_code == 200:
+            return resp.json()
+        print(f"[Bridge] Failed to fetch Plane issue {issue_id}: {resp.status_code}")
+        return None
+    except Exception as exc:
+        print(f"[Bridge] Error fetching Plane issue {issue_id}: {exc}")
+        return None
 
 async def _sync_plane_issue_to_bookstack(issue: dict):
     """Create/update a BookStack page from a Plane issue."""
@@ -189,20 +296,27 @@ async def _sync_plane_issue_to_bookstack(issue: dict):
         return
     name = issue.get("name", issue.get("title", "Untitled"))
     description = issue.get("description", "") or ""
+
+    # If we have an issue ID but not enough details, fetch them
+    if issue.get("id") and not description:
+        details = await _get_plane_issue_details(issue["id"])
+        if details:
+            description = details.get("description", "") or description
+            name = details.get("name", name)
+
     url = f"{settings.bookstack_base_url}/api/pages"
     headers = {
         "Authorization": f"Token {settings.bookstack_token_id}:{settings.bookstack_token_secret}",
         "Content-Type": "application/json",
     }
-    async with httpx.AsyncClient(timeout=5) as client:
-        try:
-            await client.post(url, headers=headers, json={
-                "name": f"[Plane] {name}",
-                "html": f"<p>{description}</p><p><em>Auto-synced from Plane</em></p>",
-                "book_id": 1,
-            })
-        except Exception as exc:
-            print(f"[Bridge] BookStack sync failed: {exc}")
+    try:
+        await plane_api.client.post(url, headers=headers, json={
+            "name": f"[Plane] {name}",
+            "html": f"<p>{description}</p><p><em>Auto-synced from Plane</em></p>",
+            "book_id": 1,
+        })
+    except Exception as exc:
+        print(f"[Bridge] BookStack sync failed: {exc}")
 
 
 # ---------------------------------------------------------------------------
@@ -271,7 +385,11 @@ async def health():
 async def status():
     """Show which services are configured."""
     return {
-        "plane": bool(settings.plane_cookie),
+        "plane": {
+            "configured": bool(settings.plane_cookie),
+            "session_cookie": plane_api.get_session_cookie(),
+            "has_credentials": bool(settings.plane_email and settings.plane_password)
+        },
         "planka": bool(settings.planka_api_token),
         "bookstack": bool(settings.bookstack_token_id and settings.bookstack_token_secret),
         "openobserve": bool(settings.openobserve_login),
@@ -282,7 +400,10 @@ async def status():
 async def manual_refresh_plane_session():
     """Manually trigger a Plane session refresh."""
     ok = await refresh_plane_session()
-    return {"status": "ok" if ok else "error"}
+    return {
+        "status": "ok" if ok else "error",
+        "session_cookie": plane_api.get_session_cookie()
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -294,6 +415,11 @@ async def startup_refresh():
     """Refresh Plane session on startup if credentials are configured."""
     if settings.plane_password:
         await refresh_plane_session()
+
+@app.on_event("shutdown")
+async def shutdown():
+    """Clean up resources on shutdown."""
+    await plane_api.close()
 
 
 # ---------------------------------------------------------------------------

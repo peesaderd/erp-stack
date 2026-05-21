@@ -83,19 +83,22 @@ def get_agent_logs(limit: int = 50, status: str = ""):
 
 
 @app.post("/agent/logs")
-def post_agent_log(
+async def post_agent_log(
     request: Request,
 ):
     """รับ Log จาก Agent ภายนอก (เช่น inner-monologue-agent)"""
     # รองรับทั้ง JSON body และ query params
-    try:
-        body = request.json() if request.headers.get("content-type", "").startswith("application/json") else {}
-    except Exception:
-        body = {}
+    body = {}
+    content_type = request.headers.get("content-type", "")
+    if "application/json" in content_type:
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
 
-    activity = body.get("activity", request.query_params.get("activity", ""))
-    detail = body.get("detail", request.query_params.get("detail", ""))
-    status = body.get("status", request.query_params.get("status", "info"))
+    activity = body.get("activity") or request.query_params.get("activity")
+    detail = body.get("detail") or request.query_params.get("detail") or ""
+    status = body.get("status") or request.query_params.get("status") or "info"
 
     if not activity:
         from fastapi import HTTPException

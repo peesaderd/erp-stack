@@ -90,21 +90,21 @@ class MockLLM:
             if self._think_count >= 5:
                 return '{"type": "action", "action_type": "done", "content": "วิเคราะห์เสร็จสมบูรณ์ วางแผนเรียบร้อย"}'
             actions = [
-                '{"type": "action", "action_type": "terminal", "content": "ls -la /workspace/erp-stack/erp-modular/"}',
-                '{"type": "action", "action_type": "terminal", "content": "cat /workspace/erp-stack/erp-modular/ERP_ROADMAP.md"}',
-                '{"type": "action", "action_type": "file", "content": "เขียน ERP_ROADMAP.md โดยวางแผนเป็น 8 Phase ตาม dependencies"}',
-                '{"type": "action", "action_type": "terminal", "content": "ls -la /workspace/erp-stack/"}',
+                '{"type": "action", "action_type": "terminal", "content": "ls -la"}',
+                '{"type": "action", "action_type": "terminal", "content": "pwd"}',
+                '{"type": "action", "action_type": "file", "content": "list: ."}',
+                '{"type": "action", "action_type": "terminal", "content": "ls -la .."}',
             ]
             return actions[min(self._think_count - 1, len(actions) - 1)]
 
         # think prompt - มี JSON example ที่มี "type": "thought"
         self._think_count += 1
         thoughts = [
-            '{"type": "thought", "content": "ฉันควรสำรวจโครงสร้างโปรเจค ERP Modular ก่อน เพื่อดูว่ามีไฟล์อะไรอยู่แล้วบ้าง", "suggested_action": "terminal: ls -la /workspace/erp-stack/erp-modular/"}',
-            '{"type": "thought", "content": "ERP Modular มี 5 Modules หลักและ 22 Issues ทั้งหมดยังเป็น Todo ต้องวางแผนการทำงานเป็น Phase", "suggested_action": "terminal: ดูรายละเอียดโปรเจค"}',
-            '{"type": "thought", "content": "Core Data Model และ API Layer ควรมาก่อน เพราะทุกอย่างต่อยอดจากโครงสร้างข้อมูล", "suggested_action": "file: เขียน ERP_ROADMAP.md"}',
-            '{"type": "thought", "content": "Plugin System และ API Gateway ต้องมาต่อ เพราะ Mini App ต้องมี Gateway เป็นทางเข้าออกเดียว", "suggested_action": "terminal: ตรวจสอบ Bridge Server"}',
-            '{"type": "thought", "content": "Integrations และ AI Agent มาทีหลัง เพราะต้องมี Core + Gateway + Plugin พร้อมก่อน ถึงจะเชื่อมต่อ Tools ได้", "suggested_action": "done"}',
+            '{"type": "thought", "content": "ฉันควรสำรวจโครงสร้างโปรเจคก่อน เพื่อดูว่ามีไฟล์อะไรอยู่แล้วบ้าง", "suggested_action": "terminal: ls -la"}',
+            '{"type": "thought", "content": "โปรเจคมีโครงสร้างเป็นระเบียบ ต้องวางแผนการทำงานเป็น Phase", "suggested_action": "terminal: pwd"}',
+            '{"type": "thought", "content": "Core Data Model และ API Layer ควรมาก่อน เพราะทุกอย่างต่อยอดจากโครงสร้างข้อมูล", "suggested_action": "file: list: ."}',
+            '{"type": "thought", "content": "Plugin System และ API Gateway ต้องมาต่อ เพราะ Mini App ต้องมี Gateway เป็นทางเข้าออกเดียว", "suggested_action": "terminal: ls -la .."}',
+            '{"type": "thought", "content": "Integrations และ AI Agent มาทีหลัง เพราะต้องมี Core + Gateway + Plugin พร้อมก่อน", "suggested_action": "done"}',
         ]
         return thoughts[min(self._think_count - 1, len(thoughts) - 1)]
 

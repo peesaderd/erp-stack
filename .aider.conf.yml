@@ -1,17 +1,78 @@
-# Aider Configuration - Optimized for Groq Free Tier (Max Token Saving)
+# =============================================================================
+# Aider Config — ประหยัด Token ที่สุด สำหรับทุกทีม
+# =============================================================================
+# วิธีใช้:
+#   aider --message "คำสั่ง"
+#   aider --message "คำสั่ง" --file inner_monologue/agent.py
+#
+# Override model:
+#   aider --model groq/llama-3.3-70b-versatile --message "..."
+#   aider --model mistral/mistral-large-latest --message "..."
+#
+# Override edit format (ถ้า search-replace ไม่แม่น):
+#   aider --edit-format udiff --message "..."
+# =============================================================================
+
+# ─── Model ──────────────────────────────────────────────────────────────────
+# ใช้ model ฟรีหรือถูกที่สุด
 model: groq/llama-3.1-8b-instant
-map-tokens: 64
+
+# ─── Edit Format (ประหยัด Token มากที่สุด) ──────────────────────────────────
+# search-replace = ส่งเฉพาะส่วนที่เปลี่ยน (ประหยัดสุด)
+# udiff/diff = ส่งเฉพาะ diff (ประหยัดรองลงมา)
+# whole = ส่งทั้งไฟล์ (สิ้นเปลืองที่สุด — ไม่แนะนำ)
+edit-format: search-replace
+
+# ─── Repo Map (Context ที่ส่งทุกครั้ง) ──────────────────────────────────────
+# ยิ่งน้อยยิ่งประหยัด แต่ context ก็จะน้อยลงตาม
+map-tokens: 128
+
+# ─── Chat History ───────────────────────────────────────────────────────────
+# จำกัดประวัติแชท ไม่ให้ token พุ่ง
+max-chat-history-tokens: 1024
+
+# ─── Cache ──────────────────────────────────────────────────────────────────
+# cache prompts เพื่อลด tokens ที่ส่งซ้ำ
+cache-prompts: true
+
+# ─── Auto Commits ──────────────────────────────────────────────────────────
+# ปิด auto commit — ไม่เสีย tokens กับการ commit อัตโนมัติ
 no-auto-commits: true
-yes-always: true
-cache-prompts: false
-show-model-warnings: false
-max-chat-history-tokens: 512
-suggest-shell-commands: false
+
+# ─── Lint ───────────────────────────────────────────────────────────────────
+# ปิด linting — ไม่เสีย tokens กับการ lint
 lint: false
+no-auto-lint: true
+
+# ─── Shell Commands ─────────────────────────────────────────────────────────
+# ปิดแนะนำคำสั่ง shell — ไม่เสีย tokens เปล่าๆ
+no-suggest-shell-commands: true
+
+# ─── URL Detection ──────────────────────────────────────────────────────────
+# ปิด detect urls — ไม่เสีย tokens กับการเปิดลิงก์
+no-detect-urls: true
+
+# ─── Release Notes ──────────────────────────────────────────────────────────
+no-show-release-notes: true
+
+# ─── Git ────────────────────────────────────────────────────────────────────
+# ใช้ git ได้ แต่ไม่ต้องยืนยัน commit
+git: true
+no-git-commit-verify: true
+
+# ─── Confirmation ───────────────────────────────────────────────────────────
+# ตอบ Yes อัตโนมัติ (สำหรับ automation)
+yes-always: true
+
+# ─── Subtree ────────────────────────────────────────────────────────────────
+# ดูแค่ subtree ปัจจุบัน (ไม่เสีย tokens กับไฟล์นอก subtree)
+# subtree-only: true
+
+# ─── Misc ───────────────────────────────────────────────────────────────────
+show-model-warnings: false
 no-check-update: true
 no-analytics: true
 no-restore-chat-history: true
 no-stream: true
-no-detect-urls: true
 attribute-author: false
 attribute-committer: false

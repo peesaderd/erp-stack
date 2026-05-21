@@ -115,24 +115,44 @@ class InnerMonologueAgent:
     """Agent ที่มี Inner Monologue — คิดก่อนทำ ดูผลก่อนคิดต่อ
     ใช้ Structured Output (JSON) เพื่อป้องกัน hallucination"""
 
-    SYSTEM_PROMPT = """คุณคือ Inner Monologue Agent ที่มีกระบวนการคิดภายใน (Inner Monologue)
+    SYSTEM_PROMPT = """You are an AI assistant with tools. Follow this EXACT workflow:
 
-กฎการทำงาน:
-1. คิดทบทวนก่อนลงมือทำทุกครั้ง
-2. ใช้ขั้นตอน: คิด -> ทำ -> ดูผล -> คิดต่อ
-3. เมื่อได้ข้อสรุปแล้ว ให้ตอบ JSON type "done"
-4. ถ้าต้องการข้อมูลเพิ่ม ให้ใช้ tools ที่มี
+## Step 1: THINK (in Thai, max 2 sentences)
+Example: "ต้องสร้างไฟล์ hello.py ที่พิมพ์ Hello World"
 
-เครื่องมือที่มี:
-- terminal: รันคำสั่ง bash
-- file: อ่าน/เขียนไฟล์
-- code: แก้ไขโค้ด
+## Step 2: ACT (choose ONE tool)
+Tools:
+- terminal: <bash command>
+- file: read <path> | write <path>\\n<content> | list <dir>
+- code: <description of code change>
+- done: เมื่องานเสร็จสมบูรณ์
 
-ข้อควรปฏิบัติ:
-- คิดทีละขั้นตอน อย่าด่วนสรุป
-- ตรวจสอบผลลัพธ์ทุกครั้งก่อนตัดสินใจ
-- ถ้าผลลัพธ์ไม่ชัดเจน ให้รันคำสั่งเพิ่ม
-- ใช้ภาษาไทยในการคิดและสรุป"""
+## Step 3: OBSERVE (report result in 1 sentence)
+Example: "ไฟล์ hello.py ถูกสร้างแล้ว"
+
+## Step 4: REPEAT until goal is met, then output:
+{"type": "done", "content": "สรุปผล", "summary": "รายละเอียดเพิ่มเติม"}
+
+## IMPORTANT RULES:
+1. If you see "Rate limit" or "429", WAIT and retry
+2. If same observation appears 3 times, output: {"type": "done", "content": "ติด loop", "summary": "ได้ผลลัพธ์เดิมซ้ำๆ"}
+3. If unsure, output: {"type": "done", "content": "ไม่แน่ใจ", "summary": "ต้องการคำแนะนำเพิ่ม"}
+4. ALWAYS output valid JSON. No text outside JSON.
+
+## Example successful session:
+User: "สร้างไฟล์ hello.py"
+Assistant: {"type": "thought", "content": "ต้องสร้างไฟล์ hello.py ด้วย echo command"}
+Assistant: {"type": "action", "action_type": "terminal", "content": "echo 'print(\"Hello\")' > hello.py"}
+Assistant: (observes result)
+Assistant: {"type": "thought", "content": "ไฟล์ถูกสร้างแล้ว ตรวจสอบเนื้อหา"}
+Assistant: {"type": "action", "action_type": "terminal", "content": "cat hello.py"}
+Assistant: (observes result)
+Assistant: {"type": "done", "content": "hello.py ถูกสร้างเรียบร้อย", "summary": "ไฟล์พิมพ์ Hello World"}
+
+## Output format (JSON only):
+- Thought: {"type": "thought", "content": "สิ่งที่คิด", "suggested_action": "optional"}
+- Action: {"type": "action", "action_type": "terminal|file|code|done", "content": "คำสั่ง"}
+- Done: {"type": "done", "content": "สรุป", "summary": "รายละเอียด"}"""
 
     def __init__(
         self,
@@ -504,9 +524,21 @@ class InnerMonologueAgent:
 2. กำหนดว่าต้องทำอะไรต่อ
 3. ถ้าได้ข้อสรุปแล้ว ให้ตอบ type เป็น "done"
 
-ตอบเป็น JSON เท่านั้น:
+## ตัวอย่าง:
+ภารกิจ: "สำรวจไฟล์ในโปรเจค"
+คุณคิด: "ต้องดูโครงสร้างโปรเจคก่อนด้วย ls"
+ตอบ: {"type": "thought", "content": "ต้องดูโครงสร้างโปรเจคก่อนด้วย ls", "suggested_action": "terminal: ls -la"}
+
+หลังจากเห็นผลลัพธ์แล้ว:
+คุณคิด: "เห็นโครงสร้างแล้ว ควรอ่าน README.md เพื่อดูรายละเอียด"
+ตอบ: {"type": "thought", "content": "เห็นโครงสร้างแล้ว ควรอ่าน README.md", "suggested_action": "terminal: cat README.md"}
+
+เมื่อได้ข้อสรุป:
+ตอบ: {"type": "done", "content": "วิเคราะห์เสร็จ", "summary": "พบไฟล์สำคัญ: README.md, src/"}
+
+## รูปแบบ JSON:
 ```json
-{"type": "thought", "content": "สิ่งที่กำลังคิด", "suggested_action": "action ที่จะทำ"}
+{"type": "thought", "content": "สิ่งที่กำลังคิด (ภาษาไทย สั้นๆ)", "suggested_action": "action ที่จะทำ (optional)"}
 ```""")
 
         return "\n".join(parts)
@@ -531,17 +563,29 @@ class InnerMonologueAgent:
         if last_obs:
             prompt += f"""\nผลลัพธ์ล่าสุดที่ได้:\n{last_obs}\n"""
 
-        prompt += """\nจงเลือก action ที่จะทำ โดยตอบเป็น JSON:
+        prompt += """\n## เงื่อนไขการตัดสินใจ:
+- ถ้าเจอ "Rate limit" หรือ "429": ให้รอแล้วลองใหม่ ด้วย action_type "terminal" และคำสั่งเดิม
+- ถ้าผลลัพธ์ซ้ำกับรอบก่อนหน้า 3 ครั้ง: ให้ตอบ type "done" บอกว่าติด loop
+- ถ้าไม่แน่ใจว่าต้องทำอะไรต่อ: ให้ตอบ type "done" บอกว่าต้องการคำแนะนำ
+- ถ้างานเสร็จสมบูรณ์: ให้ตอบ type "done" พร้อมสรุปผล
 
+## ตัวอย่าง:
+thought: "ต้องดูโครงสร้างโปรเจคก่อนด้วย ls"
+observation: (ยังไม่มี)
+ตอบ: {"type": "action", "action_type": "terminal", "content": "ls -la /workspace/"}
+
+thought: "เห็นโครงสร้างแล้ว ควรอ่าน README.md"
+observation: "total 48, drwxr-xr-x ..."
+ตอบ: {"type": "action", "action_type": "terminal", "content": "cat README.md"}
+
+thought: "ได้ข้อมูลครบแล้ว สรุปผลได้"
+observation: "README.md: ERP Project..."
+ตอบ: {"type": "action", "action_type": "done", "content": "วิเคราะห์เสร็จ", "summary": "..."}
+
+## รูปแบบ JSON:
 ```json
-{"type": "action", "action_type": "terminal", "content": "ls -la /workspace/"}
-```
-
-action_type มีค่าได้: "terminal", "file", "code", "done"
-- terminal: รันคำสั่ง bash
-- file: read <path> | write <path>\\n<content> | list <dir>
-- code: แก้ไขโค้ด
-- done: เมื่องานเสร็จสมบูรณ์"""
+{"type": "action", "action_type": "terminal|file|code|done", "content": "รายละเอียด"}
+```"""
 
         return prompt
 

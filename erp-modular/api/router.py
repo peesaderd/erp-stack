@@ -27,10 +27,15 @@ router = APIRouter(prefix="/api/v1")
 _template_engine = None
 
 
+def _get_db_session():
+    """เรียกใช้จริง: next(get_session()) เพื่อให้ได้ Session object"""
+    return next(get_session())
+
+
 def get_template_engine():
     global _template_engine
     if _template_engine is None:
-        _template_engine = TemplateEngine(get_session, template_dirs=["templates"])
+        _template_engine = TemplateEngine(_get_db_session, template_dirs=["templates"])
     return _template_engine
 
 

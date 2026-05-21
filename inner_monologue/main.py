@@ -7,8 +7,10 @@ Main — ตัวรัน Inner Monologue Agent
 """
 
 import argparse
+import json
 import os
 import sys
+import time
 
 from .agent import InnerMonologueAgent
 from .heartbeat import Heartbeat
@@ -28,6 +30,8 @@ def main():
     parser.add_argument("--mock", action="store_true", help="ใช้ Mock LLM (ไม่ต้องใช้ API)")
     parser.add_argument("--list-history", action="store_true", help="ดูประวัติที่มีอยู่")
     parser.add_argument("--clear-memory", action="store_true", help="ล้างประวัติทั้งหมด")
+    parser.add_argument("--wait", action="store_true", help="รันแบบ daemon รอรับ task จาก .agent-tasks/")
+    parser.add_argument("--task-dir", default="./.agent-tasks", help="directory ที่ใช้รับ task (ใช้กับ --wait)")
 
     args = parser.parse_args()
 
@@ -85,13 +89,6 @@ def main():
         print("✅ ล้างประวัติเรียบร้อย")
         return
 
-    # ตรวจสอบว่ามี task หรือไม่
-    if not args.task:
-        parser.print_help()
-        print("\n❌ ระบุ task ด้วย เช่น:")
-        print('   python -m inner_monologue.main "วิเคราะห์ ERP"')
-        sys.exit(1)
-
     # HITL callback — แจ้งผู้ใช้เมื่อรออนุมัติ
     def _on_hitl(event: str, data: dict):
         """เมื่อ Agent รอการอนุมัติ ให้แจ้งผู้ใช้"""
@@ -103,7 +100,7 @@ def main():
             print(f"     ตรวจสอบได้ที่: {os.path.join(args.workspace, '.hitl-flags', 'WAITING_FOR_APPROVAL.txt')}")
             print()
 
-    # สร้าง Agent และรัน
+    # สร้าง Agent
     agent = InnerMonologueAgent(
         llm_config={
             "api_key": api_key,
@@ -117,6 +114,79 @@ def main():
         mock=args.mock,
         hitl_callback=_on_hitl,
     )
+
+    # ──── --wait mode: daemon รอรับ task ────
+    if args.wait:
+        task_dir = os.path.abspath(args.task_dir)
+        result_dir = os.path.join(task_dir, "..", ".agent-results")
+        os.makedirs(task_dir, exist_ok=True)
+        os.makedirs(result_dir, exist_ok=True)
+        print(f"\n  🧠 Agent Daemon เริ่มทำงานแล้ว")
+        print(f"  📥 รอรับ task ที่: {task_dir}/")
+        print(f"  📤 ผลลัพธ์จะอยู่ที่: {result_dir}/")
+        print(f"  ⏹ กด Ctrl+C เพื่อหยุด\n")
+
+        processed = set()
+        while True:
+            try:
+                # หาไฟล์ task ใหม่ (เฉพาะ .json ที่ยังไม่เคยประมวลผล)
+                tasks = [f for f in os.listdir(task_dir) if f.endswith(".json")]
+                new_tasks = [f for f in tasks if f not in processed]
+
+                for task_file in new_tasks:
+                    task_path = os.path.join(task_dir, task_file)
+                    try:
+                        with open(task_path, "r", encoding="utf-8") as f:
+                            task_data = json.load(f)
+                        task_content = task_data.get("task", "")
+                        task_id = task_data.get("id", task_file.replace(".json", ""))
+
+                        print(f"\n  📥 ได้รับ task: {task_id}")
+                        print(f"     {task_content[:100]}")
+
+                        # รัน Agent
+                        result = agent.run(task_content)
+
+                        # เขียนผลลัพธ์
+                        result_path = os.path.join(result_dir, f"{task_id}.json")
+                        with open(result_path, "w", encoding="utf-8") as f:
+                            json.dump({
+                                "id": task_id,
+                                "task": task_content,
+                                "result": result,
+                                "status": "done",
+                                "timestamp": time.strftime('%Y-%m-%d %H:%M:%S'),
+                            }, f, ensure_ascii=False, indent=2)
+
+                        print(f"  📤 ผลลัพธ์: {result_path}")
+                    except json.JSONDecodeError:
+                        print(f"  ❌ task {task_file} JSON ไม่ถูกต้อง")
+                    except Exception as e:
+                        print(f"  ❌ task {task_file} error: {e}")
+                    finally:
+                        # ลบ task file ทิ้ง
+                        try:
+                            os.remove(task_path)
+                        except Exception:
+                            pass
+                        processed.add(task_file)
+
+                # เก็บเฉพาะ 100 ล่าสุด (ไม่ให้ memory ล้น)
+                if len(processed) > 100:
+                    processed = set(list(processed)[-50:])
+
+                time.sleep(1)
+            except KeyboardInterrupt:
+                print("\n\n  ⏹ หยุด Agent Daemon")
+                sys.exit(0)
+
+    # ──── ปกติ: รัน task เดียวแล้วจบ ────
+    if not args.task:
+        parser.print_help()
+        print("\n❌ ระบุ task ด้วย เช่น:")
+        print('   python -m inner_monologue.main "วิเคราะห์ ERP"')
+        print('   หรือใช้ --wait เพื่อรันแบบ daemon')
+        sys.exit(1)
 
     try:
         result = agent.run(args.task)

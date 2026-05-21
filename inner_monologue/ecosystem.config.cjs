@@ -7,7 +7,9 @@ module.exports = {
       '-m', 'inner_monologue.main',
       '--model', 'deepseek/deepseek-chat',
       '--workspace', '/home/openhands/erp-stack',
-      'รัน Agent รอรับคำสั่ง...',
+      '--memory-dir', '/home/openhands/erp-stack/.inner-monologue-memory',
+      '--wait',
+      '--task-dir', '/home/openhands/erp-stack/.agent-tasks',
     ],
     env: {
       PYTHONPATH: '/home/openhands/erp-stack',
@@ -22,9 +24,9 @@ module.exports = {
     out_file: '/home/openhands/erp-stack/logs/agent-out.log',
     log_file: '/home/openhands/erp-stack/logs/agent-combined.log',
     time: true,
-    // Auto-restart on crash
+    // Auto-restart on crash (--wait mode ไม่ควรตายนอกจาก error จริง)
     autorestart: true,
-    max_restarts: 10,
-    restart_delay: 3000,
+    max_restarts: 3,
+    restart_delay: 5000,
   }],
 };

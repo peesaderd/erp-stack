@@ -55,13 +55,13 @@ DONE_SCHEMA = {
 }
 
 ALLOWED_TYPES = {"thought", "action", "done"}
-ALLOWED_ACTION_TYPES = {"terminal", "file", "code", "done"}
+ALLOWED_ACTION_TYPES = {"terminal", "file", "code", "test", "git", "done"}
 
 JSON_SYSTEM_INSTRUCTION = """
 ตอบเป็น JSON เท่านั้น ห้ามมีข้อความอื่น
 
 คิด: {"type": "thought", "content": "..."}
-ทำ: {"type": "action", "action_type": "terminal|file|code|done", "content": "..."}
+ทำ: {"type": "action", "action_type": "terminal|file|code|test|git|done", "content": "..."}
 เสร็จ: {"type": "done", "content": "สรุป", "summary": "..."}
 
 ห้ามตอบหลาย JSON ในครั้งเดียว"""
@@ -133,6 +133,27 @@ class InnerMonologueAgent:
 4. OUTPUT ONLY JSON. No text outside JSON.
 5. งานง่าย (date/time) → done หลังได้ข้อมูล
 
+## Available Tools:
+
+### File Operations:
+- read: path/to/file — อ่านไฟล์
+- write: path/to/file\\nเนื้อหา — เขียนไฟล์ใหม่ (มี HITL ถ้าไฟล์มีอยู่แล้ว)
+- edit: path/to/file\\nSEARCH\\nข้อความเดิม\\nSEARCH\\nข้อความใหม่ — แก้ไขเฉพาะส่วน (search-and-replace)
+- list: path/to/dir — ดูรายการใน directory
+
+### Terminal:
+- terminal: คำสั่ง bash ใดๆ — รันคำสั่ง shell
+
+### Test:
+- test: path/to/test_file.py — รัน pytest
+- test: path/to/test_file.py::test_func — รัน pytest เฉพาะฟังก์ชัน
+
+### Git:
+- git: status, git: add ., git: commit -m "msg", git: push, etc.
+
+### Code:
+- code: คำอธิบาย — บันทึกแนวคิดการเขียนโค้ด (ยังไม่ execute)
+
 ## Micro-agents (ความรู้เฉพาะทาง):
 
 ### Python/SQLModel:
@@ -144,14 +165,7 @@ class InnerMonologueAgent:
 ### Shell:
 - shell นี้เป็น /bin/sh ไม่ใช่ bash — ใช้ . venv/bin/activate แทน source
 - ใช้ python3 (ไม่ใช่ python)
-- ถ้าคำสั่งใช้เวลาเกิน 30 วิ จะ timeout
-
-### File Operations:
-- ก่อนเขียนทับไฟล์ ให้อ่านไฟล์เดิมก่อนเสมอ (read: path)
-- ถ้าไฟล์มีอยู่แล้ว ควรแก้ไขเฉพาะส่วนที่จำเป็น ไม่เขียนทับทั้งไฟล์
-- ใช้ write: path/to/file\\nเนื้อหา สำหรับเขียนไฟล์ใหม่
-- ใช้ read: path/to/file สำหรับอ่านไฟล์
-- ใช้ list: path/to/dir สำหรับดูรายการใน directory"""
+- ถ้าคำสั่งใช้เวลาเกิน 30 วิ จะ timeout"""
 
     def __init__(
         self,
@@ -410,6 +424,10 @@ class InnerMonologueAgent:
             return self._handle_file(action_content)
         elif action_type == "code":
             return self._handle_code(action_content)
+        elif action_type == "test":
+            return self._run_test(action_content)
+        elif action_type == "git":
+            return self._run_git(action_content)
         else:
             return f"Error: ไม่รู้จัก action type: {action_type}"
 
@@ -698,12 +716,15 @@ class InnerMonologueAgent:
 
 ## คำสั่ง:
 - OUTPUT ONLY JSON. No text before or after.
-- รูปแบบ: {"type": "action", "action_type": "terminal|file|code|done", "content": "..."}
+- รูปแบบ: {"type": "action", "action_type": "terminal|file|code|test|git|done", "content": "..."}
 
-## รูปแบบ file action:
-- เขียนไฟล์: {"type": "action", "action_type": "file", "content": "write: path/to/file.py\\nเนื้อหาไฟล์..."}
+## รูปแบบ action:
 - อ่านไฟล์: {"type": "action", "action_type": "file", "content": "read: path/to/file.py"}
-- ดูรายการ: {"type": "action", "action_type": "file", "content": "list: path/to/dir"}"""
+- เขียนไฟล์: {"type": "action", "action_type": "file", "content": "write: path/to/file.py\\nเนื้อหาไฟล์..."}
+- แก้ไขไฟล์: {"type": "action", "action_type": "file", "content": "edit: path/to/file.py\\nSEARCH\\nข้อความเดิม\\nSEARCH\\nข้อความใหม่"}
+- ดูรายการ: {"type": "action", "action_type": "file", "content": "list: path/to/dir"}
+- รัน pytest: {"type": "action", "action_type": "test", "content": "tests/test_file.py::test_func"}
+- รัน git: {"type": "action", "action_type": "git", "content": "status"}"""
 
         return prompt
 
@@ -747,6 +768,37 @@ class InnerMonologueAgent:
                 return f"Error: ไม่พบไฟล์ {path}"
             except Exception as e:
                 return f"Error อ่านไฟล์: {e}"
+        elif action.startswith("edit:") or action.startswith("edit "):
+            # edit: path/to/file.py\nSEARCH\nold code\nSEARCH\nnew code
+            prefix = "edit:" if action.startswith("edit:") else "edit "
+            rest = action[len(prefix):].strip()
+            if "\n" not in rest:
+                return "Error: รูปแบบไม่ถูกต้อง ใช้: edit: path/to/file.py\\nSEARCH\\nข้อความเดิม\\nSEARCH\\nข้อความใหม่"
+            path, rest2 = rest.split("\n", 1)
+            path = path.strip()
+            if "SEARCH" not in rest2:
+                return "Error: รูปแบบไม่ถูกต้อง ต้องมี SEARCH คั่นระหว่างข้อความเดิมและข้อความใหม่"
+            parts = rest2.split("SEARCH")
+            if len(parts) != 3:
+                return "Error: รูปแบบไม่ถูกต้อง ใช้: edit: path\\nSEARCH\\nold\\nSEARCH\\nnew"
+            old_str = parts[1].strip("\n").strip()
+            new_str = parts[2].strip("\n").strip()
+            if not old_str:
+                return "Error: ข้อความเดิม (SEARCH) ห้ามว่าง"
+            full_path = os.path.join(self.workspace, path) if not path.startswith("/") else path
+            if not os.path.exists(full_path):
+                return f"Error: ไม่พบไฟล์ {path}"
+            try:
+                with open(full_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                if old_str not in content:
+                    return f"Error: ไม่พบข้อความที่ต้องการแก้ไขใน {path}"
+                new_content = content.replace(old_str, new_str, 1)
+                with open(full_path, "w", encoding="utf-8") as f:
+                    f.write(new_content)
+                return f"แก้ไขไฟล์ {path} สำเร็จ (แทนที่ {len(old_str)} → {len(new_str)} ตัวอักษร)"
+            except Exception as e:
+                return f"Error แก้ไขไฟล์: {e}"
         elif action.startswith("write:") or action.startswith("write "):
             # write: path\ncontent  หรือ write path\ncontent
             prefix = "write:" if action.startswith("write:") else "write "
@@ -806,6 +858,56 @@ class InnerMonologueAgent:
     def _handle_code(self, action: str) -> str:
         """จัดการกับ code action - ปัจจุบันแค่บันทึกไว้"""
         return f"📝 Code action received: {action[:200]}"
+
+    def _run_test(self, action: str) -> str:
+        """รัน pytest และคืนค่าผลลัพธ์"""
+        action = action.strip()
+        # รองรับ: test: path/to/test_file.py หรือ test: path/to/test_file.py::test_func
+        try:
+            result = subprocess.run(
+                f"python3 -m pytest {action} -v --tb=short 2>&1 | tail -40",
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=60,
+                cwd=self.workspace,
+            )
+            output = result.stdout or ""
+            if result.stderr:
+                output += f"\n[STDERR]: {result.stderr[:500]}"
+            if result.returncode != 0:
+                output += f"\n[Exit code: {result.returncode}]"
+            return output.strip() or "(ไม่มี output)"
+        except subprocess.TimeoutExpired:
+            return "Error: pytest ใช้เวลาเกิน 60 วินาที"
+        except Exception as e:
+            return f"Error รัน pytest: {e}"
+
+    def _run_git(self, action: str) -> str:
+        """รัน git command และคืนค่าผลลัพธ์"""
+        action = action.strip()
+        # รองรับ: git: status, git: add . , git: commit -m "msg", git: push, etc.
+        try:
+            result = subprocess.run(
+                f"git {action}",
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=30,
+                cwd=self.workspace,
+            )
+            output = ""
+            if result.stdout:
+                output += result.stdout[:2000]
+            if result.stderr:
+                output += f"\n[STDERR]: {result.stderr[:500]}"
+            if result.returncode != 0:
+                output += f"\n[Exit code: {result.returncode}]"
+            return output.strip() or "(ไม่มี output)"
+        except subprocess.TimeoutExpired:
+            return "Error: git ใช้เวลาเกิน 30 วินาที"
+        except Exception as e:
+            return f"Error รัน git: {e}"
 
     # ──────────────────────────── Finalize ────────────────────────────
 

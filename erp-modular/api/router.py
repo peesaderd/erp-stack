@@ -3,11 +3,13 @@
 มี endpoints:
 - POST/GET list/GET by id/PUT/PATCH/DELETE สำหรับทุก entity
 - search query parameter สำหรับ list endpoints
+- Template Engine: render template
+- Plugin Registry: install/activate/deactivate/uninstall
 """
 
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, Body
 from sqlmodel import Session, select, func
-from typing import List, Optional
+from typing import List, Optional, Any
 
 from models.entity import (
     Module, ModuleCreate, ModuleUpdate, ModuleRead,
@@ -17,8 +19,19 @@ from models.entity import (
     App, AppCreate, AppUpdate, AppRead,
 )
 from core.database import get_session
+from core.template_engine import TemplateEngine
 
 router = APIRouter(prefix="/api/v1")
+
+# ─── Template Engine instance ─────────────────────────────────────────────
+_template_engine = None
+
+
+def get_template_engine():
+    global _template_engine
+    if _template_engine is None:
+        _template_engine = TemplateEngine(get_session, template_dirs=["templates"])
+    return _template_engine
 
 
 # ─── Helper ──────────────────────────────────────────────────────────────
@@ -336,6 +349,202 @@ def delete_app(app_id: int, session: Session = Depends(get_session)):
     session.delete(app)
     session.commit()
     return {"ok": True}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Template Engine
+# ═══════════════════════════════════════════════════════════════════════════
+
+@router.post("/templates/render", response_model=dict)
+def render_template(
+    template_slug: str = Body(..., description="slug หรือ name ของ template"),
+    context: dict = Body(default_factory=dict, description="ข้อมูลที่จะส่งเข้า template"),
+    engine: TemplateEngine = Depends(get_template_engine),
+):
+    """Render template ที่บันทึกใน DB ด้วย context ที่ส่งเข้าไป"""
+    try:
+        result = engine.render(template_slug, context)
+        return {"template": template_slug, "result": result}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/templates/render-inline", response_model=dict)
+def render_inline_template(
+    content: str = Body(..., description="template content (Jinja2 string)"),
+    context: dict = Body(default_factory=dict, description="ข้อมูลที่จะส่งเข้า template"),
+    engine: TemplateEngine = Depends(get_template_engine),
+):
+    """Render template จาก string โดยตรง (ไม่ได้บันทึกใน DB)"""
+    try:
+        result = engine.render_from_content(content, context)
+        return {"result": result}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/templates/{template_id}/render", response_model=dict)
+def render_template_by_id(
+    template_id: int,
+    context: dict = Body(default_factory=dict, description="ข้อมูลที่จะส่งเข้า template"),
+    session: Session = Depends(get_session),
+    engine: TemplateEngine = Depends(get_template_engine),
+):
+    """Render template ตาม ID"""
+    tmpl = session.get(Template, template_id)
+    if not tmpl:
+        raise HTTPException(status_code=404, detail="Template not found")
+    try:
+        result = engine.render(tmpl.slug, context)
+        return {"template": tmpl.slug, "name": tmpl.name, "result": result}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Plugin Registry — Lifecycle Management
+# ═══════════════════════════════════════════════════════════════════════════
+
+@router.post("/plugins/{plugin_id}/install", response_model=PluginRead)
+def install_plugin(plugin_id: int, session: Session = Depends(get_session)):
+    """ติดตั้ง Plugin: โหลดโมดูล, เรียก install hook, set enabled=True"""
+    plugin = session.get(Plugin, plugin_id)
+    if not plugin:
+        raise HTTPException(status_code=404, detail="Plugin not found")
+    if plugin.enabled:
+        raise HTTPException(status_code=400, detail="Plugin already installed")
+
+    # ตรวจสอบ dependencies
+    if plugin.dependencies:
+        dep_slugs = [s.strip() for s in plugin.dependencies.split(",") if s.strip()]
+        for dep_slug in dep_slugs:
+            dep = session.exec(
+                select(Plugin).where(Plugin.slug == dep_slug, Plugin.enabled == True)
+            ).first()
+            if not dep:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Dependency '{dep_slug}' not found or not enabled. "
+                           f"กรุณาติดตั้ง {dep_slug} ก่อน",
+                )
+
+    # พยายามโหลดโมดูล plugin
+    try:
+        module_path = f"plugins.{plugin.slug}.main"
+        import importlib
+        mod = importlib.import_module(module_path)
+        if hasattr(mod, "install"):
+            mod.install()
+    except ModuleNotFoundError:
+        # ไม่มีโมดูลจริง — อนุญาตให้ผ่าน (สำหรับ registered plugins ที่ยังไม่มี code)
+        pass
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Plugin install error: {str(e)}")
+
+    plugin.enabled = True
+    session.commit()
+    session.refresh(plugin)
+    return plugin
+
+
+@router.post("/plugins/{plugin_id}/activate", response_model=PluginRead)
+def activate_plugin(plugin_id: int, session: Session = Depends(get_session)):
+    """เปิดใช้งาน Plugin: เรียก activate hook"""
+    plugin = session.get(Plugin, plugin_id)
+    if not plugin:
+        raise HTTPException(status_code=404, detail="Plugin not found")
+    if not plugin.enabled:
+        raise HTTPException(status_code=400, detail="Plugin not installed. กรุณา install ก่อน")
+
+    try:
+        module_path = f"plugins.{plugin.slug}.main"
+        import importlib
+        mod = importlib.import_module(module_path)
+        if hasattr(mod, "activate"):
+            mod.activate()
+    except ModuleNotFoundError:
+        pass
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Plugin activate error: {str(e)}")
+
+    return plugin
+
+
+@router.post("/plugins/{plugin_id}/deactivate", response_model=PluginRead)
+def deactivate_plugin(plugin_id: int, session: Session = Depends(get_session)):
+    """ปิดใช้งาน Plugin: เรียก deactivate hook"""
+    plugin = session.get(Plugin, plugin_id)
+    if not plugin:
+        raise HTTPException(status_code=404, detail="Plugin not found")
+
+    try:
+        module_path = f"plugins.{plugin.slug}.main"
+        import importlib
+        mod = importlib.import_module(module_path)
+        if hasattr(mod, "deactivate"):
+            mod.deactivate()
+    except ModuleNotFoundError:
+        pass
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Plugin deactivate error: {str(e)}")
+
+    return plugin
+
+
+@router.post("/plugins/{plugin_id}/uninstall", response_model=PluginRead)
+def uninstall_plugin(plugin_id: int, session: Session = Depends(get_session)):
+    """ถอนการติดตั้ง Plugin: เรียก uninstall hook, set enabled=False"""
+    plugin = session.get(Plugin, plugin_id)
+    if not plugin:
+        raise HTTPException(status_code=404, detail="Plugin not found")
+
+    try:
+        module_path = f"plugins.{plugin.slug}.main"
+        import importlib
+        mod = importlib.import_module(module_path)
+        if hasattr(mod, "uninstall"):
+            mod.uninstall()
+    except ModuleNotFoundError:
+        pass
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Plugin uninstall error: {str(e)}")
+
+    plugin.enabled = False
+    session.commit()
+    session.refresh(plugin)
+    return plugin
+
+
+@router.post("/plugins/{plugin_id}/execute", response_model=dict)
+def execute_plugin(
+    plugin_id: int,
+    params: dict = Body(default_factory=dict, description="parameters ส่งให้ plugin execute"),
+    session: Session = Depends(get_session),
+):
+    """Execute Plugin: เรียก execute hook พร้อม parameters"""
+    plugin = session.get(Plugin, plugin_id)
+    if not plugin:
+        raise HTTPException(status_code=404, detail="Plugin not found")
+    if not plugin.enabled:
+        raise HTTPException(status_code=400, detail="Plugin not installed. กรุณา install ก่อน")
+
+    try:
+        module_path = f"plugins.{plugin.slug}.main"
+        import importlib
+        mod = importlib.import_module(module_path)
+        if hasattr(mod, "execute"):
+            result = mod.execute(**params)
+            return {"plugin": plugin.slug, "result": result}
+        else:
+            raise HTTPException(status_code=400, detail="Plugin has no execute() function")
+    except ModuleNotFoundError:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Plugin module 'plugins.{plugin.slug}.main' not found. "
+                   f"กรุณาสร้างไฟล์ plugins/{plugin.slug}/main.py",
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Plugin execute error: {str(e)}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════

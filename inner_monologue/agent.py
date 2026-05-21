@@ -87,17 +87,24 @@ class MockLLM:
 
         # act prompt - มี JSON example ที่มี "action_type"
         if '"action_type"' in prompt and '"type": "action"' in prompt:
-            # ถ้า think_count >= 3 แสดงว่าคิดครบแล้ว → สั่ง done
-            if self._think_count >= 3:
-                return '{"type": "action", "action_type": "done", "content": "วิเคราะห์เสร็จสมบูรณ์"}'
-            return '{"type": "action", "action_type": "terminal", "content": "ls -la /workspace/"}'
+            if self._think_count >= 5:
+                return '{"type": "action", "action_type": "done", "content": "วิเคราะห์เสร็จสมบูรณ์ วางแผนเรียบร้อย"}'
+            actions = [
+                '{"type": "action", "action_type": "terminal", "content": "ls -la /workspace/erp-stack/erp-modular/"}',
+                '{"type": "action", "action_type": "terminal", "content": "cat /workspace/erp-stack/erp-modular/ERP_ROADMAP.md"}',
+                '{"type": "action", "action_type": "file", "content": "เขียน ERP_ROADMAP.md โดยวางแผนเป็น 8 Phase ตาม dependencies"}',
+                '{"type": "action", "action_type": "terminal", "content": "ls -la /workspace/erp-stack/"}',
+            ]
+            return actions[min(self._think_count - 1, len(actions) - 1)]
 
         # think prompt - มี JSON example ที่มี "type": "thought"
         self._think_count += 1
         thoughts = [
-            '{"type": "thought", "content": "ฉันควรสำรวจโครงสร้างโปรเจคก่อน เพื่อดูว่ามีอะไรบ้าง", "suggested_action": "terminal: ls -la /workspace/"}',
-            '{"type": "thought", "content": "ฉันเห็นโครงสร้างโปรเจคแล้ว ควรวิเคราะห์ว่าแต่ละส่วนคืออะไร", "suggested_action": "terminal: cat README.md"}',
-            '{"type": "thought", "content": "ฉันได้ข้อมูลครบแล้ว สามารถสรุปผลได้", "suggested_action": "done"}',
+            '{"type": "thought", "content": "ฉันควรสำรวจโครงสร้างโปรเจค ERP Modular ก่อน เพื่อดูว่ามีไฟล์อะไรอยู่แล้วบ้าง", "suggested_action": "terminal: ls -la /workspace/erp-stack/erp-modular/"}',
+            '{"type": "thought", "content": "ERP Modular มี 5 Modules หลักและ 22 Issues ทั้งหมดยังเป็น Todo ต้องวางแผนการทำงานเป็น Phase", "suggested_action": "terminal: ดูรายละเอียดโปรเจค"}',
+            '{"type": "thought", "content": "Core Data Model และ API Layer ควรมาก่อน เพราะทุกอย่างต่อยอดจากโครงสร้างข้อมูล", "suggested_action": "file: เขียน ERP_ROADMAP.md"}',
+            '{"type": "thought", "content": "Plugin System และ API Gateway ต้องมาต่อ เพราะ Mini App ต้องมี Gateway เป็นทางเข้าออกเดียว", "suggested_action": "terminal: ตรวจสอบ Bridge Server"}',
+            '{"type": "thought", "content": "Integrations และ AI Agent มาทีหลัง เพราะต้องมี Core + Gateway + Plugin พร้อมก่อน ถึงจะเชื่อมต่อ Tools ได้", "suggested_action": "done"}',
         ]
         return thoughts[min(self._think_count - 1, len(thoughts) - 1)]
 
@@ -394,6 +401,7 @@ class InnerMonologueAgent:
         # Providers เรียงตามลำดับความสำคัญ
         providers = [
             self.llm_config,  # Provider หลักจาก config
+            {"model": "deepseek/deepseek-chat", "api_key": os.environ.get("DEEPSEEK_API_KEY")},
             {"model": "groq/llama-3.3-70b-versatile", "api_key": os.environ.get("GROQ_API_KEY")},
             {"model": "mistral/mistral-large-latest", "api_key": os.environ.get("MISTRAL_API_KEY")},
         ]
@@ -441,10 +449,13 @@ class InnerMonologueAgent:
         # Map model to API endpoint
         if "groq" in model:
             url = "https://api.groq.com/openai/v1/chat/completions"
-            api_model = model.split("/", 1)[-1]  # "groq/llama-3.3-70b-versatile" → "llama-3.3-70b-versatile"
+            api_model = model.split("/", 1)[-1]
         elif "mistral" in model:
             url = "https://api.mistral.ai/v1/chat/completions"
-            api_model = model.split("/", 1)[-1]  # "mistral/mistral-large-latest" → "mistral-large-latest"
+            api_model = model.split("/", 1)[-1]
+        elif "deepseek" in model:
+            url = "https://api.deepseek.com/v1/chat/completions"
+            api_model = model.split("/", 1)[-1]
         else:
             raise ValueError(f"Unknown provider in model: {model}")
 

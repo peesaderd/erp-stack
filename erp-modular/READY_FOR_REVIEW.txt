@@ -1,0 +1,41 @@
+STATUS: READY_FOR_REVIEW
+TIMESTAMP: 2026-05-21 18:47:34
+TASK: คุณได้รับมอบหมายให้เริ่ม Phase 1 ของโปรเจค ERP Modular
+
+## ภารกิจ
+ออกแบบ Core Data Model (Entity/Module/Template) และ API Layer
+
+## สิ่งที่ต้องทำ
+1. สร้างโครงสร้างโปรเจค Python ที่ /workspace/erp-stack/erp-modular/
+2. ออกแบบ Data Model ด้วย Pydantic v2 + SQLModel:
+   - Entity: สิ่งของในระบบ (Customer, Invoice, Product, Order)
+   - Module: กลุ่มของ Entity ที่ทำงานร่วมกัน (Accounting, CRM, Inventory)
+   - Template: แม่แบบสำหรับสร้าง Entity หรือ Module ซ้ำ
+   - Plugin: ส่วนขยายที่แทรกเข้าไปในระบบได้
+   - App: Mini App ที่เชื่อมต่อผ่าน API Gateway
+3. สร้าง FastAPI CRUD สำหรับ Module/Template
+4. สร้าง Abstract Base Class สำหรับ Plugin Interface
+
+## เทคโนโลยีที่แนะนำ
+- Python 3.12+
+- FastAPI
+- Pydantic v2
+- SQLModel
+- SQLite (สำหรับ development ก่อน)
+
+## สิ่งที่มีอยู่แล้ว
+- โฟลเดอร์ /workspace/erp-stack/erp-modular/ — เปล่าอยู่
+- Bridge Server ที่ port 54517
+- inner-monologue-agent ของเรา
+
+## ขั้นตอน
+1. สำรวจโฟลเดอร์ทำงานก่อน
+2. สร้าง requirements.txt
+3. สร้างโครงสร้างไฟล์ (models/, api/, core/)
+4. เขียน Data Model
+5. เขียน API Layer
+6. เขียน Plugin Interface
+7. ทดสอบว่า import ได้
+8. เขียนไฟล์ READY_FOR_REVIEW.txt เมื่อเสร็จ
+SUMMARY: ⚠️ เกิน 10 รอบแล้ว - หยุดการทำงาน
+ROUNDS: 10

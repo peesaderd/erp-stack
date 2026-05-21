@@ -1,42 +1,7 @@
-# Python
 __pycache__/
-*.py[cod]
-*.egg-info/
-dist/
-build/
+*.pyc
 *.db
-*.log
-
-# Environment
 .env
-.env.local
-*.bak
-
-# IDE
-.vscode/
-.idea/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Docker
-docker-compose*.yml
-!docker-compose.planka.yml
-!docker-compose.plane.yml
-!docker-compose.bookstack.yml
-!docker-compose.siyuan.yml
-!docker-compose.openobserve.yml
-!docker-compose.network.yml
-!docker-compose.yml
-
-# Project specific
-project-mgmt/
-.browser_screenshots/
-
-# Inner Monologue Agent
-.inner-monologue-memory/
+.erp-modular-memory/
 .hitl-flags/
-
-# Aider
-.aider*
+inner_monologue/READY_FOR_REVIEW.txt

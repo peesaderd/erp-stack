@@ -72,6 +72,19 @@ async def log_to_openobserve(level: str, source: str, event: str, data: dict):
 _plane_session_key: str | None = None
 
 
+def _parse_session_cookie(cookie_str: str) -> str | None:
+    """Extract session-id value from 'session-id=xxx' format."""
+    if not cookie_str:
+        return None
+    for part in cookie_str.split(";"):
+        part = part.strip()
+        if part.startswith("session-id="):
+            return part[len("session-id="):]
+    if cookie_str.startswith("session-id="):
+        return cookie_str[len("session-id="):]
+    return cookie_str if cookie_str else None
+
+
 async def refresh_plane_session():
     """Login to Plane and update the session cookie in settings."""
     global _plane_session_key
@@ -291,11 +304,11 @@ async def startup_refresh():
 async def manual_sync_plane_to_planka(issue_name: str = "Test Issue"):
     """Manually trigger a Plane → Planka sync."""
     await _sync_plane_issue_to_planka({"name": issue_name, "state": {"name": "Backlog"}})
-    return {"status": "ok", "message": f"Synced {issue_name} to Planka"}
+    return {"status": "ok", "message": f"Synced '{issue_name}' to Planka"}
 
 
 @app.post("/api/sync/plane-to-bookstack")
 async def manual_sync_plane_to_bookstack(issue_name: str = "Test Issue"):
     """Manually trigger a Plane → BookStack sync."""
     await _sync_plane_issue_to_bookstack({"name": issue_name, "description": "Manual sync"})
-    return {"status": "ok", "message": f"Synced {issue_name} to BookStack"}
+    return {"status": "ok", "message": f"Synced '{issue_name}' to BookStack"}

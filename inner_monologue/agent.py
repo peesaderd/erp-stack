@@ -68,10 +68,16 @@ class InnerMonologueAgent:
 - code: แก้ไขโค้ด
 
 รูปแบบการตอบ:
-🧠 THOUGHT: สิ่งที่กำลังคิด
-⚡ ACTION: สิ่งที่กำลังจะทำ
+🧠 THOUGHT: สิ่งที่กำลังคิด (ใช้ภาษาไทย)
+⚡ ACTION: terminal: <คำสั่ง bash>
 📊 OBSERVATION: ผลลัพธ์ที่ได้
-✅ DONE: เมื่อเสร็จแล้ว"""
+✅ DONE: เมื่อเสร็จแล้ว
+
+ข้อควรปฏิบัติ:
+- คิดทีละขั้นตอน อย่าด่วนสรุป
+- ตรวจสอบผลลัพธ์ทุกครั้งก่อนตัดสินใจ
+- ถ้าผลลัพธ์ไม่ชัดเจน ให้รันคำสั่งเพิ่ม
+- ใช้ภาษาไทยในการคิดและสรุป"""
 
     def __init__(
         self,
@@ -233,7 +239,7 @@ class InnerMonologueAgent:
 
         # litellm mode (แนะนำ)
         try:
-            import litellm
+            import litellm as _litellm
             return self._call_litellm(prompt)
         except ImportError:
             pass
@@ -243,19 +249,22 @@ class InnerMonologueAgent:
 
     def _call_litellm(self, prompt: str) -> str:
         """เรียก LLM ผ่าน litellm — รองรับหลาย provider"""
+        import litellm
         api_key = self.llm_config.get("api_key") or os.environ.get("MISTRAL_API_KEY")
-        model = self.llm_config.get("model", "mistral/mistral-large-2411")
+        model = self.llm_config.get("model", "mistral/mistral-large-latest")
 
         # ถ้าไม่มี api_key ให้ใช้ mock
         if not api_key:
             return self._llm.completion([{"role": "user", "content": prompt}]) if self._llm else "Error: ไม่มี API key"
 
-        messages = [{"role": "system", "content": self.SYSTEM_PROMPT}]
-
-        # เพิ่ม context จาก memory
+        # Mistral จุกจิกเรื่อง system prompt ถ้าใช้ role system ซ้อนกันหลายอัน
+        # ใช้ system message เดียวรวม context
+        system_context = self.SYSTEM_PROMPT
         context = self.memory.get_context(max_entries=10)
         if context:
-            messages.append({"role": "system", "content": f"บริบทจากประวัติ:\n{context}"})
+            system_context += f"\n\n## บริบทจากประวัติ:\n{context}"
+
+        messages = [{"role": "system", "content": system_context}]
 
         # เพิ่มประวัติล่าสุด
         for msg in self._conversation_history[-6:]:
@@ -267,7 +276,7 @@ class InnerMonologueAgent:
             response = litellm.completion(
                 model=model,
                 messages=messages,
-                max_tokens=1024,
+                max_tokens=2048,
                 temperature=0.7,
                 api_key=api_key,
             )
@@ -287,12 +296,15 @@ class InnerMonologueAgent:
         if not api_key:
             return "Error: ไม่มี API key กรุณาตั้งค่า MISTRAL_API_KEY"
 
-        model = self.llm_config.get("model", "mistral-large-2411")
+        model = self.llm_config.get("model", "mistral-large-latest")
 
-        messages = [{"role": "system", "content": self.SYSTEM_PROMPT}]
+        # รวม system prompt + context เป็นอันเดียว (Mistral จุกจิกเรื่อง system ซ้อน)
+        system_context = self.SYSTEM_PROMPT
         context = self.memory.get_context(max_entries=10)
         if context:
-            messages.append({"role": "system", "content": f"บริบทจากประวัติ:\n{context}"})
+            system_context += f"\n\n## บริบทจากประวัติ:\n{context}"
+
+        messages = [{"role": "system", "content": system_context}]
         for msg in self._conversation_history[-6:]:
             messages.append(msg)
         messages.append({"role": "user", "content": prompt})
@@ -307,7 +319,7 @@ class InnerMonologueAgent:
                 json={
                     "model": model,
                     "messages": messages,
-                    "max_tokens": 1024,
+                    "max_tokens": 2048,
                     "temperature": 0.7,
                 },
                 timeout=30,
@@ -326,7 +338,7 @@ class InnerMonologueAgent:
     # ──────────────────────────── Prompt Builder ────────────────────────────
 
     def _build_think_prompt(self) -> str:
-        """สร้าง prompt สำหรับการคิด"""
+        """สร้าง prompt สำหรับการคิด — รวมประวัติทั้งหมดให้ LLM เห็นบริบท"""
         parts = [f"## ภารกิจ: {self._current_task}\n"]
 
         # เพิ่ม insights จาก self-reflection
@@ -334,15 +346,35 @@ class InnerMonologueAgent:
         if insights:
             parts.append(f"## สิ่งที่รู้เกี่ยวกับผู้ใช้:\n{insights}\n")
 
-        parts.append("## ขั้นตอน:\n1. คิดทบทวนสถานการณ์ปัจจุบัน\n2. กำหนดว่าต้องทำอะไรต่อ\n3. ถ้าได้ข้อสรุปแล้ว ให้ขึ้นต้นด้วย [DONE]")
+        # เพิ่มประวัติการทำงาน (history) เพื่อให้ LLM เห็นบริบท
+        if self._history:
+            history_lines = []
+            for h in self._history[-6:]:  # 6 รอบล่าสุด
+                t = h["type"]
+                c = h["content"][:300]
+                r = h["round"]
+                history_lines.append(f"[รอบ {r}] {t.upper()}: {c}")
+            parts.append("## ประวัติการทำงาน:\n" + "\n".join(history_lines) + "\n")
+
+        parts.append("## ขั้นตอน:\n1. คิดทบทวนสถานการณ์ปัจจุบันจากประวัติ\n2. กำหนดว่าต้องทำอะไรต่อ\n3. ถ้าได้ข้อสรุปแล้ว ให้ขึ้นต้นด้วย [DONE]")
 
         return "\n".join(parts)
 
     def _build_act_prompt(self, thought: str) -> str:
-        """สร้าง prompt สำหรับตัดสินใจ action"""
-        return f"""จากความคิดนี้: "{thought}"
+        """สร้าง prompt สำหรับตัดสินใจ action — รวม observation ล่าสุด"""
+        # หา observation ล่าสุด
+        last_obs = ""
+        for h in reversed(self._history):
+            if h["type"] == "observation":
+                last_obs = h["content"][:500]
+                break
 
-จงเลือก action ที่จะทำ โดยตอบในรูปแบบใดรูปแบบหนึ่งต่อไปนี้:
+        prompt = f"""จากความคิดนี้: "{thought}"
+"""
+        if last_obs:
+            prompt += f"""\nผลลัพธ์ล่าสุดที่ได้:\n{last_obs}\n"""
+
+        prompt += """\nจงเลือก action ที่จะทำ โดยตอบในรูปแบบใดรูปแบบหนึ่งต่อไปนี้:
 - terminal: <คำสั่ง bash>
 - file: read <path> | write <path> | list <dir>
 - code: <คำอธิบายการแก้ไขโค้ด>
@@ -352,6 +384,8 @@ class InnerMonologueAgent:
 - terminal: ls -la /workspace/
 - file: read /workspace/file.txt
 - done: วิเคราะห์เสร็จแล้ว พบว่า..."""
+
+        return prompt
 
     # ──────────────────────────── Tool Execution ────────────────────────────
 

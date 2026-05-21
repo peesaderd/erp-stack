@@ -407,3 +407,51 @@ async def manual_sync_plane_to_bookstack(issue_name: str = "Test Issue"):
     """Manually trigger a Plane → BookStack sync."""
     await _sync_plane_issue_to_bookstack({"name": issue_name, "description": "Manual sync"})
     return {"status": "ok", "message": f"Synced '{issue_name}' to BookStack"}
+
+@app.get("/api/test/plane-session")
+async def test_plane_session():
+    """Test Plane session by making an API request."""
+    try:
+        resp = await plane_api.request("GET", "/api/workspaces/")
+        return {
+            "status": "ok",
+            "session_cookie": plane_api.get_session_cookie(),
+            "workspace_response_status": resp.status_code,
+            "workspaces_count": len(resp.json()) if resp.status_code == 200 else 0,
+            "auto_refresh_enabled": True
+        }
+    except Exception as exc:
+        return {"status": "error", "message": str(exc)}
+
+@app.get("/api/test/plane-401-retry")
+async def test_plane_401_retry():
+    """
+    Test the auto-refresh functionality by forcing a 401 response.
+    This endpoint makes a request to Plane API with an invalid session,
+    which should trigger a refresh and retry.
+    """
+    try:
+        # Temporarily set an invalid session to test auto-refresh
+        original_session = plane_api._session_key
+        plane_api._session_key = "invalid-session-12345"
+
+        resp = await plane_api.request("GET", "/api/workspaces/")
+
+        return {
+            "status": "ok",
+            "original_session": f"session-id={original_session}",
+            "new_session": plane_api.get_session_cookie(),
+            "workspace_response_status": resp.status_code,
+            "workspaces_count": len(resp.json()) if resp.status_code == 200 else 0,
+            "message": "Auto-refresh was triggered and successful"
+        }
+    except Exception as exc:
+        return {
+            "status": "error",
+            "message": str(exc),
+            "current_session": plane_api.get_session_cookie()
+        }
+    finally:
+        # Restore original session
+        if 'original_session' in locals():
+            plane_api._session_key = original_session

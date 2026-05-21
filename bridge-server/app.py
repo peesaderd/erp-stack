@@ -455,3 +455,135 @@ async def test_plane_401_retry():
         # Restore original session
         if 'original_session' in locals():
             plane_api._session_key = original_session
+
+@app.get("/api/health/full")
+async def full_health_check():
+    """
+    Comprehensive health check for all integrated services.
+    Tests connectivity to Plane, Planka, BookStack, and OpenObserve
+    with detailed status reporting including latency and connection status.
+    """
+    import time
+    from datetime import datetime
+
+    health_result = {
+        "status": "ok",
+        "services": {},
+        "timestamp": datetime.utcnow().isoformat() + "Z"
+    }
+
+    # Test Plane connectivity
+    if settings.plane_base_url and (settings.plane_cookie or (settings.plane_email and settings.plane_password)):
+        plane_status = {"status": "disconnected"}
+        start_time = time.time()
+
+        try:
+            # Use a simple endpoint that requires authentication
+            resp = await plane_api.request("GET", "/api/workspaces/erp/projects/", timeout=5.0)
+            latency = int((time.time() - start_time) * 1000)
+            if resp.status_code == 200:
+                plane_status = {"status": "connected", "latency_ms": latency}
+            else:
+                plane_status = {
+                    "status": "disconnected",
+                    "error": f"HTTP {resp.status_code}",
+                    "latency_ms": latency
+                }
+        except asyncio.TimeoutError:
+            plane_status = {"status": "disconnected", "error": "timeout"}
+        except Exception as exc:
+            plane_status = {"status": "disconnected", "error": str(exc)}
+
+        health_result["services"]["plane"] = plane_status
+
+    # Test Planka connectivity
+    if settings.planka_api_token and settings.planka_base_url:
+        planka_status = {"status": "disconnected"}
+        start_time = time.time()
+
+        try:
+            url = f"{settings.planka_base_url}/api/lists"
+            headers = {"X-API-Key": settings.planka_api_token}
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                resp = await client.get(url, headers=headers)
+                latency = int((time.time() - start_time) * 1000)
+                if resp.status_code == 200:
+                    planka_status = {"status": "connected", "latency_ms": latency}
+                else:
+                    planka_status = {
+                        "status": "disconnected",
+                        "error": f"HTTP {resp.status_code}",
+                        "latency_ms": latency
+                    }
+        except asyncio.TimeoutError:
+            planka_status = {"status": "disconnected", "error": "timeout"}
+        except Exception as exc:
+            planka_status = {"status": "disconnected", "error": str(exc)}
+
+        health_result["services"]["planka"] = planka_status
+
+    # Test BookStack connectivity
+    if settings.bookstack_token_id and settings.bookstack_token_secret and settings.bookstack_base_url:
+        bookstack_status = {"status": "disconnected"}
+        start_time = time.time()
+
+        try:
+            url = f"{settings.bookstack_base_url}/api/books"
+            auth = (settings.bookstack_token_id, settings.bookstack_token_secret)
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                resp = await client.get(url, auth=auth)
+                latency = int((time.time() - start_time) * 1000)
+                if resp.status_code == 200:
+                    bookstack_status = {"status": "connected", "latency_ms": latency}
+                else:
+                    bookstack_status = {
+                        "status": "disconnected",
+                        "error": f"HTTP {resp.status_code}",
+                        "latency_ms": latency
+                    }
+        except asyncio.TimeoutError:
+            bookstack_status = {"status": "disconnected", "error": "timeout"}
+        except Exception as exc:
+            bookstack_status = {"status": "disconnected", "error": str(exc)}
+
+        health_result["services"]["bookstack"] = bookstack_status
+
+    # Test OpenObserve connectivity
+    if settings.openobserve_login and settings.openobserve_password and settings.openobserve_base_url:
+        openobserve_status = {"status": "disconnected"}
+        start_time = time.time()
+
+        try:
+            url = f"{settings.openobserve_base_url}/api/{settings.openobserve_org}/auth/login"
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                resp = await client.post(url, json={
+                    "login": settings.openobserve_login,
+                    "password": settings.openobserve_password,
+                })
+                latency = int((time.time() - start_time) * 1000)
+                if resp.status_code == 200 and resp.json().get("token", {}).get("access_token"):
+                    openobserve_status = {"status": "connected", "latency_ms": latency}
+                else:
+                    openobserve_status = {
+                        "status": "disconnected",
+                        "error": f"HTTP {resp.status_code}",
+                        "latency_ms": latency
+                    }
+        except asyncio.TimeoutError:
+            openobserve_status = {"status": "disconnected", "error": "timeout"}
+        except Exception as exc:
+            openobserve_status = {"status": "disconnected", "error": str(exc)}
+
+        health_result["services"]["openobserve"] = openobserve_status
+
+    # Determine overall status
+    connected_services = [
+        s for s in health_result["services"].values()
+        if s.get("status") == "connected"
+    ]
+    if len(connected_services) == 0:
+        health_result["status"] = "degraded"
+    elif len(connected_services) < len(health_result["services"]):
+        health_result["status"] = "degraded"
+
+    return health_result

@@ -207,6 +207,9 @@ class InnerMonologueAgent:
         # เชื่อม Condenser function — ให้ memory ใช้ LLM ของ Agent ในการ summarize
         self.memory.set_condense_fn(self._call_llm_for_condense)
 
+        # เชื่อม Self-Reflection กับ LLM
+        self.self_reflection.set_llm_fn(self._call_llm_for_condense)
+
     # ──────────────────────────── Public API ────────────────────────────
 
     def run(self, task: str) -> str:
@@ -912,7 +915,7 @@ class InnerMonologueAgent:
     # ──────────────────────────── Finalize ────────────────────────────
 
     def _finalize(self, result: str) -> str:
-        """สรุปผลและเขียน Flag File"""
+        """สรุปผลและเขียน Flag File + ส่ง Log ไป ERP Modular"""
         summary = result.strip()
 
         # เขียน READY_FOR_REVIEW.txt
@@ -928,7 +931,37 @@ ROUNDS: {self._round}
         except Exception as e:
             pass
 
-        # Self-reflection
+        # Self-reflection (rule-based)
         self.self_reflection.reflect(self._history)
 
+        # Deep reflection (LLM-based) — ใช้ summary จาก memory
+        memory_context = self.memory.get_context(max_entries=5)
+        if memory_context:
+            self.self_reflection.deep_reflect(memory_context)
+
+        # ส่ง Log ไป ERP Modular API (ถ้าใช้งานได้)
+        self._send_agent_log(summary)
+
         return summary
+
+    def _send_agent_log(self, summary: str):
+        """ส่ง Log การทำงานไปยัง ERP Modular API"""
+        try:
+            import urllib.request
+            import json
+
+            data = json.dumps({
+                "activity": self._current_task[:100],
+                "detail": f"Rounds: {self._round} | Summary: {summary[:300]}",
+                "status": "done",
+            }).encode("utf-8")
+
+            req = urllib.request.Request(
+                "http://localhost:54520/agent/logs",
+                data=data,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            urllib.request.urlopen(req, timeout=3)
+        except Exception:
+            pass  # ERP Modular อาจยังไม่พร้อม — ไม่เป็นไร

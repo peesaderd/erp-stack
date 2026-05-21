@@ -127,7 +127,7 @@ class ConversationMemory:
         self._save_summary()
 
     def _condense_via_llm(self, to_summarize: list[dict]):
-        """ใช้ LLM สรุปประวัติ"""
+        """ใช้ LLM สรุปประวัติ — พร้อม post-processing ตัด raw output"""
         # สร้างข้อความที่จะให้ summarize
         entries_text = []
         for entry in to_summarize:
@@ -140,22 +140,52 @@ class ConversationMemory:
         history_text = "\n".join(entries_text)
         old_summary = self.summary or "ไม่มี"
 
-        prompt = f"""ประวัติการทำงานเดิม:
+        prompt = f"""คุณคือ Condenser Agent มีหน้าที่สรุปประวัติการทำงานให้สั้นได้ใจความ
+
+ประวัติเดิม:
 {old_summary}
 
-ประวัติล่าสุดที่ต้องสรุป:
+ประวัติใหม่ที่ต้องสรุป:
 {history_text}
 
-กรุณาสรุปเป็นภาษาไทย สั้นๆ ใจความสำคัญ:
-- สิ่งที่ทำไปแล้ว
-- ปัญหาที่เจอ
-- สิ่งที่ต้องทำต่อ"""
+คำสั่ง:
+1. อ่านประวัติใหม่
+2. สรุปเฉพาะใจความสำคัญ เป็นภาษาไทย สั้น กระชับ 3-5 บรรทัด
+3. รูปแบบ:
+   ✅ สิ่งที่ทำไปแล้ว: ...
+   ⚠️ ปัญหาที่เจอ: ... (ถ้ามี)
+   📋 สิ่งที่ต้องทำต่อ: ...
+4. ห้ามใส่ raw log, ห้ามใส่ JSON, ห้ามใส่ code
+5. ตอบเฉพาะสรุปเท่านั้น ไม่มีคำนำหรือคำลงท้าย"""
 
         response = self._llm_condense_fn(prompt)
-        if response:
-            self.summary = response.strip()
-        else:
+        if not response:
             raise ValueError("LLM returned empty summary")
+
+        # Post-processing: ตัด raw output ที่อาจปนมา
+        cleaned = self._clean_summary(response.strip())
+        self.summary = cleaned
+
+    def _clean_summary(self, text: str) -> str:
+        """Post-processing: ตัด JSON, code blocks, raw log ที่อาจปนมากับ summary"""
+        import re
+
+        # ตัด ``` blocks
+        text = re.sub(r'```[\s\S]*?```', '', text)
+
+        # ตัด JSON objects
+        text = re.sub(r'\{[^}]*\}', '', text)
+
+        # ตัดบรรทัดที่ขึ้นต้นด้วย [thought], [action], [observation] (raw log)
+        text = re.sub(r'(?m)^\s*\[(thought|action|observation|user|agent|error)\].*$', '', text)
+
+        # ตัดบรรทัดที่ขึ้นต้นด้วย {"type": (JSON remnant)
+        text = re.sub(r'(?m)^\s*\{".*$', '', text)
+
+        # ลบบรรทัดว่างซ้ำ
+        text = re.sub(r'\n{3,}', '\n\n', text)
+
+        return text.strip()
 
     def save(self):
         """บันทึกประวัติทั้งหมดลง disk"""

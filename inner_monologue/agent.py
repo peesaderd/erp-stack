@@ -533,6 +533,9 @@ class InnerMonologueAgent:
         """สร้าง system context รวม SYSTEM_PROMPT + JSON instruction + memory"""
         parts = [self.SYSTEM_PROMPT, JSON_SYSTEM_INSTRUCTION]
 
+        # บอก workspace path ให้ LLM รู้
+        parts.append(f"\n## Workspace:\n{self.workspace}")
+
         context = self.memory.get_context(max_entries=10)
         if context:
             parts.append(f"\n## บริบทจากประวัติ:\n{context}")

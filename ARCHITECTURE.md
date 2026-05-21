@@ -37,15 +37,17 @@
 │  - ollama_chat / deepseek_chat                               │
 │  - memory_get / memory_set / memory_list                     │
 │  - server_check                                              │
-└──┬──────────┬──────────┬──────────┬──────────┬──────────────┘
-   │          │          │          │          │
-   ▼          ▼          ▼          ▼          ▼
-┌──────┐ ┌────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
-│Plane │ │Planka  │ │BookStack │ │OpenObserve│ │ SiYuan   │
-│:54510│ │:54513  │ │:54515    │ │:54514    │ │ :54511   │
-│Task  │ │Kanban  │ │Docs/Wiki │ │Logging   │ │Knowledge │
-│Mgmt  │ │Board   │ │          │ │Monitoring│ │ Base     │
-└──────┘ └────────┘ └──────────┘ └──────────┘ └──────────┘
+└──┬──────────┬──────────┬──────────┬──────────┬──────────────┐
+   │          │          │          │          │              │
+   ▼          ▼          ▼          ▼          ▼              ▼
+┌──────┐ ┌────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
+│Plane │ │Planka  │ │BookStack │ │OpenObserve│ │ SiYuan   │ │   AI     │
+│:54512│ │:54513  │ │:54515    │ │:54514    │ │ :54511   │ │Streaming │
+│Task  │ │Kanban  │ │Docs/Wiki │ │Logging   │ │Knowledge │ │ :54560   │
+│Mgmt  │ │Board   │ │          │ │Monitoring│ │ Base     │ │ Avatar   │
+└──────┘ └────────┘ └──────────┘ └──────────┘ └──────────┘ │ Live     │
+                                                           │ Stream   │
+                                                           └──────────┘
 ```
 
 ### หลักการสำคัญ
@@ -206,6 +208,59 @@
 | บทบาท | AI pair programming ใน terminal |
 | ใช้เมื่อ | ต้องการ AI ช่วยเขียนโค้ดแบบ interactive |
 
+### 4.9 AI Streaming System — AI Avatar Live Streaming
+
+| รายการ | ค่า |
+|--------|-----|
+| URL | `http://89.167.82.205:54560` (RTMP) / HLS ที่ `/english/index.m3u8`, `/qna/index.m3u8` |
+| บทบาท | สร้างวิดีโอ Talking Avatar แบบ Real-time สำหรับ Live Streaming |
+| Backend | Python FastAPI + Scheduler (PM2 process: `ai-streaming`) |
+| Streaming | MediaMTX (RTMP → HLS) สำหรับ Facebook Live |
+| AI | Groq API + Z.ai fallback สำหรับ LLM |
+| Avatar | D-ID API (มี FFmpeg fallback) / วางแผนใช้ InfiniteTalk บน RunPod GPU |
+| สถานะ | ✅ กำลังทำงาน (English Lesson + Q&A streams) |
+
+**Components:**
+```
+ai-streaming/
+├── backend/
+│   ├── main.py              # Scheduler + FastAPI server
+│   ├── app/
+│   │   ├── english_lesson.py  # English lesson generator pipeline
+│   │   ├── qna_stream.py      # RAG Q&A stream pipeline
+│   │   ├── talking_avatar.py  # D-ID API + FFmpeg fallback
+│   │   ├── video_renderer.py  # Video composition
+│   │   ├── tts.py             # Text-to-Speech (Groq API)
+│   │   ├── groq_router.py     # LLM router with fallback
+│   │   └── publisher.py       # RTMP publisher
+│   └── main.py
+├── config/
+│   └── mediamtx.yml          # MediaMTX streaming config
+├── docker-compose.production.yml
+└── .env
+```
+
+**Architecture:**
+```
+┌──────────────┐    ┌──────────────┐    ┌──────────────┐
+│  LLM Router  │───►│    TTS       │───►│  Avatar Gen  │
+│ (Groq/Z.ai)  │    │  (Groq AI)   │    │ (D-ID/InfTalk)│
+└──────────────┘    └──────────────┘    └──────┬───────┘
+                                               │
+                                               ▼
+┌──────────────┐    ┌──────────────┐    ┌──────────────┐
+│  Facebook    │◄───│    MediaMTX   │◄───│   FFmpeg /   │
+│  Live        │    │  RTMP → HLS  │    │   Publisher  │
+└──────────────┘    └──────────────┘    └──────────────┘
+```
+
+**Roadmap:**
+| Phase | Features | สถานะ |
+|-------|----------|--------|
+| 1 | Foundation: Avatar + Streaming Pipeline | ✅ Deployed |
+| 2 | Live Chat: Chat Listener + Auto Reply | 📝 วางแผน |
+| 3 | Real-time: LiveKit Agents + Interactive Avatar | 📝 วางแผน |
+
 ---
 
 ## 5. Workflow การทำงาน
@@ -323,6 +378,10 @@ OpenHands        ────Git───────►   GitHub            Pus
 Aider            ────Terminal────►  Local Files       แก้ไขโค้ด
 Plane            ────Webhook────►  (future)          แจ้งเตือน
 OpenObserve      ────Ingest────►   Logs จากทุก service
+AI Streaming     ────RTMP──────►   MediaMTX          ส่งวิดีโอไปยัง streaming server
+AI Streaming     ────HTTP API────►  Groq/Z.ai        เรียก LLM สำหรับสร้างเนื้อหา
+AI Streaming     ────HTTP API────►  D-ID/InfiniteTalk สร้าง Avatar Video
+AI Streaming     ────HLS───────►   Facebook Live     สตรีมวิดีโอไปยัง Facebook
 ```
 
 ---
@@ -419,11 +478,13 @@ curl -v http://localhost:<PORT>/api/...
 
 | Service | URL | Username | Password |
 |---------|-----|----------|----------|
-| Plane | `http://89.167.82.205:54510` | `admin@plane.local` | `Plane@2026` |
+| Plane | `http://89.167.82.205:54512` | `admin@plane.local` | `Plane@2026` |
 | Planka | `http://89.167.82.205:54513` | `admin@planka.local` | `Admin@2026` |
 | BookStack | `http://89.167.82.205:54515` | `admin@bookstack.local` | `BookStack@2026` |
 | OpenObserve | `http://89.167.82.205:54514` | `admin@openobserve.local` | `OpenObserve@2026` |
 | SiYuan | `http://89.167.82.205:54511` | — | — |
+| AI Streaming | `http://89.167.82.205:54560` (RTMP) | — | — |
+| MediaMTX | `http://89.167.82.205:9996` (HLS) | — | — |
 
 ### 9.3 GitHub
 
@@ -447,4 +508,4 @@ curl -v http://localhost:<PORT>/api/...
 ---
 
 *เอกสารนี้เป็น Single Source of Truth สำหรับ ERP Stack*
-*อัปเดตล่าสุด: 2026-05-19*
+*อัปเดตล่าสุด: 2026-05-21*

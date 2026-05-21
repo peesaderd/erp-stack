@@ -1,6 +1,6 @@
 # 🚀 ERP + AI Stack — สถานะงาน
 
-> อัปเดตล่าสุด: 2026-05-18 18:00 UTC
+> อัปเดตล่าสุด: 2026-05-21 07:00 UTC
 > Server: `89.167.82.205`
 
 ---
@@ -10,11 +10,13 @@
 | Service | Status | Port | URL |
 |---------|--------|------|-----|
 | **SiYuan** | ✅ พร้อมใช้ | 54511 | `http://89.167.82.205:54511` |
-| **Plane** | ✅ พร้อมใช้ (Project Management) | 54510 | `http://89.167.82.205:54510` |
+| **Plane** | ✅ พร้อมใช้ (Project Management) | 54512 | `http://89.167.82.205:54512` |
 | **Planka** | ✅ พร้อมใช้ (Kanban Board) | 54513 | `http://89.167.82.205:54513` |
 | **OpenObserve** | ⚠️ Web UI OK, API ยัง 401 | 54514 | `http://89.167.82.205:54514` |
 | **BookStack** | ✅ พร้อมใช้ | 54515 | `http://89.167.82.205:54515` |
 | **Brain Server** | ✅ ทำงานปกติ (v3.0, 15 tools) | 8101 | `http://89.167.82.205:8101` |
+| **AI Streaming** | ✅ กำลังทำงาน (English + Q&A) | 54560 | `http://89.167.82.205:54560` (RTMP) |
+| **MediaMTX** | ✅ กำลังทำงาน (RTMP → HLS) | 8888/9996 | HLS: `/english/index.m3u8`, `/qna/index.m3u8` |
 
 ---
 
@@ -48,6 +50,8 @@
 - [x] สร้าง Instance + InstanceAdmin ใน DB
 - [x] Flush Redis cache → API คืนค่า `is_activated: true`
 - [x] API endpoint `/api/instances/` ทำงานปกติ
+- [x] สร้าง Project "AI Streaming System" (AIST) ใน workspace `erp-roadmap`
+- [x] สร้าง Issues 8 รายการ ครอบคลุม 3 Phase (Foundation, Live Chat, Real-time)
 
 ### Planka (Kanban Board)
 - [x] ติดตั้งและรันสำเร็จ
@@ -69,13 +73,24 @@
 - [x] Health check OK
 - [x] 15 tools พร้อมใช้งาน
 
+### AI Streaming System
+- [x] สร้าง Python backend (FastAPI + Scheduler) สำหรับ Live Streaming
+- [x] ตั้งค่า MediaMTX (RTMP → HLS) สำหรับ Facebook Live
+- [x] English Lesson Generator Pipeline (Groq AI + TTS + Avatar)
+- [x] RAG Q&A Stream Pipeline (Vector Search + LLM + TTS + Avatar)
+- [x] D-ID Talking Avatar Integration (มี FFmpeg fallback)
+- [x] Groq API Router + Z.ai Fallback
+- [x] PM2 Process Management (ai-streaming)
+- [x] Deploy ครบทั้งระบบบน Hetzner server
+- [x] สร้าง Project Plan ใน Plane (AIST project, 8 issues)
+
 ---
 
 ## 🔄 กำลังทำ
 
 - [ ] **OpenObserve**: หาวิธีเรียก API ให้ถูกต้อง (ปัจจุบัน 401)
-- [ ] **Plane**: ทดสอบ sign-in ผ่าน frontend
-- [x] **PM2 Layer**: สร้าง reverse proxy plane-proxy (id 53) ที่ port 54510 → 54512
+- [ ] **AI Streaming - Phase 2**: Live Chat Listener + Auto Reply System
+- [ ] **AI Streaming - Dashboard**: สร้าง Web Dashboard สำหรับ HLS Player + Stream Status
 
 ---
 
@@ -84,6 +99,8 @@
 - [ ] **BookStack → Brain Server**: เชื่อมต่อ API
 - [ ] **Cleanup disk**: เหลือ 17G จาก 150G
 - [ ] **OpenObserve pipeline**: ตั้งค่า ingest logs จาก services
+- [ ] **AI Streaming - RunPod GPU**: สมัคร RunPod + Deploy InfiniteTalk Avatar Model
+- [ ] **AI Streaming - Real-time**: LiveKit Agents Integration
 
 ---
 
@@ -96,6 +113,9 @@
 | BookStack | `admin@bookstack.local` | `BookStack@2026` |
 | OpenObserve | `admin@openobserve.local` | `OpenObserve@2026` |
 | Server SSH | `openhands` | `OpenHands@ERP2026` |
+| Plane DB (Postgres) | `plane` | `plane@2026` |
+| Plane Redis | — | `redis@2026` |
+| Plane MinIO | `plane` | `plane@2026` |
 
 ---
 

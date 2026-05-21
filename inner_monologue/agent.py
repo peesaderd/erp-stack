@@ -154,6 +154,10 @@ class InnerMonologueAgent:
         self._conversation_history: list[dict] = []  # สำหรับส่งให้ LLM
         self._response_cache: dict[str, str] = {}  # cache: prompt hash → response
 
+        # Rate limiter — ป้องกัน 429
+        self._last_request_time = 0.0
+        self._min_request_interval = 1.1  # 1.1 วินาทีระหว่าง request (Mistral ~55 RPM)
+
         # โหลดประวัติเก่า
         self.memory.load()
 
@@ -460,6 +464,13 @@ class InnerMonologueAgent:
             self._conversation_history.append({"role": "assistant", "content": cached})
             return cached
 
+        # Rate limiter — รอให้ถึง interval ก่อนส่ง request
+        elapsed = time.time() - self._last_request_time
+        if elapsed < self._min_request_interval:
+            wait = self._min_request_interval - elapsed
+            time.sleep(wait)
+        self._last_request_time = time.time()
+
         resp = requests.post(
             url,
             headers={
@@ -476,7 +487,9 @@ class InnerMonologueAgent:
         )
 
         if resp.status_code == 429:
-            raise RateLimitError("Rate limit exceeded")
+            retry_after = int(resp.headers.get("Retry-After", 5))
+            time.sleep(retry_after)
+            raise RateLimitError(f"Rate limit exceeded, retry after {retry_after}s")
 
         resp.raise_for_status()
         data = resp.json()

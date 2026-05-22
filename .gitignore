@@ -4,4 +4,6 @@ __pycache__/
 .env
 .erp-modular-memory/
 .hitl-flags/
+.sub-agent-memory/
+.inner-monologue-memory/
 inner_monologue/READY_FOR_REVIEW.txt

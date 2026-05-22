@@ -15,6 +15,7 @@ from .heartbeat import Heartbeat
 from .memory import ConversationMemory
 from .self_reflection import SelfReflection
 from .hitl import HITL
+from .delegation import SubAgentManager, setup_delegation, DELEGATE_SYSTEM_INSTRUCTION
 from .resilience import (
     RetryStrategy,
     FallbackProvider,
@@ -64,7 +65,7 @@ DONE_SCHEMA = {
 }
 
 ALLOWED_TYPES = {"thought", "action", "done"}
-ALLOWED_ACTION_TYPES = {"terminal", "file", "code", "test", "git", "done"}
+ALLOWED_ACTION_TYPES = {"terminal", "file", "code", "test", "git", "delegate", "done"}
 
 JSON_SYSTEM_INSTRUCTION = """
 ตอบเป็น JSON เท่านั้น ห้ามมีข้อความอื่น
@@ -163,6 +164,14 @@ class InnerMonologueAgent:
 ### Code:
 - code: คำอธิบาย — บันทึกแนวคิดการเขียนโค้ด (ยังไม่ execute)
 
+### Delegation (Sub-Agent):
+- delegate: type | task description — มอบหมายงานให้ Sub-Agent เฉพาะทาง
+  - file: จัดการไฟล์ — อ่าน, เขียน, แก้ไข, ค้นหา
+  - search: ค้นหาข้อมูลใน codebase — grep, find, วิเคราะห์โครงสร้าง
+  - code: เขียนและแก้ไขโค้ด — สร้างไฟล์, refactor
+  - analyze: วิเคราะห์และวางแผน — เปรียบเทียบ, หาจุดอ่อน, เสนอแนะ
+  - test: รันทดสอบ — pytest, ตรวจสอบ coverage
+
 ## Micro-agents (ความรู้เฉพาะทาง):
 
 ### Python/SQLModel:
@@ -187,15 +196,17 @@ class InnerMonologueAgent:
         mock: bool = False,
         mock_responses: Optional[list[str]] = None,
         hitl_callback: Optional[callable] = None,
+        confirmation_level: str = "destructive",
     ):
         self.llm_config = llm_config or {}
         self.memory = memory or ConversationMemory()
         self.heartbeat = heartbeat or Heartbeat()
         self.self_reflection = self_reflection or SelfReflection()
-        self.hitl = hitl or HITL(workspace=workspace)
+        self.hitl = hitl or HITL(workspace=workspace, confirmation_level=confirmation_level, callback=hitl_callback)
         self.workspace = workspace
         self.mock = mock
         self.hitl_callback = hitl_callback
+        self.confirmation_level = confirmation_level
 
         self._llm = MockLLM(responses=mock_responses) if mock else None
         self._done = False
@@ -229,6 +240,10 @@ class InnerMonologueAgent:
 
         # เชื่อม Self-Reflection กับ LLM
         self.self_reflection.set_llm_fn(self._call_llm_for_condense)
+
+        # Delegation system — ตั้งค่าเมื่อมีการเรียกใช้ครั้งแรก
+        self.sub_agent_manager: Optional[SubAgentManager] = None
+        self._delegation_ready = False
 
     # ──────────────────────────── Resilience Setup ──────────────────────
 
@@ -265,6 +280,14 @@ class InnerMonologueAgent:
 
         self.fallback_provider = FallbackProvider(providers) if providers else None
 
+    # ──────────────────────────── Delegation Setup ──────────────────────
+
+    def _ensure_delegation(self):
+        """ตั้งค่า Delegation system ถ้ายังไม่พร้อม"""
+        if not self._delegation_ready:
+            setup_delegation(self, self._call_llm_for_condense, self.workspace)
+            self._delegation_ready = True
+
     # ──────────────────────────── Public API ────────────────────────────
 
     def run(self, task: str) -> str:
@@ -274,6 +297,7 @@ class InnerMonologueAgent:
         self._round = 0
         self._conversation_history = []
         self.stuck_detector.reset()
+        self._ensure_delegation()
 
         self.heartbeat.start(task)
         self.hitl.clear_flags()
@@ -518,6 +542,8 @@ class InnerMonologueAgent:
             return self._run_test(action_content)
         elif action_type == "git":
             return self._run_git(action_content)
+        elif action_type == "delegate":
+            return self._handle_delegate(action_content)
         else:
             return f"Error: ไม่รู้จัก action type: {action_type}"
 
@@ -815,7 +841,7 @@ class InnerMonologueAgent:
 
 ## คำสั่ง:
 - OUTPUT ONLY JSON. No text before or after.
-- รูปแบบ: {"type": "action", "action_type": "terminal|file|code|test|git|done", "content": "..."}
+- รูปแบบ: {"type": "action", "action_type": "terminal|file|code|test|git|delegate|done", "content": "..."}
 
 ## รูปแบบ action:
 - อ่านไฟล์: {"type": "action", "action_type": "file", "content": "read: path/to/file.py"}
@@ -823,14 +849,44 @@ class InnerMonologueAgent:
 - แก้ไขไฟล์: {"type": "action", "action_type": "file", "content": "edit: path/to/file.py\\nSEARCH\\nข้อความเดิม\\nSEARCH\\nข้อความใหม่"}
 - ดูรายการ: {"type": "action", "action_type": "file", "content": "list: path/to/dir"}
 - รัน pytest: {"type": "action", "action_type": "test", "content": "tests/test_file.py::test_func"}
-- รัน git: {"type": "action", "action_type": "git", "content": "status"}"""
+- รัน git: {"type": "action", "action_type": "git", "content": "status"}
+- มอบหมาย Sub-Agent: {"type": "action", "action_type": "delegate", "content": "type | task description"}
+  - type: file, search, code, analyze, test
+  - ตัวอย่าง: "search | หาไฟล์ที่เกี่ยวกับ payment ใน erp-modular/"
+  - ตัวอย่าง: "analyze | วิเคราะห์โครงสร้าง API และแนะนำการปรับปรุง"
+  - ตัวอย่าง: "file | อ่านไฟล์ erp-modular/main.py และสรุปโครงสร้าง"""
 
         return prompt
 
     # ──────────────────────────── Tool Execution ────────────────────────────
 
     def _run_terminal(self, cmd: str) -> str:
-        """รันคำสั่ง bash"""
+        """รันคำสั่ง bash — มี Confirmation Mode สำหรับ destructive commands"""
+        # ตรวจสอบว่าเป็น destructive command หรือไม่
+        destructive_patterns = [
+            "rm -rf", "rm -r", "rm -f", "rm --recursive",
+            "dd ", "mkfs", "format", "fdisk",
+            "git push --force", "git push -f",
+            "drop table", "drop database", "truncate",
+            "kill -9", "pkill",
+            "chmod 777", "chmod -R",
+            "shutdown", "reboot", "poweroff",
+            "> /dev/", "> /dev/sd",
+            "docker rm", "docker rmi", "docker system prune",
+            "pip uninstall", "apt remove", "apt purge",
+            "npm uninstall", "npm cache clean",
+            "mv /", "cp -r /",
+        ]
+        is_destructive = any(pattern in cmd.lower() for pattern in destructive_patterns)
+
+        if is_destructive:
+            needs_confirm = self.hitl.needs_confirmation("terminal", cmd)
+            if needs_confirm:
+                self.heartbeat.beat("waiting", f"รออนุมัติก่อนรัน: {cmd[:80]}")
+                approved = self.hitl.request_confirmation("terminal", cmd[:200], timeout=300)
+                if not approved:
+                    return "⏸️ คำสั่งถูกปฏิเสธโดยผู้ใช้ (HITL)"
+
         try:
             result = subprocess.run(
                 cmd,
@@ -907,31 +963,14 @@ class InnerMonologueAgent:
                 path = path.strip()
                 full_path = os.path.join(self.workspace, path) if not path.startswith("/") else path
 
-                # HITL: ถ้าไฟล์มีอยู่แล้ว ให้ถามผู้ใช้ก่อน
+                # HITL: ถ้าไฟล์มีอยู่แล้ว ขออนุมัติก่อนเขียนทับ
                 if os.path.exists(full_path):
-                    # อ่านไฟล์เดิมเพื่อเปรียบเทียบ
-                    try:
-                        with open(full_path, "r", encoding="utf-8") as f:
-                            old_content = f.read()
-                    except Exception:
-                        old_content = ""
-
-                    # สร้าง flag รออนุมัติ
-                    self.hitl.flag_waiting_for_approval(
-                        f"เขียนทับไฟล์ {path}",
-                        f"ไฟล์นี้มีอยู่แล้ว ({len(old_content)} ตัวอักษร) ต้องการเขียนทับหรือไม่?"
-                    )
-
-                    # ถ้ามี HITL callback ให้เรียก
-                    if self.hitl_callback:
-                        self.hitl_callback("waiting_for_approval", {
-                            "action": f"เขียนทับไฟล์ {path}",
-                            "reason": f"ไฟล์นี้มีอยู่แล้ว ({len(old_content)} ตัวอักษร)",
-                            "old_content_preview": old_content[:500],
-                            "new_content_preview": content[:500],
-                        })
-
-                    return f"⏳ HITL: รออนุมัติก่อนเขียนทับไฟล์ {path} — ไฟล์นี้มีอยู่แล้ว ({len(old_content)} ตัวอักษร) กรุณาตรวจสอบ flag ใน .hitl-flags/WAITING_FOR_APPROVAL.txt"
+                    needs_confirm = self.hitl.needs_confirmation("overwrite_file", path)
+                    if needs_confirm:
+                        self.heartbeat.beat("waiting", f"รออนุมัติก่อนเขียนทับ: {path}")
+                        approved = self.hitl.request_confirmation("overwrite_file", f"เขียนทับไฟล์ {path}", timeout=300)
+                        if not approved:
+                            return f"⏸️ การเขียนทับ {path} ถูกปฏิเสธโดยผู้ใช้ (HITL)"
 
                 try:
                     os.makedirs(os.path.dirname(full_path), exist_ok=True)
@@ -940,7 +979,8 @@ class InnerMonologueAgent:
                     return f"เขียนไฟล์ {path} สำเร็จ ({len(content)} ตัวอักษร)"
                 except Exception as e:
                     return f"Error เขียนไฟล์: {e}"
-            return "Error: รูปแบบไม่ถูกต้อง ใช้: write: path/to/file\\nเนื้อหาไฟล์..."
+            else:
+                return "Error: รูปแบบไม่ถูกต้อง ใช้: write: path/to/file.py\\nเนื้อหาไฟล์..."
         elif action.startswith("list:") or action.startswith("list "):
             prefix = "list:" if action.startswith("list:") else "list "
             path = action[len(prefix):].strip()
@@ -981,6 +1021,11 @@ class InnerMonologueAgent:
             return "Error: pytest ใช้เวลาเกิน 60 วินาที"
         except Exception as e:
             return f"Error รัน pytest: {e}"
+
+    def _handle_delegate(self, content: str) -> str:
+        """จัดการ delegate action — มอบหมายงานให้ Sub-Agent"""
+        from .delegation import _handle_delegate as _delegate_dispatch
+        return _delegate_dispatch(self.sub_agent_manager, content)
 
     def _run_git(self, action: str) -> str:
         """รัน git command และคืนค่าผลลัพธ์"""

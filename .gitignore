@@ -5,3 +5,18 @@ __pycache__/
 .erp-modular-memory/
 .hitl-flags/
 inner_monologue/READY_FOR_REVIEW.txt
+
+# Python venv
+venv/
+Python-*/
+*.tgz
+
+# Logs
+logs/
+
+# Agent results
+.agent-results/
+
+# OS files
+.DS_Store
+Thumbs.db

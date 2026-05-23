@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ERP Modular — Micro-frontend Shell</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <h1 class="logo">ERP</h1>
+      <span class="logo-sub">Modular</span>
+    </div>
+    <nav class="sidebar-nav" id="app-nav">
+      <!-- Mini Apps จะถูก render โดย JS -->
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-info" id="user-info">
+        <span class="user-avatar" id="user-avatar">👤</span>
+        <span class="user-name" id="user-name">ไม่ระบุชื่อ</span>
+      </div>
+      <button class="btn-logout" id="btn-logout" title="ออกจากระบบ">🚪</button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content" id="main-content">
+    <!-- Top Bar -->
+    <header class="topbar" id="topbar">
+      <button class="btn-menu" id="btn-menu" title="เมนู">☰</button>
+      <h2 class="app-title" id="app-title">ERP Modular</h2>
+      <div class="topbar-actions">
+        <span class="connection-status" id="connection-status" title="สถานะการเชื่อมต่อ">●</span>
+      </div>
+    </header>
+
+    <!-- App Container (iframe) -->
+    <section class="app-container" id="app-container">
+      <div class="welcome-screen" id="welcome-screen">
+        <div class="welcome-icon">🏗️</div>
+        <h2>ยินดีต้อนรับสู่ ERP Modular</h2>
+        <p>เลือก Mini App จากเมนูด้านซ้ายเพื่อเริ่มต้น</p>
+        <div class="welcome-apps" id="welcome-apps">
+          <!-- Quick launch buttons -->
+        </div>
+      </div>
+      <iframe class="app-iframe hidden" id="app-iframe"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+              allow="microphone; camera"></iframe>
+    </section>
+  </main>
+
+  <!-- Notification Toast -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Scripts -->
+  <script src="js/config.js"></script>
+  <script src="js/event-bus.js"></script>
+  <script src="js/auth-client.js"></script>
+  <script src="js/app-registry.js"></script>
+  <script src="js/shell.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      ERPShell.init(window.ERP_CONFIG);
+    });
+  </script>
+</body>
+</html>

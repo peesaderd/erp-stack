@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  erp-modular:
+    build: .
+    container_name: erp-modular
+    restart: unless-stopped
+    ports:
+      - "8102:8102"
+    environment:
+      - ERP_JWT_SECRET=${ERP_JWT_SECRET:-erp-modular-dev-secret-key-change-in-production}
+      - ERP_JWT_EXPIRE_MINUTES=${ERP_JWT_EXPIRE_MINUTES:-60}
+      - PLANE_URL=${PLANE_URL:-http://130.61.230.127:54512}
+      - PLANKA_URL=${PLANKA_URL:-http://130.61.230.127:54513}
+      - BOOKSTACK_URL=${BOOKSTACK_URL:-http://89.167.82.205:54515}
+      - SIYUAN_URL=${SIYUAN_URL:-http://130.61.230.127:54511}
+      - OPENOBSERVE_URL=${OPENOBSERVE_URL:-http://130.61.230.127:54514}
+    volumes:
+      - erp-modular-data:/app/erp_modular.db
+    networks:
+      - erp-network
+
+networks:
+  erp-network:
+    driver: bridge
+
+volumes:
+  erp-modular-data:

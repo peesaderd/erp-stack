@@ -1,11 +1,15 @@
 """ERP Modular - FastAPI Application
 
-API Gateway + Auth + Rate Limiting + CRUD + Agent Logging
+API Gateway + Auth + Rate Limiting + CRUD + Agent Logging + Micro-frontend Shell
 """
 
+import os
 import logging
 from datetime import datetime
+from pathlib import Path
 from fastapi import FastAPI, Request
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from api.router import router as crud_router
 from api.gateway import router as gateway_router
 from api.rate_limit import RateLimitMiddleware, get_rate_limiter
@@ -16,9 +20,23 @@ logger = logging.getLogger("erp")
 
 app = FastAPI(
     title="ERP Modular",
-    version="0.1.0",
-    description="ERP Core แบบ Modular — API Gateway + Auth + Rate Limiting + Agent Logging",
+    version="0.2.0",
+    description="ERP Core แบบ Modular — API Gateway + Auth + Rate Limiting + Agent Logging + Micro-frontend Shell",
 )
+
+# ─── Static Files (Micro-frontend Shell) ────────────────────────────────────
+FRONTEND_DIR = Path(__file__).parent / "frontend"
+if FRONTEND_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
+
+    @app.get("/")
+    def serve_shell():
+        """เสิร์ฟ Micro-frontend Shell"""
+        return FileResponse(str(FRONTEND_DIR / "index.html"))
+
+    logger.info("Micro-frontend Shell พร้อมที่ / (static)")
+else:
+    logger.warning("ไม่พบ frontend/ — Micro-frontend Shell ไม่ทำงาน")
 
 # ─── Agent Activity Log (in-memory) ─────────────────────────────────────────
 agent_log: list[dict] = []

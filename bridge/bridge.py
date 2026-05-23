@@ -10,6 +10,7 @@ Usage:
 """
 
 import argparse
+import ipaddress
 import json
 import os
 import time
@@ -32,6 +33,104 @@ ERP_API_TOKEN = os.environ.get("ERP_API_TOKEN", "")
 
 # Services that need auth headers injected
 AUTH_SERVICES = {"erp-core", "task-manager", "noteforge"}
+
+# ─── IP Whitelist ────────────────────────────────────────────────────────────
+
+WHITELIST_ENABLED = os.environ.get("BRIDGE_WHITELIST_ENABLED", "").lower() in ("1", "true", "yes")
+WHITELIST_IPS = os.environ.get("BRIDGE_WHITELIST_IPS", "")
+
+# Parse whitelist: comma-separated IPs or CIDR subnets
+_whitelist_networks = []
+if WHITELIST_IPS:
+    for entry in WHITELIST_IPS.split(","):
+        entry = entry.strip()
+        if entry:
+            try:
+                _whitelist_networks.append(ipaddress.ip_network(entry, strict=False))
+            except ValueError:
+                print(f"[Bridge] WARNING: Invalid IP/CIDR in whitelist: {entry}")
+
+
+def is_ip_whitelisted(client_ip: str) -> bool:
+    """Check if a client IP is in the whitelist."""
+    if not _whitelist_networks:
+        return True  # No whitelist = allow all
+    try:
+        addr = ipaddress.ip_address(client_ip)
+        return any(addr in net for net in _whitelist_networks)
+    except ValueError:
+        return False
+
+
+@app.before_request
+def check_whitelist():
+    """Reject requests from non-whitelisted IPs if whitelist is enabled."""
+    if not WHITELIST_ENABLED:
+        return None
+    client_ip = request.remote_addr or "0.0.0.0"
+    # Always allow health checks (for monitoring)
+    if request.path in ("/api/health", "/health"):
+        return None
+    if is_ip_whitelisted(client_ip):
+        return None
+    # Return access denied page
+    return Response(
+        render_template_string(ACCESS_DENIED_TEMPLATE, client_ip=client_ip),
+        status=403,
+        content_type="text/html",
+    )
+
+
+ACCESS_DENIED_TEMPLATE = r"""
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Access Denied — ERP Bridge</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            min-height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .card {
+            background: #1e293b; border-radius: 1rem; padding: 3rem;
+            max-width: 480px; text-align: center;
+            border: 1px solid #334155;
+        }
+        .icon { font-size: 3rem; margin-bottom: 1rem; }
+        h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+        p { color: #94a3b8; line-height: 1.6; margin-bottom: 1rem; }
+        .ip-box {
+            background: #0f172a; border-radius: 0.5rem; padding: 0.75rem 1rem;
+            font-family: monospace; font-size: 1.1rem; color: #38bdf8;
+            margin: 1rem 0;
+        }
+        .hint {
+            font-size: 0.8rem; color: #64748b;
+            background: #334155; border-radius: 0.5rem; padding: 0.75rem;
+            margin-top: 1rem;
+        }
+        .hint code { color: #f1f5f9; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="icon">🔒</div>
+        <h1>Access Denied</h1>
+        <p>IP ของคุณไม่ได้อยู่ในรายการอนุญาต<br>โปรดแจ้ง Admin เพื่อเพิ่ม IP ต่อไปนี้:</p>
+        <div class="ip-box">{{ client_ip }}</div>
+        <div class="hint">
+            แจ้ง Admin: ให้เพิ่ม IP นี้ใน <code>BRIDGE_WHITELIST_IPS</code>
+        </div>
+    </div>
+</body>
+</html>
+"""
 
 # ─── Service Registry ────────────────────────────────────────────────────────
 
@@ -381,6 +480,10 @@ def main():
     print(f"[Bridge] Starting ERP Internal Bridge on http://{args.host}:{args.port}")
     print(f"[Bridge] Dashboard: http://{args.host}:{args.port}/")
     print(f"[Bridge] Registry: {REGISTRY_PATH}")
+    if WHITELIST_ENABLED:
+        print(f"[Bridge] IP Whitelist: ENABLED — allowed IPs: {WHITELIST_IPS}")
+    else:
+        print(f"[Bridge] IP Whitelist: DISABLED — all IPs allowed")
     app.run(host=args.host, port=args.port, debug=False)
 
 

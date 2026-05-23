@@ -22,3 +22,14 @@ logs/
 # OS files
 .DS_Store
 Thumbs.db
+
+# IDE
+.vscode/
+.browser_screenshots/
+.downloads/
+
+# ERP local config
+.erp-gateway/
+.task-manager/
+erp-core/
+ai-streaming/

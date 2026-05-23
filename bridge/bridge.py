@@ -364,6 +364,7 @@ def api_services():
     return Response(json.dumps(services, indent=2), content_type="application/json")
 
 
+@app.route("/api/health")
 @app.route("/health")
 def health():
     return Response(json.dumps({"status": "ok", "timestamp": time.time()}), content_type="application/json")

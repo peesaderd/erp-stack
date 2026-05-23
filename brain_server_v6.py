@@ -593,11 +593,12 @@ class BrainHandler(BaseHTTPRequestHandler):
                 self._send_json({"status": "not_run", "message": "ยังไม่เคยรัน Auto-Discovery"})
         elif self.path == "/discovery/scan":
             if brain_server:
-                # รัน discovery แบบไม่ต้องรอ — ใช้ thread แยก
-                import threading
-                t = threading.Thread(target=brain_server.run_discovery, daemon=True)
-                t.start()
-                self._send_json({"status": "started", "message": "Auto-Discovery กำลังทำงาน..."})
+                # รัน discovery แบบ synchronous (รอผล)
+                try:
+                    result = brain_server.run_discovery()
+                    self._send_json({"status": "ok", "result": result})
+                except Exception as e:
+                    self._send_json({"error": str(e)}, 500)
             else:
                 self._send_json({"error": "brain not started"}, 404)
         elif self.path == "/discovery/pending":

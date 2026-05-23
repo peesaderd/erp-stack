@@ -373,7 +373,7 @@ def health():
 
 def main():
     parser = argparse.ArgumentParser(description="ERP Internal Bridge Service")
-    parser.add_argument("--port", type=int, default=51516, help="Port to listen on")
+    parser.add_argument("--port", type=int, default=51517, help="Port to listen on")
     parser.add_argument("--host", default="0.0.0.0", help="Host to bind to")
     args = parser.parse_args()
 

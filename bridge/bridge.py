@@ -10,6 +10,8 @@ Usage:
 """
 
 import argparse
+import hashlib
+import hmac
 import ipaddress
 import json
 import os
@@ -17,9 +19,19 @@ import time
 import urllib.parse
 
 import requests
-from flask import Flask, Response, render_template_string, request, redirect
+from flask import Flask, Response, render_template_string, request, redirect, session
+from flask_session import Session
 
 app = Flask(__name__)
+
+# ─── Secret Key for Sessions ─────────────────────────────────────────────────
+app.secret_key = os.environ.get("BRIDGE_SECRET_KEY", os.urandom(32).hex())
+app.config["SESSION_TYPE"] = "filesystem"
+app.config["SESSION_FILE_DIR"] = "/tmp/bridge-sessions"
+app.config["SESSION_PERMANENT"] = False
+app.config["SESSION_USE_SIGNER"] = True
+os.makedirs("/tmp/bridge-sessions", exist_ok=True)
+Session(app)
 
 # ─── Configuration ───────────────────────────────────────────────────────────
 
@@ -131,6 +143,124 @@ ACCESS_DENIED_TEMPLATE = r"""
 </body>
 </html>
 """
+
+# ─── Password Authentication ─────────────────────────────────────────────────
+
+BRIDGE_PASSWORD = os.environ.get("BRIDGE_PASSWORD", "")
+
+
+def check_password(password: str) -> bool:
+    """Constant-time comparison to prevent timing attacks."""
+    if not BRIDGE_PASSWORD:
+        return True  # No password set = allow all
+    return hmac.compare_digest(password, BRIDGE_PASSWORD)
+
+
+LOGIN_TEMPLATE = r"""
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login — ERP Bridge</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            min-height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .card {
+            background: #1e293b; border-radius: 1rem; padding: 3rem;
+            max-width: 400px; width: 100%; text-align: center;
+            border: 1px solid #334155;
+        }
+        .logo { font-size: 2.5rem; font-weight: 700; margin-bottom: 0.25rem; }
+        .logo span { color: #38bdf8; }
+        .subtitle { color: #64748b; font-size: 0.875rem; margin-bottom: 2rem; }
+        .form-group { margin-bottom: 1.25rem; text-align: left; }
+        label { display: block; font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.4rem; }
+        input[type="password"] {
+            width: 100%; padding: 0.75rem 1rem; border-radius: 0.5rem;
+            border: 1px solid #334155; background: #0f172a;
+            color: #f1f5f9; font-size: 1rem; outline: none;
+            transition: border-color 0.15s;
+        }
+        input[type="password"]:focus { border-color: #38bdf8; }
+        .btn {
+            width: 100%; padding: 0.75rem; border-radius: 0.5rem;
+            border: none; background: #0ea5e9; color: #fff;
+            font-size: 1rem; font-weight: 600; cursor: pointer;
+            transition: background 0.15s;
+        }
+        .btn:hover { background: #0284c7; }
+        .error {
+            background: #450a0a; color: #fca5a5; padding: 0.75rem;
+            border-radius: 0.5rem; margin-bottom: 1rem; font-size: 0.875rem;
+        }
+        .hint { font-size: 0.75rem; color: #475569; margin-top: 1.5rem; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="logo"><span>ERP</span> Bridge</div>
+        <div class="subtitle">กรุณาใส่รหัสผ่านเพื่อเข้าใช้งาน</div>
+        {% if error %}
+        <div class="error">{{ error }}</div>
+        {% endif %}
+        <form method="POST" action="/login">
+            <div class="form-group">
+                <label for="password">รหัสผ่าน</label>
+                <input type="password" id="password" name="password" placeholder="Enter password" autofocus>
+            </div>
+            <button type="submit" class="btn">เข้าสู่ระบบ</button>
+        </form>
+        <div class="hint">สำหรับทีมพัฒนา ERP เท่านั้น</div>
+    </div>
+</body>
+</html>
+"""
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "GET":
+        return render_template_string(LOGIN_TEMPLATE, error=None)
+
+    password = request.form.get("password", "")
+    if check_password(password):
+        session["bridge_authenticated"] = True
+        session.permanent = False
+        next_url = request.args.get("next", "/")
+        return redirect(next_url)
+
+    return render_template_string(LOGIN_TEMPLATE, error="รหัสผ่านไม่ถูกต้อง")
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect("/login")
+
+
+def is_authenticated():
+    """Check if the current session is authenticated."""
+    if not BRIDGE_PASSWORD:
+        return True  # No password set = no auth required
+    return session.get("bridge_authenticated", False)
+
+
+@app.before_request
+def check_auth():
+    """Redirect to login if not authenticated."""
+    # Skip auth for static files, login, logout, health
+    if request.path in ("/login", "/logout", "/api/health", "/health"):
+        return None
+    if is_authenticated():
+        return None
+    return redirect(f"/login?next={urllib.parse.quote(request.full_path)}")
 
 # ─── Service Registry ────────────────────────────────────────────────────────
 
@@ -480,6 +610,10 @@ def main():
     print(f"[Bridge] Starting ERP Internal Bridge on http://{args.host}:{args.port}")
     print(f"[Bridge] Dashboard: http://{args.host}:{args.port}/")
     print(f"[Bridge] Registry: {REGISTRY_PATH}")
+    if BRIDGE_PASSWORD:
+        print(f"[Bridge] Password Auth: ENABLED")
+    else:
+        print(f"[Bridge] Password Auth: DISABLED — no password required")
     if WHITELIST_ENABLED:
         print(f"[Bridge] IP Whitelist: ENABLED — allowed IPs: {WHITELIST_IPS}")
     else:

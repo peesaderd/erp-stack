@@ -29,6 +29,7 @@ from inner_monologue.self_reflection import SelfReflection
 from inner_monologue.hitl import HITL
 from inner_monologue.resilience import RetryStrategy, FallbackProvider, CircuitBreaker
 from inner_monologue.delegation import SubAgentManager
+from inner_monologue.scanner import AutoDiscoveryEngine, ServiceScanner, ServiceClassifier
 
 # Configuration
 CHATVOIP_BASE = os.getenv("CHATVOIP_BASE", "http://localhost:3001")
@@ -38,8 +39,8 @@ BOOKSTACK_URL = os.getenv("BOOKSTACK_URL", "http://89.167.82.205:54515")
 BOOKSTACK_TOKEN_ID = os.getenv("BOOKSTACK_TOKEN_ID", "SQzJHJKFY2YvncKVEy4GKMsbLiJJ8JoW")
 BOOKSTACK_TOKEN_SECRET = os.getenv("BOOKSTACK_TOKEN_SECRET", "J3WJC2aEfs5R2sSAcLX6ck4uocJx4ACo")
 BRAIN_NAME = os.getenv("BRAIN_NAME", "Brain Server v6.3")
-LOG_FILE = os.getenv("LOG_FILE", "/home/ubuntu/brain-server/brain.log")
-STATE_FILE = os.getenv("STATE_FILE", "/home/ubuntu/brain-server/state.json")
+LOG_FILE = os.getenv("LOG_FILE", "/home/openhands/brain-server/brain.log")
+STATE_FILE = os.getenv("STATE_FILE", "/home/openhands/brain-server/state.json")
 PORT = int(os.getenv("PORT", "8101"))
 
 CONDENSE_AFTER_THOUGHTS = 30
@@ -256,18 +257,18 @@ class BrainServerV6:
         self.escalation = EscalationEngine(self.chat)
 
         # Persistent memory for cross-session context
-        self.memory = ConversationMemory(persistence_dir="/home/ubuntu/brain-server/.inner-memory")
+        self.memory = ConversationMemory(persistence_dir="/home/openhands/brain-server/.inner-memory")
         self.memory.load()
 
         # Self-Reflection system — learns from user interactions
-        self.self_reflection = SelfReflection(persistence_dir="/home/ubuntu/brain-server/.inner-memory")
+        self.self_reflection = SelfReflection(persistence_dir="/home/openhands/brain-server/.inner-memory")
         self.self_reflection.set_llm_fn(self._call_llm_for_reflection)
 
         # Heartbeat for real-time status display
         self.heartbeat = Heartbeat(verbose=True)
 
         # HITL for destructive action confirmation
-        self.hitl = HITL(workspace="/home/ubuntu/brain-server")
+        self.hitl = HITL(workspace="/home/openhands/brain-server")
 
         # Resilience components
         self.retry = RetryStrategy(max_retries=3, base_delay=1.0, max_delay=30.0)
@@ -276,8 +277,13 @@ class BrainServerV6:
         # Delegation system
         self.delegation = SubAgentManager(
             llm_call_fn=self._call_llm_for_delegation,
-            workspace="/home/ubuntu/brain-server",
+            workspace="/home/openhands/brain-server",
         )
+
+        # Auto-Discovery Engine — สแกนและวิเคราะห์ services ในระบบ
+        self.discovery = AutoDiscoveryEngine(llm_call_fn=self._call_llm_for_discovery)
+        self._discovery_results: Optional[dict] = None
+        self._pending_questions: list[dict] = []  # รอถามผู้ใช้
 
         # Inner Monologue Agent — uses all components above
         self.agent = InnerMonologueAgent(
@@ -289,7 +295,7 @@ class BrainServerV6:
             heartbeat=self.heartbeat,
             self_reflection=self.self_reflection,
             hitl=self.hitl,
-            workspace="/home/ubuntu/brain-server",
+            workspace="/home/openhands/brain-server",
         )
 
         self._running = False
@@ -308,6 +314,62 @@ class BrainServerV6:
     def _call_llm_for_delegation(self, prompt: str) -> str:
         """Wrapper for Delegation to call LLM"""
         return self.agent._call_llm_for_condense(prompt)
+
+    def _call_llm_for_discovery(self, prompt: str) -> str:
+        """Wrapper for Auto-Discovery to call LLM"""
+        return self.agent._call_llm_for_condense(prompt)
+
+    def run_discovery(self) -> dict:
+        """รัน Auto-Discovery — สแกนระบบและวิเคราะห์ services"""
+        self._think("Starting Auto-Discovery of ERP Stack...", "plan")
+        self.chat.send_notice("\U0001f50d **Auto-Discovery** เริ่มสแกนระบบ...")
+
+        try:
+            # 1. สแกนและวิเคราะห์
+            summary = self.discovery.run_discovery()
+            self._discovery_results = summary
+
+            # 2. บันทึกผล
+            self._think(f"Discovery complete: {summary['modules_found']} modules, {summary['uncertain']} uncertain", "observation")
+
+            # 3. ถ้ามี services ที่ไม่แน่ใจ — ถามผู้ใช้
+            uncertain = summary.get("uncertain_services", [])
+            if uncertain:
+                self._pending_questions = uncertain
+                msg = "\u2753 **Auto-Discovery** พบ services ที่ไม่แน่ใจ:\n"
+                for svc in uncertain:
+                    msg += f"- {svc['name']} (port {svc['port']}) — {svc.get('reason', 'ไม่ทราบ')}\n"
+                msg += "\nกรุณาตอบว่าใช่ ERP Module หรือไม่? (ใช่/ไม่ใช่)"
+                self.chat.send_message(msg)
+                self._think(f"Asked user about {len(uncertain)} uncertain services", "question")
+
+            # 4. สรุปผล
+            modules = summary.get("modules", [])
+            if modules:
+                mod_list = "\n".join([f"  - {m['name']} ({m.get('category', 'unknown')})" for m in modules])
+                self.chat.send_message(f"\u2705 **Auto-Discovery** พบ ERP Modules ทั้งหมด {len(modules)} ตัว:\n{mod_list}")
+
+            self.memory.add_entry("discovery", json.dumps(summary, indent=2))
+            self.memory.save()
+            return summary
+
+        except Exception as e:
+            error_msg = f"Auto-Discovery ล้มเหลว: {e}"
+            self._think(error_msg, "error")
+            self.chat.send_notice(f"\u274c {error_msg}")
+            return {"error": error_msg}
+
+    def answer_discovery_question(self, service_name: str, is_module: bool) -> str:
+        """รับคำตอบจากผู้ใช้เกี่ยวกับ service ที่ไม่แน่ใจ"""
+        self.discovery.classifier.record_feedback(service_name, is_module)
+        # ลบออกจาก pending
+        self._pending_questions = [q for q in self._pending_questions if q["name"] != service_name]
+        status = "Module" if is_module else "ไม่ใช่ Module"
+        self.chat.send_message(f"\u2705 **Auto-Discovery** บันทึก: {service_name} → {status}")
+        self._think(f"User confirmed: {service_name} is_module={is_module}", "learning")
+        self.memory.add_entry("discovery_feedback", f"{service_name}: {status}")
+        self.memory.save()
+        return f"บันทึก: {service_name} → {status}"
 
     def start(self):
         self._running = True
@@ -524,17 +586,40 @@ class BrainHandler(BaseHTTPRequestHandler):
                 })
             else:
                 self._send_json({"error": "no reflection"}, 404)
+        elif self.path == "/discovery":
+            if brain_server and brain_server._discovery_results:
+                self._send_json(brain_server._discovery_results)
+            else:
+                self._send_json({"status": "not_run", "message": "ยังไม่เคยรัน Auto-Discovery"})
+        elif self.path == "/discovery/scan":
+            if brain_server:
+                # รัน discovery แบบไม่ต้องรอ — ใช้ thread แยก
+                import threading
+                t = threading.Thread(target=brain_server.run_discovery, daemon=True)
+                t.start()
+                self._send_json({"status": "started", "message": "Auto-Discovery กำลังทำงาน..."})
+            else:
+                self._send_json({"error": "brain not started"}, 404)
+        elif self.path == "/discovery/pending":
+            if brain_server:
+                self._send_json({
+                    "pending": brain_server._pending_questions,
+                    "count": len(brain_server._pending_questions),
+                })
+            else:
+                self._send_json({"error": "brain not started"}, 404)
         else:
             self._send_json({"error": "Not found"}, 404)
 
     def do_POST(self):
+        content_length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(content_length) if content_length else b"{}"
+        try:
+            data = json.loads(body)
+        except json.JSONDecodeError:
+            data = {}
+
         if self.path == "/think":
-            content_length = int(self.headers.get("Content-Length", 0))
-            body = self.rfile.read(content_length) if content_length else b"{}"
-            try:
-                data = json.loads(body)
-            except json.JSONDecodeError:
-                data = {}
             prompt = data.get("prompt", "")
             if prompt:
                 result = brain_server.run_task(prompt)
@@ -552,6 +637,25 @@ class BrainHandler(BaseHTTPRequestHandler):
             if brain_server and brain_server.memory:
                 brain_server.memory.clear()
             self._send_json({"status": "reset", "message": "Brain state cleared"})
+        elif self.path == "/discovery/answer":
+            service_name = data.get("service", "")
+            is_module = data.get("is_module", False)
+            if service_name and brain_server:
+                result = brain_server.answer_discovery_question(service_name, is_module)
+                self._send_json({"status": "ok", "result": result})
+            else:
+                self._send_json({"error": "Missing service name"}, 400)
+        elif self.path == "/discovery/register":
+            """ลงทะเบียน service ที่ยืนยันแล้วเป็น ERP Module"""
+            service_name = data.get("service", "")
+            category = data.get("category", "erp-core")
+            if service_name and brain_server:
+                brain_server.discovery.classifier.record_feedback(service_name, True)
+                brain_server._think(f"Registered {service_name} as ERP Module ({category})", "action")
+                brain_server.chat.send_message(f"\u2705 **ERP Module Registered**: {service_name} ({category})")
+                self._send_json({"status": "ok", "message": f"{service_name} registered as ERP Module"})
+            else:
+                self._send_json({"error": "Missing service name"}, 400)
         else:
             self._send_json({"error": "Not found"}, 404)
 
@@ -575,14 +679,19 @@ def main():
     log.info("=" * 50)
     log.info("%s Webhook API running on port %d", BRAIN_NAME, PORT)
     log.info("Endpoints:")
-    log.info("  GET  /health   - Health check")
-    log.info("  GET  /state    - Brain state summary")
-    log.info("  GET  /thoughts - Recent thoughts")
-    log.info("  GET  /actions  - Recent actions")
-    log.info("  GET  /memory   - Memory context & summary")
-    log.info("  GET  /reflect  - Self-reflection insights")
-    log.info("  POST /think    - Send a prompt to the brain")
-    log.info("  POST /reset    - Reset brain state")
+    log.info("  GET  /health          - Health check")
+    log.info("  GET  /state           - Brain state summary")
+    log.info("  GET  /thoughts        - Recent thoughts")
+    log.info("  GET  /actions         - Recent actions")
+    log.info("  GET  /memory          - Memory context & summary")
+    log.info("  GET  /reflect         - Self-reflection insights")
+    log.info("  GET  /discovery       - Auto-Discovery results")
+    log.info("  GET  /discovery/scan  - Run Auto-Discovery")
+    log.info("  GET  /discovery/pending - Pending questions")
+    log.info("  POST /think           - Send a prompt to the brain")
+    log.info("  POST /reset           - Reset brain state")
+    log.info("  POST /discovery/answer - Answer discovery question")
+    log.info("  POST /discovery/register - Register service as Module")
     log.info("=" * 50)
 
     try:

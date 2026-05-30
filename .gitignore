@@ -33,3 +33,5 @@ Thumbs.db
 .task-manager/
 erp-core/
 ai-streaming/
+node_modules/
+*.bak

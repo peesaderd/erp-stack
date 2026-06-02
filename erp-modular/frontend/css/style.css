@@ -1,5 +1,8 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    ERP Modular — Micro-frontend Shell Styles
+   ═══════════════════════════════════════════════════════════════════════════
+   Design System → design/DESIGN.md
+   Tokens → design/tokens.css (reference, not imported via browser path)
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {

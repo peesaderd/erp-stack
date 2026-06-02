@@ -1,0 +1,72 @@
+# Etsy Listing Rules
+# Reference: https://help.etsy.com/hc/listing-rules
+# Validator: rules/validator.py
+
+rules:
+  title:
+    max_length: 140
+    min_length: 1
+    hints:
+      - "ใส่คำค้นหาสำคัญไว้ต้น Title"
+      - "ไม่ใช้คำฟุ่มเฟือย เช่น 'Cute', 'Amazing', 'Beautiful'"
+      - "Format ที่แนะนำ: '[Primary Keyword] - [Secondary Keyword] - [Detail]'"
+
+  tags:
+    max_count: 13
+    max_length_per_tag: 20
+    min_tags_required: 13
+    hints:
+      - "ใช้ให้ครบ 13 tags เสมอ"
+      - "แต่ละ tag คือ phrase สั้นๆ ไม่ใช่คำเดียว เช่น 'birthday gift' ≠ 'gift'"
+      - "ไม่ซ้ำกัน (duplicate tags หักคะแนนค้นหา)"
+      - "ไม่ keyword stuffing ('bag bag bag')"
+
+  description:
+    max_length: 5000
+    recommended_first_500: true
+    min_length: 50
+    sections:
+      - name: "first_sentence"
+        hint: "ประโยคแรก = hook, ต้องบอกว่าขายอะไรภายใน 3 วินาที"
+      - name: "details"
+        hint: "ขนาด วัสดุ สี วิธีการผลิต ระยะเวลาจัดส่ง"
+      - name: "shipping"
+        hint: "บอกระยะเวลาจัดส่งและพื้นที่ให้บริการ"
+      - name: "policies"
+        hint: "นโยบายการคืนสินค้า"
+    prohibited:
+      - "URLs เว็บอื่น (รวมถึง social media link)"
+      - "คำว่า 'Etsy' ในทางที่ทำให้เข้าใจผิด"
+      - "ข้อมูลติดต่อส่วนตัว (เบอร์โทร, email)"
+
+  price:
+    min: 0.20
+    currency: USD
+
+  quantity:
+    max: 999
+    min: 1
+
+  materials:
+    max_count: 13
+    hint: "สำหรับ physical item เท่านั้น แยก comma"
+
+  required_attributes:
+    - name: "who_made_it"
+      options: ["i_did", "a_member_of_my_shop", "someone_else"]
+      hint: "ใครเป็นคนทำสินค้าชิ้นนี้"
+    - name: "when_made"
+      options: ["made_to_order", "2020_2026", "2010_2019", "2000_2009", "1990_1999", "before_1990", "not_sure"]
+      hint: "สินค้าทำขึ้นเมื่อไหร่"
+    - name: "is_supply"
+      options: ["a_finished_product", "a_supply_or_tool_to_make"]
+      hint: "สินค้านี้เป็นสินค้าสำเร็จรูป หรือ อุปกรณ์/วัตถุดิบสำหรับทำสินค้า"
+
+  variations:
+    max: 2
+    per_variation_options_max: 60
+    hint: "เช่น สี, ขนาด — ไม่เกิน 2 ตัวแปร"
+
+  categories:
+    max_levels: 3
+    hint: "เลือกหมวดหมู่ที่ตรงที่สุดเท่าที่จะเป็นไปได้"

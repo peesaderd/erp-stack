@@ -5,6 +5,7 @@
 2. ตรวจสอบ JWT/API Key ทุก request
 3. Route ไปยัง backend ที่ถูกต้อง (ERP API หรือ Mini App)
 4. เก็บ audit log
+5. โหลด Mini Apps จาก Database (App model) + fallback hardcoded
 
 โครงสร้าง:
     GatewayRouter: FastAPI router ที่รวม endpoints ต่างๆ
@@ -20,52 +21,79 @@ from datetime import datetime, timezone
 import httpx
 from fastapi import APIRouter, HTTPException, Depends, Request, Response
 from fastapi.responses import JSONResponse
+from sqlmodel import Session, select
 
 from .auth import (
     TokenData, require_auth, require_permission,
     create_access_token, decode_token, PERM_ADMIN,
 )
 from .rate_limit import get_rate_limiter
+from models.entity import App
+from core.database import get_session
 
 logger = logging.getLogger("erp.gateway")
 
 router = APIRouter(prefix="/gateway")
 
-# ─── Mini App Registry ──────────────────────────────────────────────────────
+# ─── Role Hierarchy ─────────────────────────────────────────────────────────
 
-# TODO: โหลดจาก database (App model) แทน hardcode
-MINI_APPS: dict[str, dict] = {
-    "plane": {
-        "name": "Plane",
-        "base_url": os.environ.get("PLANE_URL", "http://localhost:54512"),
-        "description": "Project Management",
-        "required_role": "editor",
-    },
-    "planka": {
-        "name": "Planka",
-        "base_url": os.environ.get("PLANKA_URL", "http://localhost:54513"),
-        "description": "Kanban Board",
-        "required_role": "editor",
-    },
-    "bookstack": {
-        "name": "BookStack",
-        "base_url": os.environ.get("BOOKSTACK_URL", "http://localhost:54515"),
-        "description": "Documentation Wiki",
-        "required_role": "viewer",
-    },
-    "siyuan": {
-        "name": "Siyuan",
-        "base_url": os.environ.get("SIYUAN_URL", "http://localhost:54511"),
-        "description": "Knowledge Base",
-        "required_role": "viewer",
-    },
-    "openobserve": {
-        "name": "OpenObserve",
-        "base_url": os.environ.get("OPENOBSERVE_URL", "http://localhost:54514"),
-        "description": "Logging & Metrics",
-        "required_role": "admin",
-    },
-}
+ROLE_HIERARCHY = ["viewer", "editor", "developer", "mini-app", "admin"]
+
+
+def _user_role_level(role: str) -> int:
+    try:
+        return ROLE_HIERARCHY.index(role)
+    except ValueError:
+        return -1
+
+
+def _check_role(user_role: str, required_role: str) -> bool:
+    return _user_role_level(user_role) >= _user_role_level(required_role)
+
+
+# ─── Mini App Registry (Load from DB + Hardcoded fallback) ─────────────────
+
+def _load_mini_apps(session: Optional[Session] = None) -> dict[str, dict]:
+    """โหลด Mini Apps — DB ก่อน, hardcoded fallback สำหรับ service ที่ยังไม่ได้ migrate
+
+    Priority:
+        1. จาก DB (App model, enabled=True)
+        2. จาก hardcoped dict (env fallback)
+    """
+    apps: dict[str, dict] = {}
+
+    # 1. โหลดจาก Database (App model)
+    if session is not None:
+        try:
+            db_apps = session.exec(select(App).where(App.enabled == True)).all()
+            for app in db_apps:
+                apps[app.slug] = {
+                    "name": app.name,
+                    "base_url": app.base_url or f"http://{app.slug}.local",
+                    "description": app.description or "",
+                    "required_role": "viewer",  # default role
+                    "app_id": app.id,
+                    "from_db": True,
+                }
+            if db_apps:
+                logger.info(f"Gateway: โหลด Mini Apps จาก DB แล้ว {len(db_apps)} ตัว")
+        except Exception as e:
+            logger.warning(f"Gateway: ไม่สามารถโหลดจาก DB ได้ ({e}) — ใช้ hardcoded fallback")
+
+    # 2. Hardcoded fallback (env-based) — สำหรับ service ที่ยังไม่ migrate
+    hardcoded: dict[str, dict] = {
+        "bookstack": {
+            "name": "BookStack",
+            "base_url": os.environ.get("BOOKSTACK_URL", "http://89.167.82.205:54515"),
+            "description": "Documentation Wiki",
+            "required_role": "viewer",
+        },
+    }
+    for slug, info in hardcoded.items():
+        if slug not in apps:  # DB มีค่ากว่า — ไม่ overwrite
+            apps[slug] = {**info, "from_db": False}
+
+    return apps
 
 
 # ─── Auth Endpoints ─────────────────────────────────────────────────────────
@@ -79,7 +107,7 @@ def get_token(
 
     ใช้งาน: POST /gateway/auth/token?client_id=my-app&role=editor
     """
-    if role not in ("viewer", "editor", "developer", "admin", "mini-app"):
+    if role not in ROLE_HIERARCHY:
         raise HTTPException(status_code=400, detail=f"role '{role}' ไม่ถูกต้อง")
 
     token = create_access_token(
@@ -112,15 +140,14 @@ def verify_token(token_data: TokenData = Depends(require_auth)):
 # ─── Mini App Registry Endpoints ────────────────────────────────────────────
 
 @router.get("/apps")
-def list_apps(token_data: TokenData = Depends(require_auth)):
-    """รายชื่อ Mini App ที่ Gateway รู้จัก"""
+def list_apps(
+    token_data: TokenData = Depends(require_auth),
+    session: Session = Depends(get_session),
+):
+    """รายชื่อ Mini App ที่ Gateway รู้จัก — โหลดจาก Database + Hardcoded fallback"""
     apps = []
-    for slug, info in MINI_APPS.items():
-        # กรองตาม role
-        role_hierarchy = ["viewer", "editor", "developer", "mini-app", "admin"]
-        user_level = role_hierarchy.index(token_data.role) if token_data.role in role_hierarchy else -1
-        req_level = role_hierarchy.index(info["required_role"]) if info["required_role"] in role_hierarchy else 99
-        if user_level >= req_level:
+    for slug, info in _load_mini_apps(session).items():
+        if _check_role(token_data.role, info["required_role"]):
             apps.append({
                 "slug": slug,
                 "name": info["name"],
@@ -138,22 +165,20 @@ async def proxy_request(
     path: str,
     request: Request,
     token_data: TokenData = Depends(require_auth),
+    session: Session = Depends(get_session),
 ):
     """Reverse proxy: ส่ง request ต่อไปยัง Mini App backend
 
-    ใช้งาน: GET /gateway/proxy/plane/api/projects
+    ใช้งาน: GET /gateway/proxy/bookstack/api/shelves
     Header: Authorization: Bearer <token>
     """
-    # ตรวจสอบว่า Mini App มีอยู่
-    app_info = MINI_APPS.get(app_slug)
+    apps = _load_mini_apps(session)
+    app_info = apps.get(app_slug)
     if not app_info:
         raise HTTPException(status_code=404, detail=f"ไม่พบ Mini App '{app_slug}'")
 
     # ตรวจสอบ role
-    role_hierarchy = ["viewer", "editor", "developer", "mini-app", "admin"]
-    user_level = role_hierarchy.index(token_data.role) if token_data.role in role_hierarchy else -1
-    req_level = role_hierarchy.index(app_info["required_role"]) if app_info["required_role"] in role_hierarchy else 99
-    if user_level < req_level:
+    if not _check_role(token_data.role, app_info["required_role"]):
         raise HTTPException(
             status_code=403,
             detail=f"ต้องการ role {app_info['required_role']} ขึ้นไปเพื่อเข้าใช้ {app_slug}",
@@ -206,11 +231,12 @@ async def proxy_request(
 def gateway_health():
     """สถานะ Gateway และ Mini App ทั้งหมด"""
     apps_status = {}
-    for slug, info in MINI_APPS.items():
+    for slug, info in _load_mini_apps().items():
         apps_status[slug] = {
             "name": info["name"],
             "url": info["base_url"],
             "status": "unknown",
+            "from": "db" if info.get("from_db") else "hardcoded",
         }
     return {
         "gateway": "online",

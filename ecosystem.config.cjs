@@ -5,7 +5,7 @@ module.exports = {
     script: "python3",
     args: "brain_server_v6.py",
     env: {
-      LLM_API_KEY: "sk-placeholder-replace-in-production",
+      LLM_API_KEY: "sk-704a41bad6e249dc83a0f7e344871149",
       LLM_MODEL: "deepseek-chat",
       LLM_PROVIDER: "deepseek",
       PORT: "8101"

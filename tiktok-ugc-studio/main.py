@@ -67,6 +67,34 @@ class VideoTaskRequest(BaseModel):
     task_id: str
 
 
+class QueueVideoRequest(BaseModel):
+    prompt: str
+    provider: str = "wavespeed"
+    model_tier: str = "standard"
+    duration: int = 8
+    aspect_ratio: str = "9:16"
+    image_url: Optional[str] = None
+    face_image_url: Optional[str] = None
+    webhook_url: Optional[str] = None
+
+
+class TaskStatusRequest(BaseModel):
+    task_id: str
+
+
+class AffiliateConfig(BaseModel):
+    # Platform affiliate link configs
+    shopee_url: Optional[str] = None
+    lazada_url: Optional[str] = None
+    facebook_url: Optional[str] = None
+    tiktok_url: Optional[str] = None
+
+
+class AffiliateScriptRequest(ScriptRequest):
+    """Script generation with affiliate links"""
+    platforms: list[str] = []  # e.g. ["shopee", "lazada", "facebook", "tiktok"]
+
+
 # ─── Health ────────────────────────────────────────────────────────────────
 
 @app.get("/health")
@@ -241,6 +269,111 @@ def get_prompt(path: str):
         "size": full_path.stat().st_size,
         "content": full_path.read_text(encoding="utf-8"),
     }
+
+
+# ─── Affiliate Integration ───────────────────────────────────────────────
+
+AFFILIATE_CONFIG = {
+    "shopee": AffiliateConfig(shopee_url=os.environ.get("AFFILIATE_SHOPEE_URL", "https://shopee.co.th")),
+    "lazada": AffiliateConfig(lazada_url=os.environ.get("AFFILIATE_LAZADA_URL", "https://lazada.co.th")),
+    "facebook": AffiliateConfig(facebook_url=os.environ.get("AFFILIATE_FACEBOOK_URL", "https://facebook.com/marketplace")),
+    "tiktok": AffiliateConfig(tiktok_url=os.environ.get("AFFILIATE_TIKTOK_URL", "https://tiktok.com/shop")),
+}
+
+
+@app.post("/scripts/generate-with-affiliate")
+def generate_script_with_affiliate(req: AffiliateScriptRequest):
+    """Generate TikTok script + affiliate links"""
+    from script_gen import generate_tiktok_review_script
+    try:
+        script = generate_tiktok_review_script(
+            product_name=req.product_name,
+            customer_problem=req.customer_problem,
+            main_benefit=req.main_benefit,
+            target_audience=req.target_audience,
+            tone=req.tone,
+            cta=req.cta or "กดลิงก์ด้านล่าง",
+            duration=req.duration,
+            extra_rules=req.extra_rules,
+        )
+        # Build affiliate links for requested platforms
+        affiliate_links = {}
+        for p in req.platforms:
+            if p in AFFILIATE_CONFIG:
+                cfg = AFFILIATE_CONFIG[p]
+                url = getattr(cfg, f"{p}_url", f"https://{p}.com")
+                affiliate_links[p] = url
+        
+        script["affiliate_links"] = affiliate_links
+        if affiliate_links:
+            platforms_str = ", ".join(a.title() for a in affiliate_links.keys())
+            script["script"] += f"\n\n🛒 สั่งซื้อได้ที่: {platforms_str}"
+            script["affiliate_cta"] = f"Check out on {', '.join(affiliate_links.keys())}!"
+        return script
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/affiliate/config")
+def get_affiliate_config():
+    """Get current affiliate link configuration"""
+    return {
+        k: {"url": getattr(v, f"{k}_url", "")}
+        for k, v in AFFILIATE_CONFIG.items()
+    }
+
+
+# ─── Task Queue ────────────────────────────────────────────────────────────
+
+@app.post("/video/queue")
+def queue_video(req: QueueVideoRequest):
+    """Enqueue video generation task (background), returns task_id immediately"""
+    from video_gen import enqueue_video_task
+    try:
+        task_id = enqueue_video_task(
+            prompt=req.prompt,
+            provider=req.provider,
+            model_tier=req.model_tier,
+            duration=req.duration,
+            aspect_ratio=req.aspect_ratio,
+            image_url=req.image_url,
+            face_image_url=req.face_image_url,
+        )
+        return {"task_id": task_id, "status": "queued"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/video/queue-status")
+def queue_status(req: TaskStatusRequest):
+    """Check queued task status"""
+    from video_gen import get_task_status
+    try:
+        result = get_task_status(req.task_id)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ─── Video with Fallback ───────────────────────────────────────────────────
+
+@app.post("/video/generate-with-fallback")
+def generate_video_with_fallback(req: VideoRequest):
+    """Generate video with automatic provider fallback chain"""
+    from video_gen import generate_video_with_fallback, build_video_prompt
+    prompt = req.prompt
+    if req.script and req.ugc_style:
+        prompt = build_video_prompt(req.script, req.ugc_style)
+    try:
+        result = generate_video_with_fallback(
+            prompt=prompt,
+            duration=req.duration,
+            aspect_ratio=req.aspect_ratio,
+            image_url=req.image_url,
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
 
 
 # ─── Stats ─────────────────────────────────────────────────────────────────

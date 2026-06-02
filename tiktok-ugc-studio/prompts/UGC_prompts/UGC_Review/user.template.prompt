@@ -1,0 +1,8 @@
+Scene:
+A real person casually reviewing a product.
+
+Details:
+Person: {gender, age}
+Action: {holding / explaining / using}
+Location: {home}
+Mood: {honest, friendly}

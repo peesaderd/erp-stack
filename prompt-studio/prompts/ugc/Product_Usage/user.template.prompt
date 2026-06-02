@@ -1,0 +1,8 @@
+Scene:
+A person using a product.
+
+Details:
+Product: {product}
+Action: {using / applying}
+Location: {real environment}
+Mood: {natural}

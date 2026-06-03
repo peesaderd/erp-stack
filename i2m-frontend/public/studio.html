@@ -13,196 +13,197 @@
 body{font-family:Inter,sans-serif;background:#f2f4f6;color:#191c1e;font-size:14px;margin:0;padding:0}
 .fd{font-family:'Hanken Grotesk',sans-serif}
 .glass{background:rgba(255,255,255,.75);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
-.glass-dark{background:rgba(255,255,255,.6);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
 @keyframes spin{to{transform:rotate(360deg)}}.asp{animation:spin 1s linear infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}.ap{animation:pulse 2s cubic-bezier(.4,0,.6,1) infinite}
 @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}.fi{animation:fadeIn .3s ease-out forwards}
+.scroll-hide::-webkit-scrollbar{display:none}.scroll-hide{-ms-overflow-style:none;scrollbar-width:none}
+.loading-dots::after{content:'';animation:dots 1.5s infinite}
+@keyframes dots{0%{content:''}33%{content:'.'}66%{content:'..'}100%{content:'...'}}
 </style>
 </head>
 <body>
 
 <!-- ===== MOBILE HEADER ===== -->
-<header class="md:hidden fixed top-0 inset-x-0 z-50 flex items-center justify-between px-4 h-12 border-b border-gray-200/40" style="background:rgba(242,244,246,.85);backdrop-filter:blur(20px)">
-  <button onclick="document.getElementById('side').classList.toggle('hidden')" class="p-1 -ml-1 rounded-lg hover:bg-black/5 active:scale-90">
-    <span class="material-symbols-outlined text-gray-800">menu</span>
-  </button>
-  <h1 class="fd text-lg font-bold tracking-tight text-gray-900">I2M STUDIO</h1>
-  <div class="w-7 h-7 rounded-full bg-gradient-to-br from-[#4b41e1]/20 to-[#4b41e1]/5 border border-[#4b41e1]/15 flex items-center justify-center">
-    <span class="material-symbols-outlined text-[16px] text-[#4b41e1]">person</span>
-  </div>
+<header class="md:hidden fixed top-0 inset-x-0 z-50 flex items-center justify-between px-4 h-11 border-b border-gray-200/40 glass" style="background:rgba(242,244,246,.88);backdrop-filter:blur(20px)">
+  <button onclick="document.getElementById('side').classList.toggle('hidden')" class="p-1 -ml-1 rounded-lg active:scale-90"><span class="material-symbols-outlined text-gray-800 text-[22px]">menu</span></button>
+  <span class="fd text-base font-bold tracking-tight text-gray-900">I2M STUDIO</span>
+  <div class="w-6 h-6 rounded-full bg-gradient-to-br from-[#4b41e1]/20 to-[#4b41e1]/5 border border-[#4b41e1]/15 flex items-center justify-center"><span class="material-symbols-outlined text-[14px] text-[#4b41e1]">person</span></div>
 </header>
 
-<!-- ===== SIDEBAR (mobile) ===== -->
 <div id="side" class="hidden fixed inset-0 z-50">
-  <div class="absolute inset-0 bg-black/20" onclick="document.getElementById('side').classList.add('hidden')"></div>
-  <div class="relative w-72 h-full bg-white shadow-xl rounded-r-2xl p-6 flex flex-col">
-    <div class="flex items-center gap-3 pb-5 border-b border-gray-100">
-      <div class="w-9 h-9 rounded-2xl bg-gradient-to-br from-[#4b41e1] to-[#2c248b] flex items-center justify-center">
-        <span class="material-symbols-outlined text-[20px] text-white" style="font-variation-settings:'FILL'1">auto_awesome</span>
-      </div>
-      <div><h2 class="fd font-semibold text-gray-900">I2M Studio</h2><p class="text-[11px] text-gray-500">ครีเอเตอร์</p></div>
+  <div class="absolute inset-0 bg-black/15" onclick="document.getElementById('side').classList.add('hidden')"></div>
+  <div class="relative w-64 h-full bg-white shadow-xl rounded-r-2xl p-5 flex flex-col">
+    <div class="flex items-center gap-2.5 pb-4 border-b border-gray-100">
+      <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-[#4b41e1] to-[#2c248b] flex items-center justify-center"><span class="material-symbols-outlined text-[18px] text-white" style="font-variation-settings:'FILL'1">auto_awesome</span></div>
+      <div><div class="fd font-semibold text-sm text-gray-900">I2M Studio</div><div class="text-[10px] text-gray-500">ครีเอเตอร์</div></div>
     </div>
-    <div class="flex-1 py-4 space-y-1">
-      <button class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[#4b41e1]/10 text-[#4b41e1] font-semibold text-sm"><span class="material-symbols-outlined" style="font-variation-settings:'FILL'1">auto_awesome</span> Studio</button>
+    <div class="flex-1 py-3">
+      <button class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl bg-[#4b41e1]/10 text-[#4b41e1] font-semibold text-sm"><span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL'1">auto_awesome</span> Studio</button>
     </div>
-    <div class="pt-4 text-xs text-gray-400 text-center border-t border-gray-100"><p>แพ็กเกจ Pro</p></div>
+    <div class="pt-3 text-[10px] text-gray-400 text-center border-t border-gray-100">แพ็กเกจ Pro</div>
   </div>
 </div>
 
 <!-- ===== MAIN ===== -->
-<main class="min-h-screen pt-12 md:pt-0 pb-20 md:pb-0">
-  <div class="max-w-3xl mx-auto px-4 py-4 md:py-8">
+<main class="min-h-screen pt-11 pb-16 md:pt-0 md:pb-0">
+  <div class="max-w-2xl mx-auto px-4 py-3 md:py-6">
 
     <!-- ===== HEADER ===== -->
-    <header class="mb-5">
-      <h1 class="fd text-2xl font-bold text-gray-900 tracking-tight">I2M Studio</h1>
-      <p class="text-sm text-gray-500 mt-0.5">สร้างรูปสินค้าแบบคนไทย — AI วิเคราะห์ให้, สร้างให้</p>
+    <header class="mb-4">
+      <h1 class="fd text-xl font-bold text-gray-900 tracking-tight">I2M Studio</h1>
+      <p class="text-xs text-gray-500 mt-0.5">สร้างรูปสินค้าด้วย AI — อัปโหลดสินค้า, AI วิเคราะห์ให้, ปรับ prompt ได้</p>
     </header>
 
     <!-- ===== ERROR ===== -->
-    <div id="err" class="hidden mb-3 px-3 py-2.5 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 leading-relaxed"></div>
+    <div id="err" class="hidden mb-2.5 px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-[11px] text-red-700 leading-relaxed"></div>
 
-    <!-- ===== 3-STEP INDICATOR ===== -->
-    <div class="flex items-center mb-5 px-1">
-      <div class="flex items-center gap-2">
-        <div id="s1c" class="w-7 h-7 rounded-full bg-[#4b41e1] text-white flex items-center justify-center"><span class="material-symbols-outlined text-[16px]" style="font-variation-settings:'FILL'1">check</span></div>
-        <span class="text-xs font-semibold" id="s1l" style="color:#4b41e1">สินค้า</span>
+    <!-- ===== 3-STEP ===== -->
+    <div class="flex items-center mb-4 px-0.5">
+      <div class="flex items-center gap-1.5">
+        <div id="s1c" class="w-6 h-6 rounded-full bg-[#4b41e1] text-white flex items-center justify-center"><span class="material-symbols-outlined text-[14px]" style="font-variation-settings:'FILL'1">check</span></div>
+        <span class="text-[10px] font-semibold" id="s1l" style="color:#4b41e1">สินค้า</span>
       </div>
-      <div class="flex-1 h-px mx-2" id="s1d" style="background:#4b41e1"></div>
-      <div class="flex items-center gap-2">
-        <div id="s2c" class="w-7 h-7 rounded-full bg-gray-200 text-gray-400 flex items-center justify-center"><span class="material-symbols-outlined text-[16px]">auto_awesome</span></div>
-        <span class="text-xs text-gray-400" id="s2l">AI วิเคราะห์</span>
+      <div class="flex-1 h-[2px] mx-2 rounded-full" id="s1d" style="background:#4b41e1"></div>
+      <div class="flex items-center gap-1.5">
+        <div id="s2c" class="w-6 h-6 rounded-full bg-gray-200 text-gray-400 flex items-center justify-center"><span class="material-symbols-outlined text-[14px]">auto_awesome</span></div>
+        <span class="text-[10px] text-gray-400" id="s2l">AI วิเคราะห์</span>
       </div>
-      <div class="flex-1 h-px mx-2 bg-gray-200" id="s2d"></div>
-      <div class="flex items-center gap-2">
-        <div id="s3c" class="w-7 h-7 rounded-full bg-gray-200 text-gray-400 flex items-center justify-center"><span class="material-symbols-outlined text-[16px]">image</span></div>
-        <span class="text-xs text-gray-400" id="s3l">รูปภาพ</span>
+      <div class="flex-1 h-[2px] mx-2 rounded-full bg-gray-200" id="s2d"></div>
+      <div class="flex items-center gap-1.5">
+        <div id="s3c" class="w-6 h-6 rounded-full bg-gray-200 text-gray-400 flex items-center justify-center"><span class="material-symbols-outlined text-[14px]">image</span></div>
+        <span class="text-[10px] text-gray-400" id="s3l">รูปภาพ</span>
       </div>
     </div>
 
-    <!-- ===== PHASE 1: ข้อมูลสินค้า ===== -->
+    <!-- ===== PHASE 1 ===== -->
     <div id="phase1">
       <div class="glass rounded-2xl border border-gray-100/50 overflow-hidden">
-        <!-- Upload Zone -->
-        <label id="upl" for="fi" class="block relative cursor-pointer" onclick="if(!document.getElementById('fi').files.length)document.getElementById('fi').click()">
-          <input id="fi" type="file" accept="image/*" class="hidden" onchange="hf(event)">
-          <div id="ue" class="flex flex-col items-center justify-center py-14 gap-2.5 text-center px-6">
-            <div class="w-14 h-14 rounded-2xl flex items-center justify-center" style="background:rgba(75,65,225,.08)">
-              <span class="material-symbols-outlined text-[28px] text-[#4b41e1]" style="font-variation-settings:'FILL'1">add_photo_alternate</span>
+        <!-- Upload -->
+        <div id="uz" class="relative cursor-pointer active:scale-[0.99] transition-transform" onclick="document.getElementById('fi').click()">
+          <input id="fi" type="file" accept="image/*" class="hidden">
+          <div id="ue" class="flex flex-col items-center justify-center py-12 gap-2 text-center px-6">
+            <div class="w-12 h-12 rounded-2xl flex items-center justify-center" style="background:rgba(75,65,225,.08)">
+              <span class="material-symbols-outlined text-[26px] text-[#4b41e1]" style="font-variation-settings:'FILL'1">add_photo_alternate</span>
             </div>
-            <p class="fd text-base font-semibold text-gray-900">อัปโหลดรูปสินค้า</p>
-            <p class="text-xs text-gray-500">แตะเพื่อเลือกรูป หรือลากรูปมาใส่</p>
+            <p class="fd text-sm font-semibold text-gray-900">อัปโหลดรูปสินค้า</p>
+            <p class="text-[11px] text-gray-500">แตะเพื่อเลือกรูป หรือลากมา</p>
           </div>
           <div id="up" class="hidden relative">
-            <img id="pi" src="" alt="" class="w-full max-h-[280px] object-contain p-2">
-            <button type="button" onclick="cf(event)" class="absolute top-3 right-3 w-7 h-7 rounded-full bg-white/80 backdrop-blur flex items-center justify-center shadow-sm border border-gray-100 active:scale-90">
-              <span class="material-symbols-outlined text-[16px] text-gray-600">close</span>
+            <img id="pi" src="" alt="" class="w-full max-h-[240px] object-contain p-2">
+            <button type="button" onclick="cf(event)" class="absolute top-2.5 right-2.5 w-6 h-6 rounded-full bg-white/80 backdrop-blur flex items-center justify-center shadow-sm border border-gray-100 active:scale-90">
+              <span class="material-symbols-outlined text-[14px] text-gray-600">close</span>
             </button>
           </div>
-        </label>
-        <!-- Product Info Form -->
-        <div class="p-4 pt-3 border-t border-gray-100">
-          <div class="flex items-center justify-between mb-3">
-            <h2 class="text-xs font-semibold text-gray-900 uppercase tracking-wider">ข้อมูลสินค้า</h2>
-            <div class="flex gap-1.5">
-              <span class="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">9:16</span>
-              <span class="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">16:9</span>
-            </div>
+        </div>
+        <!-- Form -->
+        <div class="p-3.5 pt-3 border-t border-gray-100">
+          <div class="flex items-center justify-between mb-2.5">
+            <span class="text-[10px] font-semibold text-gray-900 uppercase tracking-wider">ข้อมูลสินค้า</span>
           </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label class="text-[10px] text-gray-500 uppercase tracking-wider font-medium">ชื่อสินค้า</label>
-              <input id="pn" type="text" placeholder="กรอกชื่อสินค้า..." class="w-full mt-1 px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-200 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4b41e1]/30 transition-shadow">
-            </div>
-            <div>
-              <label class="text-[10px] text-gray-500 uppercase tracking-wider font-medium">รายละเอียด</label>
-              <input id="pd" type="text" placeholder="สั้นๆ เช่น ครีมกันแดด SPF50" class="w-full mt-1 px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-200 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4b41e1]/30 transition-shadow">
-            </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+            <input id="pn" type="text" placeholder="ชื่อสินค้า" class="px-3 py-2 rounded-xl bg-gray-50 border border-gray-200 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4b41e1]/25">
+            <input id="pd" type="text" placeholder="รายละเอียดสั้นๆ" class="px-3 py-2 rounded-xl bg-gray-50 border border-gray-200 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4b41e1]/25">
           </div>
-          <div class="flex gap-2 mt-4">
-            <button id="ba" onclick="ha()" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-[#4b41e1] to-[#2c248b] text-white text-sm fd font-semibold flex items-center justify-center gap-1.5 shadow-md active:scale-[0.98] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed">
-              <span class="material-symbols-outlined text-[18px]">auto_awesome</span> วิเคราะห์สินค้า
-            </button>
-          </div>
-          <p class="text-[10px] text-gray-400 text-center mt-2">AI จะวิเคราะห์สินค้าและสร้าง prompt สำหรับรูปภาพ</p>
+          <button id="ba" onclick="ha()" class="mt-3 w-full py-2 rounded-xl bg-gradient-to-r from-[#4b41e1] to-[#2c248b] text-white text-xs fd font-semibold flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.98] transition-all disabled:opacity-40">
+            <span class="material-symbols-outlined text-[16px]">auto_awesome</span> วิเคราะห์สินค้า
+          </button>
+          <p class="text-[9px] text-gray-400 text-center mt-1.5">AI วิเคราะห์สินค้า + สร้าง prompt พร้อมแก้ไข</p>
         </div>
       </div>
     </div>
 
-    <!-- ===== PHASE 2: AI วิเคราะห์ + สร้างรูป ===== -->
+    <!-- ===== PHASE 2 ===== -->
     <div id="phase2" class="hidden">
-      <!-- Analysis loading -->
-      <div id="al" class="glass rounded-2xl border border-gray-100/50 p-6 flex flex-col items-center justify-center gap-3 mb-4">
-        <span class="material-symbols-outlined text-[32px] text-[#4b41e1] asp">progress_activity</span>
+      <!-- Loading -->
+      <div id="al" class="glass rounded-2xl border border-gray-100/50 p-5 flex flex-col items-center gap-2.5 mb-3">
+        <span class="material-symbols-outlined text-[28px] text-[#4b41e1] asp">progress_activity</span>
         <p class="text-sm text-gray-600">AI กำลังวิเคราะห์สินค้า...</p>
       </div>
-      <!-- Analysis Result -->
+
+      <!-- Result -->
       <div id="ar" class="hidden fi">
-        <div class="glass rounded-2xl border border-gray-100/50 p-4 mb-4">
-          <div class="flex items-start gap-3">
-            <img id="rt" src="" class="w-12 h-12 rounded-xl object-cover flex-shrink-0 border border-gray-200">
+        <!-- Product card -->
+        <div class="glass rounded-2xl border border-gray-100/50 p-3.5 mb-3">
+          <div class="flex items-start gap-2.5">
+            <img id="rt" src="" class="w-10 h-10 rounded-xl object-cover flex-shrink-0 border border-gray-200">
             <div class="flex-1 min-w-0">
-              <h2 id="rn" class="fd font-semibold text-gray-900 text-sm"></h2>
-              <p id="rd" class="text-xs text-gray-500 mt-0.5 line-clamp-2"></p>
-              <div id="rtags" class="flex flex-wrap gap-1 mt-1.5"></div>
+              <div id="rn" class="fd font-semibold text-sm text-gray-900"></div>
+              <div id="rd" class="text-[11px] text-gray-500 mt-0.5 line-clamp-2"></div>
+              <div id="rtags" class="flex flex-wrap gap-1 mt-1"></div>
             </div>
           </div>
         </div>
-        <!-- Hooks + Copy -->
-        <div id="an" class="glass rounded-2xl border border-gray-100/50 p-4 mb-4 hidden">
-          <h3 class="text-[10px] font-semibold text-gray-900 uppercase tracking-widest mb-2">🎯 แนวทางคอนเทนต์</h3>
-          <div id="hk" class="flex flex-col gap-1.5 text-xs text-gray-700"></div>
-          <div id="ca" class="hidden mt-2.5 pt-2.5 border-t border-gray-200">
-            <p class="text-[10px] text-gray-500 mb-1">ข้อความโฆษณา</p>
-            <p id="ct" class="text-sm text-gray-900 leading-relaxed"></p>
+        <!-- Content direction -->
+        <div id="an" class="glass rounded-2xl border border-gray-100/50 p-3.5 mb-3 hidden">
+          <div class="text-[10px] font-semibold text-gray-900 uppercase tracking-widest mb-2">🎯 แนวทางคอนเทนต์</div>
+          <div id="hk" class="flex flex-col gap-1 text-[11px] text-gray-700"></div>
+          <div id="ca" class="hidden mt-2 pt-2 border-t border-gray-200">
+            <div class="text-[9px] text-gray-500 mb-0.5">ข้อความโฆษณา</div>
+            <div id="ct" class="text-sm text-gray-900 leading-relaxed"></div>
           </div>
         </div>
-        <!-- Image Presets -->
-        <div id="ps" class="mb-4">
-          <div class="flex justify-between items-center mb-2.5 px-1">
-            <h3 class="text-[10px] font-semibold text-gray-900 uppercase tracking-widest">แบบรูป</h3>
-            <span class="text-[10px] text-gray-400">เลือกแบบที่ชอบ</span>
-          </div>
-          <div id="pres" class="flex gap-2.5 overflow-x-auto hs pb-1 snap-x" style="-webkit-overflow-scrolling:touch"></div>
+        <!-- Presets -->
+        <div id="ps" class="mb-3">
+          <div class="text-[10px] font-semibold text-gray-900 uppercase tracking-widest mb-2 px-0.5">แบบรูป</div>
+          <div id="pres" class="flex gap-2 overflow-x-auto scroll-hide pb-1 snap-x" style="-webkit-overflow-scrolling:touch"></div>
         </div>
-        <!-- Generate + Aspect Ratio -->
-        <div class="glass rounded-2xl border border-gray-100/50 p-4">
-          <h3 class="text-[10px] font-semibold text-gray-900 uppercase tracking-widest flex items-center gap-1.5 mb-3">
-            <span class="material-symbols-outlined text-[16px] text-[#4b41e1]" style="font-variation-settings:'FILL'1">auto_awesome</span> สร้างรูปภาพ
-          </h3>
-          <div class="flex gap-2 mb-3">
-            <div class="flex-1">
-              <span class="text-[10px] text-gray-500 block mb-1">สัดส่วน</span>
-              <select id="ar" class="w-full px-2.5 py-2 rounded-xl bg-gray-50 border border-gray-200 text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#4b41e1]/30">
-                <option value="9:16">9:16 (TikTok)</option>
-                <option value="1:1">1:1 (Square)</option>
-                <option value="16:9">16:9 (YouTube)</option>
-                <option value="4:5">4:5 (IG)</option>
-              </select>
+        <!-- Prompt editor -->
+        <div class="glass rounded-2xl border border-gray-100/50 p-3.5 mb-3">
+          <div class="flex items-center justify-between mb-2">
+            <label class="text-[10px] font-semibold text-gray-900 uppercase tracking-widest">📝 Prompt</label>
+            <span class="text-[9px] text-gray-400">แก้ไขได้เลย</span>
+          </div>
+          <textarea id="pe" rows="3" class="w-full px-3 py-2 rounded-xl bg-gray-50 border border-gray-200 text-xs text-gray-900 resize-none focus:outline-none focus:ring-2 focus:ring-[#4b41e1]/25 placeholder:text-gray-400" placeholder="Prompt สำหรับสร้างรูป..."></textarea>
+        </div>
+        <!-- Generate -->
+        <div class="glass rounded-2xl border border-gray-100/50 p-3.5">
+          <div class="text-[10px] font-semibold text-gray-900 uppercase tracking-widest flex items-center gap-1.5 mb-2.5">
+            <span class="material-symbols-outlined text-[14px] text-[#4b41e1]">auto_awesome</span> สร้างรูป
+          </div>
+          <!-- Pill Selectors -->
+          <div class="flex items-center gap-3 mb-3">
+            <div>
+              <div class="text-[9px] text-gray-500 mb-1">สัดส่วน</div>
+              <div class="flex gap-1" id="ar-pills">
+                <button data-v="9:16" class="px-3 py-1.5 rounded-lg text-[10px] font-medium bg-[#4b41e1] text-white shadow-sm active:scale-95 transition-all">9:16</button>
+                <button data-v="1:1" class="px-3 py-1.5 rounded-lg text-[10px] font-medium bg-gray-100 text-gray-500 active:scale-95 transition-all">1:1</button>
+                <button data-v="16:9" class="px-3 py-1.5 rounded-lg text-[10px] font-medium bg-gray-100 text-gray-500 active:scale-95 transition-all">16:9</button>
+                <button data-v="4:5" class="px-3 py-1.5 rounded-lg text-[10px] font-medium bg-gray-100 text-gray-500 active:scale-95 transition-all">4:5</button>
+              </div>
             </div>
-            <div class="flex-1">
-              <span class="text-[10px] text-gray-500 block mb-1">จำนวน</span>
-              <select id="nc" class="w-full px-2.5 py-2 rounded-xl bg-gray-50 border border-gray-200 text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#4b41e1]/30">
-                <option value="1">1 รูป</option>
-                <option value="2">2 รูป</option>
-                <option value="4">4 รูป</option>
-              </select>
+            <div>
+              <div class="text-[9px] text-gray-500 mb-1">จำนวน</div>
+              <div class="flex gap-1" id="nc-pills">
+                <button data-v="1" class="px-3 py-1.5 rounded-lg text-[10px] font-medium bg-[#4b41e1] text-white shadow-sm active:scale-95 transition-all">1</button>
+                <button data-v="2" class="px-3 py-1.5 rounded-lg text-[10px] font-medium bg-gray-100 text-gray-500 active:scale-95 transition-all">2</button>
+                <button data-v="4" class="px-3 py-1.5 rounded-lg text-[10px] font-medium bg-gray-100 text-gray-500 active:scale-95 transition-all">4</button>
+              </div>
             </div>
           </div>
-          <button id="bg" onclick="hg()" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#4b41e1] to-[#2c248b] text-white text-sm fd font-semibold flex items-center justify-center gap-1.5 shadow-md active:scale-[0.98] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed">
-            <span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL'1">auto_awesome</span> สร้างรูป
+          <button id="bg" onclick="hg()" class="w-full py-2 rounded-xl bg-gradient-to-r from-[#4b41e1] to-[#2c248b] text-white text-xs fd font-semibold flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.98] transition-all disabled:opacity-40">
+            <span class="material-symbols-outlined text-[16px]">auto_awesome</span> สร้างรูป
           </button>
-          <div id="gp" class="hidden mt-3 p-3 rounded-xl bg-[#4b41e1]/5 border border-[#4b41e1]/15">
-            <div class="flex items-center gap-2"><span class="material-symbols-outlined text-[#4b41e1] asp">progress_activity</span><p class="text-xs text-gray-700">กำลังสร้างรูป...</p></div>
+          <div id="gp" class="hidden mt-2.5 p-2.5 rounded-xl bg-[#4b41e1]/5 border border-[#4b41e1]/15 flex items-center gap-2">
+            <span class="material-symbols-outlined text-[#4b41e1] text-[16px] asp">progress_activity</span>
+            <span class="text-[11px] text-gray-700">กำลังสร้างรูป...</span>
           </div>
         </div>
         <!-- Generated Gallery -->
-        <div id="gs" class="hidden mt-4 fi">
-          <h3 class="text-[10px] font-semibold text-gray-900 uppercase tracking-widest mb-2.5 px-1">ผลลัพธ์</h3>
-          <div id="gg" class="grid grid-cols-2 md:grid-cols-3 gap-2"></div>
-          <button onclick="ra()" class="mt-3 flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 transition-colors active:scale-95">
-            <span class="material-symbols-outlined text-[14px]">arrow_back</span> เริ่มใหม่
-          </button>
+        <div id="gs" class="hidden mt-3 fi">
+          <div class="flex items-center justify-between mb-2 px-0.5">
+            <span class="text-[10px] font-semibold text-gray-900 uppercase tracking-widest">ผลลัพธ์</span>
+            <span id="gc" class="text-[9px] text-gray-400"></span>
+          </div>
+          <div id="gg" class="grid grid-cols-2 md:grid-cols-3 gap-1.5"></div>
+          <!-- BUTTONS after generation -->
+          <div class="flex gap-2 mt-3">
+            <button id="bv" onclick="hgv()" class="flex-1 py-2 rounded-xl bg-gradient-to-r from-[#2c248b] to-[#4b41e1] text-white text-xs fd font-semibold flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.98] transition-all disabled:opacity-40">
+              <span class="material-symbols-outlined text-[16px]">videocam</span> สร้างวิดีโอ
+            </button>
+            <button onclick="ra()" class="px-3 py-2 rounded-xl bg-gray-100 text-gray-500 text-xs flex items-center gap-1.5 active:scale-95 transition-all">
+              <span class="material-symbols-outlined text-[14px]">refresh</span> เริ่มใหม่
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -211,83 +212,98 @@ body{font-family:Inter,sans-serif;background:#f2f4f6;color:#191c1e;font-size:14p
 </main>
 
 <!-- ===== BOTTOM TAB ===== -->
-<nav class="md:hidden fixed bottom-0 inset-x-0 z-50 border-t border-gray-200/40 flex justify-around items-center h-14 px-4" style="background:rgba(242,244,246,.85);backdrop-filter:blur(30px)">
-  <button class="flex flex-col items-center text-gray-400 active:scale-90"><span class="material-symbols-outlined mb-0.5 text-[20px]">person</span><span class="text-[9px]">โปรไฟล์</span></button>
-  <button class="flex flex-col items-center bg-[#4b41e1]/20 rounded-full px-5 py-1 text-[#4b41e1] active:scale-90 relative -top-2">
-    <span class="material-symbols-outlined mb-0.5 text-[22px]" style="font-variation-settings:'FILL'1">add_circle</span>
-    <span class="text-[9px] font-bold">สร้าง</span>
-  </button>
-  <button class="flex flex-col items-center text-gray-400 active:scale-90"><span class="material-symbols-outlined mb-0.5 text-[20px]">collections</span><span class="text-[9px]">คลัง</span></button>
+<nav class="md:hidden fixed bottom-0 inset-x-0 z-50 border-t border-gray-200/40 flex justify-around items-center h-12 px-4 glass" style="background:rgba(242,244,246,.88);backdrop-filter:blur(30px)">
+  <button class="flex flex-col items-center text-gray-400 active:scale-90 gap-0"><span class="material-symbols-outlined text-[20px]">person</span><span class="text-[8px]">โปรไฟล์</span></button>
+  <button class="flex flex-col items-center bg-[#4b41e1]/15 rounded-full px-4 py-1 text-[#4b41e1] active:scale-90 relative -top-1.5"><span class="material-symbols-outlined text-[22px]" style="font-variation-settings:'FILL'1">add_circle</span><span class="text-[8px] font-bold">สร้าง</span></button>
+  <button class="flex flex-col items-center text-gray-400 active:scale-90 gap-0"><span class="material-symbols-outlined text-[20px]">collections</span><span class="text-[8px]">คลัง</span></button>
 </nav>
 
 <script>
-// ─── State ──────────────────────────────────────────────────────────
-const S={i:null,f:null,pn:'',pd:'',a:null,sp:null,gens:[],gi:false};
+// === State ===
+const S={i:null,f:null,pn:'',pd:'',a:null,sp:null,pr:'',gens:[],gi:false,gv:false,vt:null,vs:null};
 const U='/api/i2m/ugc',I='/api/i2m/etsy-img';
+let ar='9:16',nc=1;
 
-// ─── Helpers ────────────────────────────────────────────────────────
 function he(){const e=document.getElementById('err');e.classList.add('hidden');e.textContent=''}
 function se(m){const e=document.getElementById('err');e.classList.remove('hidden');e.textContent=m}
 
-// Step indicator
+// === Step ===
 function setStep(n){
   for(let i=1;i<=3;i++){
     const c=document.getElementById('s'+i+'c'),l=document.getElementById('s'+i+'l'),d=document.getElementById('s'+i+'d')
+    if(!c)continue
     if(i<=n){
-      c.className='w-7 h-7 rounded-full bg-[#4b41e1] text-white flex items-center justify-center'
-      if(i<3)c.innerHTML='<span class="material-symbols-outlined text-[16px]" style="font-variation-settings:\'FILL\'1">check</span>'
-      else c.innerHTML='<span class="material-symbols-outlined text-[16px]" style="font-variation-settings:\'FILL\'1">auto_awesome</span>'
+      c.className='w-6 h-6 rounded-full bg-[#4b41e1] text-white flex items-center justify-center'
+      c.innerHTML=i===3?'<span class="material-symbols-outlined text-[14px]">auto_awesome</span>':'<span class="material-symbols-outlined text-[14px]" style="font-variation-settings:\'FILL\'1">check</span>'
       l.style.color='#4b41e1';l.style.fontWeight='600'
       if(d)d.style.background='#4b41e1'
     }else{
-      c.className='w-7 h-7 rounded-full bg-gray-200 text-gray-400 flex items-center justify-center'
-      c.innerHTML=i===3?'<span class="material-symbols-outlined text-[16px]">image</span>':'<span class="material-symbols-outlined text-[16px]">'+(i===1?'inventory_2':'auto_awesome')+'</span>'
+      c.className='w-6 h-6 rounded-full bg-gray-200 text-gray-400 flex items-center justify-center'
+      c.innerHTML=i===3?'<span class="material-symbols-outlined text-[14px]">image</span>':'<span class="material-symbols-outlined text-[14px]">auto_awesome</span>'
       l.style.color='#9ca3af';l.style.fontWeight='400'
       if(d)d.style.background='#e5e7eb'
     }
   }
 }
 
-// ─── Upload ─────────────────────────────────────────────────────────
-// Drag & Drop
-const upl=document.getElementById('upl')
-upl.addEventListener('dragover',e=>{e.preventDefault();upl.classList.add('border-[#4b41e1]','shadow-lg')})
-upl.addEventListener('dragleave',()=>upl.classList.remove('border-[#4b41e1]','shadow-lg'))
-upl.addEventListener('drop',e=>{e.preventDefault();upl.classList.remove('border-[#4b41e1]','shadow-lg');const f=e.dataTransfer.files[0];if(f&&f.type.startsWith('image/'))hf({target:{files:[f]}})})
+// === Pill toggles ===
+document.querySelectorAll('#ar-pills button').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('#ar-pills button').forEach(x=>{x.className='px-3 py-1.5 rounded-lg text-[10px] font-medium bg-gray-100 text-gray-500 active:scale-95 transition-all'})
+    b.className='px-3 py-1.5 rounded-lg text-[10px] font-medium bg-[#4b41e1] text-white shadow-sm active:scale-95 transition-all'
+    ar=b.dataset.v
+  }
+})
+document.querySelectorAll('#nc-pills button').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('#nc-pills button').forEach(x=>{x.className='px-3 py-1.5 rounded-lg text-[10px] font-medium bg-gray-100 text-gray-500 active:scale-95 transition-all'})
+    b.className='px-3 py-1.5 rounded-lg text-[10px] font-medium bg-[#4b41e1] text-white shadow-sm active:scale-95 transition-all'
+    nc=parseInt(b.dataset.v)
+  }
+})
 
-// FILE MORE UNIVERSAL click handler
-document.getElementById('fi').addEventListener('change',function(e){hf(e)})
-
-function hf(e){
-  const f=e.target?.files?.[0];if(!f)return
-  S.f=f;S.a=null;S.sp=null;he()
+// === Upload (FIXED: single click) ===
+document.getElementById('fi').addEventListener('change',function(e){
+  const f=e.target.files?.[0];if(!f)return
+  S.f=f;S.a=null;S.sp=null;S.pr='';he()
   S.pn=document.getElementById('pn').value.trim();S.pd=document.getElementById('pd').value.trim()
   const r=new FileReader()
   r.onload=ev=>{S.i=ev.target.result
     document.getElementById('ue').classList.add('hidden')
-    const p=document.getElementById('up');p.classList.remove('hidden')
+    document.getElementById('up').classList.remove('hidden')
     document.getElementById('pi').src=S.i
   }
   r.readAsDataURL(f)
-}
+  e.target.value=''
+})
+
+// Drag-Drop
+const uz=document.getElementById('uz')
+uz.addEventListener('dragover',e=>{e.preventDefault();uz.classList.add('border-[#4b41e1]','shadow-md')})
+uz.addEventListener('dragleave',()=>uz.classList.remove('border-[#4b41e1]','shadow-md'))
+uz.addEventListener('drop',e=>{e.preventDefault();uz.classList.remove('border-[#4b41e1]','shadow-md')
+  const f=e.dataTransfer.files[0];if(f&&f.type.startsWith('image/')){
+    document.getElementById('fi').files=e.dataTransfer.files
+    document.getElementById('fi').dispatchEvent(new Event('change'))
+  }
+})
 
 function cf(e){
-  e?.stopPropagation();S.i=null;S.f=null;S.a=null;S.sp=null;S.gens=[];S.gi=false
+  e?.stopPropagation();S.i=null;S.f=null;S.a=null;S.sp=null;S.pr='';S.gens=[];S.gi=false;S.gv=false;S.vt=null;S.vs=null
   document.getElementById('ue').classList.remove('hidden')
   document.getElementById('up').classList.add('hidden')
   document.getElementById('fi').value=''
   hidePhase2()
 }
 
-// ─── Analyze ────────────────────────────────────────────────────────
+// === Analyze ===
 async function ha(){
   const n=document.getElementById('pn').value.trim()
   if(!S.f||!n){se('กรุณาอัปโหลดรูปและกรอกชื่อสินค้าก่อน');return}
   S.pn=n;S.pd=document.getElementById('pd').value.trim()
   const b=document.getElementById('ba');b.disabled=true
-  b.innerHTML='<span class="material-symbols-outlined text-[18px] asp">progress_activity</span> กำลังวิเคราะห์...'
+  b.innerHTML='<span class="material-symbols-outlined text-[16px] asp">progress_activity</span> กำลังวิเคราะห์...'
   he()
-  // Show phase 2 loading
   document.getElementById('phase1').classList.add('hidden')
   document.getElementById('phase2').classList.remove('hidden')
   setStep(1)
@@ -295,101 +311,96 @@ async function ha(){
   document.getElementById('ar').classList.add('hidden')
   try{
     const fd=new FormData()
-    fd.append('product_name',S.pn)
-    fd.append('description',S.pd||'')
-    fd.append('file',S.f)
+    fd.append('product_name',S.pn);fd.append('description',S.pd||'');fd.append('file',S.f)
     const r=await fetch(U+'/product/analyze',{method:'POST',body:fd})
     if(!r.ok){const e=await r.text().catch(()=>'');throw Error('วิเคราะห์ไม่สำเร็จ ('+r.status+'): '+e)}
     const d=await r.json();S.a=d
     setStep(2)
     showAnalysis(d)
-  }catch(e){
-    se(e.message)
-    setStep(1)
+  }catch(e){se(e.message)
     document.getElementById('phase1').classList.remove('hidden')
     document.getElementById('phase2').classList.add('hidden')
-  }finally{
-    b.disabled=false
-    b.innerHTML='<span class="material-symbols-outlined text-[18px]">auto_awesome</span> วิเคราะห์สินค้า'
-  }
+    setStep(1)
+  }finally{b.disabled=false
+    b.innerHTML='<span class="material-symbols-outlined text-[16px]">auto_awesome</span> วิเคราะห์สินค้า'}
 }
 
 function showAnalysis(r){
   document.getElementById('al').classList.add('hidden')
   document.getElementById('ar').classList.remove('hidden')
-  // Product card
-  const pc=document.getElementById('rt');pc.src=S.i||''
+  // Product
+  document.getElementById('rt').src=S.i||''
   document.getElementById('rn').textContent=r.product_name||S.pn
   document.getElementById('rd').textContent=r.product_desc||S.pd
   const tags=document.getElementById('rtags');tags.innerHTML=''
   ;(r.seo_keywords||[]).slice(0,6).forEach(k=>{
     const s=document.createElement('span')
-    s.className='px-2 py-0.5 rounded-full bg-[#4b41e1]/10 text-[#4b41e1] text-[10px]'
+    s.className='px-2 py-0.5 rounded-full bg-[#4b41e1]/10 text-[#4b41e1] text-[9px]'
     s.textContent=k;tags.appendChild(s)
   })
-  // Hooks + Copy
+  // Hooks
   document.getElementById('an').classList.remove('hidden')
   const hk=document.getElementById('hk');hk.innerHTML=''
-  const hooks=r.hooks||[]
-  hooks.slice(0,3).forEach((h,i)=>{
-    const dEl=document.createElement('div')
-    dEl.className='flex items-start gap-1.5'
-    dEl.innerHTML='<span class="text-[#4b41e1] font-bold flex-shrink-0">Hook '+(i+1)+':</span><span>'+h+'</span>'
-    hk.appendChild(dEl)
+  ;(r.hooks||[]).slice(0,3).forEach((h,i)=>{
+    const d=document.createElement('div');d.className='flex items-start gap-1.5'
+    d.innerHTML='<span class="text-[#4b41e1] font-bold shrink-0">Hook '+(i+1)+':</span><span>'+h+'</span>'
+    hk.appendChild(d)
   })
   // Copy
-  const ca=document.getElementById('ca'),ct=document.getElementById('ct')
-  if(r.copy){ca.classList.remove('hidden');ct.textContent=r.copy}
+  const ct=document.getElementById('ct')
+  if(r.copy){document.getElementById('ca').classList.remove('hidden');ct.textContent=r.copy}
   // Presets
-  showPresets(r)
+  loadPresets(r)
 }
 
-function showPresets(r){
+function loadPresets(r){
   const p=r.image_prompts||{},c=document.getElementById('pres');c.innerHTML=''
-  document.getElementById('ps').classList.remove('hidden')
-  const presets=[
-    {id:'holding_product',ic:'🖐️',l:'ถือสินค้า',d:'คนไทยถือ'},
-    {id:'product_usage',ic:'📱',l:'สาธิตการใช้',d:'กำลังใช้สินค้า'},
-    {id:'lifestyle',ic:'🌿',l:'ไลฟ์สไตล์',d:'ไทย'},
-    {id:'close_up',ic:'🔍',l:'Close-up',d:'Detail'},
-    {id:'review_style',ic:'🎬',l:'Review',d:'สไตล์รีวิว'},
+  const prs=[
+    {id:'holding_product',ic:'🖐️',l:'ถือสินค้า'},
+    {id:'product_usage',ic:'📱',l:'สาธิตการใช้'},
+    {id:'lifestyle',ic:'🌿',l:'ไลฟ์สไตล์'},
+    {id:'close_up',ic:'🔍',l:'Close-up'},
+    {id:'review_style',ic:'🎬',l:'Review'},
   ]
-  presets.forEach(ps=>{
+  prs.forEach(ps=>{
     if(!p[ps.id]&&!p.default)return
-    const sel=S.sp===ps.id
-    const b=document.createElement('button');b.className='snap-start flex-shrink-0 w-28 md:w-36 text-left focus:outline-none active:scale-95 transition-transform'
-    b.onclick=()=>{S.sp=ps.id;showPresets(r)}
-    const pSel=S.sp||'holding_product'
-    const isSel=S.sp===ps.id||(ps.id==='holding_product'&&!S.sp)
-    b.innerHTML='<div class="aspect-[9/16] rounded-xl overflow-hidden mb-1.5 border transition-all '+(isSel?'ring-2 ring-[#4b41e1] shadow-[0_4px_16px_rgba(79,70,229,.15)] border-[#4b41e1]/40':'border-gray-200/30 shadow-sm')+'"><div class="w-full h-full bg-gradient-to-br from-[#4b41e1]/5 via-gray-100 to-[#4b41e1]/10 flex items-center justify-center"><span class="text-2xl">'+ps.ic+'</span></div>'+(isSel?'<div class="absolute top-1 right-1 bg-[#4b41e1] text-white rounded-full p-[2px] shadow-md"><span class="material-symbols-outlined text-[12px]" style="font-variation-settings:\'FILL\'1">check</span></div>':'')+'</div><p class="text-[10px] font-medium '+(isSel?'text-[#4b41e1]':'text-gray-900')+'">'+ps.l+'</p><p class="text-[9px] text-gray-500">'+ps.d+'</p>'
+    const sel=!S.sp?ps.id==='holding_product':S.sp===ps.id
+    const b=document.createElement('button');b.className='snap-start shrink-0 w-24 md:w-32 text-left focus:outline-none active:scale-95 transition-transform'
+    b.onclick=()=>{S.sp=ps.id;loadPresets(r);loadPrompt(r)}
+    b.innerHTML='<div class="aspect-[9/16] rounded-xl overflow-hidden mb-1 border transition-all '+(sel?'ring-2 ring-[#4b41e1] shadow-[0_4px_16px_rgba(79,70,229,.15)] border-[#4b41e1]/40':'border-gray-200/30 shadow-sm')+'"><div class="w-full h-full bg-gradient-to-br from-[#4b41e1]/5 via-gray-100 to-[#4b41e1]/10 flex items-center justify-center"><span class="text-xl">'+ps.ic+'</span></div>'+(sel?'<div class="absolute top-1 right-1 bg-[#4b41e1] text-white rounded-full p-[2px] shadow-md"><span class="material-symbols-outlined text-[11px]" style="font-variation-settings:\'FILL\'1">check</span></div>':'')+'</div><p class="text-[9px] font-medium '+(sel?'text-[#4b41e1]':'text-gray-900')+'">'+ps.l+'</p>'
     c.appendChild(b)
   })
-  // Auto-select first preset if none selected
-  if(!S.sp){S.sp='holding_product';showPresets(r);return}
-  setStep(2)
+  if(!S.sp){S.sp='holding_product';loadPresets(r);loadPrompt(r);return}
+  loadPrompt(r)
 }
 
-// ─── Generate Image ─────────────────────────────────────────────────
+function loadPrompt(r){
+  const p=r.image_prompts?.[S.sp]||r.image_prompts?.default||''
+  const pe=document.getElementById('pe')
+  if(p){pe.value=p;S.pr=p;pe.placeholder='Prompt สำหรับสร้างรูป...'}
+}
+
+// === Generate Image ===
 async function hg(){
-  const a=S.a;if(!a||!S.sp){se('เลือกแบบรูปก่อน');return}
-  const p=a.image_prompts[S.sp]||a.image_prompts.default||''
-  if(!p){se('ไม่พบ prompt สำหรับแบบรูปนี้');return}
+  const a=S.a
+  let prompt=document.getElementById('pe').value.trim()
+  if(!prompt&&a){prompt=a.image_prompts?.[S.sp]||a.image_prompts?.default||''}
+  if(!prompt){se('ไม่มี prompt — เลือกแบบรูปหรือพิมพ์ prompt เอง');return}
   S.gi=true
   const btn=document.getElementById('bg'),gp=document.getElementById('gp')
-  btn.disabled=true;btn.innerHTML='<span class="material-symbols-outlined text-[18px] asp">progress_activity</span> กำลังสร้าง...'
+  btn.disabled=true;btn.innerHTML='<span class="material-symbols-outlined text-[16px] asp">progress_activity</span> กำลังสร้าง...'
   gp.classList.remove('hidden');he()
   try{
-    const ar=document.getElementById('ar')?.value||'9:16'
     const r=await fetch(I+'/ai/generate-image',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({product_name:S.pn,description:S.pd,style:'product',prompt:p,aspect_ratio:ar,model_tier:'fast',upscale:false})
+      body:JSON.stringify({product_name:S.pn,description:S.pd,style:'product',prompt,aspect_ratio:ar,model_tier:'fast',upscale:false})
     })
     if(!r.ok){const e=await r.text().catch(()=>'');throw Error('สร้างรูปไม่สำเร็จ ('+r.status+'): '+e)}
     const d=await r.json();const u=d.image_url||d.url
     if(u){S.gens.unshift({id:Date.now().toString(),type:'image',url:u,style:S.sp,createdAt:Date.now()});showGallery();setStep(3)}
   }catch(e){se(e.message)}finally{
     S.gi=false;btn.disabled=false
-    btn.innerHTML='<span class="material-symbols-outlined text-[18px]" style="font-variation-settings:\'FILL\'1">auto_awesome</span> สร้างรูป'
+    btn.innerHTML='<span class="material-symbols-outlined text-[16px]">auto_awesome</span> สร้างรูป'
     gp.classList.add('hidden')
   }
 }
@@ -397,15 +408,53 @@ async function hg(){
 function showGallery(){
   document.getElementById('gs').classList.remove('hidden')
   const g=document.getElementById('gg');g.innerHTML=''
+  const c=document.getElementById('gc')
   S.gens.slice(0,6).forEach(gen=>{
     const d=document.createElement('div')
-    d.className='aspect-[9/16] rounded-xl overflow-hidden bg-gray-100 border border-gray-200/20 relative group fi'
-    d.style.animationDelay=(S.gens.indexOf(gen)*0.05)+'s'
+    d.className='aspect-[9/16] rounded-xl overflow-hidden bg-gray-100 border border-gray-200/20 relative fi'
     d.innerHTML='<img src="'+gen.url+'" class="w-full h-full object-cover" loading="lazy">'+
-      '<div class="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase bg-black/40 backdrop-blur text-white">9:16</div>'+
-      '<div class="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[8px] font-semibold uppercase bg-white/70 backdrop-blur text-gray-600">ใหม่</div>'
+      '<div class="absolute bottom-1.5 left-1.5 px-1 py-0.5 rounded text-[7px] font-bold uppercase bg-black/30 backdrop-blur text-white/90">'+ar+'</div>'+
+      '<div class="absolute top-1.5 right-1.5 px-1 py-0.5 rounded text-[7px] bg-white/70 backdrop-blur text-gray-600">ใหม่</div>'
     g.appendChild(d)
   })
+  c.textContent=S.gens.length+' รูป'
+  // Show video button
+  document.getElementById('gs').classList.remove('hidden')
+}
+
+// === Generate Video ===
+async function hgv(){
+  if(!S.a||!S.i)return
+  const btn=document.getElementById('bv')
+  btn.disabled=true;btn.innerHTML='<span class="material-symbols-outlined text-[16px] asp">progress_activity</span> รอคิว...'
+  S.gv=true;S.vs='queued';he()
+  try{
+    const r=await fetch(U+'/video/queue',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:S.a.video_prompt||'',image_url:S.i,product_name:S.pn})})
+    if(!r.ok){const e=await r.text().catch(()=>'');throw Error('สร้างวิดีโอไม่สำเร็จ ('+r.status+'): '+e)}
+    const d=await r.json();S.vt=d.task_id||d.id;pollVideo()
+  }catch(e){se(e.message);S.gv=false;S.vt=null
+    btn.disabled=false;btn.innerHTML='<span class="material-symbols-outlined text-[16px]">videocam</span> สร้างวิดีโอ'}
+}
+
+async function pollVideo(){
+  if(!S.vt)return
+  try{
+    const r=await fetch(U+'/video/queue-status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({task_id:S.vt})})
+    if(!r.ok)throw Error()
+    const d=await r.json();S.vs=d.status
+    if(d.status==='completed'){
+      const u=d.url||d.video_url||''
+      if(u){S.gens.unshift({id:Date.now().toString(),type:'video',url:u,style:'video',createdAt:Date.now()});showGallery()}
+      S.gv=false;S.vt=null
+      document.getElementById('bv').disabled=false
+      document.getElementById('bv').innerHTML='<span class="material-symbols-outlined text-[16px]">videocam</span> สร้างวิดีโอ'
+      return
+    }
+    if(d.status==='failed')throw Error()
+    setTimeout(pollVideo,3000)
+  }catch(e){se('วิดีโอยังไม่พร้อม');S.gv=false;S.vt=null
+    document.getElementById('bv').disabled=false
+    document.getElementById('bv').innerHTML='<span class="material-symbols-outlined text-[16px]">videocam</span> สร้างวิดีโอ'}
 }
 
 function hidePhase2(){
@@ -416,12 +465,13 @@ function hidePhase2(){
 }
 
 function ra(){
-  S.a=null;S.sp=null;S.gens=[];S.gi=false;S.i=null;S.f=null
+  S.a=null;S.sp=null;S.pr='';S.gens=[];S.gi=false;S.gv=false;S.vt=null;S.vs=null;S.i=null;S.f=null
   document.getElementById('fi').value=''
   document.getElementById('ue').classList.remove('hidden')
   document.getElementById('up').classList.add('hidden')
   document.getElementById('pn').value=''
   document.getElementById('pd').value=''
+  document.getElementById('pe').value=''
   hidePhase2()
 }
 </script>

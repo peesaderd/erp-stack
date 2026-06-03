@@ -1,0 +1,172 @@
+@import "tailwindcss";
+
+@theme {
+  /* iOS-inspired design tokens */
+  --color-system-blue: #007AFF;
+  --color-system-green: #34C759;
+  --color-system-orange: #FF9500;
+  --color-system-red: #FF3B30;
+  --color-system-gray-6: #F2F2F7;
+  --color-system-gray-5: #E5E5EA;
+  --color-system-gray-4: #D1D1D6;
+  --color-system-gray-3: #C7C7CC;
+  --color-system-gray-2: #AEAEB2;
+  --color-system-gray: #8E8E93;
+  --color-label: #1C1C1E;
+  --color-secondary-label: #3A3A3C;
+  --color-tertiary-label: #8E8E93;
+  --color-quaternary-label: #C6C6C8;
+  --color-system-background: #F2F2F6;
+  --color-system-grouped-background: #FFFFFF;
+
+  --font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+  --radius-card: 10px;
+  --radius-button: 8px;
+  --radius-pill: 20px;
+}
+
+/* iOS card style */
+.card-ios {
+  background-color: white;
+  border-radius: var(--radius-card);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  border: 0.5px solid rgba(0, 0, 0, 0.04);
+}
+
+/* iOS navigation bar */
+.nav-ios {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 0.5px solid rgba(0, 0, 0, 0.12);
+}
+
+/* iOS button */
+.btn-ios {
+  border-radius: var(--radius-button);
+  font-weight: 500;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.btn-ios:active {
+  opacity: 0.7;
+  transform: scale(0.97);
+}
+
+/* iOS large title */
+.title-ios {
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: 0.37px;
+  color: var(--color-label);
+}
+
+.title-ios-2 {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0.34px;
+  color: var(--color-label);
+}
+
+.title-ios-3 {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0.25px;
+  color: var(--color-label);
+}
+
+/* iOS body text */
+.body-ios {
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: -0.43px;
+  color: var(--color-label);
+}
+
+.subhead-ios {
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: -0.23px;
+  color: var(--color-secondary-label);
+}
+
+.footnote-ios {
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: -0.08px;
+  color: var(--color-tertiary-label);
+}
+
+/* iOS tab bar */
+.tab-ios {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-top: 0.5px solid rgba(0, 0, 0, 0.12);
+}
+
+/* Smooth spring animations */
+@utility animate-ios-spring {
+  transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Segmented control */
+.segmented-ios {
+  display: flex;
+  background-color: var(--color-system-gray-6);
+  border-radius: 7px;
+  padding: 2px;
+}
+
+.segmented-ios button {
+  flex: 1;
+  padding: 6px 12px;
+  border-radius: 5px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-secondary-label);
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+}
+
+.segmented-ios button.active {
+  background: white;
+  color: var(--color-label);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* iOS search bar */
+.search-ios {
+  background-color: var(--color-system-gray-6);
+  border-radius: 10px;
+  border: none;
+  padding: 10px 14px;
+  font-size: 17px;
+  font-family: var(--font-family-sans);
+  color: var(--color-label);
+  outline: none;
+  width: 100%;
+}
+
+.search-ios::placeholder {
+  color: var(--color-tertiary-label);
+}
+
+/* Progress indicator iOS style */
+.progress-ios {
+  width: 100%;
+  height: 4px;
+  background-color: var(--color-system-gray-5);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-ios-bar {
+  height: 100%;
+  background-color: var(--color-system-blue);
+  border-radius: 2px;
+  transition: width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}

@@ -1,3 +1,5 @@
+import sys
+
 """
 Etsy Wizard — Micro Service
 Mini MVP: Shop Setup Wizard + Rules Validator + AI Assistant
@@ -42,6 +44,10 @@ if os.path.exists(_env_file):
                 if 'FAL_KEY' not in os.environ:
                     os.environ['FAL_KEY'] = _v
                     _fal_from_env = _v
+            if "MISTRAL_API_KEY" not in os.environ and _k == "MISTRAL_API_KEY":
+                os.environ["MISTRAL_API_KEY"] = _v
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'tiktok-ugc-studio'))
 
 app.add_middleware(
     CORSMiddleware,
@@ -600,3 +606,34 @@ def stats():
         "total_listings": sum(len(v) for v in listings.values()),
         "version": "0.1.0",
     }
+class ProductResearchRequest(BaseModel):
+    product_name: str = ''
+    product_image_base64: str = ''
+    description: str = ''
+    category: str = ''
+
+@app.post('/product/research')
+def api_product_research(req: ProductResearchRequest):
+    from gemini_agent import research_product
+    # Step 1: AI Vision Analysis
+    research = research_product(
+        product_name=req.product_name or 'product',
+        description=req.description,
+        category=req.category,
+        image_base64=req.product_image_base64 or None,
+    )
+    # Step 2: Web Search
+    web_data = {'specs': [], 'reviews': [], 'prices': []}
+    if req.product_name:
+        try:
+            from duckduckgo_search import DDGS
+            with DDGS() as ddgs:
+                specs = list(ddgs.text(f'{req.product_name} specifications', max_results=3))
+                web_data['specs'] = [r.get('body','')[:500] for r in specs]
+                reviews = list(ddgs.text(f'{req.product_name} review', max_results=3))
+                web_data['reviews'] = [r.get('body','')[:500] for r in reviews]
+                prices = list(ddgs.text(f'{req.product_name} price', max_results=3))
+                web_data['prices'] = [r.get('title','')[:200] for r in prices]
+        except Exception as e:
+            logger.warning(f'Web search failed: {e}')
+    return {'ok': True, 'product_name': req.product_name, 'research': research, 'web_data': web_data}

@@ -202,49 +202,6 @@ Target Audience: {target_audience or 'General TikTok users'}{model_hint}
             user_text=user_prompt,
             image_base64=image_base64,
         )
-
-    system_prompt = """You are a TikTok UGC marketing expert. Analyze the product and generate:
-1. **5 Image Prompts** — one for each style (holding_product, product_usage, lifestyle, close_up, review_style), describe the scene in detail for AI image generation. IMPORTANT: All image prompts MUST specify Thai/Asian models (young Thai woman/man with Southeast Asian features, light brown skin, Thai aesthetic) unless the product is unisex or explicitly non-human.
-2. **1 Video Prompt** — detailed scene description for WaveSpeed video generation, include movement, lighting, storytelling. All video prompts MUST feature Thai/Asian models in Thai setting.
-3. **3 Hook Ideas** — attention-grabbing first lines in Thai for TikTok
-4. **Marketing Copy** — short caption + hashtags in Thai
-
-Output ONLY valid JSON, no markdown fences:
-{
-  "image_prompts": [
-    {"id": "holding_product", "name": "ถือสินค้า", "prompt": "..."},
-    {"id": "product_usage", "name": "ใช้งานสินค้า", "prompt": "..."},
-    {"id": "lifestyle", "name": "ไลฟ์สไตล์", "prompt": "..."},
-    {"id": "close_up", "name": "Close-up", "prompt": "..."},
-    {"id": "review_style", "name": "รีวิว", "prompt": "..."}
-  ],
-  "video_prompt": "...",
-  "hook_suggestions": ["...", "...", "..."],
-  "marketing_copy": "...",
-  "hashtags": ["...", "...", "..."]
-}"""
-
-    has_vision = bool(image_base64)
-    model_hint = " (with product image for visual analysis)" if has_vision else ""
-
-    user_prompt = f"""{'วิเคราะห์จากรูปสินค้าที่แนบมาและข้อมูลต่อไปนี้' if has_vision else 'จากข้อมูลสินค้าต่อไปนี้'}:
-Product Name: {product_name}
-Description: {description}
-Category: {category or 'N/A'}
-Target Audience: {target_audience or 'General TikTok users'}{model_hint}
-
-{'สังเกตรายละเอียดจากรูป: สี รูปทรง วัสดุ แบรนด์ วิธีการใช้งาน และอื่นๆ' if has_vision else ''}
-"""
-
-    if image_url and not image_base64:
-        user_prompt += f"\nProduct Image URL: {image_url}"
-
-    try:
-        raw = _call_mistral(
-            system_prompt=system_prompt,
-            user_text=user_prompt,
-            image_base64=image_base64,
-        )
         result = _parse_json(raw)
         logger.info(
             f"AI analysis successful ({'Pixtral vision' if has_vision else 'Mistral text'})"

@@ -153,7 +153,7 @@ export default function ProductStudio() {
     setVideoStatus('queued')
     try {
       const result = await api.generateVideo(analysis.video_prompt, image, productName)
-      setVideoTaskId(result.taskId || result.id)
+      setVideoTaskId(result.task_id || result.id)
     } catch (err: any) {
       setError(err?.message || 'Video generation failed')
       setGenVideo(false)

@@ -35,3 +35,4 @@ erp-core/
 ai-streaming/
 node_modules/
 *.bak
+.aider*

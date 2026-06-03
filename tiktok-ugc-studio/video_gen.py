@@ -114,7 +114,9 @@ def retryable(max_retries=3, base_delay=1.0, backoff=2.0, retry_statuses=(429, 5
                     return func(*args, **kwargs)
                 except (requests.exceptions.HTTPError, RuntimeError) as e:
                     last_err = e
-                    if e.response and e.response.status_code in retry_statuses:
+                    # RuntimeError may not have .response (AttributeError guard)
+                    resp = getattr(e, 'response', None)
+                    if resp is not None and resp.status_code in retry_statuses:
                         delay = base_delay * (backoff ** attempt) + _random.uniform(0, 0.5)
                         logger.warning(f"Retry {attempt+1}/{max_retries} after {delay:.1f}s: {e}")
                         _time.sleep(delay)
@@ -278,15 +280,23 @@ def _ws_status(config, task_id):
     url = f"{config['base_url']}/predictions/{task_id}/result"
     headers = {"Authorization": f"Bearer {config['key']}"}
     resp = requests.get(url, headers=headers, timeout=30)
-    data = resp.json().get("data", {})
+    body = resp.json()
+    data = body.get("data", {}) or {}
     video_url = ""
-    # v3 response: outputs nested in data, or directly in response root
-    outputs = data.get("outputs", resp.json().get("outputs", []))
+    # v3 response shapes (all possible WaveSpeed formats):
+    #   data.outputs[0]
+    #   body.outputs[0]
+    #   data.output.video_url or data.video_url
+    #   data.output.video.url
+    outputs = data.get("outputs", body.get("outputs", []))
     if outputs:
         video_url = outputs[0]
+    if not video_url:
+        output = data.get("output", {}) or {}
+        video_url = output.get("video_url", "") or output.get("video", {}).get("url", "") or data.get("video_url", "")
     return {
         "task_id": task_id,
-        "status": data.get("status", "unknown"),
+        "status": data.get("status", body.get("status", "unknown")),
         "video_url": video_url,
         "progress": 100 if data.get("status") == "completed" else 50 if data.get("status") == "processing" else None,
     }
@@ -352,7 +362,8 @@ def _generic_generate(config, prompt, model, duration, aspect_ratio, image_url, 
     payload = {"model": model, "prompt": prompt}
     if image_url:
         payload["image_url"] = image_url
-    pname = next((k.value for k, v in PROVIDER_CONFIG.items() if v == config), "?")
+    # Derive provider name from config reference (safe because config is PROVIDER_CONFIG entry)
+    pname = next((k.value for k in PROVIDER_CONFIG if PROVIDER_CONFIG[k] is config), "?")
     resp = requests.post(url, headers=headers, json=payload, timeout=timeout)
     if resp.status_code != 200:
         raise RuntimeError(f"{pname} error ({resp.status_code}): {resp.text[:500]}")
@@ -557,7 +568,7 @@ class TaskQueue:
                     image_url=task.get("image_url"),
                     face_image_url=task.get("face_image_url"),
                 )
-                self._update_task(task["task_id"], status="completed", result=str(result))
+                self._update_task(task["task_id"], status="completed", result=json.dumps(result, default=str))
                 logger.info(f"Task {task['task_id']} completed")
             except Exception as e:
                 error_msg = str(e)[:500]

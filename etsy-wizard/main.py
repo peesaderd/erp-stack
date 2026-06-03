@@ -30,10 +30,23 @@ app = FastAPI(
     description="AI Shop Setup Wizard + Rules Validator — Mini MVP",
 )
 
+# HACK: Load FAL_KEY from tiktok-ugc-studio .env since etsy-wizard doesn't have its own
+_env_file = os.path.join(os.path.dirname(__file__), '..', 'tiktok-ugc-studio', '.env')
+_fal_from_env = None
+if os.path.exists(_env_file):
+    with open(_env_file) as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if _line.startswith('FAL_KEY='):
+                _k, _v = _line.split('=', 1)
+                if 'FAL_KEY' not in os.environ:
+                    os.environ['FAL_KEY'] = _v
+                    _fal_from_env = _v
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

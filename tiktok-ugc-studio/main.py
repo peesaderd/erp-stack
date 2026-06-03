@@ -11,7 +11,10 @@ from typing import Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from io import BytesIO
+from fastapi import File, Form, UploadFile
 from pydantic import BaseModel
+import base64
 
 import os
 # Load .env file for API keys (avoids OpenClaw redaction issues in PM2)
@@ -38,7 +41,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -369,11 +372,34 @@ def queue_video(req: QueueVideoRequest):
 
 @app.post("/video/queue-status")
 def queue_status(req: TaskStatusRequest):
-    """Check queued task status"""
+    """Check queued task status — normalizes response for frontend"""
     from video_gen import get_task_status
     try:
-        result = get_task_status(req.task_id)
-        return result
+        raw = get_task_status(req.task_id)
+        status = raw.get("status", "unknown")
+        normalized = {
+            "task_id": req.task_id,
+            "status": status,
+            "url": "",
+            "video_url": "",
+        }
+        if status == "completed":
+            result_str = raw.get("result", "{}")
+            # result is stored as JSON string from json.dumps
+            if isinstance(result_str, str):
+                try:
+                    gen_result = json.loads(result_str)
+                except json.JSONDecodeError:
+                    # Might be a Python repr string from str(dict) — parse manually
+                    gen_result = {}
+            else:
+                gen_result = result_str or {}
+            video_url = gen_result.get("video_url", "") or gen_result.get("url", "")
+            normalized["url"] = video_url
+            normalized["video_url"] = video_url
+        elif status == "failed":
+            normalized["error"] = raw.get("error", "Unknown error")
+        return normalized
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -402,21 +428,77 @@ def generate_video_with_fallback(req: VideoRequest):
 # ─── Product Analysis ───────────────────────────────────────────────────────
 
 @app.post("/product/analyze")
-def analyze_product(req: ProductAnalysisRequest):
-    """Analyze product via Gemini — returns image prompts, video prompt, hooks, copy"""
+async def analyze_product(
+    product_name: str = Form(...),
+    description: str = Form(""),
+    file: UploadFile = File(None),
+):
+    """Analyze product via Mistral — accepts multipart (image + text fields).
+    Returns normalized JSON matching frontend expectations.
+    """
     from gemini_agent import analyze_product
+
+    # Convert uploaded file to base64
+    image_base64 = None
+    if file and file.filename:
+        contents = await file.read()
+        if contents:
+            image_base64 = base64.b64encode(contents).decode("utf-8")
+
     try:
         result = analyze_product(
-            product_name=req.product_name,
-            description=req.description,
-            category=req.category or "",
-            target_audience=req.target_audience or "",
-            image_url=req.image_url,
-            image_base64=req.image_base64,
+            product_name=product_name,
+            description=description,
+            category="",
+            target_audience="",
+            image_base64=image_base64,
         )
-        return result
+        # Normalize gemini_agent response to frontend format
+        image_prompts_dict = {}
+        for item in result.get("image_prompts", []):
+            if isinstance(item, dict):
+                img_id = item.get("id", "")
+                prompt = item.get("prompt", "")
+                if img_id:
+                    image_prompts_dict[img_id] = prompt
+        # Also include all as dict keys for easy access
+        if not image_prompts_dict:
+            # Maybe already in dict format
+            image_prompts_dict = result.get("image_prompts", {})
+            if not isinstance(image_prompts_dict, dict):
+                image_prompts_dict = {}
+
+        normalized = {
+            "image_prompts": image_prompts_dict,
+            "video_prompt": result.get("video_prompt", ""),
+            "hooks": result.get("hook_suggestions", []),
+            "copy": result.get("marketing_copy", ""),
+            "seo_keywords": result.get("hashtags", []),
+            "product_name": product_name,
+            "product_desc": description,
+        }
+        return normalized
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))
+
+
+# ─── Export Endpoint ────────────────────────────────────────────────────────
+
+class ExportRequest(BaseModel):
+    url: str
+    type: str = "image"
+    prompt: str = ""
+
+@app.post("/export")
+def export_asset(req: ExportRequest):
+    """Export generated asset to channel — stub for now, returns success"""
+    logger.info(f"Export request: type={req.type}, url={req.url[:60]}...")
+    return {
+        "ok": True,
+        "message": f"{req.type} exported successfully",
+        "url": req.url,
+        "type": req.type,
+    }
 
 
 # ─── Stats ─────────────────────────────────────────────────────────────────

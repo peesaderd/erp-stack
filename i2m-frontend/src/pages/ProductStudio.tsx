@@ -29,36 +29,101 @@ const presetStyles = [
   { id: 'review_style',      label: '🎬 Review',        desc: 'สไตล์รีวิว' },
 ]
 
+const STUDIO_STATE_KEY = 'i2m_studio_state'
+
+interface StoredState {
+  image: string | null
+  productName: string
+  productDesc: string
+  analysis: AnalysisResult | null
+  selectedPreset: string | null
+  videoTaskId: string | null
+  videoStatus: string | null
+  generations: Generation[]
+  createdAt: number
+}
+
+function loadState(): Partial<StoredState> {
+  try {
+    const raw = localStorage.getItem(STUDIO_STATE_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw) as StoredState
+    // Expire after 2 hours
+    if (Date.now() - parsed.createdAt > 2 * 60 * 60 * 1000) {
+      localStorage.removeItem(STUDIO_STATE_KEY)
+      return {}
+    }
+    return parsed
+  } catch {
+    return {}
+  }
+}
+
+function saveState(state: Partial<StoredState>) {
+  try {
+    const existing = loadState()
+    const merged = { ...existing, ...state, createdAt: Date.now() }
+    localStorage.setItem(STUDIO_STATE_KEY, JSON.stringify(merged))
+  } catch {
+    // localStorage full or blocked
+  }
+}
+
 export default function ProductStudio() {
   const navigate = useNavigate()
   const location = useLocation()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [initialized, setInitialized] = useState(false)
 
-  const [image, setImage] = useState<string | null>(null)
+  // Restore saved state on mount
+  const saved = loadState()
+
+  const [image, setImage] = useState<string | null>(saved.image || null)
   const [file, setFile] = useState<File | null>(null)
-  const [productName, setProductName] = useState('')
-  const [productDesc, setProductDesc] = useState('')
+  const [productName, setProductName] = useState(saved.productName || '')
+  const [productDesc, setProductDesc] = useState(saved.productDesc || '')
   const [analyzing, setAnalyzing] = useState(false)
-  const [analysis, setAnalysis] = useState<AnalysisResult | null>(null)
-  const [selectedPreset, setSelectedPreset] = useState<string | null>(null)
+  const [analysis, setAnalysis] = useState<AnalysisResult | null>(saved.analysis || null)
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(saved.selectedPreset || null)
   const [genImage, setGenImage] = useState(false)
   const [genVideo, setGenVideo] = useState(false)
-  const [videoTaskId, setVideoTaskId] = useState<string | null>(null)
-  const [videoStatus, setVideoStatus] = useState<string | null>(null)
+  const [videoTaskId, setVideoTaskId] = useState<string | null>(saved.videoTaskId || null)
+  const [videoStatus, setVideoStatus] = useState<string | null>(saved.videoStatus || null)
   const [error, setError] = useState<string | null>(null)
 
-  // Generations stored in state + localStorage
   const [generations, setGenerations] = useState<Generation[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem('i2m_generations') || '[]')
-    } catch {
-      return []
-    }
+    const g = saved.generations
+    return Array.isArray(g) ? g : []
   })
 
+  // Rehydrate file from blob when image was restored
   useEffect(() => {
-    localStorage.setItem('i2m_generations', JSON.stringify(generations))
-  }, [generations])
+    if (saved.image && !file) {
+      fetch(saved.image)
+        .then(r => r.blob())
+        .then(blob => {
+          const f = new File([blob], 'product.png', { type: blob.type })
+          setFile(f)
+        })
+        .catch(() => {})
+    }
+    setInitialized(true)
+  }, [])
+
+  // Persist workflow state whenever key fields change
+  useEffect(() => {
+    if (!initialized) return
+    saveState({
+      image,
+      productName,
+      productDesc,
+      analysis,
+      selectedPreset,
+      videoTaskId,
+      videoStatus,
+      generations,
+    })
+  }, [image, productName, productDesc, analysis, selectedPreset, videoTaskId, videoStatus, generations, initialized])
 
   // Poll video status
   useEffect(() => {
@@ -78,19 +143,22 @@ export default function ProductStudio() {
           }])
           setGenVideo(false)
           setVideoTaskId(null)
+          setVideoStatus(null)
         } else if (status === 'failed') {
           setError('Video generation failed')
           setGenVideo(false)
           setVideoTaskId(null)
+          setVideoStatus(null)
         }
       } catch {
-        setVideoStatus('failed')
+        setError('Video status check failed')
         setGenVideo(false)
         setVideoTaskId(null)
+        setVideoStatus(null)
       }
     }, 3000)
     return () => clearInterval(interval)
-  }, [videoTaskId, videoStatus])
+  }, [videoTaskId])
 
   const handleUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
@@ -115,12 +183,13 @@ export default function ProductStudio() {
     try {
       const result = await api.analyzeProduct(file, productName, productDesc)
       setAnalysis(result)
+      saveState({ image, productName, productDesc, analysis: result, generations })
     } catch (err: any) {
       setError(err?.message || 'Analysis failed')
     } finally {
       setAnalyzing(false)
     }
-  }, [file, productName, productDesc])
+  }, [file, productName, productDesc, image, generations])
 
   const handleGenerateImage = useCallback(async () => {
     if (!analysis || !selectedPreset) return
@@ -164,23 +233,24 @@ export default function ProductStudio() {
 
   return (
     <>
-      {/* Main Content Area */}
       <main className="flex-1 min-h-screen pt-16 pb-28 md:pt-0 md:pb-0 relative">
         <div className="max-w-container-max mx-auto p-margin-mobile md:p-margin-desktop">
-          
-          {/* Page Header */}
-          <header className="mb-6">
-            <h1 className="text-display-sm md:text-display-md text-primary tracking-tight">
+
+          {/* Header */}
+          <header className="mb-6 md:mb-lg">
+            <h1 className="font-display text-display-lg-mobile md:text-display-lg text-primary tracking-tight">
               {!analysis ? 'I2M Studio' : analysis.product_name}
             </h1>
-            <p className="text-body-lg text-on-surface-variant mt-1">
-              {!analysis ? 'อัปโหลดสินค้า → AI วิเคราะห์ → สร้างรูป + วิดีโอ' : 'พร้อมสร้างคอนเทนต์'}
+            <p className="text-body-lg text-on-surface-variant mt-2 max-w-2xl">
+              {!analysis
+                ? 'Shape the narrative. Define the environment, subjects, and camera movements for your next sequence.'
+                : 'Ready to create content'}
             </p>
           </header>
 
           {/* Error Banner */}
           {error && (
-            <div className="mb-4 px-4 py-3 rounded-xl bg-error-container/40 border-l-4 border-error text-on-error-container text-body-sm">
+            <div className="mb-4 px-4 py-3 rounded-xl bg-error-container/40 border border-error/20 text-on-error-container text-body-sm">
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-[18px]">error</span>
                 <span>{error}</span>
@@ -192,264 +262,298 @@ export default function ProductStudio() {
           )}
 
           {!analysis ? (
-            /* Upload + Analyze Step */
-            <div className="flex flex-col gap-6 max-w-2xl">
-              {/* Hero Upload Zone */}
+            /* === UPLOAD + ANALYZE STEP === */
+            <div className="flex flex-col gap-md max-w-2xl">
+
+              {/* Upload Zone - glass panel style */}
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className={`relative rounded-3xl overflow-hidden cursor-pointer transition-all duration-500 ${
-                  image 
-                    ? 'border border-outline-variant/20 shadow-glass-lg' 
-                    : 'border-2 border-dashed border-primary/20 hover:border-primary/40 hover:shadow-[0_8px_40px_rgba(79,70,229,0.08)]'
+                className={`relative rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 glass-panel ${
+                  image ? '' : 'border-2 border-dashed border-outline-variant/30 hover:border-secondary/40'
                 }`}
               >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleUpload}
-                  className="hidden"
-                />
+                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleUpload} className="hidden" />
                 {image ? (
                   <div className="relative group">
-                    <img src={image} alt="Product" className="w-full max-h-[400px] object-contain bg-gradient-to-b from-surface-variant/30 to-surface p-4" />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-300" />
+                    <img src={image} alt="Product" className="w-full max-h-[400px] object-contain p-4" />
                     <button
                       onClick={(e) => { e.stopPropagation(); setImage(null); setFile(null) }}
-                      className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/80 backdrop-blur-md flex items-center justify-center shadow-lg hover:bg-white transition-all duration-200 ios-spring"
+                      className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/80 backdrop-blur flex items-center justify-center shadow-lg hover:bg-white transition-all"
                     >
-                      <span className="material-symbols-outlined text-[20px] text-on-surface">close</span>
+                      <span className="material-symbols-outlined text-[20px]">close</span>
                     </button>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center py-20 gap-4 bg-gradient-to-b from-primary/5 via-transparent to-surface-variant/20">
-                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center shadow-inner">
-                      <span className="material-symbols-outlined text-[40px] text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>add_photo_alternate</span>
+                  <div className="flex flex-col items-center justify-center py-16 gap-4">
+                    <div className="w-16 h-16 rounded-2xl bg-secondary/10 flex items-center justify-center">
+                      <span className="material-symbols-outlined text-[32px] text-secondary" style={{ fontVariationSettings: "'FILL' 1" }}>add_photo_alternate</span>
                     </div>
-                    <div className="text-center">
-                      <p className="text-headline-sm text-primary font-semibold">เริ่มต้นด้วยรูปสินค้า</p>
-                      <p className="text-body-md text-on-surface-variant mt-1">แตะเพื่ออัปโหลด หรือลากรูปมาใส่</p>
-                    </div>
-                    <div className="flex gap-2 mt-2">
-                      <span className="px-3 py-1 rounded-full bg-surface-container-low text-label-sm text-on-surface-variant border border-outline-variant/20">JPG</span>
-                      <span className="px-3 py-1 rounded-full bg-surface-container-low text-label-sm text-on-surface-variant border border-outline-variant/20">PNG</span>
-                      <span className="px-3 py-1 rounded-full bg-surface-container-low text-label-sm text-on-surface-variant border border-outline-variant/20">WEBP</span>
+                    <p className="text-headline-sm text-primary">Upload Product Photo</p>
+                    <p className="text-body-md text-on-surface-variant">Tap to upload or drag and drop</p>
+                    <div className="flex gap-2">
+                      <span className="px-3 py-1 rounded-full bg-surface-container-low text-label-sm text-on-surface-variant">JPG</span>
+                      <span className="px-3 py-1 rounded-full bg-surface-container-low text-label-sm text-on-surface-variant">PNG</span>
+                      <span className="px-3 py-1 rounded-full bg-surface-container-low text-label-sm text-on-surface-variant">WEBP</span>
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* Product Info */}
-              <div className="flex flex-col gap-4">
-                <div>
-                  <label className="text-label-md text-on-surface uppercase tracking-widest mb-2 block">ชื่อสินค้า</label>
+              {/* Product Info - glass panel */}
+              <div className="glass-panel rounded-2xl p-md flex flex-col gap-lg">
+                <section className="flex flex-col gap-sm">
+                  <label className="text-label-md text-on-surface uppercase tracking-widest">Product Name</label>
                   <input
                     type="text"
                     value={productName}
                     onChange={(e) => setProductName(e.target.value)}
-                    placeholder="เช่น ครีมกันแดด SPF50"
-                    className="w-full px-4 py-3 rounded-xl bg-surface-container-low border border-outline-variant/30 text-body-md text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-2 focus:ring-secondary/40 transition-all glass-panel"
+                    placeholder="e.g., SPF50 Sunscreen"
+                    className="w-full px-4 py-3 rounded-xl bg-surface-container-low border border-outline-variant/30 text-body-md text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-2 focus:ring-secondary/40 transition-all"
                   />
-                </div>
-                <div>
-                  <label className="text-label-md text-on-surface uppercase tracking-widest mb-2 block">รายละเอียด (optional)</label>
+                </section>
+                <section className="flex flex-col gap-sm">
+                  <label className="text-label-md text-on-surface uppercase tracking-widest">Description (optional)</label>
                   <textarea
                     value={productDesc}
                     onChange={(e) => setProductDesc(e.target.value)}
-                    placeholder="รายละเอียดเพิ่มเติม เช่น คุณสมบัติเด่น กลุ่มเป้าหมาย..."
+                    placeholder="Key features, target audience, unique selling points..."
                     rows={3}
-                    className="w-full px-4 py-3 rounded-xl bg-surface-container-low border border-outline-variant/30 text-body-md text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-2 focus:ring-secondary/40 transition-all glass-panel resize-none"
+                    className="w-full px-4 py-3 rounded-xl bg-surface-container-low border border-outline-variant/30 text-body-md text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-2 focus:ring-secondary/40 transition-all resize-none"
                   />
-                </div>
-                <button
-                  onClick={handleAnalyze}
-                  disabled={analyzing || !file || !productName.trim()}
-                  className="w-full py-4 rounded-xl bg-primary text-on-primary text-headline-sm flex items-center justify-center gap-2 shadow-[0_8px_32px_rgba(79,70,229,0.25)] hover:shadow-[0_12px_40px_rgba(79,70,229,0.4)] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed btn-press"
-                >
-                  {analyzing ? (
-                    <>
-                      <span className="material-symbols-outlined animate-spin">progress_activity</span>
-                      กำลังวิเคราะห์...
-                    </>
-                  ) : (
-                    <>
-                      <span className="material-symbols-outlined">auto_awesome</span>
-                      เริ่มวิเคราะห์
-                    </>
-                  )}
-                </button>
+                </section>
               </div>
+
+              {/* Analyze Button */}
+              <button
+                onClick={handleAnalyze}
+                disabled={analyzing || !file || !productName.trim()}
+                className="w-full py-4 rounded-xl bg-gradient-to-r from-secondary to-[#2c248b] text-on-secondary text-headline-sm flex items-center justify-center gap-2 shadow-[0_8px_32px_rgba(79,70,229,0.25)] hover:shadow-[0_12px_40px_rgba(79,70,229,0.4)] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed btn-press"
+              >
+                {analyzing ? (
+                  <><span className="material-symbols-outlined animate-spin">progress_activity</span> Analyzing...</>
+                ) : (
+                  <><span className="material-symbols-outlined">auto_awesome</span> Initialize Analysis</>
+                )}
+              </button>
             </div>
           ) : (
-            /* Results View */
-            <div className="flex flex-col gap-6">
-              {/* Product Info Card */}
-              <div className="p-5 rounded-2xl glass-panel shadow-glass border border-outline-variant/10">
-                <div className="flex items-start gap-4">
-                  {image && (
-                    <img src={image} alt={analysis.product_name} className="w-16 h-16 rounded-xl object-cover flex-shrink-0 border border-outline-variant/20" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <h2 className="text-headline-sm text-primary">{analysis.product_name}</h2>
-                    <p className="text-body-sm text-on-surface-variant mt-1 line-clamp-2">{analysis.product_desc}</p>
-                    <div className="flex flex-wrap gap-1.5 mt-2">
+            /* === RESULTS VIEW === */
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-md md:gap-xl">
+
+              {/* Left - Editor Core */}
+              <div className="lg:col-span-8 flex flex-col gap-lg">
+
+                {/* Product Info Card - glass */}
+                <div className="glass-panel rounded-2xl p-md">
+                  <div className="flex items-start gap-4">
+                    {image && (
+                      <img src={image} alt={analysis.product_name} className="w-16 h-16 rounded-xl object-cover flex-shrink-0 border border-outline-variant/20" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <h2 className="text-headline-sm text-primary">{analysis.product_name}</h2>
+                      <p className="text-body-sm text-on-surface-variant mt-1 line-clamp-2">{analysis.product_desc}</p>
                       {(analysis.seo_keywords || []).slice(0, 3).map(kw => (
-                        <span key={kw} className="px-2 py-0.5 rounded-full bg-secondary/10 text-secondary text-label-sm">{kw}</span>
+                        <span key={kw} className="inline-block mt-2 mr-1.5 px-2 py-0.5 rounded-full bg-secondary/10 text-secondary text-label-sm">{kw}</span>
                       ))}
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Preset Styles Carousel */}
-              <section>
-                <div className="flex justify-between items-center mb-3">
-                  <h3 className="text-label-md text-on-surface uppercase tracking-widest">Preset สร้างรูป</h3>
-                </div>
-                <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2 snap-x">
-                  {presetStyles.map(ps => (
-                    <button
-                      key={ps.id}
-                      onClick={() => setSelectedPreset(ps.id)}
-                      className={`snap-start flex-shrink-0 w-36 p-4 rounded-xl text-left transition-all duration-200 border ${
-                        selectedPreset === ps.id
-                          ? 'bg-secondary/10 border-secondary/30 ring-2 ring-secondary/30 shadow-glass-lg'
-                          : 'bg-surface-container-low border-outline-variant/20 hover:bg-surface-container hover:shadow-glass'
-                      }`}
-                    >
-                      <p className="text-lg mb-1">{ps.label.split(' ')[0]}</p>
-                      <p className="text-body-sm text-on-surface-variant">{ps.desc}</p>
-                    </button>
-                  ))}
-                </div>
-              </section>
-
-              {/* Generate Buttons */}
-              <div className="flex flex-col sm:flex-row gap-3">
-                <button
-                  onClick={handleGenerateImage}
-                  disabled={genImage || !selectedPreset}
-                  className="flex-1 py-4 rounded-xl bg-gradient-to-r from-primary to-[#6366f1] text-on-primary text-headline-sm flex items-center justify-center gap-2 shadow-glass-lg hover:shadow-[0_12px_40px_rgba(79,70,229,0.4)] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed btn-press"
-                >
-                  {genImage ? (
-                    <><span className="material-symbols-outlined animate-spin">progress_activity</span> กำลังสร้าง...</>
-                  ) : (
-                    <><span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>image</span> สร้างรูป</>
-                  )}
-                </button>
-                <button
-                  onClick={handleGenerateVideo}
-                  disabled={genVideo || !image}
-                  className="flex-1 py-4 rounded-xl bg-primary-container text-on-primary text-headline-sm flex items-center justify-center gap-2 shadow-glass-lg hover:shadow-[0_12px_40px_rgba(79,70,229,0.4)] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed btn-press"
-                >
-                  {genVideo ? (
-                    <><span className="material-symbols-outlined animate-spin">progress_activity</span> {videoStatus === 'queued' ? 'รอคิว...' : 'กำลังสร้าง...'}</>
-                  ) : (
-                    <><span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>videocam</span> สร้างวิดีโอ</>
-                  )}
-                </button>
-              </div>
-
-              {/* Video Status */}
-              {videoTaskId && (
-                <div className="p-4 rounded-xl bg-secondary/5 border border-secondary/20">
-                  <div className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-secondary animate-pulse">pending</span>
-                    <div className="flex-1">
-                      <p className="text-body-sm font-medium">กำลังประมวลผลวิดีโอ...</p>
-                      <div className="mt-2 h-1.5 rounded-full bg-surface-container overflow-hidden">
-                        <div className="h-full rounded-full bg-secondary/60 animate-pulse" style={{ width: '60%' }} />
-                      </div>
-                    </div>
+                {/* Preset Styles - Aether Carousel */}
+                <section className="flex flex-col gap-sm overflow-hidden">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-label-md text-on-surface uppercase tracking-widest">Image Presets</h3>
+                    <span className="text-label-sm text-secondary/70 bg-secondary/10 px-2 py-1 rounded-full">v4 Engine Ready</span>
                   </div>
-                </div>
-              )}
-
-              {/* Hooks / Copy */}
-              <div className="p-5 rounded-2xl glass-panel shadow-glass border border-outline-variant/10">
-                <h3 className="text-label-md text-on-surface uppercase tracking-widest mb-3">AI Script</h3>
-                <div className="flex flex-col gap-2">
-                  {(analysis.hooks || []).slice(0, 3).map((hook, i) => (
-                    <div key={i} className="flex items-start gap-2 text-body-sm text-on-surface-variant">
-                      <span className="text-secondary font-medium">Hook {i+1}:</span>
-                      <span>{hook}</span>
-                    </div>
-                  ))}
-                </div>
-                {analysis.copy && (
-                  <div className="mt-3 pt-3 border-t border-outline-variant/20">
-                    <p className="text-label-sm text-on-surface-variant mb-1">AI Copy:</p>
-                    <p className="text-body-sm text-on-surface">{analysis.copy}</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Recent Generations */}
-              {generations.length > 0 && (
-                <section>
-                  <div className="flex justify-between items-center mb-3">
-                    <h3 className="text-label-md text-on-surface uppercase tracking-widest">ผลงานล่าสุด</h3>
-                    <button onClick={() => navigate('/gallery')} className="text-label-sm text-secondary hover:underline flex items-center gap-1">
-                      ดูทั้งหมด <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    {generations.slice().reverse().slice(0, 6).map(gen => (
-                      <div key={gen.id} className="aspect-square rounded-xl overflow-hidden bg-surface-container border border-outline-variant/10 relative group">
-                        {gen.type === 'image' ? (
-                          <img src={gen.url} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <video src={gen.url} className="w-full h-full object-cover" muted />
-                        )}
-                        <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase bg-surface/70 backdrop-blur text-on-surface-variant">
-                          {gen.type}
+                  <div className="flex gap-md overflow-x-auto hide-scrollbar pb-4 snap-x">
+                    {presetStyles.map(ps => (
+                      <button
+                        key={ps.id}
+                        onClick={() => setSelectedPreset(ps.id)}
+                        className={`snap-start flex-shrink-0 w-40 md:w-48 text-left group focus:outline-none ${
+                          selectedPreset === ps.id ? 'relative' : ''
+                        }`}
+                      >
+                        <div className={`relative aspect-[4/5] rounded-xl overflow-hidden mb-3 transition-all ${
+                          selectedPreset === ps.id
+                            ? 'ring-2 ring-secondary shadow-[0_4px_20px_rgba(79,70,229,0.15)] border border-secondary/30'
+                            : 'border border-outline-variant/20 shadow-sm group-hover:shadow-md group-hover:border-secondary/30'
+                        }`}>
+                          <div className="w-full h-full bg-gradient-to-br from-secondary/5 via-surface-variant to-secondary/10 flex items-center justify-center">
+                            <span className="text-4xl">{ps.label.split(' ')[0]}</span>
+                          </div>
+                          {selectedPreset === ps.id && (
+                            <div className="absolute top-2 right-2 bg-secondary text-on-secondary rounded-full p-1 shadow-md">
+                              <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                            </div>
+                          )}
                         </div>
-                      </div>
+                        <span className={`text-label-md block px-1 ${selectedPreset === ps.id ? 'text-secondary font-bold' : 'text-on-surface'}`}>{ps.label}</span>
+                        <span className="text-label-sm text-on-surface-variant block px-1">{ps.desc}</span>
+                      </button>
                     ))}
                   </div>
                 </section>
-              )}
 
-              {/* Reset */}
-              <button
-                onClick={() => { setAnalysis(null); setSelectedPreset(null); setVideoTaskId(null); setVideoStatus(null) }}
-                className="self-start px-4 py-2 rounded-xl text-body-sm text-on-surface-variant hover:text-on-surface bg-surface-container hover:bg-surface-container-high transition-colors"
-              >
-                ← เริ่มใหม่
-              </button>
+                {/* AI Script Section */}
+                <div className="glass-panel rounded-2xl p-md">
+                  <h3 className="text-label-md text-on-surface uppercase tracking-widest mb-4">AI Script</h3>
+                  <div className="flex flex-col gap-3">
+                    {(analysis.hooks || []).slice(0, 3).map((hook, i) => (
+                      <div key={i} className="flex items-start gap-2 text-body-sm text-on-surface-variant">
+                        <span className="text-secondary font-medium">Hook {i+1}:</span>
+                        <span>{hook}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {analysis.copy && (
+                    <div className="mt-4 pt-4 border-t border-outline-variant/20">
+                      <p className="text-label-sm text-on-surface-variant mb-2">Marketing Copy:</p>
+                      <p className="text-body-md text-on-surface">{analysis.copy}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Recent Generations */}
+                {generations.length > 0 && (
+                  <section>
+                    <div className="flex justify-between items-center mb-3">
+                      <h3 className="text-label-md text-on-surface uppercase tracking-widest">Recent Outputs</h3>
+                      <button onClick={() => navigate('/gallery')} className="text-label-sm text-secondary hover:underline flex items-center gap-1">
+                        View All <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {generations.slice().reverse().slice(0, 6).map(gen => (
+                        <div key={gen.id} className="aspect-square rounded-xl overflow-hidden bg-surface-container border border-outline-variant/10 relative group">
+                          {gen.type === 'image' ? (
+                            <img src={gen.url} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <video src={gen.url} className="w-full h-full object-cover" muted />
+                          )}
+                          <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase bg-surface/70 backdrop-blur text-on-surface-variant">
+                            {gen.type}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {/* Reset */}
+                <button
+                  onClick={() => { setAnalysis(null); setSelectedPreset(null); setVideoTaskId(null); setVideoStatus(null) }}
+                  className="self-start flex items-center gap-1 px-4 py-2 rounded-xl text-body-sm text-on-surface-variant hover:text-on-surface bg-surface-container hover:bg-surface-container-high transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+                  Start Over
+                </button>
+              </div>
+
+              {/* Right - Parameters Sidebar */}
+              <div className="lg:col-span-4 flex flex-col gap-lg lg:pl-md">
+
+                {/* Generate Panel - glass */}
+                <div className="glass-panel rounded-2xl p-md flex flex-col gap-lg shadow-[0_4px_24px_rgba(79,70,229,0.03)]">
+
+                  {/* Generate Image */}
+                  <section className="flex flex-col gap-sm">
+                    <h3 className="text-label-md text-on-surface uppercase tracking-widest flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[18px]">image</span> Image Generation
+                    </h3>
+                    <button
+                      onClick={handleGenerateImage}
+                      disabled={genImage || !selectedPreset}
+                      className="w-full py-4 rounded-xl bg-gradient-to-r from-secondary to-[#2c248b] text-on-secondary text-headline-sm flex items-center justify-center gap-2 shadow-[0_8px_32px_rgba(79,70,229,0.25)] hover:shadow-[0_12px_40px_rgba(79,70,229,0.4)] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed btn-press"
+                    >
+                      {genImage ? (
+                        <><span className="material-symbols-outlined animate-spin">progress_activity</span> Generating...</>
+                      ) : (
+                        <><span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span> Generate Image</>
+                      )}
+                    </button>
+                  </section>
+
+                  <hr className="border-outline-variant/20" />
+
+                  {/* Generate Video */}
+                  <section className="flex flex-col gap-sm">
+                    <h3 className="text-label-md text-on-surface uppercase tracking-widest flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[18px]">videocam</span> Video Sequence
+                    </h3>
+                    {videoTaskId && (
+                      <div className="p-3 rounded-xl bg-secondary/5 border border-secondary/20 mb-2">
+                        <div className="flex items-center gap-3">
+                          <span className="material-symbols-outlined text-secondary animate-pulse">pending</span>
+                          <div className="flex-1">
+                            <p className="text-body-sm font-medium">Processing...</p>
+                            <div className="mt-2 h-1.5 rounded-full bg-surface-container overflow-hidden">
+                              <div className="h-full rounded-full bg-secondary/60 animate-pulse" style={{ width: '60%' }} />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <button
+                      onClick={handleGenerateVideo}
+                      disabled={genVideo || !image}
+                      className="w-full py-4 rounded-xl bg-gradient-to-r from-secondary/90 to-secondary text-on-secondary text-headline-sm flex items-center justify-center gap-2 shadow-[0_8px_32px_rgba(79,70,229,0.25)] hover:shadow-[0_12px_40px_rgba(79,70,229,0.4)] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed btn-press"
+                    >
+                      {genVideo ? (
+                        <><span className="material-symbols-outlined animate-spin">progress_activity</span> {videoStatus === 'queued' ? 'Queued...' : 'Generating...'}</>
+                      ) : (
+                        <><span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>bolt</span> Generate Video</>
+                      )}
+                    </button>
+                  </section>
+                </div>
+              </div>
             </div>
           )}
         </div>
       </main>
 
-      {/* Bottom Tab Bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface/80 backdrop-blur-2xl border-t border-outline-variant/10 shadow-nav rounded-t-2xl">
-        <div className="flex justify-around items-center h-20 px-2">
-          {[
-            { path: '/', icon: 'auto_awesome', label: 'Studio' },
-            { path: '/gallery', icon: 'grid_view', label: 'Gallery' },
-            { path: '/profile', icon: 'person', label: 'Profile' },
-          ].map(tab => (
-            <button
-              key={tab.path}
-              onClick={() => navigate(tab.path)}
-              className={`flex flex-col items-center justify-center gap-0.5 px-4 py-2 rounded-2xl transition-all duration-300 btn-press ${
-                currentTab === tab.path.replace('/', '') || (tab.path === '/' && currentTab === 'studio')
-                  ? 'text-secondary bg-secondary-container/20'
-                  : 'text-on-surface-variant hover:text-secondary'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[24px]" style={{ fontVariationSettings: currentTab === (tab.path.replace('/', '') || 'studio') ? "'FILL' 1" : "'FILL' 0" }}>{tab.icon}</span>
-              <span className="text-label-sm">{tab.label}</span>
-            </button>
-          ))}
-        </div>
+      {/* Mobile Bottom Tab Bar - Aether style */}
+      <nav className="md:hidden bg-surface/80 backdrop-blur-2xl fixed bottom-0 w-full z-50 border-t border-outline-variant/10 shadow-[0_-4px_20px_rgba(79,70,229,0.08)] flex justify-around items-center h-20 px-4">
+        <button
+          onClick={() => navigate('/profile')}
+          className={`flex flex-col items-center justify-center active:scale-90 transition-transform ${
+            currentTab === 'profile' ? 'text-secondary' : 'text-on-surface-variant hover:text-secondary'
+          }`}
+        >
+          <span className="material-symbols-outlined mb-0.5 group-hover:scale-110 transition-transform"
+            style={{ fontVariationSettings: currentTab === 'profile' ? "'FILL' 1" : "'FILL' 0" }}
+          >person</span>
+          <span className="text-label-sm">Profile</span>
+        </button>
+        <button
+          onClick={() => navigate('/')}
+          className={`flex flex-col items-center justify-center bg-secondary-container/20 rounded-full px-5 py-1 active:scale-90 transition-transform ${
+            currentTab === 'studio' ? 'text-secondary' : 'text-on-surface-variant'
+          }`}
+        >
+          <span className="material-symbols-outlined mb-0.5"
+            style={{ fontVariationSettings: "'FILL' 1" }}
+          >add_circle</span>
+          <span className="text-label-sm font-bold">Create</span>
+        </button>
+        <button
+          onClick={() => navigate('/gallery')}
+          className={`flex flex-col items-center justify-center active:scale-90 transition-transform ${
+            currentTab === 'gallery' ? 'text-secondary' : 'text-on-surface-variant hover:text-secondary'
+          }`}
+        >
+          <span className="material-symbols-outlined mb-0.5"
+            style={{ fontVariationSettings: currentTab === 'gallery' ? "'FILL' 1" : "'FILL' 0" }}
+          >video_library</span>
+          <span className="text-label-sm">Library</span>
+        </button>
       </nav>
 
-      {/* Desktop Sidebar */}
-      <nav className="hidden md:flex flex-col h-full w-72 rounded-r-2xl bg-surface dark:bg-surface-container divide-y divide-outline-variant/10 shadow-xl fixed left-0 top-0 bottom-0 z-40 p-6 transition-all duration-200">
-        <div className="flex items-center gap-3 pb-6">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-[#6366f1] flex items-center justify-center text-on-primary">
+      {/* Desktop Sidebar - Aether style */}
+      <nav className="hidden md:flex flex-col h-full w-72 rounded-r-2xl bg-surface dark:bg-surface-container divide-y divide-outline-variant/10 shadow-xl fixed left-0 top-0 bottom-0 z-40 p-md transition-all duration-200">
+        <div className="flex items-center gap-sm pb-md">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-secondary to-[#2c248b] flex items-center justify-center text-on-secondary">
             <span className="material-symbols-outlined text-[28px]" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
           </div>
           <div>
@@ -457,28 +561,44 @@ export default function ProductStudio() {
             <p className="text-label-sm text-on-surface-variant">Content Creator</p>
           </div>
         </div>
-        <div className="flex-1 py-6 space-y-1">
-          {[
-            { path: '/', icon: 'auto_awesome', label: 'Studio' },
-            { path: '/gallery', icon: 'grid_view', label: 'Gallery' },
-            { path: '/profile', icon: 'person', label: 'Profile' },
-          ].map(tab => (
-            <button
-              key={tab.path}
-              onClick={() => navigate(tab.path)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-left ${
-                (tab.path === '/' && currentTab === 'studio') || currentTab === tab.path.replace('/', '')
-                  ? 'bg-secondary/10 text-secondary font-bold'
-                  : 'text-on-surface-variant hover:bg-surface-variant hover:text-on-surface'
-              }`}
-            >
-              <span className="material-symbols-outlined" style={{ fontVariationSettings: (currentTab === (tab.path.replace('/', '') || 'studio')) ? "'FILL' 1" : "'FILL' 0" }}>{tab.icon}</span>
-              <span>{tab.label}</span>
-            </button>
-          ))}
+        <div className="flex-1 py-md space-y-2">
+          <button
+            onClick={() => navigate('/')}
+            className={`w-full flex items-center gap-sm px-4 py-3 rounded-xl transition-all duration-200 ${
+              currentTab === 'studio'
+                ? 'bg-secondary/10 text-secondary font-bold'
+                : 'text-on-surface-variant hover:bg-surface-variant hover:text-on-surface'
+            }`}
+          >
+            <span className="material-symbols-outlined" style={{ fontVariationSettings: currentTab === 'studio' ? "'FILL' 1" : "'FILL' 0" }}>auto_awesome</span>
+            <span>Directives</span>
+          </button>
+          <button
+            onClick={() => navigate('/gallery')}
+            className={`w-full flex items-center gap-sm px-4 py-3 rounded-xl transition-all duration-200 ${
+              currentTab === 'gallery'
+                ? 'bg-secondary/10 text-secondary font-bold'
+                : 'text-on-surface-variant hover:bg-surface-variant hover:text-on-surface'
+            }`}
+          >
+            <span className="material-symbols-outlined" style={{ fontVariationSettings: currentTab === 'gallery' ? "'FILL' 1" : "'FILL' 0" }}>layers</span>
+            <span>Models</span>
+          </button>
+          <button
+            onClick={() => navigate('/profile')}
+            className={`w-full flex items-center gap-sm px-4 py-3 rounded-xl transition-all duration-200 ${
+              currentTab === 'profile'
+                ? 'bg-secondary/10 text-secondary font-bold'
+                : 'text-on-surface-variant hover:bg-surface-variant hover:text-on-surface'
+            }`}
+          >
+            <span className="material-symbols-outlined" style={{ fontVariationSettings: currentTab === 'profile' ? "'FILL' 1" : "'FILL' 0" }}>settings</span>
+            <span>Settings</span>
+          </button>
         </div>
-        <div className="pt-6 text-label-sm text-on-surface-variant/60 text-center">
-          I2M Studio v1.0
+        <div className="pt-md text-label-sm text-on-surface-variant/60 text-center">
+          <p>Pro Plan Active</p>
+          <p className="text-secondary mt-1">1,200 Credits</p>
         </div>
       </nav>
     </>

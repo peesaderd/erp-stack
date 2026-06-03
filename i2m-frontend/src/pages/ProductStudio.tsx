@@ -131,7 +131,7 @@ export default function ProductStudio() {
     const interval = setInterval(async () => {
       try {
         const res = await api.getVideoResult(videoTaskId)
-        const status = res.status || res.data?.status
+        const status = res.status
         setVideoStatus(status)
         if (status === 'completed' && res.url) {
           setGenerations(prev => [...prev, {
@@ -198,11 +198,11 @@ export default function ProductStudio() {
     try {
       const prompt = analysis.image_prompts[selectedPreset] || analysis.image_prompts.default
       const result = await api.generateImage(prompt, productName)
-      if (result.image_url || result.url) {
+      if (result.url) {
         setGenerations(prev => [...prev, {
           id: Date.now().toString(),
           type: 'image',
-          url: result.image_url || result.url,
+          url: result.url,
           prompt,
           style: selectedPreset,
           createdAt: Date.now(),
@@ -222,7 +222,7 @@ export default function ProductStudio() {
     setVideoStatus('queued')
     try {
       const result = await api.generateVideo(analysis.video_prompt, image, productName)
-      setVideoTaskId(result.task_id || result.id)
+      setVideoTaskId(result.task_id)
     } catch (err: any) {
       setError(err?.message || 'Video generation failed')
       setGenVideo(false)

@@ -35,7 +35,8 @@ export const api = {
       const err = await res.text().catch(() => '')
       throw new Error(`Image gen failed (${res.status}): ${err}`)
     }
-    return res.json()
+    const data = await res.json()
+    return { url: data.image_url || data.url }
   },
 
   // ── Video Generation (WaveSpeed - async queue) ──
@@ -53,7 +54,8 @@ export const api = {
       const err = await res.text().catch(() => '')
       throw new Error(`Video queue failed (${res.status}): ${err}`)
     }
-    return res.json()
+    const data = await res.json()
+    return { task_id: data.task_id || data.id }
   },
 
   // ── Video Status ──
@@ -64,7 +66,8 @@ export const api = {
       body: JSON.stringify({ task_id: taskId }),
     })
     if (!res.ok) throw new Error(`Status check failed (${res.status})`)
-    return res.json()
+    const data = await res.json()
+    return { status: data.status, url: data.url || data.video_url }
   },
 
   // ── UGC Scripts ──

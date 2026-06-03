@@ -50,7 +50,7 @@ export default function Profile() {
               { label: 'รูป', value: generationCount.images },
               { label: 'วิดีโอ', value: generationCount.videos },
             ].map(stat => (
-              <div key={stat.label} className="text-center p-3 rounded-xl bg-surface-container-low">
+              <div key={stat.label} className="text-center p-3 rounded-xl bg-surface-container-low glass-panel">
                 <p className="text-display-sm text-primary font-semibold">{stat.value}</p>
                 <p className="text-label-sm text-on-surface-variant mt-1">{stat.label}</p>
               </div>
@@ -69,7 +69,7 @@ export default function Profile() {
                 value={shopName}
                 onChange={(e) => setShopName(e.target.value)}
                 placeholder="ชื่อร้านค้าของคุณ"
-                className="w-full px-4 py-3 rounded-xl bg-surface-container-low border border-outline-variant/30 text-body-md text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-2 focus:ring-secondary/40 transition-all"
+                className="w-full px-4 py-3 rounded-xl bg-surface-container-low border border-outline-variant/30 text-body-md text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-2 focus:ring-secondary/40 transition-all glass-panel"
               />
             </div>
             <div>
@@ -79,7 +79,7 @@ export default function Profile() {
                 value={target}
                 onChange={(e) => setTarget(e.target.value)}
                 placeholder="เช่น สายดูแลผิว วัยทำงาน 25-40"
-                className="w-full px-4 py-3 rounded-xl bg-surface-container-low border border-outline-variant/30 text-body-md text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-2 focus:ring-secondary/40 transition-all"
+                className="w-full px-4 py-3 rounded-xl bg-surface-container-low border border-outline-variant/30 text-body-md text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-2 focus:ring-secondary/40 transition-all glass-panel"
               />
             </div>
             <button
@@ -106,7 +106,7 @@ export default function Profile() {
                 darkMode ? 'bg-secondary' : 'bg-outline-variant'
               }`}
             >
-              <div className={`absolute top-1 left-1 w-6 h-6 rounded-full bg-white shadow-md transition-transform duration-300 flex items-center justify-center ${
+              <div className={`absolute top-1 left-1 w-6 h-6 rounded-full bg-white shadow-md transition-transform duration-300 flex items-center justify-center glass-panel ${
                 darkMode ? 'translate-x-6' : ''
               }`}>
                 <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>

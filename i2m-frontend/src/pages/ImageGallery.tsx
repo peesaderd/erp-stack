@@ -52,11 +52,11 @@ export default function ImageGallery() {
       <div className="hidden md:block max-w-container-max mx-auto p-margin-desktop pb-0">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-display-sm text-primary tracking-tight">Gallery</h1>
+            <h1 className="text-headline-md text-primary tracking-tight">Gallery</h1>
             <p className="text-body-lg text-on-surface-variant mt-1">{items.length} items</p>
           </div>
           {items.length > 0 && (
-            <button onClick={handleClearAll} className="px-4 py-2 rounded-xl text-body-sm text-on-surface-variant hover:text-error bg-surface-container hover:bg-surface-container-high transition-colors">
+            <button onClick={handleClearAll} className="px-4 py-2 rounded-xl text-label-md text-on-surface-variant hover:text-error bg-surface-container hover:bg-surface-container-high transition-colors">
               Clear All
             </button>
           )}
@@ -83,8 +83,8 @@ export default function ImageGallery() {
             <div className="w-20 h-20 rounded-full bg-secondary/10 flex items-center justify-center">
               <span className="material-symbols-outlined text-[40px] text-secondary/40" style={{ fontVariationSettings: "'FILL' 1" }}>gallery_thumbnail</span>
             </div>
-            <p className="text-body-lg text-on-surface-variant">ยังไม่มีผลงาน</p>
-            <p className="text-body-sm text-on-surface-variant/60">สร้างรูปหรือวิดีโอแล้วจะมาโผล่ที่นี่</p>
+            <p className="text-headline-sm text-on-surface-variant">ยังไม่มีผลงาน</p>
+            <p className="text-body-md text-on-surface-variant/60">สร้างรูปหรือวิดีโอแล้วจะมาโผล่ที่นี่</p>
             <button
               onClick={() => navigate('/')}
               className="mt-2 px-6 py-3 rounded-xl bg-secondary text-on-secondary text-body-md flex items-center gap-2 shadow-glass-lg hover:shadow-[0_8px_32px_rgba(79,70,229,0.3)] transition-all duration-200 btn-press"
@@ -109,11 +109,11 @@ export default function ImageGallery() {
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-primary/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
-                    <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase bg-surface/70 backdrop-blur text-on-surface">
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase bg-surface/70 backdrop-blur text-on-surface glass-panel">
                       {item.type}
                     </span>
                     {item.style && (
-                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-secondary/70 backdrop-blur text-on-secondary truncate max-w-[100px]">
+                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-secondary/70 backdrop-blur text-on-secondary truncate max-w-[100px] glass-panel">
                         {item.style}
                       </span>
                     )}
@@ -163,7 +163,7 @@ export default function ImageGallery() {
                 </a>
               </div>
               {exportMsg && (
-                <p className="text-body-sm text-center mt-1" style={{ color: exportMsg === 'ส่งออกแล้ว!' ? 'var(--color-success)' : 'var(--color-error)' }}>
+                <p className="text-label-sm text-center mt-1" style={{ color: exportMsg === 'ส่งออกแล้ว!' ? 'var(--color-success)' : 'var(--color-error)' }}>
                   {exportMsg}
                 </p>
               )}

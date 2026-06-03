@@ -261,7 +261,7 @@ def _ws_generate(config, prompt, model, duration, aspect_ratio, image_url, face_
             inp["reference_images"] = [face_image_url]
     
     payload = {
-        "model": config["default_model"],
+        "model": model,
         "input": inp,
     }
     
@@ -280,7 +280,8 @@ def _ws_status(config, task_id):
     resp = requests.get(url, headers=headers, timeout=30)
     data = resp.json().get("data", {})
     video_url = ""
-    outputs = data.get("outputs", [])
+    # v3 response: outputs nested in data, or directly in response root
+    outputs = data.get("outputs", resp.json().get("outputs", []))
     if outputs:
         video_url = outputs[0]
     return {

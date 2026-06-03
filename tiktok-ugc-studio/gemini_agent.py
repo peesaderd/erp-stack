@@ -154,40 +154,51 @@ def analyze_product(
     """
     research = research_product(product_name, description, category, image_base64)
 
-    system_prompt = f"""You are a TikTok UGC marketing expert. Analyze the product and generate:
-1. **5 Image Prompts** — one for each style (holding_product, product_usage, lifestyle, close_up, review_style), describe the scene in detail for AI image generation. IMPORTANT: All image prompts MUST specify Thai/Asian models (young Thai woman/man with Southeast Asian features, light brown skin, Thai aesthetic) unless the product is unisex or explicitly non-human.
-2. **1 Video Prompt** — detailed scene description for WaveSpeed video generation, include movement, lighting, storytelling. All video prompts MUST feature Thai/Asian models in Thai setting.
-3. **3 Hook Ideas** — attention-grabbing first lines in Thai for TikTok
-4. **Marketing Copy** — short caption + hashtags in Thai
 
-**Research Context:**
+    system_prompt = f"""คุณคือผู้เชี่ยวชาญด้านการตลาด UGC บน TikTok
+วิเคราะห์สินค้าจากภาพและข้อมูลที่ให้มา แล้วสร้างคอนเทนต์ต่อไปนี้เป็นภาษาไทยเท่านั้น:
+
+1. **5 Image Prompts** — คำอธิบายรายละเอียดของภาพสำหรับ AI image generation แต่ละสไตล์ (ถือสินค้า, ใช้งานสินค้า, ไลฟ์สไตล์, ซูมระยะใกล้, รีวิว)
+   - ต้องอธิบายรายละเอียดของสินค้าให้ชัดเจน: สี รูปทรง วัสดุ บรรจุภัณฑ์ และลักษณะเฉพาะอื่นๆ ที่เห็นจากภาพ
+   - ต้องระบุตัวแบบเป็นคนไทย/เอเชียตะวันออกเฉียงใต้ (ผู้หญิง/ชายไทยผิวสีอ่อน) ยกเว้นสินค้าไม่เกี่ยวกับคน
+   - ใช้โทนสีและบรรยากาศแบบไทย
+
+2. **1 Video Prompt** — คำอธิบายรายละเอียดสำหรับสร้างวิดีโอ
+   - รวมองค์ประกอบการเคลื่อนไหว แสงสว่าง การเล่าเรื่อง
+   - ต้องมีตัวแบบคนไทยในสถานที่แบบไทย
+
+3. **3 Hook Ideas** — คำโปรโมทข้อความดึงดูดใจภาษาไทย 3 แบบ
+
+4. **Marketing Copy** — ข้อความคำบรรยายสั้นๆ และแฮชแท็กภาษาไทย
+
+**บริบทการวิจัย:**
 {json.dumps(research, ensure_ascii=False, indent=2)}
 
-Output ONLY valid JSON, no markdown fences:
+ส่งออก JSON เท่านั้น ไม่ต้องมี ```markdown fence:
 {{
   "image_prompts": [
     {{"id": "holding_product", "name": "ถือสินค้า", "prompt": "..."}},
     {{"id": "product_usage", "name": "ใช้งานสินค้า", "prompt": "..."}},
     {{"id": "lifestyle", "name": "ไลฟ์สไตล์", "prompt": "..."}},
-    {{"id": "close_up", "name": "Close-up", "prompt": "..."}},
+    {{"id": "close_up", "name": "ซูมระยะใกล้", "prompt": "..."}},
     {{"id": "review_style", "name": "รีวิว", "prompt": "..."}}
   ],
   "video_prompt": "...",
   "hook_suggestions": ["...", "...", "..."],
   "marketing_copy": "...",
-  "hashtags": ["...", "...", "..."]
+  "hashtags": ["...", "..."]
 }}"""
 
     has_vision = bool(image_base64)
     model_hint = " (with product image for visual analysis)" if has_vision else ""
 
-    user_prompt = f"""{'วิเคราะห์จากรูปสินค้าที่แนบมาและข้อมูลต่อไปนี้' if has_vision else 'จากข้อมูลสินค้าต่อไปนี้'}:
+    user_prompt = f"""{'วิเคราะห์จากรูปสินค้าที่แนบมาและข้อมูลต่อไปนี้ (สินค้าที่เห็นในภาพ: สี รูปร่าง วัสดุ รายละเอียด)' if has_vision else 'จากข้อมูลสินค้าต่อไปนี้'}:
 Product Name: {product_name}
 Description: {description}
 Category: {category or 'N/A'}
 Target Audience: {target_audience or 'General TikTok users'}{model_hint}
 
-{'สังเกตรายละเอียดจากรูป: สี รูปทรง วัสดุ แบรนด์ วิธีการใช้งาน และอื่นๆ' if has_vision else ''}
+{'สินค้าในภาพมีสี [ระบุสี] รูปร่าง [ระบุรูปร่าง] วัสดุ [ระบุวัสดุ] และรายละเอียดอื่นๆ ที่เห็น' if has_vision else ''}
 
 **Research Results:**
 {json.dumps(research, ensure_ascii=False, indent=2)}
@@ -213,34 +224,34 @@ Target Audience: {target_audience or 'General TikTok users'}{model_hint}
 
 
 def _fallback_analysis(product_name: str, description: str, category: str) -> dict:
-    """Fallback analysis when AI fails"""
+    """Fallback analysis when AI fails - generate Thai content with product appearance"""
     image_prompts = []
     for style in PRESET_IMAGE_STYLES:
         image_prompts.append({
             "id": style["id"],
             "name": style["name"],
-            "prompt": f"{product_name} — {description[:100]} {style['suffix']}",
+            "prompt": f"ภาพถ่ายสินค้า {product_name} ในสไตล์ {style['name']} แสดงรายละเอียดสี รูปร่าง วัสดุ และบรรจุภัณฑ์อย่างชัดเจน เหมาะสำหรับการรีวิวสินค้า",
         })
 
     return {
         "image_prompts": image_prompts,
         "video_prompt": (
-            f"Product showcase for {product_name}: {description[:200]}. "
-            f"Natural handheld camera, authentic lighting, "
-            f"person holding and demonstrating product."
+            f"วิดีโอรีวิวสินค้า {product_name} แสดงการใช้งานจริงในสถานที่แบบไทย "
+            f"โดยคนไทยผิวสีอ่อน ถือและสาธิตการใช้งานสินค้า "
+            f"ด้วยแสงสว่างธรรมชาติและโทนสีอบอุ่น"
         ),
         "hook_suggestions": [
-            f"คุณกำลังเจอปัญหานี้อยู่ใช่ไหม?",
-            f"เจอ {product_name} ดีๆ แบบนี้ต้องบอกต่อ!",
-            f"ก่อนจะเสียเงินลองอันอื่น มาดูอันนี้ก่อน",
+            f"กำลังมองหาสินค้าแบบนี้อยู่เหรอ?",
+            f"สินค้า {product_name} แบบนี้หายากเลย!",
+            f"อยากได้ของดีๆ แบบนี้ต้องรีบจัดไปเลย",
         ],
-        "marketing_copy": f"Review ของ {product_name} ที่คุณต้องดู! {description[:100]}",
+        "marketing_copy": f"รีวิวสินค้า {product_name} ที่คุณต้องรู้! {description[:100]}",
         "hashtags": [
             "#" + product_name.replace(" ", ""),
-            "#review",
+            "#รีวิวสินค้า",
             "#TikTokUGC",
-            "#unboxing",
-            "#recommended",
+            "#รีวิว",
+            "#แนะนำสินค้า",
         ],
     }
 def research_product(product_name, description='', category='', image_base64=None):
@@ -273,4 +284,3 @@ def research_product(product_name, description='', category='', image_base64=Non
             'pain_points': [],
             'hooking_angle': f'Highlight benefits of {product_name}'
         }
-

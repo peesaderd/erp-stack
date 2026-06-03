@@ -104,8 +104,8 @@ def _call_mistral(
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_content},
         ],
-        "temperature": 0.7,
-        "max_tokens": 2048,
+        "temperature": 0.1,
+        "max_tokens": 4096,
     }
 
     resp = requests.post(
@@ -126,14 +126,120 @@ def _call_mistral(
 
 
 def _parse_json(text: str) -> dict:
-    """Parse JSON from AI response, handling markdown fences"""
+    """Parse JSON from AI response, handling markdown fences and common formatting issues"""
+    import re
     raw = text.strip()
+    # Strip markdown fences
     if raw.startswith("```"):
         raw = raw.split("\n", 1)[1] if "\n" in raw else raw[3:]
     if raw.endswith("```"):
         raw = raw.rsplit("```", 1)[0]
     raw = raw.strip()
-    return json.loads(raw)
+    # Replace literal newlines in JSON strings with spaces (Mistral/Pixtral often includes them)
+    raw = raw.replace(chr(10), " ").replace(chr(13), " ")
+    # Remove control characters (except \n, \r, \t)
+    raw = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', '', raw)
+    # Fix unescaped newlines inside JSON strings: replace \n inside quotes with \\n
+    # This is a common issue with Mistral/Pixtral
+    in_string = False
+    escaped = False
+    result = []
+    for ch in raw:
+        if ch == '"' and not escaped:
+            in_string = not in_string
+            result.append(ch)
+        elif ch == '\\' and not escaped:
+            escaped = True
+            result.append(ch)
+        elif ch == '\n' and in_string:
+            result.append('\\n')
+            escaped = False
+        elif ch == '\r' and in_string:
+            result.append('\\r')
+            escaped = False
+        elif ch == '\t' and in_string:
+            result.append('\\t')
+            escaped = False
+        else:
+            if escaped:
+                escaped = False
+            result.append(ch)
+    raw = ''.join(result)
+    # Try parsing directly first
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        pass
+    # Try fixing common issues: trailing commas
+    raw = re.sub(r',\s*}', '}', raw)
+    raw = re.sub(r',\s*]', ']', raw)
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        pass
+    # Try removing single-line comments (// style)
+    raw = re.sub(r'//[^\n]*', '', raw)
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        pass
+    # If still fails, try extracting JSON-like content with regex
+    match = re.search(r'\{[^{}]*"image_prompts"[^{}]*\}', raw, re.DOTALL)
+    if match:
+        try:
+            return json.loads(match.group(0))
+        except json.JSONDecodeError:
+            pass
+    # Final attempt: find outermost balanced braces
+    stack = []
+    start = -1
+    for i, ch in enumerate(raw):
+        if ch == '{':
+            if not stack:
+                start = i
+            stack.append(ch)
+        elif ch == '}':
+            if stack:
+                stack.pop()
+                if not stack and start >= 0:
+                    try:
+                        return json.loads(raw[start:i+1])
+                    except json.JSONDecodeError:
+                        pass
+    # Show what we're trying to parse (just the first/last bits)
+    # Try to fix the JSON by removing extra closing brackets
+    import re as _re
+    
+    # Try 1: If brackets are unbalanced, remove extra closing brackets from end
+    _open_arr = raw.count('[')
+    _close_arr = raw.count(']')
+    if _close_arr > _open_arr and _open_arr > 0:
+        # Find all positions of ] and only keep the rightmost ones
+        _parts = list(raw)
+        _to_remove = _close_arr - _open_arr
+        _removed = 0
+        _i = len(_parts) - 1
+        while _removed < _to_remove and _i >= 0:
+            if _parts[_i] == ']':
+                _parts[_i] = ''
+                _removed += 1
+            _i -= 1
+        raw = ''.join(_parts)
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError:
+            pass
+    
+    # Try 2: Try fixing trailing commas after removing newlines
+    raw = raw.replace(chr(10), " ").replace(chr(13), " ")
+    raw = _re.sub(r',\s*}', '}', raw)
+    raw = _re.sub(r',\s*]', ']', raw)
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        pass
+    
+    raise ValueError("Cannot parse JSON from response")
 
 
 def analyze_product(
@@ -155,26 +261,28 @@ def analyze_product(
     research = research_product(product_name, description, category, image_base64)
 
 
-    system_prompt = f"""คุณคือผู้เชี่ยวชาญด้านการตลาด UGC บน TikTok
-วิเคราะห์สินค้าจากภาพและข้อมูลที่ให้มา แล้วสร้างคอนเทนต์ต่อไปนี้เป็นภาษาไทยเท่านั้น:
+    system_prompt = f"""You are a TikTok UGC marketing expert. Analyze the product image and generate content in THAI language only.
 
-1. **5 Image Prompts** — คำอธิบายรายละเอียดของภาพสำหรับ AI image generation แต่ละสไตล์ (ถือสินค้า, ใช้งานสินค้า, ไลฟ์สไตล์, ซูมระยะใกล้, รีวิว)
-   - ต้องอธิบายรายละเอียดของสินค้าให้ชัดเจน: สี รูปทรง วัสดุ บรรจุภัณฑ์ และลักษณะเฉพาะอื่นๆ ที่เห็นจากภาพ
-   - ต้องระบุตัวแบบเป็นคนไทย/เอเชียตะวันออกเฉียงใต้ (ผู้หญิง/ชายไทยผิวสีอ่อน) ยกเว้นสินค้าไม่เกี่ยวกับคน
-   - ใช้โทนสีและบรรยากาศแบบไทย
+REQUIREMENTS:
 
-2. **1 Video Prompt** — คำอธิบายรายละเอียดสำหรับสร้างวิดีโอ
-   - รวมองค์ประกอบการเคลื่อนไหว แสงสว่าง การเล่าเรื่อง
-   - ต้องมีตัวแบบคนไทยในสถานที่แบบไทย
+1. **5 Image Prompts** — Describe each scene in full detail for AI image generation:
+   - styles: holding_product, product_usage, lifestyle, close_up, review_style
+   - Describe product APPEARANCE from what you see: color, shape, material, packaging, labels, texture
+   - MUST specify Thai/SE Asian model (young Thai woman, light brown skin, Southeast Asian features, natural look)
+   - Use warm Thai-style setting, natural lighting, pastel or soft tones
 
-3. **3 Hook Ideas** — คำโปรโมทข้อความดึงดูดใจภาษาไทย 3 แบบ
+2. **1 Video Prompt** — output as JSON object with keys: description, movement, lighting, storytelling for video generation
 
-4. **Marketing Copy** — ข้อความคำบรรยายสั้นๆ และแฮชแท็กภาษาไทย
+3. **3 Hook Ideas** — attention-grabbing opening lines in THAI language (product-specific, NOT generic)
 
-**บริบทการวิจัย:**
+4. **Marketing Copy** — short THAI caption + CTA + hashtags in THAI
+
+IMPORTANT: All text content MUST be in THAI language, EXCEPT the prompt fields (which describe visual scenes for English AI image generators).
+
+Research Context:
 {json.dumps(research, ensure_ascii=False, indent=2)}
 
-ส่งออก JSON เท่านั้น ไม่ต้องมี ```markdown fence:
+Output ONLY valid JSON. No markdown fences. No trailing commas. No newlines inside JSON strings. Escape all double quotes inside strings with backslash. No control characters in strings:
 {{
   "image_prompts": [
     {{"id": "holding_product", "name": "ถือสินค้า", "prompt": "..."}},
@@ -183,7 +291,12 @@ def analyze_product(
     {{"id": "close_up", "name": "ซูมระยะใกล้", "prompt": "..."}},
     {{"id": "review_style", "name": "รีวิว", "prompt": "..."}}
   ],
-  "video_prompt": "...",
+  "video_prompt": {{
+    "description": "...",
+    "movement": [...],
+    "lighting": "...",
+    "storytelling": "..."
+  }},
   "hook_suggestions": ["...", "...", "..."],
   "marketing_copy": "...",
   "hashtags": ["...", "..."]
@@ -213,6 +326,7 @@ Target Audience: {target_audience or 'General TikTok users'}{model_hint}
             user_text=user_prompt,
             image_base64=image_base64,
         )
+
         result = _parse_json(raw)
         logger.info(
             f"AI analysis successful ({'Pixtral vision' if has_vision else 'Mistral text'})"

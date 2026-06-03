@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { api } from '../lib/api'
 
 export default function ImageGen() {
-  const [prompt, setPrompt] = useState('')
+  const [productName, setProductName] = useState('')
+  const [description, setDescription] = useState('')
   const [style, setStyle] = useState('realistic')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<string | null>(null)
@@ -16,12 +17,12 @@ export default function ImageGen() {
   ]
 
   const handleGenerate = async () => {
-    if (!prompt.trim()) return
+    if (!productName.trim()) return
     setLoading(true)
     setResult(null)
     setImageUrl(null)
     try {
-      const data = await api.image.generateEtsy({ prompt, style })
+      const data = await api.image.generateEtsy({ productName, description, style })
       const url = data.url || data.image_url || data.image
       if (url) setImageUrl(url)
       else setResult(JSON.stringify(data, null, 2))
@@ -49,11 +50,15 @@ export default function ImageGen() {
 
       <div className="card-ios p-5 space-y-4">
         <div>
-          <label className="subhead-ios font-medium mb-1 block">Image Prompt</label>
-          <textarea className="search-ios min-h-[100px] resize-none"
-            placeholder="Describe the image..." value={prompt} onChange={(e) => setPrompt(e.target.value)} />
+          <label className="subhead-ios font-medium mb-1 block">Product Name</label>
+          <input className="search-ios" placeholder="e.g. Wireless Earbuds Pro" value={productName} onChange={(e) => setProductName(e.target.value)} />
         </div>
-        <button onClick={handleGenerate} disabled={loading || !prompt.trim()}
+        <div>
+          <label className="subhead-ios font-medium mb-1 block">Description (optional)</label>
+          <textarea className="search-ios min-h-[80px] resize-none"
+            placeholder="Describe the image details or specific features to highlight..." value={description} onChange={(e) => setDescription(e.target.value)} />
+        </div>
+        <button onClick={handleGenerate} disabled={loading || !productName.trim()}
           className="btn-ios w-full py-3 bg-[var(--color-system-blue)] text-white font-semibold text-[17px] disabled:opacity-50">
           {loading ? 'Generating...' : 'Generate Image'}
         </button>

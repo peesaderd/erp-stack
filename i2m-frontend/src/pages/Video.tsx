@@ -8,12 +8,7 @@ export default function Video() {
   const [status, setStatus] = useState<string | null>(null)
   const [result, setResult] = useState<string | null>(null)
 
-  const providers = [
-    { id: 'wavespeed', name: 'WaveSpeed', cost: '$0.05', color: '#007AFF' },
-    { id: 'minimax', name: 'Minimax', cost: '$0.10', color: '#34C759' },
-    { id: 'kling', name: 'Kling', cost: '$0.60', color: '#FF9500' },
-    { id: 'runway', name: 'Runway', cost: '$0.40', color: '#FF3B30' },
-  ]
+  const providers: { id: string; name: string; cost: string; color: string }[] = []
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return
@@ -41,16 +36,9 @@ export default function Video() {
         <p className="subhead-ios mt-1">AI video from text prompts</p>
       </div>
 
-      <div>
-        <h3 className="subhead-ios font-medium mb-2">Provider</h3>
-        <div className="grid grid-cols-2 gap-2">
-          {providers.map((p) => (
-            <button key={p.id} onClick={() => setProvider(p.id)}
-              className={`card-ios p-3 text-left btn-ios ${provider === p.id ? 'ring-2 ring-[var(--color-system-blue)]' : ''}`}>
-              <div className="body-ios font-medium">{p.name}</div>
-              <div className="footnote-ios">{p.cost}/video</div>
-            </button>
-          ))}
+      <div className="card-ios p-4">
+        <div className="footnote-ios text-[var(--color-secondary-label)]">
+          Configure video API keys first. Providers are not yet available in this deployment.
         </div>
       </div>
 

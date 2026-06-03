@@ -5,6 +5,7 @@ export default function Scripts() {
   const [mode, setMode] = useState<'ugc' | 'review' | 'affiliate'>('ugc')
   const [productName, setProductName] = useState('')
   const [productDesc, setProductDesc] = useState('')
+  const [scriptStyle, setScriptStyle] = useState('holding_product')
   const [result, setResult] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -14,7 +15,7 @@ export default function Scripts() {
     setResult('')
     try {
       const data = await (mode === 'ugc'
-        ? api.ugc.generateUgcScript({ productName, productDesc })
+        ? api.ugc.generateUgcScript({ productName, productDesc, style: scriptStyle })
         : api.ugc.generateScript({ productName, productDesc }))
       setResult(data.script || data.content || JSON.stringify(data, null, 2))
     } catch (e: any) {
@@ -47,6 +48,18 @@ export default function Scripts() {
           <label className="subhead-ios font-medium mb-1 block">Product Description</label>
           <textarea className="search-ios min-h-[100px] resize-none" placeholder="Describe the product features, target audience..." value={productDesc} onChange={(e) => setProductDesc(e.target.value)} />
         </div>
+        {mode === 'ugc' && (
+          <div>
+            <label className="subhead-ios font-medium mb-1 block">Script Style</label>
+            <div className="segmented-ios max-w-sm">
+              {['holding_product', 'product_usage', 'ugc_review'].map((s) => (
+                <button key={s} className={scriptStyle === s ? 'active' : ''} onClick={() => setScriptStyle(s)}>
+                  {s === 'holding_product' ? 'Holding Product' : s === 'product_usage' ? 'Product Usage' : 'UGC Review'}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <button onClick={handleGenerate} disabled={loading || !productName.trim()}
           className="btn-ios w-full py-3 bg-[var(--color-system-blue)] text-white font-semibold text-[17px] disabled:opacity-50">
           {loading ? 'Generating...' : 'Generate Script'}
@@ -62,21 +75,6 @@ export default function Scripts() {
           <pre className="text-[15px] whitespace-pre-wrap font-sans text-[var(--color-secondary-label)] leading-relaxed">{result}</pre>
         </div>
       )}
-
-      <div>
-        <h3 className="title-ios-3 mb-3">Templates</h3>
-        <div className="space-y-2">
-          {[{ name: 'Product Showcase', desc: 'Show product features in action' },
-            { name: 'Before & After', desc: 'Show transformation results' },
-            { name: 'Honest Review', desc: 'Authentic user review style' },
-          ].map((t) => (
-            <button key={t.name} className="card-ios p-4 w-full text-left btn-ios">
-              <div className="body-ios font-medium">{t.name}</div>
-              <div className="footnote-ios">{t.desc}</div>
-            </button>
-          ))}
-        </div>
-      </div>
     </div>
   )
 }

@@ -9,6 +9,7 @@ module.exports = {
       LLM_API_KEY: "sk-704a41bad6e249dc83a0f7e344871149",
       LLM_MODEL: "deepseek-chat",
       LLM_PROVIDER: "deepseek",
+      FAL_KEY: "5aa3fcba-eb64-4ff5-b79c-5a7387dca152:e19d89754ddf4bda7b71e0fb2b5eb83c",
     }
   }]
 };

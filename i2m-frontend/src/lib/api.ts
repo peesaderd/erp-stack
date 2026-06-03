@@ -17,7 +17,7 @@ export const api = {
       (await fetch(`${UGC_API}/scripts/templates`)).json(),
   },
   image: {
-    generateEtsy: async (data: { prompt: string; style?: string }) =>
-      (await fetch(`${ETZY_API}/ai/generate-image`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })).json(),
+    generateEtsy: async (data: { prompt: string; style?: string; description?: string }) =>
+      (await fetch(`${ETZY_API}/ai/generate-image`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ product_name: data.prompt, description: data.description || data.prompt, style: data.style || 'product' }) })).json(),
   },
 }

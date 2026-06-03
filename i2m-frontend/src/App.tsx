@@ -43,25 +43,25 @@ function App() {
       </nav>
 
       {/* Main Content */}
-      <main className="flex-1 w-full">
+      <main className="flex-1 w-full pb-[130px]">
         {renderPage()}
       </main>
 
-      {/* Tab Bar */}
-      <div className="tab-ios fixed bottom-0 left-0 right-0 z-50 pb-8 pt-2 safe-area-bottom">
+      {/* Tab Bar — slim, fixed bottom */}
+      <div className="tab-ios fixed bottom-0 left-0 right-0 z-40 safe-area-bottom" style={{paddingBottom: 'calc(env(safe-area-inset-bottom, 8px) + 2px)', paddingTop: 4}}>
         <div className="flex justify-around items-center max-w-lg mx-auto">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex flex-col items-center gap-0.5 px-3 py-1 transition-all duration-200 ${
+              className={`flex flex-col items-center gap-0 transition-all duration-200 ${
                 activeTab === tab.id
                   ? 'text-[var(--color-system-blue)]'
                   : 'text-[var(--color-system-gray)]'
               }`}
             >
               <TabIcon name={tab.icon} active={activeTab === tab.id} />
-              <span className="text-[10px] font-medium tracking-tight">{tab.label}</span>
+              <span className="text-[9px] font-medium tracking-tight leading-none mt-0">{tab.label}</span>
             </button>
           ))}
         </div>

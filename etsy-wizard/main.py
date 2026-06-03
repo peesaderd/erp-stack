@@ -309,9 +309,10 @@ class ProductInfo(BaseModel):
 
 
 class ImageGenRequest(BaseModel):
-    product_name: str
+    product_name: str = ""
     description: str = ""
     style: str = "product"
+    prompt: str = ""  # custom prompt — overrides auto-generated prompt
     model_tier: str = "quality"
     upscale: bool = True
 
@@ -354,7 +355,12 @@ def ai_generate_image(req: ImageGenRequest):
     """
     from image_gen import generate_product_image, make_etsy_compliant_prompt
 
-    prompt = make_etsy_compliant_prompt(req.product_name, req.description, req.style)
+    if req.prompt:
+        prompt = req.prompt
+    elif req.product_name:
+        prompt = make_etsy_compliant_prompt(req.product_name, req.description, req.style)
+    else:
+        raise HTTPException(status_code=400, detail="Either prompt or product_name required")
 
     try:
         result = generate_product_image(prompt, model_tier=req.model_tier, upscale=req.upscale)

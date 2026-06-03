@@ -29,6 +29,19 @@ const presetStyles = [
   { id: 'review_style',      label: '🎬 Review',        desc: 'สไตล์รีวิว' },
 ]
 
+const ASPECT_RATIOS = [
+  { id: '9:16',  label: '9:16' },
+  { id: '1:1',   label: '1:1' },
+  { id: '16:9',  label: '16:9' },
+  { id: '4:5',   label: '4:5' },
+]
+
+const COUNTS = [
+  { id: '1', label: '1' },
+  { id: '2', label: '2' },
+  { id: '4', label: '4' },
+]
+
 const STUDIO_STATE_KEY = 'i2m_studio_state'
 
 interface StoredState {
@@ -37,6 +50,9 @@ interface StoredState {
   productDesc: string
   analysis: AnalysisResult | null
   selectedPreset: string | null
+  aspectRatio: string
+  count: number
+  editablePrompt: string
   videoTaskId: string | null
   videoStatus: string | null
   generations: Generation[]
@@ -90,6 +106,9 @@ export default function ProductStudio() {
   const [videoTaskId, setVideoTaskId] = useState<string | null>(saved.videoTaskId || null)
   const [videoStatus, setVideoStatus] = useState<string | null>(saved.videoStatus || null)
   const [error, setError] = useState<string | null>(null)
+  const [aspectRatio, setAspectRatio] = useState<string>(saved.aspectRatio || '9:16')
+  const [count, setCount] = useState<number>(saved.count || 1)
+  const [editablePrompt, setEditablePrompt] = useState<string>(saved.editablePrompt || '')
 
   const [generations, setGenerations] = useState<Generation[]>(() => {
     const g = saved.generations
@@ -110,6 +129,14 @@ export default function ProductStudio() {
     setInitialized(true)
   }, [])
 
+  // Update editablePrompt when analysis completes or preset changes
+  useEffect(() => {
+    if (!analysis) return
+    const preset = selectedPreset || Object.keys(analysis.image_prompts).find(k => k !== 'default') || 'default'
+    const basePrompt = analysis.image_prompts[preset] || analysis.image_prompts.default || ''
+    setEditablePrompt(basePrompt)
+  }, [analysis, selectedPreset])
+
   // Persist workflow state whenever key fields change
   useEffect(() => {
     if (!initialized) return
@@ -119,11 +146,14 @@ export default function ProductStudio() {
       productDesc,
       analysis,
       selectedPreset,
+      aspectRatio,
+      count,
+      editablePrompt,
       videoTaskId,
       videoStatus,
       generations,
     })
-  }, [image, productName, productDesc, analysis, selectedPreset, videoTaskId, videoStatus, generations, initialized])
+  }, [image, productName, productDesc, analysis, selectedPreset, aspectRatio, count, editablePrompt, videoTaskId, videoStatus, generations, initialized])
 
   // Poll video status
   useEffect(() => {
@@ -167,7 +197,9 @@ export default function ProductStudio() {
     setError(null)
     setAnalysis(null)
     setSelectedPreset(null)
-
+    setAspectRatio('9:16')
+    setCount(1)
+    setEditablePrompt('')
     const reader = new FileReader()
     reader.onload = (ev) => setImage(ev.target?.result as string)
     reader.readAsDataURL(f)
@@ -183,21 +215,21 @@ export default function ProductStudio() {
     try {
       const result = await api.analyzeProduct(file, productName, productDesc)
       setAnalysis(result)
-      saveState({ image, productName, productDesc, analysis: result, generations })
+      // editablePrompt will be set by the useEffect watching analysis+selectedPreset
     } catch (err: any) {
       setError(err?.message || 'Analysis failed')
     } finally {
       setAnalyzing(false)
     }
-  }, [file, productName, productDesc, image, generations])
+  }, [file, productName, productDesc])
 
   const handleGenerateImage = useCallback(async () => {
     if (!analysis || !selectedPreset) return
     setGenImage(true)
     setError(null)
     try {
-      const prompt = analysis.image_prompts[selectedPreset] || analysis.image_prompts.default
-      const result = await api.generateImage(prompt, productName)
+      const prompt = editablePrompt || analysis.image_prompts[selectedPreset] || analysis.image_prompts.default
+      const result = await api.generateImage(prompt, productName, productDesc, selectedPreset, aspectRatio)
       if (result.url) {
         setGenerations(prev => [...prev, {
           id: Date.now().toString(),
@@ -213,7 +245,7 @@ export default function ProductStudio() {
     } finally {
       setGenImage(false)
     }
-  }, [analysis, selectedPreset, productName])
+  }, [analysis, selectedPreset, productName, productDesc, editablePrompt, aspectRatio])
 
   const handleGenerateVideo = useCallback(async () => {
     if (!analysis || !image) return
@@ -450,9 +482,26 @@ export default function ProductStudio() {
                   </section>
                 )}
 
+                {/* Video Button after successful generation */}
+                {generations.length > 0 && (
+                  <section>
+                    <button
+                      onClick={handleGenerateVideo}
+                      disabled={genVideo}
+                      className="w-full py-4 rounded-xl bg-gradient-to-r from-[#2c248b] to-[#4b41e1] text-white text-sm font-semibold flex items-center justify-center gap-2 shadow-[0_8px_32px_rgba(79,70,229,0.25)] hover:shadow-[0_12px_40px_rgba(79,70,229,0.4)] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed btn-press"
+                    >
+                      {genVideo ? (
+                        <><span className="material-symbols-outlined animate-spin">progress_activity</span> กำลังสร้างวิดีโอ...</>
+                      ) : (
+                        <><span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>videocam</span> สร้างวิดีโอ</>
+                      )}
+                    </button>
+                  </section>
+                )}
+
                 {/* Reset */}
                 <button
-                  onClick={() => { setAnalysis(null); setSelectedPreset(null); setVideoTaskId(null); setVideoStatus(null) }}
+                  onClick={() => { setAnalysis(null); setSelectedPreset(null); setVideoTaskId(null); setVideoStatus(null); setAspectRatio('9:16'); setCount(1); setEditablePrompt('') }}
                   className="self-start flex items-center gap-1 px-4 py-2 rounded-xl text-body-sm text-on-surface-variant hover:text-on-surface bg-surface-container hover:bg-surface-container-high transition-colors"
                 >
                   <span className="material-symbols-outlined text-[16px]">arrow_back</span>
@@ -466,6 +515,64 @@ export default function ProductStudio() {
                 {/* Generate Panel - glass */}
                 <div className="glass-panel rounded-2xl p-md flex flex-col gap-lg shadow-[0_4px_24px_rgba(79,70,229,0.03)]">
 
+                  {/* Pill Selectors: Aspect Ratio and Count */}
+                  <section className="flex flex-col gap-3">
+                    <div className="flex items-center justify-between gap-3">
+                      {/* Aspect Ratio Pills */}
+                      <div className="flex-1">
+                        <p className="text-label-sm text-on-surface-variant mb-1.5">สัดส่วน</p>
+                        <div className="flex gap-1.5">
+                          {ASPECT_RATIOS.map(ar => (
+                            <button
+                              key={ar.id}
+                              onClick={() => setAspectRatio(ar.id)}
+                              className={`px-3 py-1.5 rounded-lg text-[10px] font-medium transition-all ${
+                                aspectRatio === ar.id
+                                  ? 'bg-secondary text-white shadow-sm'
+                                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                              }`}
+                            >
+                              {ar.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Count Pills */}
+                      <div className="flex-shrink-0">
+                        <p className="text-label-sm text-on-surface-variant mb-1.5">จำนวน</p>
+                        <div className="flex gap-1.5">
+                          {COUNTS.map(c => (
+                            <button
+                              key={c.id}
+                              onClick={() => setCount(parseInt(c.id))}
+                              className={`px-3 py-1.5 rounded-lg text-[10px] font-medium transition-all ${
+                                count === parseInt(c.id)
+                                  ? 'bg-secondary text-white shadow-sm'
+                                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                              }`}
+                            >
+                              {c.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* Editable Prompt Textarea */}
+                  <section className="flex flex-col gap-sm">
+                    <h3 className="text-label-md text-on-surface uppercase tracking-widest flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[18px]">edit_note</span> Prompt
+                    </h3>
+                    <textarea
+                      value={editablePrompt}
+                      onChange={(e) => setEditablePrompt(e.target.value)}
+                      placeholder="Prompt สำหรับสร้างรูป..."
+                      rows={3}
+                      className="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-outline-variant/30 text-xs text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-2 focus:ring-secondary/40 transition-all resize-none"
+                    />
+                  </section>
+
                   {/* Generate Image */}
                   <section className="flex flex-col gap-sm">
                     <h3 className="text-label-md text-on-surface uppercase tracking-widest flex items-center gap-2">
@@ -474,19 +581,17 @@ export default function ProductStudio() {
                     <button
                       onClick={handleGenerateImage}
                       disabled={genImage || !selectedPreset}
-                      className="w-full py-4 rounded-xl bg-gradient-to-r from-secondary to-[#2c248b] text-on-secondary text-headline-sm flex items-center justify-center gap-2 shadow-[0_8px_32px_rgba(79,70,229,0.25)] hover:shadow-[0_12px_40px_rgba(79,70,229,0.4)] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed btn-press"
+                      className="w-full py-4 rounded-xl bg-gradient-to-r from-secondary/90 to-secondary text-on-secondary text-headline-sm flex items-center justify-center gap-2 shadow-[0_8px_32px_rgba(79,70,229,0.25)] hover:shadow-[0_12px_40px_rgba(79,70,229,0.4)] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed btn-press"
                     >
                       {genImage ? (
                         <><span className="material-symbols-outlined animate-spin">progress_activity</span> Generating...</>
                       ) : (
-                        <><span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span> Generate Image</>
+                        <><span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>bolt</span> Generate Image</>
                       )}
                     </button>
                   </section>
 
-                  <hr className="border-outline-variant/20" />
-
-                  {/* Generate Video */}
+                  {/* Generate Video (in sidebar) */}
                   <section className="flex flex-col gap-sm">
                     <h3 className="text-label-md text-on-surface uppercase tracking-widest flex items-center gap-2">
                       <span className="material-symbols-outlined text-[18px]">videocam</span> Video Sequence

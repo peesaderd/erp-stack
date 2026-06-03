@@ -1,9 +1,15 @@
+import { useEffect } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import ProductStudio from './pages/ProductStudio'
 import ImageGallery from './pages/ImageGallery'
 import Profile from './pages/Profile'
 
 function App() {
+  // Initialize dark mode from localStorage on every mount (persists across navigation)
+  useEffect(() => {
+    const saved = localStorage.getItem('i2m_dark_mode') === 'true'
+    document.documentElement.classList.toggle('dark', saved)
+  }, [])
   return (
     <div className="bg-background text-on-surface min-h-screen font-sans antialiased selection:bg-secondary/20 selection:text-secondary">
       <Routes>

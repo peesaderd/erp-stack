@@ -627,18 +627,27 @@ def api_product_research(req: ProductResearchRequest):
         category=req.category,
         image_base64=req.product_image_base64 or None,
     )
-    # Step 2: Web Search
+    # Step 2: Web Search — improve relevance with product type + Thai context
     web_data = {'specs': [], 'reviews': [], 'prices': []}
     if req.product_name:
         try:
             from duckduckgo_search import DDGS
+            # Use category from research if available
+            _cat = research.get('category', '') or req.category or ''
+            _type = research.get('product_type', '') or ''
             with DDGS() as ddgs:
-                specs = list(ddgs.text(f'{req.product_name} specifications', max_results=3))
-                web_data['specs'] = [r.get('body','')[:500] for r in specs]
-                reviews = list(ddgs.text(f'{req.product_name} review', max_results=3))
-                web_data['reviews'] = [r.get('body','')[:500] for r in reviews]
-                prices = list(ddgs.text(f'{req.product_name} price', max_results=3))
-                web_data['prices'] = [r.get('title','')[:200] for r in prices]
+                # Specs: English + Thai search for better coverage
+                _spec_q = f"{req.product_name} {' '.join(_type.split()[:3])} specifications technical details"[:200]
+                specs = list(ddgs.text(_spec_q, max_results=3))
+                web_data['specs'] = [r.get('body','')[:500] for r in specs if r.get('body','')]
+                # Reviews: site-limited + Thai mixing
+                _rev_q = f"{req.product_name} {' '.join(_cat.split()[:2]) if _cat else ''} review รีวิว"[:200]
+                reviews = list(ddgs.text(_rev_q, max_results=3))
+                web_data['reviews'] = [r.get('body','')[:500] for r in reviews if r.get('body','')]
+                # Prices: Shopee/Lazada preferred for Thai market
+                _price_q = f"{req.product_name} price ราคา shopee lazada"[:200]
+                prices = list(ddgs.text(_price_q, max_results=3))
+                web_data['prices'] = [r.get('title','')[:200] for r in prices if r.get('title','')]
         except Exception as e:
             logger.warning(f'Web search failed: {e}')
     return {'ok': True, 'product_name': req.product_name, 'research': research, 'web_data': web_data}

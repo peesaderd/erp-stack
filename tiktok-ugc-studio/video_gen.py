@@ -26,9 +26,9 @@ class VideoProvider(str, Enum):
 PROVIDER_CONFIG = {
     VideoProvider.WAVESPEED: {
         "key": os.environ.get("WAVESPEED_API_KEY", ""),
-        "models": {"standard": "wavespeed-v1"},
-        "default_model": "wavespeed-v1",
-        "base_url": "https://api.wavespeed.ai/v1",
+        "models": {"standard": "wavespeed-ai/short-video-generator"},
+        "default_model": "wavespeed-ai/short-video-generator",
+        "base_url": "https://api.wavespeed.ai/api/v3",
         "image_to_video": True,
         "rate_limit_rps": 10,
         "estimate_cost": 0.05,
@@ -239,36 +239,44 @@ def check_status(provider: VideoProvider, task_id: str) -> dict:
 
 @retryable(max_retries=3)
 def _ws_generate(config, prompt, model, duration, aspect_ratio, image_url, face_image_url, timeout):
-    """WaveSpeed API — cheapest provider, image-to-video capable"""
-    url = f"{config['base_url']}/video/generate"
+    """WaveSpeed API v3 — unified endpoint for all models"""
+    url = f"{config['base_url']}/{config['default_model']}"
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {config['key']}"}
     payload = {
-        "model": model, "prompt": prompt, "duration": duration,
-        "aspect_ratio": aspect_ratio, "num_frames": int(duration * 30),
+        "prompt": prompt, "width": 1080, "height": 1920,
     }
+    if duration:
+        payload["duration"] = duration
+    if aspect_ratio == "16:9":
+        payload["width"], payload["height"] = 1920, 1080
+    elif aspect_ratio == "1:1":
+        payload["width"], payload["height"] = 1024, 1024
     if image_url:
         payload["image_url"] = image_url
-        payload["mode"] = "image_to_video"
     if face_image_url:
         payload["face_image_url"] = face_image_url
     resp = requests.post(url, headers=headers, json=payload, timeout=timeout)
     if resp.status_code != 200:
         raise RuntimeError(f"WaveSpeed error ({resp.status_code}): {resp.text[:500]}")
-    data = resp.json()
-    return {"task_id": data.get("task_id", ""), "status": data.get("status", "pending")}
+    data = resp.json().get("data", {})
+    return {"task_id": data.get("id", ""), "status": data.get("status", "created")}
 
 
 def _ws_status(config, task_id):
-    """WaveSpeed task status"""
-    url = f"{config['base_url']}/video/status/{task_id}"
+    """WaveSpeed API v3 — poll task result"""
+    url = f"{config['base_url']}/predictions/{task_id}/result"
     headers = {"Authorization": f"Bearer {config['key']}"}
     resp = requests.get(url, headers=headers, timeout=30)
-    data = resp.json()
+    data = resp.json().get("data", {})
+    video_url = ""
+    outputs = data.get("outputs", [])
+    if outputs:
+        video_url = outputs[0]
     return {
         "task_id": task_id,
         "status": data.get("status", "unknown"),
-        "video_url": data.get("video_url", "") or (data.get("output", {}) or {}).get("url", ""),
-        "progress": data.get("progress", 0),
+        "video_url": video_url,
+        "progress": 100 if data.get("status") == "completed" else 50 if data.get("status") == "processing" else 0,
     }
 
 

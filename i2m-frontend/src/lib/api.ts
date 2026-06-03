@@ -15,7 +15,7 @@ export const api = {
         ...(data.style ? { style: data.style } : {}),
       }) })).json(),
     generateVideo: async (data: { prompt: string; provider?: string; duration?: number; aspectRatio?: string }) =>
-      (await fetch(`${UGC_API}/video/generate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+      (await fetch(`${UGC_API}/video/queue`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
         prompt: data.prompt,
         ...(data.provider ? { provider: data.provider } : {}),
         ...(data.duration ? { duration: data.duration } : {}),

@@ -9,6 +9,7 @@ module.exports = {
       LLM_API_KEY: process.env.LLM_API_KEY || '',
       LLM_BASE_URL: process.env.LLM_BASE_URL || 'https://api.deepseek.com',
       LLM_MODEL: process.env.LLM_MODEL || 'deepseek-chat',
+      WAVESPEED_API_KEY: 'wsk_live_whbPT_ai2ZUpxq3I2tcjPwDj3JuYuFcEPCn7OSdM-bU',
       KLING_API_KEY: process.env.KLING_API_KEY || '',
       KLING_API_SECRET: process.env.KLING_API_SECRET || '',
     },

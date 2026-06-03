@@ -198,11 +198,11 @@ export default function ProductStudio() {
     try {
       const prompt = analysis.image_prompts[selectedPreset] || analysis.image_prompts.default
       const result = await api.generateImage(prompt, productName)
-      if (result.url) {
+      if (result.image_url || result.url) {
         setGenerations(prev => [...prev, {
           id: Date.now().toString(),
           type: 'image',
-          url: result.url,
+          url: result.image_url || result.url,
           prompt,
           style: selectedPreset,
           createdAt: Date.now(),

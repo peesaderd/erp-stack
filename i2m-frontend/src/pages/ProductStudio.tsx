@@ -290,14 +290,14 @@ export default function ProductStudio() {
             </p>
           </header>
 
-          {/* Error Banner - Compact */}
+          {/* Error Banner */}
           {error && (
-            <div className="mb-3 px-3 py-2 rounded-lg bg-error-container/40 border border-error/20 text-on-error-container text-xs">
+            <div className="mb-4 px-4 py-3 rounded-xl bg-error-container/40 border border-error/20 text-on-error-container text-body-sm">
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-[18px]">error</span>
                 <span>{error}</span>
                 <button onClick={() => setError(null)} className="ml-auto text-on-error-container/60 hover:text-on-error-container">
-                  <span className="material-symbols-outlined text-sm">close</span>
+                  <span className="material-symbols-outlined text-[18px]">close</span>
                 </button>
               </div>
             </div>
@@ -342,25 +342,25 @@ export default function ProductStudio() {
               </div>
 
               {/* Product Info - glass panel */}
-              <div className="glass-panel rounded-xl p-sm flex flex-col gap-md">
+              <div className="glass-panel rounded-2xl p-md flex flex-col gap-lg">
                 <section className="flex flex-col gap-sm">
-                  <label className="text-label-sm text-on-surface uppercase tracking-wider">ชื่อสินค้า</label>
+                  <label className="text-label-md text-on-surface uppercase tracking-widest">Product Name</label>
                   <input
                     type="text"
                     value={productName}
                     onChange={(e) => setProductName(e.target.value)}
                     placeholder="e.g., SPF50 Sunscreen"
-                    className="w-full px-3 py-2 rounded-lg bg-surface-container-low border border-outline-variant/30 text-sm text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-1 focus:ring-secondary/40 transition-all"
+                    className="w-full px-4 py-3 rounded-xl bg-surface-container-low border border-outline-variant/30 text-body-md text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-2 focus:ring-secondary/40 transition-all"
                   />
                 </section>
                 <section className="flex flex-col gap-sm">
-                  <label className="text-label-sm text-on-surface uppercase tracking-wider">คำอธิบาย (ไม่บังคับ)</label>
+                  <label className="text-label-md text-on-surface uppercase tracking-widest">Description (optional)</label>
                   <textarea
                     value={productDesc}
                     onChange={(e) => setProductDesc(e.target.value)}
                     placeholder="Key features, target audience, unique selling points..."
                     rows={3}
-                    className="w-full px-3 py-2 rounded-lg bg-surface-container-low border border-outline-variant/30 text-sm text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-1 focus:ring-secondary/40 transition-all resize-none"
+                    className="w-full px-4 py-3 rounded-xl bg-surface-container-low border border-outline-variant/30 text-body-md text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-2 focus:ring-secondary/40 transition-all resize-none"
                   />
                 </section>
               </div>
@@ -369,12 +369,12 @@ export default function ProductStudio() {
               <button
                 onClick={handleAnalyze}
                 disabled={analyzing || !file || !productName.trim()}
-                className="w-full py-2 rounded-lg bg-gradient-to-r from-secondary to-[#2c248b] text-on-secondary text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm hover:shadow-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed btn-press"
+                className="w-full py-2 rounded-xl bg-gradient-to-r from-secondary to-[#2c248b] text-on-secondary text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed btn-press"
               >
                 {analyzing ? (
-                  <><span className="material-symbols-outlined animate-spin text-sm">progress_activity</span> กำลังวิเคราะห์...</>
+                  <><span className="material-symbols-outlined animate-spin">progress_activity</span> Analyzing...</>
                 ) : (
-                  <><span className="material-symbols-outlined text-sm">auto_awesome</span> วิเคราะห์สินค้า</>
+                  <><span className="material-symbols-outlined">auto_awesome</span> Initialize Analysis</>
                 )}
               </button>
             </div>
@@ -401,21 +401,21 @@ export default function ProductStudio() {
                   </div>
                 </div>
 
-                {/* Preset Styles - Compact Pills */}
-                <section className="flex flex-col gap-sm">
+                {/* Preset Styles - Aether Carousel */}
+                <section className="flex flex-col gap-sm overflow-hidden">
                   <div className="flex justify-between items-center">
-                    <h4 className="text-label-sm text-on-surface uppercase tracking-wider">สไตล์ภาพ</h4>
-                    <span className="text-xs text-secondary/70 bg-secondary/10 px-2 py-0.5 rounded-full">v4</span>
+                    <h3 className="text-label-md text-on-surface uppercase tracking-widest">Image Presets</h3>
+                    <span className="text-label-sm text-secondary/70 bg-secondary/10 px-2 py-1 rounded-full">v4 Engine Ready</span>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {presetStyles.map(ps => (
                       <button
                         key={ps.id}
                         onClick={() => setSelectedPreset(ps.id)}
-                        className={`px-2 py-1 rounded-full text-[10px] font-medium transition-all ${
+                        className={`px-2 py-1 rounded-lg text-[10px] font-medium transition-all whitespace-nowrap ${
                           selectedPreset === ps.id
                             ? 'bg-secondary text-white shadow-sm'
-                            : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'
+                            : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high border border-outline-variant/20'
                         }`}
                       >
                         {ps.label}
@@ -447,14 +447,14 @@ export default function ProductStudio() {
                 {generations.length > 0 && (
                   <section>
                     <div className="flex justify-between items-center mb-3">
-                      <h3 className="text-label-sm text-on-surface uppercase tracking-wider">ผลลัพธ์ล่าสุด</h3>
+                      <h3 className="text-label-md text-on-surface uppercase tracking-widest">Recent Outputs</h3>
                       <button onClick={() => navigate('/gallery')} className="text-label-sm text-secondary hover:underline flex items-center gap-1">
                         View All <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
                       </button>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5">
+                    <div className="grid grid-cols-3 gap-2">
                       {generations.slice().reverse().slice(0, 6).map(gen => (
-                        <div key={gen.id} className="aspect-square rounded-lg overflow-hidden bg-surface-container border border-outline-variant/10 relative group">
+                        <div key={gen.id} className="aspect-square rounded-xl overflow-hidden bg-surface-container border border-outline-variant/10 relative group">
                           {gen.type === 'image' ? (
                             <img src={gen.url} alt="" className="w-full h-full object-cover" />
                           ) : (
@@ -470,17 +470,17 @@ export default function ProductStudio() {
                 )}
 
                 {/* Video Button after successful generation */}
-                {generations.length > 0 && !videoTaskId && (
-                  <section className="mt-sm">
+                {generations.length > 0 && (
+                  <section>
                     <button
                       onClick={handleGenerateVideo}
-                      disabled={genVideo || !image}
-                      className="w-full py-2 rounded-lg bg-gradient-to-r from-[#2c248b] to-[#4b41e1] text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm hover:shadow-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed btn-press"
+                      disabled={genVideo}
+                      className="w-full py-2 rounded-xl bg-gradient-to-r from-[#2c248b] to-[#4b41e1] text-white text-sm font-semibold flex items-center justify-center gap-2 shadow-sm transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed btn-press"
                     >
                       {genVideo ? (
-                        <><span className="material-symbols-outlined animate-spin text-sm">progress_activity</span> กำลังสร้างวิดีโอ...</>
+                        <><span className="material-symbols-outlined animate-spin">progress_activity</span> กำลังสร้างวิดีโอ...</>
                       ) : (
-                        <><span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>videocam</span> สร้างวิดีโอ</>
+                        <><span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>videocam</span> สร้างวิดีโอ</>
                       )}
                     </button>
                   </section>
@@ -489,10 +489,10 @@ export default function ProductStudio() {
                 {/* Reset */}
                 <button
                   onClick={() => { setAnalysis(null); setSelectedPreset(null); setVideoTaskId(null); setVideoStatus(null); setAspectRatio('9:16'); setCount(1); setEditablePrompt('') }}
-                  className="self-start flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs text-on-surface-variant hover:text-on-surface bg-surface-container hover:bg-surface-container-high transition-colors"
+                  className="self-start flex items-center gap-1 px-4 py-2 rounded-xl text-body-sm text-on-surface-variant hover:text-on-surface bg-surface-container hover:bg-surface-container-high transition-colors"
                 >
-                  <span className="material-symbols-outlined text-sm">arrow_back</span>
-                  เริ่มต้นใหม่
+                  <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+                  Start Over
                 </button>
               </div>
 
@@ -500,25 +500,23 @@ export default function ProductStudio() {
               <div className="lg:col-span-4 flex flex-col gap-lg lg:pl-md">
 
                 {/* Generate Panel - glass */}
-                <div className="glass-panel rounded-xl p-sm flex flex-col gap-md shadow-sm">
+                <div className="glass-panel rounded-2xl p-md flex flex-col gap-lg shadow-[0_4px_24px_rgba(79,70,229,0.03)]">
 
-                  {/* Pill Selectors - Compact */}
+                  {/* Pill Selectors: Aspect Ratio and Count */}
                   <section className="flex flex-col gap-3">
                     <div className="flex items-center justify-between gap-3">
                       {/* Aspect Ratio Pills */}
                       <div className="flex-1">
-                        <p className="text-xs text-on-surface-variant mb-1">สัดส่วน</p>
-                        <div className="flex gap-1">
+                        <p className="text-label-sm text-on-surface-variant mb-1.5">สัดส่วน</p>
                         <div className="flex gap-1.5">
                           {ASPECT_RATIOS.map(ar => (
                             <button
                               key={ar.id}
                               onClick={() => setAspectRatio(ar.id)}
-                              className={`px-2 py-1 rounded-lg text-[10px] font-medium transition-all ${
+                              className={`px-3 py-1.5 rounded-lg text-[10px] font-medium transition-all ${
                                 aspectRatio === ar.id
                                   ? 'bg-secondary text-white shadow-sm'
                                   : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                                  : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'
                               }`}
                             >
                               {ar.label}
@@ -528,18 +526,16 @@ export default function ProductStudio() {
                       </div>
                       {/* Count Pills */}
                       <div className="flex-shrink-0">
-                        <p className="text-xs text-on-surface-variant mb-1">จำนวน</p>
-                        <div className="flex gap-1">
+                        <p className="text-label-sm text-on-surface-variant mb-1.5">จำนวน</p>
                         <div className="flex gap-1.5">
                           {COUNTS.map(c => (
                             <button
                               key={c.id}
                               onClick={() => setCount(parseInt(c.id))}
-                              className={`px-2 py-1 rounded-lg text-[10px] font-medium transition-all ${
+                              className={`px-3 py-1.5 rounded-lg text-[10px] font-medium transition-all ${
                                 count === parseInt(c.id)
                                   ? 'bg-secondary text-white shadow-sm'
                                   : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                                  : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'
                               }`}
                             >
                               {c.label}
@@ -552,45 +548,56 @@ export default function ProductStudio() {
 
                   {/* Editable Prompt Textarea */}
                   <section className="flex flex-col gap-sm">
-                    <h4 className="text-label-sm text-on-surface uppercase tracking-wider">Prompt</h4>
+                    <h3 className="text-label-md text-on-surface uppercase tracking-widest flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[18px]">edit_note</span> Prompt
+                    </h3>
                     <textarea
                       value={editablePrompt}
                       onChange={(e) => setEditablePrompt(e.target.value)}
                       placeholder="Prompt สำหรับสร้างรูป..."
                       rows={3}
-                      className="w-full px-2 py-1.5 rounded-lg bg-surface-container-low border border-outline-variant/30 text-xs text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-1 focus:ring-secondary/40 transition-all resize-none"
+                      className="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-outline-variant/30 text-xs text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-2 focus:ring-secondary/40 transition-all resize-none"
                     />
                   </section>
 
                   {/* Generate Image */}
                   <section className="flex flex-col gap-sm">
+                    <h3 className="text-label-md text-on-surface uppercase tracking-widest flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[18px]">image</span> Image Generation
+                    </h3>
                     <button
                       onClick={handleGenerateImage}
                       disabled={genImage || !selectedPreset}
-                      className="w-full py-2 rounded-lg bg-gradient-to-r from-secondary/90 to-secondary text-on-secondary text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm hover:shadow-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed btn-press"
+                      className="w-full py-2 rounded-xl bg-gradient-to-r from-secondary/90 to-secondary text-on-secondary text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed btn-press"
                     >
                       {genImage ? (
-                        <><span className="material-symbols-outlined animate-spin text-sm">progress_activity</span> กำลังสร้าง...</>
+                        <><span className="material-symbols-outlined animate-spin">progress_activity</span> Generating...</>
                       ) : (
-                        <><span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>bolt</span> สร้างรูป</>
+                        <><span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>bolt</span> Generate Image</>
                       )}
                     </button>
                   </section>
 
-                  {/* Video Status */}
-                  {videoTaskId && (
-                    <div className="p-2 rounded-lg bg-secondary/5 border border-secondary/20">
-                      <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-secondary animate-pulse text-sm">pending</span>
-                        <div className="flex-1">
-                          <p className="text-xs font-medium">กำลังประมวลผล...</p>
-                          <div className="mt-1 h-1 rounded-full bg-surface-container overflow-hidden">
-                            <div className="h-full rounded-full bg-secondary/60 animate-pulse" style={{ width: '60%' }} />
+                  {/* Generate Video (in sidebar) */}
+                  <section className="flex flex-col gap-sm">
+                    <h3 className="text-label-md text-on-surface uppercase tracking-widest flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[18px]">videocam</span> Video Sequence
+                    </h3>
+                    {videoTaskId && (
+                      <div className="p-3 rounded-xl bg-secondary/5 border border-secondary/20 mb-2">
+                        <div className="flex items-center gap-3">
+                          <span className="material-symbols-outlined text-secondary animate-pulse">pending</span>
+                          <div className="flex-1">
+                            <p className="text-body-sm font-medium">Processing...</p>
+                            <div className="mt-2 h-1.5 rounded-full bg-surface-container overflow-hidden">
+                              <div className="h-full rounded-full bg-secondary/60 animate-pulse" style={{ width: '60%' }} />
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+
+                  </section>
                 </div>
               </div>
             </div>

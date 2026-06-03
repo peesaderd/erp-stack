@@ -384,3 +384,165 @@
 +
 +IMPORTANT: Make ONLY the specific changes described above. Do not modify any other lines.
 +
+
+# 2026-06-03 22:53:22.601940
++
++Fix the analyze_product() function in tiktok-ugc-studio/gemini_agent.py:
++
++The MAIN PROBLEM: Image prompts are in English and too generic ("Holding the product naturally in hand"). The model OUTPUTS English prompts, but Flux doesn't know what the product looks like, so it generates wrong things (headphones → keyboard).
++
++SOLUTION: Change the system_prompt in analyze_product() to:
++1. Instruct the model to OUTPUT ALL prompts in THAI LANGUAGE only (ภาษาไทยเท่านั้น)
++2. Tell the model to DESCRIBE what the product LOOKS like in each prompt - color, shape, material, packaging details (based on the image the model can see)
++3. Generate hooks based on actual product pain points from the image analysis
++4. The image is passed as image_base64 parameter - the Mistral model can see it
++
++The current system_prompt has:
++- Research context passed as JSON (OK but not enough)
++- The example output is in English (WRONG - should be Thai)
++- The prompt doesn't force the model to describe product appearance in the image prompts
++
++Change example output format from English to Thai.
++Also fix _fallback_analysis to generate Thai content with product appearance.
++
++Key: Keep the same return JSON format keys: image_prompts (array of {id, name, prompt}), video_prompt, hook_suggestions, marketing_copy, hashtags
++But ALL string values must be in THAI language.
++
++The image_base64 IS passed to _call_mistral so the model CAN see the product - tell it to USE THAT VISUAL INFORMATION.
++
+
+# 2026-06-03 22:53:22.602646
++
++Fix the analyze_product() function in tiktok-ugc-studio/gemini_agent.py:
++
++The MAIN PROBLEM: Image prompts are in English and too generic ("Holding the product naturally in hand"). The model OUTPUTS English prompts, but Flux doesn't know what the product looks like, so it generates wrong things (headphones → keyboard).
++
++SOLUTION: Change the system_prompt in analyze_product() to:
++1. Instruct the model to OUTPUT ALL prompts in THAI LANGUAGE only (ภาษาไทยเท่านั้น)
++2. Tell the model to DESCRIBE what the product LOOKS like in each prompt - color, shape, material, packaging details (based on the image the model can see)
++3. Generate hooks based on actual product pain points from the image analysis
++4. The image is passed as image_base64 parameter - the Mistral model can see it
++
++The current system_prompt has:
++- Research context passed as JSON (OK but not enough)
++- The example output is in English (WRONG - should be Thai)
++- The prompt doesn't force the model to describe product appearance in the image prompts
++
++Change example output format from English to Thai.
++Also fix _fallback_analysis to generate Thai content with product appearance.
++
++Key: Keep the same return JSON format keys: image_prompts (array of {id, name, prompt}), video_prompt, hook_suggestions, marketing_copy, hashtags
++But ALL string values must be in THAI language.
++
++The image_base64 IS passed to _call_mistral so the model CAN see the product - tell it to USE THAT VISUAL INFORMATION.
++
+
+# 2026-06-03 22:54:11.901064
++
++Fix the UI in i2m-frontend/src/pages/ProductStudio.tsx:
++
++PROBLEMS TO FIX:
++1. BUTTONS TOO BIG — Change all action buttons (primary CTA buttons like 'วิเคราะห์สินค้า', 'สร้างรูป', 'สร้างวิดีโอ'):
++   - py-4 → py-2
++   - text-xl → text-xs 
++   - shadow-md → shadow-sm
++   - Use smaller text and padding. Buttons should be compact.
++
++2. PRESET STYLE ICONS TOO BIG / OLD-FASHIONED — The Image Presets section (around line 400-440):
++   - Remove the large Material Symbols icons (style={{ fontVariationSettings... }})
++   - Instead of big cards with icons, use compact pills/badges 
++   - Each preset should be a small pill button with just text name (like: [ถือสินค้า] [ใช้งาน] [ไลฟ์สไตล์] [Close-up] [รีวิว])
++   - Remove the gradient background on preset cards, use simple border/transparent instead
++   - No large shadow, just subtle border
++
++3. VIDEO BUTTON DUPLICATION — The 'สร้างวิดีโอ' button should:
++   - Only appear ONCE, after at least one image has been generated
++   - Remove the video button from the generation section if it's duplicated anywhere
++   - Place it as a single button below the generated images grid
++
++4. GENERAL UI — Make the overall interface more compact:
++   - Reduce spacing/margins where excessive
++   - Make headers smaller
++   - Use smaller font sizes for labels
++
++IMPORTANT: Keep all existing functionality (pill selectors, editable prompt, analysis, image generation, video generation) - just change the visual styling to be more compact and modern.
++
+
+# 2026-06-03 22:54:11.901320
++
++Fix the UI in i2m-frontend/src/pages/ProductStudio.tsx:
++
++PROBLEMS TO FIX:
++1. BUTTONS TOO BIG — Change all action buttons (primary CTA buttons like 'วิเคราะห์สินค้า', 'สร้างรูป', 'สร้างวิดีโอ'):
++   - py-4 → py-2
++   - text-xl → text-xs 
++   - shadow-md → shadow-sm
++   - Use smaller text and padding. Buttons should be compact.
++
++2. PRESET STYLE ICONS TOO BIG / OLD-FASHIONED — The Image Presets section (around line 400-440):
++   - Remove the large Material Symbols icons (style={{ fontVariationSettings... }})
++   - Instead of big cards with icons, use compact pills/badges 
++   - Each preset should be a small pill button with just text name (like: [ถือสินค้า] [ใช้งาน] [ไลฟ์สไตล์] [Close-up] [รีวิว])
++   - Remove the gradient background on preset cards, use simple border/transparent instead
++   - No large shadow, just subtle border
++
++3. VIDEO BUTTON DUPLICATION — The 'สร้างวิดีโอ' button should:
++   - Only appear ONCE, after at least one image has been generated
++   - Remove the video button from the generation section if it's duplicated anywhere
++   - Place it as a single button below the generated images grid
++
++4. GENERAL UI — Make the overall interface more compact:
++   - Reduce spacing/margins where excessive
++   - Make headers smaller
++   - Use smaller font sizes for labels
++
++IMPORTANT: Keep all existing functionality (pill selectors, editable prompt, analysis, image generation, video generation) - just change the visual styling to be more compact and modern.
++
+
+# 2026-06-03 22:56:27.253485
++
++Fix the button sizes in i2m-frontend/src/pages/ProductStudio.tsx:
++
++1. Change all main action buttons (วิเคราะห์สินค้า, สร้างรูป, สร้างวิดีโอ, etc):
++   - Replace 'py-4' with 'py-2' 
++   - Replace 'text-xl' (or similar large text) with 'text-xs'
++   - Replace 'shadow-md' with 'shadow-sm'
++   - Keep btn-press class and other styling
++
++2. Fix the Preset Style cards (around the Image Presets section):
++   - Remove the large Material Symbols icon (span with material-symbols-outlined) from each preset card
++   - Make preset cards smaller - use compact pill-like buttons instead of large cards
++   - Change 'aspect-[4/5] rounded-xl' containers to simpler pill shapes
++   - Remove the gradient overlay div
++   - Just show text name in a compact pill
++
++3. General compactification:
++   - Reduce modal sizes for image generation results
++   - Make headers/icons in the generation section smaller
++   
++DO NOT change any functionality, logic, or API calls. Only change Tailwind CSS classes for sizing/spacing/visual style.
++
+
+# 2026-06-03 22:56:27.254597
++
++Fix the button sizes in i2m-frontend/src/pages/ProductStudio.tsx:
++
++1. Change all main action buttons (วิเคราะห์สินค้า, สร้างรูป, สร้างวิดีโอ, etc):
++   - Replace 'py-4' with 'py-2' 
++   - Replace 'text-xl' (or similar large text) with 'text-xs'
++   - Replace 'shadow-md' with 'shadow-sm'
++   - Keep btn-press class and other styling
++
++2. Fix the Preset Style cards (around the Image Presets section):
++   - Remove the large Material Symbols icon (span with material-symbols-outlined) from each preset card
++   - Make preset cards smaller - use compact pill-like buttons instead of large cards
++   - Change 'aspect-[4/5] rounded-xl' containers to simpler pill shapes
++   - Remove the gradient overlay div
++   - Just show text name in a compact pill
++
++3. General compactification:
++   - Reduce modal sizes for image generation results
++   - Make headers/icons in the generation section smaller
++   
++DO NOT change any functionality, logic, or API calls. Only change Tailwind CSS classes for sizing/spacing/visual style.
++

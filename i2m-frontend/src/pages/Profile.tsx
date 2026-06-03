@@ -139,7 +139,25 @@ export default function Profile() {
 
           {/* About */}
           <div className="p-5 rounded-2xl glass-panel shadow-glass border border-outline-variant/10">
-            <h3 className="text-label-md text-on-surface uppercase tracking-widest mb-2">เกี่ยวกับ</h3>
+  
+        {/* Links */}
+        <div className="p-5 rounded-2xl glass-panel shadow-glass border border-outline-variant/10 mb-4">
+          <h3 className="text-label-md text-on-surface uppercase tracking-widest mb-4">เครื่องมือ</h3>
+          <div className="flex flex-col gap-2">
+            <button onClick={() => navigate('/payment')} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-surface-container-low hover:bg-surface-container transition-all text-body-md text-on-surface">
+              <span className="material-symbols-outlined text-secondary" style={{ fontVariationSettings: "'FILL' 1" }}>qr_code_scanner</span>
+              <span>สร้าง QR PromptPay</span>
+              <span className="material-symbols-outlined text-on-surface-variant ml-auto">chevron_right</span>
+            </button>
+            <button onClick={() => navigate('/scrape')} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-surface-container-low hover:bg-surface-container transition-all text-body-md text-on-surface">
+              <span className="material-symbols-outlined text-secondary" style={{ fontVariationSettings: "'FILL' 1" }}>travel_explore</span>
+              <span>ค้นหาสินค้าจาก URL</span>
+              <span className="material-symbols-outlined text-on-surface-variant ml-auto">chevron_right</span>
+            </button>
+          </div>
+        </div>
+
+          <h3 className="text-label-md text-on-surface uppercase tracking-widest mb-2">เกี่ยวกับ</h3>
             <p className="text-body-sm text-on-surface-variant">I2M Studio — Image to Material</p>
             <p className="text-body-sm text-on-surface-variant/60 mt-1">v1.0 • Made with Aether Design System</p>
           </div>

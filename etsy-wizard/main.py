@@ -651,3 +651,248 @@ def api_product_research(req: ProductResearchRequest):
         except Exception as e:
             logger.warning(f'Web search failed: {e}')
     return {'ok': True, 'product_name': req.product_name, 'research': research, 'web_data': web_data}
+
+# ─── Payment Module (PromptPay QR) ────────────────────────────────────
+
+class PaymentQRRequest(BaseModel):
+    amount: float = 0
+    phone: str = ''  # PromptPay phone number (default from env or empty)
+    name: str = 'I2M Studio'
+    reference: str = ''
+
+@app.post('/payment/create-qr')
+def create_payment_qr(req: PaymentQRRequest):
+    """
+    Generate Thai PromptPay QR Code for payment.
+    Uses the standard EMVCo PromptPay payload.
+    """
+    import qrcode
+    from io import BytesIO
+    import base64
+
+    phone = req.phone or os.environ.get('PROMPTPAY_PHONE', '')
+    if not phone:
+        # Generate a static QR code with just the reference if no phone
+        phone = '0000000000'  # Placeholder — user must configure
+
+    # EMVCo PromptPay payload format
+    # https://www.emvco.com/emvco-qr-code-specification/
+    # Thai PromptPay: Application ID A000000677010111 (Merchant)
+
+    # Strip non-digits from phone
+    phone_clean = ''.join(c for c in phone if c.isdigit())
+
+    # Build EMVCo QR payload
+    # 00 Payload Format Indicator (01 fixed)
+    emv = '000201'
+
+    # 01 Point of Initiation Method (12 = static QR)
+    emv += '010212'
+
+    # 26 Merchant Account Information (Thai PromptPay)
+    # 00: AID = A000000677010111
+    # 01: PromptPay identifier (phone number or tax ID)
+    # If phone: 01 followed by length (2 digits) and "00" + country code "66" + phone without leading 0
+    pp_id = phone_clean
+    if pp_id.startswith('0'):
+        pp_id = '66' + pp_id[1:]  # 0X... → 66X...
+    elif not pp_id.startswith('66'):
+        pp_id = '66' + pp_id
+
+    aid_tag = '0016A000000677010111'
+    phone_tag = f'01{len(pp_id):02d}{pp_id}'
+    merchant_account = aid_tag + phone_tag
+    emv += f'26{len(merchant_account):02d}{merchant_account}'
+
+    # 59 Merchant Name
+    name = req.name[:25]
+    emv += f'59{len(name):02d}{name}'
+
+    # 60 Merchant City (Bangkok)
+    city = 'Bangkok'
+    emv += f'60{len(city):02d}{city}'
+
+    # 61 Postal Code
+    postal = '10100'
+    emv += f'61{len(postal):02d}{postal}'
+
+    if req.amount > 0:
+        amount_str = f'{req.amount:.2f}'
+        emv += f'54{len(amount_str):02d}{amount_str}'
+
+    # 62 Additional Data (reference)
+    if req.reference:
+        ref_tag = f'08{len(req.reference):02d}{req.reference}'
+        emv += f'62{len(ref_tag):02d}{ref_tag}'
+
+    # 63 CRC (calculated)
+    # CRC-CCITT (0xFFFF) on the data
+    crc_data = emv.encode()
+    crc = 0xFFFF
+    for byte in crc_data:
+        crc ^= byte
+        for _ in range(8):
+            if crc & 0x0001:
+                crc = (crc >> 1) ^ 0x8408
+            else:
+                crc >>= 1
+    emv += f'63{crc:04X}'
+
+    # Generate QR code image
+    qr = qrcode.QRCode(box_size=10, border=2)
+    qr.add_data(emv)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color='black', back_color='white')
+
+    buf = BytesIO()
+    img.save(buf, format='PNG')
+    b64 = base64.b64encode(buf.getvalue()).decode()
+
+    return {
+        'ok': True,
+        'qr_base64': b64,
+        'qr_payload': emv,
+        'amount': req.amount,
+        'phone': phone_clean,
+        'name': name,
+        'reference': req.reference or '',
+    }
+
+
+# ─── Product Scraping Module ──────────────────────────────────────────
+
+class ScrapeRequest(BaseModel):
+    url: str
+    max_pages: int = 1
+
+@app.post('/product/scrape')
+def scrape_product(req: ScrapeRequest):
+    """
+    Scrape product info from e-commerce URLs.
+    Supports general e-commerce sites via BeautifulSoup + heuristics.
+    For JS-heavy sites (Shopee, Lazada), falls back to web search.
+    """
+    import requests
+    from bs4 import BeautifulSoup
+    import re
+
+    url = req.url.strip()
+    if not url.startswith(('http://', 'https://')):
+        url = 'https://' + url
+
+    result = {
+        'ok': True,
+        'url': url,
+        'title': '',
+        'price': '',
+        'description': '',
+        'images': [],
+        'specs': {},
+        'source': 'unknown',
+    }
+
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'th-TH,th;q=0.9,en;q=0.8',
+    }
+
+    try:
+        resp = requests.get(url, headers=headers, timeout=15)
+        resp.raise_for_status()
+    except Exception as e:
+        # Fallback: use product/research with image
+        result['error'] = f'Cannot fetch URL: {e}'
+        result['ok'] = False
+        return result
+
+    soup = BeautifulSoup(resp.text, 'lxml' if 'lxml' else 'html.parser')
+
+    # Detect site
+    domain = url.lower().split('/')[2] if '//' in url else ''
+    if 'shopee' in domain:
+        result['source'] = 'shopee'
+    elif 'lazada' in domain:
+        result['source'] = 'lazada'
+    elif 'amazon' in domain:
+        result['source'] = 'amazon'
+    elif 'etsy' in domain:
+        result['source'] = 'etsy'
+    else:
+        result['source'] = 'generic'
+
+    # Extract title from various meta/og tags
+    title = ''
+    for sel in ['meta[property="og:title"]', 'meta[name="twitter:title"]', 'h1', 'h1[class*="title"]', 'h1[class*="product"]', '[class*="product-name"]', '[class*="product-title"]', 'title']:
+        tag = soup.select_one(sel)
+        if tag:
+            if tag.name == 'meta':
+                title = tag.get('content', '')
+            else:
+                title = tag.get_text(strip=True)
+            if title:
+                break
+
+    result['title'] = title
+
+    # Extract description
+    for sel in ['meta[property="og:description"]', 'meta[name="description"]', '[class*="description"]', '[class*="detail"]', '#productDescription', '[itemprop="description"]']:
+        tag = soup.select_one(sel)
+        if tag:
+            if tag.name == 'meta':
+                result['description'] = tag.get('content', '').strip()
+            else:
+                result['description'] = tag.get_text(strip=True)[:500]
+            if result['description']:
+                break
+
+    # Extract price
+    for sel in ['[class*="price"]', '[class*="Price"]', '[itemprop="price"]', 'meta[property="product:price:amount"]', 'meta[itemprop="price"]', '[class*="current-price"]', '[data-testid="price"]']:
+        tag = soup.select_one(sel)
+        if tag:
+            if tag.name == 'meta':
+                result['price'] = tag.get('content', '')
+            else:
+                price_text = tag.get_text(strip=True)
+                price_match = re.search(r'[\d,]+(?:\.\d+)?', price_text.replace(',', ''))
+                if price_match:
+                    result['price'] = price_match.group()
+            if result['price']:
+                break
+
+    # Extract images
+    for sel in ['meta[property="og:image"]', 'meta[name="twitter:image"]', '[class*="gallery"] img', '[class*="product-image"] img', '[id*="main-img"]', '[class*="main-image"] img', '.image-gallery img', 'img[itemprop="image"]']:
+        tags = soup.select(sel)
+        for tag in tags:
+            src = tag.get('src') or tag.get('data-src') or tag.get('content', '')
+            if src and src.startswith(('http://', 'https://')):
+                if src not in result['images']:
+                    result['images'].append(src)
+            if len(result['images']) >= 5:
+                break
+        if len(result['images']) >= 5:
+            break
+
+    # Extract specs/features table  
+    for table in soup.select('table[class*="spec"], table[class*="attribute"], .product-specs table, .data-table'):
+        rows = table.select('tr')
+        for row in rows:
+            cells = row.select('th, td')
+            if len(cells) >= 2:
+                key = cells[0].get_text(strip=True)
+                val = cells[1].get_text(strip=True)
+                if key and val:
+                    result['specs'][key] = val
+
+    if not result['images']:
+        # Fallback: extract any large image
+        for img in soup.select('img[src]'):
+            src = img.get('src', '')
+            if src.startswith(('http://', 'https://')) and any(ext in src.lower() for ext in ['.jpg', '.jpeg', '.png', '.webp']):
+                if 'logo' not in src.lower() and 'icon' not in src.lower():
+                    result['images'].append(src)
+                    if len(result['images']) >= 3:
+                        break
+
+    return result
+

@@ -3,6 +3,8 @@ import { Routes, Route } from 'react-router-dom'
 import ProductStudio from './pages/ProductStudio'
 import ImageGallery from './pages/ImageGallery'
 import Profile from './pages/Profile'
+import Payment from './pages/Payment'
+import ProductScrape from './pages/ProductScrape'
 
 function App() {
   // Initialize dark mode from localStorage on every mount (persists across navigation)
@@ -17,6 +19,8 @@ function App() {
         <Route path="/gallery" element={<ImageGallery />} />
         <Route path="/profile" element={<Profile />} />
         {/* Catch-all redirect to / */}
+        <Route path="/payment" element={<Payment />} />
+        <Route path="/scrape" element={<ProductScrape />} />
         <Route path="*" element={<ProductStudio />} />
       </Routes>
     </div>

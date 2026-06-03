@@ -391,22 +391,13 @@ def generate_video_with_fallback(req: VideoRequest):
 @app.post("/product/analyze")
 def analyze_product(req: ProductAnalysisRequest):
     """Analyze product via Gemini — returns image prompts, video prompt, hooks, copy"""
-    from gemini_agent import analyze_product, analyze_product_with_image
+    from gemini_agent import analyze_product
     try:
-        if req.image_base64:
-            result = analyze_product_with_image(
-                product_name=req.product_name,
-                description=req.description,
-                image_base64=req.image_base64,
-                category=req.category or "",
-                target_audience=req.target_audience or "",
-            )
-        else:
-            result = analyze_product(
-                product_name=req.product_name,
-                description=req.description,
-                category=req.category or "",
-                target_audience=req.target_audience or "",
+        result = analyze_product(
+            product_name=req.product_name,
+            description=req.description,
+            category=req.category or "",
+            target_audience=req.target_audience or "",
                 image_url=req.image_url,
             )
         return result

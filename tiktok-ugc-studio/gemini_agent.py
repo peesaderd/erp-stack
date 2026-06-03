@@ -1,6 +1,6 @@
 """
 Product Analyzer — uses Mistral API for AI product analysis + prompt generation
-Provides image prompts, video prompts, hooks, and marketing copy.
+Supports text-only (mistral-small) and vision (pixtral via base64 images)
 """
 
 import os
@@ -11,8 +11,9 @@ from typing import Optional, Any
 
 logger = logging.getLogger("product-analyzer")
 
-MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY", "")
-MISTRAL_MODEL = "mistral-small-latest"
+MISTRAL_API_KEY = ***"MISTRAL_API_KEY", "")
+TEXT_MODEL = "mistral-small-latest"
+VISION_MODEL = "pixtral-12b-2409"
 MISTRAL_URL = "https://api.mistral.ai/v1/chat/completions"
 
 PRESET_IMAGE_STYLES = [
@@ -49,16 +50,44 @@ PRESET_IMAGE_STYLES = [
 ]
 
 
-def _call_mistral(system_prompt: str, user_prompt: str) -> str:
-    """Call Mistral API with system + user prompts"""
+def _call_mistral(
+    system_prompt: str,
+    user_text: str,
+    image_base64: Optional[str] = None,
+    model: Optional[str] = None,
+) -> str:
+    """Call Mistral API — text-only or vision (Pixtral with base64 image)
+
+    Args:
+        system_prompt: System instruction
+        user_text: User message text
+        image_base64: Optional base64-encoded image (triggers Pixtral)
+        model: Model override (default: TEXT_MODEL, VISION_MODEL if image)
+    """
     if not MISTRAL_API_KEY:
-        raise ValueError("MISTRAL_API_KEY not configured")
+        *** ValueError("MISTRAL_API_KEY not configured")
+
+    use_model = model or (VISION_MODEL if image_base64 else TEXT_MODEL)
+
+    # Build messages
+    user_content: list[dict[str, Any]] = [{"type": "text", "text": user_text}]
+    if image_base64:
+        # Ensure proper padding
+        img = image_base64.strip()
+        if ";" in img:  # data URI format
+            # Already has mime prefix — pass as-is
+            user_content.append({"type": "image_url", "image_url": {"url": img}})
+        else:
+            user_content.append({
+                "type": "image_url",
+                "image_url": {"url": f"data:image/jpeg;base64,{img}"},
+            })
 
     payload: dict[str, Any] = {
-        "model": MISTRAL_MODEL,
+        "model": use_model,
         "messages": [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
+            {"role": "user", "content": user_content},
         ],
         "temperature": 0.7,
         "max_tokens": 2048,
@@ -71,7 +100,7 @@ def _call_mistral(system_prompt: str, user_prompt: str) -> str:
             "Authorization": f"Bearer {MISTRAL_API_KEY}",
         },
         json=payload,
-        timeout=60,
+        timeout=90,
     )
 
     if resp.status_code != 200:
@@ -81,20 +110,36 @@ def _call_mistral(system_prompt: str, user_prompt: str) -> str:
     return data["choices"][0]["message"]["content"]
 
 
+def _parse_json(text: str) -> dict:
+    """Parse JSON from AI response, handling markdown fences"""
+    raw = text.strip()
+    if raw.startswith("```"):
+        raw = raw.split("\n", 1)[1] if "\n" in raw else raw[3:]
+    if raw.endswith("```"):
+        raw = raw.rsplit("```", 1)[0]
+    raw = raw.strip()
+    return json.loads(raw)
+
+
 def analyze_product(
     product_name: str,
     description: str,
     category: str = "",
     target_audience: str = "",
     image_url: Optional[str] = None,
+    image_base64: Optional[str] = None,
 ) -> dict:
-    """Analyze product via AI and return image_prompts, video_prompt, hooks, copy"""
+    """Analyze product via AI — returns image_prompts, video_prompt, hooks, copy
+
+    Uses Pixtral vision if image_base64 provided, else text-only Mistral.
+    Falls back to template analysis on any error.
+    """
 
     system_prompt = """You are a TikTok UGC marketing expert. Analyze the product and generate:
-1. **5 Image Prompts** (for Fal.ai / Stable Diffusion)
-2. **1 Video Prompt** (for WaveSpeed video generation)
-3. **3 Hook Ideas** in Thai
-4. **Marketing Copy** + hashtags
+1. **5 Image Prompts** — one for each style (holding_product, product_usage, lifestyle, close_up, review_style), describe the scene in detail for AI image generation
+2. **1 Video Prompt** — detailed scene description for WaveSpeed video generation, include movement, lighting, storytelling
+3. **3 Hook Ideas** — attention-grabbing first lines in Thai for TikTok
+4. **Marketing Copy** — short caption + hashtags in Thai
 
 Output ONLY valid JSON, no markdown fences:
 {
@@ -108,27 +153,34 @@ Output ONLY valid JSON, no markdown fences:
   "video_prompt": "...",
   "hook_suggestions": ["...", "...", "..."],
   "marketing_copy": "...",
-  "hashtags": ["...", "..."]
+  "hashtags": ["...", "...", "..."]
 }"""
 
-    user_prompt = f"""Product Name: {product_name}
+    has_vision = bool(image_base64)
+    model_hint = " (with product image for visual analysis)" if has_vision else ""
+
+    user_prompt = f"""{'วิเคราะห์จากรูปสินค้าที่แนบมาและข้อมูลต่อไปนี้' if has_vision else 'จากข้อมูลสินค้าต่อไปนี้'}:
+Product Name: {product_name}
 Description: {description}
 Category: {category or 'N/A'}
-Target Audience: {target_audience or 'General TikTok users'}
+Target Audience: {target_audience or 'General TikTok users'}{model_hint}
+
+{'สังเกตรายละเอียดจากรูป: สี รูปทรง วัสดุ แบรนด์ วิธีการใช้งาน และอื่นๆ' if has_vision else ''}
 """
-    if image_url:
+
+    if image_url and not image_base64:
         user_prompt += f"\nProduct Image URL: {image_url}"
 
     try:
-        raw = _call_mistral(system_prompt, user_prompt)
-        raw = raw.strip()
-        if raw.startswith("```"):
-            raw = raw.split("\n", 1)[1] if "\n" in raw else raw[3:]
-        if raw.endswith("```"):
-            raw = raw.rsplit("```", 1)[0]
-        raw = raw.strip()
-        result = json.loads(raw)
-        logger.info("AI analysis successful (Mistral)")
+        raw = _call_mistral(
+            system_prompt=system_prompt,
+            user_text=user_prompt,
+            image_base64=image_base64,
+        )
+        result = _parse_json(raw)
+        logger.info(
+            f"AI analysis successful ({'Pixtral vision' if has_vision else 'Mistral text'})"
+        )
         return result
     except Exception as e:
         logger.warning(f"AI failed, using fallback: {e}")
@@ -147,14 +199,22 @@ def _fallback_analysis(product_name: str, description: str, category: str) -> di
 
     return {
         "image_prompts": image_prompts,
-        "video_prompt": f"Product showcase for {product_name}: {description[:200]}. "
-                        f"Natural handheld camera, authentic lighting, "
-                        f"person holding and demonstrating product.",
+        "video_prompt": (
+            f"Product showcase for {product_name}: {description[:200]}. "
+            f"Natural handheld camera, authentic lighting, "
+            f"person holding and demonstrating product."
+        ),
         "hook_suggestions": [
             f"คุณกำลังเจอปัญหานี้อยู่ใช่ไหม?",
             f"เจอ {product_name} ดีๆ แบบนี้ต้องบอกต่อ!",
             f"ก่อนจะเสียเงินลองอันอื่น มาดูอันนี้ก่อน",
         ],
         "marketing_copy": f"Review ของ {product_name} ที่คุณต้องดู! {description[:100]}",
-        "hashtags": ["#" + product_name.replace(" ", ""), "#review", "#TikTokUGC", "#unboxing", "#recommended"],
+        "hashtags": [
+            "#" + product_name.replace(" ", ""),
+            "#review",
+            "#TikTokUGC",
+            "#unboxing",
+            "#recommended",
+        ],
     }

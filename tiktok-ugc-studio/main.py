@@ -398,8 +398,9 @@ def analyze_product(req: ProductAnalysisRequest):
             description=req.description,
             category=req.category or "",
             target_audience=req.target_audience or "",
-                image_url=req.image_url,
-            )
+            image_url=req.image_url,
+            image_base64=req.image_base64,
+        )
         return result
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))

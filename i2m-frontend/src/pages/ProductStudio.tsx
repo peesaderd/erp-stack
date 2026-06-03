@@ -97,10 +97,19 @@ export default function ProductStudio() {
         product_name: productName,
         product_desc: description,
       })
+      const newImages: string[] = []
       if (res.image_url) {
-        setGeneratedImages((prev) => [...prev, res.image_url])
+        newImages.push(res.image_url)
       } else if (res.images) {
-        setGeneratedImages((prev) => [...prev, ...res.images])
+        newImages.push(...res.images)
+      }
+      if (newImages.length > 0) {
+        setGeneratedImages((prev) => [...prev, ...newImages])
+        try {
+          const saved = JSON.parse(localStorage.getItem('i2m_image_history') || '[]')
+          newImages.forEach((url) => saved.unshift({ url, prompt: editablePrompt, created_at: new Date().toISOString(), product_name: productName }))
+          localStorage.setItem('i2m_image_history', JSON.stringify(saved.slice(0, 100)))
+        } catch {}
       }
       setStep('images_ready')
     } catch (err) {

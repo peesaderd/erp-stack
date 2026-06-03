@@ -154,3 +154,233 @@
 +i2m-frontend/src/App.tsx
 +
 +DO NOT commit any changes. Just fix the files.
+
+# 2026-06-03 15:50:59.941676
++test
+
+# 2026-06-03 15:50:59.947809
++test
+
+# 2026-06-03 15:52:29.351443
++
++We need to add 2 levels of product research before generating images:
++
++## Level 1: Structured Analysis in gemini_agent.py
++
++In /home/openhands/erp-stack/tiktok-ugc-studio/gemini_agent.py:
++
++1. Add a new RESEARCH_SYSTEM_PROMPT constant BEFORE PRESET_IMAGE_STYLES:
++
++RESEARCH_SYSTEM_PROMPT = '''You are a product research expert. Analyze the product image and information carefully.
++Output ONLY valid JSON:
++{
++  "product_type": "what kind of product (e.g. wireless microphone, skincare cream, kitchen tool)",
++  "material": "visible materials and finish",
++  "category": "marketing category",
++  "target_audience": "who would buy this, be specific",
++  "key_features": ["feature 1", "feature 2"],
++  "visual_style_recommendation": "recommended visual style",
++  "age_group": "target age range",
++  "gender": "male/female/neutral based on typical user",
++  "environment": "recommended setting/background",
++  "pain_points": ["problem 1", "problem 2"],
++  "hooking_angle": "best marketing hook angle in Thai"
++}'''
++
++2. Add a new function AFTER _parse_json:
++
++def research_product(product_name, description='', category='', image_base64=None):
++    """Step 1: Research product via AI vision analysis — returns structured dict"""
++    has_vision = bool(image_base64)
++    user_prompt = f'Analyze this product:\nProduct Name: {product_name}\nDescription: {description or "N/A"}\nCategory: {category or "N/A"}'
++    if has_vision:
++        user_prompt += '\n\n(Product image attached)'
++    try:
++        raw = _call_mistral(
++            system_prompt=RESEARCH_SYSTEM_PROMPT,
++            user_text=user_prompt,
++            image_base64=image_base64,
++        )
++        result = _parse_json(raw)
++        logger.info(f'Product research successful for "{product_name}"')
++        return result
++    except Exception as e:
++        logger.warning(f'Product research failed: {e}')
++        return {
++            'product_type': category or 'unknown',
++            'material': '',
++            'category': category or 'general',
++            'target_audience': 'General consumers',
++            'key_features': [],
++            'visual_style_recommendation': 'lifestyle',
++            'age_group': '20-35',
++            'gender': 'neutral',
++            'environment': 'modern lifestyle setting',
++            'pain_points': [],
++            'hooking_angle': f'Highlight benefits of {product_name}'
++        }
++
++3. Modify analyze_product() to:
++   - Call research_product() first with the image/product data
++   - Include research results in the system_prompt as context before the JSON format instructions
++   - Add in user_prompt: '\n\n**Research Results:**\n' + json.dumps(research, ensure_ascii=False, indent=2)
++
++## Level 2: External Research Endpoint in etsy-wizard/main.py
++
++In /home/openhands/erp-stack/etsy-wizard/main.py:
++
++1. After the .env loading hack (around line 28), also export MISTRAL_API_KEY:
++   Add: 'if "MISTRAL_API_KEY" not in os.environ and _k == "MISTRAL_API_KEY": os.environ["MISTRAL_API_KEY"] = _v'
++
++2. Add ProductResearchRequest model class:
++class ProductResearchRequest(BaseModel):
++    product_name: str = ''
++    product_image_base64: str = ''
++    description: str = ''
++    category: str = ''
++
++3. Add POST /product/research endpoint:
++@app.post('/product/research')
++def api_product_research(req: ProductResearchRequest):
++    from gemini_agent import research_product
++    # Step 1: AI Vision Analysis
++    research = research_product(
++        product_name=req.product_name or 'product',
++        description=req.description,
++        category=req.category,
++        image_base64=req.product_image_base64 or None,
++    )
++    # Step 2: Web Search
++    web_data = {'specs': [], 'reviews': [], 'prices': []}
++    if req.product_name:
++        try:
++            from duckduckgo_search import DDGS
++            with DDGS() as ddgs:
++                specs = list(ddgs.text(f'{req.product_name} specifications', max_results=3))
++                web_data['specs'] = [r.get('body','')[:500] for r in specs]
++                reviews = list(ddgs.text(f'{req.product_name} review', max_results=3))
++                web_data['reviews'] = [r.get('body','')[:500] for r in reviews]
++                prices = list(ddgs.text(f'{req.product_name} price', max_results=3))
++                web_data['prices'] = [r.get('title','')[:200] for r in prices]
++        except Exception as e:
++            logger.warning(f'Web search failed: {e}')
++    return {'ok': True, 'product_name': req.product_name, 'research': research, 'web_data': web_data}
++
++4. Add import for sys.path so gemini_agent can be found:
++   Add 'import sys' at top
++   Add after .env loading: 'sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'tiktok-ugc-studio'))' 
++
++IMPORTANT: Make ONLY the specific changes described above. Do not modify any other lines.
++
+
+# 2026-06-03 15:52:29.356725
++
++We need to add 2 levels of product research before generating images:
++
++## Level 1: Structured Analysis in gemini_agent.py
++
++In /home/openhands/erp-stack/tiktok-ugc-studio/gemini_agent.py:
++
++1. Add a new RESEARCH_SYSTEM_PROMPT constant BEFORE PRESET_IMAGE_STYLES:
++
++RESEARCH_SYSTEM_PROMPT = '''You are a product research expert. Analyze the product image and information carefully.
++Output ONLY valid JSON:
++{
++  "product_type": "what kind of product (e.g. wireless microphone, skincare cream, kitchen tool)",
++  "material": "visible materials and finish",
++  "category": "marketing category",
++  "target_audience": "who would buy this, be specific",
++  "key_features": ["feature 1", "feature 2"],
++  "visual_style_recommendation": "recommended visual style",
++  "age_group": "target age range",
++  "gender": "male/female/neutral based on typical user",
++  "environment": "recommended setting/background",
++  "pain_points": ["problem 1", "problem 2"],
++  "hooking_angle": "best marketing hook angle in Thai"
++}'''
++
++2. Add a new function AFTER _parse_json:
++
++def research_product(product_name, description='', category='', image_base64=None):
++    """Step 1: Research product via AI vision analysis — returns structured dict"""
++    has_vision = bool(image_base64)
++    user_prompt = f'Analyze this product:\nProduct Name: {product_name}\nDescription: {description or "N/A"}\nCategory: {category or "N/A"}'
++    if has_vision:
++        user_prompt += '\n\n(Product image attached)'
++    try:
++        raw = _call_mistral(
++            system_prompt=RESEARCH_SYSTEM_PROMPT,
++            user_text=user_prompt,
++            image_base64=image_base64,
++        )
++        result = _parse_json(raw)
++        logger.info(f'Product research successful for "{product_name}"')
++        return result
++    except Exception as e:
++        logger.warning(f'Product research failed: {e}')
++        return {
++            'product_type': category or 'unknown',
++            'material': '',
++            'category': category or 'general',
++            'target_audience': 'General consumers',
++            'key_features': [],
++            'visual_style_recommendation': 'lifestyle',
++            'age_group': '20-35',
++            'gender': 'neutral',
++            'environment': 'modern lifestyle setting',
++            'pain_points': [],
++            'hooking_angle': f'Highlight benefits of {product_name}'
++        }
++
++3. Modify analyze_product() to:
++   - Call research_product() first with the image/product data
++   - Include research results in the system_prompt as context before the JSON format instructions
++   - Add in user_prompt: '\n\n**Research Results:**\n' + json.dumps(research, ensure_ascii=False, indent=2)
++
++## Level 2: External Research Endpoint in etsy-wizard/main.py
++
++In /home/openhands/erp-stack/etsy-wizard/main.py:
++
++1. After the .env loading hack (around line 28), also export MISTRAL_API_KEY:
++   Add: 'if "MISTRAL_API_KEY" not in os.environ and _k == "MISTRAL_API_KEY": os.environ["MISTRAL_API_KEY"] = _v'
++
++2. Add ProductResearchRequest model class:
++class ProductResearchRequest(BaseModel):
++    product_name: str = ''
++    product_image_base64: str = ''
++    description: str = ''
++    category: str = ''
++
++3. Add POST /product/research endpoint:
++@app.post('/product/research')
++def api_product_research(req: ProductResearchRequest):
++    from gemini_agent import research_product
++    # Step 1: AI Vision Analysis
++    research = research_product(
++        product_name=req.product_name or 'product',
++        description=req.description,
++        category=req.category,
++        image_base64=req.product_image_base64 or None,
++    )
++    # Step 2: Web Search
++    web_data = {'specs': [], 'reviews': [], 'prices': []}
++    if req.product_name:
++        try:
++            from duckduckgo_search import DDGS
++            with DDGS() as ddgs:
++                specs = list(ddgs.text(f'{req.product_name} specifications', max_results=3))
++                web_data['specs'] = [r.get('body','')[:500] for r in specs]
++                reviews = list(ddgs.text(f'{req.product_name} review', max_results=3))
++                web_data['reviews'] = [r.get('body','')[:500] for r in reviews]
++                prices = list(ddgs.text(f'{req.product_name} price', max_results=3))
++                web_data['prices'] = [r.get('title','')[:200] for r in prices]
++        except Exception as e:
++            logger.warning(f'Web search failed: {e}')
++    return {'ok': True, 'product_name': req.product_name, 'research': research, 'web_data': web_data}
++
++4. Add import for sys.path so gemini_agent can be found:
++   Add 'import sys' at top
++   Add after .env loading: 'sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'tiktok-ugc-studio'))' 
++
++IMPORTANT: Make ONLY the specific changes described above. Do not modify any other lines.
++

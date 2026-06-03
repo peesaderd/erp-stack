@@ -32,22 +32,27 @@ app = FastAPI(
     description="AI Shop Setup Wizard + Rules Validator — Mini MVP",
 )
 
-# HACK: Load FAL_KEY from tiktok-ugc-studio .env since etsy-wizard doesn't have its own
+# HACK: Load keys from tiktok-ugc-studio .env since etsy-wizard doesn't have its own
 _env_file = os.path.join(os.path.dirname(__file__), '..', 'tiktok-ugc-studio', '.env')
 _fal_from_env = None
 if os.path.exists(_env_file):
-    with open(_env_file) as _f:
-        for _line in _f:
-            _line = _line.strip()
-            if _line.startswith('FAL_KEY='):
-                _k, _v = _line.split('=', 1)
-                if 'FAL_KEY' not in os.environ:
-                    os.environ['FAL_KEY'] = _v
-                    _fal_from_env = _v
-            if "MISTRAL_API_KEY" not in os.environ and _k == "MISTRAL_API_KEY":
-                os.environ["MISTRAL_API_KEY"] = _v
+    _env_content = open(_env_file).read()
+    for _line in _env_content.split('\n'):
+        _line = _line.strip()
+        if _line.startswith('FAL_KEY='):
+            _k, _v = _line.split('=', 1)
+            if 'FAL_KEY' not in os.environ:
+                os.environ['FAL_KEY'] = _v
+                _fal_from_env = _v
+        elif _line.startswith('MISTRAL_API_KEY='):
+            _k, _v = _line.split('=', 1)
+            if 'MISTRAL_API_KEY' not in os.environ:
+                os.environ['MISTRAL_API_KEY'] = _v
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'tiktok-ugc-studio'))
+# Add tiktok-ugc-studio to sys.path so we can import gemini_agent
+_ugc_path = os.path.join(os.path.dirname(__file__), '..', 'tiktok-ugc-studio')
+if _ugc_path not in sys.path:
+    sys.path.append(_ugc_path)  # append not insert(0) to avoid shadowing local main.py
 
 app.add_middleware(
     CORSMiddleware,

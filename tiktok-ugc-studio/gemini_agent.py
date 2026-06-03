@@ -164,7 +164,7 @@ def analyze_product(
 {json.dumps(research, ensure_ascii=False, indent=2)}
 
 Output ONLY valid JSON, no markdown fences:
-{
+{{
   "image_prompts": [
     {{"id": "holding_product", "name": "ถือสินค้า", "prompt": "..."}},
     {{"id": "product_usage", "name": "ใช้งานสินค้า", "prompt": "..."}},
@@ -176,7 +176,7 @@ Output ONLY valid JSON, no markdown fences:
   "hook_suggestions": ["...", "...", "..."],
   "marketing_copy": "...",
   "hashtags": ["...", "...", "..."]
-}"""
+}}"""
 
     has_vision = bool(image_base64)
     model_hint = " (with product image for visual analysis)" if has_vision else ""

@@ -233,6 +233,16 @@ export default function ProductStudio() {
 
   return (
     <>
+      {/* Mobile Header - Aether style */}
+      <header className="md:hidden bg-surface/70 backdrop-blur-xl fixed top-0 w-full z-50 border-b border-outline-variant/10 shadow-sm shadow-secondary/5 flex justify-between items-center px-margin-mobile h-16">
+        <button className="text-primary active:scale-95 duration-200 hover:bg-surface-variant/50 transition-colors p-2 rounded-full flex items-center justify-center">
+          <span className="material-symbols-outlined">menu</span>
+        </button>
+        <h1 className="font-display text-display-lg-mobile tracking-tighter text-primary">I2M STUDIO</h1>
+        <div className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-secondary/30 to-secondary/10 border border-secondary/20 flex items-center justify-center">
+          <span className="material-symbols-outlined text-[18px] text-secondary">person</span>
+        </div>
+      </header>
       <main className="flex-1 min-h-screen pt-16 pb-28 md:pt-0 md:pb-0 relative">
         <div className="max-w-container-max mx-auto p-margin-mobile md:p-margin-desktop">
 

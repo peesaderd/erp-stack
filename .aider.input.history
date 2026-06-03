@@ -40,3 +40,27 @@
 
 # 2026-05-21 06:17:09.397671
 +hello
+
+# 2026-06-03 13:50:56.569893
++Review the current I2M Frontend implementation for bugs and design consistency with Google Stitch Aether. Check: design match, state persistence, API bugs, video polling. List all issues found.
+
+# 2026-06-03 13:50:56.574958
++Review the current I2M Frontend implementation for bugs and design consistency with Google Stitch Aether. Check: design match, state persistence, API bugs, video polling. List all issues found.
+
+# 2026-06-03 13:51:16.629722
++Review the current I2M Frontend implementation. Check for:
++1. Design consistency with Google Stitch Aether (#4b41e1, Hanken Grotesk, glass-panel)
++2. State persistence bugs in ProductStudio.tsx (localStorage)
++3. API field name mismatches between frontend api.ts and backend
++4. Video polling logic
++5. Any remaining bugs in the 6 files I provided
++List ALL issues found with file/line references.
+
+# 2026-06-03 13:51:16.631606
++Review the current I2M Frontend implementation. Check for:
++1. Design consistency with Google Stitch Aether (#4b41e1, Hanken Grotesk, glass-panel)
++2. State persistence bugs in ProductStudio.tsx (localStorage)
++3. API field name mismatches between frontend api.ts and backend
++4. Video polling logic
++5. Any remaining bugs in the 6 files I provided
++List ALL issues found with file/line references.

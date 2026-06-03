@@ -46,6 +46,7 @@ class ScriptRequest(BaseModel):
 class UGCRequest(BaseModel):
     style: str = "ugc_review"  # holding_product, product_usage, ugc_review
     product_name: str
+    product_desc: str = ""
     gender: str = "female"
     age: str = "25-35"
     scene: str = "home"
@@ -93,6 +94,15 @@ class AffiliateConfig(BaseModel):
 class AffiliateScriptRequest(ScriptRequest):
     """Script generation with affiliate links"""
     platforms: list[str] = []  # e.g. ["shopee", "lazada", "facebook", "tiktok"]
+
+
+class ProductAnalysisRequest(BaseModel):
+    product_name: str
+    description: str
+    category: Optional[str] = ""
+    target_audience: Optional[str] = ""
+    image_url: Optional[str] = None
+    image_base64: Optional[str] = None  # base64-encoded image for vision
 
 
 # ─── Health ────────────────────────────────────────────────────────────────
@@ -371,6 +381,34 @@ def generate_video_with_fallback(req: VideoRequest):
             aspect_ratio=req.aspect_ratio,
             image_url=req.image_url,
         )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+# ─── Product Analysis ───────────────────────────────────────────────────────
+
+@app.post("/product/analyze")
+def analyze_product(req: ProductAnalysisRequest):
+    """Analyze product via Gemini — returns image prompts, video prompt, hooks, copy"""
+    from gemini_agent import analyze_product, analyze_product_with_image
+    try:
+        if req.image_base64:
+            result = analyze_product_with_image(
+                product_name=req.product_name,
+                description=req.description,
+                image_base64=req.image_base64,
+                category=req.category or "",
+                target_audience=req.target_audience or "",
+            )
+        else:
+            result = analyze_product(
+                product_name=req.product_name,
+                description=req.description,
+                category=req.category or "",
+                target_audience=req.target_audience or "",
+                image_url=req.image_url,
+            )
         return result
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))

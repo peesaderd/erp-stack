@@ -15,8 +15,8 @@ export default function Scripts() {
     setResult('')
     try {
       const data = await (mode === 'ugc'
-        ? api.ugc.generateUgcScript({ productName, productDesc, style: scriptStyle })
-        : api.ugc.generateScript({ productName, productDesc }))
+        ? api.generateUgcScript({ productName, productDesc, style: scriptStyle })
+        : api.generateReviewScript({ productName, productDesc }))
       setResult(data.script || data.content || JSON.stringify(data, null, 2))
     } catch (e: any) {
       setResult(`Error: ${e.message}`)

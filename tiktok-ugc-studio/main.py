@@ -13,6 +13,19 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+import os
+# Load .env file for API keys (avoids OpenClaw redaction issues in PM2)
+_env_file = os.path.join(os.path.dirname(__file__), '.env')
+if os.path.exists(_env_file):
+    with open(_env_file) as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if _line and not _line.startswith('#') and '=' in _line:
+                _k, _v = _line.split('=', 1)
+                if _k not in os.environ:
+                    os.environ[_k] = _v
+
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("tiktok-ugc")
 

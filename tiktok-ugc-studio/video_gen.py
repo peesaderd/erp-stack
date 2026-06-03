@@ -246,7 +246,9 @@ def _ws_generate(config, prompt, model, duration, aspect_ratio, image_url, face_
         "prompt": prompt, "width": 1080, "height": 1920,
     }
     if duration:
-        payload["duration"] = duration
+        # WaveSpeed shorts only allow 5, 10, or 15 seconds
+        allowed = [5, 10, 15]
+        payload["duration"] = min(allowed, key=lambda x: abs(x - duration))
     if aspect_ratio == "16:9":
         payload["width"], payload["height"] = 1920, 1080
     elif aspect_ratio == "1:1":

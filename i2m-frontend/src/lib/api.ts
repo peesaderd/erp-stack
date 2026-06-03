@@ -85,6 +85,7 @@ export const api = {
     provider?: string
     duration?: number
     aspectRatio?: string
+    imageUrl?: string
   }) =>
     (await fetch(`${UGC_API}/video/queue`, {
       method: 'POST',
@@ -94,6 +95,7 @@ export const api = {
         ...(data.provider ? { provider: data.provider } : {}),
         ...(data.duration ? { duration: data.duration } : {}),
         ...(data.aspectRatio ? { aspect_ratio: data.aspectRatio } : {}),
+        ...(data.imageUrl ? { image_url: data.imageUrl } : {}),
       }),
     })).json(),
 

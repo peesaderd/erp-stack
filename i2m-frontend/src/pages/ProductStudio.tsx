@@ -129,8 +129,9 @@ export default function ProductStudio() {
       const res = await api.generateVideo({
         prompt: videoPrompt,
         provider: 'wavespeed',
-        duration: 8,
+        duration: 5,
         aspectRatio: '9:16',
+        ...(selectedImage ? { imageUrl: selectedImage } : {}),
       })
       setVideoTaskId(res.task_id)
       setVideoStatus('อยู่ในคิว...')
@@ -400,34 +401,41 @@ export default function ProductStudio() {
                 />
               </div>
 
-              {/* Select Image */}
+              {/* Select Image — required */}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">เลือกรูปอ้างอิง (image-to-video)</label>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => setSelectedImage(null)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors
-                      ${!selectedImage ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}
-                  >
-                    Text-to-Video (ไม่มีรูป)
-                  </button>
-                  {generatedImages.map((img, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setSelectedImage(img)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors
-                        ${selectedImage === img ? 'ring-2 ring-blue-500 bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-600'}`}
-                    >
-                      รูปที่ {i + 1}
-                    </button>
-                  ))}
-                </div>
+                {generatedImages.length === 0 ? (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3 text-sm text-yellow-800">
+                    ⚠️ กรุณาสร้างรูปก่อน ถึงจะสร้างวีดีโอได้
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {generatedImages.map((img, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setSelectedImage(img)}
+                        className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors
+                          ${selectedImage === img
+                            ? 'ring-2 ring-blue-500 bg-blue-50 text-blue-700 shadow-sm'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                      >
+                        รูปที่ {i + 1}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {selectedImage && (
+                  <div className="mt-3">
+                    <img src={selectedImage} alt="Selected" className="w-24 h-24 object-cover rounded-xl border-2 border-blue-500" />
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center gap-3">
                 <button
                   onClick={handleGenerateVideo}
-                  disabled={videoLoading || !videoPrompt.trim()}
+                  disabled={videoLoading || !videoPrompt.trim() || !selectedImage}
                   className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-medium text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
                   {videoLoading ? 'กำลังสร้างวีดีโอ...' : '🎥 สร้างวีดีโอ'}

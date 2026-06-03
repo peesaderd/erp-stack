@@ -412,7 +412,7 @@ export default function ProductStudio() {
                       <button
                         key={ps.id}
                         onClick={() => setSelectedPreset(ps.id)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                        className={`px-2 py-1 rounded-full text-[10px] font-medium transition-all ${
                           selectedPreset === ps.id
                             ? 'bg-secondary text-white shadow-sm'
                             : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'

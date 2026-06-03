@@ -1,460 +1,476 @@
-import { useState, useRef } from 'react'
-import { api } from '../lib/api'
-
-interface ImagePrompt {
-  id: string
-  name: string
-  prompt: string
-}
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
+import api from '../lib/api'
 
 interface AnalysisResult {
-  image_prompts: ImagePrompt[]
+  image_prompts: Record<string, string>
   video_prompt: string
-  hook_suggestions: string[]
-  marketing_copy: string
-  hashtags: string[]
+  hooks: string[]
+  copy: string
+  seo_keywords: string[]
+  product_name: string
+  product_desc: string
 }
 
-type WorkflowStep = 'input' | 'analyzed' | 'images_ready' | 'video_ready'
+interface Generation {
+  id: string
+  type: 'image' | 'video'
+  url: string
+  prompt: string
+  style?: string
+  createdAt: number
+}
+
+const presetStyles = [
+  { id: 'holding_product',   label: '🖐️ ถือสินค้า',   desc: 'ถือสินค้าในมือธรรมชาติ' },
+  { id: 'product_usage',     label: '📱 สาธิตการใช้',  desc: 'กำลังใช้งานจริง' },
+  { id: 'lifestyle',         label: '🌿 ไลฟ์สไตล์',    desc: 'ในบรรยากาศการใช้ชีวิต' },
+  { id: 'close_up',          label: '🔍 ใกล้ชิด',       desc: 'มุมชัด Detail สินค้า' },
+  { id: 'review_style',      label: '🎬 Review',        desc: 'สไตล์รีวิว' },
+]
 
 export default function ProductStudio() {
-  const [productName, setProductName] = useState('')
-  const [description, setDescription] = useState('')
-  const [category, setCategory] = useState('')
-  const [targetAudience, setTargetAudience] = useState('')
-  const [productImage, setProductImage] = useState<string | null>(null)
+  const navigate = useNavigate()
+  const location = useLocation()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const [step, setStep] = useState<WorkflowStep>('input')
-  const [loading, setLoading] = useState(false)
+  const [image, setImage] = useState<string | null>(null)
+  const [file, setFile] = useState<File | null>(null)
+  const [productName, setProductName] = useState('')
+  const [productDesc, setProductDesc] = useState('')
+  const [analyzing, setAnalyzing] = useState(false)
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null)
-
-  // Image generation states
-  const [selectedPreset, setSelectedPreset] = useState<string>('holding_product')
-  const [editablePrompt, setEditablePrompt] = useState('')
-  const [generatedImages, setGeneratedImages] = useState<string[]>([])
-  const [genLoading, setGenLoading] = useState(false)
-
-  // Video states
-  const [videoPrompt, setVideoPrompt] = useState('')
-  const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(null)
+  const [genImage, setGenImage] = useState(false)
+  const [genVideo, setGenVideo] = useState(false)
   const [videoTaskId, setVideoTaskId] = useState<string | null>(null)
-  const [videoStatus, setVideoStatus] = useState<string>('')
-  const [videoUrl, setVideoUrl] = useState<string | null>(null)
-  const [videoLoading, setVideoLoading] = useState(false)
+  const [videoStatus, setVideoStatus] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
-  // Handle image upload
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  // Generations stored in state + localStorage
+  const [generations, setGenerations] = useState<Generation[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('i2m_generations') || '[]')
+    } catch {
+      return []
+    }
+  })
+
+  useEffect(() => {
+    localStorage.setItem('i2m_generations', JSON.stringify(generations))
+  }, [generations])
+
+  // Poll video status
+  useEffect(() => {
+    if (!videoTaskId || videoStatus === 'completed' || videoStatus === 'failed') return
+    const interval = setInterval(async () => {
+      try {
+        const res = await api.getVideoResult(videoTaskId)
+        const status = res.status || res.data?.status
+        setVideoStatus(status)
+        if (status === 'completed' && res.url) {
+          setGenerations(prev => [...prev, {
+            id: Date.now().toString(),
+            type: 'video',
+            url: res.url,
+            prompt: '',
+            createdAt: Date.now(),
+          }])
+          setGenVideo(false)
+          setVideoTaskId(null)
+        } else if (status === 'failed') {
+          setError('Video generation failed')
+          setGenVideo(false)
+          setVideoTaskId(null)
+        }
+      } catch {
+        setVideoStatus('failed')
+        setGenVideo(false)
+        setVideoTaskId(null)
+      }
+    }, 3000)
+    return () => clearInterval(interval)
+  }, [videoTaskId, videoStatus])
+
+  const handleUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]
+    if (!f) return
+    setFile(f)
+    setError(null)
+    setAnalysis(null)
+    setSelectedPreset(null)
+
     const reader = new FileReader()
-    reader.onload = (ev) => setProductImage(ev.target?.result as string)
-    reader.readAsDataURL(file)
-  }
+    reader.onload = (ev) => setImage(ev.target?.result as string)
+    reader.readAsDataURL(f)
+  }, [])
 
-  // Analyze product
-  const handleAnalyze = async () => {
-    if (!productName.trim() || !description.trim()) return
-    setLoading(true)
+  const handleAnalyze = useCallback(async () => {
+    if (!file || !productName.trim()) {
+      setError('Please upload a photo and enter product name')
+      return
+    }
+    setAnalyzing(true)
+    setError(null)
     try {
-      const res = await api.analyzeProduct({
-        product_name: productName,
-        description,
-        category,
-        target_audience: targetAudience,
-      })
-      setAnalysis(res)
-      if (res.image_prompts?.length > 0) {
-        setSelectedPreset(res.image_prompts[0].id)
-        setEditablePrompt(res.image_prompts[0].prompt)
-      }
-      if (res.video_prompt) {
-        setVideoPrompt(res.video_prompt)
-      }
-      setStep('analyzed')
-    } catch (err) {
-      console.error('Analyze failed:', err)
-      alert('วิเคราะห์สินค้าล้มเหลว ลองใหม่อีกครั้ง')
+      const result = await api.analyzeProduct(file, productName, productDesc)
+      setAnalysis(result)
+    } catch (err: any) {
+      setError(err?.message || 'Analysis failed')
     } finally {
-      setLoading(false)
+      setAnalyzing(false)
     }
-  }
+  }, [file, productName, productDesc])
 
-  // Preset change
-  const handlePresetChange = (presetId: string) => {
-    setSelectedPreset(presetId)
-    const preset = analysis?.image_prompts?.find((p) => p.id === presetId)
-    if (preset) setEditablePrompt(preset.prompt)
-  }
-
-  // Generate images
-  const handleGenerateImages = async () => {
-    if (!editablePrompt.trim()) return
-    setGenLoading(true)
+  const handleGenerateImage = useCallback(async () => {
+    if (!analysis || !selectedPreset) return
+    setGenImage(true)
+    setError(null)
     try {
-      const res = await api.generateImage({
-        prompt: editablePrompt,
-        product_name: productName,
-        product_desc: description,
-      })
-      const newImages: string[] = []
-      if (res.image_url) {
-        newImages.push(res.image_url)
-      } else if (res.images) {
-        newImages.push(...res.images)
+      const prompt = analysis.image_prompts[selectedPreset] || analysis.image_prompts.default
+      const result = await api.generateImage(prompt, productName)
+      if (result.url) {
+        setGenerations(prev => [...prev, {
+          id: Date.now().toString(),
+          type: 'image',
+          url: result.url,
+          prompt,
+          style: selectedPreset,
+          createdAt: Date.now(),
+        }])
       }
-      if (newImages.length > 0) {
-        setGeneratedImages((prev) => [...prev, ...newImages])
-        try {
-          const saved = JSON.parse(localStorage.getItem('i2m_image_history') || '[]')
-          newImages.forEach((url) => saved.unshift({ url, prompt: editablePrompt, created_at: new Date().toISOString(), product_name: productName }))
-          localStorage.setItem('i2m_image_history', JSON.stringify(saved.slice(0, 100)))
-        } catch {}
-      }
-      setStep('images_ready')
-    } catch (err) {
-      console.error('Image gen failed:', err)
-      alert('สร้างรูปไม่สำเร็จ')
+    } catch (err: any) {
+      setError(err?.message || 'Image generation failed')
     } finally {
-      setGenLoading(false)
+      setGenImage(false)
     }
-  }
+  }, [analysis, selectedPreset, productName])
 
-  // Generate video
-  const handleGenerateVideo = async () => {
-    if (!videoPrompt.trim()) return
-    setVideoLoading(true)
-    setVideoStatus('กำลังส่งงาน...')
+  const handleGenerateVideo = useCallback(async () => {
+    if (!analysis || !image) return
+    setGenVideo(true)
+    setError(null)
+    setVideoStatus('queued')
     try {
-      const res = await api.generateVideo({
-        prompt: videoPrompt,
-        provider: 'wavespeed',
-        duration: 5,
-        aspectRatio: '9:16',
-        ...(selectedImage ? { imageUrl: selectedImage } : {}),
-      })
-      setVideoTaskId(res.task_id)
-      setVideoStatus('อยู่ในคิว...')
-
-      // Poll for completion
-      const pollInterval = setInterval(async () => {
-        try {
-          const statusRes = await api.getVideoStatus(res.task_id)
-          if (statusRes.status === 'completed') {
-            clearInterval(pollInterval)
-            setVideoStatus('เสร็จแล้ว!')
-            // Try to extract the actual video URL from the result
-            try {
-              const innerResult = JSON.parse(statusRes.result?.replace(/'/g, '"') || '{}')
-              if (innerResult.task_id) {
-                // Try checking the actual WaveSpeed task
-                const wsStatus = await api.getVideoStatus(innerResult.task_id)
-                if (wsStatus.video_url) {
-                  setVideoUrl(wsStatus.video_url)
-                }
-              }
-            } catch { /* ignore */ }
-            setVideoLoading(false)
-          } else if (statusRes.status === 'failed') {
-            clearInterval(pollInterval)
-            setVideoStatus('ล้มเหลว')
-            setVideoLoading(false)
-          } else {
-            setVideoStatus('กำลังสร้างวีดีโอ...')
-          }
-        } catch { /* ignore */ }
-      }, 5000)
-    } catch (err) {
-      console.error('Video gen failed:', err)
-      setVideoStatus('เกิดข้อผิดพลาด')
-      setVideoLoading(false)
+      const result = await api.generateVideo(analysis.video_prompt, image, productName)
+      setVideoTaskId(result.taskId || result.id)
+    } catch (err: any) {
+      setError(err?.message || 'Video generation failed')
+      setGenVideo(false)
     }
-  }
+  }, [analysis, image, productName])
 
-  // Get current preset details
-  const currentPreset = analysis?.image_prompts?.find((p) => p.id === selectedPreset)
+  const currentTab = location.pathname === '/' ? 'studio' : location.pathname === '/gallery' ? 'gallery' : 'profile'
 
   return (
-    <div className="min-h-[calc(100vh-56px)] bg-white">
-      <div className="max-w-4xl mx-auto px-4 py-6">
+    <>
+      {/* Main Content Area */}
+      <main className="flex-1 min-h-screen pt-16 pb-28 md:pt-0 md:pb-0 relative">
+        <div className="max-w-container-max mx-auto p-margin-mobile md:p-margin-desktop">
+          
+          {/* Page Header */}
+          <header className="mb-6">
+            <h1 className="text-display-sm md:text-display-md text-primary tracking-tight">
+              {!analysis ? 'I2M Studio' : analysis.product_name}
+            </h1>
+            <p className="text-body-lg text-on-surface-variant mt-1">
+              {!analysis ? 'อัปโหลดสินค้า → AI วิเคราะห์ → สร้างรูป + วิดีโอ' : 'พร้อมสร้างคอนเทนต์'}
+            </p>
+          </header>
 
-        {/* ── Header ── */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-semibold text-gray-900">Product Studio</h1>
-          <p className="text-sm text-gray-500 mt-1">สร้างคอนเทนต์สินค้าสำหรับ TikTok</p>
-        </div>
-
-        {/* ── Step Progress ── */}
-        <div className="flex items-center gap-2 mb-8 text-sm">
-          {(['input', 'analyzed', 'images_ready', 'video_ready'] as const).map((s, i) => {
-            const stepIndex = ['input', 'analyzed', 'images_ready', 'video_ready'].indexOf(step)
-            const isActive = stepIndex >= i
-            return (
-              <div key={s} className="flex items-center gap-2">
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium
-                  ${isActive ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
-                  {isActive ? '✓' : i + 1}
-                </div>
-                <span className={`${isActive ? 'text-gray-900 font-medium' : 'text-gray-400'}`}>
-                  {['สินค้า', 'AI วิเคราะห์', 'รูปภาพ', 'วีดีโอ'][i]}
-                </span>
-                {i < 3 && <div className={`w-8 h-px ${isActive ? 'bg-blue-600' : 'bg-gray-200'}`} />}
+          {/* Error Banner */}
+          {error && (
+            <div className="mb-4 px-4 py-3 rounded-xl bg-error-container/40 border-l-4 border-error text-on-error-container text-body-sm">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[18px]">error</span>
+                <span>{error}</span>
+                <button onClick={() => setError(null)} className="ml-auto text-on-error-container/60 hover:text-on-error-container">
+                  <span className="material-symbols-outlined text-[18px]">close</span>
+                </button>
               </div>
-            )
-          })}
-        </div>
+            </div>
+          )}
 
-        {/* ── Product Input Section ── */}
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">ข้อมูลสินค้า</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Left: Image Upload */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">รูปสินค้า</label>
+          {!analysis ? (
+            /* Upload + Analyze Step */
+            <div className="flex flex-col gap-6 max-w-2xl">
+              {/* Upload Zone */}
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-gray-300 rounded-xl h-48 flex items-center justify-center cursor-pointer hover:border-blue-400 transition-colors bg-gray-50"
+                className={`relative rounded-2xl border-2 border-dashed overflow-hidden cursor-pointer transition-all duration-300 ${
+                  image ? 'border-secondary/30' : 'border-outline-variant/50 hover:border-secondary/40 hover:shadow-glass'
+                }`}
               >
-                {productImage ? (
-                  <img src={productImage} alt="Product" className="h-full w-full object-contain p-2" />
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleUpload}
+                  className="hidden"
+                />
+                {image ? (
+                  <div className="relative">
+                    <img src={image} alt="Product" className="w-full max-h-96 object-contain p-2" />
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setImage(null); setFile(null) }}
+                      className="absolute top-3 right-3 w-8 h-8 rounded-full bg-surface/80 backdrop-blur flex items-center justify-center shadow hover:bg-surface transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">close</span>
+                    </button>
+                  </div>
                 ) : (
-                  <div className="text-center text-gray-400">
-                    <svg className="w-10 h-10 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <span className="text-sm">แตะเพื่ออัปโหลดรูป</span>
+                  <div className="flex flex-col items-center justify-center py-16 gap-3">
+                    <div className="w-16 h-16 rounded-2xl bg-secondary/10 flex items-center justify-center">
+                      <span className="material-symbols-outlined text-[32px] text-secondary" style={{ fontVariationSettings: "'FILL' 1" }}>add_photo_alternate</span>
+                    </div>
+                    <p className="text-body-md text-on-surface-variant">แตะเพื่ออัปโหลดรูปสินค้า</p>
+                    <p className="text-label-sm text-on-surface-variant/60">JPG, PNG, WEBP</p>
                   </div>
                 )}
               </div>
-              <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-            </div>
 
-            {/* Right: Product Details */}
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">ชื่อสินค้า *</label>
-                <input
-                  type="text"
-                  value={productName}
-                  onChange={(e) => setProductName(e.target.value)}
-                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  placeholder="เช่น Wireless Earbuds Pro"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">รายละเอียดสินค้า *</label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={3}
-                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
-                  placeholder="รายละเอียดสินค้า จุดเด่น คุณสมบัติ"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
+              {/* Product Info */}
+              <div className="flex flex-col gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">หมวดหมู่</label>
+                  <label className="text-label-md text-on-surface uppercase tracking-widest mb-2 block">ชื่อสินค้า</label>
                   <input
                     type="text"
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                    placeholder="เช่น อิเล็กทรอนิกส์"
+                    value={productName}
+                    onChange={(e) => setProductName(e.target.value)}
+                    placeholder="เช่น ครีมกันแดด SPF50"
+                    className="w-full px-4 py-3 rounded-xl bg-surface-container-low border border-outline-variant/30 text-body-md text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-2 focus:ring-secondary/40 transition-all glass-panel"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">กลุ่มเป้าหมาย</label>
-                  <input
-                    type="text"
-                    value={targetAudience}
-                    onChange={(e) => setTargetAudience(e.target.value)}
-                    className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                    placeholder="เช่น วัยทำงาน 25-40"
+                  <label className="text-label-md text-on-surface uppercase tracking-widest mb-2 block">รายละเอียด (optional)</label>
+                  <textarea
+                    value={productDesc}
+                    onChange={(e) => setProductDesc(e.target.value)}
+                    placeholder="รายละเอียดเพิ่มเติม เช่น คุณสมบัติเด่น กลุ่มเป้าหมาย..."
+                    rows={3}
+                    className="w-full px-4 py-3 rounded-xl bg-surface-container-low border border-outline-variant/30 text-body-md text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-2 focus:ring-secondary/40 transition-all glass-panel resize-none"
                   />
                 </div>
-              </div>
-              <button
-                onClick={handleAnalyze}
-                disabled={loading || !productName.trim() || !description.trim()}
-                className="w-full py-2.5 bg-blue-600 text-white rounded-xl font-medium text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {loading ? 'กำลังวิเคราะห์...' : 'วิเคราะห์สินค้า'}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* ── AI Analysis Section ── */}
-        {step !== 'input' && analysis && (
-          <>
-            {/* Hook Suggestions */}
-            <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-100 rounded-2xl p-5 mb-6">
-              <h3 className="text-sm font-semibold text-purple-800 mb-3">💡 Hook Suggestions</h3>
-              <div className="flex flex-wrap gap-2">
-                {analysis.hook_suggestions?.map((hook, i) => (
-                  <span key={i} className="bg-white px-3 py-1.5 rounded-full text-sm text-gray-700 border border-purple-200">
-                    {hook}
-                  </span>
-                ))}
-              </div>
-              {analysis.marketing_copy && (
-                <>
-                  <h3 className="text-sm font-semibold text-purple-800 mt-4 mb-2">📝 Caption</h3>
-                  <p className="text-sm text-gray-600 bg-white rounded-xl p-3 border border-purple-100">{analysis.marketing_copy}</p>
-                </>
-              )}
-              {analysis.hashtags && analysis.hashtags.length > 0 && (
-                <>
-                  <h3 className="text-sm font-semibold text-purple-800 mt-3 mb-2"># Hashtags</h3>
-                  <div className="flex flex-wrap gap-1.5">
-                    {analysis.hashtags.map((tag, i) => (
-                      <span key={i} className="text-sm text-blue-600">#{tag.replace('#', '')}</span>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* ── Step 1: Image Generation ── */}
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-1">📸 สร้างรูปภาพ</h2>
-              <p className="text-sm text-gray-500 mb-4">เลือกรูปแบบรูปที่ต้องการ แล้วกดสร้าง</p>
-
-              {/* Preset Selector */}
-              <div className="flex flex-wrap gap-2 mb-4">
-                {analysis.image_prompts?.map((preset) => (
-                  <button
-                    key={preset.id}
-                    onClick={() => handlePresetChange(preset.id)}
-                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors
-                      ${selectedPreset === preset.id
-                        ? 'bg-blue-600 text-white shadow-sm'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                  >
-                    {preset.name}
-                  </button>
-                ))}
-              </div>
-
-              {/* Editable Prompt */}
-              <textarea
-                value={editablePrompt}
-                onChange={(e) => setEditablePrompt(e.target.value)}
-                rows={3}
-                className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none mb-4"
-              />
-
-              <div className="flex items-center gap-3">
                 <button
-                  onClick={handleGenerateImages}
-                  disabled={genLoading || !editablePrompt.trim()}
-                  className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  onClick={handleAnalyze}
+                  disabled={analyzing || !file || !productName.trim()}
+                  className="w-full py-4 rounded-xl bg-gradient-to-r from-secondary to-[#2c248b] text-on-secondary text-headline-sm flex items-center justify-center gap-2 shadow-[0_8px_32px_rgba(79,70,229,0.25)] hover:shadow-[0_12px_40px_rgba(79,70,229,0.4)] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed btn-press"
                 >
-                  {genLoading ? 'กำลังสร้างรูป...' : '✨ สร้างรูป'}
+                  {analyzing ? (
+                    <>
+                      <span className="material-symbols-outlined animate-spin">progress_activity</span>
+                      กำลังวิเคราะห์...
+                    </>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined">auto_awesome</span>
+                      เริ่มวิเคราะห์
+                    </>
+                  )}
                 </button>
-                <span className="text-xs text-gray-400">Fal.ai — $0.028/รูป</span>
+              </div>
+            </div>
+          ) : (
+            /* Results View */
+            <div className="flex flex-col gap-6">
+              {/* Product Info Card */}
+              <div className="p-5 rounded-2xl glass-panel shadow-glass border border-outline-variant/10">
+                <div className="flex items-start gap-4">
+                  {image && (
+                    <img src={image} alt={analysis.product_name} className="w-16 h-16 rounded-xl object-cover flex-shrink-0 border border-outline-variant/20" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <h2 className="text-headline-sm text-primary">{analysis.product_name}</h2>
+                    <p className="text-body-sm text-on-surface-variant mt-1 line-clamp-2">{analysis.product_desc}</p>
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {(analysis.seo_keywords || []).slice(0, 3).map(kw => (
+                        <span key={kw} className="px-2 py-0.5 rounded-full bg-secondary/10 text-secondary text-label-sm">{kw}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              {/* Generated Images */}
-              {generatedImages.length > 0 && (
-                <div className="mt-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-3">รูปที่สร้างแล้ว:</h4>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {generatedImages.map((imgUrl, i) => (
-                      <div key={i} className="relative group rounded-xl overflow-hidden border border-gray-200">
-                        <img src={imgUrl} alt={`Generated ${i + 1}`} className="w-full aspect-square object-cover" />
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
-                          <button
-                            onClick={() => setSelectedImage(imgUrl)}
-                            className={`px-2 py-1 text-xs rounded-lg font-medium transition-colors
-                              ${selectedImage === imgUrl ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'}`}
-                          >
-                            เลือก
-                          </button>
-                        </div>
-                        {selectedImage === imgUrl && (
-                          <div className="absolute top-1 left-1 bg-blue-600 text-white text-xs px-2 py-0.5 rounded-md">
-                            เลือกแล้ว
-                          </div>
+              {/* Preset Styles Carousel */}
+              <section>
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="text-label-md text-on-surface uppercase tracking-widest">Preset สร้างรูป</h3>
+                </div>
+                <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2 snap-x">
+                  {presetStyles.map(ps => (
+                    <button
+                      key={ps.id}
+                      onClick={() => setSelectedPreset(ps.id)}
+                      className={`snap-start flex-shrink-0 w-36 p-4 rounded-xl text-left transition-all duration-200 border ${
+                        selectedPreset === ps.id
+                          ? 'bg-secondary/10 border-secondary/30 ring-2 ring-secondary/30 shadow-glass-lg'
+                          : 'bg-surface-container-low border-outline-variant/20 hover:bg-surface-container hover:shadow-glass'
+                      }`}
+                    >
+                      <p className="text-lg mb-1">{ps.label.split(' ')[0]}</p>
+                      <p className="text-body-sm text-on-surface-variant">{ps.desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              {/* Generate Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={handleGenerateImage}
+                  disabled={genImage || !selectedPreset}
+                  className="flex-1 py-4 rounded-xl bg-secondary text-on-secondary text-headline-sm flex items-center justify-center gap-2 shadow-glass-lg hover:shadow-[0_12px_40px_rgba(79,70,229,0.4)] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed btn-press"
+                >
+                  {genImage ? (
+                    <><span className="material-symbols-outlined animate-spin">progress_activity</span> กำลังสร้าง...</>
+                  ) : (
+                    <><span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>image</span> สร้างรูป</>
+                  )}
+                </button>
+                <button
+                  onClick={handleGenerateVideo}
+                  disabled={genVideo || !image}
+                  className="flex-1 py-4 rounded-xl bg-gradient-to-r from-primary via-primary-container to-primary text-on-primary text-headline-sm flex items-center justify-center gap-2 shadow-glass-lg hover:shadow-[0_12px_40px_rgba(0,0,0,0.2)] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed btn-press"
+                >
+                  {genVideo ? (
+                    <><span className="material-symbols-outlined animate-spin">progress_activity</span> {videoStatus === 'queued' ? 'รอคิว...' : 'กำลังสร้าง...'}</>
+                  ) : (
+                    <><span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>videocam</span> สร้างวิดีโอ</>
+                  )}
+                </button>
+              </div>
+
+              {/* Video Status */}
+              {videoTaskId && (
+                <div className="p-4 rounded-xl bg-secondary/5 border border-secondary/20">
+                  <div className="flex items-center gap-3">
+                    <span className="material-symbols-outlined text-secondary animate-pulse">pending</span>
+                    <div className="flex-1">
+                      <p className="text-body-sm font-medium">กำลังประมวลผลวิดีโอ...</p>
+                      <div className="mt-2 h-1.5 rounded-full bg-surface-container overflow-hidden">
+                        <div className="h-full rounded-full bg-secondary/60 animate-pulse" style={{ width: '60%' }} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Hooks / Copy */}
+              <div className="p-5 rounded-2xl glass-panel shadow-glass border border-outline-variant/10">
+                <h3 className="text-label-md text-on-surface uppercase tracking-widest mb-3">AI Script</h3>
+                <div className="flex flex-col gap-2">
+                  {(analysis.hooks || []).slice(0, 3).map((hook, i) => (
+                    <div key={i} className="flex items-start gap-2 text-body-sm text-on-surface-variant">
+                      <span className="text-secondary font-medium">Hook {i+1}:</span>
+                      <span>{hook}</span>
+                    </div>
+                  ))}
+                </div>
+                {analysis.copy && (
+                  <div className="mt-3 pt-3 border-t border-outline-variant/20">
+                    <p className="text-label-sm text-on-surface-variant mb-1">AI Copy:</p>
+                    <p className="text-body-sm text-on-surface">{analysis.copy}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Recent Generations */}
+              {generations.length > 0 && (
+                <section>
+                  <div className="flex justify-between items-center mb-3">
+                    <h3 className="text-label-md text-on-surface uppercase tracking-widest">ผลงานล่าสุด</h3>
+                    <button onClick={() => navigate('/gallery')} className="text-label-sm text-secondary hover:underline flex items-center gap-1">
+                      ดูทั้งหมด <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {generations.slice().reverse().slice(0, 6).map(gen => (
+                      <div key={gen.id} className="aspect-square rounded-xl overflow-hidden bg-surface-container border border-outline-variant/10 relative group">
+                        {gen.type === 'image' ? (
+                          <img src={gen.url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <video src={gen.url} className="w-full h-full object-cover" muted />
                         )}
+                        <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase bg-surface/70 backdrop-blur text-on-surface-variant">
+                          {gen.type}
+                        </div>
                       </div>
                     ))}
                   </div>
-                </div>
+                </section>
               )}
+
+              {/* Reset */}
+              <button
+                onClick={() => { setAnalysis(null); setSelectedPreset(null); setVideoTaskId(null); setVideoStatus(null) }}
+                className="self-start px-4 py-2 rounded-xl text-body-sm text-on-surface-variant hover:text-on-surface bg-surface-container hover:bg-surface-container-high transition-colors"
+              >
+                ← เริ่มใหม่
+              </button>
             </div>
+          )}
+        </div>
+      </main>
 
-            {/* ── Step 2: Video Generation ── */}
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-1">🎬 สร้างวีดีโอ</h2>
-              <p className="text-sm text-gray-500 mb-4">AI สร้าง Video Prompt ให้อัตโนมัติ แก้ไขได้ตามต้องการ</p>
+      {/* Bottom Tab Bar */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface/80 backdrop-blur-2xl border-t border-outline-variant/10 shadow-nav rounded-t-2xl">
+        <div className="flex justify-around items-center h-20 px-2">
+          {[
+            { path: '/', icon: 'auto_awesome', label: 'Studio' },
+            { path: '/gallery', icon: 'grid_view', label: 'Gallery' },
+            { path: '/profile', icon: 'person', label: 'Profile' },
+          ].map(tab => (
+            <button
+              key={tab.path}
+              onClick={() => navigate(tab.path)}
+              className={`flex flex-col items-center justify-center gap-0.5 px-4 py-2 rounded-2xl transition-all duration-300 btn-press ${
+                currentTab === tab.path.replace('/', '') || (tab.path === '/' && currentTab === 'studio')
+                  ? 'text-secondary bg-secondary-container/20'
+                  : 'text-on-surface-variant hover:text-secondary'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[24px]" style={{ fontVariationSettings: currentTab === (tab.path.replace('/', '') || 'studio') ? "'FILL' 1" : "'FILL' 0" }}>{tab.icon}</span>
+              <span className="text-label-sm">{tab.label}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
 
-              {/* AI Video Prompt */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Video Prompt</label>
-                <textarea
-                  value={videoPrompt}
-                  onChange={(e) => setVideoPrompt(e.target.value)}
-                  rows={4}
-                  className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
-                />
-              </div>
-
-              {/* Select Image — required */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">เลือกรูปอ้างอิง (image-to-video)</label>
-                {generatedImages.length === 0 ? (
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3 text-sm text-yellow-800">
-                    ⚠️ กรุณาสร้างรูปก่อน ถึงจะสร้างวีดีโอได้
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {generatedImages.map((img, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setSelectedImage(img)}
-                        className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors
-                          ${selectedImage === img
-                            ? 'ring-2 ring-blue-500 bg-blue-50 text-blue-700 shadow-sm'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                          }`}
-                      >
-                        รูปที่ {i + 1}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {selectedImage && (
-                  <div className="mt-3">
-                    <img src={selectedImage} alt="Selected" className="w-24 h-24 object-cover rounded-xl border-2 border-blue-500" />
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={handleGenerateVideo}
-                  disabled={videoLoading || !videoPrompt.trim() || !selectedImage}
-                  className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-medium text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                >
-                  {videoLoading ? 'กำลังสร้างวีดีโอ...' : '🎥 สร้างวีดีโอ'}
-                </button>
-                <span className="text-xs text-gray-400">WaveSpeed — ~$0.05/วีดีโอ</span>
-                {videoStatus && <span className="text-sm text-gray-500">{videoStatus}</span>}
-              </div>
-
-              {/* Video Result */}
-              {videoUrl && (
-                <div className="mt-4">
-                  <video src={videoUrl} controls className="w-full max-w-sm rounded-xl border border-gray-200" />
-                </div>
-              )}
-            </div>
-          </>
-        )}
-
-      </div>
-    </div>
+      {/* Desktop Sidebar */}
+      <nav className="hidden md:flex flex-col h-full w-72 rounded-r-2xl bg-surface dark:bg-surface-container divide-y divide-outline-variant/10 shadow-xl fixed left-0 top-0 bottom-0 z-40 p-6 transition-all duration-200">
+        <div className="flex items-center gap-3 pb-6">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-secondary to-[#2c248b] flex items-center justify-center text-on-secondary">
+            <span className="material-symbols-outlined text-[28px]" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
+          </div>
+          <div>
+            <h2 className="text-headline-sm text-primary">I2M Studio</h2>
+            <p className="text-label-sm text-on-surface-variant">Content Creator</p>
+          </div>
+        </div>
+        <div className="flex-1 py-6 space-y-1">
+          {[
+            { path: '/', icon: 'auto_awesome', label: 'Studio' },
+            { path: '/gallery', icon: 'grid_view', label: 'Gallery' },
+            { path: '/profile', icon: 'person', label: 'Profile' },
+          ].map(tab => (
+            <button
+              key={tab.path}
+              onClick={() => navigate(tab.path)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-left ${
+                (tab.path === '/' && currentTab === 'studio') || currentTab === tab.path.replace('/', '')
+                  ? 'bg-secondary/10 text-secondary font-bold'
+                  : 'text-on-surface-variant hover:bg-surface-variant hover:text-on-surface'
+              }`}
+            >
+              <span className="material-symbols-outlined" style={{ fontVariationSettings: (currentTab === (tab.path.replace('/', '') || 'studio')) ? "'FILL' 1" : "'FILL' 0" }}>{tab.icon}</span>
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </div>
+        <div className="pt-6 text-label-sm text-on-surface-variant/60 text-center">
+          I2M Studio v1.0
+        </div>
+      </nav>
+    </>
   )
 }

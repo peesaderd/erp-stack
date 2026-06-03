@@ -2,37 +2,70 @@ const UGC_API = '/api/i2m/ugc'
 const ETZY_API = '/api/i2m/etsy-img'
 
 export const api = {
-  // ── Product Analyze (via Gemini) ──
-  analyzeProduct: async (data: {
-    product_name: string
-    description: string
-    category?: string
-    target_audience?: string
-    image_url?: string
-  }) =>
-    (await fetch(`${UGC_API}/product/analyze`, {
+  // ── Product Analyze (via Mistral Agent) ──
+  analyzeProduct: async (file: File, productName: string, productDesc?: string) => {
+    const formData = new FormData()
+    formData.append('product_name', productName)
+    formData.append('description', productDesc || '')
+    formData.append('file', file)
+    const res = await fetch(`${UGC_API}/product/analyze`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    })).json(),
+      body: formData,
+    })
+    if (!res.ok) {
+      const err = await res.text().catch(() => '')
+      throw new Error(`Analysis failed (${res.status}): ${err}`)
+    }
+    return res.json()
+  },
 
   // ── Image Generation (Fal.ai via Etsy Wizard) ──
-  generateImage: async (data: {
-    prompt: string
-    product_name?: string
-    product_desc?: string
-    style?: string
-  }) =>
-    (await fetch(`${ETZY_API}/ai/generate-image`, {
+  generateImage: async (prompt: string, productName?: string, productDesc?: string, style?: string) => {
+    const res = await fetch(`${ETZY_API}/ai/generate-image`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        product_name: data.product_name || '',
-        ...(data.product_desc ? { description: data.product_desc } : {}),
-        ...(data.style ? { style: data.style } : {}),
-        prompt: data.prompt,
+        product_name: productName || '',
+        description: productDesc || '',
+        style: style || '',
+        prompt,
       }),
-    })).json(),
+    })
+    if (!res.ok) {
+      const err = await res.text().catch(() => '')
+      throw new Error(`Image gen failed (${res.status}): ${err}`)
+    }
+    return res.json()
+  },
+
+  // ── Video Generation (WaveSpeed - async queue) ──
+  generateVideo: async (prompt: string, imageUrl?: string, productName?: string) => {
+    const res = await fetch(`${UGC_API}/video/queue`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt,
+        ...(imageUrl ? { image_url: imageUrl } : {}),
+        ...(productName ? { product_name: productName } : {}),
+      }),
+    })
+    if (!res.ok) {
+      const err = await res.text().catch(() => '')
+      throw new Error(`Video queue failed (${res.status}): ${err}`)
+    }
+    return res.json()
+  },
+
+  // ── Video Status ──
+  getVideoResult: async (taskId: string) => {
+    const res = await fetch(`${UGC_API}/video/queue-status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task_id: taskId }),
+    })
+    if (!res.ok) throw new Error(`Status check failed (${res.status})`)
+    return res.json()
+  },
 
   // ── UGC Scripts ──
   generateUgcScript: async (data: {
@@ -79,33 +112,18 @@ export const api = {
   getTemplates: async () =>
     (await fetch(`${UGC_API}/scripts/templates`)).json(),
 
-  // ── Video Generation (WaveSpeed) ──
-  generateVideo: async (data: {
-    prompt: string
-    provider?: string
-    duration?: number
-    aspectRatio?: string
-    imageUrl?: string
-  }) =>
-    (await fetch(`${UGC_API}/video/queue`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        prompt: data.prompt,
-        ...(data.provider ? { provider: data.provider } : {}),
-        ...(data.duration ? { duration: data.duration } : {}),
-        ...(data.aspectRatio ? { aspect_ratio: data.aspectRatio } : {}),
-        ...(data.imageUrl ? { image_url: data.imageUrl } : {}),
-      }),
-    })).json(),
-
-  getVideoStatus: async (taskId: string) =>
-    (await fetch(`${UGC_API}/video/queue-status`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ task_id: taskId }),
-    })).json(),
-
   getVideoProviders: async () =>
     (await fetch(`${UGC_API}/video/providers`)).json(),
+
+  // ── Export to Channel ──
+  exportToChannel: async (url: string, type: string, prompt: string) => {
+    const res = await fetch(`${UGC_API}/export`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, type, prompt }),
+    })
+    return res.json()
+  },
 }
+
+export default api

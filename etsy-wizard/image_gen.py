@@ -59,6 +59,16 @@ ETSY_RECOMMENDED_SIZE = 3000  # px recommended
 ETSY_ASPECT_RATIO = 1.0  # 1:1 square
 MAX_FILE_SIZE = 20 * 1024 * 1024  # 20MB
 
+# Thai model base prompt
+THAI_BASE_PROMPT = "Thai model, young Southeast Asian woman or man, soft natural lighting, authentic Thai lifestyle setting, warm skin tones"
+VALID_ASPECT_RATIOS = {
+    "1:1": "square_hd",
+    "9:16": "portrait_16_9",
+    "16:9": "landscape_16_9",
+    "4:5": "portrait_4_3",
+    "3:2": "landscape_4_3",
+}
+
 # ─── Fal.ai Client ─────────────────────────────────────────────────────
 
 def fal_generate(
@@ -67,6 +77,7 @@ def fal_generate(
     image_size: str = "square_hd",
     num_images: int = 1,
     timeout: int = 60,
+    aspect_ratio: str = None,
 ) -> dict:
     """Generate images via Fal.ai"""
     provider = ImageProvider.FAL
@@ -81,7 +92,7 @@ def fal_generate(
 
     payload = {
         "prompt": prompt,
-        "image_size": image_size,
+        "image_size": VALID_ASPECT_RATIOS.get(aspect_ratio, image_size),
         "num_images": num_images,
     }
 
@@ -246,13 +257,14 @@ def generate_product_image(
     prompt: str,
     model_tier: str = "quality",
     upscale: bool = True,
+    aspect_ratio: str = None,
 ) -> dict:
     """
     Full pipeline: generate → upscale → validate
     Returns finalized image info + validation
     """
     # Step 1: Generate
-    gen_result = fal_generate(prompt, model_tier=model_tier)
+    gen_result = fal_generate(prompt, model_tier=model_tier, aspect_ratio=aspect_ratio)
     image_url = gen_result["images"][0]["url"]
     total_cost = gen_result["cost"]
 
@@ -283,17 +295,19 @@ def generate_product_image(
     }
 
 
-def make_etsy_compliant_prompt(product_name: str, description: str, style: str = "product") -> str:
+def make_etsy_compliant_prompt(product_name: str, description: str, style: str = "product", thai_model: bool = True) -> str:
     """
     Generate an Etsy-optimized image prompt
     Ensures: no watermark, no text, white/clean background, high quality
     """
+    model_context = f", {THAI_BASE_PROMPT}" if thai_model else ""
     base = (
         f"{product_name}, {description}, "
         "e-commerce product photography, "
         "pure white background, clean studio lighting, "
         "no watermark, no text overlay, no logo, "
         "high detail, sharp focus, professional quality"
+        f"{model_context}"
     )
 
     if style and style != "product":

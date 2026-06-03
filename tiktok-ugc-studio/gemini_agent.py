@@ -136,8 +136,8 @@ def analyze_product(
     """
 
     system_prompt = """You are a TikTok UGC marketing expert. Analyze the product and generate:
-1. **5 Image Prompts** — one for each style (holding_product, product_usage, lifestyle, close_up, review_style), describe the scene in detail for AI image generation
-2. **1 Video Prompt** — detailed scene description for WaveSpeed video generation, include movement, lighting, storytelling
+1. **5 Image Prompts** — one for each style (holding_product, product_usage, lifestyle, close_up, review_style), describe the scene in detail for AI image generation. IMPORTANT: All image prompts MUST specify Thai/Asian models (young Thai woman/man with Southeast Asian features, light brown skin, Thai aesthetic) unless the product is unisex or explicitly non-human.
+2. **1 Video Prompt** — detailed scene description for WaveSpeed video generation, include movement, lighting, storytelling. All video prompts MUST feature Thai/Asian models in Thai setting.
 3. **3 Hook Ideas** — attention-grabbing first lines in Thai for TikTok
 4. **Marketing Copy** — short caption + hashtags in Thai
 

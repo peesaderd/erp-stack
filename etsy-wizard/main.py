@@ -328,6 +328,7 @@ class ImageGenRequest(BaseModel):
     prompt: str = ""  # custom prompt — overrides auto-generated prompt
     model_tier: str = "quality"
     upscale: bool = True
+    aspect_ratio: str = ""  # "9:16", "16:9", "1:1", "4:5", "3:2"
 
 
 class BatchGenRequest(BaseModel):
@@ -376,7 +377,8 @@ def ai_generate_image(req: ImageGenRequest):
         raise HTTPException(status_code=400, detail="Either prompt or product_name required")
 
     try:
-        result = generate_product_image(prompt, model_tier=req.model_tier, upscale=req.upscale)
+        ar = req.aspect_ratio if req.aspect_ratio else None
+        result = generate_product_image(prompt, model_tier=req.model_tier, upscale=req.upscale, aspect_ratio=ar)
         return {
             "ok": True,
             "image_url": result["image_url"],

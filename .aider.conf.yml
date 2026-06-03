@@ -21,7 +21,7 @@ model: groq/llama-3.1-8b-instant
 # search-replace = ส่งเฉพาะส่วนที่เปลี่ยน (ประหยัดสุด)
 # udiff/diff = ส่งเฉพาะ diff (ประหยัดรองลงมา)
 # whole = ส่งทั้งไฟล์ (สิ้นเปลืองที่สุด — ไม่แนะนำ)
-edit-format: search-replace
+edit-format: udiff
 
 # ─── Repo Map (Context ที่ส่งทุกครั้ง) ──────────────────────────────────────
 # ยิ่งน้อยยิ่งประหยัด แต่ context ก็จะน้อยลงตาม

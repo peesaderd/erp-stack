@@ -64,3 +64,93 @@
 +4. Video polling logic
 +5. Any remaining bugs in the 6 files I provided
 +List ALL issues found with file/line references.
+
+# 2026-06-03 14:03:53.020629
++Fix ALL issues in the I2M Frontend:
++
++CRITICAL BUGS TO FIX:
++1. Image gen result: backend returns {image_url} not {url}. Check ProductStudio.tsx lines around generate image handler
++2. Video queue: backend field is task_id not taskId
++3. Video queue-status: backend returns {status, url, video_url}
++4. State persistence: verify localStorage save/restore when navigating tabs
++5. Aider says Profile.tsx missing glass-panel class
++
++FILES TO READ/FIX:
++- i2m-frontend/src/pages/ProductStudio.tsx
++- i2m-frontend/src/lib/api.ts
++- i2m-frontend/src/index.css
++- i2m-frontend/src/pages/ImageGallery.tsx
++- i2m-frontend/src/pages/Profile.tsx
++- i2m-frontend/src/App.tsx
++
++DO:
++- Read each file fully
++- Fix all bugs and design inconsistencies found
++- Report what was fixed
++
++DO NOT commit changes
+
+# 2026-06-03 14:03:53.020857
++Fix ALL issues in the I2M Frontend:
++
++CRITICAL BUGS TO FIX:
++1. Image gen result: backend returns {image_url} not {url}. Check ProductStudio.tsx lines around generate image handler
++2. Video queue: backend field is task_id not taskId
++3. Video queue-status: backend returns {status, url, video_url}
++4. State persistence: verify localStorage save/restore when navigating tabs
++5. Aider says Profile.tsx missing glass-panel class
++
++FILES TO READ/FIX:
++- i2m-frontend/src/pages/ProductStudio.tsx
++- i2m-frontend/src/lib/api.ts
++- i2m-frontend/src/index.css
++- i2m-frontend/src/pages/ImageGallery.tsx
++- i2m-frontend/src/pages/Profile.tsx
++- i2m-frontend/src/App.tsx
++
++DO:
++- Read each file fully
++- Fix all bugs and design inconsistencies found
++- Report what was fixed
++
++DO NOT commit changes
+
+# 2026-06-03 14:04:11.898938
++Fix ALL issues in these I2M Frontend files. Read every file, find and fix bugs:
++
++CRITICAL:
++1. image_url vs url field name mismatch (backend returns image_url, frontend checks url)
++2. task_id vs taskId mismatch (backend returns task_id)
++3. Queue-status response format: {status, url, video_url}
++4. Profile.tsx missing glass-panel class - should use the glass CSS class consistently
++5. ImageGallery.tsx should use Aether design tokens
++
++FILES (read each fully then fix):
++i2m-frontend/src/pages/ProductStudio.tsx
++i2m-frontend/src/lib/api.ts
++i2m-frontend/src/index.css
++i2m-frontend/src/pages/ImageGallery.tsx
++i2m-frontend/src/pages/Profile.tsx
++i2m-frontend/src/App.tsx
++
++DO NOT commit any changes. Just fix the files.
+
+# 2026-06-03 14:04:11.899172
++Fix ALL issues in these I2M Frontend files. Read every file, find and fix bugs:
++
++CRITICAL:
++1. image_url vs url field name mismatch (backend returns image_url, frontend checks url)
++2. task_id vs taskId mismatch (backend returns task_id)
++3. Queue-status response format: {status, url, video_url}
++4. Profile.tsx missing glass-panel class - should use the glass CSS class consistently
++5. ImageGallery.tsx should use Aether design tokens
++
++FILES (read each fully then fix):
++i2m-frontend/src/pages/ProductStudio.tsx
++i2m-frontend/src/lib/api.ts
++i2m-frontend/src/index.css
++i2m-frontend/src/pages/ImageGallery.tsx
++i2m-frontend/src/pages/Profile.tsx
++i2m-frontend/src/App.tsx
++
++DO NOT commit any changes. Just fix the files.

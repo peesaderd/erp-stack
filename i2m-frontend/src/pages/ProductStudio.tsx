@@ -194,11 +194,13 @@ export default function ProductStudio() {
           {!analysis ? (
             /* Upload + Analyze Step */
             <div className="flex flex-col gap-6 max-w-2xl">
-              {/* Upload Zone */}
+              {/* Hero Upload Zone */}
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className={`relative rounded-2xl border-2 border-dashed overflow-hidden cursor-pointer transition-all duration-300 ${
-                  image ? 'border-secondary/30' : 'border-outline-variant/50 hover:border-secondary/40 hover:shadow-glass'
+                className={`relative rounded-3xl overflow-hidden cursor-pointer transition-all duration-500 ${
+                  image 
+                    ? 'border border-outline-variant/20 shadow-glass-lg' 
+                    : 'border-2 border-dashed border-primary/20 hover:border-primary/40 hover:shadow-[0_8px_40px_rgba(79,70,229,0.08)]'
                 }`}
               >
                 <input
@@ -209,22 +211,30 @@ export default function ProductStudio() {
                   className="hidden"
                 />
                 {image ? (
-                  <div className="relative">
-                    <img src={image} alt="Product" className="w-full max-h-96 object-contain p-2" />
+                  <div className="relative group">
+                    <img src={image} alt="Product" className="w-full max-h-[400px] object-contain bg-gradient-to-b from-surface-variant/30 to-surface p-4" />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-300" />
                     <button
                       onClick={(e) => { e.stopPropagation(); setImage(null); setFile(null) }}
-                      className="absolute top-3 right-3 w-8 h-8 rounded-full bg-surface/80 backdrop-blur flex items-center justify-center shadow hover:bg-surface transition-colors"
+                      className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/80 backdrop-blur-md flex items-center justify-center shadow-lg hover:bg-white transition-all duration-200 ios-spring"
                     >
-                      <span className="material-symbols-outlined text-[18px]">close</span>
+                      <span className="material-symbols-outlined text-[20px] text-on-surface">close</span>
                     </button>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center py-16 gap-3">
-                    <div className="w-16 h-16 rounded-2xl bg-secondary/10 flex items-center justify-center">
-                      <span className="material-symbols-outlined text-[32px] text-secondary" style={{ fontVariationSettings: "'FILL' 1" }}>add_photo_alternate</span>
+                  <div className="flex flex-col items-center justify-center py-20 gap-4 bg-gradient-to-b from-primary/5 via-transparent to-surface-variant/20">
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center shadow-inner">
+                      <span className="material-symbols-outlined text-[40px] text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>add_photo_alternate</span>
                     </div>
-                    <p className="text-body-md text-on-surface-variant">แตะเพื่ออัปโหลดรูปสินค้า</p>
-                    <p className="text-label-sm text-on-surface-variant/60">JPG, PNG, WEBP</p>
+                    <div className="text-center">
+                      <p className="text-headline-sm text-primary font-semibold">เริ่มต้นด้วยรูปสินค้า</p>
+                      <p className="text-body-md text-on-surface-variant mt-1">แตะเพื่ออัปโหลด หรือลากรูปมาใส่</p>
+                    </div>
+                    <div className="flex gap-2 mt-2">
+                      <span className="px-3 py-1 rounded-full bg-surface-container-low text-label-sm text-on-surface-variant border border-outline-variant/20">JPG</span>
+                      <span className="px-3 py-1 rounded-full bg-surface-container-low text-label-sm text-on-surface-variant border border-outline-variant/20">PNG</span>
+                      <span className="px-3 py-1 rounded-full bg-surface-container-low text-label-sm text-on-surface-variant border border-outline-variant/20">WEBP</span>
+                    </div>
                   </div>
                 )}
               </div>
@@ -254,7 +264,7 @@ export default function ProductStudio() {
                 <button
                   onClick={handleAnalyze}
                   disabled={analyzing || !file || !productName.trim()}
-                  className="w-full py-4 rounded-xl bg-gradient-to-r from-secondary to-[#2c248b] text-on-secondary text-headline-sm flex items-center justify-center gap-2 shadow-[0_8px_32px_rgba(79,70,229,0.25)] hover:shadow-[0_12px_40px_rgba(79,70,229,0.4)] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed btn-press"
+                  className="w-full py-4 rounded-xl bg-primary text-on-primary text-headline-sm flex items-center justify-center gap-2 shadow-[0_8px_32px_rgba(79,70,229,0.25)] hover:shadow-[0_12px_40px_rgba(79,70,229,0.4)] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed btn-press"
                 >
                   {analyzing ? (
                     <>
@@ -319,7 +329,7 @@ export default function ProductStudio() {
                 <button
                   onClick={handleGenerateImage}
                   disabled={genImage || !selectedPreset}
-                  className="flex-1 py-4 rounded-xl bg-secondary text-on-secondary text-headline-sm flex items-center justify-center gap-2 shadow-glass-lg hover:shadow-[0_12px_40px_rgba(79,70,229,0.4)] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed btn-press"
+                  className="flex-1 py-4 rounded-xl bg-gradient-to-r from-primary to-[#6366f1] text-on-primary text-headline-sm flex items-center justify-center gap-2 shadow-glass-lg hover:shadow-[0_12px_40px_rgba(79,70,229,0.4)] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed btn-press"
                 >
                   {genImage ? (
                     <><span className="material-symbols-outlined animate-spin">progress_activity</span> กำลังสร้าง...</>
@@ -330,7 +340,7 @@ export default function ProductStudio() {
                 <button
                   onClick={handleGenerateVideo}
                   disabled={genVideo || !image}
-                  className="flex-1 py-4 rounded-xl bg-gradient-to-r from-primary via-primary-container to-primary text-on-primary text-headline-sm flex items-center justify-center gap-2 shadow-glass-lg hover:shadow-[0_12px_40px_rgba(0,0,0,0.2)] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed btn-press"
+                  className="flex-1 py-4 rounded-xl bg-primary-container text-on-primary text-headline-sm flex items-center justify-center gap-2 shadow-glass-lg hover:shadow-[0_12px_40px_rgba(79,70,229,0.4)] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed btn-press"
                 >
                   {genVideo ? (
                     <><span className="material-symbols-outlined animate-spin">progress_activity</span> {videoStatus === 'queued' ? 'รอคิว...' : 'กำลังสร้าง...'}</>
@@ -439,7 +449,7 @@ export default function ProductStudio() {
       {/* Desktop Sidebar */}
       <nav className="hidden md:flex flex-col h-full w-72 rounded-r-2xl bg-surface dark:bg-surface-container divide-y divide-outline-variant/10 shadow-xl fixed left-0 top-0 bottom-0 z-40 p-6 transition-all duration-200">
         <div className="flex items-center gap-3 pb-6">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-secondary to-[#2c248b] flex items-center justify-center text-on-secondary">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-[#6366f1] flex items-center justify-center text-on-primary">
             <span className="material-symbols-outlined text-[28px]" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
           </div>
           <div>

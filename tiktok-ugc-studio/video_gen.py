@@ -239,28 +239,37 @@ def check_status(provider: VideoProvider, task_id: str) -> dict:
 
 @retryable(max_retries=3)
 def _ws_generate(config, prompt, model, duration, aspect_ratio, image_url, face_image_url, timeout):
-    """WaveSpeed API v3 — unified endpoint for all models"""
+    """WaveSpeed API v3 — correct format with /predictions endpoint"""
     url = f"{config['base_url']}/predictions"
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {config['key']}"}
-    payload = {
-        "prompt": prompt, "width": 1080, "height": 1920,
-    }
+    
+    # Build input payload per WaveSpeed v3 specs
+    inp = {"prompt": prompt}
     if duration:
-        # WaveSpeed shorts only allow 5, 10, or 15 seconds
         allowed = [5, 10, 15]
-        payload["duration"] = min(allowed, key=lambda x: abs(x - duration))
-    if aspect_ratio == "16:9":
-        payload["width"], payload["height"] = 1920, 1080
-    elif aspect_ratio == "1:1":
-        payload["width"], payload["height"] = 1024, 1024
+        inp["duration"] = min(allowed, key=lambda x: abs(x - duration))
+    if aspect_ratio:
+        inp["aspect_ratio"] = aspect_ratio
+    else:
+        inp["aspect_ratio"] = "9:16"
     if image_url:
-        payload["image_url"] = image_url
+        inp["reference_images"] = [image_url]
     if face_image_url:
-        payload["face_image_url"] = face_image_url
+        if "reference_images" in inp:
+            inp["reference_images"].append(face_image_url)
+        else:
+            inp["reference_images"] = [face_image_url]
+    
+    payload = {
+        "model": config["default_model"],
+        "input": inp,
+    }
+    
     resp = requests.post(url, headers=headers, json=payload, timeout=timeout)
     if resp.status_code != 200:
         raise RuntimeError(f"WaveSpeed error ({resp.status_code}): {resp.text[:500]}")
     data = resp.json().get("data", {})
+    # v3 returns prediction id directly
     return {"task_id": data.get("id", ""), "status": data.get("status", "created")}
 
 

@@ -11,7 +11,7 @@ from typing import Optional, Any
 
 logger = logging.getLogger("product-analyzer")
 
-MISTRAL_API_KEY = ***"MISTRAL_API_KEY", "")
+MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY", "")
 TEXT_MODEL = "mistral-small-latest"
 VISION_MODEL = "pixtral-12b-2409"
 MISTRAL_URL = "https://api.mistral.ai/v1/chat/completions"
@@ -65,7 +65,7 @@ def _call_mistral(
         model: Model override (default: TEXT_MODEL, VISION_MODEL if image)
     """
     if not MISTRAL_API_KEY:
-        *** ValueError("MISTRAL_API_KEY not configured")
+        raise ValueError("MISTRAL_API_KEY not configured")
 
     use_model = model or (VISION_MODEL if image_base64 else TEXT_MODEL)
 

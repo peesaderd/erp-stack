@@ -112,7 +112,7 @@ def retryable(max_retries=3, base_delay=1.0, backoff=2.0, retry_statuses=(429, 5
             for attempt in range(max_retries + 1):
                 try:
                     return func(*args, **kwargs)
-                except requests.exceptions.HTTPError as e:
+                except (requests.exceptions.HTTPError, RuntimeError) as e:
                     last_err = e
                     if e.response and e.response.status_code in retry_statuses:
                         delay = base_delay * (backoff ** attempt) + _random.uniform(0, 0.5)
@@ -240,7 +240,7 @@ def check_status(provider: VideoProvider, task_id: str) -> dict:
 @retryable(max_retries=3)
 def _ws_generate(config, prompt, model, duration, aspect_ratio, image_url, face_image_url, timeout):
     """WaveSpeed API v3 — unified endpoint for all models"""
-    url = f"{config['base_url']}/{config['default_model']}"
+    url = f"{config['base_url']}/predictions"
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {config['key']}"}
     payload = {
         "prompt": prompt, "width": 1080, "height": 1920,
@@ -278,7 +278,7 @@ def _ws_status(config, task_id):
         "task_id": task_id,
         "status": data.get("status", "unknown"),
         "video_url": video_url,
-        "progress": 100 if data.get("status") == "completed" else 50 if data.get("status") == "processing" else 0,
+        "progress": 100 if data.get("status") == "completed" else 50 if data.get("status") == "processing" else None,
     }
 
 

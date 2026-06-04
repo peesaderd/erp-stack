@@ -10,6 +10,7 @@ interface AnalysisResult {
   seo_keywords: string[]
   product_name: string
   product_desc: string
+  product_image_url?: string
 }
 
 interface Generation {
@@ -229,23 +230,27 @@ export default function ProductStudio() {
     setError(null)
     try {
       const prompt = editablePrompt || analysis.image_prompts[selectedPreset] || analysis.image_prompts.default
-      const result = await api.generateImage(prompt, productName, productDesc, selectedPreset, aspectRatio)
-      if (result.url) {
-        setGenerations(prev => [...prev, {
-          id: Date.now().toString(),
-          type: 'image',
-          url: result.url,
-          prompt,
-          style: selectedPreset,
-          createdAt: Date.now(),
-        }])
+      const productImgUrl = analysis.product_image_url || undefined
+      // Generate images based on count
+      for (let i = 0; i < count; i++) {
+        const result = await api.generateImage(prompt, productName, productDesc, selectedPreset, aspectRatio, productImgUrl)
+        if (result.url) {
+          setGenerations(prev => [...prev, {
+            id: Date.now().toString() + '-' + i,
+            type: 'image' as const,
+            url: result.url,
+            prompt,
+            style: selectedPreset,
+            createdAt: Date.now(),
+          }])
+        }
       }
     } catch (err: any) {
       setError(err?.message || 'Image generation failed')
     } finally {
       setGenImage(false)
     }
-  }, [analysis, selectedPreset, productName, productDesc, editablePrompt, aspectRatio])
+  }, [analysis, selectedPreset, productName, productDesc, editablePrompt, aspectRatio, count])
 
   const handleGenerateVideo = useCallback(async () => {
     if (!analysis || !image) return

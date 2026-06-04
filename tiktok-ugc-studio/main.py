@@ -438,12 +438,26 @@ async def analyze_product(
     """
     from gemini_agent import analyze_product
 
-    # Convert uploaded file to base64
+    # Convert uploaded file to base64 and save for compositing
     image_base64 = None
+    product_image_url = ""
     if file and file.filename:
         contents = await file.read()
         if contents:
             image_base64 = base64.b64encode(contents).decode("utf-8")
+            # Save product image so it can be referenced for compositing
+            try:
+                import os
+                save_dir = "/home/openhands/erp-stack/etsy-wizard/static/product_images"
+                os.makedirs(save_dir, exist_ok=True)
+                safe_name = f"{int(time.time())}_{file.filename}"
+                save_path = os.path.join(save_dir, safe_name)
+                with open(save_path, "wb") as f:
+                    f.write(contents)
+                product_image_url = f"/api/i2m/etsy-img/static/product_images/{safe_name}"
+                logger.info(f"Saved product image for compositing: {save_path}")
+            except Exception as e:
+                logger.warning(f"Failed to save product image: {e}")
 
     try:
         result = analyze_product(
@@ -483,6 +497,7 @@ async def analyze_product(
             "seo_keywords": result.get("hashtags", []),
             "product_name": product_name,
             "product_desc": description,
+            "product_image_url": product_image_url or None,
         }
         return normalized
     except Exception as e:

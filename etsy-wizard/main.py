@@ -14,6 +14,7 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -340,6 +341,8 @@ class ImageGenRequest(BaseModel):
     model_tier: str = "quality"
     upscale: bool = True
     aspect_ratio: str = ""  # "9:16", "16:9", "1:1", "4:5", "3:2"
+    product_image_url: str = ""  # URL of real product image for compositing
+    product_id: str = ""  # optional product ID for logging
 
 
 class BatchGenRequest(BaseModel):
@@ -389,7 +392,14 @@ def ai_generate_image(req: ImageGenRequest):
 
     try:
         ar = req.aspect_ratio if req.aspect_ratio else None
-        result = generate_product_image(prompt, model_tier=req.model_tier, upscale=req.upscale, aspect_ratio=ar)
+        result = generate_product_image(
+            prompt,
+            model_tier=req.model_tier,
+            upscale=req.upscale,
+            aspect_ratio=ar,
+            product_image_url=req.product_image_url or None,
+            product_id=req.product_id or None,
+        )
         return {
             "ok": True,
             "image_url": result["image_url"],

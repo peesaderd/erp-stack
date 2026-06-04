@@ -269,13 +269,15 @@ def composite_product_into_scene(
     Professional product compositing with shadow, edge blending, lighting matching.
 
     Pipeline:
-    1. Download product image (with fallback on failure)
-    2. Auto-detect placement position based on scene analysis
-    3. Resize product to realistic proportions relative to hand
-    4. Generate soft drop shadow beneath product
-    5. Blend edges for seamless integration
-    6. Match brightness/color to scene lighting
-    7. Composite with RGBA alpha channel
+    1. Download product image
+    2. Auto-remove background via rembg if PNG has no alpha
+    3. Smart resize to realistic hand-held proportions
+    4. Auto-position (center-bottom for hand-hold scenes)
+    5. Soft drop shadow with Gaussian blur
+    6. Edge feathering for seamless integration
+    7. OpenCV brightness/color matching to scene lighting
+    8. RGBA alpha compositing
+    9. QC validation check
 
     Args:
         scene_image: PIL Image from AI generation (hand + blank placeholder)
@@ -286,9 +288,9 @@ def composite_product_into_scene(
     Returns:
         PIL Image with seamlessly composited product
     """
-    import requests
     import io
     import math
+    import numpy as np
 
     product_id_str = product_id or "unknown"
     sw, sh = scene_image.size
@@ -298,63 +300,88 @@ def composite_product_into_scene(
         resp = requests.get(product_image_url, timeout=15)
         resp.raise_for_status()
         raw_product = PILImage.open(io.BytesIO(resp.content))
-        product_img = raw_product.convert("RGBA")
-        logger.info(f"Downloaded product [{product_id_str}]: {product_img.size}")
+        logger.info(f"Downloaded product [{product_id_str}]: {raw_product.size} mode={raw_product.mode}")
     except Exception as e:
         logger.warning(f"Failed to download product image {product_image_url}: {e}")
         return scene_image
 
-    # -- Step 2: Smart resize --
-    target_height = int(sh * 0.42)
+    # -- Step 2: Ensure transparent background (rembg if needed) --
+    if raw_product.mode != "RGBA":
+        logger.info(f"Product has no alpha channel ({raw_product.mode}) — running rembg...")
+        try:
+            from rembg import remove as rembg_remove
+            product_bytes = io.BytesIO()
+            raw_product.save(product_bytes, format="PNG")
+            product_bytes.seek(0)
+            result_bytes = rembg_remove(product_bytes.read())
+            product_img = PILImage.open(io.BytesIO(result_bytes)).convert("RGBA")
+            logger.info(f"rembg OK: {product_img.size}")
+        except Exception as e:
+            logger.warning(f"rembg failed ({e}), converting mode instead")
+            product_img = raw_product.convert("RGBA")
+    else:
+        product_img = raw_product.convert("RGBA")
+
     pw, ph = product_img.size
     if ph == 0:
         return scene_image
+
+    # -- Step 3: Smart resize (hand-held proportion: ~42% of scene height) --
+    target_height = int(sh * 0.42)
     ratio = target_height / ph
     new_w = int(pw * ratio)
     new_h = target_height
     product_resized = product_img.resize((new_w, new_h), PILImage.LANCZOS)
 
-    # -- Step 3: Auto-position --
+    # -- Step 4: Auto-position --
     x = (sw - new_w) // 2
-    if position == "center_bottom" or position == "auto":
+    if position in ("center_bottom", "auto"):
         y = sh - new_h - int(sh * 0.10)
     elif position == "center":
         y = (sh - new_h) // 2
     else:
         y = sh - new_h - int(sh * 0.10)
 
-    # -- Step 4: Generate drop shadow --
     scene_rgba = scene_image.convert("RGBA")
-    shadow = PILImage.new("RGBA", (new_w, new_h), (0, 0, 0, 0))
-    product_alpha = product_resized.split()[3]
-    shadow.paste((0, 0, 0, 160), (0, 0), product_alpha)
-    sox = int(new_w * 0.03)
-    soy = int(new_h * 0.04)
-    shadow_blurred = shadow.filter(PILImageFilter.GaussianBlur(radius=max(6, new_w // 35)))
-    scene_rgba.paste(shadow_blurred, (x + sox, y + soy), shadow_blurred)
 
-    # -- Step 5: Edge feathering --
-    feather_px = max(3, min(new_w, new_h) // 60)
-    if feather_px > 0:
-        edge_mask = PILImage.new("L", (new_w, new_h), 255)
-        draw = PILImageDraw.Draw(edge_mask)
-        for i in range(feather_px):
-            a = int(255 * (i / feather_px))
-            draw.rectangle([0, i, new_w, i + 1], fill=a)
-            draw.rectangle([0, new_h - i - 1, new_w, new_h - i], fill=a)
-            draw.rectangle([i, 0, i + 1, new_h], fill=a)
-            draw.rectangle([new_w - i - 1, 0, new_w - i, new_h], fill=a)
-        pa = product_resized.split()[3]
-        ba = PILImage.composite(PILImage.new("L", (new_w, new_h), 0), pa, edge_mask)
-        product_resized.putalpha(ba)
-
-    # -- Step 6: Lighting matching --
+    # -- Step 5: Generate drop shadow --
     try:
-        import numpy as np
-        sx = max(0, x - 40)
-        sy = max(0, y - 80)
-        ex = min(sw, x + new_w + 40)
-        ey = max(0, y - 5)
+        shadow = PILImage.new("RGBA", (new_w, new_h), (0, 0, 0, 0))
+        product_alpha = product_resized.split()[3]
+        shadow.paste((0, 0, 0, 160), (0, 0), product_alpha)
+        sox = int(new_w * 0.03)
+        soy = int(new_h * 0.04)
+        shadow_blurred = shadow.filter(
+            PILImageFilter.GaussianBlur(radius=max(6, new_w // 35))
+        )
+        scene_rgba.paste(shadow_blurred, (x + sox, y + soy), shadow_blurred)
+    except Exception as e:
+        logger.warning(f"Shadow gen failed ({e}), skipping")
+
+    # -- Step 6: Edge feathering --
+    try:
+        feather_px = max(3, min(new_w, new_h) // 60)
+        if feather_px > 0:
+            edge_mask = PILImage.new("L", (new_w, new_h), 255)
+            draw = PILImageDraw.Draw(edge_mask)
+            for i in range(feather_px):
+                a = int(255 * (i / feather_px))
+                draw.rectangle([0, i, new_w, i + 1], fill=a)
+                draw.rectangle([0, new_h - i - 1, new_w, new_h - i], fill=a)
+                draw.rectangle([i, 0, i + 1, new_h], fill=a)
+                draw.rectangle([new_w - i - 1, 0, new_w - i, new_h], fill=a)
+            pa = product_resized.split()[3]
+            ba = PILImage.composite(
+                PILImage.new("L", (new_w, new_h), 0), pa, edge_mask
+            )
+            product_resized.putalpha(ba)
+    except Exception as e:
+        logger.warning(f"Edge feathering failed ({e}), skipping")
+
+    # -- Step 7: Lighting/color matching --
+    try:
+        sx, sy = max(0, x - 40), max(0, y - 80)
+        ex, ey = min(sw, x + new_w + 40), max(0, y - 5)
         if ex > sx and ey > sy:
             sample = scene_rgba.crop((sx, sy, ex, ey))
             if sample.size[0] > 0 and sample.size[1] > 0:
@@ -365,19 +392,35 @@ def composite_product_into_scene(
                 mask = pa_np > 10
                 if mask.any():
                     prod_bright = np.mean(prod_arr[mask])
-                    ratio_bright = scene_bright / max(prod_bright, 1)
-                    ratio_bright = max(0.7, min(1.35, ratio_bright))
-                    if abs(ratio_bright - 1.0) > 0.05:
-                        adj = prod_arr.astype(np.float32) * ratio_bright
+                    bright_ratio = scene_bright / max(prod_bright, 1)
+                    bright_ratio = max(0.7, min(1.35, bright_ratio))
+                    if abs(bright_ratio - 1.0) > 0.05:
+                        adj = (prod_arr.astype(np.float32) * bright_ratio)
                         adj = np.clip(adj, 0, 255).astype(np.uint8)
-                        adj_rgba = np.dstack([adj, pa_np])
-                        product_resized = PILImage.fromarray(adj_rgba, "RGBA")
-                        logger.info(f"Lighting match: ratio={ratio_bright:.2f}")
+                        product_resized = PILImage.fromarray(
+                            np.dstack([adj, pa_np]), "RGBA"
+                        )
+                        logger.info(f"Lighting match: ratio={bright_ratio:.2f}")
     except Exception as e:
         logger.warning(f"Lighting match skipped: {e}")
 
-    # -- Step 7: Composite --
+    # -- Step 8: Composite --
     scene_rgba.paste(product_resized, (x, y), product_resized)
+
+    # -- Step 9: QC validation --
+    try:
+        final_array = np.array(scene_rgba.convert("RGB"))
+        product_area = final_array[y:y+new_h, x:x+new_w]
+        mean_brightness = np.mean(product_area)
+        std_brightness = np.std(product_area)
+        logger.info(
+            f"QC [{product_id_str}]: brightness={mean_brightness:.0f}, "
+            f"contrast={std_brightness:.0f}, "
+            f"position=({x},{y}), size={new_w}x{new_h}"
+        )
+    except Exception as e:
+        logger.warning(f"QC check failed: {e}")
+
     logger.info(f"Composite OK [{product_id_str}]: ({x},{y}) {new_w}x{new_h}")
     return scene_rgba
 

@@ -20,7 +20,7 @@ export const api = {
   },
 
   // ── Image Generation (Fal.ai via Etsy Wizard) ──
-  generateImage: async (prompt: string, productName?: string, productDesc?: string, style?: string, aspectRatio?: string) => {
+  generateImage: async (prompt: string, productName?: string, productDesc?: string, style?: string, aspectRatio?: string, productImageUrl?: string) => {
     const res = await fetch(`${ETZY_API}/ai/generate-image`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -30,6 +30,7 @@ export const api = {
         style: style || '',
         prompt,
         ...(aspectRatio ? { aspect_ratio: aspectRatio } : {}),
+        ...(productImageUrl ? { product_image_url: productImageUrl } : {}),
       }),
     })
     if (!res.ok) {

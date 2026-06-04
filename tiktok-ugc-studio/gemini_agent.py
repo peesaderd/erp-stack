@@ -319,7 +319,7 @@ These elements are IMMUTABLE - never alter or hallucinate these details:
 - styles: holding_product, product_usage, lifestyle, close_up, review_style
 - Describe product APPEARANCE: color, shape, material, packaging, texture (NEVER describe text, labels, logos, or brand markings)
 - CRITICAL: Do NOT include any text, labels, logos, brand names, or markings in the prompt
-- After analyzing the image, also estimate the BOUNDING BOX of where the product would be held by hand (return as JSON: {"x": number, "y": number, "width": number, "height": number, "angle": number})
+- After analyzing the image, also estimate the BOUNDING BOX of where the product would be held by hand (return as JSON with keys x, y, width, height, angle — all numbers)
 - The product is a _placeholder_term_for_category(category) — text/logos will be composited
 - MUST specify Thai/SE Asian model (young Thai woman, light brown skin, Southeast Asian features, natural look)
 - Use warm Thai-style setting, natural lighting, pastel or soft tones

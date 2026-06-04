@@ -29,4 +29,4 @@ RUN mkdir -p /app/static/product_images
 EXPOSE 8104
 
 # Run with uvicorn
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8104"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8104", "--root-path", "/etsy"]

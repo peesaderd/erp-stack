@@ -379,6 +379,28 @@ def composite_product_into_scene(
                 bbox_y += (bh - bbox_h) // 2
                 logger.info(f"OpenCV: ({bbox_x},{bbox_y}) {bbox_w}x{bbox_h} a={angle:.1f}")
 
+    # ── Step 2.5: If no bbox from Gemini, try ML detectors ──
+    if bbox is None:
+        try:
+            from detector import find_placement
+            placement = find_placement(scene_image)
+            if placement and placement["source"] == "mediapipe_hands":
+                bbox_x = placement["x"]
+                bbox_y = placement["y"]
+                bbox_w = placement["width"]
+                bbox_h = placement["height"]
+                angle = 0.0
+                logger.info(f"MediaPipe placement: ({bbox_x},{bbox_y}) {bbox_w}x{bbox_h}")
+            elif placement and placement["source"] == "yolo":
+                bbox_x = int(placement["x"])
+                bbox_y = int(placement["y"])
+                bbox_w = int(placement["width"])
+                bbox_h = int(placement["height"])
+                angle = 0.0
+                logger.info(f"YOLO placement: ({bbox_x},{bbox_y}) {bbox_w}x{bbox_h}")
+        except Exception as e:
+            logger.warning(f"ML detector failed, fallback to OpenCV: {e}")
+
     # Validate bbox coordinates to prevent out-of-bounds errors
     bbox_x = max(0, min(bbox_x, sw - 10))
     bbox_y = max(0, min(bbox_y, sh - 10))

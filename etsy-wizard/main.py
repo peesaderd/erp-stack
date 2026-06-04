@@ -359,6 +359,7 @@ class ImageGenRequest(BaseModel):
     aspect_ratio: str = ""  # "9:16", "16:9", "1:1", "4:5", "3:2"
     product_image_url: Optional[str] = None  # URL of real product image for compositing
     product_id: str = ""  # optional product ID for logging
+    position: Optional[str] = None  # JSON bbox from Gemini: {"x":int,"y":int,"width":int,"height":int,"angle":float}
 
     @validator('product_image_url', pre=True)
     def validate_product_image_url(cls, v):
@@ -434,6 +435,7 @@ def ai_generate_image(req: ImageGenRequest):
             aspect_ratio=ar,
             product_image_url=req.product_image_url,
             product_id=req.product_id or None,
+            position=req.position,
         )
         return {
             "ok": True,

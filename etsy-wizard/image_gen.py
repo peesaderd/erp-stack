@@ -527,6 +527,7 @@ def generate_product_image(
     aspect_ratio: str = None,
     product_image_url: str = None,
     product_id: str = None,
+    position: str = "auto",
 ) -> dict:
     """
     Full pipeline: generate → upscale → validate → composite
@@ -554,7 +555,7 @@ def generate_product_image(
     # Step 4: Composite real product over AI-generated placeholder
     if product_image_url:
         img = PILImage.open(io.BytesIO(image_bytes))
-        img = composite_product_into_scene(img, product_image_url, product_id=product_id)
+        img = composite_product_into_scene(img, product_image_url, product_id=product_id, position=position)
         buf = io.BytesIO()
         img.save(buf, format="PNG")
         image_bytes = buf.getvalue()

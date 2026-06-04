@@ -446,22 +446,24 @@ def composite_product_into_scene(
     final_w = max(10, min(final_w, sw - final_x))
     final_h = max(10, min(final_h, sh - final_y))
 
-    # ── Step 4: Drop shadow — from ALPHA channel (NO re-download) ──
-    # FIX #2: Use product_resized's ALPHA directly. NO requests.get here.
+    # ── Step 4: Drop shadow — gentle, not pitch black ──
     scene_out = scene_image.convert("RGBA")
     try:
         shadow = PILImage.new("RGBA", (final_w, final_h), (0,0,0,0))
-        product_alpha = product_resized.split()[3]  # alpha of ALREADY warped product
-        shadow.paste((0,0,0,140), (0,0), product_alpha)
+        product_alpha = product_resized.split()[3]
+        # Shadow opacity: 60/255 ≈ 25% (was 140/255 = 55%, too dark)
+        shadow.paste((0,0,0,60), (0,0), product_alpha)
         rad = math.radians(angle)
-        sox = max(1, int(final_w * (0.03 * math.cos(rad) + 0.02)))
-        soy = max(1, int(final_h * (0.04 * math.sin(rad) + 0.03)))
-        shadow_blurred = shadow.filter(PILImageFilter.GaussianBlur(radius=max(5, final_w//35)))
+        sox = max(1, int(final_w * (0.02 * math.cos(rad) + 0.01)))
+        soy = max(1, int(final_h * (0.02 * math.sin(rad) + 0.02)))
+        shadow_blurred = shadow.filter(PILImageFilter.GaussianBlur(radius=max(3, final_w//50)))
         scene_out.paste(shadow_blurred, (final_x+sox, final_y+soy), shadow_blurred)
     except Exception as e:
         logger.warning(f"Shadow: {e}")
 
-    # ── Step 5: Mask-clipped per-channel RGB blend ──
+    # ── Step 5: Gentle color balance (no brightness crushing) ──
+    # Previously this was an aggressive RGB blend that dimmed white products to ~30%
+    # Now uses gentle tint only (±10%) to match ambiance without killing visibility
     try:
         sx = max(0, final_x-30); sy = max(0, final_y-60)
         ex = min(sw, final_x+final_w+30); ey = max(0, final_y-5)
@@ -474,7 +476,8 @@ def composite_product_into_scene(
             mask = pa_np > 15
             if mask.any():
                 pr = [np.mean(prod_arr[:,:,i][mask]) for i in range(3)]
-                ratios = [max(0.7, min(1.35, scene / max(p,1)))
+                # Gentle tint: ±10% max, never crush product brightness below 70%
+                ratios = [max(0.9, min(1.1, scene / max(p,1)))
                           for scene, p in zip([mr,mg,mb], pr)]
                 for i in range(3):
                     prod_arr[:,:,i] = np.where(mask,
@@ -483,33 +486,15 @@ def composite_product_into_scene(
                     np.dstack([prod_arr[:,:,0].astype(np.uint8),
                                prod_arr[:,:,1].astype(np.uint8),
                                prod_arr[:,:,2].astype(np.uint8), pa_np]), "RGBA")
-                logger.info(f"RGB blend: R={ratios[0]:.2f} G={ratios[1]:.2f} B={ratios[2]:.2f}")
+                logger.info(f"Gentle tint: R={ratios[0]:.2f} G={ratios[1]:.2f} B={ratios[2]:.2f}")
     except Exception as e:
-        logger.warning(f"Blend: {e}")
+        logger.warning(f"Tint: {e}")
 
-    # CRITICAL: Fix edge glow by ensuring mask is properly applied
-    # The current implementation might cause edge artifacts due to hard alpha threshold
-    try:
-        pa_np = np.array(product_resized.split()[3])
-        # Create a smoother mask transition to prevent edge glow
-        mask = pa_np > 0
-        if mask.any():
-            # Apply feathering to the mask edges
-            kernel = np.ones((3,3), np.uint8)
-            eroded = cv2.erode(pa_np, kernel, iterations=1)
-            dilated = cv2.dilate(pa_np, kernel, iterations=1)
-            feather_mask = cv2.GaussianBlur(dilated, (5,5), 0)
-            # Normalize feather mask to 0-255 range
-            feather_mask = (feather_mask * (255.0 / feather_mask.max())).astype(np.uint8)
-            # Apply the feathered mask
-            product_resized.putalpha(PILImage.fromarray(feather_mask))
-    except Exception as e:
-        logger.warning(f"Edge feathering fix failed: {e}")
-
-    # ── Step 6: Edge feathering + composite ──
+    # ── Step 6: Edge feathering (fade edges, keep center solid) ──
     try:
         fpx = max(3, min(final_w, final_h)//60)
         if fpx > 0:
+            # Create feather mask: white center, black edges
             em = PILImage.new("L", (final_w, final_h), 255)
             d = PILImageDraw.Draw(em)
             for i in range(fpx):
@@ -518,9 +503,13 @@ def composite_product_into_scene(
                 d.rectangle([0,final_h-i-1,final_w,final_h-i], fill=a)
                 d.rectangle([i,0,i+1,final_h], fill=a)
                 d.rectangle([final_w-i-1,0,final_w-i,final_h], fill=a)
-            pa = product_resized.split()[3]
-            product_resized.putalpha(PILImage.composite(
-                PILImage.new("L", (final_w, final_h), 0), pa, em))
+            # FIX: feather alpha = original_alpha * feather_mask / 255
+            # Before: composite(black, pa, em) was BACKWARDS — killed center!
+            pa_orig = np.array(product_resized.split()[3], dtype=np.float32)
+            em_np = np.array(em, dtype=np.float32)
+            new_alpha = np.clip(pa_orig * (em_np / 255.0), 0, 255).astype(np.uint8)
+            product_resized.putalpha(PILImage.fromarray(new_alpha, "L"))
+            logger.info(f"Feather: radius={fpx}px")
     except Exception as e:
         logger.warning(f"Feather: {e}")
 

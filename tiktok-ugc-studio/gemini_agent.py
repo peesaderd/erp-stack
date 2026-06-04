@@ -242,6 +242,40 @@ def _parse_json(text: str) -> dict:
     raise ValueError("Cannot parse JSON from response")
 
 
+def extract_brand_protocol(image_base64: str) -> dict:
+    """Extract Brand Identity Protocol from product image using Pixtral vision.
+
+    Returns structured JSON with:
+    - product_name: exact name on packaging
+    - bottle: {shape, material, cap_type, color}
+    - label: {colors: [...], text: [mandatory text strings]}
+    - brand_colors: [...]
+    - logo: description of logo
+    """
+    prompt_text = """Analyze this product image and extract the following Brand Identity Protocol as valid JSON. This is CRITICAL — the output will be used as STRICT LOCK for image generation.
+
+Extract EXACTLY:
+1. product_name: the brand + product name as it appears on the packaging
+2. bottle: shape, material (glass/plastic/matte/glossy), cap_type (dropper/pump/screw), primary_color
+3. label: list of colors on label, list of ALL text strings visible (brand name, product name, size, ingredients, etc. — be complete)
+4. brand_colors: the dominant brand colors (2-4 colors)
+5. logo: brief description of any logo/graphic on the packaging
+6. packaging_type: bottle/box/tube/jar
+
+Output ONLY valid JSON. No markdown fences. No extra text.
+{
+  "product_name": "",
+  "bottle": {"shape": "", "material": "", "cap_type": "", "primary_color": ""},
+  "label": {"colors": [], "text": []},
+  "brand_colors": [],
+  "logo": "",
+  "packaging_type": ""
+}
+"""
+    response = _call_mistral(system_prompt=prompt_text, user_text="Analyze the product image.", image_base64=image_base64)
+    return _parse_json(response)
+
+
 def analyze_product(
     product_name: str,
     description: str,
@@ -260,24 +294,42 @@ def analyze_product(
     """
     research = research_product(product_name, description, category, image_base64)
 
+    # Step 1.5: Extract Brand Protocol from image for strict lock
+    brand_protocol = {}
+    if image_base64:
+        try:
+            brand_protocol = extract_brand_protocol(image_base64)
+        except Exception:
+            brand_protocol = {}
 
-    system_prompt = f"""You are a TikTok UGC marketing expert. Analyze the product image and generate content in THAI language only.
+    system_prompt = f"""# ROLE
+You are an expert AI Product Photographer and Creative Director. Your goal is to produce high-fidelity product imagery that strictly adheres to the Brand Identity Protocol.
 
-REQUIREMENTS:
+# BRAND IDENTITY PROTOCOL (STRICT LOCK)
+These elements are IMMUTABLE - never alter or hallucinate these details:
+{json.dumps(brand_protocol, ensure_ascii=False, indent=2) if brand_protocol else 'Analyze the product image to determine brand details.'}
 
-1. **5 Image Prompts** — Describe each scene in full detail for AI image generation:
-   - styles: holding_product, product_usage, lifestyle, close_up, review_style
-   - Describe product APPEARANCE from what you see: color, shape, material, packaging, labels, texture
-   - MUST specify Thai/SE Asian model (young Thai woman, light brown skin, Southeast Asian features, natural look)
-   - Use warm Thai-style setting, natural lighting, pastel or soft tones
+# OPERATIONAL GUIDELINES
+1. ANALYZE the requested scene context from the product info
+2. COMPOSITE the product as the HERO - sharp, well-lit, physically consistent
+3. CONTEXTUALIZE into the scene (in hand, on table, etc.) using soft natural lighting
+4. QUALITY CONTROL: never violate the Brand Protocol
 
-2. **1 Video Prompt** — output as JSON object with keys: description, movement, lighting, storytelling for video generation
+# REQUIREMENTS FOR IMAGE PROMPTS (5 images):
+- styles: holding_product, product_usage, lifestyle, close_up, review_style
+- Describe product APPEARANCE from what you see: color, shape, material, packaging, labels, texture
+- MUST specify Thai/SE Asian model (young Thai woman, light brown skin, Southeast Asian features, natural look)
+- Use warm Thai-style setting, natural lighting, pastel or soft tones
 
-3. **3 Hook Ideas** — attention-grabbing opening lines in THAI language (product-specific, NOT generic)
+# REQUIREMENTS FOR VIDEO PROMPT:
+- Focus on camera movement (pan/zoom/tilt/dolly) and subject action
+- Duration: 15-25 seconds, 9:16 vertical format
+- Include specific actions: reaching, applying, holding
 
-4. **Marketing Copy** — short THAI caption + CTA + hashtags in THAI
-
-IMPORTANT: All text content MUST be in THAI language, EXCEPT the prompt fields (which describe visual scenes for English AI image generators).
+# REQUIREMENTS FOR HOOKS (3 hooks):
+- THAI language, product-specific (NOT generic), attention-grabbing
+- Use female-friendly pronouns (คุณ) - never use male pronouns like ผม
+- Reference specific product benefits and pain points
 
 Research Context:
 {json.dumps(research, ensure_ascii=False, indent=2)}
@@ -335,6 +387,61 @@ Target Audience: {target_audience or 'General TikTok users'}{model_hint}
     except Exception as e:
         logger.warning(f"AI failed, using fallback: {e}")
         return _fallback_analysis(product_name, description, category)
+
+
+
+
+def generate_image_prompt(brand_protocol: dict, creative_brief: dict, product_name: str, description: str) -> dict:
+    """Generate ONLY image prompts (5 styles) using Mistral."""
+    prompt_text = f"""Based on this Brand Protocol and Creative Brief, generate 5 detailed image prompts.
+
+Brand Protocol: {json.dumps(brand_protocol, ensure_ascii=False, indent=2)}
+Creative Brief: {json.dumps(creative_brief, ensure_ascii=False, indent=2)}
+Product Name: {product_name}
+
+Generate 5 prompts for these styles: holding_product, product_usage, lifestyle, close_up, review_style
+Each prompt must:
+\u2022 Describe the product appearance EXACTLY from the Brand Protocol (color, shape, material)
+\u2022 Specify Thai/SE Asian model (young Thai woman, light brown skin, natural look)
+\u2022 Include warm Thai-style setting and soft natural lighting
+
+Output:
+{{
+  "image_prompts": [
+    {{"id": "holding_product", "prompt": "..."}},
+    {{"id": "product_usage", "prompt": "..."}},
+    {{"id": "lifestyle", "prompt": "..."}},
+    {{"id": "close_up", "prompt": "..."}},
+    {{"id": "review_style", "prompt": "..."}}
+  ]
+}}
+"""
+    return _parse_json(_call_mistral(system_prompt="You are an expert AI image prompt engineer.", user_text=prompt_text))
+
+
+def generate_video_prompt(brand_protocol: dict, creative_brief: dict, product_name: str) -> str:
+    """Generate ONLY video prompt with camera movements and actions using Mistral.
+
+    Focus on: camera movement (pan/zoom/tilt), subject action, duration cues.
+    NOT static like image prompts - dynamic, action-oriented.
+    Returns a single string prompt, not JSON.
+    """
+    prompt_text = f"""Generate a video prompt for this product. Focus on camera movement and action.
+
+Brand Protocol: {json.dumps(brand_protocol, ensure_ascii=False, indent=2)}
+Creative Brief: {json.dumps(creative_brief, ensure_ascii=False, indent=2)}
+Product Name: {product_name}
+
+Requirements:
+\u2022 Cinematic motion, fluid camera movement
+\u2022 Include specific camera moves: pan, zoom, tilt, dolly
+\u2022 Include subject actions: reaching, applying, holding
+\u2022 Duration: 15-25 seconds
+\u2022 Format: 9:16 vertical video
+\u2022 MUST keep the product appearance consistent with Brand Protocol
+
+Output ONLY the video prompt as a single paragraph (no JSON, no markdown):"""
+    return _call_mistral(system_prompt="You are an expert video director. Generate video prompts.", user_text=prompt_text)
 
 
 def _fallback_analysis(product_name: str, description: str, category: str) -> dict:

@@ -468,9 +468,16 @@ async def analyze_product(
             if not isinstance(image_prompts_dict, dict):
                 image_prompts_dict = {}
 
+        # Normalize video_prompt: if it's a dict, extract description field
+        video_prompt_raw = result.get("video_prompt", "")
+        if isinstance(video_prompt_raw, dict):
+            video_prompt = video_prompt_raw.get("description", str(video_prompt_raw))
+        else:
+            video_prompt = video_prompt_raw
+
         normalized = {
             "image_prompts": image_prompts_dict,
-            "video_prompt": result.get("video_prompt", ""),
+            "video_prompt": video_prompt,
             "hooks": result.get("hook_suggestions", []),
             "copy": result.get("marketing_copy", ""),
             "seo_keywords": result.get("hashtags", []),

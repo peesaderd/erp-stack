@@ -90,10 +90,13 @@ def fal_generate(
     model = config["models"].get(model_tier, config["models"][config["default_model"]])
     endpoint = f"{config['base_url']}/{model['endpoint']}"
 
+    negative_prompt_default = "text, watermark, logo, signature, low quality, blurry, distorted, deformed, ugly, bad anatomy, bad proportions, extra limbs, cloned face, disfigured, gross proportions, malformed limbs, missing arms, missing legs, extra arms, extra legs, fused fingers, too many fingers, long neck, username, artist name, bad art, poorly drawn, mutation, deformed, boring, sketch, lacklutter, wrong colors, bad lighting, overexposed, underexposed"
+
     payload = {
         "prompt": prompt,
         "image_size": VALID_ASPECT_RATIOS.get(aspect_ratio, image_size),
         "num_images": num_images,
+        "negative_prompt": negative_prompt_default,
     }
 
     # Extra params for quality/dev models

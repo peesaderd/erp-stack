@@ -211,9 +211,36 @@ def find_placement(scene_image: Image.Image):
 
     img_w, img_h = scene_image.size
 
-    # Step 1: YOLO product detection (fast, ~50ms)
+    # Step 1: YOLO pose — hands FIRST for "empty hand" prompts
+    # When the prompt says "hands completely empty, no product",
+    # any product detection is a false positive (bedsheet, shadow, etc.)
+    # Hands are the most reliable placement guide
+    _ensure_pose_loaded()
+    hands = _pose_detector.detect_hands(scene_image)
+    if hands:
+        best_hand = max(hands, key=lambda h: h["y"])
+        est_h = img_h * 0.25
+        est_w = est_h * 0.45
+        logger.info(
+            f"✋ YOLO hand: {best_hand['side']} "
+            f"at ({best_hand['x']},{best_hand['y']})"
+        )
+        return {
+            "source": "yolo_hand",
+            "x": best_hand["x"] - est_w * 0.4,
+            "y": best_hand["y"] - est_h * 0.3,
+            "width": est_w,
+            "height": est_h,
+            "confidence": 0.8,
+            "cx": best_hand["x"],
+            "cy": best_hand["y"],
+            "hand_side": best_hand["side"],
+        }
+
+    # Step 2: YOLO product detection — HIGH confidence only (≥ 0.5)
+    # Low-confidence detections are usually false positives
     product = _detector.find_product_bbox(scene_image)
-    if product and product["class_id"] != 0:  # Not a person → direct hit
+    if product and product["class_id"] != 0 and product["confidence"] >= 0.5:
         logger.info(
             f"📦 YOLO product: '{product['class']}' "
             f"({product['confidence']:.2f}) "
@@ -230,35 +257,7 @@ def find_placement(scene_image: Image.Image):
             "cy": product["cy"],
         }
 
-    # Step 2: Try pose detection for hands (even without person detection)
-    # Empty hand holding nothing → pose may still find wrist keypoints
-    _ensure_pose_loaded()
-    hands = _pose_detector.detect_hands(scene_image)
-    if hands:
-        # Pick the hand most likely holding something (lowest in frame = forward)
-        best_hand = max(hands, key=lambda h: h["y"])
-        # Estimate product size: ~25% of image height
-        est_h = img_h * 0.25
-        est_w = est_h * 0.45  # typical product aspect ratio
-
-        logger.info(
-            f"✋ YOLO hand: {best_hand['side']} "
-            f"at ({best_hand['x']},{best_hand['y']})"
-        )
-
-        return {
-            "source": "yolo_hand",
-            "x": best_hand["x"] - est_w * 0.4,
-            "y": best_hand["y"] - est_h * 0.3,
-            "width": est_w,
-            "height": est_h,
-            "confidence": 0.8,
-            "cx": best_hand["x"],
-            "cy": best_hand["y"],
-            "hand_side": best_hand["side"],
-        }
-
-    # Step 3: If person detected (but no hands), use upper body
+    # Step 3: Person bbox (no hands, no product detected)
     if product and product["class_id"] == 0:
         logger.info(f"🧑 Person but no hands, using upper body")
         return {

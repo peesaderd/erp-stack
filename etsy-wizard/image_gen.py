@@ -337,10 +337,10 @@ def composite_product_into_scene(
     # ── Step 2: Determine placement ──
     angle = 0.0
     if bbox:
-        bbox_x = bbox.get("x", (sw - int(pw * 0.4)) // 2)
-        bbox_y = bbox.get("y", sh - int(sh * 0.5))
-        bbox_w = bbox.get("width", int(pw * 0.4))
-        bbox_h = bbox.get("height", int(ph * 0.4))
+        bbox_x = int(bbox.get("x", (sw - int(pw * 0.4)) // 2))
+        bbox_y = int(bbox.get("y", sh - int(sh * 0.5)))
+        bbox_w = max(int(bbox.get("width", int(pw * 0.4))), 10)
+        bbox_h = max(int(bbox.get("height", int(ph * 0.4))), 10)
         angle = float(bbox.get("angle", 0))
         logger.info(f"Gemini bbox: ({bbox_x},{bbox_y}) {bbox_w}x{bbox_h} a={angle}")
     else:

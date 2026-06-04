@@ -269,266 +269,235 @@ def composite_product_into_scene(
     AI-powered product compositing with perspective matching + position detection.
 
     Pipeline:
-    1. Download product image with Cache-first strategy
-    2. rembg auto background removal
-    3. Use OpenCV to detect the "blank container" region in the scene
-    4. Warp product to match perspective/angle of the detected region
-    5. Generate realistic drop shadow with matching angle
-    6. Edge feathering + light blending
-    7. QC validation
-
-    Instead of static paste, this detects WHERE in the scene the product
-    should go (by detecting the placeholder region), then WARPS the product
-    to match the perspective and angle of the hand.
-
-    Falls back to center-bottom if detection fails.
+    1. Download product image (Cache-first, 24h TTL)
+    2. rembg if no alpha channel
+    3. **Position Detection Strategy**:
+       a. Primary: Use detected bounding box from scene analysis (passed via `position` JSON)
+       b. Fallback: Static center-bottom position
+    4. Warp product to match perspective (rotation matrix default)
+    5. Angle-aware drop shadow
+    6. Per-channel (RGB) ambient lighting blend
+    7. Edge feathering for seamless integration
+    8. RGBA compositing
+    9. QC validation
     """
     import io
     import cv2
     import numpy as np
-    import os, hashlib, time
+    import os, hashlib, time, json
 
     product_id_str = product_id or "unknown"
     sw, sh = scene_image.size
 
+    # ── Parse position parameter (supports JSON bbox from Gemini) ──
+    bbox = None
+    if isinstance(position, str) and position.startswith("{"):
+        try:
+            bbox = json.loads(position)
+            logger.info(f"Position JSON detected: {bbox}")
+        except:
+            pass
+    elif isinstance(position, dict):
+        bbox = position
+
     # ── Step 1: Download product image (with Cache) ──
     CACHE_DIR = "/tmp/product_image_cache"
     os.makedirs(CACHE_DIR, exist_ok=True)
-
-    # Cache key based on URL
     cache_key = hashlib.md5(product_image_url.encode()).hexdigest()
     cache_path = os.path.join(CACHE_DIR, f"{cache_key}.png")
 
     if os.path.exists(cache_path) and (time.time() - os.path.getmtime(cache_path)) < 86400:
-        # Cache hit (within 24h)
         product_img = PILImage.open(cache_path).convert("RGBA")
-        logger.info(f"Cache HIT [{product_id_str}]: {cache_path}")
+        logger.info(f"Cache HIT [{product_id_str}]")
     else:
-        # Cache miss — download + rembg + save to cache
         try:
             resp = requests.get(product_image_url, timeout=15)
             resp.raise_for_status()
             raw_product = PILImage.open(io.BytesIO(resp.content))
-            logger.info(f"Downloaded [{product_id_str}]: {raw_product.size} mode={raw_product.mode}")
         except Exception as e:
             logger.warning(f"Download failed {product_image_url}: {e}")
             return scene_image
 
-        # rembg if no alpha
         if raw_product.mode != "RGBA":
             try:
                 from rembg import remove as rembg_remove
                 buf = io.BytesIO()
                 raw_product.save(buf, format="PNG")
                 buf.seek(0)
-                result_bytes = rembg_remove(buf.read())
-                product_img = PILImage.open(io.BytesIO(result_bytes)).convert("RGBA")
-                logger.info(f"rembg OK [{product_id_str}]")
+                product_img = PILImage.open(io.BytesIO(rembg_remove(buf.read()))).convert("RGBA")
             except Exception as e:
-                logger.warning(f"rembg failed ({e}), using raw")
+                logger.warning(f"rembg failed ({e})")
                 product_img = raw_product.convert("RGBA")
         else:
             product_img = raw_product.convert("RGBA")
 
-        # Save to cache
         try:
             product_img.save(cache_path, "PNG")
-            logger.info(f"Cached [{product_id_str}]: {cache_path}")
-        except Exception as e:
-            logger.warning(f"Cache save failed: {e}")
+        except:
+            pass
 
     pw, ph = product_img.size
     if ph == 0:
         return scene_image
-
-    scene_arr = np.array(scene_image.convert("RGB"))
-    scene_gray = cv2.cvtColor(scene_arr, cv2.COLOR_RGB2GRAY)
-
-    # ── Step 2: Detect placeholder region in scene ──
-    # Strategy: find a blank/featureless region in the center-bottom area
-    # where the hand is holding the product. The hand is typically in the
-    # lower-center third of the image.
-    
-    detect_x_start = int(sw * 0.15)
-    detect_x_end = int(sw * 0.85)
-    detect_y_start = int(sh * 0.30)
-    detect_y_end = int(sh * 0.90)
-
-    # Look for the most homogeneous (low-texture) region = the blank placeholder
-    roi = scene_gray[detect_y_start:detect_y_end, detect_x_start:detect_x_end]
-    
-    # Compute local variance map to find the blank area
-    blur = cv2.GaussianBlur(roi, (15, 15), 0)
-    variance = cv2.Laplacian(blur, cv2.CV_64F).var()
-    
-    # Try contour detection to find the blank container shape
-    edges = cv2.Canny(blur, 30, 100)
-    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    
-    detected_rect = None
-    detected_angle = 0
-    # All product placement variables with defaults
-    x = (sw - int(pw * (sh * 0.42) / ph)) // 2
-    y = sh - int(sh * 0.42) - int(sh * 0.10)
-    new_w = int(pw * (sh * 0.42) / ph)
-    new_h = int(sh * 0.42)
-    
-    if contours:
-        # Filter contours: find the one that's roughly in the right position/size
-        valid = []
-        for cnt in contours:
-            area = cv2.contourArea(cnt)
-            if area < (sw * sh * 0.01):  # too small
-                continue
-            if area > (sw * sh * 0.35):  # too big (might be background)
-                continue
-            x_c, y_c, w_c, h_c = cv2.boundingRect(cnt)
-            # Must be in the lower half roughly
-            cy = detect_y_start + y_c + h_c // 2
-            if cy < sh * 0.35:
-                continue
-            aspect = w_c / max(h_c, 1)
-            # Product containers are typically 0.3-0.7 aspect ratio (taller than wide)
-            valid.append((cnt, area, (x_c, y_c, w_c, h_c)))
-        
-        if valid:
-            # Pick the largest valid contour
-            best = max(valid, key=lambda v: v[1])
-            _, _, (bx, by, bw, bh) = best
-            detected_x = detect_x_start + bx
-            detected_y = detect_y_start + by
-            detected_w = bw
-            detected_h = bh
-            
-            # Get angle via min area rectangle
-            rect = cv2.minAreaRect(best[0])
-            detected_angle = rect[2]
-            # Normalize angle (OpenCV gives weird ranges)
-            if detected_angle < -45:
-                detected_angle = 90 + detected_angle
-                
-            logger.info(f"Detected placeholder: pos=({detected_x},{detected_y}) "
-                        f"size={detected_w}x{detected_h} angle={detected_angle:.1f}°")
-            
-            # Size product to match detected region
-            new_w = int(detected_w * 0.85)  # slightly smaller than detected area
-            new_h = int(detected_h * 0.85)
-            x = detected_x + (detected_w - new_w) // 2
-            y = detected_y + (detected_h - new_h) // 2
-        else:
-            logger.info("No valid placeholder contour found, using default position")
-    else:
-        logger.info(f"No contours detected (variance={variance:.1f}), using default position")
-
-    # ── Step 3: Resize product ──
-    product_resized = product_img.resize((new_w, new_h), PILImage.LANCZOS)
-
-    # ── Step 4: Perspective warp ──
-    # If we detected an angle, warp the product to match
     scene_rgba = scene_image.convert("RGBA")
-    
-    if abs(detected_angle) > 3.0:
-        # Warp product to match detected angle
+
+    # ── Step 2: Determine placement ──
+    angle = 0
+    if bbox:
+        # Use Gemini-detected bounding box (preferred)
+        x = bbox.get("x", (sw - int(pw * 0.4)) // 2)
+        y = bbox.get("y", sh - int(sh * 0.5))
+        new_w = bbox.get("width", int(pw * 0.4))
+        new_h = bbox.get("height", int(ph * 0.4))
+        angle = bbox.get("angle", 0)
+        logger.info(f"Using Gemini bbox: ({x},{y}) {new_w}x{new_h} angle={angle}")
+    else:
+        # OpenCV contour detection as fallback
+        scene_arr = np.array(scene_image.convert("RGB"))
+        scene_gray = cv2.cvtColor(scene_arr, cv2.COLOR_RGB2GRAY)
+        dx = int(sw * 0.15)
+        dy1 = int(sh * 0.30)
+        dy2 = int(sh * 0.90)
+        roi = scene_gray[dy1:dy2, dx:sw-dx]
+
+        target_h = int(sh * 0.42)
+        new_w = int(pw * target_h / ph)
+        new_h = target_h
+        x = (sw - new_w) // 2
+        y = sh - new_h - int(sh * 0.10)
+
+        blur = cv2.GaussianBlur(roi, (15, 15), 0)
+        edges = cv2.Canny(blur, 30, 100)
+        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if contours:
+            valid = [(c, cv2.contourArea(c), cv2.boundingRect(c)) for c in contours]
+            valid = [(c, a, r) for c, a, r in valid if a > (sw * sh * 0.01) and a < (sw * sh * 0.3)
+                     and (dy1 + r[1] + r[3]//2) > sh * 0.35
+                     and 0.2 < r[2]/max(r[3],1) < 1.5]
+            if valid:
+                best = max(valid, key=lambda v: v[1])
+                _, _, (bx, by, bw, bh) = best
+                detected_x = dx + bx
+                detected_y = dy1 + by
+                rect = cv2.minAreaRect(best[0])
+                angle = rect[2]
+                if angle < -45:
+                    angle = 90 + angle
+                new_w = int(bw * 0.85)
+                new_h = int(bh * 0.85)
+                x = detected_x + (bw - new_w) // 2
+                y = detected_y + (bh - new_h) // 2
+                logger.info(f"OpenCV fallback: pos=({x},{y}) angle={angle:.1f}")
+
+    # ── Step 3: Resize and warp ──
+    product_resized = product_img.resize((max(new_w, 10), max(new_h, 10)), PILImage.LANCZOS)
+
+    if abs(angle) > 3.0:
         prod_np = np.array(product_resized.convert("RGBA"))
         h_p, w_p = prod_np.shape[:2]
         center = (w_p // 2, h_p // 2)
-        M = cv2.getRotationMatrix2D(center, detected_angle, 1.0)
-        
-        # Compute new bounds after rotation
+        M = cv2.getRotationMatrix2D(center, angle, 1.0)
         cos = abs(M[0, 0])
-        sin = abs(M[0, 1])
-        new_w_warp = int((h_p * sin) + (w_p * cos))
-        new_h_warp = int((h_p * cos) + (w_p * sin))
-        M[0, 2] += (new_w_warp / 2) - center[0]
-        M[1, 2] += (new_h_warp / 2) - center[1]
-        
-        warped = cv2.warpAffine(prod_np, M, (new_w_warp, new_h_warp), 
-                                 flags=cv2.INTER_LANCZOS4,
-                                 borderMode=cv2.BORDER_CONSTANT,
-                                 borderValue=(0, 0, 0, 0))
+        sin_val = abs(M[0, 1])
+        new_ww = int((h_p * sin_val) + (w_p * cos))
+        new_hh = int((h_p * cos) + (w_p * sin_val))
+        M[0, 2] += (new_ww / 2) - center[0]
+        M[1, 2] += (new_hh / 2) - center[1]
+        warped = cv2.warpAffine(prod_np, M, (new_ww, new_hh),
+                                flags=cv2.INTER_LANCZOS4,
+                                borderMode=cv2.BORDER_CONSTANT,
+                                borderValue=(0, 0, 0, 0))
         product_resized = PILImage.fromarray(warped, "RGBA")
-        # Adjust position to center the warped product
-        x -= (new_w_warp - new_w) // 2
-        y -= (new_h_warp - new_h) // 2
-        new_w, new_h = new_w_warp, new_h_warp
-        logger.info(f"Perspective warp applied: angle={detected_angle:.1f}°")
+        x -= (new_ww - new_w) // 2
+        y -= (new_hh - new_h) // 2
+        new_w = new_ww; new_h = new_hh
+        logger.info(f"Rotation applied: {angle:.1f}")
 
-    # ── Step 5: Generate drop shadow (angle-aware) ──
+    # ── Step 4: Drop shadow with angle awareness ──
     try:
         shadow = PILImage.new("RGBA", (new_w, new_h), (0, 0, 0, 0))
         product_alpha = product_resized.split()[3]
-        shadow.paste((0, 0, 0, 160), (0, 0), product_alpha)
-        # Shadow offset matches the detected angle
-        rad = math.radians(detected_angle)
-        sox = int(new_w * (0.03 * math.cos(rad) + 0.02))
-        soy = int(new_h * (0.04 * math.sin(rad) + 0.03))
-        sox = max(1, sox)
-        soy = max(1, soy)
-        shadow_blurred = shadow.filter(
-            PILImageFilter.GaussianBlur(radius=max(5, new_w // 30))
-        )
+        shadow.paste((0, 0, 0, 140), (0, 0), product_alpha)
+        rad = math.radians(angle)
+        sox = max(1, int(new_w * (0.03 * math.cos(rad) + 0.02)))
+        soy = max(1, int(new_h * (0.04 * math.sin(rad) + 0.03)))
+        shadow_blurred = shadow.filter(PILImageFilter.GaussianBlur(radius=max(5, new_w // 35)))
         scene_rgba.paste(shadow_blurred, (x + sox, y + soy), shadow_blurred)
-    except Exception as e:
-        logger.warning(f"Shadow failed: {e}")
+    except:
+        pass
+
+    # ── Step 5: Per-channel (RGB) ambient blend ──
+    try:
+        sx = max(0, x - 30)
+        sy = max(0, y - 60)
+        ex = min(sw, x + new_w + 30)
+        ey = max(0, y - 5)
+        if ex > sx and ey > sy:
+            sample = scene_rgba.crop((sx, sy, ex, ey))
+            sample_arr = np.array(sample.convert("RGB")).astype(np.float32)
+            mean_r = np.mean(sample_arr[:,:,0])
+            mean_g = np.mean(sample_arr[:,:,1])
+            mean_b = np.mean(sample_arr[:,:,2])
+
+            prod_arr = np.array(product_resized.convert("RGB")).astype(np.float32)
+            pa_np = np.array(product_resized.split()[3])
+            mask = pa_np > 10
+
+            if mask.any():
+                # Per-channel ratio (not just overall brightness)
+                pr_r = np.mean(prod_arr[:,:,0][mask])
+                pr_g = np.mean(prod_arr[:,:,1][mask])
+                pr_b = np.mean(prod_arr[:,:,2][mask])
+
+                ratio_r = mean_r / max(pr_r, 1)
+                ratio_g = mean_g / max(pr_g, 1)
+                ratio_b = mean_b / max(pr_b, 1)
+
+                # Clamp each channel
+                ratio_r = max(0.7, min(1.35, ratio_r))
+                ratio_g = max(0.7, min(1.35, ratio_g))
+                ratio_b = max(0.7, min(1.35, ratio_b))
+
+                # Apply per-channel
+                adj_r = np.clip(prod_arr[:,:,0] * ratio_r, 0, 255).astype(np.uint8)
+                adj_g = np.clip(prod_arr[:,:,1] * ratio_g, 0, 255).astype(np.uint8)
+                adj_b = np.clip(prod_arr[:,:,2] * ratio_b, 0, 255).astype(np.uint8)
+                product_resized = PILImage.fromarray(
+                    np.dstack([adj_r, adj_g, adj_b, pa_np]), "RGBA"
+                )
+                logger.info(f"Per-channel blend: R={ratio_r:.2f} G={ratio_g:.2f} B={ratio_b:.2f}")
+    except:
+        pass
 
     # ── Step 6: Edge feathering ──
     try:
-        feather_px = max(3, min(new_w, new_h) // 60)
-        if feather_px > 0:
+        feather = max(3, min(new_w, new_h) // 60)
+        if feather > 0:
             edge_mask = PILImage.new("L", (new_w, new_h), 255)
             draw = PILImageDraw.Draw(edge_mask)
-            for i in range(feather_px):
-                a = int(255 * (i / feather_px))
+            for i in range(feather):
+                a = int(255 * (i / feather))
                 draw.rectangle([0, i, new_w, i + 1], fill=a)
                 draw.rectangle([0, new_h - i - 1, new_w, new_h - i], fill=a)
                 draw.rectangle([i, 0, i + 1, new_h], fill=a)
                 draw.rectangle([new_w - i - 1, 0, new_w - i, new_h], fill=a)
             pa = product_resized.split()[3]
-            ba = PILImage.composite(
-                PILImage.new("L", (new_w, new_h), 0), pa, edge_mask
-            )
+            ba = PILImage.composite(PILImage.new("L", (new_w, new_h), 0), pa, edge_mask)
             product_resized.putalpha(ba)
-    except Exception as e:
-        logger.warning(f"Feathering failed: {e}")
+    except:
+        pass
 
-    # ── Step 7: Ambient lighting blend ──
-    try:
-        sx, sy = max(0, x - 30), max(0, y - 60)
-        ex, ey = min(sw, x + new_w + 30), max(0, y - 5)
-        if ex > sx and ey > sy:
-            sample = scene_rgba.crop((sx, sy, ex, ey))
-            sample_arr = np.array(sample.convert("RGB"))
-            scene_bright = np.mean(sample_arr)
-            prod_arr = np.array(product_resized.convert("RGB"))
-            pa_np = np.array(product_resized.split()[3])
-            mask = pa_np > 10
-            if mask.any():
-                prod_bright = np.mean(prod_arr[mask])
-                bright_ratio = scene_bright / max(prod_bright, 1)
-                bright_ratio = max(0.7, min(1.35, bright_ratio))
-                if abs(bright_ratio - 1.0) > 0.05:
-                    adj = (prod_arr.astype(np.float32) * bright_ratio)
-                    adj = np.clip(adj, 0, 255).astype(np.uint8)
-                    product_resized = PILImage.fromarray(
-                        np.dstack([adj, pa_np]), "RGBA"
-                    )
-                    logger.info(f"Ambient blend: ratio={bright_ratio:.2f}")
-    except Exception as e:
-        logger.warning(f"Ambient blend skipped: {e}")
-
-    # ── Step 8: Composite ──
+    # ── Step 7: Composite ──
     scene_rgba.paste(product_resized, (x, y), product_resized)
 
-    # ── Step 9: QC ──
+    # ── Step 8: QC ──
     try:
         final_arr = np.array(scene_rgba.convert("RGB"))
         pa = final_arr[y:y+new_h, x:x+new_w]
-        logger.info(f"QC [{product_id_str}]: brightness={np.mean(pa):.0f}, "
-                    f"contrast={np.std(pa):.0f}, "
-                    f"angle={detected_angle:.1f}°, "
-                    f"pos=({x},{y})")
-    except Exception as e:
-        logger.warning(f"QC failed: {e}")
+        logger.info(f"QC [{product_id_str}]: avg={np.mean(pa):.0f} "
+                    f"std={np.std(pa):.0f} angle={angle:.1f}")
+    except:
+        pass
 
     logger.info(f"Composite OK [{product_id_str}]: ({x},{y}) {new_w}x{new_h}")
     return scene_rgba

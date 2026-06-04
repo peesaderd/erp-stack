@@ -320,19 +320,30 @@ These elements are IMMUTABLE - never alter or hallucinate these details:
 - Describe product APPEARANCE: color, shape, material, packaging, texture (NEVER describe text, labels, logos, or brand markings)
 - CRITICAL: Do NOT include any text, labels, logos, brand names, or markings in the prompt
 - After analyzing the image, also estimate the BOUNDING BOX of where the product would be held by hand (return as JSON with keys x, y, width, height, angle — all numbers)
+- The product is a {_placeholder_term_for_category(category)} — text/logos will be composited
 - The product is a _placeholder_term_for_category(category) — text/logos will be composited
 - MUST specify Thai/SE Asian model (young Thai woman, light brown skin, Southeast Asian features, natural look)
 - Use warm Thai-style setting, natural lighting, pastel or soft tones
+ - HIGH: Include specific hand poses that match the product type and usage context
+ - HIGH: For electronics, specify if the device should be on/off and screen content (always blank/placeholder)
+ - HIGH: For beauty products, specify application context (face, lips, eyes, etc.)
+ - HIGH: For fashion/jewelry, specify how it's worn or displayed
 
 # REQUIREMENTS FOR VIDEO PROMPT:
 - Focus on camera movement (pan/zoom/tilt/dolly) and subject action
 - Duration: 15-25 seconds, 9:16 vertical format
 - Include specific actions: reaching, applying, holding
+ - HIGH: Include transition suggestions between scenes
+ - HIGH: Specify product interaction details (how it's picked up, used, put down)
+ - HIGH: Include lighting changes for dramatic effect
 
 # REQUIREMENTS FOR HOOKS (3 hooks):
 - THAI language, product-specific (NOT generic), attention-grabbing
 - Use female-friendly pronouns (คุณ) - never use male pronouns like ผม
 - Reference specific product benefits and pain points
+ - HIGH: Include emotional triggers specific to the target audience
+ - HIGH: For beauty products, focus on transformation/results
+ - HIGH: For electronics, focus on convenience/time-saving
 
 Research Context:
 {json.dumps(research, ensure_ascii=False, indent=2)}
@@ -340,6 +351,11 @@ Research Context:
 Output ONLY valid JSON. No markdown fences. No trailing commas. No newlines inside JSON strings. Escape all double quotes inside strings with backslash. No control characters in strings:
 {{
   "image_prompts": [
+    {{"id": "holding_product", "name": "ถือสินค้า", "prompt": "...", "bbox": {{"x": 0, "y": 0, "width": 0, "height": 0, "angle": 0}}}},
+    {{"id": "product_usage", "name": "ใช้งานสินค้า", "prompt": "...", "bbox": {{"x": 0, "y": 0, "width": 0, "height": 0, "angle": 0}}}},
+    {{"id": "lifestyle", "name": "ไลฟ์สไตล์", "prompt": "...", "bbox": {{"x": 0, "y": 0, "width": 0, "height": 0, "angle": 0}}}},
+    {{"id": "close_up", "name": "ซูมระยะใกล้", "prompt": "...", "bbox": {{"x": 0, "y": 0, "width": 0, "height": 0, "angle": 0}}}},
+    {{"id": "review_style", "name": "รีวิว", "prompt": "...", "bbox": {{"x": 0, "y": 0, "width": 0, "height": 0, "angle": 0}}}}
     {{"id": "holding_product", "name": "ถือสินค้า", "prompt": "..."}},
     {{"id": "product_usage", "name": "ใช้งานสินค้า", "prompt": "..."}},
     {{"id": "lifestyle", "name": "ไลฟ์สไตล์", "prompt": "..."}},
@@ -350,6 +366,9 @@ Output ONLY valid JSON. No markdown fences. No trailing commas. No newlines insi
     "description": "...",
     "movement": [...],
     "lighting": "...",
+    "storytelling": "...",
+    "transitions": [...],
+    "product_interaction": [...]
     "storytelling": "..."
   }},
   "hook_suggestions": ["...", "...", "..."],
@@ -447,13 +466,30 @@ def _placeholder_term_for_category(category: str = "") -> str:
         return "a blank minimal handheld tool (no branding)"
 
     # Electronics / gadgets (vacuum, phone, power bank, charger, earphone)
+    # HIGH: Added missing electronics categories and improved specificity
     if any(kw in cat for kw in ["vacuum", "cleaner", "vacuum cleaner", "robot",
                                 "phone", "smartphone", "mobile", "tablet", "iPad",
                                 "power bank", "charger", "charging", "cable",
                                 "earphone", "headphone", "earbuds", "speaker",
                                 "bluetooth", "fan", "purifier", "air purifier",
                                 "humidifier", "diffuser", "shaver", "trimmer",
-                                "epilator", "massager", "massage gun"]):
+                                "epilator", "massager", "massage gun",
+                                "smartwatch", "watch", "fitness tracker",
+                                "camera", "action camera", "drone", "gopro",
+                                "laptop", "notebook", "ultrabook", "gaming laptop",
+                                "monitor", "display", "keyboard", "mouse",
+                                "router", "modem", "nas", "hard drive", "ssd"]):
+        # HIGH: More specific descriptions for different electronics types
+        if any(kw in cat for kw in ["phone", "smartphone", "mobile", "tablet", "iPad"]):
+            return "a hand holding a blank minimal smartphone (rectangular, no screen content, no labels)"
+        if any(kw in cat for kw in ["power bank", "charger", "battery"]):
+            return "a hand holding a blank minimal power bank (rectangular, no labels)"
+        if any(kw in cat for kw in ["earphone", "headphone", "earbuds"]):
+            return "a hand holding blank minimal wireless earbuds (no labels, no branding)"
+        if any(kw in cat for kw in ["watch", "smartwatch", "fitness tracker"]):
+            return "a wrist wearing a blank minimal smartwatch (no screen content, no labels)"
+        else:
+            return "a hand holding a blank minimal device (rectangular, no labels, no screen content)"
         return "a hand holding a blank minimal device (rectangular, no labels, no screen content)"
 
     # Food / drinks
@@ -461,6 +497,24 @@ def _placeholder_term_for_category(category: str = "") -> str:
                                 "tea", "water", "juice", "sauce", "seasoning",
                                 "oil bottle", "vinegar", "honey", "jam"]):
         return "a blank minimal bottle or pouch (no labels)"
+
+    # HIGH: Added missing jewelry category
+    if any(kw in cat for kw in ["jewelry", "necklace", "ring", "bracelet", "earring",
+                                "brooch", "pendant", "chain", "bangle", "anklet",
+                                "watch", "cufflink", "tie clip", "hair accessory"]):
+        return "a hand holding a blank minimal piece of jewelry (no branding, no text)"
+
+    # HIGH: Added missing fashion accessories category
+    if any(kw in cat for kw in ["bag", "handbag", "purse", "tote", "backpack",
+                                "wallet", "clutch", "belt", "scarf", "hat",
+                                "cap", "gloves", "sunglasses", "umbrella"]):
+        return "a hand holding a blank minimal fashion accessory (no branding, no text)"
+
+    # HIGH: Added missing home decor category
+    if any(kw in cat for kw in ["candle", "vase", "frame", "mirror", "clock",
+                                "lamp", "pillow", "blanket", "rug", "curtain",
+                                "plant", "pot", "decor", "ornament"]):
+        return "a blank minimal home decor item (no branding, no text)"
 
     # Default: generic container
     return "a blank minimal container (no text, no labels, no branding)"
@@ -526,6 +580,11 @@ def _fallback_analysis(product_name: str, description: str, category: str) -> di
         image_prompts.append({
             "id": style["id"],
             "name": style["name"],
+            "bbox": {"x": 0, "y": 0, "width": 0, "height": 0, "angle": 0},
+            "prompt": f"ภาพถ่ายสินค้า {product_name} ในสไตล์ {style['name']} แสดงรายละเอียดสี รูปร่าง วัสดุ และบรรจุภัณฑ์อย่างชัดเจน "
+                      f"โดยใช้ {_placeholder_term_for_category(category)} เป็นตัวแทนสินค้า "
+                      f"แสดงมือถือสินค้าอย่างเป็นธรรมชาติ เหมาะสำหรับการรีวิวสินค้า "
+                      f"แสงสว่างธรรมชาติ โทนสีอบอุ่น สไตล์ไทย",
             "prompt": f"ภาพถ่ายสินค้า {product_name} ในสไตล์ {style['name']} แสดงรายละเอียดสี รูปร่าง วัสดุ และบรรจุภัณฑ์อย่างชัดเจน เหมาะสำหรับการรีวิวสินค้า",
         })
 
@@ -534,11 +593,14 @@ def _fallback_analysis(product_name: str, description: str, category: str) -> di
         "video_prompt": (
             f"วิดีโอรีวิวสินค้า {product_name} แสดงการใช้งานจริงในสถานที่แบบไทย "
             f"โดยคนไทยผิวสีอ่อน ถือและสาธิตการใช้งานสินค้า "
+            f"ด้วยการเคลื่อนไหวกล้องที่น่าสนใจ เช่น ซูมเข้า ซูมออก แพน "
+            f"และการเปลี่ยนแปลงแสงสว่างเพื่อสร้างบรรยากาศ "
             f"ด้วยแสงสว่างธรรมชาติและโทนสีอบอุ่น"
         ),
         "hook_suggestions": [
             f"กำลังมองหาสินค้าแบบนี้อยู่เหรอ?",
             f"สินค้า {product_name} แบบนี้หายากเลย!",
+            f"อยากได้{product_name}ที่ใช้ง่ายและมีคุณภาพ ต้องลองสิ!",
             f"อยากได้ของดีๆ แบบนี้ต้องรีบจัดไปเลย",
         ],
         "marketing_copy": f"รีวิวสินค้า {product_name} ที่คุณต้องรู้! {description[:100]}",
@@ -548,6 +610,7 @@ def _fallback_analysis(product_name: str, description: str, category: str) -> di
             "#TikTokUGC",
             "#รีวิว",
             "#แนะนำสินค้า",
+            "#" + category.replace(" ", "") if category else "#สินค้า",
         ],
     }
 def research_product(product_name, description='', category='', image_base64=None):

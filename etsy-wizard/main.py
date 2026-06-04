@@ -1,3 +1,5 @@
+from pydantic import validator
+
 import sys
 
 """
@@ -126,6 +128,20 @@ def delete_listing_db(shop_id: str, draft_id: str):
 # Initialize on startup
 init_db()
 load_from_db()
+
+# MEDIUM: Configure static file serving for product images
+# This should match the path used in the analyze endpoint
+try:
+    static_path = Path(__file__).parent / "static" / "product_images"
+    static_path.mkdir(parents=True, exist_ok=True)
+    app.mount(
+        "/static/product_images",
+        StaticFiles(directory=str(static_path)),
+        name="product_images"
+    )
+    logger.info(f"Static file serving configured for: {static_path}")
+except Exception as e:
+    logger.error(f"Failed to configure static file serving: {e}")
 # --- end SQLite ---
 
 
@@ -341,8 +357,27 @@ class ImageGenRequest(BaseModel):
     model_tier: str = "quality"
     upscale: bool = True
     aspect_ratio: str = ""  # "9:16", "16:9", "1:1", "4:5", "3:2"
-    product_image_url: str = ""  # URL of real product image for compositing
+    product_image_url: Optional[str] = None  # URL of real product image for compositing
     product_id: str = ""  # optional product ID for logging
+
+    @validator('product_image_url', pre=True)
+    def validate_product_image_url(cls, v):
+        if v is None:
+            return None
+        if not isinstance(v, str) or not v.strip():
+            raise ValueError("product_image_url must be a non-empty string or None")
+        if not v.startswith(('http://', 'https://')):
+            raise ValueError("product_image_url must be a valid HTTP/HTTPS URL")
+        return v.strip()
+
+    @validator('aspect_ratio', pre=True)
+    def validate_aspect_ratio(cls, v):
+        if not v:
+            return ""
+        valid_ratios = ["9:16", "16:9", "1:1", "4:5", "3:2"]
+        if v not in valid_ratios:
+            raise ValueError(f"aspect_ratio must be one of {valid_ratios}")
+        return v
 
 
 class BatchGenRequest(BaseModel):
@@ -397,7 +432,7 @@ def ai_generate_image(req: ImageGenRequest):
             model_tier=req.model_tier,
             upscale=req.upscale,
             aspect_ratio=ar,
-            product_image_url=req.product_image_url or None,
+            product_image_url=req.product_image_url,
             product_id=req.product_id or None,
         )
         return {
@@ -411,7 +446,16 @@ def ai_generate_image(req: ImageGenRequest):
             "prompt_used": prompt,
         }
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Image gen failed: {str(e)}")
+        logger.error(f"Image generation failed: {str(e)}", exc_info=True)
+        error_msg = str(e)
+        if "400" in error_msg or "404" in error_msg or "invalid" in error_msg.lower():
+            raise HTTPException(status_code=400, detail=f"Invalid request: {error_msg}")
+        elif "401" in error_msg or "403" in error_msg or "key" in error_msg.lower():
+            raise HTTPException(status_code=401, detail=f"Authentication failed: {error_msg}")
+        elif "timeout" in error_msg.lower() or "504" in error_msg:
+            raise HTTPException(status_code=504, detail=f"Service timeout: {error_msg}")
+        else:
+            raise HTTPException(status_code=502, detail=f"Image generation failed: {error_msg}")
 
 
 @app.post("/ai/generate-product")

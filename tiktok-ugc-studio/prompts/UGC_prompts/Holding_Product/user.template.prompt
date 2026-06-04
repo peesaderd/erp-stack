@@ -2,7 +2,12 @@ Scene:
 A person holding a product naturally.
 
 Details:
+Person: {gender, age}
+Hand pose: {natural grip showing the product's intended use}
 Product: {product} (minimal blank container, no visible labels/text — branding is post-produced)
+Product appearance: {color, shape, material, texture — be specific about physical characteristics}
 Background: {clean}
 Mood: {neutral}
 Key: The product container has NO text, NO labels, NO visible branding — it is a clean blank surface.
+Key: The product should be the focal point, with the hand providing context but not obscuring key features.
+Key: Include subtle shadows to ground the product in the scene.

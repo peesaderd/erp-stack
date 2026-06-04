@@ -438,19 +438,42 @@ async def analyze_product(
     """
     from gemini_agent import analyze_product
 
+    # MEDIUM: Input validation
+    if not product_name or not isinstance(product_name, str) or len(product_name.strip()) < 2:
+        raise HTTPException(status_code=400, detail="Product name must be at least 2 characters")
+
+    product_name = product_name.strip()
+    description = description.strip()
+
     # Convert uploaded file to base64 and save for compositing
     image_base64 = None
     product_image_url = ""
     if file and file.filename:
         contents = await file.read()
+        # MEDIUM: Validate file type and size
+        if not file.filename.lower().endswith(('.png', '.jpg', '.jpeg', '.webp')):
+            raise HTTPException(status_code=400, detail="Only PNG, JPG, JPEG, WEBP images are supported")
+
+        # Limit file size to 10MB
+        contents = await file.read()
+        if len(contents) > 10 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="Image size exceeds 10MB limit")
+
+        await file.seek(0)  # Reset file pointer after reading
+
         if contents:
             image_base64 = base64.b64encode(contents).decode("utf-8")
             # Save product image so it can be referenced for compositing
             try:
                 import os
+                import time
                 save_dir = "/home/openhands/erp-stack/etsy-wizard/static/product_images"
                 os.makedirs(save_dir, exist_ok=True)
                 safe_name = f"{int(time.time())}_{file.filename}"
+                # MEDIUM: Sanitize filename to prevent path traversal
+                import re
+                safe_name = re.sub(r'[^a-zA-Z0-9_\-\.]', '_', file.filename)
+                safe_name = f"{int(time.time())}_{safe_name}"
                 save_path = os.path.join(save_dir, safe_name)
                 with open(save_path, "wb") as f:
                     f.write(contents)
@@ -458,6 +481,7 @@ async def analyze_product(
                 logger.info(f"Saved product image for compositing: {save_path}")
             except Exception as e:
                 logger.warning(f"Failed to save product image: {e}")
+                product_image_url = ""
 
     try:
         result = analyze_product(
@@ -473,8 +497,12 @@ async def analyze_product(
             if isinstance(item, dict):
                 img_id = item.get("id", "")
                 prompt = item.get("prompt", "")
+                bbox = item.get("bbox", {})
                 if img_id:
-                    image_prompts_dict[img_id] = prompt
+                    image_prompts_dict[img_id] = {
+                        "prompt": prompt,
+                        "bbox": bbox
+                    }
         # Also include all as dict keys for easy access
         if not image_prompts_dict:
             # Maybe already in dict format
@@ -498,9 +526,18 @@ async def analyze_product(
             "product_name": product_name,
             "product_desc": description,
             "product_image_url": product_image_url or None,
+            "brand_protocol": result.get("brand_protocol", {}),
+            "research": {
+                "product_type": result.get("product_type", ""),
+                "material": result.get("material", ""),
+                "category": result.get("category", ""),
+                "target_audience": result.get("target_audience", ""),
+                "key_features": result.get("key_features", []),
+            }
         }
         return normalized
     except Exception as e:
+        logger.error(f"Product analysis failed: {str(e)}", exc_info=True)
         raise HTTPException(status_code=502, detail=str(e))
 
 

@@ -291,6 +291,11 @@ def composite_product_into_scene(
     elif isinstance(position, dict):
         bbox = position
 
+    # CRITICAL: Validate product_image_url before proceeding
+    if not product_image_url or not isinstance(product_image_url, str):
+        logger.error(f"Invalid product_image_url: {product_image_url}")
+        return scene_image
+
     # ── Step 1: Download product (cache-first, 24h TTL) ──
     CACHE_DIR = "/tmp/product_image_cache"
     os.makedirs(CACHE_DIR, exist_ok=True)
@@ -324,6 +329,9 @@ def composite_product_into_scene(
 
     pw, ph = product_img.size
     if ph == 0:
+        return scene_image
+    if pw == 0 or ph == 0:
+        logger.error(f"Invalid product image dimensions: {pw}x{ph}")
         return scene_image
 
     # ── Step 2: Determine placement ──
@@ -371,6 +379,12 @@ def composite_product_into_scene(
                 bbox_y += (bh - bbox_h) // 2
                 logger.info(f"OpenCV: ({bbox_x},{bbox_y}) {bbox_w}x{bbox_h} a={angle:.1f}")
 
+    # Validate bbox coordinates to prevent out-of-bounds errors
+    bbox_x = max(0, min(bbox_x, sw - 10))
+    bbox_y = max(0, min(bbox_y, sh - 10))
+    bbox_w = max(10, min(bbox_w, sw - bbox_x))
+    bbox_h = max(10, min(bbox_h, sh - bbox_y))
+
     # ── Step 3: Resize + rotation warp ──
     resize_w = max(bbox_w, 10); resize_h = max(bbox_h, 10)
     product_resized = product_img.resize((resize_w, resize_h), PILImage.LANCZOS)
@@ -395,6 +409,12 @@ def composite_product_into_scene(
         final_y = bbox_y - (nh - resize_h)//2
         final_w, final_h = nw, nh
         logger.info(f"Rotated {angle:.1f}°")
+
+    # Validate final coordinates after rotation
+    final_x = max(0, min(final_x, sw - 10))
+    final_y = max(0, min(final_y, sh - 10))
+    final_w = max(10, min(final_w, sw - final_x))
+    final_h = max(10, min(final_h, sh - final_y))
 
     # ── Step 4: Drop shadow — from ALPHA channel (NO re-download) ──
     # FIX #2: Use product_resized's ALPHA directly. NO requests.get here.
@@ -437,6 +457,25 @@ def composite_product_into_scene(
     except Exception as e:
         logger.warning(f"Blend: {e}")
 
+    # CRITICAL: Fix edge glow by ensuring mask is properly applied
+    # The current implementation might cause edge artifacts due to hard alpha threshold
+    try:
+        pa_np = np.array(product_resized.split()[3])
+        # Create a smoother mask transition to prevent edge glow
+        mask = pa_np > 0
+        if mask.any():
+            # Apply feathering to the mask edges
+            kernel = np.ones((3,3), np.uint8)
+            eroded = cv2.erode(pa_np, kernel, iterations=1)
+            dilated = cv2.dilate(pa_np, kernel, iterations=1)
+            feather_mask = cv2.GaussianBlur(dilated, (5,5), 0)
+            # Normalize feather mask to 0-255 range
+            feather_mask = (feather_mask * (255.0 / feather_mask.max())).astype(np.uint8)
+            # Apply the feathered mask
+            product_resized.putalpha(PILImage.fromarray(feather_mask))
+    except Exception as e:
+        logger.warning(f"Edge feathering fix failed: {e}")
+
     # ── Step 6: Edge feathering + composite ──
     try:
         fpx = max(3, min(final_w, final_h)//60)
@@ -461,6 +500,18 @@ def composite_product_into_scene(
     try:
         fa = np.array(scene_out.convert("RGB"))
         pa_qc = fa[final_y:final_y+final_h, final_x:final_x+final_w]
+        # CRITICAL: Improve QC validation to catch more edge cases
+        if pa_qc.size > 0:
+            avg = np.mean(pa_qc)
+            std = np.std(pa_qc)
+            # Check for potential issues
+            issues = []
+            if avg < 10 or avg > 240:
+                issues.append(f"unusual brightness (avg={avg:.0f})")
+            if std < 5:
+                issues.append(f"low contrast (std={std:.0f})")
+            if issues:
+                logger.warning(f"QC issues detected: {', '.join(issues)}")
         logger.info(f"QC: avg={np.mean(pa_qc):.0f} std={np.std(pa_qc):.0f} "
                     f"a={angle:.1f} pos=({final_x},{final_y})")
     except: pass

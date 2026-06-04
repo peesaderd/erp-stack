@@ -1326,3 +1326,307 @@
 +```
 +
 +Look for the exact payload dict that gets sent to queue.fal.run and add the negative_prompt line there.
+
+# 2026-06-04 12:31:17.121269
++You are a senior code reviewer. Review the compositing pipeline and e-commerce AI image automation code.
++
++## Files to review
++
++### Critical: compositing pipeline
++- etsy-wizard/image_gen.py - `composite_product_into_scene()` function
++- tiktok-ugc-studio/gemini_agent.py - `_placeholder_term_for_category()` and prompt generation
++
++### Important: API endpoints
++- etsy-wizard/main.py - ImageGenRequest model, generate-image endpoint
++- tiktok-ugc-studio/main.py - analyze endpoint
++
++### Prompt templates
++- tiktok-ugc-studio/prompts/UGC_prompts/Holding_Product/user.template.prompt
++- tiktok-ugc-studio/prompts/UGC_prompts/Product_Usage/user.template.prompt
++- tiktok-ugc-studio/prompts/UGC_prompts/UGC_Review/user.template.prompt
++
++## Review focus for compositing:
++1. Any remaining bugs in `composite_product_into_scene()` - check variable consistency, edge cases
++2. Does the per-channel RGB blend correctly mask pixels (no edge glow)?
++3. Is the drop shadow using cached warped alpha (no duplicate requests.get)?
++4. Are OpenCV contour filters too restrictive for different product shapes?
++5. Quality: is the QC validation meaningful?
++
++## Review focus for prompts + agents:
++1. Does _placeholder_term_for_category() cover enough product categories?
++2. Are the prompt templates correctly pushing "blank/minimal/placeholder" for product shapes?
++3. Is the Gemini bbox instruction correctly formatted (no Python f-string injection bugs)?
++
++## API concerns:
++1. Input validation on product_image_url - null/empty handling?
++2. Error propagation - does composite failure cascade correctly?
++3. Asset cache - 24h TTL, correct MD5 keying?
++4. Static file serving for product images - is the mount correctly configured?
++
++Give specific line numbers, severity (CRITICAL/HIGH/MEDIUM/LOW), and concrete fix suggestions where applicable.
+
+# 2026-06-04 12:31:17.122388
++You are a senior code reviewer. Review the compositing pipeline and e-commerce AI image automation code.
++
++## Files to review
++
++### Critical: compositing pipeline
++- etsy-wizard/image_gen.py - `composite_product_into_scene()` function
++- tiktok-ugc-studio/gemini_agent.py - `_placeholder_term_for_category()` and prompt generation
++
++### Important: API endpoints
++- etsy-wizard/main.py - ImageGenRequest model, generate-image endpoint
++- tiktok-ugc-studio/main.py - analyze endpoint
++
++### Prompt templates
++- tiktok-ugc-studio/prompts/UGC_prompts/Holding_Product/user.template.prompt
++- tiktok-ugc-studio/prompts/UGC_prompts/Product_Usage/user.template.prompt
++- tiktok-ugc-studio/prompts/UGC_prompts/UGC_Review/user.template.prompt
++
++## Review focus for compositing:
++1. Any remaining bugs in `composite_product_into_scene()` - check variable consistency, edge cases
++2. Does the per-channel RGB blend correctly mask pixels (no edge glow)?
++3. Is the drop shadow using cached warped alpha (no duplicate requests.get)?
++4. Are OpenCV contour filters too restrictive for different product shapes?
++5. Quality: is the QC validation meaningful?
++
++## Review focus for prompts + agents:
++1. Does _placeholder_term_for_category() cover enough product categories?
++2. Are the prompt templates correctly pushing "blank/minimal/placeholder" for product shapes?
++3. Is the Gemini bbox instruction correctly formatted (no Python f-string injection bugs)?
++
++## API concerns:
++1. Input validation on product_image_url - null/empty handling?
++2. Error propagation - does composite failure cascade correctly?
++3. Asset cache - 24h TTL, correct MD5 keying?
++4. Static file serving for product images - is the mount correctly configured?
++
++Give specific line numbers, severity (CRITICAL/HIGH/MEDIUM/LOW), and concrete fix suggestions where applicable.
+
+# 2026-06-04 12:31:36.499474
++You are a senior code reviewer. Review the compositing pipeline and e-commerce AI image automation code.
++
++## Files to review
++
++### Critical: compositing pipeline
++- etsy-wizard/image_gen.py - `composite_product_into_scene()` function
++- tiktok-ugc-studio/gemini_agent.py - `_placeholder_term_for_category()` and prompt generation
++
++### Important: API endpoints
++- etsy-wizard/main.py - ImageGenRequest model, generate-image endpoint
++- tiktok-ugc-studio/main.py - analyze endpoint
++
++### Prompt templates
++- tiktok-ugc-studio/prompts/UGC_prompts/Holding_Product/user.template.prompt
++- tiktok-ugc-studio/prompts/UGC_prompts/Product_Usage/user.template.prompt
++- tiktok-ugc-studio/prompts/UGC_prompts/UGC_Review/user.template.prompt
++
++## Review focus for compositing:
++1. Any remaining bugs in `composite_product_into_scene()` - check variable consistency, edge cases
++2. Does the per-channel RGB blend correctly mask pixels (no edge glow)?
++3. Is the drop shadow using cached warped alpha (no duplicate requests.get)?
++4. Are OpenCV contour filters too restrictive for different product shapes?
++5. Quality: is the QC validation meaningful?
++
++## Review focus for prompts + agents:
++1. Does _placeholder_term_for_category() cover enough product categories?
++2. Are the prompt templates correctly pushing "blank/minimal/placeholder" for product shapes?
++3. Is the Gemini bbox instruction correctly formatted (no Python f-string injection bugs)?
++
++## API concerns:
++1. Input validation on product_image_url - null/empty handling?
++2. Error propagation - does composite failure cascade correctly?
++3. Asset cache - 24h TTL, correct MD5 keying?
++4. Static file serving for product images - is the mount correctly configured?
++
++Give specific line numbers, severity (CRITICAL/HIGH/MEDIUM/LOW), and concrete fix suggestions where applicable.
+
+# 2026-06-04 12:31:36.507197
++You are a senior code reviewer. Review the compositing pipeline and e-commerce AI image automation code.
++
++## Files to review
++
++### Critical: compositing pipeline
++- etsy-wizard/image_gen.py - `composite_product_into_scene()` function
++- tiktok-ugc-studio/gemini_agent.py - `_placeholder_term_for_category()` and prompt generation
++
++### Important: API endpoints
++- etsy-wizard/main.py - ImageGenRequest model, generate-image endpoint
++- tiktok-ugc-studio/main.py - analyze endpoint
++
++### Prompt templates
++- tiktok-ugc-studio/prompts/UGC_prompts/Holding_Product/user.template.prompt
++- tiktok-ugc-studio/prompts/UGC_prompts/Product_Usage/user.template.prompt
++- tiktok-ugc-studio/prompts/UGC_prompts/UGC_Review/user.template.prompt
++
++## Review focus for compositing:
++1. Any remaining bugs in `composite_product_into_scene()` - check variable consistency, edge cases
++2. Does the per-channel RGB blend correctly mask pixels (no edge glow)?
++3. Is the drop shadow using cached warped alpha (no duplicate requests.get)?
++4. Are OpenCV contour filters too restrictive for different product shapes?
++5. Quality: is the QC validation meaningful?
++
++## Review focus for prompts + agents:
++1. Does _placeholder_term_for_category() cover enough product categories?
++2. Are the prompt templates correctly pushing "blank/minimal/placeholder" for product shapes?
++3. Is the Gemini bbox instruction correctly formatted (no Python f-string injection bugs)?
++
++## API concerns:
++1. Input validation on product_image_url - null/empty handling?
++2. Error propagation - does composite failure cascade correctly?
++3. Asset cache - 24h TTL, correct MD5 keying?
++4. Static file serving for product images - is the mount correctly configured?
++
++Give specific line numbers, severity (CRITICAL/HIGH/MEDIUM/LOW), and concrete fix suggestions where applicable.
+
+# 2026-06-04 12:32:03.927289
++You are a senior code reviewer. Review the compositing pipeline and e-commerce AI image automation code.
++
++## Files to review
++
++### Critical: compositing pipeline
++- etsy-wizard/image_gen.py - `composite_product_into_scene()` function
++- tiktok-ugc-studio/gemini_agent.py - `_placeholder_term_for_category()` and prompt generation
++
++### Important: API endpoints
++- etsy-wizard/main.py - ImageGenRequest model, generate-image endpoint
++- tiktok-ugc-studio/main.py - analyze endpoint
++
++### Prompt templates
++- tiktok-ugc-studio/prompts/UGC_prompts/Holding_Product/user.template.prompt
++- tiktok-ugc-studio/prompts/UGC_prompts/Product_Usage/user.template.prompt
++- tiktok-ugc-studio/prompts/UGC_prompts/UGC_Review/user.template.prompt
++
++## Review focus for compositing:
++1. Any remaining bugs in `composite_product_into_scene()` - check variable consistency, edge cases
++2. Does the per-channel RGB blend correctly mask pixels (no edge glow)?
++3. Is the drop shadow using cached warped alpha (no duplicate requests.get)?
++4. Are OpenCV contour filters too restrictive for different product shapes?
++5. Quality: is the QC validation meaningful?
++
++## Review focus for prompts + agents:
++1. Does _placeholder_term_for_category() cover enough product categories?
++2. Are the prompt templates correctly pushing "blank/minimal/placeholder" for product shapes?
++3. Is the Gemini bbox instruction correctly formatted (no Python f-string injection bugs)?
++
++## API concerns:
++1. Input validation on product_image_url - null/empty handling?
++2. Error propagation - does composite failure cascade correctly?
++3. Asset cache - 24h TTL, correct MD5 keying?
++4. Static file serving for product images - is the mount correctly configured?
++
++Give specific line numbers, severity (CRITICAL/HIGH/MEDIUM/LOW), and concrete fix suggestions where applicable.
+
+# 2026-06-04 12:32:03.927542
++You are a senior code reviewer. Review the compositing pipeline and e-commerce AI image automation code.
++
++## Files to review
++
++### Critical: compositing pipeline
++- etsy-wizard/image_gen.py - `composite_product_into_scene()` function
++- tiktok-ugc-studio/gemini_agent.py - `_placeholder_term_for_category()` and prompt generation
++
++### Important: API endpoints
++- etsy-wizard/main.py - ImageGenRequest model, generate-image endpoint
++- tiktok-ugc-studio/main.py - analyze endpoint
++
++### Prompt templates
++- tiktok-ugc-studio/prompts/UGC_prompts/Holding_Product/user.template.prompt
++- tiktok-ugc-studio/prompts/UGC_prompts/Product_Usage/user.template.prompt
++- tiktok-ugc-studio/prompts/UGC_prompts/UGC_Review/user.template.prompt
++
++## Review focus for compositing:
++1. Any remaining bugs in `composite_product_into_scene()` - check variable consistency, edge cases
++2. Does the per-channel RGB blend correctly mask pixels (no edge glow)?
++3. Is the drop shadow using cached warped alpha (no duplicate requests.get)?
++4. Are OpenCV contour filters too restrictive for different product shapes?
++5. Quality: is the QC validation meaningful?
++
++## Review focus for prompts + agents:
++1. Does _placeholder_term_for_category() cover enough product categories?
++2. Are the prompt templates correctly pushing "blank/minimal/placeholder" for product shapes?
++3. Is the Gemini bbox instruction correctly formatted (no Python f-string injection bugs)?
++
++## API concerns:
++1. Input validation on product_image_url - null/empty handling?
++2. Error propagation - does composite failure cascade correctly?
++3. Asset cache - 24h TTL, correct MD5 keying?
++4. Static file serving for product images - is the mount correctly configured?
++
++Give specific line numbers, severity (CRITICAL/HIGH/MEDIUM/LOW), and concrete fix suggestions where applicable.
+
+# 2026-06-04 12:32:34.636258
++You are a senior code reviewer. Review the compositing pipeline and e-commerce AI image automation code.
++
++## Files to review
++
++### Critical: compositing pipeline
++- etsy-wizard/image_gen.py - `composite_product_into_scene()` function
++- tiktok-ugc-studio/gemini_agent.py - `_placeholder_term_for_category()` and prompt generation
++
++### Important: API endpoints
++- etsy-wizard/main.py - ImageGenRequest model, generate-image endpoint
++- tiktok-ugc-studio/main.py - analyze endpoint
++
++### Prompt templates
++- tiktok-ugc-studio/prompts/UGC_prompts/Holding_Product/user.template.prompt
++- tiktok-ugc-studio/prompts/UGC_prompts/Product_Usage/user.template.prompt
++- tiktok-ugc-studio/prompts/UGC_prompts/UGC_Review/user.template.prompt
++
++## Review focus for compositing:
++1. Any remaining bugs in `composite_product_into_scene()` - check variable consistency, edge cases
++2. Does the per-channel RGB blend correctly mask pixels (no edge glow)?
++3. Is the drop shadow using cached warped alpha (no duplicate requests.get)?
++4. Are OpenCV contour filters too restrictive for different product shapes?
++5. Quality: is the QC validation meaningful?
++
++## Review focus for prompts + agents:
++1. Does _placeholder_term_for_category() cover enough product categories?
++2. Are the prompt templates correctly pushing "blank/minimal/placeholder" for product shapes?
++3. Is the Gemini bbox instruction correctly formatted (no Python f-string injection bugs)?
++
++## API concerns:
++1. Input validation on product_image_url - null/empty handling?
++2. Error propagation - does composite failure cascade correctly?
++3. Asset cache - 24h TTL, correct MD5 keying?
++4. Static file serving for product images - is the mount correctly configured?
++
++Give specific line numbers, severity (CRITICAL/HIGH/MEDIUM/LOW), and concrete fix suggestions where applicable.
+
+# 2026-06-04 12:32:34.636395
++You are a senior code reviewer. Review the compositing pipeline and e-commerce AI image automation code.
++
++## Files to review
++
++### Critical: compositing pipeline
++- etsy-wizard/image_gen.py - `composite_product_into_scene()` function
++- tiktok-ugc-studio/gemini_agent.py - `_placeholder_term_for_category()` and prompt generation
++
++### Important: API endpoints
++- etsy-wizard/main.py - ImageGenRequest model, generate-image endpoint
++- tiktok-ugc-studio/main.py - analyze endpoint
++
++### Prompt templates
++- tiktok-ugc-studio/prompts/UGC_prompts/Holding_Product/user.template.prompt
++- tiktok-ugc-studio/prompts/UGC_prompts/Product_Usage/user.template.prompt
++- tiktok-ugc-studio/prompts/UGC_prompts/UGC_Review/user.template.prompt
++
++## Review focus for compositing:
++1. Any remaining bugs in `composite_product_into_scene()` - check variable consistency, edge cases
++2. Does the per-channel RGB blend correctly mask pixels (no edge glow)?
++3. Is the drop shadow using cached warped alpha (no duplicate requests.get)?
++4. Are OpenCV contour filters too restrictive for different product shapes?
++5. Quality: is the QC validation meaningful?
++
++## Review focus for prompts + agents:
++1. Does _placeholder_term_for_category() cover enough product categories?
++2. Are the prompt templates correctly pushing "blank/minimal/placeholder" for product shapes?
++3. Is the Gemini bbox instruction correctly formatted (no Python f-string injection bugs)?
++
++## API concerns:
++1. Input validation on product_image_url - null/empty handling?
++2. Error propagation - does composite failure cascade correctly?
++3. Asset cache - 24h TTL, correct MD5 keying?
++4. Static file serving for product images - is the mount correctly configured?
++
++Give specific line numbers, severity (CRITICAL/HIGH/MEDIUM/LOW), and concrete fix suggestions where applicable.

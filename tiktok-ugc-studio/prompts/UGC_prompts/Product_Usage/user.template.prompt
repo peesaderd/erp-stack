@@ -1,3 +1,6 @@
+HAND_CRITICAL: Generate ONLY 5 fingers per hand — NO extra fingers, NO missing fingers.
+HAND_CRITICAL: Hands must be connected to visible arms — NO floating hands or detached limbs.
+
 Scene:
 A person using a product.
 

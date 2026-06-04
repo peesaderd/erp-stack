@@ -317,13 +317,13 @@ These elements are IMMUTABLE - never alter or hallucinate these details:
 
 # REQUIREMENTS FOR IMAGE PROMPTS (5 images):
 - styles: holding_product, product_usage, lifestyle, close_up, review_style
-- Describe product APPEARANCE: color, shape, material, packaging, texture (NEVER describe text, labels, logos, or brand markings)
-- CRITICAL: Do NOT include any text, labels, logos, brand names, or markings in the prompt
-- After analyzing the image, also estimate the BOUNDING BOX of where the product would be held by hand (return as JSON with keys x, y, width, height, angle — all numbers)
-- The product is a {_placeholder_term_for_category(category)} — text/logos will be composited
-- The product is a _placeholder_term_for_category(category) — text/logos will be composited
+- CRITICAL: The product is a BLANK PLACEHOLDER {_placeholder_term_for_category(category)} — NO text, NO labels, NO brand markings, NO packaging descriptions
+- Do NOT describe the actual product's appearance (color, shape, material, texture, packaging)
+- CRITICAL: The final product image will be COMPOSITED in post-processing — describe ONLY the blank placeholder
+- After analyzing the image, estimate the BOUNDING BOX of where the product is held (JSON: x, y, width, height, angle)
 - MUST specify Thai/SE Asian model (young Thai woman, light brown skin, Southeast Asian features, natural look)
 - Use warm Thai-style setting, natural lighting, pastel or soft tones
+- CRITICAL for hands: EXACTLY 5 fingers per hand, NO extra fingers, NO missing fingers, NO floating hands — hands must connect to visible arms
  - HIGH: Include specific hand poses that match the product type and usage context
  - HIGH: For electronics, specify if the device should be on/off and screen content (always blank/placeholder)
  - HIGH: For beauty products, specify application context (face, lips, eyes, etc.)

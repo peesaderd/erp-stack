@@ -266,41 +266,34 @@ def composite_product_into_scene(
     position: str = "auto",
 ) -> PILImage.Image:
     """
-    AI-powered product compositing with perspective matching + position detection.
+    Professional product compositing — Gemini-reviewed, silent bugs fixed.
 
     Pipeline:
-    1. Download product image (Cache-first, 24h TTL)
-    2. rembg if no alpha channel
-    3. **Position Detection Strategy**:
-       a. Primary: Use detected bounding box from scene analysis (passed via `position` JSON)
-       b. Fallback: Static center-bottom position
-    4. Warp product to match perspective (rotation matrix default)
-    5. Angle-aware drop shadow
-    6. Per-channel (RGB) ambient lighting blend
-    7. Edge feathering for seamless integration
-    8. RGBA compositing
-    9. QC validation
+    1. Download product (24h cache) → rembg
+    2. Position: Gemini bbox JSON (preferred) | OpenCV contour (fallback)
+    3. Rotation warp (angle preserved, position NOT overwritten)
+    4. Angle-aware drop shadow
+    5. Mask-clipped per-channel RGB ambient blend (no edge glow)
+    6. Edge feathering
+    7. Compositing (single return path — NO variable confusion)
+    8. QC validation
     """
-    import io
+    import io, json, os, hashlib, time, math
     import cv2
     import numpy as np
-    import os, hashlib, time, json
 
     product_id_str = product_id or "unknown"
     sw, sh = scene_image.size
 
-    # ── Parse position parameter (supports JSON bbox from Gemini) ──
+    # ── Parse position (JSON bbox from Gemini) ──
     bbox = None
     if isinstance(position, str) and position.startswith("{"):
-        try:
-            bbox = json.loads(position)
-            logger.info(f"Position JSON detected: {bbox}")
-        except:
-            pass
+        try: bbox = json.loads(position)
+        except: pass
     elif isinstance(position, dict):
         bbox = position
 
-    # ── Step 1: Download product image (with Cache) ──
+    # ── Step 1: Download product (cache-first, 24h TTL) ──
     CACHE_DIR = "/tmp/product_image_cache"
     os.makedirs(CACHE_DIR, exist_ok=True)
     cache_key = hashlib.md5(product_image_url.encode()).hexdigest()
@@ -317,123 +310,120 @@ def composite_product_into_scene(
         except Exception as e:
             logger.warning(f"Download failed {product_image_url}: {e}")
             return scene_image
-
         if raw_product.mode != "RGBA":
             try:
                 from rembg import remove as rembg_remove
                 buf = io.BytesIO()
-                raw_product.save(buf, format="PNG")
-                buf.seek(0)
+                raw_product.save(buf, format="PNG"); buf.seek(0)
                 product_img = PILImage.open(io.BytesIO(rembg_remove(buf.read()))).convert("RGBA")
             except Exception as e:
-                logger.warning(f"rembg failed ({e})")
+                logger.warning(f"rembg failed ({e}), using raw")
                 product_img = raw_product.convert("RGBA")
         else:
             product_img = raw_product.convert("RGBA")
-
-        try:
-            product_img.save(cache_path, "PNG")
-        except:
-            pass
+        try: product_img.save(cache_path, "PNG")
+        except: pass
 
     pw, ph = product_img.size
     if ph == 0:
         return scene_image
-    scene_rgba = scene_image.convert("RGBA")
 
     # ── Step 2: Determine placement ──
-    angle = 0
+    angle = 0.0
     if bbox:
-        # Use Gemini-detected bounding box (preferred)
-        x = bbox.get("x", (sw - int(pw * 0.4)) // 2)
-        y = bbox.get("y", sh - int(sh * 0.5))
-        new_w = bbox.get("width", int(pw * 0.4))
-        new_h = bbox.get("height", int(ph * 0.4))
-        angle = bbox.get("angle", 0)
-        logger.info(f"Using Gemini bbox: ({x},{y}) {new_w}x{new_h} angle={angle}")
+        # Gemini-provided bounding box (preferred)
+        bbox_x = bbox.get("x", (sw - int(pw * 0.4)) // 2)
+        bbox_y = bbox.get("y", sh - int(sh * 0.5))
+        bbox_w = bbox.get("width", int(pw * 0.4))
+        bbox_h = bbox.get("height", int(ph * 0.4))
+        angle = float(bbox.get("angle", 0))
+        logger.info(f"Gemini bbox: ({bbox_x},{bbox_y}) {bbox_w}x{bbox_h} angle={angle}")
     else:
-        # OpenCV contour detection as fallback
+        # OpenCV fallback
         scene_arr = np.array(scene_image.convert("RGB"))
         scene_gray = cv2.cvtColor(scene_arr, cv2.COLOR_RGB2GRAY)
         dx = int(sw * 0.15)
-        dy1 = int(sh * 0.30)
-        dy2 = int(sh * 0.90)
+        dy1 = int(sh * 0.30); dy2 = int(sh * 0.90)
         roi = scene_gray[dy1:dy2, dx:sw-dx]
-
         target_h = int(sh * 0.42)
-        new_w = int(pw * target_h / ph)
-        new_h = target_h
-        x = (sw - new_w) // 2
-        y = sh - new_h - int(sh * 0.10)
-
+        bbox_w = int(pw * target_h / ph)
+        bbox_h = target_h
+        bbox_x = (sw - bbox_w) // 2
+        bbox_y = sh - bbox_h - int(sh * 0.10)
         blur = cv2.GaussianBlur(roi, (15, 15), 0)
         edges = cv2.Canny(blur, 30, 100)
         contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         if contours:
             valid = [(c, cv2.contourArea(c), cv2.boundingRect(c)) for c in contours]
-            valid = [(c, a, r) for c, a, r in valid if a > (sw * sh * 0.01) and a < (sw * sh * 0.3)
+            valid = [(c, a, r) for c, a, r in valid if (sw*sh*0.01) < a < (sw*sh*0.3)
                      and (dy1 + r[1] + r[3]//2) > sh * 0.35
                      and 0.2 < r[2]/max(r[3],1) < 1.5]
             if valid:
                 best = max(valid, key=lambda v: v[1])
                 _, _, (bx, by, bw, bh) = best
-                detected_x = dx + bx
-                detected_y = dy1 + by
+                bbox_x = dx + bx; bbox_y = dy1 + by
                 rect = cv2.minAreaRect(best[0])
-                angle = rect[2]
-                if angle < -45:
-                    angle = 90 + angle
-                new_w = int(bw * 0.85)
-                new_h = int(bh * 0.85)
-                x = detected_x + (bw - new_w) // 2
-                y = detected_y + (bh - new_h) // 2
-                logger.info(f"OpenCV fallback: pos=({x},{y}) angle={angle:.1f}")
+                a = rect[2]
+                angle = a if a >= -45 else 90 + a
+                bbox_w = int(bw * 0.85); bbox_h = int(bh * 0.85)
+                bbox_x += (bw - bbox_w) // 2; bbox_y += (bh - bbox_h) // 2
+                logger.info(f"OpenCV fallback: ({bbox_x},{bbox_y}) angle={angle:.1f}")
 
-    # ── Step 3: Resize and warp ──
-    product_resized = product_img.resize((max(new_w, 10), max(new_h, 10)), PILImage.LANCZOS)
+    # ── Step 3: Resize + rotation warp ──
+    # FIX #2: Use ORIGINAL bbox coordinates, accumulate offset, NEVER overwrite
+    resize_w = max(bbox_w, 10)
+    resize_h = max(bbox_h, 10)
+    product_resized = product_img.resize((resize_w, resize_h), PILImage.LANCZOS)
+
+    final_x = bbox_x
+    final_y = bbox_y
+    final_w = resize_w
+    final_h = resize_h
 
     if abs(angle) > 3.0:
         prod_np = np.array(product_resized.convert("RGBA"))
-        h_p, w_p = prod_np.shape[:2]
-        center = (w_p // 2, h_p // 2)
+        hp, wp = prod_np.shape[:2]
+        center = (wp // 2, hp // 2)
         M = cv2.getRotationMatrix2D(center, angle, 1.0)
-        cos = abs(M[0, 0])
-        sin_val = abs(M[0, 1])
-        new_ww = int((h_p * sin_val) + (w_p * cos))
-        new_hh = int((h_p * cos) + (w_p * sin_val))
-        M[0, 2] += (new_ww / 2) - center[0]
-        M[1, 2] += (new_hh / 2) - center[1]
-        warped = cv2.warpAffine(prod_np, M, (new_ww, new_hh),
+        cos_a = abs(M[0, 0]); sin_a = abs(M[0, 1])
+        nw = int((hp * sin_a) + (wp * cos_a))
+        nh = int((hp * cos_a) + (wp * sin_a))
+        M[0, 2] += (nw / 2) - center[0]
+        M[1, 2] += (nh / 2) - center[1]
+        warped = cv2.warpAffine(prod_np, M, (nw, nh),
                                 flags=cv2.INTER_LANCZOS4,
                                 borderMode=cv2.BORDER_CONSTANT,
                                 borderValue=(0, 0, 0, 0))
         product_resized = PILImage.fromarray(warped, "RGBA")
-        x -= (new_ww - new_w) // 2
-        y -= (new_hh - new_h) // 2
-        new_w = new_ww; new_h = new_hh
-        logger.info(f"Rotation applied: {angle:.1f}")
+        # FIX #2: offset from original bbox, NOT overwrite
+        offset_x = (nw - resize_w) // 2
+        offset_y = (nh - resize_h) // 2
+        final_x = bbox_x - offset_x
+        final_y = bbox_y - offset_y
+        final_w = nw; final_h = nh
+        logger.info(f"Rotation {angle:.1f}°: offset=({offset_x},{offset_y})")
 
-    # ── Step 4: Drop shadow with angle awareness ──
+    # ── Step 4: Drop shadow ──
+    scene_out = scene_image.convert("RGBA")
     try:
-        shadow = PILImage.new("RGBA", (new_w, new_h), (0, 0, 0, 0))
-        product_alpha = product_resized.split()[3]
-        shadow.paste((0, 0, 0, 140), (0, 0), product_alpha)
+        shadow = PILImage.new("RGBA", (final_w, final_h), (0, 0, 0, 0))
+        pa = product_resized.split()[3]
+        shadow.paste((0, 0, 0, 140), (0, 0), pa)
         rad = math.radians(angle)
-        sox = max(1, int(new_w * (0.03 * math.cos(rad) + 0.02)))
-        soy = max(1, int(new_h * (0.04 * math.sin(rad) + 0.03)))
-        shadow_blurred = shadow.filter(PILImageFilter.GaussianBlur(radius=max(5, new_w // 35)))
-        scene_rgba.paste(shadow_blurred, (x + sox, y + soy), shadow_blurred)
-    except:
-        pass
+        sox = max(1, int(final_w * (0.03 * math.cos(rad) + 0.02)))
+        soy = max(1, int(final_h * (0.04 * math.sin(rad) + 0.03)))
+        shadow_blurred = shadow.filter(PILImageFilter.GaussianBlur(radius=max(5, final_w // 35)))
+        scene_out.paste(shadow_blurred, (final_x + sox, final_y + soy), shadow_blurred)
+    except Exception as e:
+        logger.warning(f"Shadow failed: {e}")
 
-    # ── Step 5: Per-channel (RGB) ambient blend ──
+    # ── Step 5: Mask-clipped per-channel RGB ambient blend ──
+    # FIX #3: Only blend pixels within product mask, NOT the whole array
     try:
-        sx = max(0, x - 30)
-        sy = max(0, y - 60)
-        ex = min(sw, x + new_w + 30)
-        ey = max(0, y - 5)
+        sx = max(0, final_x - 30); sy = max(0, final_y - 60)
+        ex = min(sw, final_x + final_w + 30); ey = max(0, final_y - 5)
         if ex > sx and ey > sy:
-            sample = scene_rgba.crop((sx, sy, ex, ey))
+            sample = scene_out.crop((sx, sy, ex, ey))
             sample_arr = np.array(sample.convert("RGB")).astype(np.float32)
             mean_r = np.mean(sample_arr[:,:,0])
             mean_g = np.mean(sample_arr[:,:,1])
@@ -441,66 +431,62 @@ def composite_product_into_scene(
 
             prod_arr = np.array(product_resized.convert("RGB")).astype(np.float32)
             pa_np = np.array(product_resized.split()[3])
-            mask = pa_np > 10
+            mask = pa_np > 15  # FIX #3: higher threshold to exclude near-transparent edge pixels
 
             if mask.any():
-                # Per-channel ratio (not just overall brightness)
                 pr_r = np.mean(prod_arr[:,:,0][mask])
                 pr_g = np.mean(prod_arr[:,:,1][mask])
                 pr_b = np.mean(prod_arr[:,:,2][mask])
 
-                ratio_r = mean_r / max(pr_r, 1)
-                ratio_g = mean_g / max(pr_g, 1)
-                ratio_b = mean_b / max(pr_b, 1)
+                ratio_r = max(0.7, min(1.35, mean_r / max(pr_r, 1)))
+                ratio_g = max(0.7, min(1.35, mean_g / max(pr_g, 1)))
+                ratio_b = max(0.7, min(1.35, mean_b / max(pr_b, 1)))
 
-                # Clamp each channel
-                ratio_r = max(0.7, min(1.35, ratio_r))
-                ratio_g = max(0.7, min(1.35, ratio_g))
-                ratio_b = max(0.7, min(1.35, ratio_b))
-
-                # Apply per-channel
-                adj_r = np.clip(prod_arr[:,:,0] * ratio_r, 0, 255).astype(np.uint8)
-                adj_g = np.clip(prod_arr[:,:,1] * ratio_g, 0, 255).astype(np.uint8)
-                adj_b = np.clip(prod_arr[:,:,2] * ratio_b, 0, 255).astype(np.uint8)
+                # FIX #3: Blend ONLY masked pixels, copy unmasked as-is
+                adj_r = np.where(mask, np.clip(prod_arr[:,:,0] * ratio_r, 0, 255), prod_arr[:,:,0]).astype(np.uint8)
+                adj_g = np.where(mask, np.clip(prod_arr[:,:,1] * ratio_g, 0, 255), prod_arr[:,:,1]).astype(np.uint8)
+                adj_b = np.where(mask, np.clip(prod_arr[:,:,2] * ratio_b, 0, 255), prod_arr[:,:,2]).astype(np.uint8)
                 product_resized = PILImage.fromarray(
                     np.dstack([adj_r, adj_g, adj_b, pa_np]), "RGBA"
                 )
-                logger.info(f"Per-channel blend: R={ratio_r:.2f} G={ratio_g:.2f} B={ratio_b:.2f}")
-    except:
-        pass
+                logger.info(f"Per-channel: R={ratio_r:.2f} G={ratio_g:.2f} B={ratio_b:.2f}")
+    except Exception as e:
+        logger.warning(f"Ambient blend skipped: {e}")
 
     # ── Step 6: Edge feathering ──
     try:
-        feather = max(3, min(new_w, new_h) // 60)
+        feather = max(3, min(final_w, final_h) // 60)
         if feather > 0:
-            edge_mask = PILImage.new("L", (new_w, new_h), 255)
+            edge_mask = PILImage.new("L", (final_w, final_h), 255)
             draw = PILImageDraw.Draw(edge_mask)
             for i in range(feather):
                 a = int(255 * (i / feather))
-                draw.rectangle([0, i, new_w, i + 1], fill=a)
-                draw.rectangle([0, new_h - i - 1, new_w, new_h - i], fill=a)
-                draw.rectangle([i, 0, i + 1, new_h], fill=a)
-                draw.rectangle([new_w - i - 1, 0, new_w - i, new_h], fill=a)
-            pa = product_resized.split()[3]
-            ba = PILImage.composite(PILImage.new("L", (new_w, new_h), 0), pa, edge_mask)
+                draw.rectangle([0, i, final_w, i + 1], fill=a)
+                draw.rectangle([0, final_h - i - 1, final_w, final_h - i], fill=a)
+                draw.rectangle([i, 0, i + 1, final_h], fill=a)
+                draw.rectangle([final_w - i - 1, 0, final_w - i, final_h], fill=a)
+            pa2 = product_resized.split()[3]
+            ba = PILImage.composite(PILImage.new("L", (final_w, final_h), 0), pa2, edge_mask)
             product_resized.putalpha(ba)
-    except:
-        pass
+    except Exception as e:
+        logger.warning(f"Feathering failed: {e}")
 
-    # ── Step 7: Composite ──
-    scene_rgba.paste(product_resized, (x, y), product_resized)
+    # ── Step 7: Composite (SINGLE paste, ONE return path) ──
+    # FIX #1: One consistent variable — scene_out, no "composite" confusion
+    scene_out.paste(product_resized, (final_x, final_y), product_resized)
 
     # ── Step 8: QC ──
     try:
-        final_arr = np.array(scene_rgba.convert("RGB"))
-        pa = final_arr[y:y+new_h, x:x+new_w]
-        logger.info(f"QC [{product_id_str}]: avg={np.mean(pa):.0f} "
-                    f"std={np.std(pa):.0f} angle={angle:.1f}")
-    except:
-        pass
+        final_arr = np.array(scene_out.convert("RGB"))
+        pa_qc = final_arr[final_y:final_y+final_h, final_x:final_x+final_w]
+        logger.info(f"QC [{product_id_str}]: avg={np.mean(pa_qc):.0f} "
+                    f"std={np.std(pa_qc):.0f} angle={angle:.1f} pos=({final_x},{final_y})")
+    except Exception as e:
+        logger.warning(f"QC failed: {e}")
 
-    logger.info(f"Composite OK [{product_id_str}]: ({x},{y}) {new_w}x{new_h}")
-    return scene_rgba
+    logger.info(f"Composite OK [{product_id_str}]: ({final_x},{final_y}) {final_w}x{final_h}")
+    # FIX #1: Always return scene_out (the one true composited result)
+    return scene_out
 
 
 

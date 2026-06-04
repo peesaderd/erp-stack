@@ -399,28 +399,71 @@ def _placeholder_term_for_category(category: str = "") -> str:
     """Return a dynamic placeholder term based on product category.
 
     Different product shapes need different AI hand-holding poses.
-    A "bottle" prompt makes Flux generate a bottle-grip hand,
-    while a "compact case" prompt makes it generate a palm-hold hand.
+    Returns the specific shape/packaging term so Flux generates
+    the correct hand grip for that product type.
     """
     cat = (category or "").lower()
-    if any(kw in cat for kw in ["cream", "moisturizer", "lotion", "serum", "oil", "toner"]):
+
+    # Bottles / jars (skincare, serum, oil, toner)
+    if any(kw in cat for kw in ["cream", "moisturizer", "lotion", "serum", "oil",
+                                "toner", "essence", "ampoule", "eye cream", "face oil"]):
         return "a blank minimal bottle (no labels, no text)"
-    elif any(kw in cat for kw in ["powder", "compact", "blush", "foundation", "palette", "eyeshadow"]):
-        return "a blank minimal compact case (flat, no labels)"
-    elif any(kw in cat for kw in ["lip", "lipstick", "lip gloss", "lip balm", "lip tint"]):
-        return "a blank minimal lipstick tube (cylindrical, no labels)"
-    elif any(kw in cat for kw in ["face wash", "cleanser", "shampoo", "conditioner", "body wash"]):
+
+    # Compact / palette (powder, blush, eyeshadow, foundation)
+    if any(kw in cat for kw in ["powder", "compact", "blush", "foundation",
+                                "palette", "eyeshadow", "highlighter", "bronzer"]):
+        return "a blank minimal compact case (flat, round or square, no labels)"
+
+    # Lip products
+    if any(kw in cat for kw in ["lip", "lipstick", "lip gloss", "lip balm",
+                                "lip tint", "lip liner", "lip oil"]):
+        return "a blank minimal lipstick tube (cylindrical, twist-up, no labels)"
+
+    # Tubes (face wash, cleanser, shampoo, body wash, lotion)
+    if any(kw in cat for kw in ["face wash", "cleanser", "shampoo", "conditioner",
+                                "body wash", "shower gel", "hand wash", "body lotion",
+                                "sunscreen", "SPF", "toothpaste", "gel"]):
         return "a blank minimal squeeze tube (no labels)"
-    elif any(kw in cat for kw in ["supplement", "vitamin", "pill", "capsule", "tablet", "powder sachet"]):
+
+    # Supplements / sachets (vitamin, pill, powder, protein)
+    if any(kw in cat for kw in ["supplement", "vitamin", "pill", "capsule",
+                                "tablet", "powder", "protein", "sachet",
+                                "collagen", "probiotic", "pre-workout"]):
         return "a blank minimal sachet pouch (flexible, no labels)"
-    elif any(kw in cat for kw in ["perfume", "cologne", "fragrance", "spray", "mist"]):
-        return "a blank minimal glass bottle with spray nozzle (no labels)"
-    elif any(kw in cat for kw in ["mask", "sheet mask", "face mask"]):
+
+    # Spray / mist (perfume, cologne, fragrance, hair spray, setting spray)
+    if any(kw in cat for kw in ["perfume", "cologne", "fragrance", "spray",
+                                "mist", "setting spray", "hair spray", "deodorant",
+                                "dry shampoo", "face mist"]):
+        return "a blank minimal bottle with spray nozzle (no labels)"
+
+    # Sheet mask / face mask
+    if any(kw in cat for kw in ["mask", "sheet mask", "face mask"]):
         return "a blank minimal flat sachet (no labels)"
-    elif any(kw in cat for kw in ["tool", "brush", "sponge", "applicator", "puff"]):
+
+    # Beauty tools (brush, sponge, puff, applicator, tool)
+    if any(kw in cat for kw in ["tool", "brush", "sponge", "applicator",
+                                "puff", "blender", "comb", "hair brush"]):
         return "a blank minimal handheld tool (no branding)"
-    else:
-        return "a blank minimal container (no text, no labels, no branding)"
+
+    # Electronics / gadgets (vacuum, phone, power bank, charger, earphone)
+    if any(kw in cat for kw in ["vacuum", "cleaner", "vacuum cleaner", "robot",
+                                "phone", "smartphone", "mobile", "tablet", "iPad",
+                                "power bank", "charger", "charging", "cable",
+                                "earphone", "headphone", "earbuds", "speaker",
+                                "bluetooth", "fan", "purifier", "air purifier",
+                                "humidifier", "diffuser", "shaver", "trimmer",
+                                "epilator", "massager", "massage gun"]):
+        return "a hand holding a blank minimal device (rectangular, no labels, no screen content)"
+
+    # Food / drinks
+    if any(kw in cat for kw in ["snack", "food", "drink", "beverage", "coffee",
+                                "tea", "water", "juice", "sauce", "seasoning",
+                                "oil bottle", "vinegar", "honey", "jam"]):
+        return "a blank minimal bottle or pouch (no labels)"
+
+    # Default: generic container
+    return "a blank minimal container (no text, no labels, no branding)"
 
 def generate_image_prompt(brand_protocol: dict, creative_brief: dict, product_name: str, description: str) -> dict:
     """Generate ONLY image prompts (5 styles) using Mistral."""

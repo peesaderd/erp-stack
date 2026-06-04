@@ -191,30 +191,60 @@ def _ensure_pose_loaded():
 
 
 def find_placement(scene_image: Image.Image):
-    """2-Step Lightning Pipeline (YOLO only, no MediaPipe)
+    """2-Step Placement Pipeline (YOLO only, no MediaPipe)
 
-    Step 1: YOLO object detection (~15ms CPU)
-        → Find product-like objects (bottle, cup, phone, etc.)
-        → Returns bbox directly if found
-    Step 2: YOLO pose estimation (~270ms CPU)
-        → Detect person → wrist keypoints → hand position
-        → Use when no product object detected but person visible
+    Strategy:
+    1. Try YOLO product detection (ANY non-person, ≥ 0.3 conf)
+       → Flux often generates a bottle/object even with "empty hand" prompts
+       → The Flux-generated bottle is the BEST placement guide
+    2. YOLO pose → wrist keypoints → hand position
+       → Used when no product detected but person visible
+    3. Person bbox → upper body estimate
+    4. Center-bottom fallback
 
     Returns dict:
-        source: "yolo_product" | "yolo_hand" | None
+        source: "yolo_product" | "yolo_hand" | "person_bbox" | None
         x, y: placement top-left corner
         width, height: estimated product area
         confidence: detection confidence
-        raw_data: full detection data
     """
     _ensure_loaded()
 
     img_w, img_h = scene_image.size
 
-    # Step 1: YOLO pose — hands FIRST for "empty hand" prompts
-    # When the prompt says "hands completely empty, no product",
-    # any product detection is a false positive (bedsheet, shadow, etc.)
-    # Hands are the most reliable placement guide
+    # Step 1: YOLO product detection (anything that looks like an object)
+    # Flux often adds a product despite prompts — use ITS position
+    product = _detector.find_product_bbox(scene_image)
+    found_product = product and product["class_id"] != 0 and product["confidence"] >= 0.3
+
+    if found_product:
+        logger.info(
+            f"📦 YOLO detected: '{product['class']}' "
+            f"({product['confidence']:.2f}) "
+            f"at cx={product['cx']:.0f} cy={product['cy']:.0f} "
+            f"size {product['width']:.0f}x{product['height']:.0f}"
+        )
+        # Use product bbox CENTER for position, but CLAMP size to reasonable
+        # YOLO bbox often includes arm+hand+bottle → too large
+        # Product should be ~30% of image height at typical aspect ratio
+        est_h = min(product["height"], int(img_h * 0.35))
+        est_w = est_h * 0.45  # typical slim product aspect ratio
+        cx = product["cx"]
+        cy = product["cy"]
+        # Position so product CENTER aligns with bbox center, but shifted UP
+        # (bottle is at top of the detected area, arm/hand is below)
+        return {
+            "source": "yolo_product",
+            "x": cx - est_w * 0.5,
+            "y": cy - est_h * 0.7,  # shift up: bottle sits above wrist
+            "width": est_w,
+            "height": est_h,
+            "confidence": product["confidence"],
+            "cx": cx,
+            "cy": cy,
+        }
+
+    # Step 2: YOLO pose — hands when no product detected in scene
     _ensure_pose_loaded()
     hands = _pose_detector.detect_hands(scene_image)
     if hands:
@@ -235,26 +265,6 @@ def find_placement(scene_image: Image.Image):
             "cx": best_hand["x"],
             "cy": best_hand["y"],
             "hand_side": best_hand["side"],
-        }
-
-    # Step 2: YOLO product detection — HIGH confidence only (≥ 0.5)
-    # Low-confidence detections are usually false positives
-    product = _detector.find_product_bbox(scene_image)
-    if product and product["class_id"] != 0 and product["confidence"] >= 0.5:
-        logger.info(
-            f"📦 YOLO product: '{product['class']}' "
-            f"({product['confidence']:.2f}) "
-            f"at ({product['cx']:.0f},{product['cy']:.0f})"
-        )
-        return {
-            "source": "yolo_product",
-            "x": product["bbox"][0],
-            "y": product["bbox"][1],
-            "width": product["width"],
-            "height": product["height"],
-            "confidence": product["confidence"],
-            "cx": product["cx"],
-            "cy": product["cy"],
         }
 
     # Step 3: Person bbox (no hands, no product detected)

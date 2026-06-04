@@ -415,11 +415,27 @@ def composite_product_into_scene(
     bbox_w = max(10, min(bbox_w, sw - bbox_x))
     bbox_h = max(10, min(bbox_h, sh - bbox_y))
 
-    # ── Step 3: Resize + rotation warp ──
+    # ── Step 3: Resize product — preserve aspect ratio, fit in bbox ──
+    # Previous code stretched product to fill bbox → distorted aspect ratio
     resize_w = max(bbox_w, 10); resize_h = max(bbox_h, 10)
-    product_resized = product_img.resize((resize_w, resize_h), PILImage.LANCZOS)
-    final_x, final_y = bbox_x, bbox_y
-    final_w, final_h = resize_w, resize_h
+    prod_aspect = product_img.width / product_img.height
+    box_aspect = resize_w / resize_h
+    if box_aspect > prod_aspect:
+        # Bbox wider than product → fit by height
+        new_h = resize_h
+        new_w = int(new_h * prod_aspect)
+    else:
+        # Bbox taller than product → fit by width
+        new_w = resize_w
+        new_h = int(new_w / prod_aspect)
+    new_w = max(new_w, 10); new_h = max(new_h, 10)
+    product_resized = product_img.resize((new_w, new_h), PILImage.LANCZOS)
+    # Center product within the placement bbox
+    final_x = bbox_x + (resize_w - new_w) // 2
+    final_y = bbox_y + (resize_h - new_h) // 2
+    final_w, final_h = new_w, new_h
+
+    logger.info(f"Resize: product={product_img.size} → {new_w}x{new_h} (bbox={resize_w}x{resize_h})")
 
     if abs(angle) > 3.0:
         prod_np = np.array(product_resized.convert("RGBA"))

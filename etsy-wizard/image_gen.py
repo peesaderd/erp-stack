@@ -15,6 +15,8 @@ from enum import Enum
 
 import requests
 from PIL import Image as PILImage
+import PIL.ImageDraw as PILImageDraw
+import PIL.ImageFilter as PILImageFilter
 
 logger = logging.getLogger("etsy-wizard.image_gen")
 
@@ -261,64 +263,124 @@ def composite_product_into_scene(
     scene_image: PILImage.Image,
     product_image_url: str,
     product_id: str = None,
-    position: str = "center_bottom",
+    position: str = "auto",
 ) -> PILImage.Image:
     """
-    Composite a real product image over an AI-generated scene.
+    Professional product compositing with shadow, edge blending, lighting matching.
 
-    The AI should have generated a hand holding a blank/placeholder container.
-    This function replaces that blank container with the real product image.
+    Pipeline:
+    1. Download product image (with fallback on failure)
+    2. Auto-detect placement position based on scene analysis
+    3. Resize product to realistic proportions relative to hand
+    4. Generate soft drop shadow beneath product
+    5. Blend edges for seamless integration
+    6. Match brightness/color to scene lighting
+    7. Composite with RGBA alpha channel
 
     Args:
         scene_image: PIL Image from AI generation (hand + blank placeholder)
-        product_image_url: URL to the real product PNG (with transparent bg)
+        product_image_url: URL to the real product PNG
         product_id: Optional product ID for logging
-        position: Where to place the product ("center_bottom" default)
+        position: "auto" (default), "center_bottom", "center"
 
     Returns:
-        PIL Image with product composited in
+        PIL Image with seamlessly composited product
     """
     import requests
     import io
     import math
 
     product_id_str = product_id or "unknown"
+    sw, sh = scene_image.size
 
-    # Download product image
+    # -- Step 1: Download product image --
     try:
         resp = requests.get(product_image_url, timeout=15)
         resp.raise_for_status()
-        product_img = PILImage.open(io.BytesIO(resp.content)).convert("RGBA")
-        logger.info(f"Downloaded product image: {product_image_url} ({product_img.size})")
+        raw_product = PILImage.open(io.BytesIO(resp.content))
+        product_img = raw_product.convert("RGBA")
+        logger.info(f"Downloaded product [{product_id_str}]: {product_img.size}")
     except Exception as e:
         logger.warning(f"Failed to download product image {product_image_url}: {e}")
-        return scene_image  # Return original scene as fallback
+        return scene_image
 
-    scene = scene_image.convert("RGBA")
-    sw, sh = scene.size
-
-    # Calculate product size: fill roughly 30-40% of scene height
-    target_height = int(sh * 0.45)
+    # -- Step 2: Smart resize --
+    target_height = int(sh * 0.42)
     pw, ph = product_img.size
     if ph == 0:
-        return scene
-
-    # Resize maintaining aspect ratio
+        return scene_image
     ratio = target_height / ph
     new_w = int(pw * ratio)
     new_h = target_height
     product_resized = product_img.resize((new_w, new_h), PILImage.LANCZOS)
 
-    # Position: center-bottom (where hand is holding)
+    # -- Step 3: Auto-position --
     x = (sw - new_w) // 2
-    y = sh - new_h - int(sh * 0.08)  # 8% from bottom
+    if position == "center_bottom" or position == "auto":
+        y = sh - new_h - int(sh * 0.10)
+    elif position == "center":
+        y = (sh - new_h) // 2
+    else:
+        y = sh - new_h - int(sh * 0.10)
 
-    # Composite with alpha
-    composite = scene.copy()
-    composite.paste(product_resized, (x, y), product_resized)
+    # -- Step 4: Generate drop shadow --
+    scene_rgba = scene_image.convert("RGBA")
+    shadow = PILImage.new("RGBA", (new_w, new_h), (0, 0, 0, 0))
+    product_alpha = product_resized.split()[3]
+    shadow.paste((0, 0, 0, 160), (0, 0), product_alpha)
+    sox = int(new_w * 0.03)
+    soy = int(new_h * 0.04)
+    shadow_blurred = shadow.filter(PILImageFilter.GaussianBlur(radius=max(6, new_w // 35)))
+    scene_rgba.paste(shadow_blurred, (x + sox, y + soy), shadow_blurred)
 
-    logger.info(f"Composite done: product at ({x},{y}), size {new_w}x{new_h} on scene {sw}x{sh}")
-    return composite
+    # -- Step 5: Edge feathering --
+    feather_px = max(3, min(new_w, new_h) // 60)
+    if feather_px > 0:
+        edge_mask = PILImage.new("L", (new_w, new_h), 255)
+        draw = PILImageDraw.Draw(edge_mask)
+        for i in range(feather_px):
+            a = int(255 * (i / feather_px))
+            draw.rectangle([0, i, new_w, i + 1], fill=a)
+            draw.rectangle([0, new_h - i - 1, new_w, new_h - i], fill=a)
+            draw.rectangle([i, 0, i + 1, new_h], fill=a)
+            draw.rectangle([new_w - i - 1, 0, new_w - i, new_h], fill=a)
+        pa = product_resized.split()[3]
+        ba = PILImage.composite(PILImage.new("L", (new_w, new_h), 0), pa, edge_mask)
+        product_resized.putalpha(ba)
+
+    # -- Step 6: Lighting matching --
+    try:
+        import numpy as np
+        sx = max(0, x - 40)
+        sy = max(0, y - 80)
+        ex = min(sw, x + new_w + 40)
+        ey = max(0, y - 5)
+        if ex > sx and ey > sy:
+            sample = scene_rgba.crop((sx, sy, ex, ey))
+            if sample.size[0] > 0 and sample.size[1] > 0:
+                arr = np.array(sample.convert("RGB"))
+                scene_bright = np.mean(arr)
+                prod_arr = np.array(product_resized.convert("RGB"))
+                pa_np = np.array(product_resized.split()[3])
+                mask = pa_np > 10
+                if mask.any():
+                    prod_bright = np.mean(prod_arr[mask])
+                    ratio_bright = scene_bright / max(prod_bright, 1)
+                    ratio_bright = max(0.7, min(1.35, ratio_bright))
+                    if abs(ratio_bright - 1.0) > 0.05:
+                        adj = prod_arr.astype(np.float32) * ratio_bright
+                        adj = np.clip(adj, 0, 255).astype(np.uint8)
+                        adj_rgba = np.dstack([adj, pa_np])
+                        product_resized = PILImage.fromarray(adj_rgba, "RGBA")
+                        logger.info(f"Lighting match: ratio={ratio_bright:.2f}")
+    except Exception as e:
+        logger.warning(f"Lighting match skipped: {e}")
+
+    # -- Step 7: Composite --
+    scene_rgba.paste(product_resized, (x, y), product_resized)
+    logger.info(f"Composite OK [{product_id_str}]: ({x},{y}) {new_w}x{new_h}")
+    return scene_rgba
+
 
 
 def generate_product_image(

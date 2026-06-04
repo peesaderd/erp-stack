@@ -4,5 +4,7 @@ A real person casually reviewing a product.
 Details:
 Person: {gender, age}
 Action: {holding / explaining / using}
+Product: {product} (minimal blank container, no visible labels/text — branding is post-produced)
 Location: {home}
 Mood: {honest, friendly}
+Key: The product container has NO text, NO labels, NO visible branding — it is a clean blank surface.

@@ -2,6 +2,7 @@ Scene:
 A person holding a product naturally.
 
 Details:
-Product: {product}
+Product: {product} (minimal blank container, no visible labels/text — branding is post-produced)
 Background: {clean}
 Mood: {neutral}
+Key: The product container has NO text, NO labels, NO visible branding — it is a clean blank surface.

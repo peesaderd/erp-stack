@@ -320,7 +320,7 @@ These elements are IMMUTABLE - never alter or hallucinate these details:
 - Describe product APPEARANCE: color, shape, material, packaging, texture (NEVER describe text, labels, logos, or brand markings)
 - CRITICAL: Do NOT include any text, labels, logos, brand names, or markings in the prompt
 - After analyzing the image, also estimate the BOUNDING BOX of where the product would be held by hand (return as JSON: {"x": int, "y": int, "width": int, "height": int, "angle": float})
-- The product is a BLANK/MINIMAL container (no visible labels/branding) — text/logos will be composited in post-processing
+- The product is a _placeholder_term_for_category(category) — text/logos will be composited
 - MUST specify Thai/SE Asian model (young Thai woman, light brown skin, Southeast Asian features, natural look)
 - Use warm Thai-style setting, natural lighting, pastel or soft tones
 
@@ -393,6 +393,34 @@ Target Audience: {target_audience or 'General TikTok users'}{model_hint}
 
 
 
+
+
+def _placeholder_term_for_category(category: str = "") -> str:
+    """Return a dynamic placeholder term based on product category.
+
+    Different product shapes need different AI hand-holding poses.
+    A "bottle" prompt makes Flux generate a bottle-grip hand,
+    while a "compact case" prompt makes it generate a palm-hold hand.
+    """
+    cat = (category or "").lower()
+    if any(kw in cat for kw in ["cream", "moisturizer", "lotion", "serum", "oil", "toner"]):
+        return "a blank minimal bottle (no labels, no text)"
+    elif any(kw in cat for kw in ["powder", "compact", "blush", "foundation", "palette", "eyeshadow"]):
+        return "a blank minimal compact case (flat, no labels)"
+    elif any(kw in cat for kw in ["lip", "lipstick", "lip gloss", "lip balm", "lip tint"]):
+        return "a blank minimal lipstick tube (cylindrical, no labels)"
+    elif any(kw in cat for kw in ["face wash", "cleanser", "shampoo", "conditioner", "body wash"]):
+        return "a blank minimal squeeze tube (no labels)"
+    elif any(kw in cat for kw in ["supplement", "vitamin", "pill", "capsule", "tablet", "powder sachet"]):
+        return "a blank minimal sachet pouch (flexible, no labels)"
+    elif any(kw in cat for kw in ["perfume", "cologne", "fragrance", "spray", "mist"]):
+        return "a blank minimal glass bottle with spray nozzle (no labels)"
+    elif any(kw in cat for kw in ["mask", "sheet mask", "face mask"]):
+        return "a blank minimal flat sachet (no labels)"
+    elif any(kw in cat for kw in ["tool", "brush", "sponge", "applicator", "puff"]):
+        return "a blank minimal handheld tool (no branding)"
+    else:
+        return "a blank minimal container (no text, no labels, no branding)"
 
 def generate_image_prompt(brand_protocol: dict, creative_brief: dict, product_name: str, description: str) -> dict:
     """Generate ONLY image prompts (5 styles) using Mistral."""

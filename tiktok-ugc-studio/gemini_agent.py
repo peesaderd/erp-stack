@@ -317,7 +317,9 @@ These elements are IMMUTABLE - never alter or hallucinate these details:
 
 # REQUIREMENTS FOR IMAGE PROMPTS (5 images):
 - styles: holding_product, product_usage, lifestyle, close_up, review_style
-- Describe product APPEARANCE from what you see: color, shape, material, packaging, labels, texture
+- Describe product APPEARANCE: color, shape, material, packaging, texture (NEVER describe text, labels, logos, or brand markings)
+- CRITICAL: Do NOT include any text, labels, logos, brand names, or markings in the prompt
+- The product is a BLANK/MINIMAL container (no visible labels/branding) — text/logos will be composited in post-processing
 - MUST specify Thai/SE Asian model (young Thai woman, light brown skin, Southeast Asian features, natural look)
 - Use warm Thai-style setting, natural lighting, pastel or soft tones
 
@@ -401,7 +403,8 @@ Product Name: {product_name}
 
 Generate 5 prompts for these styles: holding_product, product_usage, lifestyle, close_up, review_style
 Each prompt must:
-\u2022 Describe the product appearance EXACTLY from the Brand Protocol (color, shape, material)
+\u2022 Describe the product as a BLANK container with the correct color, shape, and material
+\u2022 CRITICAL: Do NOT describe any text, labels, logos, brand names, or markings — product is a blank placeholder
 \u2022 Specify Thai/SE Asian model (young Thai woman, light brown skin, natural look)
 \u2022 Include warm Thai-style setting and soft natural lighting
 

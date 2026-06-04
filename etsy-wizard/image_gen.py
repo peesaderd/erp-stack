@@ -256,14 +256,82 @@ def validate_etsy_image(image_bytes: bytes) -> dict:
     return result
 
 
+
+def composite_product_into_scene(
+    scene_image: PILImage.Image,
+    product_image_url: str,
+    product_id: str = None,
+    position: str = "center_bottom",
+) -> PILImage.Image:
+    """
+    Composite a real product image over an AI-generated scene.
+
+    The AI should have generated a hand holding a blank/placeholder container.
+    This function replaces that blank container with the real product image.
+
+    Args:
+        scene_image: PIL Image from AI generation (hand + blank placeholder)
+        product_image_url: URL to the real product PNG (with transparent bg)
+        product_id: Optional product ID for logging
+        position: Where to place the product ("center_bottom" default)
+
+    Returns:
+        PIL Image with product composited in
+    """
+    import requests
+    import io
+    import math
+
+    product_id_str = product_id or "unknown"
+
+    # Download product image
+    try:
+        resp = requests.get(product_image_url, timeout=15)
+        resp.raise_for_status()
+        product_img = PILImage.open(io.BytesIO(resp.content)).convert("RGBA")
+        logger.info(f"Downloaded product image: {product_image_url} ({product_img.size})")
+    except Exception as e:
+        logger.warning(f"Failed to download product image {product_image_url}: {e}")
+        return scene_image  # Return original scene as fallback
+
+    scene = scene_image.convert("RGBA")
+    sw, sh = scene.size
+
+    # Calculate product size: fill roughly 30-40% of scene height
+    target_height = int(sh * 0.45)
+    pw, ph = product_img.size
+    if ph == 0:
+        return scene
+
+    # Resize maintaining aspect ratio
+    ratio = target_height / ph
+    new_w = int(pw * ratio)
+    new_h = target_height
+    product_resized = product_img.resize((new_w, new_h), PILImage.LANCZOS)
+
+    # Position: center-bottom (where hand is holding)
+    x = (sw - new_w) // 2
+    y = sh - new_h - int(sh * 0.08)  # 8% from bottom
+
+    # Composite with alpha
+    composite = scene.copy()
+    composite.paste(product_resized, (x, y), product_resized)
+
+    logger.info(f"Composite done: product at ({x},{y}), size {new_w}x{new_h} on scene {sw}x{sh}")
+    return composite
+
+
 def generate_product_image(
     prompt: str,
     model_tier: str = "quality",
     upscale: bool = True,
     aspect_ratio: str = None,
+    product_image_url: str = None,
+    product_id: str = None,
 ) -> dict:
     """
-    Full pipeline: generate → upscale → validate
+    Full pipeline: generate → upscale → validate → composite
+    If product_image_url is provided, composites real product over the generated scene.
     Returns finalized image info + validation
     """
     # Step 1: Generate
@@ -284,7 +352,15 @@ def generate_product_image(
         image_bytes = download_image(upscaled_url)
         image_url = upscaled_url
 
-    # Step 4: Validate
+    # Step 4: Composite real product over AI-generated placeholder
+    if product_image_url:
+        img = PILImage.open(io.BytesIO(image_bytes))
+        img = composite_product_into_scene(img, product_image_url, product_id=product_id)
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        image_bytes = buf.getvalue()
+
+    # Step 5: Validate
     validation = validate_etsy_image(image_bytes)
 
     return {

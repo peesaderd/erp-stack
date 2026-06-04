@@ -1,16 +1,16 @@
 HAND_CRITICAL: Generate ONLY 5 fingers per hand — NO extra fingers, NO missing fingers.
 HAND_CRITICAL: Hands must be connected to visible arms — NO floating hands or detached limbs.
+HAND_CRITICAL: NO product, NO bottle, NO container visible — the hand is applying NOTHING visible.
 
 Scene:
-A person using a product.
+A person using a product — hands are empty, no visible container.
 
 Details:
-Product: {product} (minimal blank container, no visible labels/text — branding is post-produced)
-Product appearance: {color, shape, material, texture — be specific about physical characteristics}
-Hand pose: {natural grip showing how the product is actually used}
-Action: {using / applying}
+Product: NOTHING visible. The hand is applying a product that is invisible. Fingers are pressing/rubbing/touching the skin as if applying something.
+Hand pose: {natural grip showing how the product is actually used} — but there is NO object in the hand
+Action: {using / applying} — hands are empty, the action is mimed
 Location: {real environment}
 Mood: {natural}
-Key: The product container has NO text, NO labels, NO visible branding — it is a clean blank surface.
-Key: The product must be the hero of the image, well-lit and in sharp focus.
-Key: Include subtle environmental details that suggest the product's use case.
+Key: Hands are COMPLETELY EMPTY — no bottle, no container, no pump, no tube visible.
+Key: The hands gesture should clearly show what action is being performed (applying, pressing, rubbing).
+Key: DO NOT generate any visible product container anywhere in the scene.

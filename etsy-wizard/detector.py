@@ -211,9 +211,9 @@ def find_placement(scene_image: Image.Image):
 
     img_w, img_h = scene_image.size
 
-    # Step 1: YOLO product detection (fast, ~15ms)
+    # Step 1: YOLO product detection (fast, ~50ms)
     product = _detector.find_product_bbox(scene_image)
-    if product and product["class_id"] != 0:  # Not a person
+    if product and product["class_id"] != 0:  # Not a person → direct hit
         logger.info(
             f"📦 YOLO product: '{product['class']}' "
             f"({product['confidence']:.2f}) "
@@ -230,36 +230,37 @@ def find_placement(scene_image: Image.Image):
             "cy": product["cy"],
         }
 
-    # Step 2: If person detected but no product, try pose estimation
-    # Only load pose model when we actually have a person
+    # Step 2: Try pose detection for hands (even without person detection)
+    # Empty hand holding nothing → pose may still find wrist keypoints
+    _ensure_pose_loaded()
+    hands = _pose_detector.detect_hands(scene_image)
+    if hands:
+        # Pick the hand most likely holding something (lowest in frame = forward)
+        best_hand = max(hands, key=lambda h: h["y"])
+        # Estimate product size: ~25% of image height
+        est_h = img_h * 0.25
+        est_w = est_h * 0.45  # typical product aspect ratio
+
+        logger.info(
+            f"✋ YOLO hand: {best_hand['side']} "
+            f"at ({best_hand['x']},{best_hand['y']})"
+        )
+
+        return {
+            "source": "yolo_hand",
+            "x": best_hand["x"] - est_w * 0.4,
+            "y": best_hand["y"] - est_h * 0.3,
+            "width": est_w,
+            "height": est_h,
+            "confidence": 0.8,
+            "cx": best_hand["x"],
+            "cy": best_hand["y"],
+            "hand_side": best_hand["side"],
+        }
+
+    # Step 3: If person detected (but no hands), use upper body
     if product and product["class_id"] == 0:
-        logger.info(f"🧑 Person detected, trying pose for hand position...")
-        _ensure_pose_loaded()
-        hands = _pose_detector.detect_hands(scene_image)
-        if hands:
-            # Pick the hand most likely holding something (lowest in frame = holding forward)
-            best_hand = max(hands, key=lambda h: h["y"])
-            est_size = max(img_w, img_h) * 0.15
-
-            logger.info(
-                f"✋ YOLO hand: {best_hand['side']} "
-                f"at ({best_hand['x']},{best_hand['y']})"
-            )
-
-            return {
-                "source": "yolo_hand",
-                "x": best_hand["x"] - est_size * 0.4,
-                "y": best_hand["y"] - est_size * 0.5,
-                "width": est_size,
-                "height": est_size * 1.2,
-                "confidence": 0.8,
-                "cx": best_hand["x"],
-                "cy": best_hand["y"],
-                "hand_side": best_hand["side"],
-            }
-
-        # Person detected but no hands visible: use upper body area
-        logger.info(f"🧑 Person detected but no hands visible, using upper body")
+        logger.info(f"🧑 Person but no hands, using upper body")
         return {
             "source": "person_bbox",
             "x": product["bbox"][0] + product["width"] * 0.2,
@@ -271,5 +272,5 @@ def find_placement(scene_image: Image.Image):
             "cy": product["cy"] + product["height"] * 0.15,
         }
 
-    logger.warning("⚠️ No product or person detected in image")
+    logger.warning("⚠️ Nothing detected in image")
     return None

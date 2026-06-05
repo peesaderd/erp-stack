@@ -35,32 +35,32 @@ PRESET_IMAGE_STYLES = [
     {
         "id": "holding_product",
         "name": "ถือสินค้า",
-        "description": "มือถือสินค้าในมุมที่เป็นธรรมชาติ",
-        "suffix": "Holding the product naturally in hand, well-lit, realistic product photography style",
+        "description": "สินค้าวางบนพื้นผิวเรียบสวยงาม",
+        "suffix": "Product placed on a beautiful clean flat surface like marble or wood countertop, flat-lay photography, aesthetic composition, soft natural lighting, no hands, no person",
     },
     {
         "id": "product_usage",
         "name": "ใช้งานสินค้า",
-        "description": "สาธิตการใช้งานจริง",
-        "suffix": "Person using the product in a real-life setting, candid lifestyle shot, soft natural lighting",
+        "description": "สินค้าในบรรยากาศการใช้งานจริงบนพื้นผิว",
+        "suffix": "Product on a natural surface in a lifestyle setting, bathroom counter or vanity table, soft natural lighting, clean aesthetic, lifestyle flat-lay, no hands, no person",
     },
     {
         "id": "lifestyle",
         "name": "ไลฟ์สไตล์",
         "description": "สินค้าในชีวิตประจำวัน",
-        "suffix": "Product integrated into everyday lifestyle scene, aesthetic composition, warm tones",
+        "suffix": "Product integrated into everyday lifestyle scene on a clean surface, aesthetic composition, warm tones, no hands, no person in frame",
     },
     {
         "id": "close_up",
         "name": "Close-up",
         "description": "ถ่ายใกล้แสดงรายละเอียดสินค้า",
-        "suffix": "Extreme close-up of product texture and details, macro photography, shallow depth of field",
+        "suffix": "Extreme close-up of product texture and details on a clean surface, macro photography, shallow depth of field, no hands",
     },
     {
         "id": "review_style",
         "name": "รีวิว",
         "description": "สไตล์รีวิว TikTok",
-        "suffix": "Review-style setup, product on clean flat-lay or table, authentic lighting, social media aesthetic",
+        "suffix": "Review-style setup, product on clean flat-lay or table, authentic lighting, social media aesthetic, no hands",
     },
 ]
 
@@ -320,14 +320,14 @@ These elements are IMMUTABLE - never alter or hallucinate these details:
 - CRITICAL: The product is a BLANK PLACEHOLDER {_placeholder_term_for_category(category)} — NO text, NO labels, NO brand markings, NO packaging descriptions
 - Do NOT describe the actual product's appearance (color, shape, material, texture, packaging)
 - CRITICAL: The final product image will be COMPOSITED in post-processing — describe ONLY the blank placeholder
-- After analyzing the image, estimate the BOUNDING BOX of where the product is held (JSON: x, y, width, height, angle)
-- MUST specify Thai/SE Asian model (young Thai woman, light brown skin, Southeast Asian features, natural look)
+- CRITICAL: NO hands, NO people, NO person visible in any image — empty surface / flat-lay only
+- Describe a beautiful CLEAN SURFACE (marble countertop, wood table, ceramic tile, stone) as the setting
+- The product sits on the surface — it is NOT being held
+- After analyzing the image, estimate the BOUNDING BOX of where the product should be placed (JSON: x, y, width, height, angle)
 - Use warm Thai-style setting, natural lighting, pastel or soft tones
-- CRITICAL for hands: EXACTLY 5 fingers per hand, NO extra fingers, NO missing fingers, NO floating hands — hands must connect to visible arms
- - HIGH: Include specific hand poses that match the product type and usage context
- - HIGH: For electronics, specify if the device should be on/off and screen content (always blank/placeholder)
- - HIGH: For beauty products, specify application context (face, lips, eyes, etc.)
- - HIGH: For fashion/jewelry, specify how it's worn or displayed
+ - HIGH: For beauty products, describe a vanity or bathroom counter setting
+ - HIGH: For food/consumables, describe a kitchen counter or dining table
+ - HIGH: For electronics, describe a desk or table surface with lifestyle elements
 
 # REQUIREMENTS FOR VIDEO PROMPT:
 - Focus on camera movement (pan/zoom/tilt/dolly) and subject action
@@ -529,10 +529,12 @@ Product Name: {product_name}
 
 Generate 5 prompts for these styles: holding_product, product_usage, lifestyle, close_up, review_style
 Each prompt must:
-\u2022 Describe the product as a BLANK container with the correct color, shape, and material
+\u2022 Describe a beautiful CLEAN SURFACE (marble, wood, countertop, table) as the main setting
+\u2022 The product is described as a BLANK container with correct color, shape, and material
 \u2022 CRITICAL: Do NOT describe any text, labels, logos, brand names, or markings — product is a blank placeholder
-\u2022 Specify Thai/SE Asian model (young Thai woman, light brown skin, natural look)
+\u2022 CRITICAL: NO hands, NO people, NO person visible — empty surface only
 \u2022 Include warm Thai-style setting and soft natural lighting
+\u2022 The composition should look like a flat-lay or product photography on a surface
 
 Output:
 {{
@@ -581,11 +583,13 @@ def _fallback_analysis(product_name: str, description: str, category: str) -> di
             "id": style["id"],
             "name": style["name"],
             "bbox": {"x": 0, "y": 0, "width": 0, "height": 0, "angle": 0},
-            "prompt": f"ภาพถ่ายสินค้า {product_name} ในสไตล์ {style['name']} แสดงรายละเอียดสี รูปร่าง วัสดุ และบรรจุภัณฑ์อย่างชัดเจน "
-                      f"โดยใช้ {_placeholder_term_for_category(category)} เป็นตัวแทนสินค้า "
-                      f"แสดงมือถือสินค้าอย่างเป็นธรรมชาติ เหมาะสำหรับการรีวิวสินค้า "
+            "prompt": f"ภาพถ่ายสินค้า {product_name} ในสไตล์ {style['name']} "
+                      f"วางบนพื้นผิวเรียบสวยงาม (เคาน์เตอร์หินอ่อน โต๊ะไม้ หรือพื้นผิวพรีเมียม) "
+                      f"แสดงรายละเอียดสี รูปร่าง วัสดุ และบรรจุภัณฑ์อย่างชัดเจน "
+                      f"ไม่มีมือ ไม่มีคน ถ่ายแบบ flat-lay "
                       f"แสงสว่างธรรมชาติ โทนสีอบอุ่น สไตล์ไทย",
-            "prompt": f"ภาพถ่ายสินค้า {product_name} ในสไตล์ {style['name']} แสดงรายละเอียดสี รูปร่าง วัสดุ และบรรจุภัณฑ์อย่างชัดเจน เหมาะสำหรับการรีวิวสินค้า",
+            "prompt": f"ภาพถ่ายสินค้า {product_name} ในสไตล์ {style['name']} "
+                      f"วางบนพื้นผิวเรียบสวยงาม แสงธรรมชาติ โทนอบอุ่น สไตล์ไทย",
         })
 
     return {

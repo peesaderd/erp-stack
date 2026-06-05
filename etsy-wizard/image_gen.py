@@ -9,6 +9,7 @@ import io
 import base64
 import json
 import time
+import random
 import logging
 from typing import Optional
 from enum import Enum
@@ -379,35 +380,22 @@ def composite_product_into_scene(
                 bbox_y += (bh - bbox_h) // 2
                 logger.info(f"OpenCV: ({bbox_x},{bbox_y}) {bbox_w}x{bbox_h} a={angle:.1f}")
 
-    # ── Step 2.5: Try ML detectors — find where to place product ──
-    if bbox is None:
-        try:
-            from detector import find_placement
-            placement = find_placement(scene_image)
-            if placement:
-                source = placement["source"]
-                if source in ("yolo_product", "yolo_hand", "person_bbox"):
-                    bbox_x = int(placement["x"])
-                    bbox_y = int(placement["y"])
-                    bbox_w = int(placement["width"])
-                    bbox_h = int(placement["height"])
-                    angle = 0.0
-                    logger.info(f"{source} placement: ({bbox_x},{bbox_y}) {bbox_w}x{bbox_h}")
-                else:
-                    logger.warning(f"Unknown placement source: {source}")
-        except Exception as e:
-            logger.warning(f"ML detector failed: {e}")
+    # ── Step 2.5: For surface/flat-lay scenes, skip ML detectors entirely ──
+    # New prompts generate empty surfaces (no hands, no products, no people)
+    # ML detectors would only pick up hallucinated objects → wrong placement
+    # Smart fallback below handles this perfectly
 
-    # If STILL no bbox, use center-bottom default with product aspect ratio
+    # If STILL no bbox, use center default with product aspect ratio (surface placement)
     if bbox is None:
-        # Target: product fills ~40% of scene height, centered horizontally
-        target_h = int(sh * 0.42)
+        # For surface photos: product sits at center, slightly below middle
+        # Target: product fills ~35% of scene height for natural surface look
+        target_h = int(sh * 0.35)
         bbox_w = max(int(pw * target_h / ph), 50)
         bbox_h = target_h
         bbox_x = (sw - bbox_w) // 2
-        bbox_y = sh - bbox_h - int(sh * 0.08)
-        angle = 0.0
-        logger.info(f"Center-bottom fallback: ({bbox_x},{bbox_y}) {bbox_w}x{bbox_h}")
+        bbox_y = (sh - bbox_h) // 2 + int(sh * 0.05)  # center + slight downward offset
+        angle = random.uniform(-3.0, 3.0)  # slight natural rotation for surface
+        logger.info(f"Surface center placement: ({bbox_x},{bbox_y}) {bbox_w}x{bbox_h} a={angle:.1f}")
 
     # Validate bbox coordinates to prevent out-of-bounds errors
     bbox_x = max(0, min(bbox_x, sw - 10))

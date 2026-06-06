@@ -556,6 +556,185 @@ def export_asset(req: ExportRequest):
     }
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# Module Integrations — Image Gen, Video Gallery, Payment
+# ═══════════════════════════════════════════════════════════════════════
+
+import httpx
+
+MODULE_URLS = {
+    "image-gen": "http://localhost:8110",
+    "video-gen": "http://localhost:8116",
+    "payment":   "http://localhost:8122",
+}
+
+
+async def _proxy(method: str, module: str, path: str, body: dict = None) -> dict:
+    """Proxy request to a module, return normalized response."""
+    base = MODULE_URLS.get(module)
+    if not base:
+        raise HTTPException(status_code=400, detail=f"Unknown module: {module}")
+    url = f"{base}{path}"
+    try:
+        async with httpx.AsyncClient(timeout=60.0, verify=False) as client:
+            if method == "GET":
+                resp = await client.get(url)
+            else:
+                resp = await client.post(url, json=body or {})
+            if resp.status_code >= 400:
+                return {"ok": False, "status": resp.status_code, "error": resp.text[:300], "data": None}
+            try:
+                return {"ok": True, "status": resp.status_code, "data": resp.json()}
+            except Exception:
+                return {"ok": True, "status": resp.status_code, "data": {"text": resp.text}}
+    except httpx.ConnectError:
+        return {"ok": False, "status": 0, "error": f"Cannot reach {module} at {base}", "data": None}
+    except Exception as e:
+        return {"ok": False, "status": 0, "error": str(e), "data": None}
+
+
+# ─── Image Gallery (proxy to Image Gen Module :8110) ─────────────────────
+
+class ImageGenerateRequest(BaseModel):
+    prompt: str
+    model: str = "fast"
+    image_url: str = ""
+    template_id: str = ""
+    size: str = "1024x1024"
+    count: int = 1
+
+
+@app.post("/images/generate")
+async def generate_image(req: ImageGenerateRequest):
+    """Generate product image via Image Gen module."""
+    result = await _proxy("POST", "image-gen", "/api/image/v1/generate", req.model_dump())
+    return result
+
+
+@app.post("/images/remove-bg")
+async def remove_bg(image_url: str = ""):
+    """Remove background from image via Image Gen module."""
+    result = await _proxy("POST", "image-gen", "/api/image/v1/remove-bg", {"imageUrl": image_url})
+    return result
+
+
+@app.post("/images/edit")
+async def edit_image(prompt: str = "", image_url: str = ""):
+    """Edit image via Image Gen module."""
+    result = await _proxy("POST", "image-gen", "/api/image/v1/edit", {"prompt": prompt, "imageUrl": image_url})
+    return result
+
+
+@app.post("/images/upscale")
+async def upscale_image(image_url: str = ""):
+    """Upscale image via Image Gen module."""
+    result = await _proxy("POST", "image-gen", "/api/image/v1/upscale", {"imageUrl": image_url})
+    return result
+
+
+@app.get("/images/templates")
+async def list_image_templates():
+    """List available image templates from Image Gen module."""
+    result = await _proxy("GET", "image-gen", "/api/image/v1/templates")
+    return result
+
+
+@app.post("/images/product")
+async def generate_product_image(product_name: str = "", description: str = "", category: str = ""):
+    """Generate product image via Image Gen module's product pipeline."""
+    result = await _proxy("POST", "image-gen", "/api/image/v1/product/generate", {
+        "productName": product_name, "description": description, "category": category,
+    })
+    return result
+
+
+@app.get("/images/gallery")
+async def image_gallery():
+    """List generated images from Image Gen module storage."""
+    import glob
+    storage = "/home/openhands/.openclaw/workspace/business-os/services/image-gen/storage/images"
+    files = []
+    for f in sorted(glob.glob(f"{storage}/**/*.*", recursive=True))[:50]:
+        if f.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
+            files.append({
+                "path": f.replace(storage, "").lstrip("/"),
+                "url": f"http://localhost:8110/static/images/{os.path.basename(f)}",
+            })
+    return {"ok": True, "total": len(files), "items": files}
+
+
+# ─── Video Gallery — see what's been generated ────────────────────────────
+
+@app.get("/videos/gallery")
+async def video_gallery():
+    """List generated videos from task queue + Video Gen module."""
+    from video_gen import task_queue
+    import glob
+    storage = os.environ.get("STORAGE_DIR", "/home/openhands/erp-stack/tiktok-ugc-studio/storage/videos")
+    files = []
+    for f in sorted(glob.glob(f"{storage}/**/*.*", recursive=True))[:50]:
+        if f.lower().endswith((".mp4", ".mov", ".webm", ".gif")):
+            files.append({"path": os.path.basename(f), "url": f"/static/videos/{os.path.basename(f)}"})
+    # Also try query Video Gen module's jobs
+    vg_jobs = await _proxy("GET", "video-gen", "/api/video/v1/jobs")
+    return {
+        "ok": True,
+        "local_videos": len(files),
+        "items": files,
+        "video_gen_jobs": vg_jobs.get("data", vg_jobs.get("jobs", [])) if vg_jobs.get("ok") else [],
+    }
+
+
+# ─── Payment Integration (proxy to Payment Module :8122) ──────────────────
+
+class CheckoutRequest(BaseModel):
+    customer_email: str = ""
+    plan_id: str = ""
+    success_url: str = "https://wpilot.ai/success"
+    cancel_url: str = "https://wpilot.ai/cancel"
+
+
+class QRRequest(BaseModel):
+    amount: int = 0
+    currency: str = "thb"
+
+
+@app.post("/payment/create-checkout")
+async def payment_checkout(req: CheckoutRequest):
+    """Create Stripe checkout session via Payment module."""
+    result = await _proxy("POST", "payment", "/api/payment/checkout/create-session", {
+        "customerEmail": req.customer_email,
+        "planId": req.plan_id,
+        "successUrl": req.success_url,
+        "cancelUrl": req.cancel_url,
+    })
+    return result
+
+
+@app.post("/payment/create-qr")
+async def payment_qr(req: QRRequest):
+    """Create QR PromptPay via Payment module."""
+    result = await _proxy("POST", "payment", "/api/payment/qr/generate", {
+        "amount": req.amount,
+        "currency": req.currency,
+    })
+    return result
+
+
+@app.get("/payment/plans")
+async def payment_plans():
+    """List subscription plans from Payment module."""
+    result = await _proxy("GET", "payment", "/api/payment/subscriptions/plans")
+    return result
+
+
+@app.get("/payment/health")
+async def payment_health():
+    """Check Payment module health."""
+    result = await _proxy("GET", "payment", "/api/payment/health")
+    return result
+
+
 # ─── Stats ─────────────────────────────────────────────────────────────────
 
 @app.get("/stats")

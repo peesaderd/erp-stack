@@ -1,6 +1,6 @@
 """
 TikTok UGC Studio — AI Video Generation Pipeline
-Provider-agnostic: Kling, Runway, Pika, Minimax, etc.
+Providers: WaveSpeed + fal.ai
 """
 
 import os
@@ -18,10 +18,7 @@ logger = logging.getLogger("tiktok-ugc.video_gen")
 
 class VideoProvider(str, Enum):
     WAVESPEED = "wavespeed"
-    KLING = "kling"
-    RUNWAY = "runway"
-    PIKA = "pika"
-    MINIMAX = "minimax"
+    FAL = "fal"
 
 PROVIDER_CONFIG = {
     VideoProvider.WAVESPEED: {
@@ -33,39 +30,18 @@ PROVIDER_CONFIG = {
         "rate_limit_rps": 10,
         "estimate_cost": 0.05,
     },
-    VideoProvider.KLING: {
-        "key": os.environ.get("KLING_API_KEY", ""),
-        "secret": os.environ.get("KLING_API_SECRET", ""),
-        "models": {"standard": "kling-v1", "pro": "kling-v1-pro"},
-        "default_model": "kling-v1",
-        "base_url": "https://api.kling.ai/v1",
-        "image_to_video": True,
-        "rate_limit_rps": 5,
-        "estimate_cost": 0.60,
-    },
-    VideoProvider.RUNWAY: {
-        "key": os.environ.get("RUNWAY_API_KEY", ""),
-        "models": {"standard": "gen3a", "turbo": "gen3a_turbo"},
-        "default_model": "gen3a",
-        "base_url": "https://api.runwayml.com/v1",
-        "image_to_video": True,
-        "rate_limit_rps": 10,
-        "estimate_cost": 0.40,
-    },
-    VideoProvider.PIKA: {
-        "key": os.environ.get("PIKA_API_KEY", ""),
-        "models": {"standard": "pika-2.0", "turbo": "pika-2.0-turbo"},
-        "default_model": "pika-2.0",
-        "base_url": "https://api.pika.art/v1",
-        "image_to_video": True,
-        "rate_limit_rps": 20,
-        "estimate_cost": 0.30,
-    },
-    VideoProvider.MINIMAX: {
-        "key": os.environ.get("MINIMAX_API_KEY", ""),
-        "models": {"standard": "video-01"},
-        "default_model": "video-01",
-        "base_url": "https://api.minimax.chat/v1",
+    VideoProvider.FAL: {
+        "key": os.environ.get("FAL_API_KEY", "") or os.environ.get("FAL_KEY", ""),
+        "models": {
+            "standard": "fal-ai/veo2",
+            "fast-svd": "fal-ai/fast-svd",
+            "kling": "fal-ai/kling-video",
+            "minimax": "fal-ai/minimax-video",
+            "haiper": "fal-ai/haiper-video",
+            "luma": "fal-ai/luma-dream-machine",
+        },
+        "default_model": "fal-ai/veo2",
+        "base_url": "https://fal.run",
         "image_to_video": True,
         "rate_limit_rps": 10,
         "estimate_cost": 0.10,
@@ -137,10 +113,8 @@ def retryable(max_retries=3, base_delay=1.0, backoff=2.0, retry_statuses=(429, 5
 
 PROVIDER_FALLBACK_CHAIN = [
     (VideoProvider.WAVESPEED, "standard"),
-    (VideoProvider.MINIMAX, "standard"),
-    (VideoProvider.PIKA, "standard"),
-    (VideoProvider.RUNWAY, "standard"),
-    (VideoProvider.KLING, "standard"),
+    (VideoProvider.FAL, "standard"),
+    (VideoProvider.FAL, "kling"),
 ]
 
 def generate_video_with_fallback(prompt, duration=8, aspect_ratio="9:16", image_url=None, face_image_url=None, **kw):
@@ -303,99 +277,64 @@ def _ws_status(config, task_id):
 
 
 @retryable(max_retries=3)
-def _kling_generate(config, prompt, model, duration, aspect_ratio, image_url, face_image_url, timeout):
-    """Generate via Kling AI API"""
-    url = f"{config['base_url']}/images/generations"
-    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {config['key']}"}
-    payload = {"model": model, "prompt": prompt, "duration": duration, "aspect_ratio": aspect_ratio}
+@retryable(max_retries=3)
+def _fal_generate(config, prompt, model, duration, aspect_ratio, image_url, face_image_url, timeout):
+    """Generate via fal.ai unified API
+
+    fal.ai supports many backends: veo2, kling, minimax, haiper, luma, fast-svd
+    All go through the same endpoint at fal.run.
+    """
+    url = f"{config['base_url']}/{model}"
+    headers = {
+        "Authorization": f"Key {config['key']}",
+        "Content-Type": "application/json",
+    }
+    payload = {"prompt": prompt}
     if image_url:
         payload["image_url"] = image_url
+    if duration:
+        payload["duration"] = duration
+
     resp = requests.post(url, headers=headers, json=payload, timeout=timeout)
-    if resp.status_code != 200:
-        raise RuntimeError(f"Kling error ({resp.status_code}): {resp.text[:500]}")
+    if resp.status_code not in (200, 201):
+        raise RuntimeError(f"fal.ai error ({resp.status_code}): {resp.text[:500]}")
     data = resp.json()
-    return {"task_id": data.get("data", {}).get("task_id", ""), "status": "pending"}
-
-
-def _kling_status(config, task_id):
-    """Kling task status"""
-    url = f"{config['base_url']}/images/generations/{task_id}"
-    headers = {"Authorization": f"Bearer {config['key']}"}
-    resp = requests.get(url, headers=headers, timeout=30)
-    data = resp.json()
-    task_data = data.get("data", {})
-    result = {"task_id": task_id, "status": task_data.get("status", "unknown")}
-    if task_data.get("videos"):
-        result["videos"] = task_data["videos"]
-        result["video_url"] = task_data["videos"][0].get("url", "")
-    return result
+    # fal.ai returns immediate sync with video_url or async with request_id
+    video_url = data.get("video", {}).get("url", "") or data.get("url", "")
+    task_id = data.get("request_id", "") or data.get("id", "")
+    return {
+        "task_id": task_id,
+        "status": "completed" if video_url else "pending",
+        "video_url": video_url,
+    }
 
 
 @retryable(max_retries=3)
-def _minimax_generate(config, prompt, model, duration, aspect_ratio, image_url, face_image_url, timeout):
-    """Generate via Minimax/Hailuo API"""
-    url = f"{config['base_url']}/video/generate"
-    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {config['key']}"}
-    payload = {"model": model, "prompt": prompt, "duration": duration}
-    if image_url:
-        payload["image_url"] = image_url
-    resp = requests.post(url, headers=headers, json=payload, timeout=timeout)
-    if resp.status_code != 200:
-        raise RuntimeError(f"Minimax error ({resp.status_code}): {resp.text[:500]}")
-    return {"task_id": resp.json().get("task_id", ""), "status": "pending"}
-
-
-def _minimax_status(config, task_id):
-    """Minimax task status"""
-    url = f"{config['base_url']}/video/status/{task_id}"
-    headers = {"Authorization": f"Bearer {config['key']}"}
+def _fal_status(config, task_id):
+    """Check fal.ai async task status"""
+    # fal.ai status endpoint — infer model from request ID lookup
+    url = f"https://fal.ai/requests/{task_id}/status"
+    headers = {"Authorization": f"Key {config['key']}"}
     resp = requests.get(url, headers=headers, timeout=30)
     data = resp.json()
-    return {"task_id": task_id, "status": data.get("status", "unknown"), "video_url": (data.get("output", {}) or {}).get("url", "")}
-
-
-@retryable(max_retries=3)
-def _generic_generate(config, prompt, model, duration, aspect_ratio, image_url, face_image_url, timeout):
-    """Generic for Runway/Pika-like APIs"""
-    url = f"{config['base_url']}/generations"
-    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {config['key']}"}
-    payload = {"model": model, "prompt": prompt}
-    if image_url:
-        payload["image_url"] = image_url
-    # Derive provider name from config reference (safe because config is PROVIDER_CONFIG entry)
-    pname = next((k.value for k in PROVIDER_CONFIG if PROVIDER_CONFIG[k] is config), "?")
-    resp = requests.post(url, headers=headers, json=payload, timeout=timeout)
-    if resp.status_code != 200:
-        raise RuntimeError(f"{pname} error ({resp.status_code}): {resp.text[:500]}")
-    data = resp.json()
-    return {"task_id": data.get("id", data.get("task_id", "")), "status": "pending"}
-
-
-def _generic_status(config, task_id):
-    """Generic status check for Runway/Pika"""
-    url = f"{config['base_url']}/generations/{task_id}"
-    headers = {"Authorization": f"Bearer {config['key']}"}
-    resp = requests.get(url, headers=headers, timeout=30)
-    data = resp.json()
-    return {"task_id": task_id, "status": data.get("status", "unknown"), "video_url": (data.get("output", {}) or {}).get("url", "")}
+    video_url = data.get("video", {}).get("url", "") or data.get("url", "")
+    return {
+        "task_id": task_id,
+        "status": data.get("status", "unknown"),
+        "video_url": video_url,
+    }
 
 
 # ─── Provider Dispatch Tables ─────────────────────────────────────────
 
 _PROVIDER_HANDLERS = {
     VideoProvider.WAVESPEED: _ws_generate,
-    VideoProvider.KLING: _kling_generate,
-    VideoProvider.MINIMAX: _minimax_generate,
-    VideoProvider.RUNWAY: _generic_generate,
-    VideoProvider.PIKA: _generic_generate,
+    VideoProvider.FAL: _fal_generate,
 }
 
 _STATUS_HANDLERS = {
     VideoProvider.WAVESPEED: _ws_status,
-    VideoProvider.KLING: _kling_status,
-    VideoProvider.MINIMAX: _minimax_status,
-    VideoProvider.RUNWAY: _generic_status,
-    VideoProvider.PIKA: _generic_status,
+    VideoProvider.FAL: _fal_status,
 }
 
 

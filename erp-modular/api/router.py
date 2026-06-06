@@ -75,6 +75,39 @@ def create_module(module: ModuleCreate, session: Session = Depends(get_session))
     return db_module
 
 
+@router.post("/modules/register", response_model=ModuleRead)
+def register_module(
+    data: dict = Body(...),
+    session: Session = Depends(get_session),
+):
+    """Register a live module from erp_bridge — creates or updates Module record."""
+    name = data.get("name", data.get("slug", "unknown"))
+    slug = data.get("slug", name.lower().replace(" ", "-"))
+    endpoint = data.get("endpoint", "")
+    description = data.get("description", "")
+    version = data.get("version", "1.0.0")
+
+    existing = session.exec(select(Module).where(Module.slug == slug)).first()
+    if existing:
+        existing.name = name
+        existing.description = description or existing.description
+        existing.version = version
+        session.commit()
+        session.refresh(existing)
+        return existing
+
+    db_module = Module(
+        name=name,
+        slug=slug,
+        description=description,
+        version=version,
+    )
+    session.add(db_module)
+    session.commit()
+    session.refresh(db_module)
+    return db_module
+
+
 @router.get("/modules", response_model=List[ModuleRead])
 def list_modules(
     search: Optional[str] = Query(None, description="ค้นหาจาก name, slug, description"),

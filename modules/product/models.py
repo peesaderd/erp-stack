@@ -5,6 +5,8 @@ from typing import Optional, List, Dict
 class ScrapeRequest(BaseModel):
     url: str
     use_vision: bool = True  # Use Gemini Vision as fallback
+    proxy: Optional[str] = None  # Specific proxy (e.g. "http://user:pass@ip:port")
+    rotate_proxy: bool = True    # Auto-rotate from PROXY_LIST if no proxy specified
 
 class ProductData(BaseModel):
     name: Optional[str] = None

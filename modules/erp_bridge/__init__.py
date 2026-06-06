@@ -11,7 +11,7 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-ERP_REGISTRY_URL = os.environ.get("ERP_REGISTRY_URL", "http://localhost:8100")
+ERP_REGISTRY_URL = os.environ.get("ERP_REGISTRY_URL", "http://localhost:8102")
 DEFAULT_MODULE_PREFIX = os.environ.get("MODULE_PREFIX", "modules")
 
 
@@ -19,7 +19,7 @@ async def register_module(
     name: str,
     version: str = "1.0.0",
     host: str = "localhost",
-    port: int = 8100,
+    port: int = 8102,
     description: str = "",
     tables: list = None,
     permissions: list = None,

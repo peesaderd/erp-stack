@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Product Scraper · Dashboard</title>
+<style>
+/* ── Open Design System Variables ── */
+:root {
+  --bg: #0d0d0d;
+  --bg-panel: #141414;
+  --bg-elevated: #1a1a1a;
+  --bg-hover: #222;
+  --border: #2a2a2a;
+  --text: #e8e8e8;
+  --text-soft: #999;
+  --text-strong: #fff;
+  --accent: #c96442;
+  --accent-hover: #d47a5c;
+  --accent-soft: rgba(201,100,66,0.15);
+  --accent-tint: rgba(201,100,66,0.08);
+  --green: #4ade80;
+  --red: #f87171;
+  --yellow: #fbbf24;
+  --radius: 10px;
+  --font: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:var(--font); background:var(--bg); color:var(--text); min-height:100vh; }
+a { color:var(--accent); text-decoration:none; }
+a:hover { color:var(--accent-hover); }
+
+/* ── Layout ── */
+.app { display:flex; min-height:100vh; }
+.sidebar { width:240px; background:var(--bg-panel); border-right:1px solid var(--border); padding:24px 0; flex-shrink:0; }
+.sidebar .logo { padding:0 20px 24px; font-size:18px; font-weight:700; color:var(--text-strong); display:flex; align-items:center; gap:10px; }
+.sidebar .logo .icon { width:28px; height:28px; background:var(--accent); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:14px; color:#fff; }
+.sidebar nav a { display:flex; align-items:center; gap:10px; padding:10px 20px; color:var(--text-soft); font-size:14px; transition:.15s; border-left:2px solid transparent; }
+.sidebar nav a:hover, .sidebar nav a.active { color:var(--text-strong); background:var(--accent-tint); border-left-color:var(--accent); }
+.sidebar nav a .nav-icon { width:18px; text-align:center; }
+
+.main { flex:1; padding:32px 40px; max-width:1200px; }
+.main h1 { font-size:24px; font-weight:600; margin-bottom:4px; color:var(--text-strong); }
+.main .subtitle { color:var(--text-soft); font-size:14px; margin-bottom:24px; }
+
+/* ── Cards ── */
+.card { background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:20px; margin-bottom:16px; }
+.card h2 { font-size:15px; font-weight:600; color:var(--text-strong); margin-bottom:12px; }
+.stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-bottom:24px; }
+.stat { background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius); padding:16px; }
+.stat .value { font-size:28px; font-weight:700; color:var(--text-strong); }
+.stat .label { font-size:12px; color:var(--text-soft); margin-top:2px; }
+
+/* ── Form ── */
+.form-row { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+.form-row input, .form-row select { flex:1; min-width:200px; padding:10px 14px; background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-size:14px; outline:none; transition:.15s; }
+.form-row input:focus, .form-row select:focus { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-soft); }
+.form-row input::placeholder { color:var(--text-soft); }
+.btn { padding:10px 20px; border:none; border-radius:var(--radius); font-size:14px; font-weight:500; cursor:pointer; transition:.15s; white-space:nowrap; }
+.btn-primary { background:var(--accent); color:#fff; }
+.btn-primary:hover { background:var(--accent-hover); }
+.btn-secondary { background:var(--bg-elevated); color:var(--text); border:1px solid var(--border); }
+.btn-secondary:hover { background:var(--bg-hover); }
+.btn-sm { padding:6px 12px; font-size:12px; }
+
+/* ── Results ── */
+.result-box { background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius); padding:16px; margin-top:12px; font-size:13px; font-family:monospace; white-space:pre-wrap; word-break:break-word; max-height:400px; overflow:auto; display:none; }
+.result-box.show { display:block; }
+.success { color:var(--green); }
+.error { color:var(--red); }
+
+/* ── Code / Key display ── */
+.key-display { display:flex; align-items:center; gap:8px; background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius); padding:10px 14px; font-family:monospace; font-size:13px; }
+.key-display .key-value { flex:1; color:var(--accent); }
+.key-display .copy-btn { cursor:pointer; color:var(--text-soft); padding:4px 8px; border-radius:4px; transition:.15s; }
+.key-display .copy-btn:hover { background:var(--accent-soft); color:var(--accent); }
+
+/* ── Table ── */
+table { width:100%; border-collapse:collapse; font-size:13px; }
+th { text-align:left; padding:10px 12px; color:var(--text-soft); font-weight:500; border-bottom:1px solid var(--border); }
+td { padding:10px 12px; border-bottom:1px solid var(--border); }
+
+/* ── Tab ── */
+.tabs { display:flex; gap:4px; margin-bottom:20px; border-bottom:1px solid var(--border); padding-bottom:0; }
+.tab { padding:10px 16px; font-size:13px; color:var(--text-soft); cursor:pointer; border-bottom:2px solid transparent; transition:.15s; }
+.tab:hover { color:var(--text); }
+.tab.active { color:var(--text-strong); border-bottom-color:var(--accent); }
+
+/* ── Toast ── */
+.toast { position:fixed; bottom:24px; right:24px; background:var(--accent); color:#fff; padding:12px 20px; border-radius:var(--radius); font-size:13px; opacity:0; transform:translateY(10px); transition:.3s; z-index:100; }
+.toast.show { opacity:1; transform:translateY(0); }
+
+/* ── Pricing ── */
+.pricing-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; }
+.pricing-card { background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius); padding:20px; text-align:center; position:relative; overflow:hidden; }
+.pricing-card.featured { border-color:var(--accent); }
+.pricing-card.featured::before { content:'★ POPULAR'; position:absolute; top:8px; right:-28px; background:var(--accent); color:#fff; font-size:10px; font-weight:600; padding:2px 30px; transform:rotate(45deg); }
+.pricing-card .tier-name { font-size:14px; color:var(--text-soft); margin-bottom:4px; }
+.pricing-card .tier-price { font-size:28px; font-weight:700; color:var(--text-strong); }
+.pricing-card .tier-price small { font-size:14px; font-weight:400; color:var(--text-soft); }
+.pricing-card .tier-scrapes { font-size:13px; color:var(--text-soft); margin:8px 0 12px; }
+
+/* ── Responsive ── */
+@media(max-width:768px) {
+  .app { flex-direction:column; }
+  .sidebar { width:100%; padding:16px; border-right:none; border-bottom:1px solid var(--border); }
+  .sidebar nav { display:flex; gap:4px; overflow-x:auto; }
+  .sidebar nav a { padding:8px 12px; white-space:nowrap; border-left:none; border-bottom:2px solid transparent; }
+  .sidebar nav a.active { border-bottom-color:var(--accent); border-left-color:transparent; }
+  .main { padding:20px; }
+  .stats { grid-template-columns:1fr 1fr; }
+}
+
+/* Loader */
+.spinner { width:20px; height:20px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .6s linear infinite; display:inline-block; vertical-align:middle; margin-right:8px; }
+@keyframes spin { to { transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo"><span class="icon">⛏</span> Scraper</div>
+    <nav>
+      <a href="#" class="active" data-page="dashboard"><span class="nav-icon">📊</span> Dashboard</a>
+      <a href="#" data-page="scrape"><span class="nav-icon">🔍</span> Scraper</a>
+      <a href="#" data-page="keys"><span class="nav-icon">🔑</span> API Keys</a>
+      <a href="#" data-page="pricing"><span class="nav-icon">💰</span> Pricing</a>
+      <a href="#" data-page="export"><span class="nav-icon">📤</span> Export</a>
+    </nav>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main" id="main-content">
+    <div id="page-dashboard"></div>
+    <div id="page-scrape" style="display:none"></div>
+    <div id="page-keys" style="display:none"></div>
+    <div id="page-pricing" style="display:none"></div>
+    <div id="page-export" style="display:none"></div>
+  </main>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── API Config ──
+const API = '';
+const USER_ID = 'demo-user';
+let API_KEY = '';
+
+// ── Toast ──
+function toast(msg) { const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); }
+
+// ── API call ──
+async function api(method, path, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (API_KEY) opts.headers['Authorization'] = `Bearer ${API_KEY}`;
+  opts.headers['x-user-id'] = USER_ID;
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(`${API}${path}`, opts);
+  return await res.json();
+}
+
+// ── Routing ──
+function showPage(name) {
+  document.querySelectorAll('.main > div').forEach(d => d.style.display = 'none');
+  const el = document.getElementById(`page-${name}`);
+  if (el) el.style.display = 'block';
+  document.querySelectorAll('.sidebar nav a').forEach(a => a.classList.remove('active'));
+  document.querySelector(`.sidebar nav a[data-page="${name}"]`)?.classList.add('active');
+}
+
+document.querySelectorAll('.sidebar nav a').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    const page = a.dataset.page;
+    showPage(page);
+    if (page === 'dashboard') renderDashboard();
+    else if (page === 'scrape') renderScraper();
+    else if (page === 'keys') renderKeys();
+    else if (page === 'pricing') renderPricing();
+    else if (page === 'export') renderExport();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Dashboard
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function renderDashboard() {
+  const el = document.getElementById('page-dashboard');
+  el.innerHTML = '<h1>Dashboard</h1><div class="subtitle">Loading…</div>';
+
+  try {
+    const [usage, pricing] = await Promise.all([
+      api('GET', '/api/v1/usage'),
+      api('GET', '/api/v1/pricing'),
+    ]);
+
+    const tiers = pricing?.tiers || {};
+    const tierCfg = tiers['free'] || { scrapes_per_month: 10 };
+
+    el.innerHTML = `
+      <h1>Dashboard</h1>
+      <div class="subtitle">Product Scraper Monitoring</div>
+      <div class="stats">
+        <div class="stat"><div class="value">${usage.total_scrapes || 0}</div><div class="label">Scrapes This Month</div></div>
+        <div class="stat"><div class="value">${usage.remaining || 0}</div><div class="label">Remaining (Free Tier)</div></div>
+        <div class="stat"><div class="value">฿${(usage.total_cost || 0).toFixed(2)}</div><div class="label">Total Cost</div></div>
+        <div class="stat"><div class="value">${usage.unique_urls || 0}</div><div class="label">Unique Products</div></div>
+      </div>
+      <div class="card">
+        <h2>Recent Scrapes</h2>
+        ${usage.recent_logs?.length ? `
+        <table>
+          <tr><th>URL</th><th>Method</th><th>Cost</th><th>Time</th></tr>
+          ${usage.recent_logs.map(l => `<tr><td style="max-width:300px;overflow:hidden;text-overflow:ellipsis">${l.url}</td><td>${l.method}</td><td>฿${l.cost.toFixed(2)}</td><td>${new Date(l.created_at).toLocaleString()}</td></tr>`).join('')}
+        </table>` : '<p style="color:var(--text-soft)">No scrapes yet. Try the Scraper tab!</p>'}
+      </div>
+      <div class="card">
+        <h2>Quick Start</h2>
+        <p style="color:var(--text-soft);font-size:13px;line-height:1.6">
+          1️⃣ Generate an API Key in the <a href="#" onclick="showPage('keys');renderKeys();return false">API Keys</a> tab<br>
+          2️⃣ Paste a product URL in the <a href="#" onclick="showPage('scrape');renderScraper();return false">Scraper</a> tab<br>
+          3️⃣ Check usage here or <a href="#" onclick="showPage('export');renderExport();return false">Export</a> to Google Sheets
+        </p>
+      </div>
+    `;
+  } catch(e) {
+    el.innerHTML = `<h1>Dashboard</h1><div class="subtitle error">Error loading: ${e.message}</div>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Scraper
+// ═══════════════════════════════════════════════════════════════════════════
+
+function renderScraper() {
+  const el = document.getElementById('page-scrape');
+  if (!API_KEY) {
+    el.innerHTML = `
+      <h1>Scraper</h1>
+      <div class="subtitle">Extract product data from any URL</div>
+      <div class="card">
+        <p style="color:var(--text-soft)">🔑 Create an API Key first in the <a href="#" onclick="showPage('keys');renderKeys();return false">API Keys</a> tab.</p>
+      </div>`;
+    return;
+  }
+
+  el.innerHTML = `
+    <h1>Scraper</h1>
+    <div class="subtitle">Paste a product URL to extract data</div>
+    <div class="card">
+      <div class="form-row">
+        <input type="url" id="scrape-url" placeholder="https://www.amazon.com/dp/B09B8V1LZ3" value="https://www.amazon.com/dp/B09B8V1LZ3">
+        <button class="btn btn-primary" id="scrape-btn" onclick="doScrape()">▶ Scrape</button>
+      </div>
+      <label style="font-size:12px;color:var(--text-soft);display:flex;align-items:center;gap:4px">
+        <input type="checkbox" id="scrape-vision" checked> Use AI Vision fallback
+      </label>
+    </div>
+    <div class="card" id="scrape-result-card" style="display:none">
+      <h2>Result</h2>
+      <div id="scrape-result"></div>
+      <div class="result-box show" id="scrape-json"></div>
+    </div>
+  `;
+}
+
+async function doScrape() {
+  const url = document.getElementById('scrape-url').value.trim();
+  if (!url) return toast('Please enter a URL');
+  const useVision = document.getElementById('scrape-vision').checked;
+
+  const btn = document.getElementById('scrape-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Scraping…';
+
+  const card = document.getElementById('scrape-result-card');
+  card.style.display = 'block';
+  const resultDiv = document.getElementById('scrape-result');
+  const jsonDiv = document.getElementById('scrape-json');
+  resultDiv.innerHTML = '<span class="spinner"></span> Loading…';
+  jsonDiv.textContent = '';
+
+  try {
+    const data = await api('POST', '/api/v1/scrape', { url, use_vision: useVision });
+
+    if (data.success) {
+      const p = data.product || {};
+      resultDiv.innerHTML = `
+        <div class="stats" style="margin:0 0 12px">
+          <div class="stat"><div class="label">Method</div><div class="value" style="font-size:16px">${data.method}</div></div>
+          <div class="stat"><div class="label">Cost</div><div class="value" style="font-size:16px">฿${(data.cost || 0).toFixed(2)}</div></div>
+          <div class="stat"><div class="label">Cache</div><div class="value" style="font-size:16px">${data.cached ? '✅ Yes' : '❌ No'}</div></div>
+          <div class="stat"><div class="label">Remaining</div><div class="value" style="font-size:16px">${data.remaining_quota ?? '-'}</div></div>
+        </div>
+        <table>
+          <tr><td style="color:var(--text-soft);width:120px">Name</td><td><strong>${p.name || '-'}</strong></td></tr>
+          <tr><td style="color:var(--text-soft)">Price</td><td>${p.price != null ? `฿${p.price}` : '-'}</td></tr>
+          <tr><td style="color:var(--text-soft)">Currency</td><td>${p.currency || 'THB'}</td></tr>
+          <tr><td style="color:var(--text-soft)">Source</td><td>${p.source_site || '-'}</td></tr>
+          <tr><td style="color:var(--text-soft)">Brand</td><td>${p.brand || '-'}</td></tr>
+          <tr><td style="color:var(--text-soft)">SKU</td><td>${p.sku || '-'}</td></tr>
+          <tr><td style="color:var(--text-soft)">Description</td><td style="max-width:400px">${(p.description || '-').slice(0,200)}</td></tr>
+          <tr><td style="color:var(--text-soft)">Images</td><td>${(p.images||[]).length} images</td></tr>
+        </table>
+        ${(p.images||[]).length ? `<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">${p.images.slice(0,5).map(img => `<img src="${img}" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid var(--border)" onerror="this.style.display='none'">`).join('')}</div>` : ''}
+      `;
+    } else {
+      resultDiv.innerHTML = `<div class="error">❌ ${data.error || 'Scrape failed'}</div>`;
+    }
+    jsonDiv.textContent = JSON.stringify(data, null, 2);
+  } catch(e) {
+    resultDiv.innerHTML = `<div class="error">❌ ${e.message}</div>`;
+  }
+
+  btn.disabled = false; btn.textContent = '▶ Scrape';
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// API Keys
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function renderKeys() {
+  const el = document.getElementById('page-keys');
+  el.innerHTML = '<h1>API Keys</h1><div class="subtitle">Loading…</div>';
+
+  el.innerHTML = `
+    <h1>API Keys</h1>
+    <div class="subtitle">Create and manage API keys for programmatic access</div>
+    <div class="card">
+      <div class="form-row">
+        <input type="text" id="key-name" placeholder="e.g. Production" value="My Key">
+        <button class="btn btn-primary" onclick="createKey()">+ Create Key</button>
+      </div>
+    </div>
+    <div id="key-list"></div>
+    <div id="new-key-display" style="display:none" class="card">
+      <h2>✅ Key Created</h2>
+      <p style="font-size:13px;color:var(--yellow);margin-bottom:8px">⚠️ Copy this key now — it won't be shown again!</p>
+      <div class="key-display">
+        <span class="key-value" id="new-key-value"></span>
+        <span class="copy-btn" onclick="copyKey()">📋 Copy</span>
+      </div>
+    </div>
+  `;
+  await loadKeys();
+}
+
+async function createKey() {
+  const name = document.getElementById('key-name').value.trim() || 'API Key';
+  const data = await api('POST', '/api/v1/keys/create', { name });
+  if (data.success) {
+    document.getElementById('new-key-display').style.display = 'block';
+    document.getElementById('new-key-value').textContent = data.key;
+    API_KEY = data.key;
+    toast('✅ Key created!');
+    await loadKeys();
+  } else {
+    toast('❌ ' + (data.error || 'Failed'));
+  }
+}
+
+async function loadKeys() {
+  const list = document.getElementById('key-list');
+  const data = await api('GET', '/api/v1/keys/list');
+  if (!data.keys?.length) {
+    list.innerHTML = '<div class="card"><p style="color:var(--text-soft)">No API keys yet. Create one above!</p></div>';
+    return;
+  }
+  list.innerHTML = `
+    <table>
+      <tr><th>Name</th><th>Prefix</th><th>Status</th><th>Usage</th><th>Created</th><th></th></tr>
+      ${data.keys.map(k => `
+        <tr>
+          <td>${k.name}</td>
+          <td style="font-family:monospace;font-size:12px">${k.prefix}…</td>
+          <td>${k.is_active ? '<span class="success">● Active</span>' : '<span class="error">● Revoked</span>'}</td>
+          <td>${k.used_this_month || 0} / ${k.monthly_limit}</td>
+          <td style="font-size:12px;color:var(--text-soft)">${new Date(k.created_at).toLocaleDateString()}</td>
+          <td>${k.is_active ? `<button class="btn btn-sm btn-secondary" onclick="revokeKey('${k.id}')">Revoke</button>` : ''}</td>
+        </tr>`).join('')}
+    </table>`;
+}
+
+async function revokeKey(id) {
+  if (!confirm('Revoke this API key?')) return;
+  const data = await api('POST', '/api/v1/keys/revoke', { key_id: id });
+  if (data.success) { toast('🔑 Key revoked'); await loadKeys(); }
+  else toast('❌ ' + (data.error || 'Failed'));
+}
+
+function copyKey() {
+  const val = document.getElementById('new-key-value');
+  navigator.clipboard.writeText(val.textContent).then(() => toast('📋 Copied!'));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Pricing
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function renderPricing() {
+  const el = document.getElementById('page-pricing');
+  el.innerHTML = '<h1>Pricing</h1><div class="subtitle">Loading…</div>';
+
+  try {
+    const data = await api('GET', '/api/v1/pricing');
+    const tiers = data.tiers || {};
+    const names = ['free', 'bronze', 'silver', 'gold', 'ultra'];
+    const descriptions = { free:'For testing', bronze:'For startups', silver:'For small teams', gold:'For growing businesses', ultra:'For power users' };
+
+    el.innerHTML = `
+      <h1>Pricing</h1>
+      <div class="subtitle">Choose your plan. Pay only for what you use.</div>
+      <div class="pricing-grid">
+        ${names.map((k,i) => {
+          const t = tiers[k];
+          if (!t) return '';
+          const featured = k === 'silver';
+          return `
+          <div class="pricing-card ${featured ? 'featured' : ''}">
+            <div class="tier-name">${t.name}</div>
+            <div class="tier-price">฿${t.price_monthly}<small>/mo</small></div>
+            <div class="tier-scrapes">${t.scrapes_per_month.toLocaleString()} scrapes/mo</div>
+            <div style="font-size:12px;color:var(--text-soft);margin-bottom:12px">${descriptions[k] || ''}</div>
+            <div style="font-size:12px;color:var(--text-soft)">
+              Extra: ฿${t.cost_per_scrape}/scrape<br>
+              Cache: ${t.cache_duration_hours || 24}h<br>
+              Proxy: ${t.proxy_included ? '✅ Included' : '❌ Not included'}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div class="card" style="margin-top:16px">
+        <h2>How It Works</h2>
+        <p style="color:var(--text-soft);font-size:13px;line-height:1.7">
+          • Each scrape deducts from your monthly quota<br>
+          • Same URL within cache TTL = <strong>free</strong> (no quota used)<br>
+          • Over-limit scrapes billed at per-scrape rate<br>
+          • Google Sheets export included in all paid plans<br>
+          • No long-term contracts — cancel anytime
+        </p>
+      </div>
+    `;
+  } catch(e) {
+    el.innerHTML = `<h1>Pricing</h1><div class="subtitle error">${e.message}</div>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Export
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function renderExport() {
+  const el = document.getElementById('page-export');
+  el.innerHTML = '<h1>Export</h1><div class="subtitle">Loading…</div>';
+
+  try {
+    const setup = await api('GET', '/api/v1/export/setup');
+
+    el.innerHTML = `
+      <h1>Export</h1>
+      <div class="subtitle">Push scraped products to Google Sheets</div>
+      ${setup.configured ? `
+      <div class="card">
+        <h2>✅ Configured</h2>
+        <p style="color:var(--green);font-size:13px;margin-bottom:12px">Google Sheets credentials are ready.</p>
+        <div class="form-row">
+          <input type="text" id="sheet-id" placeholder="Google Sheet ID (from URL)">
+          <input type="text" id="sheet-name" placeholder="Sheet name" value="Products">
+          <button class="btn btn-primary" onclick="doExport()">📤 Export Now</button>
+        </div>
+        <div id="export-result"></div>
+      </div>` : `
+      <div class="card">
+        <h2>🔧 Setup Required</h2>
+        <p style="color:var(--text-soft);font-size:13px;margin-bottom:12px">Follow these steps to connect Google Sheets:</p>
+        <ol style="color:var(--text-soft);font-size:13px;line-height:1.8;padding-left:20px">
+          ${(setup.setup?.steps || []).map(s => `<li>${s.replace(/steps\\d+\\. /g,'')}</li>`).join('')}
+        </ol>
+        <p style="color:var(--text-soft);font-size:12px;margin-top:8px">
+          Save credentials to: <code style="color:var(--accent)">modules/product/sheets_credentials.json</code>
+        </p>
+      </div>`}
+    `;
+  } catch(e) {
+    el.innerHTML = `<h1>Export</h1><div class="subtitle error">${e.message}</div>`;
+  }
+}
+
+async function doExport() {
+  const sheetId = document.getElementById('sheet-id').value.trim();
+  if (!sheetId) return toast('Enter a Sheet ID');
+  const sheetName = document.getElementById('sheet-name').value.trim() || 'Products';
+
+  const btn = document.querySelector('#export-result');
+  const parent = document.getElementById('export-result');
+  parent.innerHTML = '<span class="spinner"></span> Exporting…';
+
+  const url = `${API}/api/v1/export/sheets?spreadsheet_id=${encodeURIComponent(sheetId)}&sheet_name=${encodeURIComponent(sheetName)}`;
+  try {
+    const data = await api('POST', url);
+    if (data.success) {
+      parent.innerHTML = `<div class="success">✅ Exported ${data.rows_written} products (${data.updated_range})</div>`;
+    } else {
+      parent.innerHTML = `<div class="error">❌ ${data.error}</div>`;
+    }
+  } catch(e) {
+    parent.innerHTML = `<div class="error">❌ ${e.message}</div>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Init
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Try auto-load API key from localStorage
+const savedKey = localStorage.getItem('scraper_api_key');
+if (savedKey) API_KEY = savedKey;
+
+// Persist API key when created
+const origCreateKey = createKey;
+createKey = async function() {
+  await origCreateKey.call(this);
+  if (API_KEY) localStorage.setItem('scraper_api_key', API_KEY);
+};
+
+renderDashboard();
+</script>
+
+</body>
+</html>

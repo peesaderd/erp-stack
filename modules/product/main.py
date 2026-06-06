@@ -143,6 +143,23 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Product Scraper V2", version="2.0.0", lifespan=lifespan)
+
+# Serve UI dashboard
+from fastapi.responses import FileResponse
+import os as _os
+_ui_dir = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "ui")
+
+@app.get("/app", include_in_schema=False)
+@app.get("/app/", include_in_schema=False)
+@app.get("/app/{full_path:path}", include_in_schema=False)
+async def serve_ui(full_path: str = ""):
+    """Serve the scraper dashboard UI."""
+    if not full_path or full_path == "":
+        return FileResponse(_os.path.join(_ui_dir, "index.html"))
+    file_path = _os.path.join(_ui_dir, full_path)
+    if _os.path.isfile(file_path) and file_path.startswith(_ui_dir):
+        return FileResponse(file_path)
+    return FileResponse(_os.path.join(_ui_dir, "index.html"))
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 

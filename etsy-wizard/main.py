@@ -359,8 +359,8 @@ class ImageGenRequest(BaseModel):
     aspect_ratio: str = ""  # "9:16", "16:9", "1:1", "4:5", "3:2"
     product_image_url: Optional[str] = None  # URL of real product image for compositing
     product_id: str = ""  # optional product ID for logging
-    position: Optional[str] = None  # JSON bbox from Gemini: {"x":int,"y":int,"width":int,"height":int,"angle":float}
-
+    position: Optional[str] = None  # JSON bbox from Gemini
+    provider: str = "fal"
     @validator('product_image_url', pre=True)
     def validate_product_image_url(cls, v):
         if v is None:
@@ -391,15 +391,21 @@ class BatchGenRequest(BaseModel):
 @app.get("/ai/providers")
 def ai_providers():
     """List available AI image providers"""
+    import os as _os
     from image_gen import PROVIDER_CONFIG, UPSCALE_MODELS, ImageProvider
     providers = {}
     for provider in ImageProvider:
         config = PROVIDER_CONFIG.get(provider)
-        if config and config.get("key"):
+        if not config:
+            continue
+        # Check both config key (compile-time) and env (runtime, loaded via env hack)
+        key = config.get("key") or ""
+        if key:
             providers[provider.value] = {
                 "models": list(config["models"].keys()),
                 "default_model": config["default_model"],
                 "cost_per_image": config["models"][config["default_model"]]["cost_per_image"],
+                "key_loaded": bool(key),
             }
     return {
         "providers": providers,
@@ -436,6 +442,7 @@ def ai_generate_image(req: ImageGenRequest):
             product_image_url=req.product_image_url,
             product_id=req.product_id or None,
             position=req.position,
+            provider=req.provider,
         )
         return {
             "ok": True,

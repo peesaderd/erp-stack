@@ -455,7 +455,6 @@ async def analyze_product(
             raise HTTPException(status_code=400, detail="Only PNG, JPG, JPEG, WEBP images are supported")
 
         # Limit file size to 10MB
-        contents = await file.read()
         if len(contents) > 10 * 1024 * 1024:
             raise HTTPException(status_code=400, detail="Image size exceeds 10MB limit")
 
@@ -477,7 +476,7 @@ async def analyze_product(
                 save_path = os.path.join(save_dir, safe_name)
                 with open(save_path, "wb") as f:
                     f.write(contents)
-                product_image_url = f"/api/i2m/etsy-img/static/product_images/{safe_name}"
+                product_image_url = f"http://89.167.82.205:8104/static/product_images/{safe_name}"
                 logger.info(f"Saved product image for compositing: {save_path}")
             except Exception as e:
                 logger.warning(f"Failed to save product image: {e}")
@@ -499,10 +498,7 @@ async def analyze_product(
                 prompt = item.get("prompt", "")
                 bbox = item.get("bbox", {})
                 if img_id:
-                    image_prompts_dict[img_id] = {
-                        "prompt": prompt,
-                        "bbox": bbox
-                    }
+                    image_prompts_dict[img_id] = prompt
         # Also include all as dict keys for easy access
         if not image_prompts_dict:
             # Maybe already in dict format

@@ -36,3 +36,15 @@ ai-streaming/
 node_modules/
 *.bak
 .aider*
+# Generated images
+etsy-wizard/static/product_images/
+i2m-frontend/src/pages/*.bak*
+
+# Python venv
+venv-browser-use/
+
+# Python build
+erp_shared.egg-info/
+
+# Aider history
+.aider.*

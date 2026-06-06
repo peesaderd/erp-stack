@@ -19,8 +19,8 @@ export const api = {
     return res.json()
   },
 
-  // ── Image Generation (Fal.ai via Etsy Wizard) ──
-  generateImage: async (prompt: string, productName?: string, productDesc?: string, style?: string, aspectRatio?: string, productImageUrl?: string) => {
+  // ── Image Generation (Fal.ai / WaveSpeed GPT 2.0 via Etsy Wizard) ──
+  generateImage: async (prompt: string, productName?: string, productDesc?: string, style?: string, aspectRatio?: string, productImageUrl?: string, provider?: string, wavespeedQuality?: string, modelTier?: string) => {
     const res = await fetch(`${ETZY_API}/ai/generate-image`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -31,6 +31,9 @@ export const api = {
         prompt,
         ...(aspectRatio ? { aspect_ratio: aspectRatio } : {}),
         ...(productImageUrl ? { product_image_url: productImageUrl } : {}),
+        provider: provider || 'fal',
+        wavespeed_quality: wavespeedQuality || 'medium',
+        model_tier: modelTier || 'quality',
       }),
     })
     if (!res.ok) {
@@ -38,7 +41,7 @@ export const api = {
       throw new Error(`Image gen failed (${res.status}): ${err}`)
     }
     const data = await res.json()
-    return { url: data.image_url || data.url }
+    return { url: data.image_url || data.url, provider: data.provider, cost: data.cost }
   },
 
   // ── Video Generation (WaveSpeed - async queue) ──

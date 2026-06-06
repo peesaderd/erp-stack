@@ -18,6 +18,7 @@ import requests
 from PIL import Image as PILImage
 import PIL.ImageDraw as PILImageDraw
 import PIL.ImageFilter as PILImageFilter
+import requests as _requests
 
 logger = logging.getLogger("etsy-wizard.image_gen")
 
@@ -27,16 +28,15 @@ class ImageProvider(str, Enum):
     FAL = "fal"
     OPENAI = "openai"
     DEEPINFRA = "deepinfra"
+    WAVESPEED = "wavespeed"
 
 PROVIDER_CONFIG = {
     ImageProvider.FAL: {
         "key": os.environ.get("FAL_KEY", "d0c3dc45-54ff-4363-ab83-bdc32e10af5b:ed8039106b88025957e3bbde7e72b4c8"),
         "models": {
-            "fast": {"endpoint": "fal-ai/flux/schnell", "cost_per_image": 0.003},
-            "quality": {"endpoint": "fal-ai/flux/dev", "cost_per_image": 0.025},
-            "pro": {"endpoint": "fal-ai/flux-pro/v1.1", "cost_per_image": 0.05},
+            "default": {"endpoint": "openai/gpt-image-2", "cost_per_image": 0.005, "gpt2_quality": "low"},
         },
-        "default_model": "fast",
+        "default_model": "default",
         "base_url": "https://fal.run",
     },
     ImageProvider.DEEPINFRA: {
@@ -95,17 +95,27 @@ def fal_generate(
 
     negative_prompt_default = "text, watermark, logo, signature, low quality, blurry, distorted, deformed, ugly, bad anatomy, bad proportions, extra limbs, cloned face, disfigured, gross proportions, malformed limbs, missing arms, missing legs, extra arms, extra legs, fused fingers, too many fingers, long neck, username, artist name, bad art, poorly drawn, mutation, deformed, boring, sketch, lacklutter, wrong colors, bad lighting, overexposed, underexposed"
 
+    # GPT Image 2 — map aspect ratio
+    if aspect_ratio == "9:16":
+        size_str = "1024x1792"
+    elif aspect_ratio == "16:9":
+        size_str = "1792x1024"
+    elif aspect_ratio == "1:1":
+        size_str = "1024x1024"
+    elif aspect_ratio == "4:5":
+        size_str = "1024x1280"
+    elif aspect_ratio == "3:2":
+        size_str = "1536x1024"
+    else:
+        size_str = "1024x1792"
+    
+    quality = model.get("gpt2_quality", "low")
     payload = {
         "prompt": prompt,
-        "image_size": VALID_ASPECT_RATIOS.get(aspect_ratio, image_size),
-        "num_images": num_images,
-        "negative_prompt": negative_prompt_default,
+        "size": size_str,
+        "quality": quality,
+        "num_outputs": num_images,
     }
-
-    # Extra params for quality/dev models
-    if model_tier in ("quality", "pro"):
-        payload["guidance_scale"] = 7.5
-        payload["num_inference_steps"] = 28
 
     logger.info(f"Fal.ai generate: {model['endpoint']} | size={image_size} | n={num_images}")
 
@@ -345,40 +355,10 @@ def composite_product_into_scene(
         angle = float(bbox.get("angle", 0))
         logger.info(f"Gemini bbox: ({bbox_x},{bbox_y}) {bbox_w}x{bbox_h} a={angle}")
     else:
-        # OpenCV fallback — NO aspect ratio filter (supports any product shape)
-        scene_arr = np.array(scene_image.convert("RGB"))
-        scene_gray = cv2.cvtColor(scene_arr, cv2.COLOR_RGB2GRAY)
-        dx = int(sw * 0.15)
-        dy1 = int(sh * 0.30); dy2 = int(sh * 0.95)
-        roi = scene_gray[dy1:dy2, dx:sw-dx]
-        target_h = int(sh * 0.42)
-        bbox_w = int(pw * target_h / ph)
-        bbox_h = target_h
-        bbox_x = (sw - bbox_w) // 2
-        bbox_y = sh - bbox_h - int(sh * 0.10)
-
-        blur = cv2.GaussianBlur(roi, (15, 15), 0)
-        edges = cv2.Canny(blur, 30, 100)
-        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        if contours:
-            # FIX #1: Removed aspect ratio filter — accepts ANY shape
-            valid = [(c, a, r) for c, a, r in
-                     [(c, cv2.contourArea(c), cv2.boundingRect(c)) for c in contours]
-                     if (sw*sh*0.005) < a < (sw*sh*0.35)
-                     and (dy1 + r[1] + r[3]//2) > sh * 0.30
-                     and r[2] > 20 and r[3] > 20]
-            if valid:
-                best = max(valid, key=lambda v: v[1])
-                _, _, (bx, by, bw, bh) = best
-                bbox_x = dx + bx; bbox_y = dy1 + by
-                rect = cv2.minAreaRect(best[0])
-                a = rect[2]
-                angle = a if a >= -45 else 90 + a
-                bbox_w = max(int(bw * 0.85), 10)
-                bbox_h = max(int(bh * 0.85), 10)
-                bbox_x += (bw - bbox_w) // 2
-                bbox_y += (bh - bbox_h) // 2
-                logger.info(f"OpenCV: ({bbox_x},{bbox_y}) {bbox_w}x{bbox_h} a={angle:.1f}")
+        # For surface/flat-lay scenes: skip OpenCV contour detection
+        # Marble/wood textures trigger false contours → wrong product placement
+        # Use smart surface fallback below instead
+        pass
 
     # ── Step 2.5: For surface/flat-lay scenes, skip ML detectors entirely ──
     # New prompts generate empty surfaces (no hands, no products, no people)
@@ -551,6 +531,7 @@ def generate_product_image(
     product_image_url: str = None,
     product_id: str = None,
     position: str = "auto",
+    provider: str = "fal",
 ) -> dict:
     """
     Full pipeline: generate → upscale → validate → composite
@@ -684,3 +665,4 @@ def deepinfra_generate(
         })
 
     return result
+

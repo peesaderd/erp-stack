@@ -177,6 +177,23 @@ def _parse_json(text: str) -> dict:
         return json.loads(raw)
     except json.JSONDecodeError:
         pass
+    # Truncate after last balanced JSON structure (handle trailing hashtags/text)
+    depth = 0
+    last_valid_end = -1
+    for i, ch in enumerate(raw):
+        if ch == '{' or ch == '[':
+            depth += 1
+        elif ch == '}' or ch == ']':
+            depth -= 1
+            if depth == 0:
+                last_valid_end = i
+    if last_valid_end > 0:
+        truncated = raw[:last_valid_end+1]
+        try:
+            return json.loads(truncated)
+        except json.JSONDecodeError:
+            pass
+
     # Try removing single-line comments (// style)
     raw = re.sub(r'//[^\n]*', '', raw)
     try:

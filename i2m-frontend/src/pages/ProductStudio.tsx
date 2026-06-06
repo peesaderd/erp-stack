@@ -109,6 +109,8 @@ export default function ProductStudio() {
   const [error, setError] = useState<string | null>(null)
   const [aspectRatio, setAspectRatio] = useState<string>(saved.aspectRatio || '9:16')
   const [count, setCount] = useState<number>(saved.count || 1)
+  const [modelTier, setModelTier] = useState<string>("default")
+const [provider, setProvider] = useState<string>("fal")
   const [editablePrompt, setEditablePrompt] = useState<string>(saved.editablePrompt || '')
 
   const [generations, setGenerations] = useState<Generation[]>(() => {
@@ -233,7 +235,7 @@ export default function ProductStudio() {
       const productImgUrl = analysis.product_image_url || undefined
       // Generate images based on count
       for (let i = 0; i < count; i++) {
-        const result = await api.generateImage(prompt, productName, productDesc, selectedPreset, aspectRatio, productImgUrl)
+        const result = await api.generateImage(prompt, productName, productDesc, selectedPreset, aspectRatio, productImgUrl, provider, modelTier === 'wavespeed' ? 'medium' : undefined, modelTier)
         if (result.url) {
           setGenerations(prev => [...prev, {
             id: Date.now().toString() + '-' + i,
@@ -565,6 +567,38 @@ export default function ProductStudio() {
                     />
                   </section>
 
+                  {/* Provider Pills */}
+                  <section className="flex flex-col gap-1.5">
+                    <h3 className="text-label-md text-on-surface uppercase tracking-widest flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[18px]">api</span> AI Provider
+                    </h3>
+                    <div className="flex gap-1.5">
+                      <button onClick={() => { setProvider('fal'); setModelTier('quality'); }}
+                        className={`px-3 py-1.5 rounded-lg text-[10px] font-medium transition-all ${
+                          provider === 'fal' && modelTier === 'quality'
+                            ? 'bg-secondary text-white shadow-sm ring-1 ring-secondary/40'
+                            : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                        }`}>
+                        🚀 Fal Flux ($0.025)
+                      </button>
+                      <button onClick={() => { setProvider('fal'); setModelTier('gpt2_low'); }}
+                        className={`px-3 py-1.5 rounded-lg text-[10px] font-medium transition-all ${
+                          provider === 'fal' && modelTier === 'gpt2_low'
+                            ? 'bg-secondary text-white shadow-sm ring-1 ring-secondary/40'
+                            : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                        }`}>
+                        ✨ Fal GPT 2.0 ($0.005)
+                      </button>
+                      <button onClick={() => { setProvider('wavespeed'); setModelTier('low'); }}
+                        className={`px-3 py-1.5 rounded-lg text-[10px] font-medium transition-all ${
+                          provider === 'wavespeed'
+                            ? 'bg-secondary text-white shadow-sm ring-1 ring-secondary/40'
+                            : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                        }`}>
+                        ⚡ WaveSpeed GPT 2.0
+                      </button>
+                    </div>
+                  </section>
                   {/* Generate Image */}
                   <section className="flex flex-col gap-sm">
                     <h3 className="text-label-md text-on-surface uppercase tracking-widest flex items-center gap-2">

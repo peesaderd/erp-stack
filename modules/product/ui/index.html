@@ -1,533 +1,773 @@
-<!DOCTYPE html>
-<html lang="th" data-theme="dark">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Product Scraper · Dashboard</title>
-<style>
-/* ── Open Design System Variables ── */
-:root {
-  --bg: #0d0d0d;
-  --bg-panel: #141414;
-  --bg-elevated: #1a1a1a;
-  --bg-hover: #222;
-  --border: #2a2a2a;
-  --text: #e8e8e8;
-  --text-soft: #999;
-  --text-strong: #fff;
-  --accent: #c96442;
-  --accent-hover: #d47a5c;
-  --accent-soft: rgba(201,100,66,0.15);
-  --accent-tint: rgba(201,100,66,0.08);
-  --green: #4ade80;
-  --red: #f87171;
-  --yellow: #fbbf24;
-  --radius: 10px;
-  --font: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-}
-* { margin:0; padding:0; box-sizing:border-box; }
-body { font-family:var(--font); background:var(--bg); color:var(--text); min-height:100vh; }
-a { color:var(--accent); text-decoration:none; }
-a:hover { color:var(--accent-hover); }
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Product Scraper · Open Design</title>
+    <style>
+      /* ── Open Design Design System: "Dashboard" ── */
+      :root {
+        --bg: #f4f7fb;
+        --surface: #ffffff;
+        --surface-warm: #eef6ff;
+        --fg: #111827;
+        --fg-2: #334155;
+        --muted: #64748b;
+        --meta: #0ea5e9;
+        --border: #d8e2ee;
+        --border-soft: #edf3f8;
+        --accent: #0ea5e9;
+        --accent-on: #04131d;
+        --accent-hover: color-mix(in oklab, var(--accent), black 8%);
+        --accent-active: color-mix(in oklab, var(--accent), black 14%);
+        --success: #10b981;
+        --warn: #f59e0b;
+        --danger: #ef4444;
+        --font-display: Inter, system-ui, sans-serif;
+        --font-body: Inter, system-ui, sans-serif;
+        --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+        --text-xs: 11px;
+        --text-sm: 13px;
+        --text-base: 15px;
+        --text-lg: 17px;
+        --text-xl: 22px;
+        --text-2xl: 30px;
+        --text-3xl: 42px;
+        --text-4xl: 56px;
+        --leading-body: 1.48;
+        --leading-tight: 1.1;
+        --tracking-display: -0.015em;
+        --space-1: 4px;
+        --space-2: 8px;
+        --space-3: 12px;
+        --space-4: 16px;
+        --space-5: 20px;
+        --space-6: 24px;
+        --space-8: 32px;
+        --space-12: 48px;
+        --section-y-desktop: 84px;
+        --section-y-tablet: 60px;
+        --section-y-phone: 42px;
+        --radius-sm: 8px;
+        --radius-md: 12px;
+        --radius-lg: 18px;
+        --radius-pill: 9999px;
+        --elev-flat: none;
+        --elev-ring: 0 0 0 1px var(--border);
+        --elev-raised: 0 18px 46px rgba(15, 23, 42, 0.10);
+        --focus-ring: 0 0 0 4px rgba(14, 165, 233, 0.22);
+        --motion-fast: 120ms;
+        --motion-base: 200ms;
+        --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+        --container-max: 1280px;
+        --sidebar-w: 240px;
+      }
 
-/* ── Layout ── */
-.app { display:flex; min-height:100vh; }
-.sidebar { width:240px; background:var(--bg-panel); border-right:1px solid var(--border); padding:24px 0; flex-shrink:0; }
-.sidebar .logo { padding:0 20px 24px; font-size:18px; font-weight:700; color:var(--text-strong); display:flex; align-items:center; gap:10px; }
-.sidebar .logo .icon { width:28px; height:28px; background:var(--accent); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:14px; color:#fff; }
-.sidebar nav a { display:flex; align-items:center; gap:10px; padding:10px 20px; color:var(--text-soft); font-size:14px; transition:.15s; border-left:2px solid transparent; }
-.sidebar nav a:hover, .sidebar nav a.active { color:var(--text-strong); background:var(--accent-tint); border-left-color:var(--accent); }
-.sidebar nav a .nav-icon { width:18px; text-align:center; }
+      /* ── dark override ── */
+      [data-theme="dark"] {
+        --bg: #0a0e17;
+        --surface: #111827;
+        --surface-warm: #1a2332;
+        --fg: #f1f5f9;
+        --fg-2: #94a3b8;
+        --muted: #64748b;
+        --meta: #38bdf8;
+        --border: #1e293b;
+        --border-soft: #1e293b;
+        --accent: #0ea5e9;
+        --accent-on: #f0f9ff;
+        --elev-raised: 0 18px 46px rgba(0,0,0,0.4);
+      }
 
-.main { flex:1; padding:32px 40px; max-width:1200px; }
-.main h1 { font-size:24px; font-weight:600; margin-bottom:4px; color:var(--text-strong); }
-.main .subtitle { color:var(--text-soft); font-size:14px; margin-bottom:24px; }
+      *,*::before,*::after { box-sizing:border-box; }
+      html,body { margin:0; padding:0; }
+      body {
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: var(--font-body);
+        font-size: var(--text-base);
+        line-height: var(--leading-body);
+        -webkit-font-smoothing: antialiased;
+      }
 
-/* ── Cards ── */
-.card { background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:20px; margin-bottom:16px; }
-.card h2 { font-size:15px; font-weight:600; color:var(--text-strong); margin-bottom:12px; }
-.stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-bottom:24px; }
-.stat { background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius); padding:16px; }
-.stat .value { font-size:28px; font-weight:700; color:var(--text-strong); }
-.stat .label { font-size:12px; color:var(--text-soft); margin-top:2px; }
+      /* ── Layout ── */
+      .app-layout { display:flex; min-height:100vh; }
 
-/* ── Form ── */
-.form-row { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
-.form-row input, .form-row select { flex:1; min-width:200px; padding:10px 14px; background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-size:14px; outline:none; transition:.15s; }
-.form-row input:focus, .form-row select:focus { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-soft); }
-.form-row input::placeholder { color:var(--text-soft); }
-.btn { padding:10px 20px; border:none; border-radius:var(--radius); font-size:14px; font-weight:500; cursor:pointer; transition:.15s; white-space:nowrap; }
-.btn-primary { background:var(--accent); color:#fff; }
-.btn-primary:hover { background:var(--accent-hover); }
-.btn-secondary { background:var(--bg-elevated); color:var(--text); border:1px solid var(--border); }
-.btn-secondary:hover { background:var(--bg-hover); }
-.btn-sm { padding:6px 12px; font-size:12px; }
+      .sidebar {
+        width: var(--sidebar-w); flex-shrink:0;
+        background: var(--surface);
+        border-right: 1px solid var(--border);
+        padding: var(--space-6) 0;
+        display:flex; flex-direction:column;
+      }
+      .sidebar .logo {
+        padding: 0 var(--space-5) var(--space-6);
+        font-family: var(--font-display);
+        font-size: var(--text-lg);
+        font-weight: 700;
+        letter-spacing: var(--tracking-display);
+        display:flex; align-items:center; gap:var(--space-3);
+        color: var(--fg);
+      }
+      .sidebar .logo .logo-icon {
+        width: 28px; height: 28px;
+        background: var(--accent);
+        border-radius: var(--radius-sm);
+        display:flex; align-items:center; justify-content:center;
+        font-size: 14px; color: var(--accent-on);
+      }
+      .sidebar nav { display:flex; flex-direction:column; gap:2px; padding:0 var(--space-2); }
+      .sidebar nav a {
+        display:flex; align-items:center; gap:var(--space-3);
+        padding: var(--space-2) var(--space-3);
+        color: var(--muted);
+        font-size: var(--text-sm);
+        text-decoration: none;
+        border-radius: var(--radius-sm);
+        transition: background var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard);
+      }
+      .sidebar nav a:hover { background: var(--border-soft); color: var(--fg); }
+      .sidebar nav a.active { background: var(--accent-tint, rgba(14,165,233,0.12)); color: var(--accent); font-weight: 600; }
 
-/* ── Results ── */
-.result-box { background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius); padding:16px; margin-top:12px; font-size:13px; font-family:monospace; white-space:pre-wrap; word-break:break-word; max-height:400px; overflow:auto; display:none; }
-.result-box.show { display:block; }
-.success { color:var(--green); }
-.error { color:var(--red); }
+      .main {
+        flex:1;
+        overflow-y: auto;
+      }
+      .main-header {
+        display:flex; align-items:center; justify-content:space-between;
+        padding: var(--space-6) var(--space-8);
+        border-bottom: 1px solid var(--border);
+        background: var(--surface);
+      }
+      .main-header h1 { margin:0; font-size:var(--text-xl); font-weight:700; }
+      .main-header .status-badge {
+        display:inline-flex; align-items:center; gap:var(--space-2);
+        color: var(--success); font-size:var(--text-xs); font-weight:700;
+        font-family: var(--font-mono); text-transform:uppercase; letter-spacing:0.08em;
+      }
+      .main-header .status-badge::before {
+        width:8px; height:8px; border-radius:var(--radius-pill);
+        background: var(--success); content:"";
+      }
 
-/* ── Code / Key display ── */
-.key-display { display:flex; align-items:center; gap:8px; background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius); padding:10px 14px; font-family:monospace; font-size:13px; }
-.key-display .key-value { flex:1; color:var(--accent); }
-.key-display .copy-btn { cursor:pointer; color:var(--text-soft); padding:4px 8px; border-radius:4px; transition:.15s; }
-.key-display .copy-btn:hover { background:var(--accent-soft); color:var(--accent); }
+      .content { padding: var(--space-6) var(--space-8); }
+      .container { max-width:var(--container-max); margin-inline:auto; }
 
-/* ── Table ── */
-table { width:100%; border-collapse:collapse; font-size:13px; }
-th { text-align:left; padding:10px 12px; color:var(--text-soft); font-weight:500; border-bottom:1px solid var(--border); }
-td { padding:10px 12px; border-bottom:1px solid var(--border); }
+      /* ── Metric Grid ── */
+      .metric-grid {
+        display:grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: var(--space-4);
+        margin-bottom: var(--space-6);
+      }
+      .metric-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: var(--space-5);
+        transition: box-shadow var(--motion-fast) var(--ease-standard), transform var(--motion-fast) var(--ease-standard);
+      }
+      .metric-card:hover { box-shadow: var(--elev-raised); transform: translateY(-1px); }
+      .metric-card .metric-label { color: var(--muted); font-size: var(--text-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: var(--space-1); }
+      .metric-card .metric-value { font-family: var(--font-display); font-size: var(--text-2xl); font-weight: 800; line-height: var(--leading-tight); color: var(--fg); }
+      .metric-card .metric-change { font-size: var(--text-xs); color: var(--muted); margin-top: var(--space-1); }
 
-/* ── Tab ── */
-.tabs { display:flex; gap:4px; margin-bottom:20px; border-bottom:1px solid var(--border); padding-bottom:0; }
-.tab { padding:10px 16px; font-size:13px; color:var(--text-soft); cursor:pointer; border-bottom:2px solid transparent; transition:.15s; }
-.tab:hover { color:var(--text); }
-.tab.active { color:var(--text-strong); border-bottom-color:var(--accent); }
+      /* ── Panel / Card ── */
+      .panel {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        margin-bottom: var(--space-6);
+      }
+      .panel-head {
+        display:flex; justify-content:space-between; align-items:center;
+        gap: var(--space-4);
+        padding: var(--space-4) var(--space-5);
+        border-bottom: 1px solid var(--border-soft);
+      }
+      .panel-head h2 {
+        margin:0;
+        font-family: var(--font-display);
+        font-size: var(--text-base);
+        font-weight: 700;
+      }
+      .panel-body { padding: var(--space-5); }
+      .panel-body.panel-body--flush { padding:0; }
 
-/* ── Toast ── */
-.toast { position:fixed; bottom:24px; right:24px; background:var(--accent); color:#fff; padding:12px 20px; border-radius:var(--radius); font-size:13px; opacity:0; transform:translateY(10px); transition:.3s; z-index:100; }
-.toast.show { opacity:1; transform:translateY(0); }
+      /* ── Status ── */
+      .status {
+        display:inline-flex; align-items:center; gap:var(--space-2);
+        color: var(--muted); font:700 var(--text-xs)/1 var(--font-mono);
+        text-transform:uppercase; letter-spacing:0.08em;
+      }
+      .status::before { width:8px; height:8px; border-radius:var(--radius-pill); background:var(--muted); content:""; }
+      .status--ok::before { background: var(--success); }
+      .status--err::before { background: var(--danger); }
+      .status--warn::before { background: var(--warn); }
 
-/* ── Pricing ── */
-.pricing-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; }
-.pricing-card { background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius); padding:20px; text-align:center; position:relative; overflow:hidden; }
-.pricing-card.featured { border-color:var(--accent); }
-.pricing-card.featured::before { content:'★ POPULAR'; position:absolute; top:8px; right:-28px; background:var(--accent); color:#fff; font-size:10px; font-weight:600; padding:2px 30px; transform:rotate(45deg); }
-.pricing-card .tier-name { font-size:14px; color:var(--text-soft); margin-bottom:4px; }
-.pricing-card .tier-price { font-size:28px; font-weight:700; color:var(--text-strong); }
-.pricing-card .tier-price small { font-size:14px; font-weight:400; color:var(--text-soft); }
-.pricing-card .tier-scrapes { font-size:13px; color:var(--text-soft); margin:8px 0 12px; }
+      /* ── Buttons ── */
+      .btn {
+        display:inline-flex; align-items:center; justify-content:center; gap:var(--space-2);
+        min-height:40px; padding:0 var(--space-5);
+        border:1px solid transparent; border-radius:var(--radius-sm);
+        font:700 var(--text-sm)/1 var(--font-body);
+        color:inherit; text-decoration:none; cursor:pointer;
+        transition: background var(--motion-fast) var(--ease-standard),
+                   border-color var(--motion-fast) var(--ease-standard),
+                   color var(--motion-fast) var(--ease-standard),
+                   transform var(--motion-fast) var(--ease-standard),
+                   box-shadow var(--motion-fast) var(--ease-standard);
+      }
+      .btn:focus-visible { outline:none; box-shadow:var(--focus-ring); }
+      .btn-primary { background:var(--accent); color:var(--accent-on); }
+      .btn-primary:hover { background:var(--accent-hover); transform:translateY(-1px); }
+      .btn-secondary { background:var(--surface); color:var(--fg); border-color:var(--border); box-shadow:var(--elev-ring); }
+      .btn-secondary:hover { border-color:var(--accent); color:var(--accent); }
+      .btn-danger { background:var(--danger); color:white; }
+      .btn-danger:hover { filter:brightness(1.1); transform:translateY(-1px); }
+      .btn-sm { min-height:32px; padding:0 var(--space-3); font-size:var(--text-xs); }
 
-/* ── Responsive ── */
-@media(max-width:768px) {
-  .app { flex-direction:column; }
-  .sidebar { width:100%; padding:16px; border-right:none; border-bottom:1px solid var(--border); }
-  .sidebar nav { display:flex; gap:4px; overflow-x:auto; }
-  .sidebar nav a { padding:8px 12px; white-space:nowrap; border-left:none; border-bottom:2px solid transparent; }
-  .sidebar nav a.active { border-bottom-color:var(--accent); border-left-color:transparent; }
-  .main { padding:20px; }
-  .stats { grid-template-columns:1fr 1fr; }
-}
+      /* ── Inputs ── */
+      .field { display:grid; gap:var(--space-2); }
+      .field-row { display:flex; gap:var(--space-3); align-items:end; }
+      label { color:var(--fg-2); font-size:var(--text-sm); font-weight:600; }
+      input, select {
+        width:100%; min-height:40px; padding:0 var(--space-3);
+        border:1px solid var(--border); border-radius:var(--radius-sm);
+        background:var(--bg); color:var(--fg);
+        font:400 var(--text-sm)/1 var(--font-body);
+        transition: border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard);
+      }
+      input:focus, select:focus { outline:none; box-shadow:var(--focus-ring); border-color:var(--accent); }
+      input::placeholder { color:var(--muted); }
 
-/* Loader */
-.spinner { width:20px; height:20px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .6s linear infinite; display:inline-block; vertical-align:middle; margin-right:8px; }
-@keyframes spin { to { transform:rotate(360deg); } }
-</style>
-</head>
-<body>
-<div class="app">
-  <!-- Sidebar -->
-  <aside class="sidebar">
-    <div class="logo"><span class="icon">⛏</span> Scraper</div>
-    <nav>
-      <a href="#" class="active" data-page="dashboard"><span class="nav-icon">📊</span> Dashboard</a>
-      <a href="#" data-page="scrape"><span class="nav-icon">🔍</span> Scraper</a>
-      <a href="#" data-page="keys"><span class="nav-icon">🔑</span> API Keys</a>
-      <a href="#" data-page="pricing"><span class="nav-icon">💰</span> Pricing</a>
-      <a href="#" data-page="export"><span class="nav-icon">📤</span> Export</a>
-    </nav>
-  </aside>
+      /* ── Table ── */
+      .table-wrap { overflow-x:auto; }
+      table { width:100%; border-collapse:collapse; font-size:var(--text-sm); }
+      thead th { text-align:left; padding:var(--space-3) var(--space-4); color:var(--muted); font-weight:600; border-bottom:1px solid var(--border); white-space:nowrap; font-size:var(--text-xs); text-transform:uppercase; letter-spacing:0.04em; }
+      tbody td { padding:var(--space-3) var(--space-4); border-bottom:1px solid var(--border-soft); vertical-align:middle; }
+      tbody tr:hover { background:var(--surface-warm); }
+      .mono { font-family:var(--font-mono); font-size:var(--text-xs); }
+      .text-muted { color:var(--muted); }
 
-  <!-- Main Content -->
-  <main class="main" id="main-content">
-    <div id="page-dashboard"></div>
-    <div id="page-scrape" style="display:none"></div>
-    <div id="page-keys" style="display:none"></div>
-    <div id="page-pricing" style="display:none"></div>
-    <div id="page-export" style="display:none"></div>
-  </main>
-</div>
+      /* ── Result Box ── */
+      .result-json {
+        background: var(--bg); border: 1px solid var(--border);
+        border-radius: var(--radius-sm); padding: var(--space-4);
+        font-family: var(--font-mono); font-size: var(--text-xs);
+        white-space: pre-wrap; word-break: break-word;
+        max-height: 400px; overflow: auto;
+        margin-top: var(--space-4);
+      }
 
-<!-- Toast -->
-<div class="toast" id="toast"></div>
+      /* ── Product Display ── */
+      .product-grid { display:grid; grid-template-columns: 1fr 1fr; gap:var(--space-5); }
+      .product-info dt { color:var(--muted); font-size:var(--text-xs); font-weight:600; text-transform:uppercase; letter-spacing:0.04em; margin-top:var(--space-3); }
+      .product-info dd { margin:2px 0 0; font-size:var(--text-sm); }
+      .product-images { display:flex; gap:var(--space-2); flex-wrap:wrap; }
+      .product-images img { width:72px; height:72px; object-fit:cover; border-radius:var(--radius-sm); border:1px solid var(--border); }
 
-<script>
-// ── API Config ──
-const API = '';
-const USER_ID = 'demo-user';
-let API_KEY = '';
+      /* ── Key Display ── */
+      .key-box {
+        display:flex; align-items:center; gap:var(--space-3);
+        background:var(--bg); border:1px solid var(--border);
+        border-radius:var(--radius-sm); padding:var(--space-3) var(--space-4);
+        font-family:var(--font-mono); font-size:var(--text-xs);
+      }
+      .key-box .key-value { flex:1; color:var(--accent); }
+      .key-box .copy-btn { cursor:pointer; color:var(--muted); padding:2px 6px; border-radius:4px; transition:.15s; }
+      .key-box .copy-btn:hover { background:rgba(14,165,233,0.12); color:var(--accent); }
 
-// ── Toast ──
-function toast(msg) { const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); }
+      /* ── Toast ── */
+      .toast { position:fixed; bottom:var(--space-6); right:var(--space-6); background:var(--fg); color:var(--bg); padding:var(--space-3) var(--space-5); border-radius:var(--radius-md); font-size:var(--text-sm); font-weight:600; opacity:0; transform:translateY(12px); transition:.3s var(--ease-standard); z-index:100; pointer-events:none; }
+      .toast.show { opacity:1; transform:translateY(0); }
 
-// ── API call ──
-async function api(method, path, body) {
-  const opts = { method, headers: { 'Content-Type': 'application/json' } };
-  if (API_KEY) opts.headers['Authorization'] = `Bearer ${API_KEY}`;
-  opts.headers['x-user-id'] = USER_ID;
-  if (body) opts.body = JSON.stringify(body);
-  const res = await fetch(`${API}${path}`, opts);
-  return await res.json();
-}
+      /* ── Hidden ── */
+      .hidden { display:none !important; }
 
-// ── Routing ──
-function showPage(name) {
-  document.querySelectorAll('.main > div').forEach(d => d.style.display = 'none');
-  const el = document.getElementById(`page-${name}`);
-  if (el) el.style.display = 'block';
-  document.querySelectorAll('.sidebar nav a').forEach(a => a.classList.remove('active'));
-  document.querySelector(`.sidebar nav a[data-page="${name}"]`)?.classList.add('active');
-}
+      /* ── Spinner ── */
+      .spinner { width:16px; height:16px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .6s linear infinite; display:inline-block; }
+      @keyframes spin { to{transform:rotate(360deg)} }
 
-document.querySelectorAll('.sidebar nav a').forEach(a => {
-  a.addEventListener('click', e => {
-    e.preventDefault();
-    const page = a.dataset.page;
-    showPage(page);
-    if (page === 'dashboard') renderDashboard();
-    else if (page === 'scrape') renderScraper();
-    else if (page === 'keys') renderKeys();
-    else if (page === 'pricing') renderPricing();
-    else if (page === 'export') renderExport();
-  });
-});
+      /* ── Responsive ── */
+      @media(max-width:860px) {
+        .sidebar { width:100%; flex-direction:row; padding:var(--space-3) var(--space-4); overflow-x:auto; border-right:none; border-bottom:1px solid var(--border); }
+        .sidebar .logo { padding:0 var(--space-3) 0 0; }
+        .sidebar nav { flex-direction:row; }
+        .sidebar nav a { white-space:nowrap; }
+        .app-layout { flex-direction:column; }
+        .main-header { flex-direction:column; align-items:start; gap:var(--space-2); }
+        .metric-grid { grid-template-columns:repeat(2,1fr); }
+        .product-grid { grid-template-columns:1fr; }
+        .field-row { flex-direction:column; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-layout">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="logo"><span class="logo-icon">⛏</span>Scraper</div>
+        <nav>
+          <a href="#" class="active" data-page="dashboard">📊 Dashboard</a>
+          <a href="#" data-page="scraper">🔍 Scraper</a>
+          <a href="#" data-page="keys">🔑 Keys</a>
+          <a href="#" data-page="pricing">💰 Pricing</a>
+          <a href="#" data-page="settings">⚙️ Settings</a>
+        </nav>
+      </aside>
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Dashboard
-// ═══════════════════════════════════════════════════════════════════════════
+      <!-- Main -->
+      <div class="main">
+        <header class="main-header">
+          <h1 id="app-title">Dashboard</h1>
+          <span class="status-badge">online · v2.0.0</span>
+        </header>
 
-async function renderDashboard() {
-  const el = document.getElementById('page-dashboard');
-  el.innerHTML = '<h1>Dashboard</h1><div class="subtitle">Loading…</div>';
-
-  try {
-    const [usage, pricing] = await Promise.all([
-      api('GET', '/api/v1/usage'),
-      api('GET', '/api/v1/pricing'),
-    ]);
-
-    const tiers = pricing?.tiers || {};
-    const tierCfg = tiers['free'] || { scrapes_per_month: 10 };
-
-    el.innerHTML = `
-      <h1>Dashboard</h1>
-      <div class="subtitle">Product Scraper Monitoring</div>
-      <div class="stats">
-        <div class="stat"><div class="value">${usage.total_scrapes || 0}</div><div class="label">Scrapes This Month</div></div>
-        <div class="stat"><div class="value">${usage.remaining || 0}</div><div class="label">Remaining (Free Tier)</div></div>
-        <div class="stat"><div class="value">฿${(usage.total_cost || 0).toFixed(2)}</div><div class="label">Total Cost</div></div>
-        <div class="stat"><div class="value">${usage.unique_urls || 0}</div><div class="label">Unique Products</div></div>
-      </div>
-      <div class="card">
-        <h2>Recent Scrapes</h2>
-        ${usage.recent_logs?.length ? `
-        <table>
-          <tr><th>URL</th><th>Method</th><th>Cost</th><th>Time</th></tr>
-          ${usage.recent_logs.map(l => `<tr><td style="max-width:300px;overflow:hidden;text-overflow:ellipsis">${l.url}</td><td>${l.method}</td><td>฿${l.cost.toFixed(2)}</td><td>${new Date(l.created_at).toLocaleString()}</td></tr>`).join('')}
-        </table>` : '<p style="color:var(--text-soft)">No scrapes yet. Try the Scraper tab!</p>'}
-      </div>
-      <div class="card">
-        <h2>Quick Start</h2>
-        <p style="color:var(--text-soft);font-size:13px;line-height:1.6">
-          1️⃣ Generate an API Key in the <a href="#" onclick="showPage('keys');renderKeys();return false">API Keys</a> tab<br>
-          2️⃣ Paste a product URL in the <a href="#" onclick="showPage('scrape');renderScraper();return false">Scraper</a> tab<br>
-          3️⃣ Check usage here or <a href="#" onclick="showPage('export');renderExport();return false">Export</a> to Google Sheets
-        </p>
-      </div>
-    `;
-  } catch(e) {
-    el.innerHTML = `<h1>Dashboard</h1><div class="subtitle error">Error loading: ${e.message}</div>`;
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// Scraper
-// ═══════════════════════════════════════════════════════════════════════════
-
-function renderScraper() {
-  const el = document.getElementById('page-scrape');
-  if (!API_KEY) {
-    el.innerHTML = `
-      <h1>Scraper</h1>
-      <div class="subtitle">Extract product data from any URL</div>
-      <div class="card">
-        <p style="color:var(--text-soft)">🔑 Create an API Key first in the <a href="#" onclick="showPage('keys');renderKeys();return false">API Keys</a> tab.</p>
-      </div>`;
-    return;
-  }
-
-  el.innerHTML = `
-    <h1>Scraper</h1>
-    <div class="subtitle">Paste a product URL to extract data</div>
-    <div class="card">
-      <div class="form-row">
-        <input type="url" id="scrape-url" placeholder="https://www.amazon.com/dp/B09B8V1LZ3" value="https://www.amazon.com/dp/B09B8V1LZ3">
-        <button class="btn btn-primary" id="scrape-btn" onclick="doScrape()">▶ Scrape</button>
-      </div>
-      <label style="font-size:12px;color:var(--text-soft);display:flex;align-items:center;gap:4px">
-        <input type="checkbox" id="scrape-vision" checked> Use AI Vision fallback
-      </label>
-    </div>
-    <div class="card" id="scrape-result-card" style="display:none">
-      <h2>Result</h2>
-      <div id="scrape-result"></div>
-      <div class="result-box show" id="scrape-json"></div>
-    </div>
-  `;
-}
-
-async function doScrape() {
-  const url = document.getElementById('scrape-url').value.trim();
-  if (!url) return toast('Please enter a URL');
-  const useVision = document.getElementById('scrape-vision').checked;
-
-  const btn = document.getElementById('scrape-btn');
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Scraping…';
-
-  const card = document.getElementById('scrape-result-card');
-  card.style.display = 'block';
-  const resultDiv = document.getElementById('scrape-result');
-  const jsonDiv = document.getElementById('scrape-json');
-  resultDiv.innerHTML = '<span class="spinner"></span> Loading…';
-  jsonDiv.textContent = '';
-
-  try {
-    const data = await api('POST', '/api/v1/scrape', { url, use_vision: useVision });
-
-    if (data.success) {
-      const p = data.product || {};
-      resultDiv.innerHTML = `
-        <div class="stats" style="margin:0 0 12px">
-          <div class="stat"><div class="label">Method</div><div class="value" style="font-size:16px">${data.method}</div></div>
-          <div class="stat"><div class="label">Cost</div><div class="value" style="font-size:16px">฿${(data.cost || 0).toFixed(2)}</div></div>
-          <div class="stat"><div class="label">Cache</div><div class="value" style="font-size:16px">${data.cached ? '✅ Yes' : '❌ No'}</div></div>
-          <div class="stat"><div class="label">Remaining</div><div class="value" style="font-size:16px">${data.remaining_quota ?? '-'}</div></div>
+        <div class="content" id="app-content">
+          <!-- pages rendered here -->
         </div>
-        <table>
-          <tr><td style="color:var(--text-soft);width:120px">Name</td><td><strong>${p.name || '-'}</strong></td></tr>
-          <tr><td style="color:var(--text-soft)">Price</td><td>${p.price != null ? `฿${p.price}` : '-'}</td></tr>
-          <tr><td style="color:var(--text-soft)">Currency</td><td>${p.currency || 'THB'}</td></tr>
-          <tr><td style="color:var(--text-soft)">Source</td><td>${p.source_site || '-'}</td></tr>
-          <tr><td style="color:var(--text-soft)">Brand</td><td>${p.brand || '-'}</td></tr>
-          <tr><td style="color:var(--text-soft)">SKU</td><td>${p.sku || '-'}</td></tr>
-          <tr><td style="color:var(--text-soft)">Description</td><td style="max-width:400px">${(p.description || '-').slice(0,200)}</td></tr>
-          <tr><td style="color:var(--text-soft)">Images</td><td>${(p.images||[]).length} images</td></tr>
-        </table>
-        ${(p.images||[]).length ? `<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">${p.images.slice(0,5).map(img => `<img src="${img}" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid var(--border)" onerror="this.style.display='none'">`).join('')}</div>` : ''}
-      `;
-    } else {
-      resultDiv.innerHTML = `<div class="error">❌ ${data.error || 'Scrape failed'}</div>`;
+      </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+    // ── Config ──
+    const API = '';
+    const USER_ID = 'demo';
+    let API_KEY = localStorage.getItem('scraper_key') || '';
+
+    // ── Utils ──
+    const $ = s => document.querySelector(s);
+    const $$ = s => document.querySelectorAll(s);
+
+    function toast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg; t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2800);
     }
-    jsonDiv.textContent = JSON.stringify(data, null, 2);
-  } catch(e) {
-    resultDiv.innerHTML = `<div class="error">❌ ${e.message}</div>`;
-  }
 
-  btn.disabled = false; btn.textContent = '▶ Scrape';
-}
+    async function api(method, path, body) {
+      const opts = { method, headers:{'Content-Type':'application/json','x-user-id':USER_ID} };
+      if (API_KEY) opts.headers['Authorization'] = `Bearer ${API_KEY}`;
+      if (body) opts.body = JSON.stringify(body);
+      const res = await fetch(`${API}${path}`, opts);
+      if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.detail || e.error || res.statusText); }
+      return await res.json();
+    }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// API Keys
-// ═══════════════════════════════════════════════════════════════════════════
+    function htmlEscape(s) {
+      if (s == null) return '-';
+      const d = document.createElement('div');
+      d.textContent = String(s);
+      return d.innerHTML;
+    }
 
-async function renderKeys() {
-  const el = document.getElementById('page-keys');
-  el.innerHTML = '<h1>API Keys</h1><div class="subtitle">Loading…</div>';
+    function keyPrefix(/**/k) { return k ? k.slice(0,15)+'…' : '-'; }
 
-  el.innerHTML = `
-    <h1>API Keys</h1>
-    <div class="subtitle">Create and manage API keys for programmatic access</div>
-    <div class="card">
-      <div class="form-row">
-        <input type="text" id="key-name" placeholder="e.g. Production" value="My Key">
-        <button class="btn btn-primary" onclick="createKey()">+ Create Key</button>
-      </div>
-    </div>
-    <div id="key-list"></div>
-    <div id="new-key-display" style="display:none" class="card">
-      <h2>✅ Key Created</h2>
-      <p style="font-size:13px;color:var(--yellow);margin-bottom:8px">⚠️ Copy this key now — it won't be shown again!</p>
-      <div class="key-display">
-        <span class="key-value" id="new-key-value"></span>
-        <span class="copy-btn" onclick="copyKey()">📋 Copy</span>
-      </div>
-    </div>
-  `;
-  await loadKeys();
-}
+    // ── Router ──
+    const pages = { dashboard, scraper, keys, pricing, settings };
+    let currentPage = 'dashboard';
 
-async function createKey() {
-  const name = document.getElementById('key-name').value.trim() || 'API Key';
-  const data = await api('POST', '/api/v1/keys/create', { name });
-  if (data.success) {
-    document.getElementById('new-key-display').style.display = 'block';
-    document.getElementById('new-key-value').textContent = data.key;
-    API_KEY = data.key;
-    toast('✅ Key created!');
-    await loadKeys();
-  } else {
-    toast('❌ ' + (data.error || 'Failed'));
-  }
-}
+    function navigate(name) {
+      currentPage = name;
+      $$('.sidebar nav a').forEach(a => a.classList.remove('active'));
+      const link = document.querySelector(`.sidebar nav a[data-page="${name}"]`);
+      if (link) link.classList.add('active');
+      const titleEl = document.getElementById('app-title');
+      if (pages[name]) { pages[name](titleEl); }
+    }
 
-async function loadKeys() {
-  const list = document.getElementById('key-list');
-  const data = await api('GET', '/api/v1/keys/list');
-  if (!data.keys?.length) {
-    list.innerHTML = '<div class="card"><p style="color:var(--text-soft)">No API keys yet. Create one above!</p></div>';
-    return;
-  }
-  list.innerHTML = `
-    <table>
-      <tr><th>Name</th><th>Prefix</th><th>Status</th><th>Usage</th><th>Created</th><th></th></tr>
-      ${data.keys.map(k => `
-        <tr>
-          <td>${k.name}</td>
-          <td style="font-family:monospace;font-size:12px">${k.prefix}…</td>
-          <td>${k.is_active ? '<span class="success">● Active</span>' : '<span class="error">● Revoked</span>'}</td>
-          <td>${k.used_this_month || 0} / ${k.monthly_limit}</td>
-          <td style="font-size:12px;color:var(--text-soft)">${new Date(k.created_at).toLocaleDateString()}</td>
-          <td>${k.is_active ? `<button class="btn btn-sm btn-secondary" onclick="revokeKey('${k.id}')">Revoke</button>` : ''}</td>
-        </tr>`).join('')}
-    </table>`;
-}
+    $$('.sidebar nav a').forEach(a => {
+      a.addEventListener('click', e => { e.preventDefault(); navigate(a.dataset.page); });
+    });
 
-async function revokeKey(id) {
-  if (!confirm('Revoke this API key?')) return;
-  const data = await api('POST', '/api/v1/keys/revoke', { key_id: id });
-  if (data.success) { toast('🔑 Key revoked'); await loadKeys(); }
-  else toast('❌ ' + (data.error || 'Failed'));
-}
+    // ── Dashboard Page ──
+    async function dashboard(titleEl) {
+      titleEl.textContent = 'Dashboard';
+      const c = document.getElementById('app-content');
+      c.innerHTML = `<div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-8)"><span class="spinner"></span> Loading dashboard…</div>`;
 
-function copyKey() {
-  const val = document.getElementById('new-key-value');
-  navigator.clipboard.writeText(val.textContent).then(() => toast('📋 Copied!'));
-}
+      try {
+        const [usage, pricing, keys] = await Promise.all([
+          api('GET', '/api/v1/usage').catch(()=>({total_scrapes:0,remaining:0,total_cost:0,unique_urls:0,recent_logs:[]})),
+          api('GET', '/api/v1/pricing').catch(()=>({tiers:{}})),
+          api('GET', '/api/v1/keys/list').catch(()=>({keys:[]}))
+        ]);
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Pricing
-// ═══════════════════════════════════════════════════════════════════════════
+        const recent = usage.recent_logs || [];
 
-async function renderPricing() {
-  const el = document.getElementById('page-pricing');
-  el.innerHTML = '<h1>Pricing</h1><div class="subtitle">Loading…</div>';
+        c.innerHTML = `
+          <div class="container">
+            <div class="metric-grid">
+              <div class="metric-card"><div class="metric-label">Scrapes This Month</div><div class="metric-value">${usage.total_scrapes || 0}</div><div class="metric-change">+${recent.filter(l=>new Date(l.created_at)>Date.now()-86400000).length} today</div></div>
+              <div class="metric-card"><div class="metric-label">Remaining (Free)</div><div class="metric-value">${usage.remaining ?? 10}</div><div class="metric-change">of ${usage.monthly_limit || 10} monthly</div></div>
+              <div class="metric-card"><div class="metric-label">Total Cost</div><div class="metric-value">฿${(usage.total_cost || 0).toFixed(2)}</div></div>
+              <div class="metric-card"><div class="metric-label">Unique Products</div><div class="metric-value">${usage.unique_urls || 0}</div></div>
+            </div>
 
-  try {
-    const data = await api('GET', '/api/v1/pricing');
-    const tiers = data.tiers || {};
-    const names = ['free', 'bronze', 'silver', 'gold', 'ultra'];
-    const descriptions = { free:'For testing', bronze:'For startups', silver:'For small teams', gold:'For growing businesses', ultra:'For power users' };
+            <div class="panel">
+              <div class="panel-head">
+                <h2>🔍 Quick Scrape</h2>
+                <span class="status status--ok">Ready</span>
+              </div>
+              <div class="panel-body">
+                <div class="field-row">
+                  <div class="field" style="flex:1">
+                    <label for="q-url">Product URL</label>
+                    <input id="q-url" placeholder="https://www.amazon.com/dp/B09B8V1LZ3" value="https://www.amazon.com/dp/B09B8V1LZ3">
+                  </div>
+                  <button class="btn btn-primary" onclick="quickScrape()">Scrape</button>
+                </div>
+                <div id="q-result" class="hidden" style="margin-top:var(--space-4)"></div>
+              </div>
+            </div>
 
-    el.innerHTML = `
-      <h1>Pricing</h1>
-      <div class="subtitle">Choose your plan. Pay only for what you use.</div>
-      <div class="pricing-grid">
-        ${names.map((k,i) => {
-          const t = tiers[k];
-          if (!t) return '';
-          const featured = k === 'silver';
-          return `
-          <div class="pricing-card ${featured ? 'featured' : ''}">
-            <div class="tier-name">${t.name}</div>
-            <div class="tier-price">฿${t.price_monthly}<small>/mo</small></div>
-            <div class="tier-scrapes">${t.scrapes_per_month.toLocaleString()} scrapes/mo</div>
-            <div style="font-size:12px;color:var(--text-soft);margin-bottom:12px">${descriptions[k] || ''}</div>
-            <div style="font-size:12px;color:var(--text-soft)">
-              Extra: ฿${t.cost_per_scrape}/scrape<br>
-              Cache: ${t.cache_duration_hours || 24}h<br>
-              Proxy: ${t.proxy_included ? '✅ Included' : '❌ Not included'}
+            <div class="panel">
+              <div class="panel-head">
+                <h2>📋 Recent Scrapes</h2>
+                ${recent.length ? `<span class="text-muted" style="font-size:var(--text-xs)">${recent.length} items</span>` : ''}
+              </div>
+              <div class="panel-body panel-body--flush">
+                ${recent.length ? `
+                <div class="table-wrap">
+                <table>
+                  <thead><tr><th>URL</th><th>Method</th><th>Cost</th><th>When</th></tr></thead>
+                  <tbody>
+                    ${recent.map(l => `<tr><td style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${htmlEscape(l.url)}">${htmlEscape(l.url)}</td><td><span class="mono">${htmlEscape(l.method)}</span></td><td>฿${(l.cost||0).toFixed(2)}</td><td class="text-muted">${new Date(l.created_at).toLocaleString()}</td></tr>`).join('')}
+                  </tbody>
+                </table>
+                </div>` : `<div style="padding:var(--space-8);text-align:center;color:var(--muted)"><p>No scrapes yet. Try one above!</p></div>`}
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-head"><h2>🔑 API Keys</h2></div>
+              <div class="panel-body">
+                ${keys.keys?.length ? `<p class="text-muted" style="margin-bottom:var(--space-3)">${keys.keys.length} key(s) active</p>` : '<p class="text-muted">No keys yet. Go to Keys tab.</p>'}
+                ${API_KEY ? `<div class="key-box"><span class="key-value">${keyPrefix(API_KEY)}</span><span class="copy-btn" onclick="navigator.clipboard.writeText(API_KEY).then(()=>toast('Copied!'))">📋 Copy</span></div>` : `<button class="btn btn-primary btn-sm" onclick="navigate('keys')">+ Create Key</button>`}
+              </div>
             </div>
           </div>`;
-        }).join('')}
-      </div>
-      <div class="card" style="margin-top:16px">
-        <h2>How It Works</h2>
-        <p style="color:var(--text-soft);font-size:13px;line-height:1.7">
-          • Each scrape deducts from your monthly quota<br>
-          • Same URL within cache TTL = <strong>free</strong> (no quota used)<br>
-          • Over-limit scrapes billed at per-scrape rate<br>
-          • Google Sheets export included in all paid plans<br>
-          • No long-term contracts — cancel anytime
-        </p>
-      </div>
-    `;
-  } catch(e) {
-    el.innerHTML = `<h1>Pricing</h1><div class="subtitle error">${e.message}</div>`;
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// Export
-// ═══════════════════════════════════════════════════════════════════════════
-
-async function renderExport() {
-  const el = document.getElementById('page-export');
-  el.innerHTML = '<h1>Export</h1><div class="subtitle">Loading…</div>';
-
-  try {
-    const setup = await api('GET', '/api/v1/export/setup');
-
-    el.innerHTML = `
-      <h1>Export</h1>
-      <div class="subtitle">Push scraped products to Google Sheets</div>
-      ${setup.configured ? `
-      <div class="card">
-        <h2>✅ Configured</h2>
-        <p style="color:var(--green);font-size:13px;margin-bottom:12px">Google Sheets credentials are ready.</p>
-        <div class="form-row">
-          <input type="text" id="sheet-id" placeholder="Google Sheet ID (from URL)">
-          <input type="text" id="sheet-name" placeholder="Sheet name" value="Products">
-          <button class="btn btn-primary" onclick="doExport()">📤 Export Now</button>
-        </div>
-        <div id="export-result"></div>
-      </div>` : `
-      <div class="card">
-        <h2>🔧 Setup Required</h2>
-        <p style="color:var(--text-soft);font-size:13px;margin-bottom:12px">Follow these steps to connect Google Sheets:</p>
-        <ol style="color:var(--text-soft);font-size:13px;line-height:1.8;padding-left:20px">
-          ${(setup.setup?.steps || []).map(s => `<li>${s.replace(/steps\\d+\\. /g,'')}</li>`).join('')}
-        </ol>
-        <p style="color:var(--text-soft);font-size:12px;margin-top:8px">
-          Save credentials to: <code style="color:var(--accent)">modules/product/sheets_credentials.json</code>
-        </p>
-      </div>`}
-    `;
-  } catch(e) {
-    el.innerHTML = `<h1>Export</h1><div class="subtitle error">${e.message}</div>`;
-  }
-}
-
-async function doExport() {
-  const sheetId = document.getElementById('sheet-id').value.trim();
-  if (!sheetId) return toast('Enter a Sheet ID');
-  const sheetName = document.getElementById('sheet-name').value.trim() || 'Products';
-
-  const btn = document.querySelector('#export-result');
-  const parent = document.getElementById('export-result');
-  parent.innerHTML = '<span class="spinner"></span> Exporting…';
-
-  const url = `${API}/api/v1/export/sheets?spreadsheet_id=${encodeURIComponent(sheetId)}&sheet_name=${encodeURIComponent(sheetName)}`;
-  try {
-    const data = await api('POST', url);
-    if (data.success) {
-      parent.innerHTML = `<div class="success">✅ Exported ${data.rows_written} products (${data.updated_range})</div>`;
-    } else {
-      parent.innerHTML = `<div class="error">❌ ${data.error}</div>`;
+      } catch(e) {
+        c.innerHTML = `<div class="container"><div class="panel"><div class="panel-body" style="color:var(--danger)">Error loading dashboard: ${htmlEscape(e.message)}</div></div></div>`;
+      }
     }
-  } catch(e) {
-    parent.innerHTML = `<div class="error">❌ ${e.message}</div>`;
-  }
-}
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Init
-// ═══════════════════════════════════════════════════════════════════════════
+    async function quickScrape() {
+      if (!API_KEY) { toast('Create an API Key first → Keys tab'); return; }
+      const url = document.getElementById('q-url').value.trim();
+      if (!url) { toast('Enter a URL'); return; }
+      const btn = document.querySelector('.field-row .btn-primary');
+      btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Scraping…';
+      const box = document.getElementById('q-result');
+      box.classList.remove('hidden');
+      box.innerHTML = '<div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-4)"><span class="spinner"></span> Extracting product data…</div>';
+      try {
+        const d = await api('POST', '/api/v1/scrape', { url, use_vision: true });
+        const p = d.product || {};
+        if (d.success) {
+          box.innerHTML = `
+            <div class="product-grid">
+              <div class="product-info">
+                <dl>
+                  <dt>Name</dt><dd><strong>${htmlEscape(p.name)}</strong></dd>
+                  <dt>Price</dt><dd>${p.price != null ? htmlEscape(p.price) : '-'}</dd>
+                  <dt>Currency</dt><dd>${htmlEscape(p.currency||'THB')}</dd>
+                  <dt>Source</dt><dd>${htmlEscape(p.source_site||'-')}</dd>
+                  <dt>Brand</dt><dd>${htmlEscape(p.brand||'-')}</dd>
+                  <dt>Method</dt><dd><span class="mono">${htmlEscape(d.method)}</span> ${d.cached ? '<span class="status status--ok" style="display:inline-flex">cached</span>' : ''}</dd>
+                  <dt>Cost</dt><dd>฿${(d.cost||0).toFixed(2)} · ${d.remaining_quota != null ? d.remaining_quota+' remaining' : ''}</dd>
+                </dl>
+              </div>
+              <div>
+                <p style="font-size:var(--text-xs);color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:var(--space-2)">Product Images</p>
+                <div class="product-images">
+                  ${(p.images||[]).slice(0,6).map(img => `<img src="${htmlEscape(img)}" onerror="this.style.display='none'">`).join('') || '<span class="text-muted">No images</span>'}
+                </div>
+              </div>
+            </div>
+            <div class="result-json">${htmlEscape(JSON.stringify(d, null, 2))}</div>`;
+        } else {
+          box.innerHTML = `<div style="color:var(--danger)">❌ ${htmlEscape(d.error||'Failed')}</div>`;
+        }
+      } catch(e) {
+        box.innerHTML = `<div style="color:var(--danger)">❌ ${htmlEscape(e.message)}</div>`;
+      }
+      btn.disabled = false; btn.textContent = 'Scrape';
+    }
 
-// Try auto-load API key from localStorage
-const savedKey = localStorage.getItem('scraper_api_key');
-if (savedKey) API_KEY = savedKey;
+    // ── Scraper Page ──
+    function scraper(titleEl) {
+      titleEl.textContent = '🔍 Scraper';
+      const c = document.getElementById('app-content');
+      c.innerHTML = `
+        <div class="container">
+          <div class="panel">
+            <div class="panel-head"><h2>Scrape Product</h2><span class="status status--ok">Ready</span></div>
+            <div class="panel-body">
+              <div class="field-row">
+                <div class="field" style="flex:1">
+                  <label for="s-url">Product URL</label>
+                  <input id="s-url" placeholder="https://shopee.co.th/product/…">
+                </div>
+                <div class="field">
+                  <label>Use Vision AI</label>
+                  <select id="s-vision" style="min-width:140px">
+                    <option value="true">Yes (fallback)</option>
+                    <option value="false">No</option>
+                  </select>
+                </div>
+                <button class="btn btn-primary" onclick="fullScrape()" id="s-btn">▶️ Scrape</button>
+              </div>
+            </div>
+          </div>
+          <div id="s-result" class="hidden"></div>
 
-// Persist API key when created
-const origCreateKey = createKey;
-createKey = async function() {
-  await origCreateKey.call(this);
-  if (API_KEY) localStorage.setItem('scraper_api_key', API_KEY);
-};
+          <div class="panel">
+            <div class="panel-head"><h2>Supported Sites</h2></div>
+            <div class="panel-body" style="font-size:var(--text-sm);line-height:2">
+              <span class="mono" style="background:var(--border-soft);padding:2px 8px;border-radius:4px">amazon.com</span>
+              <span class="mono" style="background:var(--border-soft);padding:2px 8px;border-radius:4px">shopee.co.th</span>
+              <span class="mono" style="background:var(--border-soft);padding:2px 8px;border-radius:4px">lazada.co.th</span>
+              <span class="mono" style="background:var(--border-soft);padding:2px 8px;border-radius:4px">tiktok.com</span>
+              <span class="mono" style="background:var(--border-soft);padding:2px 8px;border-radius:4px">boots.co.th</span>
+              <span class="mono" style="background:var(--border-soft);padding:2px 8px;border-radius:4px">watsons.co.th</span>
+              <span class="mono" style="background:var(--border-soft);padding:2px 8px;border-radius:4px">advice.co.th</span>
+            </div>
+          </div>
+        </div>`;
+    }
 
-renderDashboard();
-</script>
+    async function fullScrape() {
+      if (!API_KEY) { toast('Create an API Key first → Keys tab'); return; }
+      const url = document.getElementById('s-url').value.trim();
+      if (!url) { toast('Enter a URL'); return; }
+      const use_vision = document.getElementById('s-vision').value === 'true';
+      const btn = document.getElementById('s-btn');
+      btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Scraping…';
+      const box = document.getElementById('s-result');
+      box.classList.remove('hidden');
+      box.innerHTML = '<div class="panel"><div class="panel-body" style="display:flex;align-items:center;gap:var(--space-3)"><span class="spinner"></span> Scraping product data…</div></div>';
+      try {
+        const d = await api('POST', '/api/v1/scrape', { url, use_vision });
+        const p = d.product || {};
+        if (d.success) {
+          box.innerHTML = `
+            <div class="panel">
+              <div class="panel-head">
+                <h2>${htmlEscape(p.name||'Product')}</h2>
+                <span class="status ${d.cached?'status--ok':'status--warn'}">${d.cached?'cached':'live'} · ${htmlEscape(d.method)}</span>
+              </div>
+              <div class="panel-body">
+                <div class="product-grid">
+                  <div class="product-info">
+                    <dl>
+                      <dt>Name</dt><dd><strong>${htmlEscape(p.name||'-')}</strong></dd>
+                      <dt>Price</dt><dd><strong style="color:var(--accent);font-size:var(--text-lg)">${p.price != null ? '฿'+htmlEscape(p.price) : '-'}</strong></dd>
+                      <dt>Brand</dt><dd>${htmlEscape(p.brand||'-')}</dd>
+                      <dt>SKU</dt><dd class="mono">${htmlEscape(p.sku||'-')}</dd>
+                      <dt>Source</dt><dd>${htmlEscape(p.source_site||'-')}</dd>
+                      <dt>Description</dt><dd style="max-width:400px;color:var(--fg-2)">${htmlEscape((p.description||'').slice(0,300))}</dd>
+                    </dl>
+                  </div>
+                  <div>
+                    <p style="font-size:var(--text-xs);color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:var(--space-2)">Images (${(p.images||[]).length})</p>
+                    <div class="product-images">
+                      ${(p.images||[]).map(img => `<img src="${htmlEscape(img)}" onerror="this.style.display='none'">`).join('') || '<span class="text-muted">No images</span>'}
+                    </div>
+                  </div>
+                </div>
+                <div class="result-json">${htmlEscape(JSON.stringify(d, null, 2))}</div>
+              </div>
+            </div>`;
+        } else {
+          box.innerHTML = `<div class="panel"><div class="panel-body" style="color:var(--danger)">❌ ${htmlEscape(d.error||'Failed')}</div></div>`;
+        }
+      } catch(e) { box.innerHTML = `<div class="panel"><div class="panel-body" style="color:var(--danger)">❌ ${htmlEscape(e.message)}</div></div>`; }
+      btn.disabled = false; btn.textContent = '▶️ Scrape';
+    }
 
-</body>
+    // ── Keys Page ──
+    async function keys(titleEl) {
+      titleEl.textContent = '🔑 API Keys';
+      const c = document.getElementById('app-content');
+      c.innerHTML = '<div class="container"><div class="panel"><div class="panel-body" style="display:flex;align-items:center;gap:var(--space-3)"><span class="spinner"></span> Loading keys…</div></div></div>';
+      try {
+        const d = await api('GET', '/api/v1/keys/list');
+        renderKeys(c, d);
+      } catch(e) {
+        c.innerHTML = `<div class="container"><div class="panel"><div class="panel-body"><div class="field-row"><div class="field" style="flex:1"><label>Key Name</label><input id="nk-name" placeholder="My Key" value="Production"></div><button class="btn btn-primary" onclick="createKey()">+ Create</button></div></div></div><div id="key-list-area"></div></div>`;
+      }
+    }
+
+    function renderKeys(c, d) {
+      c.innerHTML = `
+        <div class="container">
+          <div class="panel">
+            <div class="panel-head"><h2>Create API Key</h2></div>
+            <div class="panel-body">
+              <div class="field-row">
+                <div class="field" style="flex:1"><label>Key Name</label><input id="nk-name" placeholder="e.g. Production" value="My Key"></div>
+                <button class="btn btn-primary" onclick="createKey()">+ Create</button>
+              </div>
+            </div>
+          </div>
+          <div id="new-key-panel" class="hidden panel">
+            <div class="panel-head"><h2 style="color:var(--success)">✅ Key Created</h2></div>
+            <div class="panel-body">
+              <p style="font-size:var(--text-sm);color:var(--warn);margin-bottom:var(--space-3)">⚠️ Copy this key now — it won't be shown again.</p>
+              <div class="key-box">
+                <span class="key-value" id="nk-value"></span>
+                <span class="copy-btn" onclick="copyNewKey()">📋 Copy</span>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Your Keys</h2>${d.keys?.length ? `<span class="text-muted" style="font-size:var(--text-xs)">${d.keys.length} total</span>` : ''}</div>
+            <div class="panel-body panel-body--flush">
+              ${d.keys?.length ? `
+              <div class="table-wrap">
+              <table>
+                <thead><tr><th>Name</th><th>Key</th><th>Status</th><th>Usage</th><th>Created</th><th></th></tr></thead>
+                <tbody>
+                  ${d.keys.map(k => `
+                  <tr>
+                    <td><strong>${htmlEscape(k.name)}</strong></td>
+                    <td><span class="mono">${htmlEscape(k.prefix||k.key?.slice(0,12))}…</span></td>
+                    <td>${k.is_active ? '<span class="status status--ok" style="display:inline-flex">Active</span>' : '<span style="color:var(--danger)">Revoked</span>'}</td>
+                    <td>${k.used_this_month||0} / ${k.monthly_limit||'-'}</td>
+                    <td class="text-muted" style="font-size:var(--text-xs)">${new Date(k.created_at).toLocaleDateString()}</td>
+                    <td>${k.is_active ? `<button class="btn btn-sm btn-secondary" onclick="revokeKey('${k.id}')">Revoke</button>` : ''}</td>
+                  </tr>`).join('')}
+                </tbody>
+              </table>
+              </div>` : '<div style="padding:var(--space-8);text-align:center;color:var(--muted)">No keys yet.</div>'}
+            </div>
+          </div>
+        </div>`;
+    }
+
+    async function createKey() {
+      const name = document.getElementById('nk-name').value.trim() || 'API Key';
+      try {
+        const d = await api('POST', '/api/v1/keys/create', { name });
+        if (d.success) {
+          document.getElementById('new-key-panel').classList.remove('hidden');
+          document.getElementById('nk-value').textContent = d.key;
+          API_KEY = localStorage.setItem('scraper_key', d.key);
+          toast('✅ Key created!');
+          // reload keys
+          const rd = await api('GET', '/api/v1/keys/list');
+          renderKeys(document.getElementById('app-content'), rd);
+        }
+      } catch(e) { toast('❌ '+e.message); }
+    }
+
+    async function revokeKey(id) {
+      try {
+        const d = await api('POST', '/api/v1/keys/revoke', { key_id: id });
+        if (d.success) {
+          toast('🔑 Key revoked');
+          const rd = await api('GET', '/api/v1/keys/list');
+          renderKeys(document.getElementById('app-content'), rd);
+        }
+      } catch(e) { toast('❌ '+e.message); }
+    }
+
+    function copyNewKey() {
+      const val = document.getElementById('nk-value').textContent;
+      navigator.clipboard.writeText(val).then(() => toast('📋 Copied!'));
+    }
+
+    // ── Pricing Page ──
+    async function pricing(titleEl) {
+      titleEl.textContent = '💰 Pricing';
+      const c = document.getElementById('app-content');
+      c.innerHTML = '<div class="container"><div class="panel"><div class="panel-body" style="display:flex;align-items:center;gap:var(--space-3)"><span class="spinner"></span> Loading…</div></div></div>';
+      try {
+        const d = await api('GET', '/api/v1/pricing');
+        const tiers = d.tiers || {};
+        const names = ['free','bronze','silver','gold','ultra'];
+        const descs = { free:'Testing & evaluation', bronze:'Small projects', silver:'Growing teams', gold:'Professional', ultra:'Enterprise scale' };
+
+        c.innerHTML = `
+          <div class="container">
+            <div class="metric-grid">
+              ${names.map((k,i) => {
+                const t = tiers[k];
+                if (!t) return '';
+                const hot = k === 'silver';
+                return `<div class="metric-card" style="${hot ? 'border-color:var(--accent);position:relative' : ''}">
+                  ${hot ? '<div style="position:absolute;top:var(--space-3);right:var(--space-3);font-size:var(--text-xs);font-weight:700;color:var(--accent);font-family:var(--font-mono)">★ BEST</div>' : ''}
+                  <div class="metric-label">${t.name||k}</div>
+                  <div class="metric-value" style="font-size:var(--text-xl)">฿${t.price_monthly}<span style="font-size:var(--text-sm);font-weight:400;color:var(--muted)">/mo</span></div>
+                  <div style="font-size:var(--text-sm);margin-top:var(--space-2)">${t.scrapes_per_month?.toLocaleString()} scrapes</div>
+                  <div style="font-size:var(--text-xs);color:var(--muted);margin-top:var(--space-2)">Extra: ฿${t.cost_per_scrape} · Cache: ${t.cache_duration_hours}h</div>
+                </div>`;
+              }).filter(Boolean).join('')}
+            </div>
+            <div class="panel">
+              <div class="panel-head"><h2>How It Works</h2></div>
+              <div class="panel-body" style="font-size:var(--text-sm);line-height:1.8;color:var(--fg-2)">
+                <p>✅ Each scrape deducts from your monthly quota</p>
+                <p>✅ Same URL within cache TTL = <strong>free</strong> (no quota used)</p>
+                <p>✅ Over-limit scrapes billed at per-scrape rate</p>
+                <p>✅ Google Sheets export included in all paid plans</p>
+                <p>✅ No long-term contracts — cancel anytime</p>
+              </div>
+            </div>
+          </div>`;
+      } catch(e) {
+        c.innerHTML = `<div class="container"><div class="panel"><div class="panel-body" style="color:var(--danger)">${htmlEscape(e.message)}</div></div></div>`;
+      }
+    }
+
+    // ── Settings Page ──
+    function settings(titleEl) {
+      titleEl.textContent = '⚙️ Settings';
+      const c = document.getElementById('app-content');
+      c.innerHTML = `
+        <div class="container">
+          <div class="panel">
+            <div class="panel-head"><h2>⚙️ Settings</h2></div>
+            <div class="panel-body">
+              <div class="field" style="margin-bottom:var(--space-4)">
+                <label for="set-key">API Key</label>
+                <div class="field-row">
+                  <input id="set-key" placeholder="Paste API Key here" value="${htmlEscape(API_KEY)}" style="font-family:var(--font-mono);font-size:var(--text-xs)">
+                  <button class="btn btn-secondary" onclick="saveKey()">Save</button>
+                </div>
+              </div>
+              <div class="field">
+                <label>API Endpoint</label>
+                <input value="${window.location.origin}" disabled style="font-family:var(--font-mono);font-size:var(--text-xs);opacity:0.6">
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>System Info</h2></div>
+            <div class="panel-body" style="font-size:var(--text-sm);line-height:1.8">
+              <div><strong>Service:</strong> Product Scraper v2.0.0</div>
+              <div><strong>Engine:</strong> Patchright (Playwright) + Mistral Pixtral</div>
+              <div><strong>Database:</strong> PostgreSQL</div>
+              <div><strong>Cache:</strong> URL-hash dedup, tiered TTL</div>
+              <div><strong>Proxy:</strong> Round-robin rotation <span style="color:var(--muted)">(configure PROXY_LIST env)</span></div>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    function saveKey() {
+      const val = document.getElementById('set-key').value.trim();
+      if (val) { API_KEY = ***; localStorage.setItem('scraper_key', val); toast('✅ Key saved!'); }
+    }
+
+    // ── Init ──
+    navigate('dashboard');
+    </script>
+  </body>
 </html>

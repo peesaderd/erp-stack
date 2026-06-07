@@ -129,6 +129,13 @@ class ScrapeAndGenerateRequest(BaseModel):
     use_vision: bool = False
 
 
+class UserProfileRequest(BaseModel):
+    user_id: str
+    name: str
+    email: str
+    tier: str = "free"
+
+
 # ─── Product Scraper Integration ─────────────────────────────────────────
 
 SCRAPER_API_URL = "http://localhost:8106"
@@ -684,6 +691,7 @@ MODULE_URLS = {
     "image-gen": "http://localhost:8110",
     "video-gen": "http://localhost:8116",
     "payment":   "http://localhost:8122",
+    "profile":   "http://localhost:8107",
 }
 
 
@@ -850,6 +858,29 @@ async def payment_plans():
 async def payment_health():
     """Check Payment module health."""
     result = await _proxy("GET", "payment", "/api/payment/health")
+    return result
+
+
+# ─── Profile/Tier Integration (Profile Module :8107) ─────────────────────
+
+@app.get("/profile/health")
+async def profile_health():
+    """Check Profile Module health."""
+    result = await _proxy("GET", "profile", "/health")
+    return result
+
+
+@app.post("/profile/register")
+async def profile_register(req: UserProfileRequest):
+    """Register user via Profile Module."""
+    result = await _proxy("POST", "profile", "/api/v1/profiles/client", req.model_dump())
+    return result
+
+
+@app.get("/profile/tier/{user_id}")
+async def profile_get_tier(user_id: str):
+    """Get user tier from Profile Module."""
+    result = await _proxy("GET", "profile", f"/api/v1/profiles/client/{user_id}")
     return result
 
 

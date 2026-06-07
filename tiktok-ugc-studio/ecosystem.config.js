@@ -25,7 +25,7 @@ module.exports = {
     },
     {
       name: 'product-scraper',
-      script: 'venv/bin/uvicorn',
+      script: '/home/openhands/erp-stack/tiktok-ugc-studio/venv/bin/uvicorn',
       args: 'product.main:app --host 0.0.0.0 --port 8106',
       cwd: '/home/openhands/erp-stack/modules',
       interpreter: 'none',

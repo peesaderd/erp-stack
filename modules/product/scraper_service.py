@@ -33,17 +33,21 @@ async def create_api_key(user_id: str, name: str = "API Key") -> dict:
         key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
         prefix = raw_key[:12] + "..."
 
+        now = datetime.now(timezone.utc)
+        import calendar
+        # Reset to first of next month (works safely for all months)
+        _, days_in_month = calendar.monthrange(now.year, now.month)
+        safe_day = min(28, days_in_month)
+        next_month = now.replace(day=safe_day) + timedelta(days=4)
+        monthly_reset = next_month.replace(day=1, hour=0, minute=0, second=0, tzinfo=timezone.utc)
+
         api_key = ApiKey(
             user_id=user_id,
             key_prefix=prefix,
             key_hash=key_hash,
             name=name,
-            monthly_reset=datetime.now(timezone.utc).replace(day=1) + timedelta(days=32),
+            monthly_reset=monthly_reset,
         )
-        # Reset to first of next month
-        now = datetime.now(timezone.utc)
-        next_month = now.replace(day=28) + timedelta(days=4)
-        api_key.monthly_reset = next_month.replace(day=1, hour=0, minute=0, second=0)
 
         session.add(api_key)
         await session.commit()
@@ -76,10 +80,17 @@ async def validate_api_key(raw_key: str) -> Optional[Dict]:
 
         # Check monthly limit
         now = datetime.now(timezone.utc)
-        if api_key.monthly_reset and now > api_key.monthly_reset:
+        # Handle offset-naive vs offset-aware comparison (SQLite stores naive)
+        mr = api_key.monthly_reset
+        if mr is not None and mr.tzinfo is None:
+            mr = mr.replace(tzinfo=timezone.utc)
+        if mr and now > mr:
             api_key.used_this_month = 0
-            api_key.monthly_reset = now.replace(day=28) + timedelta(days=4)
-            api_key.monthly_reset = api_key.monthly_reset.replace(day=1, hour=0, minute=0, second=0)
+            import calendar
+            _, days_in_month = calendar.monthrange(now.year, now.month)
+            safe_day = min(28, days_in_month)
+            next_month = now.replace(day=safe_day) + timedelta(days=4)
+            api_key.monthly_reset = next_month.replace(day=1, hour=0, minute=0, second=0, tzinfo=timezone.utc)
 
         if api_key.used_this_month >= api_key.monthly_limit:
             logger.warning(f"API key {api_key.key_prefix} exceeded monthly limit")

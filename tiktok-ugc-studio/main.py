@@ -120,6 +120,124 @@ class ProductAnalysisRequest(BaseModel):
     image_url: Optional[str] = None
     image_base64: Optional[str] = None  # base64-encoded image for vision
 
+class ScrapeAndGenerateRequest(BaseModel):
+    url: str
+    duration: str = "8s"
+    tone: str = ""
+    cta: str = ""
+    ugc_style: str = "ugc_review"
+    use_vision: bool = False
+
+
+# ─── Product Scraper Integration ─────────────────────────────────────────
+
+SCRAPER_API_URL = "http://localhost:8106"
+
+@app.post("/product/scrape-and-generate")
+async def scrape_and_generate(req: ScrapeAndGenerateRequest):
+    """Scrape product URL via Product Scraper :8106, then auto-generate script."""
+    import httpx
+
+    # 1. Scrape product
+    logger.info(f"Scraping product: {req.url}")
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        # First get/create an API key
+        key_resp = await client.post(
+            f"{SCRAPER_API_URL}/api/v1/keys/create",
+            json={"name": "tiktok-ugc-studio"},
+            headers={"x-user-id": "tiktok-ugc"}
+        )
+        key_data = key_resp.json()
+        api_key = key_data.get("key", "")
+
+        # Scrape the URL
+        scrape_resp = await client.post(
+            f"{SCRAPER_API_URL}/api/v1/scrape",
+            json={"url": req.url, "use_vision": req.use_vision},
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "x-user-id": "tiktok-ugc",
+                "Content-Type": "application/json"
+            }
+        )
+        scrape_data = scrape_resp.json()
+
+    if not scrape_data.get("success"):
+        raise HTTPException(
+            status_code=502,
+            detail=f"Product scraper failed: {scrape_data.get('error', 'unknown')}"
+        )
+
+    product = scrape_data.get("product", {}) or {}
+    product_name = product.get("name", "") or ""
+    description = product.get("description", "") or ""
+    price = product.get("price")
+    brand = product.get("brand", "") or ""
+    images = product.get("images", []) or []
+    source_site = product.get("source_site", "") or ""
+
+    if not product_name:
+        raise HTTPException(status_code=400, detail="Could not extract product name from URL")
+
+    # 2. Generate script from scraped product data
+    try:
+        from script_gen import generate_tiktok_review_script
+
+        # Build context from scraped data
+        extra_context = f"""
+Product: {product_name}
+Brand: {brand}
+Price: {price}
+Source: {source_site}
+Description: {description[:300]}
+"""
+
+        script_result = generate_tiktok_review_script(
+            product_name=product_name,
+            customer_problem=req.tone or f"Finding the right {product_name}",
+            main_benefit=description[:200] if description else "",
+            target_audience="",
+            tone=req.tone,
+            cta=req.cta,
+            duration=req.duration,
+            extra_rules=extra_context
+        )
+
+        # 3. Return combined result
+        return {
+            "success": True,
+            "product": {
+                "name": product_name,
+                "price": price,
+                "brand": brand,
+                "description": description[:500],
+                "images": images[:6],
+                "source_site": source_site,
+                "source_url": req.url,
+                "scrape_method": scrape_data.get("method", ""),
+                "cached": scrape_data.get("cached", False),
+            },
+            "script": script_result,
+        }
+
+    except Exception as e:
+        logger.error(f"Script generation failed: {e}")
+        # Return product data even if script fails
+        return {
+            "success": True,
+            "product": {
+                "name": product_name,
+                "price": price,
+                "brand": brand,
+                "description": description[:500],
+                "images": images[:6],
+                "source_site": source_site,
+                "source_url": req.url,
+            },
+            "script": None,
+            "script_error": str(e),
+        }
+
 
 # ─── Health ────────────────────────────────────────────────────────────────
 

@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Dashboard — TikTok Growth Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --font: 'Inter',system-ui,-apple-system,sans-serif;
+  --n0:#fff;--n50:#fafafa;--n100:#f4f4f5;--n200:#e4e4e7;--n300:#d4d4d8;
+  --n400:#a1a1aa;--n500:#71717a;--n600:#52525b;--n700:#3f3f46;--n800:#27272a;
+  --n900:#18181b;--n950:#0a0a0b;
+  --b50:#f5f3ff;--b100:#ede9fe;--b200:#ddd6fe;--b400:#a78bfa;--b500:#8b5cf6;
+  --b600:#7c3aed;--b700:#6d28d9;--b800:#5b21b6;
+  --g50:#f0fdf4;--g400:#4ade80;--g600:#16a34a;
+  --r50:#fef2f2;--r400:#f87171;--r600:#dc2626;
+  --a50:#fffbeb;--a400:#fbbf24;--a600:#d97706;
+  --bg:#fff;--bg2:#fafafa;--bg3:#f4f4f5;
+  --txt:#09090b;--txt2:#52525b;--txt3:#a1a1aa;
+  --border:#e4e4e7;
+  --rad:8px;--radl:12px;--radxl:16px;
+  --sh:0 1px 2px rgba(0,0,0,.05);--shm:0 4px 6px rgba(0,0,0,.08);
+  --shl:0 12px 16px -4px rgba(0,0,0,.08);
+}
+.dark{--bg:#0a0a0b;--bg2:#18181b;--bg3:#27272a;--txt:#fafafa;--txt2:#a1a1aa;--txt3:#52525b;--border:#27272a;--sh:0 1px 2px rgba(0,0,0,.2);--shm:0 4px 6px rgba(0,0,0,.3)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--bg2);color:var(--txt);display:flex;min-height:100vh;font-size:14px;line-height:1.5}
+a{color:var(--b600);text-decoration:none}
+a:hover{color:var(--b700)}
+
+/* Sidebar */
+.sidebar{width:240px;background:var(--bg);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:50}
+.sb-logo{padding:20px 16px 16px;border-bottom:1px solid var(--border)}
+.sb-logo h1{font-size:16px;font-weight:600;display:flex;align-items:center;gap:8px}
+.sb-logo span{color:var(--txt3);font-size:11px;font-weight:400}
+.sb-logo .dot{width:8px;height:8px;border-radius:50%;background:var(--g400);display:inline-block}
+.sb-nav{flex:1;padding:8px;overflow-y:auto}
+.sb-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:var(--rad);cursor:pointer;color:var(--txt2);transition:.15s;margin-bottom:2px;font-size:13px;font-weight:500}
+.sb-item:hover{background:var(--bg3);color:var(--txt)}
+.sb-item.active{background:var(--b50);color:var(--b600);font-weight:600}
+.sb-item .icon{font-size:16px;width:20px;text-align:center}
+.sb-section{font-size:11px;font-weight:600;color:var(--txt3);padding:16px 12px 6px;text-transform:uppercase;letter-spacing:.6px}
+.sb-footer{padding:12px 16px;border-top:1px solid var(--border);font-size:12px;color:var(--txt3);display:flex;align-items:center;gap:8px}
+.sb-footer .av{width:24px;height:24px;border-radius:50%;background:var(--b100);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--b600);font-weight:600}
+
+/* Main */
+.main{margin-left:240px;flex:1;min-height:100vh}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 24px;background:var(--bg);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:40}
+.topbar h2{font-size:16px;font-weight:600}
+.topbar-actions{display:flex;align-items:center;gap:8px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--rad);font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--bg);color:var(--txt);transition:.15s;font-family:var(--font)}
+.btn:hover{background:var(--bg3)}
+.btn-primary{background:var(--b600);color:#fff;border-color:var(--b600)}
+.btn-primary:hover{background:var(--b700)}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-ghost{background:transparent;border-color:transparent;color:var(--txt2)}
+.btn-ghost:hover{background:var(--bg3)}
+.btn-icon{padding:6px;min-width:32px;justify-content:center}
+
+.content{padding:24px}
+
+/* Cards */
+.card{background:var(--bg);border:1px solid var(--border);border-radius:var(--radl);padding:20px;box-shadow:var(--sh)}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.card-header h3{font-size:14px;font-weight:600}
+.card-title{font-size:13px;color:var(--txt2);margin-bottom:4px}
+
+/* Stats Grid */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+.stat{background:var(--bg);border:1px solid var(--border);border-radius:var(--radl);padding:16px 20px;box-shadow:var(--sh)}
+.stat-val{font-size:28px;font-weight:700;line-height:1.2}
+.stat-label{font-size:13px;color:var(--txt2);margin-top:4px}
+.stat-delta{font-size:12px;margin-top:6px;display:flex;align-items:center;gap:4px}
+.stat-delta.up{color:var(--g600)}
+.stat-delta.down{color:var(--r600)}
+
+/* Grid layouts */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-bottom:24px}
+@media(max-width:900px){.grid-2,.grid-3{grid-template-columns:1fr}}
+
+/* Forms */
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:13px;font-weight:500;margin-bottom:4px;color:var(--txt2)}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:var(--rad);font-size:13px;background:var(--bg);color:var(--txt);font-family:var(--font);transition:.15s}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:2px solid var(--b400);outline-offset:-1px;border-color:var(--b400)}
+.form-group textarea{min-height:80px;resize:vertical}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* Table */
+.table-wrap{overflow-x:auto;border-radius:var(--radl);border:1px solid var(--border);background:var(--bg)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:10px 16px;font-weight:600;color:var(--txt2);background:var(--bg2);border-bottom:1px solid var(--border);font-size:12px;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
+td{padding:10px 16px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:hover{background:var(--bg2)}
+tr:last-child td{border-bottom:none}
+
+/* Badge */
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600}
+.badge-success{background:var(--g50);color:var(--g600)}
+.badge-warning{background:var(--a50);color:var(--a600)}
+.badge-error{background:var(--r50);color:var(--r600)}
+.badge-neutral{background:var(--n100);color:var(--n600)}
+
+/* Tabs */
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px}
+.tab{padding:10px 16px;font-size:13px;font-weight:500;cursor:pointer;color:var(--txt2);border-bottom:2px solid transparent;transition:.15s}
+.tab:hover{color:var(--txt)}
+.tab.active{color:var(--b600);border-bottom-color:var(--b600)}
+
+/* Modal */
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:100;display:none;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--bg);border-radius:var(--radxl);padding:24px;max-width:700px;width:90%;max-height:85vh;overflow-y:auto;box-shadow:var(--shl)}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.modal-header h3{font-size:16px;font-weight:600}
+.modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--txt3);padding:4px}
+.modal-close:hover{color:var(--txt)}
+
+/* metrics row */
+.metrics{display:flex;gap:16px;flex-wrap:wrap;margin:12px 0}
+.metric{text-align:center;padding:12px 20px;background:var(--bg2);border-radius:var(--rad);flex:1;min-width:80px}
+.metric-val{font-size:20px;font-weight:700}
+.metric-lbl{font-size:11px;color:var(--txt2);margin-top:2px}
+
+/* empty state */
+.empty{text-align:center;padding:40px 20px;color:var(--txt3)}
+.empty .icon{font-size:40px;margin-bottom:8px}
+
+/* Clone preview area */
+.preview-box{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rad);padding:16px;margin-top:12px;font-size:13px;white-space:pre-wrap;max-height:300px;overflow-y:auto}
+
+/* inline toggle */
+.toggle{display:flex;align-items:center;gap:8px;cursor:pointer}
+.toggle input{display:none}
+.toggle-slider{width:36px;height:20px;background:var(--n300);border-radius:10px;position:relative;transition:.2s}
+.toggle-slider::after{content:'';width:16px;height:16px;background:#fff;border-radius:50%;position:absolute;top:2px;left:2px;transition:.2s}
+.toggle input:checked+.toggle-slider{background:var(--b600)}
+.toggle input:checked+.toggle-slider::after{left:18px}
+
+/* loader */
+.spinner{width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--b600);border-radius:50%;animation:spin .6s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sb-logo">
+    <h1>
+      <span class="dot"></span>
+      TikTok Growth Engine
+    </h1>
+    <span>Business OS • v0.2</span>
+  </div>
+  <nav class="sb-nav">
+    <div class="sb-section">Overview</div>
+    <div class="sb-item active" data-page="dashboard">
+      <span class="icon">📊</span> Dashboard
+    </div>
+    <div class="sb-item" data-page="goals">
+      <span class="icon">🎯</span> เป้าหมาย
+    </div>
+
+    <div class="sb-section">Content</div>
+    <div class="sb-item" data-page="library">
+      <span class="icon">🎬</span> Content Library
+    </div>
+    <div class="sb-item" data-page="clone">
+      <span class="icon">🏗️</span> Clone Studio
+    </div>
+
+    <div class="sb-section">Automation</div>
+    <div class="sb-item" data-page="automation">
+      <span class="icon">⚙️</span> Auto Settings
+    </div>
+    <div class="sb-item" data-page="schedule">
+      <span class="icon">📅</span> Schedule
+    </div>
+
+    <div class="sb-section">Intelligence</div>
+    <div class="sb-item" data-page="strategy">
+      <span class="icon">🧠</span> Strategy
+    </div>
+    <div class="sb-item" data-page="trends">
+      <span class="icon">🔍</span> Scout Trends
+    </div>
+  </nav>
+  <div class="sb-footer">
+    <div class="av">TK</div>
+    <span>localhost:8105</span>
+  </div>
+</aside>
+
+<!-- Main -->
+<div class="main">
+  <div class="topbar">
+    <h2 id="pageTitle">Dashboard</h2>
+    <div class="topbar-actions">
+      <button class="btn btn-sm" onclick="refreshAll()">🔄 Refresh</button>
+      <button class="btn btn-sm btn-primary" onclick="openStudio()">+ New Content</button>
+    </div>
+  </div>
+
+  <div class="content" id="pageContent">
+    <!-- Pages are swapped here -->
+  </div>
+</div>
+
+<!-- Content Detail Modal -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="detailTitle">Content Detail</h3>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div id="detailBody"></div>
+  </div>
+</div>
+
+<!-- Template Generate Modal -->
+<div class="modal-overlay" id="cloneModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Clone Studio</h3>
+      <button class="modal-close" onclick="document.getElementById('cloneModal').classList.remove('open')">✕</button>
+    </div>
+    <div id="cloneBody">
+      <div class="form-group">
+        <label>Template</label>
+        <select id="cloneTemplate"><option>Loading...</option></select>
+      </div>
+      <div class="form-group">
+        <label>ชื่อสินค้า</label>
+        <input id="cloneProduct" placeholder="เช่น เครื่องฟอกอากาศ">
+      </div>
+      <div class="form-group">
+        <label>CTA</label>
+        <input id="cloneCTA" value="กด link in bio">
+      </div>
+      <button class="btn btn-primary" onclick="runClone()">✨ Generate</button>
+      <div id="cloneResult" class="preview-box" style="display:none;margin-top:12px"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+// API
+// ═══════════════════════════════════════════════
+const API = window.location.origin + '/api/tiktok/ugc';
+
+async function api(path, opts = {}) {
+  const url = path.startsWith('http') ? path : (API + path);
+  const res = await fetch(url, {
+    headers: {'Content-Type':'application/json', ...opts.headers},
+    ...opts,
+  });
+  return res.json();
+}
+
+async function apiGet(path) {
+  return api(path, {method:'GET'});
+}
+async function apiPost(path, data) {
+  return api(path, {method:'POST', body:JSON.stringify(data)});
+}
+
+// Actually the backend is at :8105 directly
+const API_RAW = 'http://localhost:8105';
+
+async function rawGet(path) {
+  const r = await fetch(API_RAW + path);
+  return r.json();
+}
+async function rawPost(path, data) {
+  const r = await fetch(API_RAW + path, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(data),
+  });
+  return r.json();
+}
+
+// ═══════════════════════════════════════════════
+// Page Routing
+// ═══════════════════════════════════════════════
+const pageTitle = document.getElementById('pageTitle');
+const pageContent = document.getElementById('pageContent');
+
+function showPage(name) {
+  document.querySelectorAll('.sb-item').forEach(el => el.classList.remove('active'));
+  document.querySelector(`.sb-item[data-page="${name}"]`)?.classList.add('active');
+
+  const pages = {
+    dashboard: renderDashboard,
+    goals: renderGoals,
+    library: renderLibrary,
+    clone: renderClonePage,
+    automation: renderAutomation,
+    schedule: renderSchedule,
+    strategy: renderStrategy,
+    trends: renderTrends,
+  };
+
+  const titles = {
+    dashboard:'📊 Dashboard','goals':'🎯 เป้าหมาย','library':'🎬 Content Library',
+    clone:'🏗️ Clone Studio','automation':'⚙️ Auto Settings','schedule':'📅 Schedule',
+    strategy:'🧠 Strategy','trends':'🔍 Scout Trends',
+  };
+
+  pageTitle.textContent = titles[name] || name;
+  pageContent.innerHTML = '<div class="empty"><div class="spinner"></div></div>';
+
+  if (pages[name]) pages[name]();
+}
+
+document.querySelectorAll('.sb-item').forEach(el => {
+  el.addEventListener('click', () => showPage(el.dataset.page));
+});
+
+// ═══════════════════════════════════════════════
+// Dashboard
+// ═══════════════════════════════════════════════
+async function renderDashboard() {
+  const [perf, strategy, scout] = await Promise.all([
+    rawGet('/monitor/performance?hours=168').catch(()=>({})),
+    rawGet('/monitor/strategy').catch(()=>({strategy:{}})),
+    rawGet('/scout/trends').catch(()=>({trends:[]})),
+  ]);
+
+  const s = perf;
+  pageContent.innerHTML = `
+    <div class="stats">
+      <div class="stat"><div class="stat-val">${s.total_videos||0}</div><div class="stat-label">Total Videos</div></div>
+      <div class="stat"><div class="stat-val">${(s.avg_views||0).toLocaleString()}</div><div class="stat-label">Avg Views</div></div>
+      <div class="stat"><div class="stat-val">${(s.avg_likes||0).toLocaleString()}</div><div class="stat-label">Avg Likes</div></div>
+      <div class="stat"><div class="stat-val">${(s.total_views||0).toLocaleString()}</div><div class="stat-label">Total Views</div></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header"><h3>🎯 กลยุทธ์ปัจจุบัน</h3></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">
+          <div><strong>Hook:</strong> ${strategy.strategy?.hook_type||'problem'}</div>
+          <div><strong>Template:</strong> ${strategy.strategy?.preferred_template||'problem_solution'}</div>
+          <div><strong>Pacing:</strong> ${strategy.strategy?.pacing||'fast'}</div>
+          <div><strong>Sound:</strong> ${strategy.strategy?.sound_vibe||'upbeat_excited'}</div>
+          <div><strong>Posting:</strong> ${(strategy.strategy?.posting_hours||[9,12,15,18,21]).join(':00, ')}:00</div>
+          <div><strong>Duration:</strong> ${strategy.strategy?.target_duration_sec||28}s</div>
+        </div>
+        <div style="margin-top:12px">
+          <strong>Content Mix:</strong>
+          <div style="display:flex;gap:8px;margin-top:6px">
+            ${Object.entries(strategy.strategy?.content_mix||{}).map(([k,v])=>
+              `<div style="flex:1;background:var(--bg2);padding:8px;border-radius:6px;text-align:center;font-size:12px">
+                 <div style="font-weight:600;margin-bottom:2px">${Math.round(v*100)}%</div>
+                 <div style="color:var(--txt2)">${k}</div>
+               </div>`
+            ).join('')}
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3>🔍 เทรนด์มาแรง</h3></div>
+        ${(scout.trends||[]).slice(0,4).map(t=>
+          `<div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+             <strong>${t.name}</strong>
+             <span style="color:var(--txt2);margin-left:8px">${t.avg_duration}s • ${t.pacing}</span>
+           </div>`
+        ).join('')}
+      </div>
+    </div>
+
+    ${s.best_video ? `
+    <div class="card" style="margin-top:20px">
+      <div class="card-header"><h3>🏆 คลิปยอดเยี่ยม</h3></div>
+      <div style="font-size:13px">
+        <strong>${s.best_video.caption}</strong><br>
+        <span style="color:var(--txt2)">👁️ ${s.best_video.views?.toLocaleString()} views • ❤️ ${s.best_video.likes?.toLocaleString()} likes</span>
+      </div>
+    </div>` : ''}
+  `;
+}
+
+// ═══════════════════════════════════════════════
+// Goals
+// ═══════════════════════════════════════════════
+function renderGoals() {
+  const saved = JSON.parse(localStorage.getItem('tk_goals') || '{}');
+  pageContent.innerHTML = `
+    <div class="card" style="max-width:600px">
+      <div class="card-header"><h3>🎯 ตั้งเป้าหมายรายวัน</h3></div>
+      <div class="form-group">
+        <label>คลิปต่อวัน (เป้าหมาย)</label>
+        <input id="goalClips" type="number" value="${saved.clips||20}" min="1" max="50">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>เป้าหมาย Follower</label>
+          <input id="goalFollower" type="number" value="${saved.followers||1000}">
+        </div>
+        <div class="form-group">
+          <label>เป้าหมายยอดขาย/เดือน (฿)</label>
+          <input id="goalRevenue" type="number" value="${saved.revenue||50000}">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>หมวดหมู่หลัก</label>
+        <select id="goalNiche">
+          <option value="product_review" ${saved.niche==='product_review'?'selected':''}>Product Review</option>
+          <option value="before_after" ${saved.niche==='before_after'?'selected':''}>Before & After</option>
+          <option value="tutorial" ${saved.niche==='tutorial'?'selected':''}>Tutorial</option>
+          <option value="testimonial" ${saved.niche==='testimonial'?'selected':''}>Testimonial</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="saveGoals()">💾 บันทึกเป้าหมาย</button>
+      <div id="goalStatus" style="margin-top:8px;font-size:13px;color:var(--g600)"></div>
+    </div>
+  `;
+}
+function saveGoals() {
+  const goals = {
+    clips: parseInt(document.getElementById('goalClips').value) || 20,
+    followers: parseInt(document.getElementById('goalFollower').value) || 1000,
+    revenue: parseInt(document.getElementById('goalRevenue').value) || 50000,
+    niche: document.getElementById('goalNiche').value,
+  };
+  localStorage.setItem('tk_goals', JSON.stringify(goals));
+  document.getElementById('goalStatus').textContent = '✅ บันทึกแล้ว!';
+  setTimeout(()=>document.getElementById('goalStatus').textContent='',2000);
+}
+
+// ═══════════════════════════════════════════════
+// Content Library
+// ═══════════════════════════════════════════════
+async function renderLibrary() {
+  pageContent.innerHTML = `
+    <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+      <input id="libFilter" placeholder="🔍 ค้นหา..." style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--txt);flex:1;min-width:200px">
+      <select id="libStatus" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--txt)">
+        <option value="">All Status</option><option value="published">Published</option><option value="pending">Pending</option><option value="failed">Failed</option>
+      </select>
+      <button class="btn btn-sm" onclick="renderLibrary()">🔄</button>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th>#</th><th>Caption</th><th>Category</th><th>Hook</th><th>Views</th><th>Likes</th><th>Status</th><th>Actions</th>
+      </tr></thead>
+      <tbody id="libBody"><tr><td colspan="8" class="empty"><div class="spinner"></div></td></tr></tbody>
+    </table></div>
+  `;
+
+  const [published, analytics] = await Promise.all([
+    rawGet('/tiktok/published').catch(()=>({videos:[]})),
+    rawGet('/monitor/videos').catch(()=>({videos:[]})),
+  ]);
+
+  // Merge data
+  const videoMap = {};
+  (analytics.videos||[]).forEach(v => videoMap[v.caption||''] = v);
+
+  const items = (published.videos||[]).map((v,i) => {
+    const meta = videoMap[v.caption] || {};
+    return {...v, ...meta, index: i+1};
+  });
+
+  const tbody = document.getElementById('libBody');
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="empty">📭 ยังไม่มีคลิปที่โพสต์</td></tr>';
+    return;
+  }
+  tbody.innerHTML = items.map(v => `
+    <tr>
+      <td>${v.index}</td>
+      <td><a href="#" onclick="showDetail(${v.index}, event)">${(v.caption||'Untitled').slice(0,40)}</a></td>
+      <td>${v.category||'-'}</td>
+      <td>${v.hook_type||'-'}</td>
+      <td>${(v.views||0).toLocaleString()}</td>
+      <td>${(v.likes||0).toLocaleString()}</td>
+      <td><span class="badge badge-success">Published</span></td>
+      <td>
+        <button class="btn btn-sm btn-ghost" onclick="showDetail(${v.index}, event)">👁️</button>
+        <button class="btn btn-sm btn-ghost" onclick="cloneFrom('${encodeURIComponent(v.caption||'')}')">🏗️</button>
+      </td>
+    </tr>
+  `).join('');
+
+  // Store for detail
+  window._libItems = items;
+}
+
+// ═══════════════════════════════════════════════
+// Detail Modal
+// ═══════════════════════════════════════════════
+function showDetail(idx, e) {
+  if (e) e.preventDefault();
+  const items = window._libItems || [];
+  const v = items[idx-1];
+  if (!v) return;
+
+  document.getElementById('detailTitle').textContent = v.caption?.slice(0,50) || 'Content Detail';
+  document.getElementById('detailBody').innerHTML = `
+    <div class="metrics">
+      <div class="metric"><div class="metric-val">${(v.views||0).toLocaleString()}</div><div class="metric-lbl">Views</div></div>
+      <div class="metric"><div class="metric-val">${(v.likes||0).toLocaleString()}</div><div class="metric-lbl">Likes</div></div>
+      <div class="metric"><div class="metric-val">${(v.shares||0).toLocaleString()}</div><div class="metric-lbl">Shares</div></div>
+      <div class="metric"><div class="metric-val">${(v.comments||0).toLocaleString()}</div><div class="metric-lbl">Comments</div></div>
+    </div>
+
+    <div class="grid-2" style="margin-top:16px">
+      <div>
+        <div style="font-size:12px;color:var(--txt2);margin-bottom:4px">Caption</div>
+        <div style="font-size:13px">${v.caption||'-'}</div>
+        <div style="font-size:12px;color:var(--txt2);margin-top:12px;margin-bottom:4px">ข้อมูล Analytics</div>
+        <table style="font-size:13px">
+          <tr><td>Category</td><td><strong>${v.category||'-'}</strong></td></tr>
+          <tr><td>Hook Type</td><td><strong>${v.hook_type||'-'}</strong></td></tr>
+          <tr><td>Template</td><td><strong>${v.template_id||'-'}</strong></td></tr>
+          <tr><td>Post Hour</td><td><strong>${v.post_hour||'-'}:00</strong></td></tr>
+        </table>
+      </div>
+      <div>
+        <div style="font-size:12px;color:var(--txt2);margin-bottom:4px">Actions</div>
+        <button class="btn btn-sm" style="margin-bottom:8px" onclick="cloneFrom('${encodeURIComponent(v.caption||'')}')">🏗️ Clone this</button><br>
+        <button class="btn btn-sm" onclick="closeModal()">✕ Close</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('detailModal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('detailModal').classList.remove('open');
+}
+function openStudio() {
+  document.getElementById('cloneModal').classList.add('open');
+  loadCloneTemplates();
+}
+
+// ═══════════════════════════════════════════════
+// Clone Studio Page
+// ═══════════════════════════════════════════════
+async function renderClonePage() {
+  pageContent.innerHTML = `
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header"><h3>🏗️ Clone Studio</h3></div>
+        <div class="form-group">
+          <label>Template</label>
+          <select id="cpTemplate"><option>Loading...</option></select>
+        </div>
+        <div class="form-group">
+          <label>ชื่อสินค้า</label>
+          <input id="cpProduct" placeholder="เครื่องฟอกอากาศ">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>ราคา</label>
+            <input id="cpPrice" placeholder="฿1,290">
+          </div>
+          <div class="form-group">
+            <label>CTA</label>
+            <input id="cpCta" value="กด link in bio">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Fill Values (JSON)</label>
+          <textarea id="cpFill" placeholder='{"hook":"คุณเจอปัญหานี้อยู่ไหม"}'></textarea>
+        </div>
+        <button class="btn btn-primary" onclick="runCloneFromPage()">✨ Generate Clone</button>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3>📝 Preview</h3></div>
+        <div id="cpPreview" class="empty" style="padding:20px">กด Generate เพื่อดูตัวอย่าง</div>
+        <div style="margin-top:12px;display:none" id="cpActions">
+          <button class="btn btn-sm" onclick="sendToPipeline()">⚡ ส่งเข้า Pipeline</button>
+        </div>
+      </div>
+    </div>
+  `;
+  await loadCloneTemplates('cpTemplate');
+}
+
+async function loadCloneTemplates(selectId) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  try {
+    const data = await rawGet('/scout/templates');
+    sel.innerHTML = (data.templates||[]).map(t => `<option value="${t.id}">${t.name} (${t.total_duration_sec}s)</option>`).join('');
+    if (!sel.options.length) sel.innerHTML = '<option value="problem_solution">Problem → Solution</option>';
+  } catch {
+    sel.innerHTML = '<option value="problem_solution">Problem → Solution</option>';
+  }
+}
+
+async function runCloneFromPage() {
+  const templateId = document.getElementById('cpTemplate').value;
+  const product = document.getElementById('cpProduct').value || 'สินค้า';
+  const price = document.getElementById('cpPrice').value || '';
+  const cta = document.getElementById('cpCta').value || 'กด link in bio';
+  const fillRaw = document.getElementById('cpFill').value;
+  let fillValues = {};
+  try { if (fillRaw) fillValues = JSON.parse(fillRaw); } catch {}
+
+  const data = await rawPost('/scout/templates/generate', {
+    template_id: templateId, product_name: product,
+    price: price, cta: cta, fill_values: fillValues,
+  });
+
+  if (data.success && data.script) {
+    const s = data.script;
+    document.getElementById('cpPreview').innerHTML = `
+      <div style="font-size:12px;color:var(--txt2);margin-bottom:8px">${s.template_name} • ${s.total_duration_sec}s</div>
+      ${s.script_parts.map(p => `
+        <div style="display:flex;gap:8px;margin-bottom:6px;font-size:13px">
+          <span style="color:var(--b600);font-weight:600;min-width:70px">${p.part}</span>
+          <span style="color:var(--txt2);min-width:30px">${p.duration_sec}s</span>
+          <span>${p.text}</span>
+        </div>
+      `).join('')}
+    `;
+    document.getElementById('cpActions').style.display = 'block';
+    window._lastScript = s;
+  } else {
+    document.getElementById('cpPreview').innerHTML = `<div style="color:var(--r600)">❌ ${data.error||'Failed'}</div>`;
+  }
+}
+
+function sendToPipeline() {
+  const s = window._lastScript;
+  if (!s) return;
+  rawPost('/pipeline/run', {
+    product_title: s.product || '',
+    hook: s.script_parts?.[0]?.text || '',
+    value_proposition: s.script_parts?.[3]?.text || '',
+    cta: s.script_parts?.[s.script_parts.length-1]?.text || '',
+    duration: s.total_duration_sec || 28,
+  }).then(r => {
+    alert(`⚡ Pipeline started!\nJob ID: ${r.job_id}\nStatus: ${r.status}`);
+  });
+}
+
+function cloneFrom(caption) {
+  openStudio();
+}
+
+async function runClone() {
+  const templateId = document.getElementById('cloneTemplate').value;
+  const product = document.getElementById('cloneProduct').value || 'สินค้า';
+  const cta = document.getElementById('cloneCTA').value || 'กด link in bio';
+
+  const data = await rawPost('/scout/templates/generate', {
+    template_id: templateId, product_name: product, cta: cta,
+  });
+
+  const el = document.getElementById('cloneResult');
+  if (data.success && data.script) {
+    el.style.display = 'block';
+    el.innerHTML = '<strong>✅ Script พร้อม!</strong>\n\n' + 
+      data.script.script_parts.map(p => `[${p.part}] ${p.text}`).join('\n');
+  } else {
+    el.style.display = 'block';
+    el.innerHTML = '❌ ' + (data.error || 'Failed');
+  }
+}
+
+// ═══════════════════════════════════════════════
+// Automation
+// ═══════════════════════════════════════════════
+function renderAutomation() {
+  const saved = JSON.parse(localStorage.getItem('tk_automation') || '{}');
+  pageContent.innerHTML = `
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header"><h3>⚙️ Production Settings</h3></div>
+        <div class="form-group">
+          <label>คลิปต่อวัน</label>
+          <input id="autoClips" type="range" min="1" max="30" value="${saved.clips||15}"
+                 oninput="document.getElementById('autoClipsVal').textContent=this.value">
+          <div style="text-align:center;font-size:24px;font-weight:700;margin-top:4px">
+            <span id="autoClipsVal">${saved.clips||15}</span> / วัน
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>เริ่มโพสต์เวลา</label>
+            <input id="autoStart" type="time" value="${saved.startTime||'09:00'}">
+          </div>
+          <div class="form-group">
+            <label>สิ้นสุดเวลา</label>
+            <input id="autoEnd" type="time" value="${saved.endTime||'21:00'}">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>เว้นระยะโพสต์ (นาที)</label>
+          <select id="autoStagger">
+            ${[15,30,45,60,90,120].map(m => `<option value="${m}" ${(saved.stagger||30)==m?'selected':''}>${m} นาที</option>`).join('')}
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="saveAutomation()">💾 บันทึก</button>
+        <div id="autoStatus" style="margin-top:8px;font-size:13px;color:var(--g600)"></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3>🎯 Optimization</h3></div>
+        <div style="margin-bottom:16px">
+          <label class="toggle">
+            <input type="checkbox" id="autoOptimize" ${saved.autoOptimize!==false?'checked':''}>
+            <span class="toggle-slider"></span>
+            Auto-optimize strategy
+          </label>
+          <div style="font-size:12px;color:var(--txt2);margin-top:4px;margin-left:44px">
+            วิเคราะห์ performance และปรับกลยุทธ์อัตโนมัติทุก 24 ชม.
+          </div>
+        </div>
+        <div style="margin-bottom:16px">
+          <label class="toggle">
+            <input type="checkbox" id="autoScout" ${saved.autoScout!==false?'checked':''}>
+            <span class="toggle-slider"></span>
+            Auto-scout trends
+          </label>
+          <div style="font-size:12px;color:var(--txt2);margin-top:4px;margin-left:44px">
+            อัปเดตเทรนด์อัตโนมัติทุก 6 ชม.
+          </div>
+        </div>
+        <button class="btn btn-sm" onclick="runOptimizerNow()">▶️ Run Optimizer Now</button>
+      </div>
+    </div>
+  `;
+}
+
+function saveAutomation() {
+  const cfg = {
+    clips: parseInt(document.getElementById('autoClips').value) || 15,
+    startTime: document.getElementById('autoStart').value || '09:00',
+    endTime: document.getElementById('autoEnd').value || '21:00',
+    stagger: parseInt(document.getElementById('autoStagger').value) || 30,
+    autoOptimize: document.getElementById('autoOptimize').checked,
+    autoScout: document.getElementById('autoScout').checked,
+  };
+  localStorage.setItem('tk_automation', JSON.stringify(cfg));
+  document.getElementById('autoStatus').textContent = '✅ บันทึกแล้ว!';
+}
+
+async function runOptimizerNow() {
+  const btn = event.target;
+  btn.disabled = true; btn.textContent = '⏳ Running...';
+  try {
+    const r = await rawPost('/monitor/optimize', {hours:168});
+    alert(`✅ Optimizer Complete!\nChanges: ${JSON.stringify(r.changes)}\nInsights:\n${r.insights?.join('\n')}`);
+  } catch(e) { alert('❌ '+e.message); }
+  btn.disabled = false; btn.textContent = '▶️ Run Optimizer Now';
+}
+
+// ═══════════════════════════════════════════════
+// Schedule Calendar
+// ═══════════════════════════════════════════════
+function renderSchedule() {
+  const now = new Date();
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  const auto = JSON.parse(localStorage.getItem('tk_automation') || '{}');
+  const dailyClips = auto.clips || 15;
+
+  pageContent.innerHTML = `
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-header"><h3>📅 สัปดาห์นี้ — ${dailyClips} คลิป/วัน</h3></div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px">
+        ${[0,1,2,3,4,5,6].map(d => {
+          const date = new Date(now);
+          date.setDate(now.getDate() + d - now.getDay());
+          return `
+            <div style="background:var(--bg2);border-radius:var(--rad);padding:12px;text-align:center">
+              <div style="font-size:11px;color:var(--txt2);font-weight:600">${days[date.getDay()]}</div>
+              <div style="font-size:20px;font-weight:700;margin:4px 0">${date.getDate()}</div>
+              <div style="font-size:11px;color:var(--txt2)">${months[date.getMonth()]}</div>
+              <div style="margin-top:8px;font-size:12px">
+                <span class="badge badge-success">${dailyClips} คลิป</span>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h3>⏰ Posting Schedule</h3></div>
+      <div style="font-size:13px">
+        ${(()=>{
+          const start = parseInt(auto.startTime||'09');
+          const end = parseInt(auto.endTime||'21');
+          const stagger = auto.stagger || 30;
+          const count = auto.clips || 15;
+          const hours = end - start;
+          const perHour = Math.ceil(count / hours);
+          return Array.from({length:hours}, (_,i) => {
+            const h = start + i;
+            return `<div style="display:flex;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
+              <span style="min-width:60px;font-weight:600">${h}:00</span>
+              <span style="color:var(--txt2)">${perHour} คลิป</span>
+              <span style="margin-left:12px;display:flex;gap:4px">
+                ${Array.from({length:perHour}, (_,j) =>
+                  `<span style="width:12px;height:12px;border-radius:3px;background:var(--b400)"></span>`
+                ).join('')}
+              </span>
+            </div>`;
+          }).join('');
+        })()}
+      </div>
+    </div>
+  `;
+}
+
+// ═══════════════════════════════════════════════
+// Strategy
+// ═══════════════════════════════════════════════
+async function renderStrategy() {
+  const [strategy, scout] = await Promise.all([
+    rawGet('/monitor/strategy').catch(()=>({strategy:{}})),
+    rawGet('/scout/trends').catch(()=>({trends:[]})),
+  ]);
+  const s = strategy.strategy || {};
+
+  pageContent.innerHTML = `
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header">
+          <h3>🧠 Content Strategy</h3>
+          <button class="btn btn-sm btn-ghost" onclick="resetStrategy()">Reset</button>
+        </div>
+        <div style="margin-bottom:12px">
+          <label class="toggle" style="margin-bottom:12px">
+            <input type="checkbox" id="stratAutoOptimize" ${s.autoOptimize!==false?'checked':''}>
+            <span class="toggle-slider"></span>
+            Auto-optimize
+          </label>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">
+          <div><strong>Hook:</strong> <span id="sHook">${s.hook_type||'problem'}</span></div>
+          <div><strong>Template:</strong> <span id="sTemplate">${s.preferred_template||'problem_solution'}</span></div>
+          <div><strong>Pacing:</strong> <span id="sPacing">${s.pacing||'fast'}</span></div>
+          <div><strong>Sound:</strong> <span id="sSound">${s.sound_vibe||'upbeat_excited'}</span></div>
+          <div><strong>Duration:</strong> ${s.target_duration_sec||28}s</div>
+          <div><strong>Version:</strong> ${s.version||1}</div>
+        </div>
+        <div style="margin-top:12px">
+          <button class="btn btn-sm" onclick="refreshStrategy()">🔄 Refresh</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3>📈 Recommendation</h3></div>
+        <div id="stratRecs">
+          <div style="font-size:13px;color:var(--txt2)">รัน Optimizer เพื่อรับคำแนะนำ</div>
+        </div>
+        <button class="btn btn-sm btn-primary" style="margin-top:12px" onclick="runOptimizerFromStrat()">▶️ Run Optimizer</button>
+      </div>
+    </div>
+  `;
+}
+
+async function refreshStrategy() {
+  const d = await rawGet('/monitor/strategy').catch(()=>({strategy:{}}));
+  const s = d.strategy || {};
+  ['Hook','Template','Pacing','Sound'].forEach(k => {
+    const el = document.getElementById('s'+k);
+    if (el) { el.textContent = s[{'Hook':'hook_type','Template':'preferred_template','Pacing':'pacing','Sound':'sound_vibe'}[k]] || '?'; }
+  });
+}
+
+async function runOptimizerFromStrat() {
+  const btn = event.target;
+  btn.disabled = true; btn.textContent = '⏳ ...';
+  const r = await rawPost('/monitor/optimize', {hours:168});
+  document.getElementById('stratRecs').innerHTML = (r.insights||['No insights']).map(i => `<div style="padding:6px 0;font-size:13px">${i}</div>`).join('');
+  await refreshStrategy();
+  btn.disabled = false; btn.textContent = '▶️ Run Optimizer';
+}
+
+async function resetStrategy() {
+  if (!confirm('Reset strategy to defaults?')) return;
+  await rawPost('/monitor/strategy/reset', {});
+  await refreshStrategy();
+  alert('✅ Reset complete');
+}
+
+// ═══════════════════════════════════════════════
+// Scout Trends
+// ═══════════════════════════════════════════════
+async function renderTrends() {
+  pageContent.innerHTML = `<div class="empty"><div class="spinner"></div></div>`;
+  const [trends, templates] = await Promise.all([
+    rawGet('/scout/trends').catch(()=>({trends:[]})),
+    rawGet('/scout/templates').catch(()=>({templates:[]})),
+  ]);
+
+  pageContent.innerHTML = `
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header"><h3>🔍 Trends</h3></div>
+        ${(trends.trends||[]).map(t => `
+          <div style="display:flex;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
+            <div style="flex:1">
+              <strong>${t.name}</strong>
+              <div style="font-size:12px;color:var(--txt2)">
+                ${t.avg_duration}s • ${t.pacing} • ${t.hook_types.join(', ')}
+              </div>
+              <div style="font-size:11px;color:var(--txt3);margin-top:2px">${t.sound_description||''}</div>
+            </div>
+            <span class="badge badge-neutral" style="font-size:11px">${Math.round(t.confidence*100)}%</span>
+          </div>
+        `).join('')}
+      </div>
+      <div class="card">
+        <div class="card-header"><h3>📝 Templates</h3></div>
+        ${(templates.templates||[]).map(t => `
+          <div style="display:flex;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
+            <div style="flex:1">
+              <strong>${t.name}</strong>
+              <div style="font-size:12px;color:var(--txt2)">${t.category} • ${t.parts_count} parts • ${t.total_duration_sec}s</div>
+            </div>
+            <button class="btn btn-sm btn-ghost" onclick="showPage('clone');setTimeout(()=>{
+              const sel=document.getElementById('cpTemplate');if(sel)sel.value='${t.id}';
+            },500)">ใช้</button>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+// ═══════════════════════════════════════════════
+// Init
+// ═══════════════════════════════════════════════
+showPage('dashboard');
+
+async function refreshAll() {
+  showPage(document.querySelector('.sb-item.active')?.dataset?.page || 'dashboard');
+}
+</script>
+</body>
+</html>

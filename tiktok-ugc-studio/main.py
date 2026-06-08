@@ -1723,3 +1723,29 @@ def stats():
         "version": "0.1.0",
         "prompts_loaded": True,
     }
+
+# ═══════════════════════════════════════════════════════════════════════
+# ERP Modular Registration (startup)
+# ═══════════════════════════════════════════════════════════════════════
+
+@app.on_event("startup")
+async def register_with_erp():
+    """Register this service with ERP Modular on startup."""
+    import httpx
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            resp = await client.post("http://localhost:8102/api/v1/modules/register", json={
+                "name": "TikTok UGC Studio",
+                "slug": "tiktok-ugc-studio",
+                "version": "0.2.0",
+                "endpoint": "http://localhost:8105",
+                "description": "AI UGC video pipeline + Scout + Monitor. "
+                               "Script gen, TTS, Fal.ai Wan I2V, FFmpeg compose, "
+                               "TikTok Scout (trends), Monitor Loop (optimization)",
+            })
+            if resp.status_code < 400:
+                logger.info("✅ Registered with ERP Modular")
+            else:
+                logger.warning(f"ERP registration returned {resp.status_code}")
+    except Exception as e:
+        logger.warning(f"ERP registration skipped: {e}")

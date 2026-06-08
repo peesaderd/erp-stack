@@ -155,15 +155,16 @@ select.input { cursor: pointer; }
 .grid-4 { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px,1fr)); gap: 12px; }
 
 /* Steps */
-.steps { display: flex; align-items: center; gap: 0; margin-bottom: 24px; }
-.step { display: flex; align-items: center; gap: 8px; }
-.step-num { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 600; background: var(--bg-tertiary); color: var(--text-secondary); flex-shrink: 0; }
+.steps { display: flex; align-items: center; gap: 0; margin-bottom: 20px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.steps::-webkit-scrollbar { display: none; }
+.step { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.step-num { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600; background: var(--bg-tertiary); color: var(--text-secondary); flex-shrink: 0; }
 .step.active .step-num { background: var(--brand); color: #fff; }
 .step.done .step-num { background: var(--color-green-500); color: #fff; }
-.step-label { font-size: 12px; color: var(--text-secondary); }
+.step-label { font-size: 11px; color: var(--text-secondary); white-space: nowrap; }
 .step.active .step-label { color: var(--text-primary); font-weight: 500; }
-.step-connector { width: 24px; height: 1px; background: var(--border-primary); margin: 0 8px; flex-shrink: 0; }
+.step-connector { width: 16px; height: 1px; background: var(--border-primary); margin: 0 4px; flex-shrink: 0; }
 
 /* Pipeline */
 .pipeline-card { background: var(--bg-secondary); border: 1px solid var(--border-primary); border-radius: var(--radius-lg); padding: 16px; margin-bottom: 10px; }
@@ -239,6 +240,38 @@ select.input { cursor: pointer; }
 .style-card:hover { border-color: var(--brand); }
 .style-card.selected { border-color: var(--brand); background: rgba(124,58,237,.05); }
 .style-card-emoji { font-size: 32px; margin-bottom: 8px; }
+
+/* Image upload zones */
+.upload-zone {
+  border: 2px dashed var(--border-primary); border-radius: var(--radius-lg);
+  padding: 24px 16px; text-align: center; cursor: pointer;
+  transition: all .2s; position: relative; min-height: 140px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.upload-zone:hover { border-color: var(--brand); background: rgba(124,58,237,.03); }
+.dark-mode .upload-zone:hover { background: rgba(139,92,246,.05); }
+.upload-zone.has-image { border-style: solid; padding: 8px; }
+.upload-zone .upload-label { font-size: 13px; font-weight: 500; color: var(--text-secondary); margin-top: 6px; }
+.upload-zone .upload-hint { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+.upload-zone .upload-icon { font-size: 28px; }
+.upload-zone img.preview { width: 100%; max-height: 160px; object-fit: contain; border-radius: var(--radius); }
+.upload-zone .remove-img {
+  position: absolute; top: 6px; right: 6px; width: 24px; height: 24px;
+  border-radius: 50%; border: none; background: rgba(0,0,0,.5); color: #fff;
+  font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.upload-zone .remove-img:hover { background: rgba(0,0,0,.7); }
+.upload-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+
+/* Aspect ratio chips — compact 1 row */
+.ratio-chips { display: flex; gap: 6px; flex-wrap: nowrap; }
+.ratio-chip {
+  padding: 4px 10px; border: 1px solid var(--border-primary); border-radius: var(--radius-sm);
+  font-size: 12px; cursor: pointer; transition: all .15s; background: transparent; color: var(--text-primary);
+  flex-shrink: 0; font-weight: 500;
+}
+.ratio-chip:hover { border-color: var(--brand); }
+.ratio-chip.selected { background: var(--brand); color: #fff; border-color: var(--brand); }
 .duration-chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .duration-chip { padding: 6px 14px; border: 1px solid var(--border-primary); border-radius: 9999px;
   font-size: 13px; cursor: pointer; transition: all .15s; background: transparent; color: var(--text-primary); }
@@ -251,14 +284,58 @@ select.input { cursor: pointer; }
 .toggle-thumb { width: 16px; height: 16px; border-radius: 50%; background: #fff; position: absolute; top: 2px; left: 2px; transition: all .2s; }
 .toggle-track.on .toggle-thumb { left: 18px; }
 
+/* ═══ Side slide-out nav ═══ */
+.side-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 60;
+  opacity: 0; transition: opacity .25s;
+}
+.side-overlay.open { display: block; opacity: 1; }
+
+.side-nav {
+  position: fixed; top: 0; left: 0; bottom: 0; width: min(280px, 80vw);
+  background: var(--bg-secondary); z-index: 70;
+  transform: translateX(-100%); transition: transform .25s cubic-bezier(.4,0,.2,1);
+  display: flex; flex-direction: column; border-right: 1px solid var(--border-primary);
+  box-shadow: var(--shadow-lg);
+}
+.side-nav.open { transform: translateX(0); }
+
+.side-nav-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 16px 12px; border-bottom: 1px solid var(--border-primary);
+}
+.side-nav-brand { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.side-nav-brand span { background: linear-gradient(135deg, var(--color-brand-500), var(--color-brand-300)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.side-nav-close {
+  width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+  border: none; background: transparent; color: var(--text-secondary); cursor: pointer;
+  font-size: 18px; border-radius: var(--radius);
+}
+.side-nav-close:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+
+.side-nav-body { flex: 1; overflow-y: auto; padding: 8px; }
+.side-nav-body button {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 10px 12px; font-size: 14px; font-weight: 500;
+  border: none; background: transparent; color: var(--text-secondary);
+  border-radius: var(--radius); cursor: pointer; transition: all .15s; text-align: left;
+}
+.side-nav-body button:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+.side-nav-body button.active { background: rgba(124,58,237,.12); color: var(--brand); }
+.dark-mode .side-nav-body button.active { background: rgba(139,92,246,.15); }
+
+.side-nav-footer {
+  padding: 12px 16px; border-top: 1px solid var(--border-primary);
+  display: flex; align-items: center; gap: 8px;
+}
+.side-nav-footer .status-dot { width: 6px; height: 6px; }
+.side-nav-footer .text-xs { color: var(--text-tertiary); }
+
 /* Responsive */
 @media (max-width: 768px) {
   .page { padding: 16px; }
   .topbar { padding: 0 12px; }
   .topbar-nav { display: none; }
-  .topbar-nav.show { display: flex; position: absolute; top: 56px; left: 0; right: 0; background: var(--bg-primary);
-    border-bottom: 1px solid var(--border-primary); padding: 8px; flex-direction: column; z-index: 50; }
-  .topbar-nav.show button { padding: 10px 14px; }
   .mobile-menu-btn { display: flex !important; }
   .grid-2, .grid-3 { grid-template-columns: 1fr; }
   .stats-grid { grid-template-columns: repeat(2,1fr); }
@@ -273,7 +350,7 @@ select.input { cursor: pointer; }
 
 <!-- Topbar -->
 <div class="topbar">
-  <button class="mobile-menu-btn" onclick="document.querySelector('.topbar-nav').classList.toggle('show')">☰</button>
+  <button class="mobile-menu-btn" onclick="toggleSideNav()">☰</button>
   <div class="topbar-brand">🎬 <span>TikTok Studio</span></div>
   <nav class="topbar-nav">
     <button class="active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 Dashboard</button>
@@ -286,6 +363,28 @@ select.input { cursor: pointer; }
   <div class="topbar-actions">
     <span class="status-dot online" id="connStatus" title="Connected"></span>
     <button class="btn btn-ghost btn-icon" onclick="refreshAll()" title="Refresh all">⟳</button>
+  </div>
+</div>
+
+<!-- Slide-out Nav + Overlay -->
+<div class="side-overlay" id="sideOverlay" onclick="toggleSideNav()"></div>
+<div class="side-nav" id="sideNav">
+  <div class="side-nav-header">
+    <div class="side-nav-brand">🎬 <span>TikTok Studio</span></div>
+    <button class="side-nav-close" onclick="toggleSideNav()">✕</button>
+  </div>
+  <div class="side-nav-body">
+    <button class="active" data-tab="dashboard" onclick="switchTab('dashboard');toggleSideNav()">📊 Dashboard</button>
+    <button data-tab="content" onclick="switchTab('content');toggleSideNav()">🎬 Content</button>
+    <button data-tab="pipeline" onclick="switchTab('pipeline');toggleSideNav()">📦 Pipeline</button>
+    <button data-tab="accounts" onclick="switchTab('accounts');toggleSideNav()">📱 Accounts</button>
+    <button data-tab="history" onclick="switchTab('history');toggleSideNav()">📋 History</button>
+    <button data-tab="settings" onclick="switchTab('settings');toggleSideNav()">⚙️ Settings</button>
+  </div>
+  <div class="side-nav-footer">
+    <span class="status-dot online" id="sideConnStatus"></span>
+    <span class="text-xs text-secondary">Connected</span>
+    <span class="ml-auto text-xs text-secondary" id="sideVersion">v1.0.0</span>
   </div>
 </div>
 
@@ -352,17 +451,60 @@ select.input { cursor: pointer; }
     <div class="step" data-step="4"><div class="step-num">4</div><span class="step-label">Generate</span></div>
   </div>
 
-  <!-- Step 1: Product -->
+  <!-- Step 1: Product (with Image Upload + Aspect Ratio) -->
   <div class="card step-content active" id="contentStep1">
     <div class="card-title mb-3">Product URL หรือป้อนข้อมูลสินค้า</div>
+
     <div class="mb-3">
       <label class="text-sm text-secondary mb-2" style="display:block">Product URL</label>
       <input class="input" id="productUrl" placeholder="https://shopee.co.th/... หรือ https://lazada.co.th/..." value="">
+    </div>
+
+    <!-- ═══ Image Upload Zone (Fal / WaveSpeed style) ═══ -->
+    <div class="mb-4">
+      <label class="text-sm text-secondary mb-2" style="display:block">รูปภาพประกอบ</label>
+      <div class="upload-grid">
+        <!-- Product Image -->
+        <div class="upload-zone" id="productImgZone" onclick="document.getElementById('productImgInput').click()">
+          <input type="file" id="productImgInput" accept="image/*" style="display:none" onchange="handleImageUpload(this, 'product')">
+          <div id="productImgPlaceholder">
+            <div class="upload-icon">📷</div>
+            <div class="upload-label">รูปสินค้า</div>
+            <div class="upload-hint">คลิกเพื่ออัปโหลด</div>
+          </div>
+        </div>
+        <!-- Model Reference -->
+        <div class="upload-zone" id="modelImgZone" onclick="document.getElementById('modelImgInput').click()">
+          <input type="file" id="modelImgInput" accept="image/*" style="display:none" onchange="handleImageUpload(this, 'model')">
+          <div id="modelImgPlaceholder">
+            <div class="upload-icon">🧑</div>
+            <div class="upload-label">รูป Model / คน</div>
+            <div class="upload-hint">(optional)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Aspect Ratio ═══ -->
+    <div class="mb-4">
+      <label class="text-sm text-secondary mb-2" style="display:block">สัดส่วนวิดีโอ</label>
+      <div class="ratio-chips">
+        <span class="ratio-chip selected" data-ratio="9:16" onclick="selectRatio(this,'9:16')">9:16</span>
+        <span class="ratio-chip" data-ratio="16:9" onclick="selectRatio(this,'16:9')">16:9</span>
+        <span class="ratio-chip" data-ratio="1:1" onclick="selectRatio(this,'1:1')">1:1</span>
+        <span class="ratio-chip" data-ratio="4:5" onclick="selectRatio(this,'4:5')">4:5</span>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label class="text-sm text-secondary mb-2" style="display:block">Product Title</label>
+      <input class="input" id="productTitle" placeholder="ชื่อสินค้า">
     </div>
     <div class="mb-3">
       <label class="text-sm text-secondary mb-2" style="display:block">หรือป้อนรายละเอียดสินค้า</label>
       <textarea class="input" id="manualScript" placeholder="ชื่อสินค้า, ราคา, จุดเด่น..."></textarea>
     </div>
+
     <div class="mb-4">
       <label class="text-sm text-secondary mb-2" style="display:block">UGC Style</label>
       <select class="input" id="ugcStyle"><option value="holding">Holding Product</option><option value="usage">Product Usage</option><option value="review">UGC Review</option><option value="talking">Talking Head</option></select>
@@ -444,10 +586,6 @@ select.input { cursor: pointer; }
       <div class="mb-3">
         <label class="text-sm text-secondary mb-2" style="display:block">Negative Prompt</label>
         <textarea class="input" id="negativePrompt" placeholder="สิ่งที่ไม่อยากให้เกิดในวิดีโอ เช่น poor quality, blurry..." rows="3"></textarea>
-      </div>
-      <div class="mb-3">
-        <label class="text-sm text-secondary mb-2" style="display:block">Face Reference Image (optional)</label>
-        <input class="input" id="faceRef" type="file" accept="image/*">
       </div>
     </div>
 
@@ -563,10 +701,9 @@ let currentStep = 1;
 /* ═══ Tab switching ═══ */
 function switchTab(name) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.topbar-nav button').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.topbar-nav button, .side-nav-body button').forEach(b => b.classList.remove('active'));
   document.getElementById('page-'+name)?.classList.add('active');
-  document.querySelector(`[data-tab="${name}"]`)?.classList.add('active');
-  document.querySelector('.topbar-nav')?.classList.remove('show');
+  document.querySelectorAll(`[data-tab="${name}"]`).forEach(b => b.classList.add('active'));
   if (name === 'dashboard') loadRecentJobs();
   if (name === 'pipeline') loadPipeline();
   if (name === 'accounts') loadAccounts();
@@ -624,8 +761,10 @@ async function generateScript() {
 
   showToast('Generating script...','info');
   try {
+    const title = document.getElementById('productTitle').value.trim();
     const body = { ugc_style: style };
     if (url) body.product_url = url;
+    if (title) body.product_title = title;
     if (manual) body.product_name = manual;
 
     const res = await fetch(API + '/scripts/generate', {
@@ -656,6 +795,55 @@ function selectDuration(el, dur) {
   sessionStorage.setItem('selectedDuration', dur);
 }
 
+/* ═══ Image Upload Handlers ═══ */
+let uploadedImages = {}; // { product: dataUrl, model: dataUrl }
+
+function handleImageUpload(input, type) {
+  const file = input.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { showToast('เลือกไฟล์รูปภาพเท่านั้น','error'); return; }
+  // Max 10MB
+  if (file.size > 10 * 1024 * 1024) { showToast('รูปต้องไม่เกิน 10MB','error'); return; }
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const dataUrl = e.target.result;
+    uploadedImages[type] = dataUrl;
+
+    const zone = document.getElementById(type + 'ImgZone');
+    const placeholder = document.getElementById(type + 'ImgPlaceholder');
+    zone.classList.add('has-image');
+
+    // Replace placeholder with preview + remove button
+    placeholder.innerHTML = '' +
+      '<img class="preview" src="' + dataUrl + '" alt="' + type + '">' +
+      '<button class="remove-img" onclick="event.stopPropagation();removeImage(\'' + type + '\')">✕</button>';
+
+    showToast('อัปโหลด ' + (type === 'product' ? 'รูปสินค้า' : 'รูป Model') + ' แล้ว','success');
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeImage(type) {
+  delete uploadedImages[type];
+  const zone = document.getElementById(type + 'ImgZone');
+  const placeholder = document.getElementById(type + 'ImgPlaceholder');
+  zone.classList.remove('has-image');
+  placeholder.innerHTML = '' +
+    '<div class="upload-icon">' + (type === 'product' ? '📷' : '🧑') + '</div>' +
+    '<div class="upload-label">' + (type === 'product' ? 'รูปสินค้า' : 'รูป Model / คน') + '</div>' +
+    '<div class="upload-hint">' + (type === 'product' ? 'คลิกเพื่ออัปโหลด' : '(optional)') + '</div>';
+  // Reset file input
+  const input = document.getElementById(type + 'ImgInput');
+  if (input) input.value = '';
+}
+
+function selectRatio(el, ratio) {
+  document.querySelectorAll('.ratio-chip').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  sessionStorage.setItem('aspectRatio', ratio);
+}
+
 function toggleAdvanced() {
   const t = document.getElementById('advancedToggle');
   const s = document.getElementById('advancedSection');
@@ -682,9 +870,14 @@ async function startGeneration() {
       provider: document.getElementById('videoProvider').value,
       duration: parseInt(sessionStorage.getItem('selectedDuration') || '8'),
       ugc_style: sessionStorage.getItem('selectedStyle') || 'holding',
+      aspect_ratio: sessionStorage.getItem('aspectRatio') || '9:16',
       negative_prompt: document.getElementById('negativePrompt').value || null,
     };
+    const title = document.getElementById('productTitle').value.trim();
+    if (title) body.product_title = title;
     if (document.getElementById('productUrl').value) body.product_url = document.getElementById('productUrl').value;
+    if (uploadedImages.product) body.product_image = uploadedImages.product;
+    if (uploadedImages.model) body.model_image = uploadedImages.model;
 
     const res = await fetch(API + '/video/generate', {
       method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
@@ -884,6 +1077,15 @@ async function loadProviders() {
   } catch(e) { el.innerHTML = '<div class="text-sm text-secondary">Failed to load providers</div>'; }
 }
 
+/* ═══ Side Nav Toggle ═══ */
+function toggleSideNav() {
+  const nav = document.getElementById('sideNav');
+  const overlay = document.getElementById('sideOverlay');
+  nav.classList.toggle('open');
+  overlay.classList.toggle('open');
+  document.body.style.overflow = nav.classList.contains('open') ? 'hidden' : '';
+}
+
 /* ═══ Refresh All ═══ */
 function refreshAll() {
   loadRecentJobs(); loadPipeline(); loadAccounts(); loadHistory();
@@ -899,8 +1101,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Set connection status
   fetch(API + '/health').then(r => {
-    if (r.ok) document.getElementById('connStatus').className = 'status-dot online';
-  }).catch(() => document.getElementById('connStatus').className = 'status-dot offline');
+    if (r.ok) { document.getElementById('connStatus').className = 'status-dot online'; document.getElementById('sideConnStatus').className = 'status-dot online'; }
+  }).catch(() => { document.getElementById('connStatus').className = 'status-dot offline'; document.getElementById('sideConnStatus').className = 'status-dot offline'; });
+
+  // Init default aspect ratio
+  sessionStorage.setItem('aspectRatio', '9:16');
 
   // Initial loads
   loadRecentJobs(); loadAccounts(); populateAccountSelect(); loadProviders();

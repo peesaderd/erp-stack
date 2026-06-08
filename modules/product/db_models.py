@@ -111,6 +111,44 @@ class CreditUsage(Base):
 
 
 # ──────────────────────────────────────────────
+# Price History
+# ──────────────────────────────────────────────
+
+class PriceHistory(Base):
+    """Track price changes over time for scraped products."""
+    __tablename__ = "scrape_price_history"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    product_id = Column(String, ForeignKey("scraped_products.id"), nullable=False, index=True)
+    url_hash = Column(String(16), index=True)
+    url = Column(Text, default="")
+    price = Column(Float, nullable=True)
+    currency = Column(String(3), default="THB")
+    source_site = Column(String(50), default="")
+    recorded_at = Column(DateTime(timezone=True), default=_utcnow)
+
+
+# ──────────────────────────────────────────────
+# Scheduled Scrapes
+# ──────────────────────────────────────────────
+
+class ScheduledScrape(Base):
+    """Recurring scrape jobs (cron-like)."""
+    __tablename__ = "scrape_scheduled_jobs"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    user_id = Column(String, nullable=False, index=True)
+    name = Column(String(100), default="")
+    urls = Column(JSON, default=list)
+    schedule = Column(String(50), default="daily")  # hourly, daily, weekly, monthly
+    next_run = Column(DateTime(timezone=True), nullable=True)
+    last_run = Column(DateTime(timezone=True), nullable=True)
+    status = Column(String(20), default="active")  # active, paused, completed
+    export_to_pipeline = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), default=_utcnow)
+
+
+# ──────────────────────────────────────────────
 # Pricing Tiers
 # ──────────────────────────────────────────────
 
@@ -168,3 +206,9 @@ def calculate_scrape_cost(user_tier: str, current_month_usage: int) -> float:
     if current_month_usage < cfg["scrapes_per_month"]:
         return 0.0  # within free quota
     return cfg["cost_per_scrape"]
+
+
+# ──────────────────────────────────────────────
+# Price History
+# ──────────────────────────────────────────────
+

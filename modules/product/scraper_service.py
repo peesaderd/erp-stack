@@ -9,9 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from shared.database import async_session_factory
 from product.db_models import (
     ApiKey, ScrapedProduct, ScrapeLog, CreditUsage,
+    PriceHistory, ScheduledScrape,
     SCRAPE_TIERS, get_tier_config, calculate_scrape_cost,
     _hash_url, _uuid,
 )
+from product.models import ProductCategory
+import httpx
 from product.scraper import scrape_url as _scrape_url
 
 logger = logging.getLogger("product_scraper_service")
@@ -22,8 +25,34 @@ CACHE_DURATION = timedelta(hours=24)  # default cache TTL
 COST_PER_SCRAPE = 1.0  # THB per scrape default
 
 
+# ─── Category Detection ────────────────────────────────────────────
+
+PRODUCT_CATEGORIES = {
+    "อิเล็กทรอนิกส์": ["phone", "charger", "cable", "earphone", "speaker", "power bank"],
+    "แฟชั่น": ["shirt", "dress", "bag", "shoe", "watch", "jewelry"],
+    "บ้าน": ["furniture", "lamp", "cushion", "curtain", "towel"],
+    "ความงาม": ["cream", "serum", "makeup", "lipstick", "perfume", "skincare"],
+    "อาหาร": ["snack", "drink", "coffee", "tea", "supplement", "protein"],
+    "กีฬา": ["gym", "yoga", "running", "bike", "fitness"],
+    "สัตว์เลี้ยง": ["dog", "cat", "pet", "food", "toy"],
+    "เด็ก": ["baby", "toy", "stroller", "diaper", "crib"],
+}
+
 # ═══════════════════════════════════════════════════════════════════════════
 # API Key Management
+# ─── Category Detection ────────────────────────────────────────────
+
+PRODUCT_CATEGORIES = {
+    "อิเล็กทรอนิกส์": ["phone", "charger", "cable", "earphone", "speaker", "power bank"],
+    "แฟชั่น": ["shirt", "dress", "bag", "shoe", "watch", "jewelry"],
+    "บ้าน": ["furniture", "lamp", "cushion", "curtain", "towel"],
+    "ความงาม": ["cream", "serum", "makeup", "lipstick", "perfume", "skincare"],
+    "อาหาร": ["snack", "drink", "coffee", "tea", "supplement", "protein"],
+    "กีฬา": ["gym", "yoga", "running", "bike", "fitness"],
+    "สัตว์เลี้ยง": ["dog", "cat", "pet", "food", "toy"],
+    "เด็ก": ["baby", "toy", "stroller", "diaper", "crib"],
+}
+
 # ═══════════════════════════════════════════════════════════════════════════
 
 async def create_api_key(user_id: str, name: str = "API Key") -> dict:
@@ -144,8 +173,34 @@ async def revoke_api_key(key_id: str, user_id: str) -> bool:
         return True
 
 
+# ─── Category Detection ────────────────────────────────────────────
+
+PRODUCT_CATEGORIES = {
+    "อิเล็กทรอนิกส์": ["phone", "charger", "cable", "earphone", "speaker", "power bank"],
+    "แฟชั่น": ["shirt", "dress", "bag", "shoe", "watch", "jewelry"],
+    "บ้าน": ["furniture", "lamp", "cushion", "curtain", "towel"],
+    "ความงาม": ["cream", "serum", "makeup", "lipstick", "perfume", "skincare"],
+    "อาหาร": ["snack", "drink", "coffee", "tea", "supplement", "protein"],
+    "กีฬา": ["gym", "yoga", "running", "bike", "fitness"],
+    "สัตว์เลี้ยง": ["dog", "cat", "pet", "food", "toy"],
+    "เด็ก": ["baby", "toy", "stroller", "diaper", "crib"],
+}
+
 # ═══════════════════════════════════════════════════════════════════════════
 # Caching
+# ─── Category Detection ────────────────────────────────────────────
+
+PRODUCT_CATEGORIES = {
+    "อิเล็กทรอนิกส์": ["phone", "charger", "cable", "earphone", "speaker", "power bank"],
+    "แฟชั่น": ["shirt", "dress", "bag", "shoe", "watch", "jewelry"],
+    "บ้าน": ["furniture", "lamp", "cushion", "curtain", "towel"],
+    "ความงาม": ["cream", "serum", "makeup", "lipstick", "perfume", "skincare"],
+    "อาหาร": ["snack", "drink", "coffee", "tea", "supplement", "protein"],
+    "กีฬา": ["gym", "yoga", "running", "bike", "fitness"],
+    "สัตว์เลี้ยง": ["dog", "cat", "pet", "food", "toy"],
+    "เด็ก": ["baby", "toy", "stroller", "diaper", "crib"],
+}
+
 # ═══════════════════════════════════════════════════════════════════════════
 
 async def get_cached_product(url: str) -> Optional[Dict]:
@@ -183,6 +238,7 @@ async def cache_product(url: str, data: Dict, tier: str = "free") -> str:
 
         if existing:
             # Update existing
+            old_price = existing.price
             existing.name = data.get("name") or existing.name
             existing.price = data.get("price") or existing.price
             existing.images = images or existing.images
@@ -193,6 +249,17 @@ async def cache_product(url: str, data: Dict, tier: str = "free") -> str:
             existing.method = data.get("method") or existing.method
             existing.expires_at = expires_at
             existing.scraped_at = datetime.now(timezone.utc)
+            new_price = existing.price
+            if old_price != new_price and new_price is not None:
+                ph = PriceHistory(
+                    product_id=existing.id,
+                    url_hash=url_hash,
+                    url=url,
+                    price=new_price,
+                    currency=data.get("currency", "THB"),
+                    source_site=data.get("source_site", ""),
+                )
+                session.add(ph)
             await session.commit()
             return existing.id
         else:
@@ -235,8 +302,34 @@ def _product_to_dict(p: ScrapedProduct) -> Dict:
     }
 
 
+# ─── Category Detection ────────────────────────────────────────────
+
+PRODUCT_CATEGORIES = {
+    "อิเล็กทรอนิกส์": ["phone", "charger", "cable", "earphone", "speaker", "power bank"],
+    "แฟชั่น": ["shirt", "dress", "bag", "shoe", "watch", "jewelry"],
+    "บ้าน": ["furniture", "lamp", "cushion", "curtain", "towel"],
+    "ความงาม": ["cream", "serum", "makeup", "lipstick", "perfume", "skincare"],
+    "อาหาร": ["snack", "drink", "coffee", "tea", "supplement", "protein"],
+    "กีฬา": ["gym", "yoga", "running", "bike", "fitness"],
+    "สัตว์เลี้ยง": ["dog", "cat", "pet", "food", "toy"],
+    "เด็ก": ["baby", "toy", "stroller", "diaper", "crib"],
+}
+
 # ═══════════════════════════════════════════════════════════════════════════
 # Usage & Billing
+# ─── Category Detection ────────────────────────────────────────────
+
+PRODUCT_CATEGORIES = {
+    "อิเล็กทรอนิกส์": ["phone", "charger", "cable", "earphone", "speaker", "power bank"],
+    "แฟชั่น": ["shirt", "dress", "bag", "shoe", "watch", "jewelry"],
+    "บ้าน": ["furniture", "lamp", "cushion", "curtain", "towel"],
+    "ความงาม": ["cream", "serum", "makeup", "lipstick", "perfume", "skincare"],
+    "อาหาร": ["snack", "drink", "coffee", "tea", "supplement", "protein"],
+    "กีฬา": ["gym", "yoga", "running", "bike", "fitness"],
+    "สัตว์เลี้ยง": ["dog", "cat", "pet", "food", "toy"],
+    "เด็ก": ["baby", "toy", "stroller", "diaper", "crib"],
+}
+
 # ═══════════════════════════════════════════════════════════════════════════
 
 async def log_scrape(
@@ -341,8 +434,207 @@ async def get_user_usage(user_id: str) -> Dict:
         }
 
 
+# ─── Category Detection ────────────────────────────────────────────
+
+PRODUCT_CATEGORIES = {
+    "อิเล็กทรอนิกส์": ["phone", "charger", "cable", "earphone", "speaker", "power bank"],
+    "แฟชั่น": ["shirt", "dress", "bag", "shoe", "watch", "jewelry"],
+    "บ้าน": ["furniture", "lamp", "cushion", "curtain", "towel"],
+    "ความงาม": ["cream", "serum", "makeup", "lipstick", "perfume", "skincare"],
+    "อาหาร": ["snack", "drink", "coffee", "tea", "supplement", "protein"],
+    "กีฬา": ["gym", "yoga", "running", "bike", "fitness"],
+    "สัตว์เลี้ยง": ["dog", "cat", "pet", "food", "toy"],
+    "เด็ก": ["baby", "toy", "stroller", "diaper", "crib"],
+}
+
+# ──────────────────────────────────────────────
+# Export to TikTok Pipeline
+# ──────────────────────────────────────────────
+
+async def export_to_pipeline(product_ids: List[str], hook: str = "", cta: str = "", duration: int = 10) -> List[dict]:
+    """Export scraped products to TikTok UGC pipeline."""
+    if not product_ids:
+        return []
+    async with async_session_factory() as session:
+        from sqlalchemy import select
+        from product.db_models import ScrapedProduct
+        result = await session.execute(
+            select(ScrapedProduct).where(ScrapedProduct.id.in_(product_ids))
+        )
+        products = result.scalars().all()
+    jobs = []
+    async with httpx.AsyncClient(timeout=30) as client:
+        for prod in products:
+            payload = {
+                "product_title": prod.name or "",
+                "product_url": prod.url or "",
+                "product_desc": prod.description or "",
+                "hook": hook or "",
+                "cta": cta or "See link in bio",
+                "duration": duration,
+            }
+            try:
+                resp = await client.post("http://localhost:8105/pipeline/run", json=payload)
+                if resp.status_code < 400:
+                    data = resp.json()
+                    jobs.append(data)
+                else:
+                    logger.warning(f"Pipeline returned {resp.status_code} for product {prod.id}")
+            except Exception as e:
+                logger.error(f"Pipeline call failed: {e}")
+    return jobs
+
+
+# ──────────────────────────────────────────────
+# Scheduled Scrape Management
+# ──────────────────────────────────────────────
+
+async def create_scheduled_scrape(user_id: str, name: str, urls: List[str], schedule: str, export_to_pipeline: bool) -> dict:
+    """Create a recurring scrape job."""
+    from datetime import timedelta
+    now = datetime.now(timezone.utc)
+    if schedule == "hourly":
+        next_run = now + timedelta(hours=1)
+    elif schedule == "daily":
+        next_run = now + timedelta(days=1)
+    elif schedule == "weekly":
+        next_run = now + timedelta(weeks=1)
+    elif schedule == "monthly":
+        next_run = now + timedelta(days=30)
+    else:
+        next_run = now + timedelta(days=1)
+    job = ScheduledScrape(
+        user_id=user_id,
+        name=name,
+        urls=urls,
+        schedule=schedule,
+        next_run=next_run,
+        status="active",
+        export_to_pipeline=export_to_pipeline,
+    )
+    async with async_session_factory() as session:
+        session.add(job)
+        await session.commit()
+        return {
+            "success": True,
+            "id": job.id,
+            "name": job.name,
+            "urls": job.urls,
+            "schedule": job.schedule,
+            "status": job.status,
+            "next_run": job.next_run.isoformat() if job.next_run else None,
+            "last_run": job.last_run.isoformat() if job.last_run else None,
+        }
+
+
+async def list_scheduled_scrapes(user_id: str) -> List[dict]:
+    """List all scheduled scrapes for a user."""
+    async with async_session_factory() as session:
+        result = await session.execute(
+            select(ScheduledScrape)
+            .where(ScheduledScrape.user_id == user_id)
+            .order_by(ScheduledScrape.created_at.desc())
+        )
+        jobs = result.scalars().all()
+        return [
+            {
+                "success": True,
+                "id": j.id,
+                "name": j.name,
+                "urls": j.urls,
+                "schedule": j.schedule,
+                "status": j.status,
+                "next_run": j.next_run.isoformat() if j.next_run else None,
+                "last_run": j.last_run.isoformat() if j.last_run else None,
+            }
+            for j in jobs
+        ]
+
+
+async def delete_scheduled_scrape(job_id: str, user_id: str) -> bool:
+    """Delete a scheduled scrape job."""
+    async with async_session_factory() as session:
+        result = await session.execute(
+            select(ScheduledScrape).where(
+                ScheduledScrape.id == job_id,
+                ScheduledScrape.user_id == user_id,
+            )
+        )
+        job = result.scalar_one_or_none()
+        if not job:
+            return False
+        await session.delete(job)
+        await session.commit()
+        return True
+
+
+async def run_scheduled_scrape(job_id: str) -> None:
+    """Execute a scheduled scrape job: scrape all URLs and optionally export to pipeline."""
+    async with async_session_factory() as session:
+        result = await session.execute(
+            select(ScheduledScrape).where(ScheduledScrape.id == job_id)
+        )
+        job = result.scalar_one_or_none()
+        if not job:
+            return
+        urls = job.urls or []
+        for url in urls:
+            try:
+                scrape_result = await scrape_with_tracking(
+                    url=url,
+                    user_id=job.user_id,
+                    api_key_id=None,
+                    use_vision=True,
+                    proxy_url=None,
+                    rotate_proxy=True,
+                    user_tier="free",
+                    ip_address="scheduler",
+                )
+                if not scrape_result["success"]:
+                    logger.warning(f"Scheduled scrape failed for {url}")
+            except Exception as e:
+                logger.error(f"Scheduled scrape error for {url}: {e}")
+        if job.export_to_pipeline:
+            try:
+                await export_to_pipeline(product_ids=[], hook="", cta="", duration=10)
+            except Exception as e:
+                logger.error(f"Export to pipeline failed for job {job_id}: {e}")
+
+
+# ──────────────────────────────────────────────
+# Category Detection
+# ──────────────────────────────────────────────
+
+def detect_category(product_name: str, description: str = "") -> ProductCategory:
+    """Detect product category from name + description using keyword matching."""
+    text = (product_name + " " + description).lower()
+    best_category = None
+    best_score = 0
+    for category, keywords in PRODUCT_CATEGORIES.items():
+        score = sum(1 for kw in keywords if kw in text)
+        if score > best_score:
+            best_score = score
+            best_category = category
+    if best_category:
+        return ProductCategory(category=best_category, confidence=min(1.0, best_score / 5.0))
+    return ProductCategory(category="ทั่วไป", confidence=0.0)
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # Main Scrape Orchestrator
+# ─── Category Detection ────────────────────────────────────────────
+
+PRODUCT_CATEGORIES = {
+    "อิเล็กทรอนิกส์": ["phone", "charger", "cable", "earphone", "speaker", "power bank"],
+    "แฟชั่น": ["shirt", "dress", "bag", "shoe", "watch", "jewelry"],
+    "บ้าน": ["furniture", "lamp", "cushion", "curtain", "towel"],
+    "ความงาม": ["cream", "serum", "makeup", "lipstick", "perfume", "skincare"],
+    "อาหาร": ["snack", "drink", "coffee", "tea", "supplement", "protein"],
+    "กีฬา": ["gym", "yoga", "running", "bike", "fitness"],
+    "สัตว์เลี้ยง": ["dog", "cat", "pet", "food", "toy"],
+    "เด็ก": ["baby", "toy", "stroller", "diaper", "crib"],
+}
+
 # ═══════════════════════════════════════════════════════════════════════════
 
 async def scrape_with_tracking(

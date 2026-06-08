@@ -4,6 +4,9 @@ Includes: API key auth, caching, usage tracking, per-user billing."""
 import os, json, logging, sys, re, secrets
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
+import uuid
+import asyncio
+import httpx
 
 from fastapi import FastAPI, HTTPException, Header, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,7 +20,12 @@ if _modules_dir not in sys.path:
     sys.path.insert(0, _modules_dir)
 
 from shared.database import Base, engine, async_session_factory, init_db
-from product.models import ScrapeRequest, ScrapeResponse, ProductData
+from product.models import (
+    ScrapeRequest, ScrapeResponse, ProductData,
+    BatchScrapeItem, BatchScrapeRequest, BatchScrapeResponse,
+    ExportToPipelineRequest, ExportToPipelineResponse,
+    ScheduledScrapeCreate, ScheduledScrapeResponse,
+)
 from product.scraper import scrape_url, _try_http_extract
 from product.analyzer import analyze_with_vision
 from product.db_models import SCRAPE_TIERS, get_tier_config
@@ -28,7 +36,10 @@ from product.scraper_service import (
     create_api_key, validate_api_key, list_api_keys, revoke_api_key,
     get_cached_product, cache_product,
     log_scrape, get_user_usage, scrape_with_tracking,
+    export_to_pipeline, create_scheduled_scrape, list_scheduled_scrapes,
+    delete_scheduled_scrape, run_scheduled_scrape,
 )
+from product.scheduler import start_scheduler
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("product_service")
@@ -118,7 +129,7 @@ async def lifespan(app: FastAPI):
     try:
         async with engine.begin() as conn:
             # Also create scraper-specific tables
-            from product.db_models import ApiKey, ScrapedProduct, ScrapeLog, CreditUsage
+            from product.db_models import ApiKey, ScrapedProduct, ScrapeLog, CreditUsage, PriceHistory, ScheduledScrape
             await conn.run_sync(Base.metadata.create_all)
         logger.info("Database tables ready")
     except Exception as e:
@@ -138,6 +149,10 @@ async def lifespan(app: FastAPI):
             logger.info("Registered with ERP Modular")
     except Exception as e:
         logger.warning(f"ERP registration skipped: {e}")
+
+    # Start background scheduler
+    scheduler_task = asyncio.create_task(start_scheduler())
+    logger.info("Background scheduler started")
 
     yield
 
@@ -451,6 +466,159 @@ async def get_usage(
         cost_per_extra=tier_cfg["cost_per_scrape"],
         recent_logs=usage.get("recent_logs", []),
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Batch Scrape
+# ═══════════════════════════════════════════════════════════════════════
+
+@app.post("/api/v1/scrape/batch", response_model=BatchScrapeResponse)
+async def batch_scrape(
+    req: BatchScrapeRequest,
+    authorization: Optional[str] = Header(None),
+    x_api_key: Optional[str] = Header(None),
+    x_user_id: Optional[str] = Header(None),
+    x_forwarded_for: Optional[str] = Header(None),
+):
+    """Scrape multiple product URLs concurrently."""
+    auth = await _resolve_auth(authorization, x_api_key)
+    user_id = x_user_id or auth["user_id"]
+    ip = x_forwarded_for or "127.0.0.1"
+
+    sem = asyncio.Semaphore(req.max_concurrent)
+
+    async def scrape_one(item: BatchScrapeItem) -> dict:
+        async with sem:
+            result = await scrape_with_tracking(
+                url=item.url,
+                user_id=user_id,
+                api_key_id=auth.get("api_key_id"),
+                use_vision=item.use_vision,
+                proxy_url=None,
+                rotate_proxy=True,
+                user_tier=auth["tier"],
+                ip_address=ip,
+            )
+            product = result.get("product")
+            product_obj = None
+            if product and isinstance(product, dict):
+                product_obj = {
+                    "name": product.get("name"),
+                    "price": product.get("price"),
+                    "currency": product.get("currency", "THB"),
+                    "images": product.get("images", []),
+                    "description": product.get("description"),
+                    "sku": product.get("sku"),
+                    "brand": product.get("brand"),
+                    "source_url": product.get("source_url", item.url),
+                    "source_site": product.get("source_site", ""),
+                }
+            return {
+                "success": result["success"],
+                "method": result.get("method", "failed"),
+                "product": product_obj,
+                "cost": result.get("cost", 0.0),
+                "cached": result.get("cached", False),
+                "remaining_quota": None,
+                "error": result.get("error"),
+            }
+
+    tasks = [scrape_one(item) for item in req.items]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    final_results = []
+    for r in results:
+        if isinstance(r, Exception):
+            final_results.append({
+                "success": False,
+                "method": "failed",
+                "product": None,
+                "cost": 0.0,
+                "cached": False,
+                "remaining_quota": None,
+                "error": str(r),
+            })
+        else:
+            final_results.append(r)
+
+    return BatchScrapeResponse(
+        success=True,
+        batch_id=str(uuid.uuid4()),
+        total=len(req.items),
+        completed=len(final_results),
+        results=final_results,
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Export to TikTok Pipeline
+# ═══════════════════════════════════════════════════════════════════════
+
+@app.post("/api/v1/export/pipeline", response_model=ExportToPipelineResponse)
+async def export_pipeline(
+    req: ExportToPipelineRequest,
+    x_user_id: Optional[str] = Header(None),
+):
+    """Export scraped products to TikTok UGC ad pipeline."""
+    user_id = x_user_id or "anonymous"
+    product_ids = req.product_ids
+    if not product_ids:
+        async with async_session_factory() as session:
+            from sqlalchemy import select, desc
+            from product.db_models import ScrapeLog
+
+            log_query = (
+                select(ScrapeLog.product_id)
+                .where(ScrapeLog.user_id == user_id)
+                .where(ScrapeLog.product_id.isnot(None))
+                .order_by(desc(ScrapeLog.created_at))
+                .limit(req.limit)
+            )
+            result = await session.execute(log_query)
+            product_ids = [row[0] for row in result.fetchall() if row[0]]
+
+    if not product_ids:
+        return ExportToPipelineResponse(success=False, error="No products to export.")
+
+    jobs = await export_to_pipeline(product_ids, hook=req.hook or "", cta=req.cta or "", duration=req.duration)
+    return ExportToPipelineResponse(success=True, jobs=jobs)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Scheduled Scrapes (CRUD)
+# ═══════════════════════════════════════════════════════════════════════
+
+@app.post("/api/v1/scrape/schedule", response_model=ScheduledScrapeResponse)
+async def create_scheduled_scrape_route(
+    req: ScheduledScrapeCreate,
+    x_user_id: Optional[str] = Header(None),
+):
+    """Create a recurring scrape job."""
+    user_id = x_user_id or "anonymous"
+    result = await create_scheduled_scrape(user_id, req.name, req.urls, req.schedule, req.export_to_pipeline)
+    return ScheduledScrapeResponse(**result)
+
+
+@app.get("/api/v1/scrape/schedules", response_model=List[ScheduledScrapeResponse])
+async def list_scheduled_scrapes_route(
+    x_user_id: Optional[str] = Header(None),
+):
+    """List all scheduled scrape jobs for the user."""
+    user_id = x_user_id or "anonymous"
+    schedules = await list_scheduled_scrapes(user_id)
+    return [ScheduledScrapeResponse(**s) for s in schedules]
+
+
+@app.delete("/api/v1/scrape/schedule/{job_id}", response_model=dict)
+async def delete_scheduled_scrape_route(
+    job_id: str,
+    x_user_id: Optional[str] = Header(None),
+):
+    """Delete a scheduled scrape job."""
+    user_id = x_user_id or "anonymous"
+    ok = await delete_scheduled_scrape(job_id, user_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return {"success": True}
 
 
 # ═══════════════════════════════════════════════════════════════════════

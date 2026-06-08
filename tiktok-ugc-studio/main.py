@@ -534,6 +534,146 @@ async def scout_extract(req: dict):
     return {"success": True, **result}
 
 
+# ─── Monitor Loop ─────────────────────────────────────────────────────────────
+
+from monitor.tracker import (
+    get_published_videos, record_analytics, get_video_analytics,
+    compute_performance_summary,
+)
+from monitor.optimizer import (
+    get_strategy, reset_strategy, update_strategy,
+    analyze_and_optimize,
+)
+
+
+@app.get("/monitor/performance")
+async def monitor_performance(
+    account_id: str = "",
+    hours: int = 168,
+):
+    """Get video performance summary over a time window."""
+    summary = await compute_performance_summary(
+        account_id=account_id,
+        hours=hours,
+    )
+    return {"success": True, **summary}
+
+
+@app.get("/monitor/videos")
+async def monitor_videos(
+    account_id: str = "",
+    limit: int = 50,
+):
+    """Get published videos with their performance data."""
+    videos = await get_video_analytics(account_id=account_id, limit=limit)
+    return {"success": True, "videos": videos, "total": len(videos)}
+
+
+@app.post("/monitor/analytics/record")
+async def monitor_record_analytics(req: dict):
+    """Record analytics data for a video."""
+    await record_analytics(req)
+    return {"success": True}
+
+
+@app.get("/monitor/strategy")
+async def monitor_get_strategy():
+    """Get current content optimization strategy."""
+    strategy = await get_strategy()
+    return {"success": True, "strategy": strategy}
+
+
+@app.post("/monitor/strategy/update")
+async def monitor_update_strategy(req: dict):
+    """Update content strategy parameters."""
+    strategy = await update_strategy(req)
+    return {"success": True, "strategy": strategy}
+
+
+@app.post("/monitor/strategy/reset")
+async def monitor_reset_strategy():
+    """Reset strategy to defaults."""
+    strategy = await reset_strategy()
+    return {"success": True, "strategy": strategy}
+
+
+@app.post("/monitor/optimize")
+async def monitor_run_optimizer(req: dict):
+    """Run full optimization loop — analyze performance & update strategy."""
+    performance_data = req.get("performance_data", {})
+
+    # If no performance data provided, compute from recent analytics
+    if not performance_data:
+        summary = await compute_performance_summary(
+            account_id=req.get("account_id", ""),
+            hours=req.get("hours", 168),
+        )
+        videos = await get_video_analytics(
+            account_id=req.get("account_id", ""),
+            hours=req.get("hours", 168),
+        )
+
+        # Build structured performance data
+        category_perf = {}
+        hooks_perf = {}
+        hourly_perf = {}
+        tpl_perf = {}
+
+        for v in videos:
+            cat = v.get("category", "unknown")
+            if cat not in category_perf:
+                category_perf[cat] = {"count": 0, "avg_views": 0, "total_views": 0}
+            category_perf[cat]["count"] += 1
+            category_perf[cat]["total_views"] += v.get("views", 0)
+
+            hook = v.get("hook_type", "unknown")
+            if hook not in hooks_perf:
+                hooks_perf[hook] = {"count": 0, "avg_views": 0}
+            hooks_perf[hook]["count"] += 1
+            hooks_perf[hook]["avg_views"] = (
+                hooks_perf[hook].get("avg_views", 0)
+                * (hooks_perf[hook]["count"] - 1)
+                + v.get("views", 0)
+            ) / hooks_perf[hook]["count"]
+
+            tpl = v.get("template_id", "unknown")
+            if tpl not in tpl_perf:
+                tpl_perf[tpl] = {"count": 0, "avg_views": 0}
+            tpl_perf[tpl]["count"] += 1
+            tpl_perf[tpl]["avg_views"] = (
+                tpl_perf[tpl].get("avg_views", 0)
+                * (tpl_perf[tpl]["count"] - 1)
+                + v.get("views", 0)
+            ) / tpl_perf[tpl]["count"]
+
+            hour = v.get("post_hour", 12)
+            if hour not in hourly_perf:
+                hourly_perf[str(hour)] = {"avg_views": 0, "count": 0}
+            hourly_perf[str(hour)]["count"] += 1
+            hourly_perf[str(hour)]["avg_views"] = (
+                hourly_perf[str(hour)].get("avg_views", 0)
+                * (hourly_perf[str(hour)]["count"] - 1)
+                + v.get("views", 0)
+            ) / hourly_perf[str(hour)]["count"]
+
+        for cat, data in category_perf.items():
+            data["avg_views"] = round(data["total_views"] / data["count"])
+            del data["total_views"]
+
+        performance_data = {
+            "summary": summary,
+            "hooks_performance": hooks_perf,
+            "templates_performance": tpl_perf,
+            "category_performance": category_perf,
+            "videos_by_hour": hourly_perf,
+        }
+
+    result = await analyze_and_optimize(
+        performance_data=performance_data,
+    )
+    return {"success": True, **result}
+
+
 # ─── Orchestrator: Full Pipeline ──────────────────────────────────────────
 
 class FullPipelineRequest(BaseModel):

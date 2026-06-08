@@ -429,6 +429,111 @@ def pipeline_list(limit: int = 20):
     conn.close()
     return {"success": True, "jobs": [{"job_id": r[0], "account_id": r[1], "status": r[2], "product_url": r[3], "created_at": r[4], "updated_at": r[5]} for r in rows]}
 
+# ─── TikTok Scout (R&D) ──────────────────────────────────────────────────────
+
+from scout.trends import discover_trends, analyze_viral_structure, search_trending_keywords
+from scout.analyzer import analyze_video, compare_with_competitors, extract_trending_elements
+from scout.templates import get_templates, generate_from_template, generate_clone_script
+
+
+@app.get("/scout/trends")
+async def scout_discover_trends(
+    category: str = "",
+    keyword: str = "",
+    limit: int = 10,
+):
+    """Discover trending TikTok content patterns."""
+    results = await discover_trends(category=category, keyword=keyword, limit=limit)
+    return {"success": True, "trends": results, "count": len(results)}
+
+
+@app.post("/scout/analyze")
+async def scout_analyze(req: dict):
+    """Analyze a video/viral structure for a product."""
+    product_name = req.get("product_name", "")
+    description = req.get("description", "")
+    video_url = req.get("video_url", "")
+
+    analysis = await analyze_video(
+        video_url=video_url,
+        description=description,
+        product_name=product_name,
+    )
+    structure = await analyze_viral_structure(
+        product_name=product_name,
+        category=req.get("category", ""),
+    )
+    return {
+        "success": True,
+        "analysis": analysis,
+        "recommended_structure": structure,
+    }
+
+
+@app.post("/scout/compare")
+async def scout_compare(req: dict):
+    """Compare content strategy against competitors."""
+    result = await compare_with_competitors(
+        product_name=req.get("product_name", ""),
+        competitor_names=req.get("competitors", []),
+    )
+    return {"success": True, **result}
+
+
+@app.get("/scout/templates")
+async def scout_list_templates(category: str = ""):
+    """List available content templates."""
+    templates = await get_templates(category=category)
+    return {"success": True, "templates": templates}
+
+
+@app.post("/scout/templates/generate")
+async def scout_generate_template(req: dict):
+    """Generate a video script from a template."""
+    result = await generate_from_template(
+        template_id=req.get("template_id", ""),
+        product_name=req.get("product_name", ""),
+        price=req.get("price", ""),
+        fill_values=req.get("fill_values"),
+        cta=req.get("cta", "กด link in bio"),
+    )
+    if not result:
+        return {"success": False, "error": "Template not found"}
+    return {"success": True, "script": result}
+
+
+@app.post("/scout/clone")
+async def scout_clone(req: dict):
+    """Clone a trending video structure for a new product."""
+    result = await generate_clone_script(
+        source_template_id=req.get("template_id", ""),
+        product_name=req.get("product_name", ""),
+        fill_values=req.get("fill_values"),
+    )
+    if not result:
+        return {"success": False, "error": "Template not found"}
+    return {"success": True, "clone": result}
+
+
+@app.post("/scout/keywords")
+async def scout_keywords(req: dict):
+    """Search trending keywords for a product."""
+    keywords = await search_trending_keywords(
+        product_name=req.get("product_name", ""),
+        niche=req.get("niche", ""),
+    )
+    return {"success": True, "keywords": keywords}
+
+
+@app.post("/scout/extract")
+async def scout_extract(req: dict):
+    """Extract trending elements from a description."""
+    result = await extract_trending_elements(
+        description=req.get("description", ""),
+    )
+    return {"success": True, **result}
+
+
 # ─── Orchestrator: Full Pipeline ──────────────────────────────────────────
 
 class FullPipelineRequest(BaseModel):
@@ -464,9 +569,12 @@ async def run_full_pipeline(req: FullPipelineRequest):
 
     Returns a pipeline job_id for status tracking.
     """
-    import asyncio
+    import asyncio, os, tempfile
     from tts_gen import text_to_speech
     from composer import compose_video
+
+    # Check if Fal.ai is available
+    FAL_AVAILABLE = bool(os.environ.get("FAL_API_KEY") or os.environ.get("FAL_KEY"))
 
     # Create pipeline job
     job_id = _create_pipeline_job(account_id="", product_url=req.product_url or "")
@@ -492,20 +600,102 @@ async def run_full_pipeline(req: FullPipelineRequest):
             else:
                 _update_pipeline_step(job_id, "tts", "skipped")
 
-        # Step 2: Video Gen (placeholder for now — integrate with real providers)
+        # Step 2: Video Gen — Fal.ai Wan I2V
         if req.run_video_gen:
             _update_pipeline_step(job_id, "video_gen", "processing")
-            # Placeholder: actual Fal.ai Wan I2V call would go here
-            # from fal_client import generate_video
-            # video_result = generate_video(
-            #     image_path=req.product_image,
-            #     prompt=req.hook,
-            #     duration=req.duration,
-            #     aspect_ratio=req.aspect_ratio,
-            # )
-            _update_pipeline_step(job_id, "video_gen", "success", {
-                "message": "Video gen placeholder — connect Fal.ai API"
-            })
+            video_path = None
+            if FAL_AVAILABLE and req.product_image:
+                try:
+                    from fal_client import generate_video_async
+                    # Determine if product_image is a URL or base64
+                    image_source = req.product_image
+                    if image_source.startswith("data:") or image_source.startswith("file://"):
+                        # Save base64 to temp file
+                        import base64
+                        if "," in image_source:
+                            img_data = base64.b64decode(image_source.split(",", 1)[1])
+                        else:
+                            img_data = base64.b64decode(image_source)
+                        tmp_img = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+                        tmp_img.write(img_data)
+                        tmp_img.close()
+                        image_source = tmp_img.name
+
+                    video_result = await generate_video_async(
+                        image_path=image_source,
+                        prompt=req.hook or req.product_title or "Product showcase",
+                        duration=req.duration,
+                        aspect_ratio=req.aspect_ratio,
+                        negative_prompt=req.negative_prompt or None,
+                    )
+                    if video_result.get("success"):
+                        video_path = video_result.get("video_url") or video_result.get("output")
+                        _update_pipeline_step(job_id, "video_gen", "success", {
+                            "video_url": video_path,
+                            "duration": video_result.get("duration", req.duration),
+                        })
+                    else:
+                        _update_pipeline_step(job_id, "video_gen", "error", {
+                            "error": video_result.get("error", "Fal.ai API returned no video")
+                        })
+                except ImportError:
+                    _update_pipeline_step(job_id, "video_gen", "skipped", {
+                        "message": "fal_client module not available"
+                    })
+                except Exception as e:
+                    logger.exception(f"Video gen failed: {e}")
+                    _update_pipeline_step(job_id, "video_gen", "error", {"error": str(e)})
+            elif FAL_AVAILABLE and not req.product_image:
+                _update_pipeline_step(job_id, "video_gen", "skipped", {
+                    "message": "No product image provided; skipping video gen"
+                })
+            else:
+                _update_pipeline_step(job_id, "video_gen", "skipped", {
+                    "message": "Fal.ai not configured. Set FAL_API_KEY or FAL_KEY"
+                })
+
+            if not video_path and req.run_compose and req.run_tts:
+                # If video gen failed but we have TTS, still allow compose
+                video_path = None
+
+        # Step 3: Compose (merge TTS audio + video + bgm)
+        if req.run_compose and video_path and req.run_tts:
+            _update_pipeline_step(job_id, "compose", "processing")
+            try:
+                # Get TTS file path from step
+                tts_step = _get_pipeline_job(job_id).get("steps", {}).get("tts", {})
+                tts_path = tts_step.get("filepath", "")
+                if tts_path and os.path.exists(tts_path):
+                    output_path = os.path.join(
+                        os.path.dirname(tts_path),
+                        f"composed_{job_id}.mp4"
+                    )
+                    composed = compose_video(
+                        video_path=video_path,
+                        audio_path=tts_path,
+                        output_path=output_path,
+                    )
+                    # Also add bg_music if provided
+                    if req.bg_music and composed.get("success"):
+                        final_path = output_path.replace(".mp4", "_bgm.mp4")
+                        from composer import add_sound_effects
+                        bgm_result = add_sound_effects(
+                            video_path=output_path,
+                            sound_path=req.bg_music,
+                            output_path=final_path,
+                        )
+                        if bgm_result.get("success"):
+                            output_path = final_path
+                    _update_pipeline_step(job_id, "compose", "success", {
+                        "output_path": output_path,
+                    })
+                else:
+                    _update_pipeline_step(job_id, "compose", "skipped", {
+                        "message": "No TTS audio to compose"
+                    })
+            except Exception as e:
+                logger.exception(f"Compose failed: {e}")
+                _update_pipeline_step(job_id, "compose", "error", {"error": str(e)})
 
         # Mark overall success
         _update_pipeline_step(job_id, "pipeline", "success")

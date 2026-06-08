@@ -27,6 +27,34 @@ FAL_QUEUE_URL = "https://queue.fal.run"
 DEFAULT_MODEL = "fal-ai/wan-i2v"  # Wan I2V image-to-video
 
 
+import asyncio
+
+async def generate_video_async(
+    image_path: str,
+    prompt: str,
+    duration: int = 10,
+    aspect_ratio: str = "9:16",
+    model: str = DEFAULT_MODEL,
+    fal_key: str = "",
+    poll_interval: int = 5,
+    timeout: int = 600,
+    negative_prompt: Optional[str] = None,
+) -> dict:
+    """Async wrapper for generate_video. Runs sync call in executor."""
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, lambda: generate_video(
+        image_path=image_path,
+        prompt=prompt,
+        duration=duration,
+        aspect_ratio=aspect_ratio,
+        model=model,
+        fal_key=fal_key,
+        poll_interval=poll_interval,
+        timeout=timeout,
+        negative_prompt=negative_prompt,
+    ))
+
+
 def generate_video(
     image_path: str,
     prompt: str,

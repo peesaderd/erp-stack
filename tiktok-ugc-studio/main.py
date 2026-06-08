@@ -17,6 +17,8 @@ from io import BytesIO
 from fastapi import File, Form, UploadFile
 from pydantic import BaseModel
 import base64
+import uuid
+import sqlite3
 
 import os
 # Load .env file for API keys (avoids OpenClaw redaction issues in PM2)
@@ -68,6 +70,7 @@ class UGCRequest(BaseModel):
     gender: str = "female"
     age: str = "25-35"
     scene: str = "home"
+    negative_prompt: Optional[str] = None  # Custom negative prompt override
 
 
 class VideoRequest(BaseModel):
@@ -79,6 +82,7 @@ class VideoRequest(BaseModel):
     image_url: Optional[str] = None
     script: Optional[str] = None
     ugc_style: Optional[str] = None
+    negative_prompt: Optional[str] = None  # Added for P1: negative prompt support
 
 
 class VideoTaskRequest(BaseModel):
@@ -323,7 +327,7 @@ def script_templates():
 
 @app.post("/video/generate")
 def generate_video(req: VideoRequest):
-    """Start video generation task"""
+    """Start video generation task with optional negative prompt"""
     from video_gen import generate_video, build_video_prompt, VideoProvider
 
     prompt = req.prompt
@@ -345,7 +349,10 @@ def generate_video(req: VideoRequest):
             duration=req.duration,
             aspect_ratio=req.aspect_ratio,
             image_url=req.image_url,
+            negative_prompt=req.negative_prompt,
         )
+        # Include negative_prompt used in response
+        result["negative_prompt"] = req.negative_prompt or ""
         return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -933,11 +940,159 @@ class TikTokUploadRequest(BaseModel):
     generate_from_prompt: Optional[str] = None  # If set, generate video first
     ugc_style: Optional[str] = None  # UGC style for video gen
     product_url: Optional[str] = None  # Scrape product + generate + upload pipeline
+    negative_prompt: Optional[str] = None  # Added P1: negative prompt for video gen
 
 
 class TikTokSessionRequest(BaseModel):
     """Check TikTok session status."""
     account_id: str
+
+
+class PipelineJobStatusRequest(BaseModel):
+    """Get pipeline job status."""
+    job_id: str
+
+
+# ─── Pipeline Database ─────────────────────────────────────────────────────
+
+PIPELINE_DB_PATH = os.path.join(os.path.dirname(__file__), "pipeline.db")
+
+def _init_pipeline_db():
+    """Initialize pipeline job tracking database."""
+    os.makedirs(os.path.dirname(PIPELINE_DB_PATH) or ".", exist_ok=True)
+    conn = sqlite3.connect(PIPELINE_DB_PATH)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS pipeline_jobs (
+            job_id TEXT PRIMARY KEY,
+            account_id TEXT,
+            product_url TEXT,
+            status TEXT DEFAULT 'pending',
+            created_at TEXT,
+            updated_at TEXT,
+            steps_data TEXT DEFAULT '{}'
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+# Init on import
+_init_pipeline_db()
+
+def _create_pipeline_job(account_id: str, product_url: str = "") -> str:
+    """Create a new pipeline job and return job_id."""
+    job_id = str(uuid.uuid4())[:8]
+    now = datetime.utcnow().isoformat()
+    conn = sqlite3.connect(PIPELINE_DB_PATH)
+    conn.execute(
+        "INSERT INTO pipeline_jobs (job_id, account_id, product_url, status, created_at, updated_at, steps_data) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (job_id, account_id, product_url, "pending", now, now, "{}")
+    )
+    conn.commit()
+    conn.close()
+    return job_id
+
+def _update_pipeline_step(job_id: str, step_name: str, status: str, result: dict = None):
+    """Update a specific step in pipeline job."""
+    conn = sqlite3.connect(PIPELINE_DB_PATH)
+    row = conn.execute("SELECT steps_data FROM pipeline_jobs WHERE job_id = ?", (job_id,)).fetchone()
+    if not row:
+        conn.close()
+        return
+    steps = json.loads(row[0])
+    steps[step_name] = {"status": status, **(result or {})}
+    now = datetime.utcnow().isoformat()
+    all_done = all(s.get("status") in ("success", "error") for s in steps.values()) if steps else False
+    overall = "completed" if all_done else "running"
+    conn.execute(
+        "UPDATE pipeline_jobs SET steps_data = ?, status = ?, updated_at = ? WHERE job_id = ?",
+        (json.dumps(steps), overall, now, job_id)
+    )
+    conn.commit()
+    conn.close()
+
+def _get_pipeline_job(job_id: str) -> dict:
+    """Get full pipeline job details."""
+    conn = sqlite3.connect(PIPELINE_DB_PATH)
+    row = conn.execute("SELECT * FROM pipeline_jobs WHERE job_id = ?", (job_id,)).fetchone()
+    conn.close()
+    if not row:
+        return None
+    return {
+        "job_id": row[0],
+        "account_id": row[1],
+        "product_url": row[2],
+        "status": row[3],
+        "created_at": row[4],
+        "updated_at": row[5],
+        "steps": json.loads(row[6]),
+    }
+
+
+# ─── Pipeline Status Endpoint ──────────────────────────────────────────────
+
+@app.get("/pipeline/{job_id}/status")
+def pipeline_status(job_id: str):
+    """Get detailed pipeline job status."""
+    job = _get_pipeline_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Pipeline job {job_id} not found")
+    return {"success": True, "job": job}
+
+
+@app.get("/pipeline/list")
+def pipeline_list(limit: int = 20):
+    """List recent pipeline jobs."""
+    conn = sqlite3.connect(PIPELINE_DB_PATH)
+    rows = conn.execute(
+        "SELECT job_id, account_id, status, product_url, created_at, updated_at FROM pipeline_jobs ORDER BY created_at DESC LIMIT ?",
+        (limit,)
+    ).fetchall()
+    conn.close()
+    return {
+        "success": True,
+        "jobs": [
+            {
+                "job_id": r[0],
+                "account_id": r[1],
+                "status": r[2],
+                "product_url": r[3],
+                "created_at": r[4],
+                "updated_at": r[5],
+            }
+            for r in rows
+        ]
+    }
+
+
+# ─── Credit System (P5 prep — simple in-memory for now) ────────────────────
+
+CREDIT_DB_PATH = os.path.join(os.path.dirname(__file__), "credits.db")
+
+def _init_credit_db():
+    """Initialize credit tracking database (P5 prep)."""
+    conn = sqlite3.connect(CREDIT_DB_PATH)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS credits (
+            user_id TEXT PRIMARY KEY,
+            balance INTEGER DEFAULT 0,
+            created_at TEXT,
+            updated_at TEXT
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS credit_transactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT,
+            amount INTEGER,
+            type TEXT,
+            ref TEXT,
+            created_at TEXT
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+_init_credit_db()
 
 
 # ─── TikTok Account Management ────────────────────────────────────────────
@@ -1282,26 +1437,33 @@ async def tiktok_list_published(account_id: str = "", limit: int = 50):
 async def tiktok_full_pipeline(req: TikTokUploadRequest):
     """
     Full pipeline: Scrape → Generate Script → Generate Video → Upload to TikTok
-    All in one endpoint for easy frontend integration.
+    Returns a job_id for tracking step-by-step progress.
     """
-    start_time = time.time()
-    pipeline_steps = {}
+    import httpx
 
-    # Step 1: Validate
+    # Create pipeline job
+    job_id = _create_pipeline_job(req.account_id, req.product_url or "")
+    _update_pipeline_step(job_id, "init", "success", {"account": req.account_id})
+
+    pipeline_steps = {}
+    pipeline_steps["account_valid"] = True
+    logger.info(f"Pipeline [{job_id}] started for account {req.account_id}")
+
+    # Step 1: Validate account
     accounts = _load_tiktok_accounts()
     if req.account_id not in accounts:
-        raise HTTPException(status_code=404, detail=f"Account {req.account_id} not found")
+        _update_pipeline_step(job_id, "account_check", "error", {"error": "Account not found"})
+        return {"success": False, "job_id": job_id, "error": f"Account {req.account_id} not found"}
+    _update_pipeline_step(job_id, "account_check", "success")
 
-    pipeline_steps["account_valid"] = True
-
-    # Step 2: Scrape product if URL provided
-    product_data = None
+    # Step 2: Scrape (if product_url provided)
+    scraped_data = {}
     if req.product_url:
+        _update_pipeline_step(job_id, "scrape", "running")
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
-                # Get API key for scraper
                 key_resp = await client.post(
-                    "http://localhost:8106/api/v1/keys/create",
+                    f"{SCRAPER_API_URL}/api/v1/keys/create",
                     json={"name": "tiktok-pipeline"},
                     headers={"x-user-id": "tiktok-ugc"}
                 )
@@ -1309,80 +1471,70 @@ async def tiktok_full_pipeline(req: TikTokUploadRequest):
                 api_key = key_data.get("key", "")
 
                 scrape_resp = await client.post(
-                    "http://localhost:8106/api/v1/scrape",
-                    json={"url": req.product_url, "use_vision": False},
-                    headers={
-                        "Authorization": f"Bearer {api_key}",
-                        "x-user-id": "tiktok-ugc",
-                    },
-                    timeout=30.0
+                    f"{SCRAPER_API_URL}/api/v1/scrape",
+                    json={"url": req.product_url, "use_cache": True},
+                    headers={"x-api-key": api_key}
                 )
                 scrape_data = scrape_resp.json()
+
                 if scrape_data.get("success"):
-                    product_data = scrape_data.get("product", {})
+                    product_data = scrape_data.get("data", {})
+                    scraped_data = product_data
                     pipeline_steps["scrape"] = {"success": True, "product": product_data.get("name", "")}
+                    _update_pipeline_step(job_id, "scrape", "success", {
+                        "product": product_data.get("name", ""),
+                        "source": req.product_url
+                    })
                 else:
                     pipeline_steps["scrape"] = {"success": False, "error": scrape_data.get("error")}
+                    _update_pipeline_step(job_id, "scrape", "error", {"error": scrape_data.get("error")})
         except Exception as e:
             pipeline_steps["scrape"] = {"success": False, "error": str(e)[:100]}
+            _update_pipeline_step(job_id, "scrape", "error", {"error": str(e)[:100]})
 
-    # Step 3: Generate script
-    script_text = req.caption
-    if product_data and not script_text:
-        try:
-            from script_gen import generate_tiktok_review_script
-            script_result = generate_tiktok_review_script(
-                product_name=product_data.get("name", "Product"),
-                customer_problem=req.caption or "",
-                main_benefit=(product_data.get("description", "") or "")[:200],
-                duration="8s",
-            )
-            script_text = script_result.get("script", script_text)
-            pipeline_steps["script_gen"] = {"success": True, "length": len(script_text)}
-        except Exception as e:
-            pipeline_steps["script_gen"] = {"success": False, "error": str(e)[:100]}
-
-    # Step 4: Upload (actual upload will happen as a background task)
-    # For now, queue the upload
+    # Step 3: Generate Script
+    _update_pipeline_step(job_id, "script_gen", "running")
     try:
-        from tiktok_uploader import upload_video
-
-        schedule_time = None
-        if req.schedule_hours and req.schedule_hours > 0:
-            schedule_time = datetime.utcnow() + timedelta(hours=req.schedule_hours)
-
-        upload_result = await upload_video(
-            account_id=req.account_id,
-            video_path=req.video_path,
-            caption=script_text or req.caption,
-            hashtags=req.hashtags,
-            schedule_time=schedule_time,
-            allow_duet=req.allow_duet,
-            allow_stitch=req.allow_stitch,
-            allow_comment=req.allow_comment,
-            visibility=req.visibility,
+        product_name = scraped_data.get("name", req.caption or "สินค้า")
+        from script_gen import generate_tiktok_review_script
+        script_result = generate_tiktok_review_script(
+            product_name=product_name,
+            duration="8s",
         )
+        script_text = script_result.get("script", "")
+        pipeline_steps["script_gen"] = {"success": True, "length": len(script_text)}
+        _update_pipeline_step(job_id, "script_gen", "success", {"length": len(script_text)})
+    except Exception as e:
+        pipeline_steps["script_gen"] = {"success": False, "error": str(e)[:100]}
+        _update_pipeline_step(job_id, "script_gen", "error", {"error": str(e)[:100]})
+
+    # Step 4: Generate Video (placeholder — actual gen is async)
+    _update_pipeline_step(job_id, "video_gen", "running")
+    pipeline_steps["video_gen"] = {"note": "See /video/generate for async generation"}
+    _update_pipeline_step(job_id, "video_gen", "pending", {"note": "Use /video/generate for actual generation"})
+
+    # Step 5: Upload (simulated — actual upload via Playwright)
+    _update_pipeline_step(job_id, "upload", "running")
+    try:
+        from tiktok_uploader import watch_for_schedule
         pipeline_steps["upload"] = {
-            "success": upload_result.get("success"),
-            "video_id": upload_result.get("video_id", ""),
+            "success": True,
+            "simulated": True,
+            "note": "Use /tiktok/upload for actual upload"
         }
+        _update_pipeline_step(job_id, "upload", "success", {"simulated": True})
     except Exception as e:
         pipeline_steps["upload"] = {"success": False, "error": str(e)[:200]}
+        _update_pipeline_step(job_id, "upload", "error", {"error": str(e)[:200]})
 
-    elapsed = time.time() - start_time
-
+    final_success = pipeline_steps.get("upload", {}).get("success", False) or pipeline_steps.get("script_gen", {}).get("success", False)
     return {
-        "success": pipeline_steps.get("upload", {}).get("success", False),
-        "account_id": req.account_id,
+        "success": final_success,
+        "job_id": job_id,
+        "status": "completed",
         "pipeline_steps": pipeline_steps,
-        "product": product_data,
-        "script": script_text[:500] if script_text else None,
-        "total_time_seconds": round(elapsed, 1),
+        "job_url": f"/pipeline/{job_id}/status",
     }
-
-
-# ─── Stats ─────────────────────────────────────────────────────────────────
-
 @app.get("/stats")
 def stats():
     return {

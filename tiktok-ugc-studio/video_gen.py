@@ -174,6 +174,7 @@ def generate_video(
     image_url: Optional[str] = None,
     face_image_url: Optional[str] = None,
     timeout: int = 300,
+    negative_prompt: Optional[str] = None,
 ) -> dict:
     """Generate AI video via chosen provider. Supports image-to-video."""
     config = PROVIDER_CONFIG.get(provider)
@@ -190,7 +191,7 @@ def generate_video(
     if not handler:
         raise ValueError(f"No handler for {provider.value}")
 
-    result = handler(config, prompt, model, duration, aspect_ratio, image_url, face_image_url, timeout)
+    result = handler(config, prompt, model, duration, aspect_ratio, image_url, face_image_url, timeout, negative_prompt)
     result.update({
         "provider": provider.value,
         "model": model,

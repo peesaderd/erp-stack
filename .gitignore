@@ -38,6 +38,9 @@ node_modules/
 .aider*
 # Generated images
 etsy-wizard/static/product_images/
+
+# TikTok runtime data
+storage/
 i2m-frontend/src/pages/*.bak*
 
 # Python venv

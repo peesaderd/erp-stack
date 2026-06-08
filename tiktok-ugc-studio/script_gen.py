@@ -166,6 +166,7 @@ def generate_ugc_script(
     gender: str = "female",
     age: str = "25-35",
     scene: str = "home",
+    custom_negative_prompt: Optional[str] = None,
 ) -> dict:
     """
     Generate UGC video prompt by style:
@@ -186,7 +187,12 @@ def generate_ugc_script(
     system = load_prompt(f"UGC_prompts/{folder}/system.prompt")
     master = load_prompt(f"UGC_prompts/{folder}/master.prompt")
     user_tpl = load_prompt(f"UGC_prompts/{folder}/user.template.prompt")
-    negative = load_prompt(f"UGC_prompts/{folder}/negative.prompt")
+    file_negative = load_prompt(f"UGC_prompts/{folder}/negative.prompt")
+    # Merge custom negative prompt on top of file-based one
+    if custom_negative_prompt:
+        negative = custom_negative_prompt + ", " + file_negative if file_negative else custom_negative_prompt
+    else:
+        negative = file_negative
 
     user_data = {
         "product": product_name,
@@ -207,6 +213,7 @@ def generate_ugc_script(
         "style": style,
         "prompt": raw or full_prompt,
         "negative_prompt": negative,
+        "merged_negative_prompt": negative,
         "product": product_name,
         "uses_llm": raw is not None,
     }

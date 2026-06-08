@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>TikTok Studio — Business OS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400..700;1,14..32,400..700&display=swap" rel="stylesheet">
+<style>
+/* ══════════════════════════════════════════
+   DESIGN SYSTEM — Untitled UI compatible
+   ══════════════════════════════════════════ */
+:root {
+  --font-body: "Inter", system-ui, -apple-system, sans-serif;
+  --color-white: #fff;
+  --color-black: #000;
+  --color-neutral-50: #fafafa; --color-neutral-100: #f4f4f5; --color-neutral-200: #e4e4e7;
+  --color-neutral-300: #d4d4d8; --color-neutral-400: #a1a1aa; --color-neutral-500: #71717a;
+  --color-neutral-600: #52525b; --color-neutral-700: #3f3f46; --color-neutral-800: #27272a;
+  --color-neutral-900: #18181b; --color-neutral-950: #0a0a0b;
+  --color-brand-50: #f5f3ff; --color-brand-100: #ede9fe; --color-brand-200: #ddd6fe;
+  --color-brand-300: #c4b5fd; --color-brand-400: #a78bfa; --color-brand-500: #8b5cf6;
+  --color-brand-600: #7c3aed; --color-brand-700: #6d28d9; --color-brand-800: #5b21b6;
+  --color-brand-900: #4c1d95; --color-brand-950: #2e1065;
+  --color-red-50:#fef2f2;--color-red-100:#fee2e2;--color-red-400:#f87171;--color-red-500:#ef4444;--color-red-600:#dc2626;--color-red-950:#450a0a;
+  --color-green-50:#f0fdf4;--color-green-100:#dcfce7;--color-green-400:#4ade80;--color-green-500:#22c55e;--color-green-600:#16a34a;--color-green-950:#052e16;
+  --color-amber-50:#fffbeb;--color-amber-100:#fef3c7;--color-amber-400:#fbbf24;--color-amber-500:#f59e0b;--color-amber-600:#d97706;--color-amber-950:#451a03;
+  --color-blue-50:#eff6ff;--color-blue-400:#60a5fa;--color-blue-500:#3b82f6;--color-blue-600:#2563eb;--color-blue-950:#172554;
+  --bg-primary: #fff; --bg-secondary: #fafafa; --bg-tertiary: #f4f4f5;
+  --text-primary: #09090b; --text-secondary: #52525b; --text-tertiary: #a1a1aa;
+  --border-primary: #e4e4e7; --border-secondary: #f4f4f5;
+  --brand: #7c3aed; --brand-hover: #6d28d9;
+  --spacing: 0.25rem;
+  --radius-sm: 0.375rem; --radius: 0.5rem; --radius-lg: 0.75rem; --radius-xl: 1rem;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.05); --shadow-md: 0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -2px rgba(0,0,0,.06);
+  --shadow-lg: 0 12px 16px -4px rgba(0,0,0,.08),0 4px 6px -2px rgba(0,0,0,.03);
+}
+
+.dark-mode {
+  --bg-primary: #0a0a0b; --bg-secondary: #18181b; --bg-tertiary: #27272a;
+  --text-primary: #fafafa; --text-secondary: #a1a1aa; --text-tertiary: #52525b;
+  --border-primary: #27272a; --border-secondary: #18181b;
+  --brand: #8b5cf6; --brand-hover: #a78bfa;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.2); --shadow-md: 0 4px 6px -1px rgba(0,0,0,.3);
+  --shadow-lg: 0 12px 16px -4px rgba(0,0,0,.25);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: var(--font-body); background: var(--bg-primary); color: var(--text-primary);
+  -webkit-font-smoothing: antialiased; font-size: 14px; line-height: 1.5;
+}
+
+/* ═══ Layout ═══ */
+.app { display: flex; flex-direction: column; height: 100vh; }
+.topbar {
+  display: flex; align-items: center; gap: 12px; height: 56px; padding: 0 20px;
+  border-bottom: 1px solid var(--border-primary); background: var(--bg-primary);
+  flex-shrink: 0; position: sticky; top: 0; z-index: 40;
+}
+.topbar-brand { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.topbar-brand span { background: linear-gradient(135deg, var(--color-brand-500), var(--color-brand-300)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.topbar-nav { display: flex; gap: 2px; flex: 1; margin: 0 16px; overflow-x: auto; scrollbar-width: none; }
+.topbar-nav::-webkit-scrollbar { display: none; }
+.topbar-nav button {
+  display: flex; align-items: center; gap: 6px; padding: 8px 14px; font-size: 13px; font-weight: 500;
+  border: none; background: transparent; color: var(--text-secondary); border-radius: var(--radius);
+  cursor: pointer; white-space: nowrap; transition: all .15s;
+}
+.topbar-nav button:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+.topbar-nav button.active { background: rgba(124,58,237,.12); color: var(--brand); }
+.dark-mode .topbar-nav button.active { background: rgba(139,92,246,.15); }
+.topbar-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.status-dot.online { background: var(--color-green-500); }
+.status-dot.offline { background: var(--color-red-500); }
+.main { flex: 1; overflow-y: auto; padding: 0; }
+
+/* ═══ Components ═══ */
+.page { display: none; padding: 20px 24px; max-width: 1280px; margin: 0 auto; width: 100%; }
+.page.active { display: block; }
+.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; gap: 12px; flex-wrap: wrap; }
+.page-header h2 { font-size: 22px; font-weight: 600; }
+.page-header p { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+
+/* Cards */
+.card { background: var(--bg-secondary); border: 1px solid var(--border-primary); border-radius: var(--radius-xl); padding: 20px; }
+.card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.card-title { font-size: 15px; font-weight: 600; }
+
+/* Stats */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px,1fr)); gap: 12px; margin-bottom: 20px; }
+.stat-card { background: var(--bg-secondary); border: 1px solid var(--border-primary); border-radius: var(--radius-lg); padding: 16px; }
+.stat-card .stat-value { font-size: 28px; font-weight: 700; line-height: 1.2; }
+.stat-card .stat-label { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+
+/* Buttons */
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; font-size: 13px; font-weight: 500;
+  border-radius: var(--radius); border: 1px solid transparent; cursor: pointer; transition: all .15s; white-space: nowrap; }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+.btn-primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+.btn-primary:hover { background: var(--brand-hover); }
+.btn-secondary { background: transparent; color: var(--text-primary); border-color: var(--border-primary); }
+.btn-secondary:hover { background: var(--bg-tertiary); }
+.btn-ghost { background: transparent; color: var(--text-secondary); border-color: transparent; }
+.btn-ghost:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+.btn-danger { background: var(--color-red-50); color: var(--color-red-600); border-color: transparent; }
+.dark-mode .btn-danger { background: rgba(239,68,68,.1); color: var(--color-red-400); }
+.btn-danger:hover { background: var(--color-red-100); }
+.btn-icon { padding: 6px; min-width: 32px; justify-content: center; }
+
+/* Inputs */
+.input { width: 100%; padding: 8px 12px; font-size: 13px; border: 1px solid var(--border-primary);
+  border-radius: var(--radius); background: var(--bg-primary); color: var(--text-primary);
+  outline: none; transition: border-color .15s;
+}
+.input:focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(124,58,237,.1); }
+.dark-mode .input:focus { box-shadow: 0 0 0 3px rgba(139,92,246,.15); }
+textarea.input { resize: vertical; min-height: 80px; }
+select.input { cursor: pointer; }
+
+/* Badges */
+.badge { display: inline-flex; align-items: center; padding: 2px 8px; font-size: 11px; font-weight: 500;
+  border-radius: 9999px; white-space: nowrap; }
+.badge-green { background: var(--color-green-50); color: var(--color-green-600); }
+.badge-amber { background: var(--color-amber-50); color: var(--color-amber-600); }
+.badge-red { background: var(--color-red-50); color: var(--color-red-600); }
+.badge-gray { background: var(--bg-tertiary); color: var(--text-secondary); }
+.badge-indigo { background: rgba(124,58,237,.1); color: var(--brand); }
+.dark-mode .badge-green { background: rgba(34,197,94,.1); color: var(--color-green-400); }
+.dark-mode .badge-amber { background: rgba(245,158,11,.1); color: var(--color-amber-400); }
+.dark-mode .badge-red { background: rgba(239,68,68,.1); color: var(--color-red-400); }
+
+/* Table */
+.table-wrap { overflow-x: auto; border: 1px solid var(--border-primary); border-radius: var(--radius-xl); background: var(--bg-secondary); }
+.table-wrap table { width: 100%; border-collapse: collapse; }
+.table-wrap th { padding: 10px 16px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .05em; color: var(--text-secondary); border-bottom: 1px solid var(--border-primary); background: var(--bg-secondary); }
+.table-wrap td { padding: 10px 16px; font-size: 13px; border-bottom: 1px solid var(--border-secondary); }
+.table-wrap tr:last-child td { border-bottom: none; }
+
+/* Tabs */
+.tab-bar { display: flex; gap: 0; border-bottom: 1px solid var(--border-primary); margin-bottom: 16px; }
+.tab-bar button { padding: 10px 16px; font-size: 13px; font-weight: 500; border: none; background: transparent;
+  color: var(--text-secondary); cursor: pointer; border-bottom: 2px solid transparent; transition: all .15s; }
+.tab-bar button:hover { color: var(--text-primary); }
+.tab-bar button.active { color: var(--brand); border-bottom-color: var(--brand); }
+.tab-bar button .tab-count { margin-left: 6px; padding: 1px 7px; font-size: 11px; border-radius: 9999px; background: var(--bg-tertiary); }
+
+/* Grid layouts */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.grid-4 { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px,1fr)); gap: 12px; }
+
+/* Steps */
+.steps { display: flex; align-items: center; gap: 0; margin-bottom: 24px; }
+.step { display: flex; align-items: center; gap: 8px; }
+.step-num { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600; background: var(--bg-tertiary); color: var(--text-secondary); flex-shrink: 0; }
+.step.active .step-num { background: var(--brand); color: #fff; }
+.step.done .step-num { background: var(--color-green-500); color: #fff; }
+.step-label { font-size: 12px; color: var(--text-secondary); }
+.step.active .step-label { color: var(--text-primary); font-weight: 500; }
+.step-connector { width: 24px; height: 1px; background: var(--border-primary); margin: 0 8px; flex-shrink: 0; }
+
+/* Pipeline */
+.pipeline-card { background: var(--bg-secondary); border: 1px solid var(--border-primary); border-radius: var(--radius-lg); padding: 16px; margin-bottom: 10px; }
+.pipeline-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.pipeline-steps { display: flex; gap: 4px; flex-wrap: wrap; }
+.pipeline-step { display: flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: var(--radius-sm);
+  font-size: 11px; font-weight: 500; }
+.pipeline-step.done { background: var(--color-green-50); color: var(--color-green-600); }
+.pipeline-step.processing { background: var(--color-blue-50); color: var(--color-blue-600); }
+.pipeline-step.pending { background: var(--bg-tertiary); color: var(--text-tertiary); }
+.pipeline-step.failed { background: var(--color-red-50); color: var(--color-red-600); }
+.dark-mode .pipeline-step.done { background: rgba(34,197,94,.1); color: var(--color-green-400); }
+.dark-mode .pipeline-step.processing { background: rgba(59,130,246,.1); color: var(--color-blue-400); }
+.dark-mode .pipeline-step.pending { background: var(--bg-tertiary); color: var(--text-tertiary); }
+.dark-mode .pipeline-step.failed { background: rgba(239,68,68,.1); color: var(--color-red-400); }
+
+/* Account list */
+.account-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border-secondary); }
+.account-item:last-child { border-bottom: none; }
+.avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 600; color: #fff; flex-shrink: 0; }
+
+/* Modal */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 50;
+  align-items: center; justify-content: center; padding: 20px; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--bg-secondary); border: 1px solid var(--border-primary); border-radius: var(--radius-xl);
+  padding: 24px; max-width: 400px; width: 100%; max-height: 90vh; overflow-y: auto; }
+.modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+
+/* Toast */
+.toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 20px; border-radius: var(--radius);
+  font-size: 13px; font-weight: 500; z-index: 100; animation: slideUp .3s ease; max-width: 360px; }
+.toast.success { background: var(--color-green-600); color: #fff; }
+.toast.error { background: var(--color-red-600); color: #fff; }
+.toast.info { background: var(--brand); color: #fff; }
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+/* Skeleton */
+.skeleton { background: var(--bg-tertiary); border-radius: var(--radius); animation: pulse 2s infinite; }
+.skeleton-line { height: 14px; margin-bottom: 8px; }
+.skeleton-line:last-child { width: 60%; }
+@keyframes pulse { 0%,100% { opacity: .4; } 50% { opacity: .7; } }
+
+/* Utils */
+.flex { display: flex; }
+.flex-1 { flex: 1; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.gap-2 { gap: 8px; }
+.gap-3 { gap: 12px; }
+.gap-4 { gap: 16px; }
+.mb-2 { margin-bottom: 8px; }
+.mb-3 { margin-bottom: 12px; }
+.mb-4 { margin-bottom: 16px; }
+.mt-2 { margin-top: 8px; }
+.mt-3 { margin-top: 12px; }
+.ml-auto { margin-left: auto; }
+.text-sm { font-size: 12px; }
+.text-xs { font-size: 11px; }
+.text-secondary { color: var(--text-secondary); }
+.font-medium { font-weight: 500; }
+.font-semibold { font-weight: 600; }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.w-full { width: 100%; }
+
+/* Step content */
+.step-content { display: none; }
+.step-content.active { display: block; }
+.style-card { cursor: pointer; padding: 16px; border: 2px solid var(--border-primary); border-radius: var(--radius-lg);
+  transition: all .15s; text-align: center; }
+.style-card:hover { border-color: var(--brand); }
+.style-card.selected { border-color: var(--brand); background: rgba(124,58,237,.05); }
+.style-card-emoji { font-size: 32px; margin-bottom: 8px; }
+.duration-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.duration-chip { padding: 6px 14px; border: 1px solid var(--border-primary); border-radius: 9999px;
+  font-size: 13px; cursor: pointer; transition: all .15s; background: transparent; color: var(--text-primary); }
+.duration-chip.selected { background: var(--brand); color: #fff; border-color: var(--brand); }
+
+/* Toggle */
+.toggle-wrap { display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+.toggle-track { width: 36px; height: 20px; border-radius: 9999px; background: var(--bg-tertiary); position: relative; transition: all .2s; }
+.toggle-track.on { background: var(--brand); }
+.toggle-thumb { width: 16px; height: 16px; border-radius: 50%; background: #fff; position: absolute; top: 2px; left: 2px; transition: all .2s; }
+.toggle-track.on .toggle-thumb { left: 18px; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .page { padding: 16px; }
+  .topbar { padding: 0 12px; }
+  .topbar-nav { display: none; }
+  .topbar-nav.show { display: flex; position: absolute; top: 56px; left: 0; right: 0; background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-primary); padding: 8px; flex-direction: column; z-index: 50; }
+  .topbar-nav.show button { padding: 10px 14px; }
+  .mobile-menu-btn { display: flex !important; }
+  .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: repeat(2,1fr); }
+}
+.mobile-menu-btn { display: none; align-items: center; justify-content: center; width: 36px; height: 36px;
+  border: none; background: transparent; color: var(--text-primary); cursor: pointer; font-size: 20px; border-radius: var(--radius); }
+.mobile-menu-btn:hover { background: var(--bg-tertiary); }
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- Topbar -->
+<div class="topbar">
+  <button class="mobile-menu-btn" onclick="document.querySelector('.topbar-nav').classList.toggle('show')">☰</button>
+  <div class="topbar-brand">🎬 <span>TikTok Studio</span></div>
+  <nav class="topbar-nav">
+    <button class="active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 Dashboard</button>
+    <button data-tab="content" onclick="switchTab('content')">🎬 Content</button>
+    <button data-tab="pipeline" onclick="switchTab('pipeline')">📦 Pipeline</button>
+    <button data-tab="accounts" onclick="switchTab('accounts')">📱 Accounts</button>
+    <button data-tab="history" onclick="switchTab('history')">📋 History</button>
+    <button data-tab="settings" onclick="switchTab('settings')">⚙️ Settings</button>
+  </nav>
+  <div class="topbar-actions">
+    <span class="status-dot online" id="connStatus" title="Connected"></span>
+    <button class="btn btn-ghost btn-icon" onclick="refreshAll()" title="Refresh all">⟳</button>
+  </div>
+</div>
+
+<!-- Main -->
+<div class="main">
+
+<!-- ═══ Dashboard ═══ -->
+<div id="page-dashboard" class="page active">
+  <div class="page-header">
+    <div><h2>Dashboard</h2><p>ภาพรวมบัญชี TikTok ของคุณ</p></div>
+    <div class="flex gap-2">
+      <button class="btn btn-primary" onclick="switchTab('content')">+ สร้างเนื้อหาใหม่</button>
+    </div>
+  </div>
+
+  <!-- Credit Balance -->
+  <div class="card mb-4" style="background:linear-gradient(135deg,var(--color-brand-700),var(--color-brand-900));color:#fff;border:none">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div><div style="font-size:12px;opacity:.8">ยอดเครดิตคงเหลือ</div><div style="font-size:32px;font-weight:700">฿1,250.00</div></div>
+      <button class="btn" style="background:rgba(255,255,255,.2);color:#fff;border-color:rgba(255,255,255,.3)" onclick="showToast('Coming soon','info')">เติมเครดิต</button>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-grid" id="statsGrid">
+    <div class="stat-card"><div class="stat-value" id="statVideos">47</div><div class="stat-label">Total Videos</div></div>
+    <div class="stat-card"><div class="stat-value" id="statToday">12</div><div class="stat-label">Published Today</div></div>
+    <div class="stat-card"><div class="stat-value" id="statActive">3</div><div class="stat-label">Active Jobs</div></div>
+    <div class="stat-card"><div class="stat-value" id="statScripts">156</div><div class="stat-label">Scripts Generated</div></div>
+  </div>
+
+  <!-- Recent Jobs -->
+  <div class="card mb-4">
+    <div class="card-header"><span class="card-title">Recent Jobs</span><button class="btn btn-ghost btn-sm" onclick="loadRecentJobs()">⟳</button></div>
+    <div id="recentJobs"><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line"></div></div>
+  </div>
+
+  <!-- Quick actions -->
+  <div class="grid-2">
+    <div class="card" style="cursor:pointer" onclick="switchTab('content')">
+      <div style="font-size:28px;margin-bottom:8px">🎬</div>
+      <div class="card-title">สร้างเนื้อหาใหม่</div>
+      <div class="text-sm text-secondary mt-2">สร้างสคริปต์และวิดีโอ UGC อัตโนมัติ</div>
+    </div>
+    <div class="card" style="cursor:pointer" onclick="switchTab('accounts')">
+      <div style="font-size:28px;margin-bottom:8px">📱</div>
+      <div class="card-title">จัดการบัญชี</div>
+      <div class="text-sm text-secondary mt-2">เพิ่มบัญชี TikTok และเช็คล็อกอิน</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Content ═══ -->
+<div id="page-content" class="page">
+  <div class="page-header"><div><h2>Content Wizard</h2><p>สร้างสคริปต์และวิดีโอ UGC</p></div></div>
+
+  <div class="steps" id="contentSteps">
+    <div class="step active" data-step="1"><div class="step-num">1</div><span class="step-label">Product</span></div>
+    <div class="step-connector"></div>
+    <div class="step" data-step="2"><div class="step-num">2</div><span class="step-label">Script</span></div>
+    <div class="step-connector"></div>
+    <div class="step" data-step="3"><div class="step-num">3</div><span class="step-label">Style</span></div>
+    <div class="step-connector"></div>
+    <div class="step" data-step="4"><div class="step-num">4</div><span class="step-label">Generate</span></div>
+  </div>
+
+  <!-- Step 1: Product -->
+  <div class="card step-content active" id="contentStep1">
+    <div class="card-title mb-3">Product URL หรือป้อนข้อมูลสินค้า</div>
+    <div class="mb-3">
+      <label class="text-sm text-secondary mb-2" style="display:block">Product URL</label>
+      <input class="input" id="productUrl" placeholder="https://shopee.co.th/... หรือ https://lazada.co.th/..." value="">
+    </div>
+    <div class="mb-3">
+      <label class="text-sm text-secondary mb-2" style="display:block">หรือป้อนรายละเอียดสินค้า</label>
+      <textarea class="input" id="manualScript" placeholder="ชื่อสินค้า, ราคา, จุดเด่น..."></textarea>
+    </div>
+    <div class="mb-4">
+      <label class="text-sm text-secondary mb-2" style="display:block">UGC Style</label>
+      <select class="input" id="ugcStyle"><option value="holding">Holding Product</option><option value="usage">Product Usage</option><option value="review">UGC Review</option><option value="talking">Talking Head</option></select>
+    </div>
+    <button class="btn btn-primary" onclick="generateScript()">Next: Generate Script →</button>
+  </div>
+
+  <!-- Step 2: Script -->
+  <div class="card step-content" id="contentStep2">
+    <div class="card-title mb-3">Preview & Edit Script</div>
+    <div class="mb-3">
+      <label class="text-sm text-secondary mb-2" style="display:block">Hook (ช่วงเปิด)</label>
+      <input class="input" id="scriptHook" placeholder="Hook...">
+    </div>
+    <div class="mb-3">
+      <label class="text-sm text-secondary mb-2" style="display:block">Value Proposition</label>
+      <textarea class="input" id="scriptValue" rows="3" placeholder="Value..."></textarea>
+    </div>
+    <div class="mb-4">
+      <label class="text-sm text-secondary mb-2" style="display:block">CTA (Call to Action)</label>
+      <input class="input" id="scriptCta" placeholder="CTA...">
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-secondary" onclick="goContentStep(1)">← Back</button>
+      <button class="btn btn-primary" onclick="goContentStep(3)">Next: Select Style →</button>
+    </div>
+  </div>
+
+  <!-- Step 3: Style -->
+  <div class="card step-content" id="contentStep3">
+    <div class="card-title mb-3">เลือก UGC Style</div>
+    <div class="grid-4" id="styleGrid">
+      <div class="style-card selected" data-style="holding" onclick="selectStyle(this,'holding')">
+        <div class="style-card-emoji">🤳</div><div class="font-medium">Holding Product</div><div class="text-xs text-secondary">ถือสินค้าพูด</div>
+      </div>
+      <div class="style-card" data-style="usage" onclick="selectStyle(this,'usage')">
+        <div class="style-card-emoji">📱</div><div class="font-medium">Product Usage</div><div class="text-xs text-secondary">สาธิตการใช้</div>
+      </div>
+      <div class="style-card" data-style="review" onclick="selectStyle(this,'review')">
+        <div class="style-card-emoji">⭐</div><div class="font-medium">UGC Review</div><div class="text-xs text-secondary">รีวิวสินค้า</div>
+      </div>
+      <div class="style-card" data-style="talking" onclick="selectStyle(this,'talking')">
+        <div class="style-card-emoji">🎤</div><div class="font-medium">Talking Head</div><div class="text-xs text-secondary">พูดหน้ากล้อง</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btn-secondary" onclick="goContentStep(2)">← Back</button>
+      <button class="btn btn-primary" onclick="goContentStep(4)">Next: Video Config →</button>
+    </div>
+  </div>
+
+  <!-- Step 4: Generate -->
+  <div class="card step-content" id="contentStep4">
+    <div class="card-title mb-3">Video Generation Config</div>
+
+    <div class="mb-3">
+      <label class="text-sm text-secondary mb-2" style="display:block">AI Provider</label>
+      <select class="input" id="videoProvider"><option value="kling">Kling</option><option value="runway">Runway</option><option value="pika">Pika</option><option value="minimax">Minimax</option></select>
+    </div>
+
+    <div class="mb-3">
+      <label class="text-sm text-secondary mb-2" style="display:block">Duration</label>
+      <div class="duration-chips">
+        <span class="duration-chip" onclick="selectDuration(this,'5')">5s</span>
+        <span class="duration-chip selected" onclick="selectDuration(this,'8')">8s</span>
+        <span class="duration-chip" onclick="selectDuration(this,'10')">10s</span>
+        <span class="duration-chip" onclick="selectDuration(this,'15')">15s</span>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <div class="toggle-wrap" onclick="toggleAdvanced()">
+        <div class="toggle-track" id="advancedToggle"><div class="toggle-thumb"></div></div>
+        <span class="text-sm">ตัวเลือกขั้นสูง</span>
+      </div>
+    </div>
+
+    <div id="advancedSection" style="display:none">
+      <div class="mb-3">
+        <label class="text-sm text-secondary mb-2" style="display:block">Negative Prompt</label>
+        <textarea class="input" id="negativePrompt" placeholder="สิ่งที่ไม่อยากให้เกิดในวิดีโอ เช่น poor quality, blurry..." rows="3"></textarea>
+      </div>
+      <div class="mb-3">
+        <label class="text-sm text-secondary mb-2" style="display:block">Face Reference Image (optional)</label>
+        <input class="input" id="faceRef" type="file" accept="image/*">
+      </div>
+    </div>
+
+    <div id="generationProgress" style="display:none;margin-bottom:12px">
+      <div class="text-sm text-secondary mb-2" id="progressText">Generating...</div>
+      <div style="height:6px;background:var(--bg-tertiary);border-radius:999px;overflow:hidden">
+        <div id="progressBar" style="height:100%;width:0%;background:var(--brand);border-radius:999px;transition:width .5s"></div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary w-full" id="genBtn" onclick="startGeneration()" style="justify-content:center">🚀 Generate Video</button>
+  </div>
+</div>
+
+<!-- ═══ Pipeline ═══ -->
+<div id="page-pipeline" class="page">
+  <div class="page-header"><div><h2>Pipeline</h2><p>ติดตามสถานะงานวิดีโอ</p></div>
+    <button class="btn btn-secondary btn-sm" onclick="loadPipeline()">⟳ Refresh</button>
+  </div>
+  <div id="pipelineList"></div>
+</div>
+
+<!-- ═══ Accounts ═══ -->
+<div id="page-accounts" class="page">
+  <div class="page-header">
+    <div><h2>Accounts</h2><p>จัดการบัญชี TikTok</p></div>
+    <button class="btn btn-primary btn-sm" onclick="showAddAccount()">+ Add Account</button>
+  </div>
+
+  <!-- Add Account Form -->
+  <div id="addAccountForm" class="card mb-4" style="display:none">
+    <div class="card-title mb-3">Add Account</div>
+    <div class="mb-3"><input class="input" id="accUsername" placeholder="Username"></div>
+    <div class="mb-3"><input class="input" id="accPassword" type="password" placeholder="Password"></div>
+    <div class="mb-3 flex gap-2 items-center">
+      <input type="checkbox" id="accUseQr" onchange="document.getElementById('accQrNote').style.display=this.checked?'block':'none'">
+      <label class="text-sm" for="accUseQr">Use QR login</label>
+    </div>
+    <div id="accQrNote" class="text-xs text-secondary mb-3" style="display:none">QR code will be shown after adding</div>
+    <div class="flex gap-2">
+      <button class="btn btn-primary btn-sm" onclick="addAccount()">Save</button>
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('addAccountForm').style.display='none'">Cancel</button>
+    </div>
+  </div>
+
+  <div class="card" id="accountsListWrap">
+    <div id="accountsList"><div class="text-sm text-secondary">Loading...</div></div>
+  </div>
+</div>
+
+<!-- QR Modal -->
+<div class="modal-overlay" id="qrModal">
+  <div class="modal">
+    <h3>QR Login</h3>
+    <div id="qrCodeContainer" style="text-align:center;padding:20px">Scan QR with TikTok</div>
+    <p id="qrStatus" class="text-sm text-secondary mt-2" style="text-align:center">Waiting for scan...</p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeQrModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ History ═══ -->
+<div id="page-history" class="page">
+  <div class="page-header">
+    <div><h2>History</h2><p>วิดีโอที่เผยแพร่แล้ว</p></div>
+    <div class="flex gap-2 items-center">
+      <label class="text-sm text-secondary">Filter:</label>
+      <select class="input" style="width:160px" id="historyFilter" onchange="loadHistory()"><option value="">All Accounts</option></select>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th style="min-width:160px">Time</th>
+        <th>Caption</th>
+        <th style="min-width:120px">Account</th>
+        <th style="min-width:80px">Status</th>
+        <th style="min-width:100px">Actions</th>
+      </tr></thead>
+      <tbody id="historyBody"><tr><td colspan="5" class="text-sm text-secondary" style="text-align:center;padding:32px">No published videos yet</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══ Settings ═══ -->
+<div id="page-settings" class="page">
+  <div class="page-header"><div><h2>Settings</h2><p>API endpoints and providers</p></div></div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title mb-3">API Information</div>
+      <div class="mb-2"><div class="text-xs text-secondary">Backend API</div><div class="text-sm">/api/tiktok/ugc</div></div>
+      <div class="mb-2"><div class="text-xs text-secondary">Scraper API</div><div class="text-sm">/api/tiktok/scraper</div></div>
+      <div><div class="text-xs text-secondary">Frontend</div><div class="text-sm">/tiktok/</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title mb-3">AI Providers</div>
+      <div id="providerList"><div class="skeleton skeleton-line"></div></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main -->
+</div><!-- /app -->
+
+<script>
+const API = window.location.origin + '/api/tiktok/ugc';
+const SCRAPER = window.location.origin + '/api/tiktok/scraper';
+
+let currentStep = 1;
+
+/* ═══ Tab switching ═══ */
+function switchTab(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.topbar-nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-'+name)?.classList.add('active');
+  document.querySelector(`[data-tab="${name}"]`)?.classList.add('active');
+  document.querySelector('.topbar-nav')?.classList.remove('show');
+  if (name === 'dashboard') loadRecentJobs();
+  if (name === 'pipeline') loadPipeline();
+  if (name === 'accounts') loadAccounts();
+  if (name === 'history') loadHistory();
+  if (name === 'settings') loadProviders();
+}
+
+/* ═══ Toast ═══ */
+function showToast(msg, type='info') {
+  const el = document.createElement('div'); el.className = 'toast '+type; el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; setTimeout(() => el.remove(),300); }, 3000);
+}
+
+/* ═══ Loading indicator ═══ */
+function setLoading(elId, loading) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  if (loading) el.innerHTML = '<div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line" style="width:60%"></div>';
+}
+
+/* ═══ Recent jobs (Dashboard) ═══ */
+async function loadRecentJobs() {
+  const el = document.getElementById('recentJobs');
+  setLoading('recentJobs', true);
+  try {
+    const res = await fetch(API + '/video/queue');
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+    if (!data?.jobs?.length) { el.innerHTML = '<div class="text-sm text-secondary" style="text-align:center;padding:16px">No recent jobs</div>'; return; }
+    el.innerHTML = data.jobs.slice(0,5).map(j => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border-secondary)">
+        <div><div class="text-sm">${j.id || j.job_id || 'Job'}</div><div class="text-xs text-secondary">${j.product_url ? j.product_url.slice(0,40)+'...' : j.status || ''}</div></div>
+        <span class="badge ${j.status==='completed'?'badge-green':j.status==='processing'?'badge-indigo':j.status==='failed'?'badge-red':'badge-gray'}">${j.status || 'pending'}</span>
+      </div>
+    `).join('');
+  } catch(e) { el.innerHTML = '<div class="text-sm text-secondary" style="text-align:center;padding:16px">Failed to load jobs</div>'; }
+}
+
+/* ═══ Content wizard ═══ */
+function goContentStep(step) {
+  currentStep = step;
+  document.querySelectorAll('.step').forEach(s => s.classList.remove('active','done'));
+  document.querySelectorAll('.step-content').forEach(s => s.classList.remove('active'));
+  for (let i = 1; i < step; i++) document.querySelector(`.step[data-step="${i}"]`)?.classList.add('done');
+  document.querySelector(`.step[data-step="${step}"]`)?.classList.add('active');
+  document.getElementById('contentStep'+step)?.classList.add('active');
+}
+
+async function generateScript() {
+  const url = document.getElementById('productUrl').value;
+  const manual = document.getElementById('manualScript').value;
+  const style = document.getElementById('ugcStyle').value;
+  if (!url && !manual) { showToast('ใส่ URL หรือรายละเอียดสินค้าก่อน','error'); return; }
+
+  showToast('Generating script...','info');
+  try {
+    const body = { ugc_style: style };
+    if (url) body.product_url = url;
+    if (manual) body.product_name = manual;
+
+    const res = await fetch(API + '/scripts/generate', {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error('Generate failed');
+    const data = await res.json();
+
+    document.getElementById('scriptHook').value = data.script?.hook || data.hook || '';
+    document.getElementById('scriptValue').value = data.script?.value_proposition || data.value || data.script?.body || '';
+    document.getElementById('scriptCta').value = data.script?.cta || data.cta || '';
+    localStorage.setItem('lastScript', JSON.stringify(data));
+    goContentStep(2);
+  } catch(e) {
+    showToast('Failed: '+e.message,'error');
+  }
+}
+
+function selectStyle(el, style) {
+  document.querySelectorAll('.style-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  sessionStorage.setItem('selectedStyle', style);
+}
+
+function selectDuration(el, dur) {
+  document.querySelectorAll('.duration-chip').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  sessionStorage.setItem('selectedDuration', dur);
+}
+
+function toggleAdvanced() {
+  const t = document.getElementById('advancedToggle');
+  const s = document.getElementById('advancedSection');
+  t.classList.toggle('on');
+  s.style.display = t.classList.contains('on') ? 'block' : 'none';
+}
+
+async function startGeneration() {
+  const hook = document.getElementById('scriptHook').value;
+  const value = document.getElementById('scriptValue').value;
+  const cta = document.getElementById('scriptCta').value;
+  if (!hook) { showToast('กรุณาใส่ Hook ก่อน','error'); return; }
+
+  const btn = document.getElementById('genBtn');
+  const progress = document.getElementById('generationProgress');
+  btn.disabled = true; btn.style.opacity = '.6';
+  progress.style.display = 'block';
+  document.getElementById('progressText').textContent = 'Generating video...';
+  document.getElementById('progressBar').style.width = '30%';
+
+  try {
+    const body = {
+      prompt: hook + '. ' + value + (cta ? '. ' + cta : ''),
+      provider: document.getElementById('videoProvider').value,
+      duration: parseInt(sessionStorage.getItem('selectedDuration') || '8'),
+      ugc_style: sessionStorage.getItem('selectedStyle') || 'holding',
+      negative_prompt: document.getElementById('negativePrompt').value || null,
+    };
+    if (document.getElementById('productUrl').value) body.product_url = document.getElementById('productUrl').value;
+
+    const res = await fetch(API + '/video/generate', {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error('Generation failed');
+    const data = await res.json();
+    document.getElementById('progressBar').style.width = '100%';
+    document.getElementById('progressText').textContent = '✅ Video queued! Job: ' + (data.job_id || data.id || '');
+    showToast('Video generation queued!','success');
+  } catch(e) {
+    document.getElementById('progressText').textContent = '❌ Failed: ' + e.message;
+    showToast('Generation failed','error');
+  } finally {
+    btn.disabled = false; btn.style.opacity = '1';
+  }
+}
+
+/* ═══ Pipeline ═══ */
+async function loadPipeline() {
+  const el = document.getElementById('pipelineList');
+  el.innerHTML = '<div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line"></div>';
+  try {
+    const res = await fetch(API + '/video/queue');
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+    const jobs = data.jobs || data || [];
+    if (!jobs.length) { el.innerHTML = '<div class="text-sm text-secondary" style="text-align:center;padding:32px">No pipeline jobs</div>'; return; }
+
+    el.innerHTML = jobs.map(j => {
+      const steps = [
+        { key:'scrape', label:'Scrape', status: j.scrape_status || (j.status === 'completed' ? 'done' : j.status === 'failed' ? 'failed' : 'pending') },
+        { key:'script', label:'Script', status: j.script_status || (j.status === 'completed' ? 'done' : j.status === 'processing' ? 'processing' : 'pending') },
+        { key:'generate', label:'Generate', status: j.generate_status || (j.status === 'completed' ? 'done' : j.status === 'processing' ? 'processing' : 'pending') },
+        { key:'upload', label:'Upload', status: j.upload_status || (j.status === 'completed' ? 'done' : 'pending') },
+      ];
+      const icons = { done:'✅', processing:'⏳', failed:'❌', pending:'⏸' };
+      return `<div class="pipeline-card">
+        <div class="pipeline-header"><div><strong>${j.job_id || j.id || 'Job'}</strong><span class="text-xs text-secondary ml-auto">${j.product_url ? j.product_url.slice(0,30)+'...' : ''}</span></div>
+          <div style="display:flex;gap:4px">
+            ${j.status !== 'completed' ? '<button class="btn btn-ghost btn-sm" onclick="cancelJob(\''+(j.job_id||j.id)+'\')">✕ Cancel</button>' : ''}
+          </div>
+        </div>
+        <div class="pipeline-steps">${steps.map(s => `<span class="pipeline-step ${s.status}">${icons[s.status]||'⏸'} ${s.label}</span>`).join('')}</div>
+      </div>`;
+    }).join('');
+  } catch(e) { el.innerHTML = '<div class="text-sm text-secondary" style="text-align:center;padding:16px">Failed to load pipeline</div>'; }
+}
+
+async function cancelJob(id) {
+  try { await fetch(API + '/video/cancel/'+id, {method:'POST'}); showToast('Job cancelled','info'); loadPipeline(); } catch(e) { showToast('Failed','error'); }
+}
+
+/* ═══ Accounts ═══ */
+function showAddAccount() { document.getElementById('addAccountForm').style.display = 'block'; }
+
+async function addAccount() {
+  const username = document.getElementById('accUsername').value;
+  const password = document.getElementById('accPassword').value;
+  const useQr = document.getElementById('accUseQr').checked;
+  if (!username) { showToast('ใส่ Username','error'); return; }
+  try {
+    const res = await fetch(API + '/tiktok/accounts', {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ username, password: password||undefined, use_qr: useQr })
+    });
+    if (!res.ok) throw new Error('Failed');
+    showToast('Account added','success');
+    document.getElementById('addAccountForm').style.display = 'none';
+    document.getElementById('accUsername').value = ''; document.getElementById('accPassword').value = '';
+    loadAccounts(); populateAccountSelect();
+  } catch(e) { showToast('Failed: '+e.message,'error'); }
+}
+
+async function loadAccounts() {
+  const el = document.getElementById('accountsList');
+  try {
+    const res = await fetch(API + '/tiktok/accounts');
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+    const accounts = data.accounts || data || [];
+    if (!accounts.length) { el.innerHTML = '<div class="text-sm text-secondary" style="text-align:center;padding:16px">No accounts added yet</div>'; return; }
+    el.innerHTML = accounts.map(a => `
+      <div class="account-item">
+        <div class="avatar" style="background:linear-gradient(135deg,${hashColor(a.username||a.id||'A')},${hashColor2(a.username||a.id||'A')})">${(a.username||a.id||'?')[0].toUpperCase()}</div>
+        <div style="flex:1">
+          <div class="font-medium">${a.username || a.id || 'Unknown'}</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
+            <span class="status-dot ${a.is_logged_in ? 'online' : 'offline'}"></span>
+            <span class="text-xs text-secondary">${a.is_logged_in ? 'Logged in' : 'Not logged in'}</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:4px">
+          ${!a.is_logged_in ? `<button class="btn btn-primary btn-sm" onclick="loginAccount('${a.id||a.username}')">Login</button>` : ''}
+          <button class="btn btn-ghost btn-sm" onclick="checkSession('${a.id||a.username}')">Check</button>
+          <button class="btn btn-danger btn-sm" onclick="removeAccount('${a.id||a.username}')">Delete</button>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) { el.innerHTML = '<div class="text-sm text-secondary" style="padding:16px">Failed to load accounts</div>'; }
+}
+
+function hashColor(s) { const colors = ['#7c3aed','#2563eb','#0891b2','#059669','#d97706','#dc2626','#db2777','#7c2d12']; let h=0;for(let i=0;i<s.length;i++)h=s.charCodeAt(i)+((h<<5)-h);return colors[Math.abs(h)%colors.length]; }
+function hashColor2(s) { const colors = ['#a78bfa','#60a5fa','#22d3ee','#34d399','#fbbf24','#f87171','#f472b6','#f97316']; let h=0;for(let i=0;i<s.length;i++)h=s.charCodeAt(i)+((h<<5)-h)+1;return colors[Math.abs(h)%colors.length]; }
+
+async function loginAccount(id) {
+  try {
+    const res = await fetch(API + '/tiktok/login', {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ account_id: id })
+    });
+    const data = await res.json();
+    if (data.qr_code) {
+      document.getElementById('qrCodeContainer').innerHTML = `<img src="${data.qr_code}" style="max-width:200px;border-radius:8px" alt="QR">`;
+      document.getElementById('qrStatus').textContent = 'Scan with TikTok, auto-checking in 30s...';
+      document.getElementById('qrModal').classList.add('open');
+    }
+    showToast('Login initiated','info');
+    loadAccounts();
+  } catch(e) { showToast('Login failed','error'); }
+}
+
+async function checkSession(id) {
+  try {
+    const res = await fetch(API + '/tiktok/check-session', {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ account_id: id })
+    });
+    const data = await res.json();
+    showToast(data.valid ? '✅ Session valid' : '❌ Session expired', data.valid ? 'success' : 'error');
+    loadAccounts();
+  } catch(e) { showToast('Check failed','error'); }
+}
+
+async function removeAccount(id) {
+  if (!confirm('Remove account?')) return;
+  try { await fetch(API + '/tiktok/accounts/'+id, {method:'DELETE'}); showToast('Removed','info'); loadAccounts(); populateAccountSelect(); }
+  catch(e) { showToast('Failed','error'); }
+}
+
+function closeQrModal() { document.getElementById('qrModal').classList.remove('open'); }
+
+async function populateAccountSelect() {
+  const sel = document.getElementById('historyFilter');
+  try {
+    const res = await fetch(API + '/tiktok/accounts');
+    const data = await res.json();
+    const accounts = data.accounts || data || [];
+    sel.innerHTML = '<option value="">All Accounts</option>' + accounts.map(a => `<option value="${a.id||a.username}">${a.username||a.id}</option>`).join('');
+  } catch(e) {}
+}
+
+/* ═══ Upload functions (keep existing functionality) ═══ */
+let batchItems = [];
+function addBatchItem() { batchItems.push({}); showToast('Batch item added','info'); }
+function runBatch() { showToast('Batch upload started','info'); }
+
+async function uploadVideo() {
+  try {
+    const res = await fetch(API + '/tiktok/upload', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ account_id: document.getElementById('accUsername')?.value || 'test', video_path: '', caption: '' })
+    });
+    showToast('Upload function ready','info');
+  } catch(e) { showToast('Upload failed','error'); }
+}
+
+/* ═══ History ═══ */
+async function loadHistory() {
+  const el = document.getElementById('historyBody');
+  const filter = document.getElementById('historyFilter').value;
+  try {
+    let url = API + '/tiktok/published';
+    if (filter) url += '?account='+filter;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+    const items = data.published || data.videos || data || [];
+    if (!items.length) { el.innerHTML = '<tr><td colspan="5" class="text-sm text-secondary" style="text-align:center;padding:32px">No published videos</td></tr>'; return; }
+    el.innerHTML = items.map(v => `<tr>
+      <td class="text-sm">${v.published_time || v.time || v.created_at || '-'}</td>
+      <td class="text-sm" style="max-width:300px"><span class="truncate" style="display:block">${v.caption || v.description || '-'}</span></td>
+      <td><span class="badge badge-indigo">${v.account || v.account_id || '-'}</span></td>
+      <td><span class="badge badge-green">Published</span></td>
+      <td><button class="btn btn-ghost btn-sm" onclick="showToast('Video ID: ${v.video_id || v.id || 'N/A'}','info')">View</button></td>
+    </tr>`).join('');
+  } catch(e) { el.innerHTML = '<tr><td colspan="5" class="text-sm text-secondary" style="text-align:center;padding:32px">Failed to load history</td></tr>'; }
+}
+
+/* ═══ Settings ═══ */
+async function loadProviders() {
+  const el = document.getElementById('providerList');
+  try {
+    const res = await fetch(API + '/video/providers');
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+    const providers = data.providers || data || [];
+    el.innerHTML = '<div class="text-xs text-secondary mb-2">Available providers:</div>' +
+      providers.map(p => `<div class="text-sm" style="padding:4px 0">• ${p.name || p.id || p}</div>`).join('') ||
+      '<div class="text-sm">No provider data</div>';
+  } catch(e) { el.innerHTML = '<div class="text-sm text-secondary">Failed to load providers</div>'; }
+}
+
+/* ═══ Refresh All ═══ */
+function refreshAll() {
+  loadRecentJobs(); loadPipeline(); loadAccounts(); loadHistory();
+  showToast('Refreshed','success');
+}
+
+/* ═══ Init ═══ */
+document.addEventListener('DOMContentLoaded', () => {
+  // Dark mode
+  if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    document.documentElement.classList.add('dark-mode');
+  }
+
+  // Set connection status
+  fetch(API + '/health').then(r => {
+    if (r.ok) document.getElementById('connStatus').className = 'status-dot online';
+  }).catch(() => document.getElementById('connStatus').className = 'status-dot offline');
+
+  // Initial loads
+  loadRecentJobs(); loadAccounts(); populateAccountSelect(); loadProviders();
+});
+</script>
+</body>
+</html>

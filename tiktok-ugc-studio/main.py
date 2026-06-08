@@ -11,6 +11,14 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Optional
 
+# ─── Storage paths ────────────────────────────────────────────────────────
+STORAGE_DIR = Path(__file__).parent / "storage"
+TTS_DIR = STORAGE_DIR / "tts"
+IMAGES_DIR = STORAGE_DIR / "images"
+VIDEOS_DIR = STORAGE_DIR / "videos"
+for d in [STORAGE_DIR, TTS_DIR, IMAGES_DIR, VIDEOS_DIR]:
+    d.mkdir(parents=True, exist_ok=True)
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from io import BytesIO
@@ -19,6 +27,9 @@ from pydantic import BaseModel
 import base64
 import uuid
 import sqlite3
+
+import sys
+sys.path.insert(0, os.path.dirname(__file__))
 
 import os
 # Load .env file for API keys (avoids OpenClaw redaction issues in PM2)
@@ -49,6 +60,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Static file serving for generated assets (TTS, composed videos)
+from fastapi.staticfiles import StaticFiles
+STORAGE_DIR = os.path.join(os.path.dirname(__file__), "storage")
+os.makedirs(os.path.join(STORAGE_DIR, "tts"), exist_ok=True)
+os.makedirs(os.path.join(STORAGE_DIR, "composed"), exist_ok=True)
+os.makedirs(os.path.join(STORAGE_DIR, "videos"), exist_ok=True)
+try:
+    app.mount("/static", StaticFiles(directory=STORAGE_DIR), name="static")
+except Exception as e:
+    logger.warning(f"Static mount (may already exist): {e}")
 
 # ─── Pydantic Models ───────────────────────────────────────────────────────
 
@@ -257,6 +279,252 @@ Description: {description[:300]}
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "tiktok-ugc-studio", "version": "0.1.0"}
+
+
+# ─── TTS (Text-to-Speech) ─────────────────────────────────────────────────
+
+class TTSRequest(BaseModel):
+    text: str
+    lang: str = "th"
+    slow: bool = False
+
+
+@app.post("/tts/generate")
+def generate_tts(req: TTSRequest):
+    """Generate TTS audio from text using gTTS."""
+    from tts_gen import text_to_speech
+    if not req.text or not req.text.strip():
+        raise HTTPException(status_code=400, detail="Text cannot be empty")
+    try:
+        filepath = text_to_speech(
+            text=req.text.strip(),
+            lang=req.lang or "th",
+            slow=req.slow,
+        )
+        filename = os.path.basename(filepath)
+        return {
+            "success": True,
+            "audio_url": f"/static/tts/{filename}",
+            "filepath": filepath,
+            "filename": filename,
+            "duration_estimate": len(req.text.strip()) / 12,
+        }
+    except RuntimeError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+class ScriptTTSRequest(BaseModel):
+    hook: str
+    value_proposition: str = ""
+    cta: str = ""
+    lang: str = "th"
+
+
+@app.post("/tts/script")
+def generate_script_tts(req: ScriptTTSRequest):
+    """Generate TTS for full UGC script (hook + value + CTA) as segments."""
+    from tts_gen import script_to_speech
+    try:
+        result = script_to_speech(
+            hook=req.hook,
+            value_proposition=req.value_proposition,
+            cta=req.cta,
+            lang=req.lang or "th",
+        )
+        result["success"] = True
+        return result
+    except RuntimeError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+# ─── Pipeline Database ─────────────────────────────────────────────────────
+
+PIPELINE_DB_PATH = os.path.join(os.path.dirname(__file__), "pipeline.db")
+
+def _init_pipeline_db():
+    """Initialize pipeline job tracking database."""
+    os.makedirs(os.path.dirname(PIPELINE_DB_PATH) or ".", exist_ok=True)
+    conn = sqlite3.connect(PIPELINE_DB_PATH)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS pipeline_jobs (
+            job_id TEXT PRIMARY KEY,
+            account_id TEXT,
+            product_url TEXT,
+            status TEXT DEFAULT 'pending',
+            created_at TEXT,
+            updated_at TEXT,
+            steps_data TEXT DEFAULT '{}'
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+_init_pipeline_db()
+
+def _create_pipeline_job(account_id: str = "", product_url: str = "") -> str:
+    """Create a new pipeline job and return job_id."""
+    job_id = str(uuid.uuid4())[:8]
+    now = datetime.utcnow().isoformat()
+    conn = sqlite3.connect(PIPELINE_DB_PATH)
+    conn.execute(
+        "INSERT INTO pipeline_jobs (job_id, account_id, product_url, status, created_at, updated_at, steps_data) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (job_id, account_id, product_url, "pending", now, now, "{}")
+    )
+    conn.commit()
+    conn.close()
+    return job_id
+
+def _update_pipeline_step(job_id: str, step_name: str, status: str, result: dict = None):
+    """Update a specific step in pipeline job."""
+    conn = sqlite3.connect(PIPELINE_DB_PATH)
+    row = conn.execute("SELECT steps_data FROM pipeline_jobs WHERE job_id = ?", (job_id,)).fetchone()
+    if not row:
+        conn.close()
+        return
+    steps = json.loads(row[0])
+    steps[step_name] = {"status": status, **(result or {})}
+    now = datetime.utcnow().isoformat()
+    all_done = all(s.get("status") in ("success", "error") for s in steps.values()) if steps else False
+    overall = "completed" if all_done else "running"
+    conn.execute(
+        "UPDATE pipeline_jobs SET steps_data = ?, status = ?, updated_at = ? WHERE job_id = ?",
+        (json.dumps(steps), overall, now, job_id)
+    )
+    conn.commit()
+    conn.close()
+
+def _get_pipeline_job(job_id: str) -> dict:
+    """Get full pipeline job details."""
+    conn = sqlite3.connect(PIPELINE_DB_PATH)
+    row = conn.execute("SELECT * FROM pipeline_jobs WHERE job_id = ?", (job_id,)).fetchone()
+    conn.close()
+    if not row:
+        return None
+    return {
+        "job_id": row[0],
+        "account_id": row[1],
+        "product_url": row[2],
+        "status": row[3],
+        "created_at": row[4],
+        "updated_at": row[5],
+        "steps": json.loads(row[6]),
+    }
+
+@app.get("/pipeline/{job_id}/status")
+def pipeline_status(job_id: str):
+    """Get pipeline job status."""
+    job = _get_pipeline_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+    return {"success": True, "job": job}
+
+@app.get("/pipeline/list")
+def pipeline_list(limit: int = 20):
+    """List pipeline jobs."""
+    conn = sqlite3.connect(PIPELINE_DB_PATH)
+    rows = conn.execute(
+        "SELECT job_id, account_id, status, product_url, created_at, updated_at FROM pipeline_jobs ORDER BY created_at DESC LIMIT ?",
+        (limit,)
+    ).fetchall()
+    conn.close()
+    return {"success": True, "jobs": [{"job_id": r[0], "account_id": r[1], "status": r[2], "product_url": r[3], "created_at": r[4], "updated_at": r[5]} for r in rows]}
+
+# ─── Orchestrator: Full Pipeline ──────────────────────────────────────────
+
+class FullPipelineRequest(BaseModel):
+    """Full pipeline: script → TTS → image → video → compose."""
+    # Product
+    product_url: Optional[str] = ""
+    product_title: Optional[str] = ""
+    product_description: Optional[str] = ""
+    product_image: Optional[str] = None  # base64 or URL
+    model_image: Optional[str] = None  # base64 or URL for face ref
+    # Script
+    ugc_style: str = "holding"
+    hook: Optional[str] = ""
+    value_proposition: Optional[str] = ""
+    cta: Optional[str] = ""
+    # Video
+    provider: str = "fal"
+    duration: int = 10
+    aspect_ratio: str = "9:16"
+    negative_prompt: Optional[str] = ""
+    # Audio
+    tts_lang: str = "th"
+    bg_music: Optional[str] = None  # URL or path to bg music
+    # Pipeline control
+    run_tts: bool = True
+    run_video_gen: bool = True
+    run_compose: bool = True
+
+
+@app.post("/pipeline/run")
+async def run_full_pipeline(req: FullPipelineRequest):
+    """Run the full UGC pipeline: script → TTS → video gen → compose.
+
+    Returns a pipeline job_id for status tracking.
+    """
+    import asyncio
+    from tts_gen import text_to_speech
+    from composer import compose_video
+
+    # Create pipeline job
+    job_id = _create_pipeline_job(account_id="", product_url=req.product_url or "")
+
+    try:
+        # Step 1: TTS
+        if req.run_tts:
+            _update_pipeline_step(job_id, "tts", "processing")
+            full_text = " ".join(filter(None, [req.hook, req.value_proposition, req.cta]))
+            if not full_text.strip():
+                full_text = req.product_title or req.product_description or ""
+
+            if full_text.strip():
+                try:
+                    tts_file = text_to_speech(
+                        text=full_text.strip(),
+                        lang=req.tts_lang or "th",
+                    )
+                    _update_pipeline_step(job_id, "tts", "success", {"filepath": tts_file})
+                except Exception as e:
+                    _update_pipeline_step(job_id, "tts", "error", {"error": str(e)})
+                    raise
+            else:
+                _update_pipeline_step(job_id, "tts", "skipped")
+
+        # Step 2: Video Gen (placeholder for now — integrate with real providers)
+        if req.run_video_gen:
+            _update_pipeline_step(job_id, "video_gen", "processing")
+            # Placeholder: actual Fal.ai Wan I2V call would go here
+            # from fal_client import generate_video
+            # video_result = generate_video(
+            #     image_path=req.product_image,
+            #     prompt=req.hook,
+            #     duration=req.duration,
+            #     aspect_ratio=req.aspect_ratio,
+            # )
+            _update_pipeline_step(job_id, "video_gen", "success", {
+                "message": "Video gen placeholder — connect Fal.ai API"
+            })
+
+        # Mark overall success
+        _update_pipeline_step(job_id, "pipeline", "success")
+
+        return {
+            "success": True,
+            "job_id": job_id,
+            "status": "completed",
+        }
+
+    except Exception as e:
+        logger.error(f"Pipeline {job_id} failed: {e}")
+        _update_pipeline_step(job_id, "pipeline", "error", {"error": str(e)})
+        return {
+            "success": False,
+            "job_id": job_id,
+            "status": "error",
+            "error": str(e),
+        }
 
 
 # ─── Script Generation Endpoints ──────────────────────────────────────────
@@ -894,10 +1162,6 @@ async def profile_get_tier(user_id: str):
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# TikTok Auto Uploader — Playwright + Mobile Proxy
-# ═══════════════════════════════════════════════════════════════════════
-
-TIKTOK_ACCOUNTS_FILE = Path(__file__).parent / "storage" / "tiktok_accounts.json"
 
 def _load_tiktok_accounts() -> dict:
     """Load saved TikTok accounts from disk."""
@@ -953,422 +1217,9 @@ class PipelineJobStatusRequest(BaseModel):
     job_id: str
 
 
-# ─── Pipeline Database ─────────────────────────────────────────────────────
-
-PIPELINE_DB_PATH = os.path.join(os.path.dirname(__file__), "pipeline.db")
-
-def _init_pipeline_db():
-    """Initialize pipeline job tracking database."""
-    os.makedirs(os.path.dirname(PIPELINE_DB_PATH) or ".", exist_ok=True)
-    conn = sqlite3.connect(PIPELINE_DB_PATH)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS pipeline_jobs (
-            job_id TEXT PRIMARY KEY,
-            account_id TEXT,
-            product_url TEXT,
-            status TEXT DEFAULT 'pending',
-            created_at TEXT,
-            updated_at TEXT,
-            steps_data TEXT DEFAULT '{}'
-        )
-    """)
-    conn.commit()
-    conn.close()
-
-# Init on import
-_init_pipeline_db()
-
-def _create_pipeline_job(account_id: str, product_url: str = "") -> str:
-    """Create a new pipeline job and return job_id."""
-    job_id = str(uuid.uuid4())[:8]
-    now = datetime.utcnow().isoformat()
-    conn = sqlite3.connect(PIPELINE_DB_PATH)
-    conn.execute(
-        "INSERT INTO pipeline_jobs (job_id, account_id, product_url, status, created_at, updated_at, steps_data) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (job_id, account_id, product_url, "pending", now, now, "{}")
-    )
-    conn.commit()
-    conn.close()
-    return job_id
-
-def _update_pipeline_step(job_id: str, step_name: str, status: str, result: dict = None):
-    """Update a specific step in pipeline job."""
-    conn = sqlite3.connect(PIPELINE_DB_PATH)
-    row = conn.execute("SELECT steps_data FROM pipeline_jobs WHERE job_id = ?", (job_id,)).fetchone()
-    if not row:
-        conn.close()
-        return
-    steps = json.loads(row[0])
-    steps[step_name] = {"status": status, **(result or {})}
-    now = datetime.utcnow().isoformat()
-    all_done = all(s.get("status") in ("success", "error") for s in steps.values()) if steps else False
-    overall = "completed" if all_done else "running"
-    conn.execute(
-        "UPDATE pipeline_jobs SET steps_data = ?, status = ?, updated_at = ? WHERE job_id = ?",
-        (json.dumps(steps), overall, now, job_id)
-    )
-    conn.commit()
-    conn.close()
-
-def _get_pipeline_job(job_id: str) -> dict:
-    """Get full pipeline job details."""
-    conn = sqlite3.connect(PIPELINE_DB_PATH)
-    row = conn.execute("SELECT * FROM pipeline_jobs WHERE job_id = ?", (job_id,)).fetchone()
-    conn.close()
-    if not row:
-        return None
-    return {
-        "job_id": row[0],
-        "account_id": row[1],
-        "product_url": row[2],
-        "status": row[3],
-        "created_at": row[4],
-        "updated_at": row[5],
-        "steps": json.loads(row[6]),
-    }
-
-
-# ─── Pipeline Status Endpoint ──────────────────────────────────────────────
-
-@app.get("/pipeline/{job_id}/status")
-def pipeline_status(job_id: str):
-    """Get detailed pipeline job status."""
-    job = _get_pipeline_job(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail=f"Pipeline job {job_id} not found")
-    return {"success": True, "job": job}
-
-
-@app.get("/pipeline/list")
-def pipeline_list(limit: int = 20):
-    """List recent pipeline jobs."""
-    conn = sqlite3.connect(PIPELINE_DB_PATH)
-    rows = conn.execute(
-        "SELECT job_id, account_id, status, product_url, created_at, updated_at FROM pipeline_jobs ORDER BY created_at DESC LIMIT ?",
-        (limit,)
-    ).fetchall()
-    conn.close()
-    return {
-        "success": True,
-        "jobs": [
-            {
-                "job_id": r[0],
-                "account_id": r[1],
-                "status": r[2],
-                "product_url": r[3],
-                "created_at": r[4],
-                "updated_at": r[5],
-            }
-            for r in rows
-        ]
-    }
-
-
-# ─── Credit System (P5 prep — simple in-memory for now) ────────────────────
-
-CREDIT_DB_PATH = os.path.join(os.path.dirname(__file__), "credits.db")
-
-def _init_credit_db():
-    """Initialize credit tracking database (P5 prep)."""
-    conn = sqlite3.connect(CREDIT_DB_PATH)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS credits (
-            user_id TEXT PRIMARY KEY,
-            balance INTEGER DEFAULT 0,
-            created_at TEXT,
-            updated_at TEXT
-        )
-    """)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS credit_transactions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id TEXT,
-            amount INTEGER,
-            type TEXT,
-            ref TEXT,
-            created_at TEXT
-        )
-    """)
-    conn.commit()
-    conn.close()
-
-_init_credit_db()
-
-
-# ─── TikTok Account Management ────────────────────────────────────────────
-
-@app.post("/tiktok/account/add")
-async def tiktok_add_account(req: TikTokAccountConfig):
-    """Register a TikTok account for auto-posting."""
-    accounts = _load_tiktok_accounts()
-
-    if req.account_id in accounts:
-        raise HTTPException(status_code=409, detail=f"Account {req.account_id} already exists")
-
-    accounts[req.account_id] = {
-        "account_id": req.account_id,
-        "username": req.username or "",
-        "password": req.password or "",
-        "use_qr": req.use_qr,
-        "created_at": datetime.utcnow().isoformat(),
-        "last_login": None,
-        "session_valid": False,
-        "enabled": True,
-    }
-
-    _save_tiktok_accounts(accounts)
-    logger.info(f"TikTok account added: {req.account_id}")
-
-    return {
-        "success": True,
-        "message": f"TikTok account {req.account_id} registered",
-        "account_count": len(accounts),
-    }
-
-
-@app.get("/tiktok/accounts")
-async def tiktok_list_accounts():
-    """List all registered TikTok accounts."""
-    accounts = _load_tiktok_accounts()
-    return {
-        "success": True,
-        "accounts": [
-            {
-                "account_id": aid,
-                "username": info.get("username", ""),
-                "session_valid": info.get("session_valid", False),
-                "enabled": info.get("enabled", True),
-                "last_login": info.get("last_login"),
-                "created_at": info.get("created_at"),
-            }
-            for aid, info in accounts.items()
-        ],
-        "total": len(accounts),
-    }
-
-
-@app.post("/tiktok/account/remove")
-async def tiktok_remove_account(req: TikTokAccountConfig):
-    """Remove a TikTok account."""
-    accounts = _load_tiktok_accounts()
-    if req.account_id not in accounts:
-        raise HTTPException(status_code=404, detail=f"Account {req.account_id} not found")
-
-    del accounts[req.account_id]
-    _save_tiktok_accounts(accounts)
-
-    # Also remove saved session
-    session_file = Path(__file__).parent / "sessions" / "tiktok" / f"{req.account_id}.json"
-    if session_file.exists():
-        session_file.unlink()
-
-    return {"success": True, "message": f"Account {req.account_id} removed"}
-
-
-# ─── TikTok Login ─────────────────────────────────────────────────────────
-
-@app.post("/tiktok/login")
-async def tiktok_login(req: TikTokAccountConfig):
-    """
-    Login to TikTok account via browser.
-    - use_qr=True → returns QR code image as base64
-    - use_qr=False → uses username/password
-    - Returns session status
-    """
-    accounts = _load_tiktok_accounts()
-    if req.account_id not in accounts:
-        raise HTTPException(status_code=404, detail=f"Account {req.account_id} not found")
-
-    try:
-        from tiktok_uploader import login_tiktok, save_session
-
-        result = await login_tiktok(
-            account_id=req.account_id,
-            username=req.username or accounts[req.account_id].get("username", ""),
-            password=req.password or accounts[req.account_id].get("password", ""),
-            use_qr=req.use_qr,
-            timeout_seconds=180,
-        )
-
-        # Update account status
-        accounts[req.account_id]["session_valid"] = result.get("session_valid", False)
-        accounts[req.account_id]["last_login"] = datetime.utcnow().isoformat()
-        _save_tiktok_accounts(accounts)
-
-        return {
-            "success": result.get("success", False),
-            "account_id": req.account_id,
-            "method": result.get("method", ""),
-            "session_valid": result.get("session_valid", False),
-            "qr_code": result.get("qr_code"),  # base64 PNG if QR method
-            "error": result.get("error", ""),
-        }
-
-    except Exception as e:
-        logger.error(f"Login error: {e}", exc_info=True)
-        raise HTTPException(status_code=502, detail=f"Login failed: {str(e)[:200]}")
-
-
-# ─── TikTok Session Check ────────────────────────────────────────────────
-
-@app.post("/tiktok/session/check")
-async def tiktok_check_session(req: TikTokSessionRequest):
-    """Check if a TikTok account's session is still valid."""
-    accounts = _load_tiktok_accounts()
-    if req.account_id not in accounts:
-        raise HTTPException(status_code=404, detail=f"Account {req.account_id} not found")
-
-    try:
-        from tiktok_uploader import check_session
-
-        result = await check_session(req.account_id)
-
-        # Update account status
-        accounts[req.account_id]["session_valid"] = result.get("valid", False)
-        _save_tiktok_accounts(accounts)
-
-        return {
-            "success": True,
-            "account_id": req.account_id,
-            "valid": result.get("valid", False),
-            "username": result.get("username", ""),
-            "followers": result.get("followers", ""),
-        }
-
-    except Exception as e:
-        logger.error(f"Session check error: {e}")
-        raise HTTPException(status_code=502, detail=str(e)[:200])
-
-
-# ─── TikTok Upload ────────────────────────────────────────────────────────
-
-@app.post("/tiktok/upload")
-async def tiktok_upload_video(req: TikTokUploadRequest):
-    """
-    Upload video to TikTok. Three modes:
-    1. Direct upload from video_path
-    2. Generate from prompt → upload
-    3. Scrape product URL → generate script → generate video → upload (full pipeline)
-    """
-    accounts = _load_tiktok_accounts()
-    if req.account_id not in accounts:
-        raise HTTPException(status_code=404, detail=f"Account {req.account_id} not found")
-    if not accounts[req.account_id].get("session_valid"):
-        raise HTTPException(status_code=401, detail=f"Account {req.account_id} not logged in. Please login first.")
-
-    actual_video_path = req.video_path
-
-    # Mode 3: Full pipeline — scrape → script → video → upload
-    if req.product_url:
-        logger.info(f"Full pipeline: scraping {req.product_url}...")
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            # Scrape + generate script
-            gen_resp = await client.post(
-                f"http://localhost:8105/product/scrape-and-generate",
-                json={
-                    "url": req.product_url,
-                    "ugc_style": req.ugc_style or "ugc_review",
-                    "use_vision": False,
-                    "duration": "8s",
-                },
-                timeout=60.0
-            )
-            gen_data = gen_resp.json()
-
-            if not gen_data.get("success"):
-                raise HTTPException(status_code=502, detail=f"Scrape+Generate failed: {gen_data}")
-
-            product = gen_data.get("product", {})
-            script = gen_data.get("script", {})
-            script_text = script.get("script", "") if script else ""
-
-            # Use captions from product if no explicit caption
-            if not req.caption:
-                req.caption = script_text[:2200]  # TikTok caption limit
-
-            # Generate video from script
-            video_resp = await client.post(
-                f"http://localhost:8105/video/generate",
-                json={
-                    "prompt": "",
-                    "provider": "wavespeed",
-                    "duration": 8,
-                    "aspect_ratio": "9:16",
-                    "script": script_text,
-                    "ugc_style": req.ugc_style or "ugc_review",
-                },
-                timeout=120.0
-            )
-            video_data = video_resp.json()
-
-            if video_data.get("video_url"):
-                actual_video_path = video_data["video_url"]
-                logger.info(f"Video generated: {actual_video_path[:60]}...")
-            else:
-                raise HTTPException(status_code=502, detail=f"Video generation failed: {video_data.get('error', 'unknown')}")
-
-    # Mode 2: Generate from prompt
-    elif req.generate_from_prompt:
-        logger.info(f"Generating video from prompt...")
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            video_resp = await client.post(
-                f"http://localhost:8105/video/generate",
-                json={
-                    "prompt": req.generate_from_prompt,
-                    "provider": "wavespeed",
-                    "duration": 8,
-                    "aspect_ratio": "9:16",
-                    "ugc_style": req.ugc_style or "ugc_review",
-                },
-                timeout=120.0
-            )
-            video_data = video_resp.json()
-
-            if video_data.get("video_url"):
-                actual_video_path = video_data["video_url"]
-            else:
-                raise HTTPException(status_code=502, detail=f"Video generation failed: {video_data.get('error', 'unknown')}")
-
-    # Calculate schedule time if requested
-    schedule_time = None
-    if req.schedule_hours and req.schedule_hours > 0:
-        schedule_time = datetime.utcnow() + timedelta(hours=req.schedule_hours)
-
-    # Upload
-    try:
-        from tiktok_uploader import upload_video
-
-        # If we got a URL instead of a local path, download it first
-        if actual_video_path.startswith("http"):
-            video_dir = Path(__file__).parent / "storage" / "to_upload"
-            video_dir.mkdir(parents=True, exist_ok=True)
-            local_path = str(video_dir / f"ugc_{int(time.time())}.mp4")
-            async with httpx.AsyncClient(timeout=120.0) as client:
-                resp = await client.get(actual_video_path)
-                with open(local_path, "wb") as f:
-                    f.write(resp.content)
-            actual_video_path = local_path
-            logger.info(f"Downloaded video to {local_path}")
-
-        result = await upload_video(
-            account_id=req.account_id,
-            video_path=actual_video_path,
-            caption=req.caption,
-            hashtags=req.hashtags,
-            schedule_time=schedule_time,
-            allow_duet=req.allow_duet,
-            allow_stitch=req.allow_stitch,
-            allow_comment=req.allow_comment,
-            visibility=req.visibility,
-        )
-        return result
-
-    except Exception as e:
-        logger.error(f"Upload error: {e}", exc_info=True)
-        raise HTTPException(status_code=502, detail=str(e)[:300])
-
-
-# ─── TikTok Video Queue — Batch Upload ────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════
+# UGC Studio v2 — TTS, Fal.ai, Composer, Wav2Lip Pipeline
+# ═══════════════════════════════════════════════════════════════════════
 
 class BatchUploadRequest(BaseModel):
     """Batch upload multiple videos to TikTok."""

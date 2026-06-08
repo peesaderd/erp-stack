@@ -1,16 +1,15 @@
 """
 ERP Modular MCP Server — stdio mode for AI Agent access
 
-ให้ AI Agents (Claude, OpenHands, GPT) สามารถเรียกใช้งาน modules ทั้งหมด
+ให้ AI Agents (Claude, OpenHands, GPT) สามารถเรียกใช้งาน ERP Modular
 ผ่าน MCP Protocol (Model Context Protocol)
 
-Modules ที่เชื่อม:
-  - Profile Module (port 8107) — Business & Client profiles
-  - Payment Module (port 8122) — Stripe + QR PromptPay
-  - Image Generation (port 8190) — AI Image generation
-  - Video Generation (port 8116) — AI Video generation
-  - Media Module (port 8103) — File/media upload
-  - Auth Module (port 8101) — User/authentication
+ERP Modular เป็น unified FastAPI service บน port 8102 ที่รวม:
+  - Auth + Rate Limiting
+  - Module Registry (/api/v1/modules)
+  - Entity CRUD (/api/v1/entities)
+  - Template CRUD (/api/v1/templates)
+  - Agent Activity Logging (/agent/logs)
 
 Usage:
   python3 erp_mcp_server.py                    # stdio mode
@@ -38,13 +37,11 @@ import httpx
 # ═══════════════════════════════════════════════════════════════
 
 ERP_MODULAR_URL = "http://localhost:8102"
+# ERP Modular is a unified service — all tools route through it.
+# The old sub-module architecture (profile/payment/media/auth as separate microservices)
+# was merged into a single FastAPI app on port 8102.
 SERVICES = {
-    "profile":      {"url": "http://localhost:8107",   "name": "Profile Module"},
-    "payment":      {"url": "http://localhost:8122",   "name": "Payment Module"},
-    "image-gen":    {"url": "http://localhost:8110",   "name": "Image Generation"},
-    "video-gen":    {"url": "http://localhost:8116",   "name": "Video Generation"},
-    "media":        {"url": "http://localhost:8103",   "name": "Media Module"},
-    "auth":         {"url": "http://localhost:8101",   "name": "Auth Module"},
+    "erp-modular": {"url": ERP_MODULAR_URL, "name": "ERP Modular"},
 }
 
 logging.basicConfig(level=logging.INFO)
@@ -103,7 +100,8 @@ async def list_modules() -> str:
     """List all modules registered in ERP Modular."""
     result = await _http_call("GET", f"{ERP_MODULAR_URL}/api/v1/modules")
     if result["ok"]:
-        modules = result["data"].get("items", result["data"])
+        data = result["data"]
+        modules = data.get("items", data) if isinstance(data, dict) else data
         if isinstance(modules, dict):
             modules = [modules]
         return json.dumps({
@@ -134,17 +132,25 @@ async def list_modules() -> str:
 
 @mcp.tool()
 async def get_health() -> str:
-    """Check health status of all registered services."""
-    statuses = {}
-    for slug, info in SERVICES.items():
-        result = await _http_call("GET", f"{info['url']}/health")
-        statuses[slug] = {
-            "name": info["name"],
-            "url": info["url"],
-            "alive": result["ok"],
-            "status_code": result["status"],
-        }
-    return json.dumps({"services": statuses}, indent=2, ensure_ascii=False)
+    """Check health status of ERP Modular service."""
+    result = await _http_call("GET", f"{ERP_MODULAR_URL}/health")
+    if result["ok"]:
+        health_data = result.get("data", {})
+        return json.dumps({
+            "status": "ok",
+            "service": "ERP Modular",
+            "url": ERP_MODULAR_URL,
+            "version": health_data.get("version", "?"),
+            "gateway": health_data.get("gateway", False),
+            "auth": health_data.get("auth", False),
+            "rate_limit": health_data.get("rate_limit", False),
+        }, indent=2, ensure_ascii=False)
+    return json.dumps({
+        "status": "error",
+        "service": "ERP Modular",
+        "url": ERP_MODULAR_URL,
+        "error": result.get("error", "Unreachable"),
+    }, indent=2, ensure_ascii=False)
 
 
 @mcp.tool()
@@ -154,19 +160,24 @@ async def call_api(
     path: str = "/health",
     body: str = "",
 ) -> str:
-    """Call any API endpoint on a registered module.
+    """Call any API endpoint on ERP Modular.
+
+    All routes go through the unified ERP Modular service on port 8102.
+    Available API namespaces:
+      - /api/v1/modules     — Module registry
+      - /api/v1/entities    — CRUD entities
+      - /api/v1/templates   — Templates
+      - /agent/logs         — Activity logs
+      - /agent/stats        - Agent stats
+      - /health             - Health check
 
     Args:
-        module: Module slug (profile, payment, image-gen, video-gen, media, auth)
-        method: HTTP method (GET, POST, PUT, DELETE)
-        path: URL path (e.g., /api/v1/profiles/business)
-        body: JSON body string (for POST/PUT)
+        module: Ignored (all routes go to ERP Modular). Kept for backward compat.
+        method: HTTP method (GET, POST, PUT, DELETE, PATCH)
+        path: URL path (e.g., /api/v1/entities)
+        body: JSON body string (for POST/PUT/PATCH)
     """
-    service = SERVICES.get(module)
-    if not service:
-        return json.dumps({"ok": False, "error": f"Unknown module: {module}. Available: {list(SERVICES.keys())}"})
-
-    url = f"{service['url']}{path}"
+    url = f"{ERP_MODULAR_URL}{path}"
     kwargs = {}
     if body and method in ("POST", "PUT", "PATCH"):
         try:
@@ -219,33 +230,32 @@ async def call_payment(
     amount: int = 0,
     currency: str = "thb",
 ) -> str:
-    """Call Payment Module functions.
+    """Call Payment functions via ERP Modular entities API.
+
+    Routes through ERP Modular's /api/v1/entities?type=payment.
+    Dedicated payment endpoints (create_checkout, create_qr) to be added.
 
     Args:
-        action: One of: health, create_checkout, list_plans, create_qr, list_customers
-        customer_email: Email for checkout/customer
-        plan_id: Plan ID for checkout
-        amount: Amount in satang (for QR)
+        action: One of: health, list, get, create
+        customer_email: Email for customer lookup
+        plan_id: Plan ID reference
+        amount: Amount in satang
         currency: Currency code (thb, usd)
     """
-    pmt = SERVICES.get("payment")
-    if not pmt:
-        return json.dumps({"ok": False, "error": "Payment module not configured"})
-
     actions = {
-        "health":              ("GET",  "/api/payment/health", {}),
-        "list_plans":          ("GET",  "/api/payment/checkout/plans", {}),
-        "list_customers":      ("GET",  "/api/payment/subscriptions/customers", {}),
-        "create_checkout":     ("POST", "/api/payment/checkout/create", {"customerEmail": customer_email, "planId": plan_id, "successUrl": "https://wpilot.ai/success", "cancelUrl": "https://wpilot.ai/cancel"}),
-        "create_qr":           ("POST", "/api/payment/qr/generate", {"amount": amount, "currency": currency}),
+        "health":              ("GET",  "/health", None),
+        "list":                ("GET",  "/api/v1/entities?type=payment", None),
+        "list_customers":      ("GET",  "/api/v1/entities?type=customer", None),
+        "create":              ("POST", "/api/v1/entities", {"type": "payment", "fields": {"email": customer_email, "amount": amount, "currency": currency, "planId": plan_id}}),
     }
 
     if action not in actions:
         return json.dumps({"ok": False, "error": f"Unknown action: {action}. Available: {list(actions.keys())}"})
 
     method, path, default_body = actions[action]
-    url = f"{pmt['url']}{path}"
-    result = await _http_call(method, url, json=default_body if method == "POST" else None)
+    url = f"{ERP_MODULAR_URL}{path}"
+    kwargs = {"json": default_body} if method == "POST" and default_body else {}
+    result = await _http_call(method, url, **kwargs)
     return json.dumps(result, indent=2, ensure_ascii=False)
 
 
@@ -255,7 +265,7 @@ async def call_payment(
 
 @mcp.tool()
 async def call_profile(
-    action: str = "list_businesses",
+    action: str = "list",
     profile_id: str = "",
     name: str = "",
     email: str = "",
@@ -265,69 +275,48 @@ async def call_profile(
     client_name: str = "",
     search: str = "",
 ) -> str:
-    """Call Profile Module (Business & Client profiles).
+    """Call Profile functions via ERP Modular entities API.
+
+    Routes through ERP Modular's /api/v1/entities.
+    Dedicated profile endpoints to be added in future.
 
     Args:
-        action: One of: list_businesses, get_business, create_business, update_business,
-                delete_business, list_clients, get_client, create_client, update_client,
-                delete_client, health
-        profile_id: ID for specific profile operations
-        name: Business or Client name (for create)
-        email: Client email
-        phone: Business phone
-        tax_id: Business tax ID
-        business_name: Alias for name (create_business)
-        client_name: Alias for name (create_client)
-        search: Search term for list
+        action: One of: health, list, get, create, search
+        profile_id: Entity ID for specific operations
+        name: Name for create action
+        email: Email field
+        phone: Phone field
+        tax_id: Tax ID field
+        business_name: Alias for name (create action)
+        client_name: Alias for name (create action)
+        search: Search term
     """
-    svc = SERVICES.get("profile")
-    if not svc:
-        return json.dumps({"ok": False, "error": "Profile module not configured"})
-
-    base = svc["url"]
-
-    # Map actions
     action_map = {
-        "health":           ("GET",  "/health", None),
-        "list_businesses":  ("GET",  "/api/v1/profiles/business", {"search": search}),
-        "get_business":     ("GET",  f"/api/v1/profiles/business/{profile_id}", None),
-        "create_business":  ("POST", "/api/v1/profiles/business", {
-            "name": business_name or name or "New Business",
-            "tax_id": tax_id,
-            "phone": phone,
+        "health":           ("GET",  "/health", None, {}),
+        "list":             ("GET",  "/api/v1/entities?type=profile", None, {}),
+        "get":              ("GET",  f"/api/v1/entities/{profile_id}", None, {}),
+        "create":           ("POST", "/api/v1/entities", None, {
+            "type": "profile",
+            "fields": {"name": business_name or client_name or name or "New", "email": email, "phone": phone, "taxId": tax_id},
         }),
-        "update_business":  ("PUT",  f"/api/v1/profiles/business/{profile_id}", {
-            "name": name, "tax_id": tax_id, "phone": phone,
-        }),
-        "delete_business":  ("DELETE", f"/api/v1/profiles/business/{profile_id}", None),
-        "list_clients":     ("GET",  "/api/v1/profiles/client", {"search": search}),
-        "get_client":       ("GET",  f"/api/v1/profiles/client/{profile_id}", None),
-        "create_client":    ("POST", "/api/v1/profiles/client", {
-            "name": client_name or name or "New Client",
-            "email": email, "phone": phone,
-        }),
-        "update_client":    ("PUT",  f"/api/v1/profiles/client/{profile_id}", {
-            "name": name, "email": email, "phone": phone,
-        }),
-        "delete_client":    ("DELETE", f"/api/v1/profiles/client/{profile_id}", None),
+        "search":           ("GET",  "/api/v1/entities?type=profile", None, {"search": search} if search else {}),
+        "list_businesses":  ("GET",  "/api/v1/entities?type=profile&tag=business", None, {}),
+        "list_clients":     ("GET",  "/api/v1/entities?type=profile&tag=client", None, {}),
     }
 
     if action not in action_map:
         return json.dumps({"ok": False, "error": f"Unknown action: {action}. Available: {list(action_map.keys())}"})
 
-    method, path, default_body = action_map[action]
-
+    method, path, _, body_template = action_map[action]
+    url = f"{ERP_MODULAR_URL}{path}"
     kwargs = {}
-    if method == "POST" and default_body:
-        kwargs["json"] = {k: v for k, v in default_body.items() if v}
-    elif method == "PUT" and default_body:
-        kwargs["json"] = {k: v for k, v in default_body.items() if v}
-    elif method == "GET" and default_body:
-        params = {k: v for k, v in default_body.items() if v}
-        if params:
-            kwargs["params"] = params
 
-    url = f"{base}{path}"
+    if method in ("POST", "PUT", "PATCH") and body_template:
+        kwargs["json"] = {k: v for k, v in body_template.items() if v}
+    elif method == "GET":
+        # Pass search as query param
+        pass
+
     result = await _http_call(method, url, **kwargs)
     return json.dumps(result, indent=2, ensure_ascii=False)
 

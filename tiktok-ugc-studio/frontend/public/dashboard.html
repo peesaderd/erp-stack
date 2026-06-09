@@ -151,6 +151,36 @@ tr:last-child td{border-bottom:none}
 /* loader */
 .spinner{width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--b600);border-radius:50%;animation:spin .6s linear infinite;display:inline-block}
 @keyframes spin{to{transform:rotate(360deg)}}
+/* ═══ Responsive ═══ */
+@media(max-width:768px){
+  .sidebar{width:56px}
+  .sidebar .sb-logo h1 span,.sidebar .sb-logo span,.sidebar .sb-section,.sidebar .sb-footer span,.sidebar .sb-item span{display:none}
+  .sidebar .sb-item{justify-content:center;padding:10px 0}
+  .sidebar .sb-item .icon{font-size:18px;margin:0}
+  .sidebar .sb-logo{padding:12px 0;text-align:center}
+  .sidebar .sb-logo h1{justify-content:center}
+  .sidebar .sb-footer{justify-content:center}
+  .main{margin-left:56px}
+  .content{padding:12px}
+  .topbar{padding:8px 12px}
+  .topbar h2{font-size:14px}
+  .stats{grid-template-columns:repeat(2,1fr);gap:8px}
+  .stat{padding:12px}
+  .stat-val{font-size:20px}
+  .grid-2,.grid-3{grid-template-columns:1fr}
+  .modal{padding:16px;margin:8px;width:auto}
+  .table-wrap{font-size:12px}
+  th,td{padding:6px 8px}
+}
+@media(max-width:480px){
+  .stats{grid-template-columns:1fr}
+  .form-row{grid-template-columns:1fr}
+  .sb-item[data-page]{display:none}
+  .sb-item[data-page="dashboard"],
+  .sb-item[data-page="targets"],
+  .sb-item[data-page="library"],
+  .sb-item[data-page="automation"]{display:flex}
+}
 </style>
 </head>
 <body>
@@ -190,6 +220,9 @@ tr:last-child td{border-bottom:none}
     </div>
 
     <div class="sb-section">Intelligence</div>
+    <div class="sb-item" data-page="targets">
+      <span class="icon">🎯</span> Scout Targets
+    </div>
     <div class="sb-item" data-page="strategy">
       <span class="icon">🧠</span> Strategy
     </div>
@@ -324,13 +357,14 @@ function showPage(name) {
     automation: renderAutomation,
     schedule: renderSchedule,
     strategy: renderStrategy,
+    targets: renderTargets,
     trends: renderTrends,
   };
 
   const titles = {
     dashboard:'📊 Dashboard','goals':'🎯 เป้าหมาย','library':'🎬 Content Library',
     clone:'🏗️ Clone Studio','automation':'⚙️ Auto Settings','schedule':'📅 Schedule',
-    strategy:'🧠 Strategy','trends':'🔍 Scout Trends',
+    strategy:'🧠 Strategy',targets:'🎯 Scout Targets',trends:'🔍 Scout Trends',
   };
 
   pageTitle.textContent = titles[name] || name;
@@ -910,6 +944,258 @@ async function resetStrategy() {
 // ═══════════════════════════════════════════════
 // Scout Trends
 // ═══════════════════════════════════════════════
+async function renderTargets() {
+  pageContent.innerHTML = `<div class="empty"><div class="spinner"></div></div>`;
+
+  // Load targets
+  let targetsData = [];
+  try {
+    const r = await rawGet('/scout/targets');
+    targetsData = r.targets || [];
+  } catch(e) {}
+
+  pageContent.innerHTML = `
+    <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+      <h3 style="font-size:15px;font-weight:600;flex:1">🎯 เป้าหมายที่ต้อง Scout เพิ่มและวิเคราะห์คู่แข่ง</h3>
+      <button class="btn btn-sm btn-primary" onclick="showAddTargetForm()">+ เพิ่มเป้าหมาย</button>
+      ${targetsData.length >= 2 ? `<button class="btn btn-sm" onclick="analyzeAllTargets()">📊 วิเคราะห์ทั้งหมด</button>` : ''}
+    </div>
+    <div id="targetsList"></div>
+    <div id="targetForm" style="display:none"></div>
+    <div id="targetAnalysis" style="display:none"></div>
+  `;
+
+  renderTargetsList(targetsData);
+}
+
+function renderTargetsList(targets) {
+  const el = document.getElementById('targetsList');
+  if (!targets.length) {
+    el.innerHTML = '<div class="card empty" style="padding:40px">📭 ยังไม่มีเป้าหมาย กด + เพิ่มเป้าหมายเพื่อเริ่มต้น</div>';
+    return;
+  }
+  el.innerHTML = targets.map(t => `
+    <div class="card" style="margin-bottom:12px" data-id="${t.id}">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="width:40px;height:40px;border-radius:50%;background:var(--b100);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:600;color:var(--b600);flex-shrink:0">${(t.display_name||t.username||'?')[0].toUpperCase()}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:14px">${t.display_name || t.username}</div>
+          <div style="font-size:12px;color:var(--txt2)">
+            @${t.username}${t.niche ? ' • '+t.niche : ''}
+            <span style="margin-left:8px">🎬 ${t.clip_count||0} clips</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-sm btn-ghost" onclick="viewTarget(${t.id}, event)">👁️</button>
+          <button class="btn btn-sm btn-ghost" onclick="addClipForm(${t.id}, event)">+ 🎬</button>
+          <button class="btn btn-sm btn-ghost" onclick="deleteTarget(${t.id}, event)">✅</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function showAddTargetForm() {
+  document.getElementById('targetForm').style.display = 'block';
+  document.getElementById('targetForm').innerHTML = `
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header"><h3>+ เพิ่มเป้าหมาย</h3></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>TikTok Username</label>
+          <input id="tgtUser" placeholder="username">
+        </div>
+        <div class="form-group">
+          <label>Display Name</label>
+          <input id="tgtName" placeholder="ชื่อร้าน/แบรนด์">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Niche</label>
+          <select id="tgtNiche">
+            <option value="product_review">Product Review</option>
+            <option value="before_after">Before & After</option>
+            <option value="tutorial">Tutorial</option>
+            <option value="testimonial">Testimonial</option>
+            <option value="entertainment">Entertainment</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Followers</label>
+          <input id="tgtFollowers" type="number" placeholder="0">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <input id="tgtNotes" placeholder="ข้อมูลเพิ่มเติม">
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="saveTarget()">💾 บันทึก</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('targetForm').style.display='none'">✖ ยกเลิก</button>
+      </div>
+    </div>
+  `;
+}
+
+async function saveTarget() {
+  const data = {
+    username: document.getElementById('tgtUser').value.trim(),
+    display_name: document.getElementById('tgtName').value.trim(),
+    niche: document.getElementById('tgtNiche').value,
+    follower_count: parseInt(document.getElementById('tgtFollowers').value) || 0,
+    notes: document.getElementById('tgtNotes').value.trim(),
+  };
+  if (!data.username) { alert('กรุณากรอก Username'); return; }
+  await rawPost('/scout/targets', data);
+  document.getElementById('targetForm').style.display = 'none';
+  renderTargets();
+}
+
+async function deleteTarget(id, e) {
+  if (!confirm('ลบเป้าหมายนี้?')) return;
+  await rawGet('/scout/targets/'+id).catch(()=>{}); // check exists
+  // Actually use DELETE method via custom fetch
+  try {
+    await rawPost('/scout/targets/'+id+'/delete', {}).catch(()=>rawGet('/scout/targets/'+id+'?_method=DELETE'));
+  } catch(e) {}
+  renderTargets();
+}
+
+async function viewTarget(id, e) {
+  const r = await rawGet('/scout/targets/'+id);
+  const t = r.target;
+  if (!t) { alert('Not found'); return; }
+  const clips = t.clips || [];
+
+  // Show in modal
+  document.getElementById('detailTitle').textContent = `🎬 @${t.username}`;
+  document.getElementById('detailBody').innerHTML = `
+    <div style="display:flex;gap:12px;margin-bottom:16px">
+      <div style="width:48px;height:48px;border-radius:50%;background:var(--b100);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:var(--b600)">${(t.display_name||t.username)[0].toUpperCase()}</div>
+      <div>
+        <div style="font-weight:600;font-size:15px">${t.display_name||t.username}</div>
+        <div style="font-size:13px;color:var(--txt2)">@${t.username}${t.niche ? ' • '+t.niche : ''} • ${t.follower_count?.toLocaleString()||0} followers</div>
+        ${t.notes ? `<div style="font-size:12px;color:var(--txt3);margin-top:4px">${t.notes}</div>` : ''}
+      </div>
+    </div>
+
+    <div class="card-header"><h3>🎬 Clips (${clips.length})</h3></div>
+    ${clips.length === 0 ? `<div class="empty" style="padding:20px">ไม่มี Clip กด Add Clip เพื่อเพิ่ม</div>` : `
+    <div class="table-wrap"><table>
+      <thead><tr><th>#</th><th>Caption</th><th>Views</th><th>Likes</th><th>Hook</th><th>Actions</th></tr></thead>
+      <tbody>
+        ${clips.map((c,i) => `
+          <tr>
+            <td>${i+1}</td>
+            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.caption?.slice(0,40)||'-'}</td>
+            <td>${(c.views||0).toLocaleString()}</td>
+            <td>${(c.likes||0).toLocaleString()}</td>
+            <td>${c.hook_type||'-'}</td>
+            <td>
+              <button class="btn btn-sm btn-ghost" onclick="cloneFromTarget(${t.id},${c.id},event)">🏭 Clone</button>
+              <button class="btn btn-sm btn-ghost" onclick="deleteClip(${c.id},event)">❌</button>
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table></div>`}
+    <div style="margin-top:12px">
+      <button class="btn btn-sm" onclick="addClipForm(${t.id}, event)">+ เพิ่ม Clip</button>
+    </div>
+  `;
+  document.getElementById('detailModal').classList.add('open');
+}
+
+function addClipForm(targetId, e) {
+  const product = prompt('ลิงค์ TikTok หรือ ข้อความแคปชั่น:');
+  if (!product) return;
+  const caption = prompt('แคปชั่น:');
+  const views = parseInt(prompt('Views (0 = ยังไม่รู้):')) || 0;
+  const likes = parseInt(prompt('Likes:')) || 0;
+  const hook = prompt('Hook type (problem/curiosity/benefit/emotion/stat):') || '';
+
+  rawPost('/scout/targets/'+targetId+'/clips', {
+    video_url: product.startsWith('http') ? product : '',
+    caption: caption || product,
+    views: views,
+    likes: likes,
+    hook_type: hook,
+  }).then(() => {
+    document.getElementById('detailModal').classList.remove('open');
+    renderTargets();
+  });
+}
+
+async function deleteClip(clipId, e) {
+  if (!confirm('ลบ Clip นี้?')) return;
+  try {
+    await rawPost('/scout/clips/'+clipId+'/delete', {}).catch(()=>null);
+  } catch(e) {}
+  renderTargets();
+}
+
+async function analyzeAllTargets() {
+  const r = await rawGet('/scout/targets');
+  const ids = (r.targets||[]).map(t => t.id);
+  if (!ids.length) return;
+
+  const analysis = await rawPost('/scout/targets/analyze', {target_ids: ids});
+  const el = document.getElementById('targetAnalysis');
+  el.style.display = 'block';
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-header"><h3>📊 ผลการวิเคราะห์</h3></div>
+
+      <div style="margin-bottom:16px">
+        <h4 style="font-size:13px;font-weight:600;margin-bottom:8px">📌 Insights</h4>
+        ${(analysis.insights||[]).map(i => `<div style="font-size:13px;padding:4px 0">${i}</div>`).join('')}
+      </div>
+
+      <div class="grid-2" style="margin-bottom:16px">
+        <div>
+          <h4 style="font-size:13px;font-weight:600;margin-bottom:6px">📡 แนวโน้ม : Hook</h4>
+          ${(analysis.top_hooks||[]).map(h => `
+            <div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0">
+              <span>${h.hook}</span><span style="color:var(--txt2)">${h.total_views?.toLocaleString()} views</span>
+            </div>
+          `).join('')}
+        </div>
+        <div>
+          <h4 style="font-size:13px;font-weight:600;margin-bottom:6px">📐 แนวโน้ม : Template</h4>
+          ${(analysis.top_templates||[]).map(h => `
+            <div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0">
+              <span>${h.template}</span><span style="color:var(--txt2)">${h.total_views?.toLocaleString()} views</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <button class="btn btn-sm btn-ghost" onclick="document.getElementById('targetAnalysis').style.display='none'">✖ ปิด</button>
+    </div>
+  `;
+}
+
+async function cloneFromTarget(targetId, clipId, e) {
+  const r = await rawGet('/scout/targets/'+targetId);
+  const t = r.target;
+  if (!t) return;
+  const product = prompt('สินค้าที่ต้องการโปรโมท:');
+  if (!product) return;
+
+  const clone = await rawPost('/scout/targets/'+targetId+'/clone', {
+    product_name: product,
+  });
+
+  if (clone.success && clone.clone) {
+    const s = clone.clone;
+    const parts = (s.script_parts||[]).map(p => p.text).join('\n');
+    alert('✅ Clone script พร้อม! \n\n' + parts.slice(0,300));
+  } else {
+    alert('❌ '+(clone.error||'Clone failed'));
+  }
+}
+
 async function renderTrends() {
   pageContent.innerHTML = `<div class="empty"><div class="spinner"></div></div>`;
   const [trends, templates] = await Promise.all([

@@ -534,6 +534,120 @@ async def scout_extract(req: dict):
     return {"success": True, **result}
 
 
+
+
+# ─── Scout Targets ──────────────────────────────────────────────────────────
+
+from scout.targets import (
+    list_targets, get_target, create_target, update_target, delete_target,
+    add_clip, remove_clip, batch_analyze_targets,
+)
+
+
+@app.get("/scout/targets")
+async def scout_list_targets():
+    """List all scout target accounts."""
+    targets = await list_targets()
+    return {"success": True, "targets": targets, "count": len(targets)}
+
+
+@app.get("/scout/targets/{target_id}")
+async def scout_get_target(target_id: int):
+    """Get a specific target account with clips."""
+    target = await get_target(target_id)
+    if not target:
+        from fastapi import HTTPException as HE
+        raise HE(status_code=404, detail=f"Target {target_id} not found")
+    return {"success": True, "target": target}
+
+
+@app.post("/scout/targets")
+async def scout_create_target(req: dict):
+    """Create a new scout target account."""
+    target = await create_target(req)
+    return {"success": True, "target": target}
+
+
+@app.put("/scout/targets/{target_id}")
+async def scout_update_target(target_id: int, req: dict):
+    """Update a scout target account."""
+    target = await update_target(target_id, req)
+    if not target:
+        from fastapi import HTTPException as HE
+        raise HE(status_code=404, detail=f"Target {target_id} not found")
+    return {"success": True, "target": target}
+
+
+@app.delete("/scout/targets/{target_id}")
+async def scout_delete_target(target_id: int):
+    """Delete a scout target account and its clips."""
+    await delete_target(target_id)
+    return {"success": True}
+
+
+@app.post("/scout/targets/{target_id}/clips")
+async def scout_add_clip(target_id: int, req: dict):
+    """Add a clip to a target."""
+    result = await add_clip(target_id, req)
+    if not result:
+        from fastapi import HTTPException as HE
+        raise HE(status_code=404, detail=f"Target {target_id} not found")
+    return {"success": True, "clip": result}
+
+
+@app.delete("/scout/clips/{clip_id}")
+async def scout_remove_clip(clip_id: int):
+    """Remove a clip from a target."""
+    await remove_clip(clip_id)
+    return {"success": True}
+
+
+@app.post("/scout/targets/{target_id}/delete")
+async def scout_delete_target_post(target_id: int):
+    """POST wrapper for DELETE target (frontend compat)."""
+    await delete_target(target_id)
+    return {"success": True}
+
+
+@app.post("/scout/clips/{clip_id}/delete")
+async def scout_remove_clip_post(clip_id: int):
+    """POST wrapper for DELETE clip (frontend compat)."""
+    await remove_clip(clip_id)
+    return {"success": True}
+
+
+@app.post("/scout/targets/analyze")
+async def scout_analyze_targets(req: dict):
+    """Batch analyze selected targets and return insights."""
+    target_ids = req.get("target_ids", [])
+    results = await batch_analyze_targets(target_ids)
+    return {"success": True, **results}
+
+
+@app.post("/scout/targets/{target_id}/clone")
+async def scout_clone_from_target(target_id: int, req: dict):
+    """Generate a clone script from a target's top clip."""
+    from scout.templates import generate_clone_script
+    target = await get_target(target_id)
+    if not target:
+        from fastapi import HTTPException as HE
+        raise HE(status_code=404, detail=f"Target {target_id} not found")
+    clips = target.get("clips", [])
+    if not clips:
+        return {"success": False, "error": "Target has no clips to clone from"}
+    # Use the top clip (most views) as reference
+    top = max(clips, key=lambda c: c.get("views", 0))
+    product_name = req.get("product_name", "สินค้า")
+    fill_values = req.get("fill_values", {})
+    result = await generate_clone_script(
+        source_template_id=top.get("template_id", "") or "problem_solution",
+        product_name=product_name,
+        fill_values=fill_values,
+    )
+    if not result:
+        return {"success": False, "error": "Could not generate clone"}
+    return {"success": True, "clone": result, "source_clip": top}
+
 # ─── Monitor Loop ─────────────────────────────────────────────────────────────
 
 from monitor.tracker import (

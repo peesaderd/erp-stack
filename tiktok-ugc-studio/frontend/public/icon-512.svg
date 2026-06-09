@@ -1,8 +1,32 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="100" fill="#7f56d9"/>
-  <g transform="translate(156, 116)" fill="none" stroke="#fff" stroke-width="18" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M 0 200 L 0 60 C 0 26.863 26.863 0 60 0 L 140 0 C 173.137 0 200 26.863 200 60 L 200 200"/>
-    <path d="M 0 200 L 0 220 C 0 244.853 23.647 260 42 260 L 158 260 C 176.353 260 200 244.853 200 220 L 200 200"/>
-    <path d="M 40 100 C 40 60 60 40 100 40 C 140 40 160 60 160 100"/>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#4f46e5"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#a78bfa"/>
+      <stop offset="100%" stop-color="#6366f1"/>
+    </linearGradient>
+  </defs>
+  <!-- Background rounded rect -->
+  <rect width="512" height="512" rx="100" fill="url(#bg)"/>
+  <!-- Play triangle -->
+  <polygon points="192,140 192,372 380,256" fill="url(#accent)" opacity="0.95"/>
+  <!-- Inner sparkle/star cluster -->
+  <g fill="#fff" opacity="0.9">
+    <circle cx="290" cy="222" r="12"/>
+    <circle cx="248" cy="185" r="7"/>
+    <circle cx="338" cy="212" r="7"/>
+    <circle cx="272" cy="290" r="9"/>
+    <circle cx="316" cy="262" r="6"/>
+    <circle cx="350" cy="240" r="5"/>
+    <circle cx="230" cy="270" r="5"/>
+  </g>
+  <!-- Music note on bottom-right -->
+  <g fill="#fff" opacity="0.85">
+    <ellipse cx="340" cy="350" rx="26" ry="18"/>
+    <rect x="340" y="288" width="9" height="62" rx="4"/>
+    <rect x="326" y="288" width="23" height="12" rx="6"/>
   </g>
 </svg>

@@ -106,6 +106,15 @@ tr:hover{background:var(--bg2)}
 tr:last-child td{border-bottom:none}
 
 /* Badge */
+.lib-cards{display:flex;flex-direction:column;gap:10px}
+.lib-card{background:var(--bg);border:1px solid var(--border);border-radius:var(--radl);padding:14px;cursor:pointer;transition:.15s}
+.lib-card:hover{border-color:var(--b300);background:var(--b50)}
+.lib-card-top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
+.lib-card-title{font-weight:600;font-size:14px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lib-card-meta{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--txt2);margin-bottom:8px}
+.lib-card-meta span{white-space:nowrap}
+.lib-card-actions{display:flex;gap:6px;border-top:1px solid var(--border);padding-top:10px}
+
 .badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600}
 .badge-success{background:var(--g50);color:var(--g600)}
 .badge-warning{background:var(--a50);color:var(--a600)}
@@ -490,6 +499,8 @@ function saveGoals() {
 // Content Library
 // ═══════════════════════════════════════════════
 async function renderLibrary() {
+  const isMobile = window.innerWidth <= 768;
+
   pageContent.innerHTML = `
     <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
       <input id="libFilter" placeholder="🔍 ค้นหา..." style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--txt);flex:1;min-width:200px">
@@ -498,12 +509,10 @@ async function renderLibrary() {
       </select>
       <button class="btn btn-sm" onclick="renderLibrary()">🔄</button>
     </div>
-    <div class="table-wrap"><table>
-      <thead><tr>
-        <th>#</th><th>Caption</th><th>Category</th><th>Hook</th><th>Views</th><th>Likes</th><th>Status</th><th>Actions</th>
-      </tr></thead>
-      <tbody id="libBody"><tr><td colspan="8" class="empty"><div class="spinner"></div></td></tr></tbody>
-    </table></div>
+    ${isMobile
+      ? '<div id="libCards" class="lib-cards"></div>'
+      : '<div class="table-wrap"><table><thead><tr><th>#</th><th>Caption</th><th>Category</th><th>Hook</th><th>Views</th><th>Likes</th><th>Status</th><th>Actions</th></tr></thead><tbody id="libBody"><tr><td colspan="8" class="empty"><div class="spinner"></div></td></tr></tbody></table></div>'
+    }
   `;
 
   const [published, analytics] = await Promise.all([
@@ -511,7 +520,6 @@ async function renderLibrary() {
     rawGet('/monitor/videos').catch(()=>({videos:[]})),
   ]);
 
-  // Merge data
   const videoMap = {};
   (analytics.videos||[]).forEach(v => videoMap[v.caption||''] = v);
 
@@ -520,32 +528,71 @@ async function renderLibrary() {
     return {...v, ...meta, index: i+1};
   });
 
-  const tbody = document.getElementById('libBody');
   if (!items.length) {
-    tbody.innerHTML = '<tr><td colspan="8" class="empty">📭 ยังไม่มีคลิปที่โพสต์</td></tr>';
+    const el = document.getElementById('libBody') || document.getElementById('libCards');
+    if (el) el.innerHTML = isMobile
+      ? '<div class="empty" style="padding:32px">📭 ยังไม่มีคลิปที่โพสต์</div>'
+      : '<tr><td colspan="8" class="empty">📭 ยังไม่มีคลิปที่โพสต์</td></tr>';
     return;
   }
-  tbody.innerHTML = items.map(v => `
-    <tr>
-      <td>${v.index}</td>
-      <td><a href="#" onclick="showDetail(${v.index}, event)">${(v.caption||'Untitled').slice(0,40)}</a></td>
-      <td>${v.category||'-'}</td>
-      <td>${v.hook_type||'-'}</td>
-      <td>${(v.views||0).toLocaleString()}</td>
-      <td>${(v.likes||0).toLocaleString()}</td>
-      <td><span class="badge badge-success">Published</span></td>
-      <td>
-        <button class="btn btn-sm btn-ghost" onclick="showDetail(${v.index}, event)">👁️</button>
-        <button class="btn btn-sm btn-ghost" onclick="cloneFrom('${encodeURIComponent(v.caption||'')}')">🏗️</button>
-      </td>
-    </tr>
-  `).join('');
 
-  // Store for detail
+  if (isMobile) {
+    const el = document.getElementById('libCards');
+    el.innerHTML = items.map(v => `
+      <div class="lib-card" onclick="showDetail(${v.index}, event)">
+        <div class="lib-card-top">
+          <span class="lib-card-title">${(v.caption||'Untitled').slice(0,60)}</span>
+          <span class="badge badge-success">Published</span>
+        </div>
+        <div class="lib-card-meta">
+          <span>👁️ ${(v.views||0).toLocaleString()} views</span>
+          <span>❤️ ${(v.likes||0).toLocaleString()}</span>
+          <span>📂 ${v.category||'-'}</span>
+          <span>🎣 ${v.hook_type||'-'}</span>
+        </div>
+        <div class="lib-card-actions">
+          <button class="btn btn-sm btn-ghost" onclick="event.stopPropagation();showDetail(${v.index}, event)">👁️ Detail</button>
+          <button class="btn btn-sm btn-ghost" onclick="event.stopPropagation();cloneFrom('${encodeURIComponent(v.caption||'')}')">🏗️ Clone</button>
+        </div>
+      </div>
+    `).join('');
+  } else {
+    const tbody = document.getElementById('libBody');
+    tbody.innerHTML = items.map(v => `
+      <tr>
+        <td>${v.index}</td>
+        <td><a href="#" onclick="showDetail(${v.index}, event)">${(v.caption||'Untitled').slice(0,40)}</a></td>
+        <td>${v.category||'-'}</td>
+        <td>${v.hook_type||'-'}</td>
+        <td>${(v.views||0).toLocaleString()}</td>
+        <td>${(v.likes||0).toLocaleString()}</td>
+        <td><span class="badge badge-success">Published</span></td>
+        <td>
+          <button class="btn btn-sm btn-ghost" onclick="showDetail(${v.index}, event)">👁️</button>
+          <button class="btn btn-sm btn-ghost" onclick="cloneFrom('${encodeURIComponent(v.caption||'')}')">🏗️</button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
   window._libItems = items;
 }
 
 // ═══════════════════════════════════════════════
+// Resize watcher for mobile/desktop switching
+let _libraryWidth = 0;
+window.addEventListener('resize', function() {
+  const isMobile = window.innerWidth <= 768;
+  const wasMobile = _libraryWidth <= 768;
+  if (isMobile !== wasMobile && _libraryWidth > 0) {
+    // Only re-render if library page is visible
+    if (document.querySelector('#libCards') || document.querySelector('#libBody')) {
+      renderLibrary();
+    }
+  }
+  _libraryWidth = window.innerWidth;
+});
+
 // Detail Modal
 // ═══════════════════════════════════════════════
 function showDetail(idx, e) {

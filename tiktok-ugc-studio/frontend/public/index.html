@@ -1112,5 +1112,14 @@ document.addEventListener('DOMContentLoaded', () => {
   loadRecentJobs(); loadAccounts(); populateAccountSelect(); loadProviders();
 });
 </script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/tiktok/sw.js')
+      .then(() => console.log('✅ PWA SW registered'))
+      .catch(e => console.warn('PWA SW:', e.message));
+  });
+}
+</script>
 </body>
 </html>

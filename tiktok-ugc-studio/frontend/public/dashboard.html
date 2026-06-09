@@ -271,19 +271,32 @@ async function apiPost(path, data) {
 }
 
 // Actually the backend is at :8105 directly
-const API_RAW = 'http://localhost:8105';
+// Proxy through nginx — frontend :8120 proxies /api/tiktok/ugc → backend :8105
+const API_RAW = '/api/tiktok/ugc';
 
 async function rawGet(path) {
-  const r = await fetch(API_RAW + path);
-  return r.json();
+  try {
+    const r = await fetch(API_RAW + path);
+    if (!r.ok) return {success:false,error:`HTTP ${r.status}`};
+    return await r.json();
+  } catch(e) {
+    console.warn('API GET error:', path, e.message);
+    return {success:false,error:e.message};
+  }
 }
 async function rawPost(path, data) {
-  const r = await fetch(API_RAW + path, {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify(data),
-  });
-  return r.json();
+  try {
+    const r = await fetch(API_RAW + path, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(data),
+    });
+    if (!r.ok) return {success:false,error:`HTTP ${r.status}`};
+    return await r.json();
+  } catch(e) {
+    console.warn('API POST error:', path, e.message);
+    return {success:false,error:e.message};
+  }
 }
 
 // ═══════════════════════════════════════════════

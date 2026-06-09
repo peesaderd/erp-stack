@@ -37,13 +37,14 @@ DEFAULT_STRATEGY = {
 
 def _load_strategy() -> dict:
     """Load current content strategy from storage."""
+    import copy
     if STRATEGY_FILE.exists():
         try:
             with open(STRATEGY_FILE) as f:
                 return json.load(f)
         except (json.JSONDecodeError, Exception):
             pass
-    return dict(DEFAULT_STRATEGY)
+    return copy.deepcopy(DEFAULT_STRATEGY)
 
 
 def _save_strategy(strategy: dict):

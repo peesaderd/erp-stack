@@ -49,8 +49,8 @@ logger = logging.getLogger("tiktok-ugc")
 
 app = FastAPI(
     title="TikTok UGC Studio",
-    version="0.1.0",
-    description="AI UGC Video Script Generator + Video Generation Pipeline",
+    version="0.2.0",
+    description="AI UGC video pipeline + Scout + Monitor. Script gen, TTS, Fal.ai Wan I2V, FFmpeg compose, TikTok Scout (trends), Monitor Loop (optimization)",
 )
 
 app.add_middleware(
@@ -278,7 +278,7 @@ Description: {description[:300]}
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "tiktok-ugc-studio", "version": "0.1.0"}
+    return {"status": "ok", "service": "tiktok-ugc-studio", "version": "0.2.0"}
 
 
 # ─── TTS (Text-to-Speech) ─────────────────────────────────────────────────
@@ -1208,7 +1208,7 @@ async def analyze_product(
                 save_path = os.path.join(save_dir, safe_name)
                 with open(save_path, "wb") as f:
                     f.write(contents)
-                product_image_url = f"http://89.167.82.205:8104/static/product_images/{safe_name}"
+                product_image_url = f"http://{os.environ.get('HOST_IP','localhost')}:8104/static/product_images/{safe_name}"
                 logger.info(f"Saved product image for compositing: {save_path}")
             except Exception as e:
                 logger.warning(f"Failed to save product image: {e}")
@@ -1720,7 +1720,7 @@ async def tiktok_full_pipeline(req: TikTokUploadRequest):
 def stats():
     return {
         "service": "tiktok-ugc-studio",
-        "version": "0.1.0",
+        "version": "0.2.0",
         "prompts_loaded": True,
     }
 

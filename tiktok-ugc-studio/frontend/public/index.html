@@ -363,6 +363,7 @@ select.input { cursor: pointer; }
     <button class="active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 Dashboard</button>
     <button data-tab="content" onclick="switchTab('content')">🎬 Content</button>
     <button data-tab="pipeline" onclick="switchTab('pipeline')">📦 Pipeline</button>
+    <button data-tab="social" onclick="switchTab('social')">📊 Social</button>
     <button data-tab="accounts" onclick="switchTab('accounts')">📱 Accounts</button>
     <button data-tab="history" onclick="switchTab('history')">📋 History</button>
     <button data-tab="settings" onclick="switchTab('settings')">⚙️ Settings</button>
@@ -383,8 +384,8 @@ select.input { cursor: pointer; }
   <div class="side-nav-body">
     <button class="active" data-tab="dashboard" onclick="switchTab('dashboard');toggleSideNav()">📊 Dashboard</button>
     <button data-tab="content" onclick="switchTab('content');toggleSideNav()">🎬 Content</button>
-    <a href="/tiktok/dashboard.html" target="_blank" style="display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:8px;cursor:pointer;color:var(--color-brand-600);font-size:13px;font-weight:500;text-decoration:none;margin-top:4px;background:var(--color-brand-50)">📊 Growth Engine <span style="font-size:10px;background:var(--color-brand-600);color:#fff;padding:2px 6px;border-radius:999px">NEW</span></a>
     <button data-tab="pipeline" onclick="switchTab('pipeline');toggleSideNav()">📦 Pipeline</button>
+    <button data-tab="social" onclick="switchTab('social');toggleSideNav()">📊 Social</button>
     <button data-tab="accounts" onclick="switchTab('accounts');toggleSideNav()">📱 Accounts</button>
     <button data-tab="history" onclick="switchTab('history');toggleSideNav()">📋 History</button>
     <button data-tab="settings" onclick="switchTab('settings');toggleSideNav()">⚙️ Settings</button>
@@ -697,6 +698,45 @@ select.input { cursor: pointer; }
   </div>
 </div>
 
+
+<!-- ═══ Social ═══ -->
+<div id="page-social" class="page">
+  <div class="page-header">
+    <div><h2>📊 Social</h2><p>Scout Targets + Clip Schedule</p></div>
+    <div class="flex gap-2" id="socialStatus"></div>
+  </div>
+
+  <!-- Sub-tabs -->
+  <div class="tab-bar" id="socialTabs">
+    <button class="active" data-subtab="targets" onclick="switchSocialSub('targets')">🎯 Scout Targets</button>
+    <button data-subtab="schedule" onclick="switchSocialSub('schedule')">📅 Clip Schedule</button>
+  </div>
+
+  <!-- Targets -->
+  <div id="social-targets" class="sub-page active">
+    <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+      <button class="btn btn-primary btn-sm" onclick="showSocialAddTarget()">+ เพิ่มเป้าหมาย</button>
+      <button class="btn btn-sm" onclick="socialAnalyzeAll()">📊 วิเคราะห์ทั้งหมด</button>
+      <button class="btn btn-sm" onclick="renderSocialTargets()">🔄</button>
+    </div>
+    <div id="socialTargetsList" class="social-targets-grid"></div>
+    <div id="socialTargetForm" style="display:none;margin-top:12px"></div>
+    <div id="socialAnalyzeResult" style="display:none;margin-top:12px"></div>
+  </div>
+
+  <!-- Schedule -->
+  <div id="social-schedule" class="sub-page" style="display:none">
+    <div class="card">
+      <div class="card-title mb-2">📅 จำนวนคลิปต่อวัน</div>
+      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px">กำหนดจำนวนคลิปที่ต้องการให้ระบบ Auto Post จัดการในแต่ละวัน</p>
+      <div id="scheduleTargets" class="social-targets-grid"></div>
+      <div style="margin-top:16px;padding:16px;background:var(--bg-secondary);border-radius:var(--radius-xl)" id="scheduleSummary">
+        <div class="skeleton skeleton-line"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 </div><!-- /main -->
 </div><!-- /app -->
 
@@ -716,6 +756,7 @@ function switchTab(name) {
   if (name === 'pipeline') loadPipeline();
   if (name === 'accounts') loadAccounts();
   if (name === 'history') loadHistory();
+  if (name === 'social') renderSocial();
   if (name === 'settings') loadProviders();
 }
 
@@ -1098,6 +1139,289 @@ function toggleSideNav() {
 function refreshAll() {
   loadRecentJobs(); loadPipeline(); loadAccounts(); loadHistory();
   showToast('Refreshed','success');
+}
+
+
+/* ═══ Social (Scout Targets + Clip Schedule) ═══ */
+
+let _sSocialTargets = [];
+
+async function renderSocial() {
+  document.getElementById('socialStatus').innerHTML = '<span class="badge badge-neutral" id="socialTodayBadge">📊 กำลังโหลด...</span>';
+  renderSocialTargets();
+  renderSchedule();
+  updateSocialBadge();
+}
+
+/* ─── Sub-tab switching ─── */
+function switchSocialSub(name) {
+  document.querySelectorAll('#socialTabs button').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.sub-page').forEach(p => p.classList.remove('active'));
+  document.querySelector(`#socialTabs [data-subtab="${name}"]`)?.classList.add('active');
+  document.getElementById('social-'+name)?.classList.add('active');
+  document.getElementById('social-'+name).style.display = '';
+  if (name === 'schedule') renderSchedule();
+}
+
+/* ─── Targets ─── */
+async function renderSocialTargets() {
+  const el = document.getElementById('socialTargetsList');
+  el.innerHTML = '<div class="skeleton skeleton-line"></div>';
+  try {
+    const r = await rawGet('/scout/targets');
+    _sSocialTargets = r.targets || [];
+  } catch(e) { _sSocialTargets = []; }
+
+  if (!_sSocialTargets.length) {
+    el.innerHTML = '<div class="empty-state">📭 ยังไม่มีเป้าหมาย กด + เพิ่มเป้าหมาย</div>';
+    return;
+  }
+
+  el.innerHTML = _sSocialTargets.map(t => `
+    <div class="social-target-card" onclick="socialShowDetail(${t.id})">
+      <div class="social-target-avatar">${(t.display_name||t.username||'?')[0].toUpperCase()}</div>
+      <div class="social-target-info">
+        <div class="social-target-name">${t.display_name || t.username}</div>
+        <div class="social-target-meta">@${t.username}${t.niche ? ' · '+t.niche : ''} · ${t.follower_count?.toLocaleString()||0} followers · 🎬 ${t.clip_count||0} clips</div>
+      </div>
+      <div class="social-target-actions">
+        <button class="btn btn-sm btn-ghost" onclick="event.stopPropagation();socialShowDetail(${t.id})">👁️</button>
+        <button class="btn btn-sm btn-ghost" onclick="event.stopPropagation();socialDeleteTarget(${t.id})">❌</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function showSocialAddTarget() {
+  const el = document.getElementById('socialTargetForm');
+  el.style.display = 'block';
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-title mb-2">+ เพิ่มเป้าหมาย</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div><label style="font-size:12px;color:var(--text-secondary)">TikTok Username</label><input id="stUser" class="inp" placeholder="username"></div>
+        <div><label style="font-size:12px;color:var(--text-secondary)">Display Name</label><input id="stName" class="inp" placeholder="ชื่อร้าน"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+        <div><label style="font-size:12px;color:var(--text-secondary)">Niche</label>
+          <select id="stNiche" class="inp">
+            <option value="product_review">Product Review</option>
+            <option value="before_after">Before & After</option>
+            <option value="tutorial">Tutorial</option>
+            <option value="testimonial">Testimonial</option>
+          </select>
+        </div>
+        <div><label style="font-size:12px;color:var(--text-secondary)">Followers</label><input id="stFollowers" class="inp" type="number" placeholder="0"></div>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:8px">
+        <button class="btn btn-primary btn-sm" onclick="socialSaveTarget()">💾 บันทึก</button>
+        <button class="btn btn-sm" onclick="document.getElementById('socialTargetForm').style.display='none'">ยกเลิก</button>
+      </div>
+    </div>
+  `;
+}
+
+async function socialSaveTarget() {
+  const data = {
+    username: document.getElementById('stUser').value.trim(),
+    display_name: document.getElementById('stName').value.trim(),
+    niche: document.getElementById('stNiche').value,
+    follower_count: parseInt(document.getElementById('stFollowers').value) || 0,
+    notes: '',
+  };
+  if (!data.username) { alert('กรุณากรอก Username'); return; }
+  await rawPost('/scout/targets', data);
+  document.getElementById('socialTargetForm').style.display = 'none';
+  renderSocialTargets();
+  updateSocialBadge();
+}
+
+async function socialDeleteTarget(id) {
+  if (!confirm('ลบเป้าหมายนี้?')) return;
+  await rawPost('/scout/targets/'+id+'/delete', {}).catch(()=>{});
+  renderSocialTargets();
+  updateSocialBadge();
+}
+
+async function socialShowDetail(id) {
+  const r = await rawGet('/scout/targets/'+id);
+  const t = r.target;
+  if (!t) return;
+  const clips = t.clips || [];
+  const html = `
+    <div class="social-target-detail">
+      <div class="social-target-detail-header">
+        <div class="social-target-avatar" style="width:48px;height:48px;font-size:22px">${(t.display_name||t.username)[0].toUpperCase()}</div>
+        <div>
+          <div style="font-weight:600;font-size:15px">${t.display_name||t.username}</div>
+          <div style="font-size:12px;color:var(--text-secondary)">@${t.username}${t.niche ? ' · '+t.niche : ''} · ${t.follower_count?.toLocaleString()||0} followers</div>
+        </div>
+      </div>
+      <div class="card-title mt-3 mb-1">🎬 Clips (${clips.length})</div>
+      ${clips.length === 0 ? '<div class="empty-state" style="padding:16px">ไม่มี Clip</div>' : clips.map((c,i) => `
+        <div class="social-clip-row">
+          <span class="social-clip-num">#${i+1}</span>
+          <span class="social-clip-caption">${c.caption?.slice(0,35)||'-'}</span>
+          <span class="social-clip-stat">👁️ ${(c.views||0).toLocaleString()}</span>
+          <span class="social-clip-stat">❤️ ${(c.likes||0).toLocaleString()}</span>
+          <span class="social-clip-hook">${c.hook_type||'-'}</span>
+          <button class="btn btn-sm btn-ghost" onclick="socialDeleteClip(${c.id})">❌</button>
+        </div>
+      `).join('')}
+      <div style="margin-top:12px;display:flex;gap:8px">
+        <button class="btn btn-sm" onclick="socialAddClipPrompt(${t.id})">+ เพิ่ม Clip</button>
+        <button class="btn btn-sm btn-ghost" onclick="closeModal()">✕ ปิด</button>
+      </div>
+    </div>
+  `;
+  showModal('🎬 @'+t.username, html);
+}
+
+async function socialAddClipPrompt(targetId) {
+  closeModal();
+  const product = prompt('ลิงค์ TikTok:'); if (!product) return;
+  const caption = prompt('แคปชั่น:'); if (!caption) return;
+  const views = parseInt(prompt('Views:')) || 0;
+  const hook = prompt('Hook type (problem/curiosity/benefit):') || '';
+  await rawPost('/scout/targets/'+targetId+'/clips', {video_url: product.startsWith('http')?product:'', caption, views, likes: 0, hook_type: hook});
+  renderSocial();
+}
+
+async function socialDeleteClip(clipId) {
+  if (!confirm('ลบ Clip นี้?')) return;
+  await rawPost('/scout/clips/'+clipId+'/delete', {}).catch(()=>{});
+  renderSocial();
+}
+
+async function socialAnalyzeAll() {
+  const ids = _sSocialTargets.map(t => t.id);
+  if (!ids.length) return;
+  const r = await rawPost('/scout/targets/analyze', {target_ids: ids});
+  const el = document.getElementById('socialAnalyzeResult');
+  el.style.display = 'block';
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-title mb-2">📊 ผลวิเคราะห์</div>
+      ${(r.insights||[]).map(i => '<div style="font-size:13px;padding:3px 0">• '+i+'</div>').join('')}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px">
+        <div><div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px">Top Hooks</div>${(r.top_hooks||[]).map(h => '<div style="font-size:13px;display:flex;justify-content:space-between"><span>'+h.hook+'</span><span>'+h.total_views?.toLocaleString()+'</span></div>').join('')}</div>
+        <div><div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px">Top Templates</div>${(r.top_templates||[]).map(h => '<div style="font-size:13px;display:flex;justify-content:space-between"><span>'+h.template+'</span><span>'+h.total_views?.toLocaleString()+'</span></div>').join('')}</div>
+      </div>
+      <button class="btn btn-sm btn-ghost mt-2" onclick="document.getElementById('socialAnalyzeResult').style.display='none'">✕ ปิด</button>
+    </div>
+  `;
+}
+
+/* ─── Schedule (Clip/day config) ─── */
+async function renderSchedule() {
+  let targets = _sSocialTargets;
+  if (!targets.length) {
+    try {
+      const r = await rawGet('/scout/targets');
+      targets = r.targets || [];
+    } catch(e) {}
+  }
+
+  const el = document.getElementById('scheduleTargets');
+  const summary = document.getElementById('scheduleSummary');
+
+  if (!targets.length) {
+    el.innerHTML = '<div class="empty-state">ยังไม่มีเป้าหมาย ไปที่ Scout Targets เพื่อเพิ่มก่อน</div>';
+    summary.innerHTML = '<div style="text-align:center;padding:8px;color:var(--text-secondary)">รวม: 0 คลิป/วัน</div>';
+    return;
+  }
+
+  // Load saved clip counts from localStorage
+  const saved = JSON.parse(localStorage.getItem('socialClipsPerDay') || '{}');
+
+  el.innerHTML = targets.map(t => `
+    <div class="social-target-card schedule-card">
+      <div class="social-target-avatar">${(t.display_name||t.username||'?')[0].toUpperCase()}</div>
+      <div class="social-target-info">
+        <div class="social-target-name">${t.display_name || t.username}</div>
+        <div class="social-target-meta">@${t.username}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <label style="font-size:12px;color:var(--text-secondary);white-space:nowrap">🎬</label>
+        <input class="inp clip-count-input" type="number" min="0" max="20" value="${saved[t.id] || 2}"
+          data-target-id="${t.id}" data-username="${t.username}" style="width:60px;text-align:center"
+          onchange="socialUpdateClipCount(this)">
+        <span style="font-size:12px;color:var(--text-secondary)">/ วัน</span>
+      </div>
+    </div>
+  `).join('');
+
+  socialUpdateSummary();
+}
+
+function socialUpdateClipCount(input) {
+  const id = input.dataset.targetId;
+  const val = parseInt(input.value) || 0;
+  const saved = JSON.parse(localStorage.getItem('socialClipsPerDay') || '{}');
+  if (val <= 0) { delete saved[id]; }
+  else { saved[id] = val; }
+  localStorage.setItem('socialClipsPerDay', JSON.stringify(saved));
+  socialUpdateSummary();
+  updateSocialBadge();
+}
+
+function socialUpdateSummary() {
+  const saved = JSON.parse(localStorage.getItem('socialClipsPerDay') || '{}');
+  const total = Object.values(saved).reduce((a,b) => a + b, 0);
+  const targetCount = Object.keys(saved).length;
+  const el = document.getElementById('scheduleSummary');
+  el.innerHTML = `
+    <div style="display:flex;justify-content:space-around;text-align:center">
+      <div><div style="font-size:24px;font-weight:700">${targetCount}</div><div style="font-size:12px;color:var(--text-secondary)">Targets</div></div>
+      <div><div style="font-size:24px;font-weight:700">${total}</div><div style="font-size:12px;color:var(--text-secondary)">คลิป/วัน</div></div>
+      <div><div style="font-size:24px;font-weight:700" id="socialTodayGenerated">0</div><div style="font-size:12px;color:var(--text-secondary)">สร้างวันนี้</div></div>
+    </div>
+  `;
+}
+
+async function updateSocialBadge() {
+  const saved = JSON.parse(localStorage.getItem('socialClipsPerDay') || '{}');
+  const total = Object.values(saved).reduce((a,b) => a + b, 0);
+  const el = document.getElementById('socialTodayBadge');
+  if (el) {
+    el.innerHTML = total > 0
+      ? `🎯 ${total} คลิป/วัน · ${_sSocialTargets.length} Targets`
+      : '📊 ยังไม่ได้ตั้งค่า';
+  }
+}
+
+/* ─── Social helpers ─── */
+async function rawGet(path) {
+  const r = await fetch(API + path);
+  if (!r.ok) throw new Error(r.status);
+  return r.json();
+}
+async function rawPost(path, data) {
+  const r = await fetch(API + path, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data||{})});
+  if (!r.ok) throw new Error(r.status);
+  return r.json();
+}
+function closeModal() {
+  const el = document.getElementById('modalOverlay');
+  if (el) el.remove();
+}
+function showModal(title, bodyHtml) {
+  const existing = document.getElementById('modalOverlay');
+  if (existing) existing.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'modalOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px';
+  overlay.innerHTML = `
+    <div style="background:var(--bg-primary);border-radius:var(--radius-xl);padding:24px;max-width:560px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3 style="font-size:16px">${title}</h3>
+        <button onclick="this.closest('#modalOverlay').remove()" style="border:none;background:none;font-size:20px;cursor:pointer;padding:4px 8px">✕</button>
+      </div>
+      <div>${bodyHtml}</div>
+    </div>
+  `;
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
 }
 
 /* ═══ Init ═══ */

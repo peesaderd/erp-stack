@@ -154,9 +154,10 @@ tr:last-child td{border-bottom:none}
 /* ═══ Responsive ═══ */
 @media(max-width:768px){
   .sidebar{width:56px}
-  .sidebar .sb-logo h1 span,.sidebar .sb-logo span,.sidebar .sb-section,.sidebar .sb-footer span,.sidebar .sb-item span{display:none}
+  .sidebar .sb-title,.sidebar .sb-label,.sidebar .sb-logo>span,.sidebar .sb-section,.sidebar .sb-footer span{display:none}
   .sidebar .sb-item{justify-content:center;padding:10px 0}
-  .sidebar .sb-item .icon{font-size:18px;margin:0}
+  .sidebar .sb-item .icon{font-size:20px;margin:0}
+
   .sidebar .sb-logo{padding:12px 0;text-align:center}
   .sidebar .sb-logo h1{justify-content:center}
   .sidebar .sb-footer{justify-content:center}
@@ -175,11 +176,7 @@ tr:last-child td{border-bottom:none}
 @media(max-width:480px){
   .stats{grid-template-columns:1fr}
   .form-row{grid-template-columns:1fr}
-  .sb-item[data-page]{display:none}
-  .sb-item[data-page="dashboard"],
-  .sb-item[data-page="targets"],
-  .sb-item[data-page="library"],
-  .sb-item[data-page="automation"]{display:flex}
+  .topbar .topbar-actions .btn{font-size:11px;padding:4px 8px}
 }
 </style>
 </head>
@@ -190,44 +187,44 @@ tr:last-child td{border-bottom:none}
   <div class="sb-logo">
     <h1>
       <span class="dot"></span>
-      TikTok Growth Engine
+      <span class="sb-title">TikTok Growth Engine</span>
     </h1>
     <span>Business OS • v0.2</span>
   </div>
   <nav class="sb-nav">
     <div class="sb-section">Overview</div>
     <div class="sb-item active" data-page="dashboard">
-      <span class="icon">📊</span> Dashboard
+      <span class="icon">📊</span> <span class="sb-label">Dashboard</span>
     </div>
     <div class="sb-item" data-page="goals">
-      <span class="icon">🎯</span> เป้าหมาย
+      <span class="icon">🎯</span> <span class="sb-label">เป้าหมาย</span>
     </div>
 
     <div class="sb-section">Content</div>
     <div class="sb-item" data-page="library">
-      <span class="icon">🎬</span> Content Library
+      <span class="icon">🎬</span> <span class="sb-label">Content Library</span>
     </div>
     <div class="sb-item" data-page="clone">
-      <span class="icon">🏗️</span> Clone Studio
+      <span class="icon">🏗️</span> <span class="sb-label">Clone Studio</span>
     </div>
 
     <div class="sb-section">Automation</div>
     <div class="sb-item" data-page="automation">
-      <span class="icon">⚙️</span> Auto Settings
+      <span class="icon">⚙️</span> <span class="sb-label">Auto Settings</span>
     </div>
     <div class="sb-item" data-page="schedule">
-      <span class="icon">📅</span> Schedule
+      <span class="icon">📅</span> <span class="sb-label">Schedule</span>
     </div>
 
     <div class="sb-section">Intelligence</div>
     <div class="sb-item" data-page="targets">
-      <span class="icon">🎯</span> Scout Targets
+      <span class="icon">🎯</span> <span class="sb-label">Scout Targets</span>
     </div>
     <div class="sb-item" data-page="strategy">
-      <span class="icon">🧠</span> Strategy
+      <span class="icon">🧠</span> <span class="sb-label">Strategy</span>
     </div>
     <div class="sb-item" data-page="trends">
-      <span class="icon">🔍</span> Scout Trends
+      <span class="icon">🔍</span> <span class="sb-label">Scout Trends</span>
     </div>
   </nav>
   <div class="sb-footer">

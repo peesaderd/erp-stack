@@ -109,8 +109,8 @@ Client App (Third Party)
 ## 4. Feature Matrix
 
 ### Data Layer (Scrape)
-| Feature | Free Tier | Subscription |
-|---------|-----------|--------------|
+| Feature | 7-Day Trial | Subscription |
+|---------|------------|--------------|
 | Scrape Shopee | ✅ | ✅ |
 | Scrape Lazada | ❌ | ✅ |
 | Scrape TikTok Shop | ❌ | ✅ |
@@ -121,8 +121,8 @@ Client App (Third Party)
 | Fresh Results (no cache) | ❌ | ✅ |
 
 ### Intel Layer (Analyze)
-| Feature | Free Tier | Subscription |
-|---------|-----------|--------------|
+| Feature | 7-Day Trial | Subscription |
+|---------|------------|--------------|
 | Product Name Extraction | ✅ | ✅ |
 | Price Extraction | ✅ | ✅ |
 | Image Extraction | ✅ | ✅ |
@@ -133,8 +133,8 @@ Client App (Third Party)
 | Script Content Auto-Gen | ❌ | ✅ |
 
 ### Output Layer (Serve)
-| Feature | Free | Sub | Client API |
-|---------|------|-----|------------|
+| Feature | Trial | Sub | Client API |
+|---------|-------|-----|------------|
 | TUS Pipeline Integration | ✅ | ✅ | ❌ |
 | Affiliate Dashboard | ❌ | ✅ | ❌ |
 | Price Monitor/Alert | ❌ | ✅ | ❌ |
@@ -174,11 +174,16 @@ modules/product/
 
 | Tier | Price/เดือน | Scrapes/วัน | Platforms | AI Analysis | Client API |
 |------|------------|------------|-----------|-------------|------------|
-| **Free** | $0 | 10 | 1 platform | ❌ | ❌ |
+| **7-Day Trial** | $0 (ต้องใส่บัตร) | 50/วัน | 2 platforms | ❌ | ❌ |
 | **Starter** | $9 | 100 | 2 platforms | ❌ | ❌ |
 | **Pro** | $29 | 500 | All | ✅ | ❌ |
 | **Business** | $99 | 2,000 | All + Cross | ✅ | ✅ (ผ่าน Agent) |
 | **Enterprise** | Custom | Unlimited | All + Custom | ✅ + Custom Agent | ✅ |
+
+**หมายเหตุ:** ไม่มี Free Tier แบบ Scrapes ฟรี
+- มีแค่ **7-day Free Trial** (ต้องใส่บัตรเครดิต)
+- Trial ครบ → ต้องซื้อ Subscription อย่างน้อย Starter
+- เหตุผล: Scrape แต่ละครั้งมีต้นทุน proxy + browser + dev — เปิดฟรีมีแต่คน abuse
 
 **PS. พวกที่ทำ Affiliate แบบเรา → ใช้ Subscription TUS ที่รวม Feature นี้อยู่แล้ว**
 
@@ -197,7 +202,129 @@ modules/product/
 
 ---
 
-## 8. Roadmap
+## 8. Resilience Engineering
+
+### 8.1 Selector Pool + Auto Healing
+
+```python
+# platforms/shopee.py — Selector Pool แต่ละ element
+
+PRODUCT_SELECTORS = {
+    "name": [
+        "div[data-sqe='name']",               # รูปแบบปัจจุบัน
+        "h1[class*='product-title']",          # fallback 1
+        "div[class*='product-name']",          # fallback 2
+        "span[itemprop='name']",               # fallback 3
+        "//h1[contains(@class, 'name')]",      # XPath fallback
+    ],
+    "price": [
+        "div[data-sqe='price']",
+        "span[class*='price']",
+        "div[class*='final-price']",
+        "//div[contains(@class, 'price')]",
+    ],
+}
+```
+
+```python
+# selector_engine.py — Auto Healing Engine
+
+class SelectorEngine:
+    """ลอง selector ทีละตัว จนกว่าจะเจอที่ใช้ได้"""
+    
+    def __init__(self, selectors: dict):
+        self.selectors = selectors
+        
+    def extract(self, page, field: str):
+        for selector in self.selectors[field]:
+            try:
+                el = page.locator(selector).first
+                if el.is_visible():
+                    text = el.inner_text()
+                    if text:
+                        return text
+            except:
+                continue
+        # All failed → alert dev
+        logger.error(f"[SELECTOR HEALING] All selectors failed for {field}")
+        # TODO: ส่ง LINE Notify
+        return None
+```
+
+### 8.2 Proxy Strategy — 2 Providers + Auto Failover
+
+```python
+# proxy_manager.py
+
+PROXY_PROVIDERS = {
+    "primary": {
+        "url": "http://user:pass@mango-proxy:port",
+        "provider": "mango",
+        "error_count": 0,
+        "max_errors": 5,
+        "active": True,
+    },
+    "fallback": {
+        "url": "http://user:pass@smartproxy:port",
+        "provider": "smartproxy",
+        "error_count": 0,
+        "max_errors": 5,
+        "active": False,
+    }
+}
+
+def get_proxy() -> str:
+    """Auto failover เมื่อ error rate เกิน threshold"""
+    for name, provider in PROXY_PROVIDERS.items():
+        if provider["active"]:
+            if provider["error_count"] >= provider["max_errors"]:
+                provider["active"] = False
+                fallback = [p for p in PROXY_PROVIDERS.values() if not p["active"]]
+                if fallback:
+                    fallback[0]["active"] = True
+                    _send_alert(f"Proxy failover: {name} → {fallback[0]['provider']}")
+                return provider["url"]
+            return provider["url"]
+    return None
+```
+
+### 8.3 Monitoring + Real-time Alert
+
+```python
+# monitor.py
+
+ALERT_THRESHOLDS = {
+    "error_rate": 0.10,         # >10% error
+    "proxy_failover": True,
+    "selector_fail": 3,          # selector pool ล้ม 3 field
+    "empty_result": 5,           # scrape ได้ 0 ติดกัน 5 ครั้ง
+}
+
+class ScraperMonitor:
+    def __init__(self):
+        self.errors = []
+        self.total = 0
+        self.consecutive_empty = 0
+        
+    def record_error(self, error_type: str):
+        self.total += 1
+        self.errors.append({"type": error_type, "time": time.time()})
+        if len(self.errors) / max(self.total, 1) > ALERT_THRESHOLDS["error_rate"]:
+            self._alert(f"Error rate >10% ({len(self.errors)}/{self.total})")
+            
+    def record_empty(self):
+        self.consecutive_empty += 1
+        if self.consecutive_empty >= ALERT_THRESHOLDS["empty_result"]:
+            self._alert(f"{self.consecutive_empty}x empty — possible block")
+    
+    def _alert(self, msg: str):
+        logger.critical(f"[ALERT] {msg}")
+        # TODO: LINE Notify
+```
+
+---
+
+## 9. Roadmap
 
 | Phase | Feature | Timeline |
 |-------|---------|----------|
@@ -211,7 +338,7 @@ modules/product/
 
 ---
 
-## 9. Environment Variables (New)
+## 10. Environment Variables (New)
 
 ```bash
 # Subscription/API Keys
@@ -233,7 +360,7 @@ export AGENT_API_KEY="..."
 
 ---
 
-## 10. หลักการสำคัญสำหรับ Developer
+## 11. หลักการสำคัญสำหรับ Developer
 
 1. **อย่าขาย Raw Data API** — ขาย Content/Service ที่ผ่าน Process ของเราแล้ว
 2. **Agent Layer ป้องกันข้อมูล** — Third Party ไม่รู้ source platform

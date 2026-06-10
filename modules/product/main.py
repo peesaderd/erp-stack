@@ -153,10 +153,6 @@ def get_platform_scraper(platform: str, proxy: str = None):
         return cls(proxy=proxy)
     return None
 
-
-@app.on_event("startup")
-async def _startup_platforms():
-    register_platform_scrapers()
     total_cost: float = 0.0
     unique_urls: int = 0
     tier: str = "free"
@@ -199,6 +195,9 @@ async def lifespan(app: FastAPI):
             logger.info("Registered with ERP Modular")
     except Exception as e:
         logger.warning(f"ERP registration skipped: {e}")
+
+    # Register platform scrapers
+    register_platform_scrapers()
 
     # Start background scheduler
     scheduler_task = asyncio.create_task(start_scheduler())

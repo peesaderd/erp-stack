@@ -107,6 +107,56 @@ class ExportResponse(BaseModel):
 class UsageResponse(BaseModel):
     success: bool
     total_scrapes: int = 0
+
+
+# TikTok Shop Scraper Models
+
+class TikTokScrapeRequest(BaseModel):
+    url: str
+    use_vision: bool = False
+
+class TikTokScrapeResponse(BaseModel):
+    success: bool
+    method: str = "scraper"
+    source_site: str = "tiktokshop"
+    product: Optional[ProductData] = None
+    error: Optional[str] = None
+
+class TikTokStatusResponse(BaseModel):
+    status: str
+    platform: str = "tiktokshop"
+    scraper_ready: bool = False
+    message: str = ""
+
+
+# ─── Dynamic Platform Scraper Registry ───────────────────────────────
+
+_platform_scrapers: dict = {}
+
+def register_platform_scrapers():
+    """Register all platform scrapers from platforms/ folder"""
+    global _platform_scrapers
+    try:
+        from product.platforms.tiktok_shop import TikTokShopScraper
+        _platform_scrapers["tiktokshop"] = TikTokShopScraper
+        logger.info("Registered platform scraper: TikTokShop")
+    except ImportError as e:
+        logger.warning(f"TikTokShop scraper not available: {e}")
+    except Exception as e:
+        logger.warning(f"Failed to register TikTokShop: {e}")
+
+
+def get_platform_scraper(platform: str, proxy: str = None):
+    """Get scraper instance for a platform"""
+    cls = _platform_scrapers.get(platform)
+    if cls:
+        return cls(proxy=proxy)
+    return None
+
+
+@app.on_event("startup")
+async def _startup_platforms():
+    register_platform_scrapers()
     total_cost: float = 0.0
     unique_urls: int = 0
     tier: str = "free"
@@ -679,6 +729,85 @@ async def extract_html(req: ScrapeRequest):
         method="http_failed",
         product=None,
         error="HTTP extraction returned no data."
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# TikTok Shop Scraper Endpoints
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@app.post("/api/v1/scrape-tiktok", response_model=TikTokScrapeResponse)
+async def scrape_tiktok_shop(
+    req: TikTokScrapeRequest,
+    authorization: Optional[str] = Header(None),
+    x_api_key: Optional[str] = Header(None),
+):
+    """Scrape TikTok Shop product by URL.
+    Uses dedicated TikTok Shop scraper (platform module).
+    """
+    if not req.url or "tiktok" not in req.url.lower():
+        raise HTTPException(status_code=400, detail="URL must be from TikTok")
+
+    # Get proxy from env
+    proxy = os.environ.get("PROXY_URL", "")
+
+    # Get TikTokShop scraper
+    scraper = get_platform_scraper("tiktokshop", proxy=proxy)
+    if not scraper:
+        return TikTokScrapeResponse(
+            success=False,
+            error="TikTok Shop scraper module not loaded. Check platforms/tiktok_shop.py",
+        )
+
+    try:
+        result = await scraper.scrape(req.url)
+        product = result.get("product", {})
+
+        return TikTokScrapeResponse(
+            success=result.get("success", False),
+            method=result.get("method", "platform_scraper"),
+            source_site="tiktokshop",
+            product=ProductData(
+                name=product.get("name", ""),
+                price=product.get("price"),
+                currency=product.get("currency", "THB"),
+                images=product.get("images", []),
+                description=product.get("description", ""),
+                source_url=req.url,
+                source_site="tiktokshop",
+            ) if product.get("name") else None,
+            error=result.get("error"),
+        )
+    except Exception as e:
+        logger.error(f"TikTok Shop scrape error: {e}")
+        return TikTokScrapeResponse(
+            success=False,
+            error=f"Scrape failed: {str(e)[:200]}",
+        )
+
+
+@app.get("/api/v1/tiktokshop-status", response_model=TikTokStatusResponse)
+async def tiktok_shop_status():
+    """Check TikTok Shop scraper status"""
+    scraper = get_platform_scraper("tiktokshop")
+    ready = scraper is not None
+
+    # Try import to double-check
+    import_error = ""
+    if not ready:
+        try:
+            from product.platforms.tiktok_shop import TikTokShopScraper
+            ready = True
+        except ImportError as e:
+            import_error = str(e)
+        except Exception as e:
+            import_error = str(e)
+
+    return TikTokStatusResponse(
+        status="ready" if ready else "error",
+        scraper_ready=ready,
+        message="TikTok Shop scraper available" if ready else f"Not available: {import_error}",
     )
 
 

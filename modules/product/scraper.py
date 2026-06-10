@@ -17,15 +17,41 @@ PROXY_LIST = [p.strip() for p in _proxy_list.split(",") if p.strip()]
 _proxy_index = 0
 _proxy_lock = asyncio.Lock()
 
+# Proxy failover tracking
+_proxy_errors: dict = {}  # proxy_url -> error_count
+
 async def _get_next_proxy() -> Optional[str]:
-    """Round-robin proxy selection."""
+    """Round-robin proxy selection with auto failover.
+    ถ้า proxy ไหน error ติดกัน 5 ครั้ง → ข้ามไปใช้ตัวถัดไป
+    """
     global _proxy_index
     if not PROXY_LIST:
         return None
     async with _proxy_lock:
-        idx = _proxy_index % len(PROXY_LIST)
-        _proxy_index += 1
-        return PROXY_LIST[idx]
+        # Try up to len(PROXY_LIST) times to find a working proxy
+        for _ in range(len(PROXY_LIST)):
+            idx = _proxy_index % len(PROXY_LIST)
+            _proxy_index += 1
+            proxy = PROXY_LIST[idx]
+            error_count = _proxy_errors.get(proxy, 0)
+            if error_count < 5:
+                return proxy
+            logger.warning(f"Proxy failover: skipping {proxy} (errors: {error_count})")
+        # All proxies exhausted — reset and use the first one
+        _proxy_errors.clear()
+        return PROXY_LIST[0]
+
+
+def record_proxy_error(proxy: str):
+    """Record a proxy error for failover tracking."""
+    global _proxy_errors
+    if proxy:
+        _proxy_errors[proxy] = _proxy_errors.get(proxy, 0) + 1
+        error_count = _proxy_errors[proxy]
+        logger.warning(f"Proxy error #{error_count} for {proxy[:30]}...")
+        if error_count >= 5:
+            logger.error(f"Proxy {proxy[:30]}... exhausted (5 errors) — failover triggered")
+            # TODO: send alert
 
 # ─── Config ────────────────────────────────────────────────────────────────
 

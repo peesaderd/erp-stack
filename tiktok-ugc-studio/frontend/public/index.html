@@ -285,6 +285,8 @@ select.input { cursor: pointer; }
 .duration-chip.selected { background: var(--brand); color: #fff; border-color: var(--brand); }
 
 /* Toggle */
+.spinner { width:24px;height:24px;border:3px solid var(--border-primary);border-top-color:var(--brand);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto; }
+@keyframes spin { to { transform:rotate(360deg) } }
 .toggle-wrap { display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
 .toggle-track { width: 36px; height: 20px; border-radius: 9999px; background: var(--bg-tertiary); position: relative; transition: all .2s; }
 .toggle-track.on { background: var(--brand); }
@@ -629,11 +631,8 @@ select.input { cursor: pointer; }
     <div class="card-title mb-3">Add Account</div>
     <div class="mb-3"><input class="input" id="accUsername" placeholder="Username"></div>
     <div class="mb-3"><input class="input" id="accPassword" type="password" placeholder="Password"></div>
-    <div class="mb-3 flex gap-2 items-center">
-      <input type="checkbox" id="accUseQr" onchange="document.getElementById('accQrNote').style.display=this.checked?'block':'none'">
-      <label class="text-sm" for="accUseQr">Use QR login</label>
-    </div>
-    <div id="accQrNote" class="text-xs text-secondary mb-3" style="display:none">QR code will be shown after adding</div>
+    <div class="mb-3"><input class="input" id="accToken" type="text" placeholder="Session Token (จาก tiktok-upload auth)" style="font-family:mono;font-size:12px"></div>
+    <div class="text-xs text-secondary mb-3">💡 รัน <code>tiktok-upload auth</code> บนเครื่องตัวเองก่อน ได้ Token แล้วเอามาใส่</div>
     <div class="flex gap-2">
       <button class="btn btn-primary btn-sm" onclick="addAccount()">Save</button>
       <button class="btn btn-ghost btn-sm" onclick="document.getElementById('addAccountForm').style.display='none'">Cancel</button>
@@ -647,12 +646,17 @@ select.input { cursor: pointer; }
 
 <!-- QR Modal -->
 <div class="modal-overlay" id="qrModal">
-  <div class="modal">
-    <h3>QR Login</h3>
-    <div id="qrCodeContainer" style="text-align:center;padding:20px">Scan QR with TikTok</div>
-    <p id="qrStatus" class="text-sm text-secondary mt-2" style="text-align:center">Waiting for scan...</p>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeQrModal()">Close</button>
+  <div class="modal" style="max-width:480px">
+    <h3>📱 TikTok QR Login</h3>
+    <div id="qrCodeContainer" style="text-align:center;padding:20px">
+      <div style="width:200px;height:200px;background:var(--bg-tertiary);border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:12px;color:var(--text-tertiary)">
+        <div><div style="font-size:48px;margin-bottom:8px">📱</div><div>กด "QR Login" เพื่อสร้าง QR</div></div>
+      </div>
+    </div>
+    <p id="qrStatus" class="text-sm text-secondary mt-2" style="text-align:center">สแกน QR ด้วยแอป TikTok เพื่อล็อกอิน</p>
+    <div class="modal-actions" style="justify-content:center;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="requestTikTokQR()">🔄 สร้าง QR</button>
+      <button class="btn btn-ghost" onclick="closeQrModal()">ปิด</button>
     </div>
   </div>
 </div>
@@ -985,16 +989,18 @@ function showAddAccount() { document.getElementById('addAccountForm').style.disp
 async function addAccount() {
   const username = document.getElementById('accUsername').value;
   const password = document.getElementById('accPassword').value;
-  const useQr = document.getElementById('accUseQr').checked;
+  const sessionToken = document.getElementById('accToken').value.trim();
   if (!username) { showToast('ใส่ Username','error'); return; }
   try {
+    const body = { username, password: password||undefined };
+    if (sessionToken) body.session_token = sessionToken;
     const res = await fetch(API + '/tiktok/accounts', {
-      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ username, password: password||undefined, use_qr: useQr })
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
     });
     if (!res.ok) throw new Error('Failed');
-    showToast('Account added','success');
+    showToast(sessionToken ? 'Account added with token ✅' : 'Account added','success');
     document.getElementById('addAccountForm').style.display = 'none';
-    document.getElementById('accUsername').value = ''; document.getElementById('accPassword').value = '';
+    document.getElementById('accUsername').value = ''; document.getElementById('accPassword').value = ''; document.getElementById('accToken').value = '';
     loadAccounts(); populateAccountSelect();
   } catch(e) { showToast('Failed: '+e.message,'error'); }
 }
@@ -1014,11 +1020,12 @@ async function loadAccounts() {
           <div class="font-medium">${a.username || a.id || 'Unknown'}</div>
           <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
             <span class="status-dot ${a.is_logged_in ? 'online' : 'offline'}"></span>
-            <span class="text-xs text-secondary">${a.is_logged_in ? 'Logged in' : 'Not logged in'}</span>
+            <span class="text-xs text-secondary">${a.is_logged_in ? 'Logged in ✅' : (a.session_token ? 'Has token' : 'Not logged in')}</span>
+            ${a.session_token ? '<span class="text-xs text-secondary ml-1">🔑</span>' : ''}
           </div>
         </div>
         <div style="display:flex;gap:4px">
-          ${!a.is_logged_in ? `<button class="btn btn-primary btn-sm" onclick="loginAccount('${a.id||a.username}')">Login</button>` : ''}
+          ${!a.is_logged_in && !a.session_token ? `<button class="btn btn-primary btn-sm" onclick="loginAccount('${a.id||a.username}')">Login</button>` : ''}
           <button class="btn btn-ghost btn-sm" onclick="checkSession('${a.id||a.username}')">Check</button>
           <button class="btn btn-danger btn-sm" onclick="removeAccount('${a.id||a.username}')">Delete</button>
         </div>
@@ -1030,21 +1037,118 @@ async function loadAccounts() {
 function hashColor(s) { const colors = ['#7c3aed','#2563eb','#0891b2','#059669','#d97706','#dc2626','#db2777','#7c2d12']; let h=0;for(let i=0;i<s.length;i++)h=s.charCodeAt(i)+((h<<5)-h);return colors[Math.abs(h)%colors.length]; }
 function hashColor2(s) { const colors = ['#a78bfa','#60a5fa','#22d3ee','#34d399','#fbbf24','#f87171','#f472b6','#f97316']; let h=0;for(let i=0;i<s.length;i++)h=s.charCodeAt(i)+((h<<5)-h)+1;return colors[Math.abs(h)%colors.length]; }
 
+/* ═══ TikTok QR Login ═══ */
+
+async function requestTikTokQR() {
+  // เรียก API หลังบ้านเพื่อขอ QR code login
+  const el = document.getElementById('qrCodeContainer');
+  const st = document.getElementById('qrStatus');
+  el.innerHTML = '<div style="text-align:center;padding:20px"><div class="spinner"></div><div class="text-sm mt-2">กำลังสร้าง QR...</div></div>';
+  st.textContent = 'กำลังเชื่อมต่อ TikTok...';
+  
+  try {
+    const res = await fetch(API + '/tiktok/qr-login', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({})
+    });
+    const data = await res.json();
+    
+    if (data.qr_url || data.qr_code) {
+      const qrUrl = data.qr_url || data.qr_code;
+      el.innerHTML = `<img src="${qrUrl}" style="max-width:220px;border-radius:12px;display:block;margin:0 auto;box-shadow:0 4px 12px rgba(0,0,0,.15)" alt="TikTok QR Code">`;
+      st.textContent = data.message || '📱 สแกน QR ด้วยแอป TikTok เพื่อล็อกอิน (QR หมดอายุ 300 วิ)';
+      
+      // Auto-poll สำหรับเช็ค login status
+      if (data.token_id) {
+        const tokenId = data.token_id;
+        let attempts = 0;
+        const pollInterval = setInterval(async () => {
+          attempts++;
+          try {
+            const pollRes = await fetch(API + '/tiktok/qr-status/' + tokenId);
+            const pollData = await pollRes.json();
+            if (pollData.status === 'completed' || pollData.logged_in) {
+              clearInterval(pollInterval);
+              el.innerHTML = '<div style="text-align:center;padding:20px"><div style="font-size:48px;margin-bottom:8px">✅</div><div class="font-medium">ล็อกอินสำเร็จ!</div></div>';
+              st.textContent = 'พร้อมใช้งานแล้ว 🎉';
+              setTimeout(() => closeQrModal(), 2000);
+              loadAccounts();
+            } else if (pollData.status === 'expired' || pollData.status === 'failed') {
+              clearInterval(pollInterval);
+              el.innerHTML = '<div style="text-align:center;padding:20px"><div style="font-size:48px;margin-bottom:8px">⏰</div><div class="font-medium">QR หมดอายุแล้ว</div></div>';
+              st.textContent = 'กด "สร้าง QR" เพื่อสร้างใหม่';
+            }
+          } catch(e) {}
+          if (attempts > 60) { clearInterval(pollInterval); } // max 5 นาที
+        }, 5000);
+      }
+    } else {
+      el.innerHTML = '<div style="text-align:center;padding:20px"><div style="font-size:48px">❌</div><div class="text-sm mt-2">' + (data.error || 'สร้าง QR ไม่สำเร็จ') + '</div></div>';
+      st.textContent = 'ลองอีกครั้ง';
+    }
+  } catch(e) {
+    el.innerHTML = '<div style="text-align:center;padding:20px"><div style="font-size:48px">❌</div><div class="text-sm mt-2">Connection failed</div></div>';
+    st.textContent = e.message;
+  }
+}
+
 async function loginAccount(id) {
   try {
     const res = await fetch(API + '/tiktok/login', {
       method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ account_id: id })
     });
     const data = await res.json();
-    if (data.qr_code) {
-      document.getElementById('qrCodeContainer').innerHTML = `<img src="${data.qr_code}" style="max-width:200px;border-radius:8px" alt="QR">`;
-      document.getElementById('qrStatus').textContent = 'Scan with TikTok, auto-checking in 30s...';
+    if (data.qr_url || data.qr_code) {
+      document.getElementById('qrCodeContainer').innerHTML = `<img src="${data.qr_url||data.qr_code}" style="max-width:200px;border-radius:8px" alt="QR">`;
       document.getElementById('qrModal').classList.add('open');
+      
+      // Auto-poll
+      if (data.token_id) {
+        const tokenId = data.token_id;
+        const st = document.getElementById('qrStatus');
+        st.textContent = 'สแกน QR ด้วย TikTok...';
+        let attempts = 0;
+        const pi = setInterval(async () => {
+          attempts++;
+          try {
+            const pr = await fetch(API + '/tiktok/qr-status/' + tokenId);
+            const pd = await pr.json();
+            if (pd.status === 'completed' || pd.logged_in) {
+              clearInterval(pi);
+              st.textContent = '✅ ล็อกอินสำเร็จ!'; loadAccounts();
+              setTimeout(() => closeQrModal(), 1500);
+            } else if (pd.status === 'expired' || pd.status === 'failed') {
+              clearInterval(pi);
+              st.textContent = '⏰ QR หมดอายุ กด สร้าง QR ใหม่';
+            }
+          } catch(e) {}
+          if (attempts > 60) clearInterval(pi);
+        }, 5000);
+      }
+    } else if (data.status === 'poll' || data.status === 'pending') {
+      document.getElementById('qrModal').classList.add('open');
+      document.getElementById('qrCodeContainer').innerHTML = `<div style="text-align:center;padding:20px"><div style="font-size:48px">⏳</div><div class="text-sm mt-2">${data.message || 'รอการยืนยัน...'}</div></div>`;
     }
     showToast('Login initiated','info');
     loadAccounts();
-  } catch(e) { showToast('Login failed','error'); }
+  } catch(e) { showToast('Login failed: '+e.message,'error'); }
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+  // ถ้ามีปุ่ม QR Login เพิ่มในหน้า Accounts
+  const accountsHeader = document.querySelector('#page-accounts .page-header .flex');
+  if (accountsHeader) {
+    const qrBtn = document.createElement('button');
+    qrBtn.className = 'btn btn-secondary btn-sm';
+    qrBtn.innerHTML = '📱 QR Login';
+    qrBtn.onclick = function() {
+      document.getElementById('qrModal').classList.add('open');
+      requestTikTokQR();
+    };
+    accountsHeader.appendChild(qrBtn);
+  }
+});
 
 async function checkSession(id) {
   try {

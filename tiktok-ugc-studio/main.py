@@ -6,6 +6,7 @@ AI UGC Video Script Generator + AI Video Generation
 import os
 import json
 import time
+import asyncio
 import logging
 from pathlib import Path
 from datetime import datetime, timedelta
@@ -18,6 +19,9 @@ IMAGES_DIR = STORAGE_DIR / "images"
 VIDEOS_DIR = STORAGE_DIR / "videos"
 for d in [STORAGE_DIR, TTS_DIR, IMAGES_DIR, VIDEOS_DIR]:
     d.mkdir(parents=True, exist_ok=True)
+
+# TikTok accounts storage
+TIKTOK_ACCOUNTS_FILE = STORAGE_DIR / "tiktok_accounts.json"
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -1627,10 +1631,11 @@ def _save_tiktok_accounts(accounts: dict):
 
 class TikTokAccountConfig(BaseModel):
     """TikTok account configuration."""
-    account_id: str
+    account_id: str = ""
     username: str = ""
-    password: str = ""  # Optional — can use QR instead
-    use_qr: bool = True  # Default to QR login for safety
+    password: str = ""  # Optional
+    use_qr: bool = False
+    session_token: str = ""  # Token from 'tiktok-upload auth'
 
 
 class TikTokUploadRequest(BaseModel):
@@ -1726,6 +1731,498 @@ async def tiktok_list_published(account_id: str = "", limit: int = 50):
         return {"success": False, "error": str(e)[:200], "videos": []}
 
 
+# ─── TikTok Account Management ──────────────────────────────────────────
+
+@app.get("/tiktok/accounts")
+async def tiktok_list_accounts():
+    """List all TikTok accounts with login status."""
+    accounts = _load_tiktok_accounts()
+    session_dir = Path(__file__).parent / "sessions" / "tiktok"
+    account_list = []
+    for aid, cfg in accounts.items():
+        session_file = session_dir / f"{aid}.json"
+        has_token = bool(cfg.get("session_token", ""))
+        account_list.append({
+            "id": aid,
+            "username": cfg.get("username", aid),
+            "use_qr": cfg.get("use_qr", False),
+            "session_token": has_token,
+            "is_logged_in": session_file.exists() or has_token,
+        })
+    return {"accounts": account_list, "total": len(account_list)}
+
+
+@app.post("/tiktok/accounts")
+async def tiktok_add_account(req: TikTokAccountConfig):
+    """Add a new TikTok account."""
+    accounts = _load_tiktok_accounts()
+    account_id = req.account_id or req.username
+    if not account_id:
+        return {"success": False, "error": "Username required"}
+
+    acct_data = req.model_dump(exclude_none=True, exclude={"session_token"})
+    account_id = account_id.lstrip("@")
+    acct_data["account_id"] = account_id
+    acct_data["is_logged_in"] = bool(req.session_token)
+    if req.session_token:
+        acct_data["session_token"] = req.session_token
+    accounts[account_id] = acct_data
+    _save_tiktok_accounts(accounts)
+
+    return {"success": True, "account_id": account_id}
+
+
+@app.delete("/tiktok/accounts/{account_id}")
+async def tiktok_remove_account(account_id: str):
+    """Remove a TikTok account and its session."""
+    accounts = _load_tiktok_accounts()
+    accounts.pop(account_id, None)
+    _save_tiktok_accounts(accounts)
+
+    # Clean up session file
+    session_file = Path(__file__).parent / "sessions" / "tiktok" / f"{account_id}.json"
+    if session_file.exists():
+        session_file.unlink()
+    # Clean up QR screenshot
+    qr_file = Path(__file__).parent / "sessions" / "tiktok" / f"{account_id}_qr.png"
+    if qr_file.exists():
+        qr_file.unlink()
+
+    return {"success": True}
+
+
+@app.post("/tiktok/login")
+async def tiktok_login(req: TikTokSessionRequest):
+    """Login to TikTok. Uses password login if available, otherwise QR code."""
+    account_id = req.account_id.lstrip("@")
+    accounts = _load_tiktok_accounts()
+    acct = accounts.get(account_id, {})
+    if not acct:
+        # Also try without @
+        acct = accounts.get(f"@{account_id}", {})
+    if not acct:
+        return {"success": False, "error": f"Account not found ({req.account_id})"}
+
+    session_dir = Path(__file__).parent / "sessions" / "tiktok"
+    session_dir.mkdir(parents=True, exist_ok=True)
+
+    # If password provided, try password login first
+    password = acct.get("password", "")
+    if password and not acct.get("use_qr", False):
+        logger.info(f"Using password login for {account_id}...")
+        try:
+            from tiktok_browser import login_tiktok
+            result = await login_tiktok(
+                account_id=account_id,
+                username=acct.get("username", account_id),
+                password=password,
+                use_qr=False,
+                timeout_seconds=120,
+            )
+            # Return whatever we got
+            resp = {
+                "success": result.get("success", False),
+                "account_id": account_id,
+                "method": "password",
+                "session_valid": result.get("session_valid", False),
+                "error": result.get("error", "")[:300],
+            }
+            if result.get("session_valid"):
+                accounts[account_id]["is_logged_in"] = True
+                _save_tiktok_accounts(accounts)
+            return resp
+        except Exception as e:
+            logger.error(f"Password login error: {e}")
+            return {"success": False, "account_id": account_id, "error": f"Password login failed: {str(e)[:200]}"}
+
+    # Otherwise use QR (desktop viewport)
+    logger.info(f"Using QR login for {account_id}...")
+    try:
+        from patchright.async_api import async_playwright
+
+        p = await async_playwright().start()
+        browser = await p.chromium.launch(
+            headless=True,
+            args=[
+                "--no-sandbox", "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage", "--disable-gpu",
+                "--window-size=1280,720",
+            ],
+        )
+        context = await browser.new_context(
+            viewport={"width": 1280, "height": 720},
+            user_agent=(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/120.0.0.0 Safari/537.36"
+            ),
+            locale="en-US",
+        )
+        page = await context.new_page()
+
+        await page.add_init_script("""
+            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+            Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+        """)
+
+        # Step 1: Go to /login
+        logger.info(f"Navigating to TikTok login page (desktop)...")
+        await page.goto("https://www.tiktok.com/login", wait_until="domcontentloaded", timeout=30000)
+        await page.wait_for_timeout(2000)
+
+        # Step 2: Click "Use QR code"
+        logger.info(f"Clicking 'Use QR code'...")
+        qr_btn = page.locator('text="Use QR code"').first
+        await qr_btn.wait_for(timeout=10000)
+        await qr_btn.click()
+        await page.wait_for_timeout(3000)
+
+        # Step 3: Wait for QR canvas
+        logger.info(f"Waiting for QR code to render...")
+        await page.wait_for_selector('canvas, img[src*="qr"], [class*="qr"]', timeout=15000)
+        await page.wait_for_timeout(1000)
+
+        # Step 4: Screenshot QR
+        qr_path = str(session_dir / f"{account_id}_qr.png")
+        await page.screenshot(path=qr_path, full_page=False)
+        logger.info(f"QR code captured: {qr_path}")
+
+        with open(qr_path, "rb") as f:
+            qr_b64 = base64.b64encode(f.read()).decode()
+
+        # Step 5: Start background polling
+        asyncio.create_task(_poll_tiktok_qr_login_v2(account_id, p, context, browser, page))
+
+        return {
+            "success": True,
+            "qr_code": f"data:image/png;base64,{qr_b64}",
+            "account_id": account_id,
+            "method": "qr",
+            "session_valid": False,
+            "note": "Scan QR with TikTok app, then confirm on your phone",
+        }
+
+    except Exception as e:
+        logger.error(f"QR login error: {e}")
+        return {"success": False, "error": f"QR login failed: {str(e)[:300]}"}
+
+
+async def _poll_tiktok_qr_login_v2(account_id: str, playwright_inst, context, browser, page):
+    """Background task: poll TikTok QR login page until scan completes."""
+    try:
+        logger.info(f"QR poll started for {account_id} - waiting for scan (180s)...")
+        start = time.time()
+        timeout_seconds = 180
+        logged_in = False
+
+        while time.time() - start < timeout_seconds:
+            await asyncio.sleep(3)
+            try:
+                current_url = page.url
+                # Check if redirected away from login (means success)
+                if "login" not in current_url.lower():
+                    logged_in = True
+                    break
+
+                # Check for user avatar (logged-in indicator)
+                has_avatar = await page.evaluate("""
+                    () => {
+                        const avatar = document.querySelector('[data-e2e="user-avatar"]');
+                        const profileIcon = document.querySelector('[class*="profile"]');
+                        return !!(avatar || profileIcon);
+                    }
+                """)
+                if has_avatar:
+                    logged_in = True
+                    break
+
+                # Check if QR scan was accepted
+                scan_ok = await page.evaluate("""
+                    () => {
+                        const text = document.body?.innerText || '';
+                        return text.includes('Confirm') || text.includes('success') || text.includes('scan successful');
+                    }
+                """)
+                if scan_ok:
+                    logger.info(f"QR scan detected for {account_id}, waiting for confirmation...")
+                    await asyncio.sleep(5)
+            except Exception:
+                try:
+                    current_url = page.url
+                    if "login" not in current_url.lower() and "tiktok.com" in current_url:
+                        logged_in = True
+                        break
+                except Exception:
+                    break
+
+        if logged_in:
+            from tiktok_browser import save_session
+            await save_session(account_id, context)
+            logger.info(f"QR login successful for {account_id}!")
+
+            accounts = _load_tiktok_accounts()
+            if account_id in accounts:
+                accounts[account_id]["is_logged_in"] = True
+                _save_tiktok_accounts(accounts)
+        else:
+            logger.warning(f"QR login timed out for {account_id}")
+
+    except Exception as e:
+        logger.error(f"QR poll error for {account_id}: {e}")
+    finally:
+        try:
+            await page.close()
+            await context.close()
+            await browser.close()
+            await playwright_inst.stop()
+        except Exception:
+            pass
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# TikTok QR Login — Server Endpoints (for frontend QR modal)
+# ═══════════════════════════════════════════════════════════════════════
+
+# In-memory store for QR login tokens
+_qr_login_tokens: dict[str, dict] = {}
+
+
+@app.post("/tiktok/qr-login")
+async def tiktok_qr_login(req: Optional[TikTokSessionRequest] = None):
+    """
+    Generate TikTok QR code for login. Returns QR image URL + token_id for polling.
+    This is used by the frontend QR Login modal.
+    """
+    token_id = f"qr_{int(time.time())}_{uuid.uuid4().hex[:8]}"
+    logger.info(f"QR login requested, token_id={token_id}")
+
+    try:
+        from patchright.async_api import async_playwright
+
+        p = await async_playwright().start()
+        browser = await p.chromium.launch(
+            headless=True,
+            args=["--no-sandbox", "--disable-setuid-sandbox",
+                  "--disable-dev-shm-usage", "--disable-gpu",
+                  "--window-size=480,800"],
+        )
+        context = await browser.new_context(
+            viewport={"width": 480, "height": 800},
+            user_agent=(
+                "Mozilla/5.0 (Linux; Android 14; Pixel 8) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/120.0.0.0 Mobile Safari/537.36"
+            ),
+            locale="en-US",
+        )
+        page = await context.new_page()
+
+        await page.goto("https://www.tiktok.com/login", wait_until="domcontentloaded", timeout=30000)
+        await page.wait_for_timeout(2000)
+
+        # Click QR code option
+        try:
+            qr_btn = page.locator('text="Use QR code"').first
+            await qr_btn.wait_for(timeout=10000)
+            await qr_btn.click()
+        except Exception:
+            # Maybe already on QR screen
+            pass
+        await page.wait_for_timeout(3000)
+
+        # Capture QR screenshot
+        qr_dir = Path(__file__).parent / "storage" / "qr_codes"
+        qr_dir.mkdir(parents=True, exist_ok=True)
+        qr_path = str(qr_dir / f"{token_id}.png")
+        await page.screenshot(path=qr_path, full_page=False)
+
+        # Convert to base64 for frontend
+        with open(qr_path, "rb") as f:
+            qr_b64 = base64.b64encode(f.read()).decode()
+
+        # Store state for polling
+        _qr_login_tokens[token_id] = {
+            "status": "pending",
+            "playwright": p,
+            "browser": browser,
+            "context": context,
+            "page": page,
+            "created_at": time.time(),
+            "account_id": req.account_id if req else None,
+        }
+
+        # Start background poller
+        asyncio.create_task(_poll_qr_login_page(token_id))
+
+        return {
+            "success": True,
+            "token_id": token_id,
+            "qr_code": f"data:image/png;base64,{qr_b64}",
+            "qr_url": f"data:image/png;base64,{qr_b64}",
+            "message": "📱 สแกน QR ด้วยแอป TikTok เพื่อล็อกอิน (QR หมดอายุ 300 วิ)",
+            "expires_in": 300,
+        }
+
+    except Exception as e:
+        logger.error(f"QR login error: {e}")
+        return {"success": False, "error": f"สร้าง QR ไม่สำเร็จ: {str(e)[:200]}"}
+
+
+async def _poll_qr_login_page(token_id: str):
+    """Background task: poll QR login page and extract session cookies."""
+    entry = _qr_login_tokens.get(token_id)
+    if not entry:
+        return
+
+    page = entry["page"]
+    timeout_seconds = 300
+    start = time.time()
+
+    try:
+        while time.time() - start < timeout_seconds:
+            await asyncio.sleep(3)
+
+            try:
+                current_url = page.url
+
+                # Success: redirected away from login
+                if "login" not in current_url.lower() and "tiktok.com" in current_url:
+                    entry["status"] = "completed"
+                    logger.info(f"QR [{token_id}] Login successful! URL: {current_url}")
+
+                    # Extract session cookies
+                    cookies = await context.cookies()
+                    session_cookies = {
+                        c["name"]: c["value"]
+                        for c in cookies
+                        if c["name"] in ("sessionid", "sid_ucp_v1", "sid_tt", "passport_csrf_token")
+                    }
+
+                    if session_cookies.get("sessionid"):
+                        entry["session_cookies"] = session_cookies
+                        entry["session_id"] = session_cookies["sessionid"]
+
+                        # Save to accounts
+                        if entry["account_id"]:
+                            accounts = _load_tiktok_accounts()
+                            aid = entry["account_id"]
+                            if aid in accounts:
+                                accounts[aid]["session_token"] = session_cookies["sessionid"]
+                                accounts[aid]["is_logged_in"] = True
+                                _save_tiktok_accounts(accounts)
+
+                    entry["status"] = "completed"
+                    return
+
+                # Check scan detected
+                scan_text = await page.evaluate("""
+                    () => document.body?.innerText?.toLowerCase() || ''
+                """)
+                if "confirm" in scan_text or "scan successful" in scan_text:
+                    logger.info(f"QR [{token_id}] Scan detected, waiting for confirm...")
+                    await asyncio.sleep(5)
+
+            except Exception as e:
+                logger.debug(f"QR [{token_id}] poll error (normal if page closed): {e}")
+                break
+
+        if entry["status"] == "pending":
+            entry["status"] = "expired"
+            logger.info(f"QR [{token_id}] Timed out")
+
+    except Exception as e:
+        logger.error(f"QR [{token_id}] Poll error: {e}")
+        entry["status"] = "failed"
+    finally:
+        try:
+            await page.close()
+            await context.close()
+            await browser.close()
+            await playwright_inst.stop()
+        except Exception:
+            pass
+
+
+@app.get("/tiktok/qr-status/{token_id}")
+async def tiktok_qr_status(token_id: str):
+    """Check the status of a QR login attempt."""
+    entry = _qr_login_tokens.get(token_id)
+    if not entry:
+        return {"status": "not_found", "error": "Token not found or expired"}
+
+    result = {
+        "status": entry.get("status", "pending"),
+        "logged_in": entry.get("status") == "completed",
+    }
+
+    if entry.get("session_id"):
+        result["session_id"] = entry["session_id"][:20] + "..."
+
+    if entry.get("account_id"):
+        result["account_id"] = entry["account_id"]
+
+    # Clean up expired tokens
+    if entry.get("status") in ("completed", "expired", "failed"):
+        if time.time() - entry.get("created_at", 0) > 3600:
+            _qr_login_tokens.pop(token_id, None)
+
+    return result
+
+
+@app.post("/tiktok/check-session")
+async def tiktok_check_session(req: TikTokSessionRequest):
+    """Check if saved TikTok session is valid."""
+    try:
+        from tiktok_browser import check_session
+        result = await check_session(req.account_id)
+
+        # Update stored login status
+        accounts = _load_tiktok_accounts()
+        if req.account_id in accounts:
+            accounts[req.account_id]["is_logged_in"] = result.get("valid", False)
+            _save_tiktok_accounts(accounts)
+
+        return result
+    except Exception as e:
+        return {"valid": False, "error": str(e)[:200]}
+
+
+@app.post("/tiktok/upload")
+async def tiktok_upload_video(req: TikTokUploadRequest):
+    """Upload a video to TikTok using session token."""
+    try:
+        accounts = _load_tiktok_accounts()
+        acct = accounts.get(req.account_id.lstrip("@"))
+        if not acct:
+            return {"success": False, "error": "Account not found"}
+
+        token = acct.get("session_token", "")
+        if not token:
+            return {"success": False, "error": "No session token. Run 'tiktok-upload auth' first"}
+
+        video_path = Path(req.video_path)
+        if not video_path.exists():
+            return {"success": False, "error": f"Video not found: {req.video_path}"}
+
+        import os
+        from simple_tiktok_uploader import upload
+        os.environ["TIKTOK_SESSION"] = token
+
+        caption = req.caption
+        if req.hashtags:
+            caption += " " + " ".join(f"#{h}" for h in req.hashtags)
+
+        result = upload(str(video_path), caption)
+        return {
+            "success": True,
+            "video_id": getattr(result, "id", "") or getattr(result, "video_id", ""),
+            "url": getattr(result, "url", "") or getattr(result, "share_url", ""),
+            "account_id": req.account_id,
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)[:200]}
+
+
 # ─── TikTok Pipeline Status ──────────────────────────────────────────────
 
 @app.post("/tiktok/pipeline")
@@ -1811,7 +2308,7 @@ async def tiktok_full_pipeline(req: TikTokUploadRequest):
     # Step 5: Upload (simulated — actual upload via Playwright)
     _update_pipeline_step(job_id, "upload", "running")
     try:
-        from tiktok_uploader import watch_for_schedule
+        from tiktok_browser import watch_for_schedule
         pipeline_steps["upload"] = {
             "success": True,
             "simulated": True,

@@ -19,38 +19,44 @@ from typing import Optional
 
 logger = logging.getLogger("tiktok-ugc.postforme")
 
-PFM_API_KEY = ***"PFM_API_KEY", "") or os.environ.get("PFM_API_KEY", "")
+PFM_API_KEY = os.environ.get("PFM_API_KEY", "pfm_live_4qR2sT7hvEo6qFKMQssker")
 PFM_BASE_URL = "https://api.postforme.dev/v1"
+
+# Connected account IDs (from dashboard)
+PFM_ACCOUNTS = {
+    "tiktok_putterfreshshop": "spc_i0Ly8cwH9vJml9VS6t4j",
+    "facebook_kunyay": "spc_sffrL9Nul7Z2ms2rJELZ1",
+    "facebook_putter_gaming": "spc_OdQDPsF5ZucdSgSIwQUJc",
+}
 
 
 # ─── Account Management ────────────────────────────────────────────────────
 
 def get_accounts() -> list:
-    """List all connected social accounts."""
-    resp = requests.get(
-        f"{PFM_BASE_URL}/accounts",
-        headers={"Authorization": f"Bearer {PFM_API_KEY}"}
-    )
-    resp.raise_for_status()
-    return resp.json().get("data", [])
-
-
-def get_connect_url(platform: str, redirect_uri: str = None) -> str:
-    """Get OAuth URL to connect a social account.
-
-    Platforms: tiktok, instagram, facebook, twitter, linkedin, youtube,
-               threads, pinterest, bluesky
+    """List all connected social accounts.
+    Endpoint: GET /v1/social-accounts
     """
-    params = {"platform": platform}
-    if redirect_uri:
-        params["redirect_uri"] = redirect_uri
     resp = requests.get(
-        f"{PFM_BASE_URL}/accounts/connect",
-        params=params,
+        f"{PFM_BASE_URL}/social-accounts",
         headers={"Authorization": f"Bearer {PFM_API_KEY}"}
     )
     resp.raise_for_status()
-    return resp.json().get("url", "")
+    data = resp.json()
+    return data.get("data", [])
+
+
+def get_connect_urls() -> dict:
+    """Get OAuth URLs to connect social accounts.
+    Returns dict like: { "tiktok": "https://...", "instagram": "..." }
+    Endpoint: GET /v1/connect
+    """
+    resp = requests.get(
+        f"{PFM_BASE_URL}/connect",
+        headers={"Authorization": f"Bearer {PFM_API_KEY}"}
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    return data.get("data", {})
 
 
 # ─── Post / Schedule ──────────────────────────────────────────────────────
@@ -63,17 +69,17 @@ def post_to_platform(
     schedule_at: str = None,
 ) -> dict:
     """
-    Post content to a single platform or multiple.
+    Post content to a social account.
 
     Args:
         account_id: Social account ID (from get_accounts())
         text: Caption/text content
         media_urls: List of media URLs (video/image)
-        platform_options: Platform-specific options (e.g., tiktok creative insights)
+        platform_options: Platform-specific options
         schedule_at: ISO 8601 datetime for scheduled post (None = post now)
 
     Returns:
-        dict: { id, status, platform, platform_post_id, url }
+        dict: Post result with id, status, platform, etc.
 
     Cost: 1 post = 1 of 1,000 monthly quota ($10/1K = $0.01/post)
     """
@@ -111,7 +117,9 @@ def post_to_multiple(
 
 
 def get_post_status(post_id: str) -> dict:
-    """Check the status of a post."""
+    """Check the status of a post.
+    Endpoint: GET /v1/posts/:id
+    """
     resp = requests.get(
         f"{PFM_BASE_URL}/posts/{post_id}",
         headers={"Authorization": f"Bearer {PFM_API_KEY}"}
@@ -134,20 +142,15 @@ def auto_post_affiliate_clip(
 
     Args:
         video_path: Local path to final clip
-        caption: Post caption (e.g., "เซรั่มตัวใหม่ ใช้ดีจริง!")
-        account_ids: List of social account IDs to post to
-        hashtags: Hashtags (e.g., "#skincare #review")
+        caption: Post caption
+        account_ids: List of social account IDs
+        hashtags: Hashtags
         schedule_at: Optional schedule time
 
     Returns:
         List of post results per platform
     """
-    # Upload video to hosting (Post For Me needs URL, not local path)
-    # Option A: Upload to PFM media endpoint
-    # Option B: Upload to our own storage and provide public URL
-
     full_caption = f"{caption}\n\n{hashtags}" if hashtags else caption
-
     return post_to_multiple(
         account_ids=account_ids,
         text=full_caption,
@@ -188,9 +191,17 @@ if __name__ == "__main__":
             print(f"  [{acc['id']}] {acc.get('platform')} — {acc.get('username', '?')}")
 
     elif args.cmd == "connect":
-        url = get_connect_url(args.platform)
-        print(f"Connect URL for {args.platform}:")
-        print(url)
+        urls = get_connect_urls()
+        target = args.platform.lower()
+        found = False
+        for key, url in urls.items():
+            if target in key.lower():
+                print(f"{key}: {url}")
+                found = True
+        if not found:
+            print(f"No connect URL for '{target}'. Available:")
+            for key in urls.keys():
+                print(f"  - {key}")
 
     elif args.cmd == "post":
         result = post_to_platform(
@@ -200,3 +211,7 @@ if __name__ == "__main__":
             schedule_at=args.schedule,
         )
         print(json.dumps(result, indent=2))
+        post_id = result.get("id", "")
+        if post_id:
+            print(f"\nPost ID: {post_id}")
+            print(f"Status: {result.get('status', '?')}")

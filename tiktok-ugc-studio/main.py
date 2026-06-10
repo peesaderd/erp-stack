@@ -27,6 +27,12 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from io import BytesIO
 from fastapi import File, Form, UploadFile
+from typing import Literal
+from postforme_integration import (
+    get_accounts as pfm_get_accounts,
+    post_to_platform as pfm_post,
+    get_post_status as pfm_post_status,
+)
 from pydantic import BaseModel
 import base64
 import uuid
@@ -2327,6 +2333,141 @@ async def tiktok_full_pipeline(req: TikTokUploadRequest):
         "pipeline_steps": pipeline_steps,
         "job_url": f"/pipeline/{job_id}/status",
     }
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Post For Me Integration — Social Media Auto Post
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class PFMConnectionRequest(BaseModel):
+    """Connect a social account via Post For Me."""
+    platform: Literal["tiktok", "instagram", "facebook", "youtube", "x", "linkedin", "threads", "pinterest", "bluesky"]
+    callback_url: str = "http://89.167.82.205:8105/tiktok/auth/callback"
+
+
+class PFMPostRequest(BaseModel):
+    """Post content via Post For Me."""
+    account_id: str
+    caption: str
+    media_urls: list[str] = []
+    schedule_at: Optional[str] = None
+
+
+@app.get("/pfm/accounts")
+async def pfm_list_accounts():
+    """List all Post For Me connected accounts."""
+    try:
+        accounts = pfm_get_accounts()
+        return {"success": True, "accounts": accounts, "total": len(accounts)}
+    except Exception as e:
+        return {"success": False, "error": str(e)[:300]}
+
+
+@app.post("/pfm/post")
+async def pfm_create_post(req: PFMPostRequest):
+    """Post content to a social account via Post For Me."""
+    try:
+        result = pfm_post(
+            account_id=req.account_id,
+            text=req.caption,
+            media_urls=req.media_urls,
+            schedule_at=req.schedule_at,
+        )
+        return {
+            "success": True,
+            "post_id": result.get("id", ""),
+            "status": result.get("status", ""),
+            "result": result
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)[:300]}
+
+
+@app.get("/pfm/post/{post_id}")
+async def pfm_post_status(post_id: str):
+    """Check the status of a post."""
+    try:
+        result = pfm_post_status(post_id)
+        return {"success": True, "status": result.get("status", ""), "result": result}
+    except Exception as e:
+        return {"success": False, "error": str(e)[:300]}
+
+
+@app.post("/pfm/auto-publish")
+async def pfm_auto_publish(req: TikTokUploadRequest):
+    """
+    Full auto: Generate clip → Auto Post via Post For Me.
+    Reuses TikTokUploadRequest schema for compatibility.
+    """
+    try:
+        # Map account_id → PFM social account ID
+        # Currently hardcoded; will sync from PFM in future
+        pfm_accounts = pfm_get_accounts()
+        target_account = None
+        for acc in pfm_accounts:
+            a_id = acc.get("id", "")
+            platform = acc.get("platform", "")
+            username = acc.get("username", "")
+            # Match by account_id or username
+            if req.account_id in (a_id, username, f"@{username}"):
+                target_account = a_id
+                break
+
+        if not target_account:
+            # Fallback: use first connected TikTok
+            tiktok_accs = [a["id"] for a in pfm_accounts if a.get("platform") == "tiktok"]
+            if tiktok_accs:
+                target_account = tiktok_accs[0]
+
+        if not target_account:
+            return {"success": False, "error": "No connected TikTok account found"}
+
+        caption = req.caption
+        if req.hashtags:
+            caption += " " + " ".join(f"#{h}" for h in req.hashtags)
+
+        result = pfm_post(
+            account_id=target_account,
+            text=caption,
+            media_urls=[req.video_path] if req.video_path else [],
+            schedule_at=str(req.schedule_hours) if req.schedule_hours else None,
+        )
+
+        # Track in published log
+        published_log = Path(__file__).parent / "storage" / "published.json"
+        try:
+            if published_log.exists():
+                with open(published_log) as f:
+                    published = json.load(f)
+            else:
+                published = []
+            published.append({
+                "id": result.get("id", ""),
+                "caption": caption[:100],
+                "account_id": req.account_id,
+                "pfm_account_id": target_account,
+                "video_path": req.video_path,
+                "timestamp": datetime.now().isoformat(),
+                "status": result.get("status", ""),
+            })
+            with open(published_log, "w") as f:
+                json.dump(published[-100:], f, indent=2)
+        except Exception:
+            pass
+
+        return {
+            "success": True,
+            "method": "post_for_me",
+            "post_id": result.get("id", ""),
+            "status": result.get("status", ""),
+            "pfm_account_id": target_account,
+            "result": result
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)[:300]}
+
+
 @app.get("/stats")
 def stats():
     return {

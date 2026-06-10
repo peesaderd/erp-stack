@@ -136,14 +136,21 @@ _platform_scrapers: dict = {}
 def register_platform_scrapers():
     """Register all platform scrapers from platforms/ folder"""
     global _platform_scrapers
-    try:
-        from product.platforms.tiktok_shop import TikTokShopScraper
-        _platform_scrapers["tiktokshop"] = TikTokShopScraper
-        logger.info("Registered platform scraper: TikTokShop")
-    except ImportError as e:
-        logger.warning(f"TikTokShop scraper not available: {e}")
-    except Exception as e:
-        logger.warning(f"Failed to register TikTokShop: {e}")
+    
+    scrapers = [
+        ("tiktokshop", "product.platforms.tiktok_shop", "TikTokShopScraper"),
+        ("shopee", "product.platforms.shopee", "ShopeeScraper"),
+        ("lazada", "product.platforms.lazada", "LazadaScraper"),
+    ]
+    
+    for slug, module_path, class_name in scrapers:
+        try:
+            mod = __import__(module_path, fromlist=[class_name])
+            cls = getattr(mod, class_name)
+            _platform_scrapers[slug] = cls
+            logger.info(f"Registered platform scraper: {class_name}")
+        except Exception as e:
+            logger.warning(f"{class_name} not available: {e}")
 
 
 def get_platform_scraper(platform: str, proxy: str = None):
@@ -748,8 +755,8 @@ async def scrape_tiktok_shop(
     if not req.url or "tiktok" not in req.url.lower():
         raise HTTPException(status_code=400, detail="URL must be from TikTok")
 
-    # Get proxy from env
-    proxy = os.environ.get("PROXY_URL", "")
+    # Get proxy from env — DataImpulse Mobile Proxy
+    proxy = os.environ.get("PROXY_URL", os.environ.get("PROXY_LIST", "").split(",")[0] if os.environ.get("PROXY_LIST") else "")
 
     # Get TikTokShop scraper
     scraper = get_platform_scraper("tiktokshop", proxy=proxy)
@@ -808,6 +815,97 @@ async def tiktok_shop_status():
         scraper_ready=ready,
         message="TikTok Shop scraper available" if ready else f"Not available: {import_error}",
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Generic Platform Scrape Endpoint — Auto Detect
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class PlatformScrapeRequest(BaseModel):
+    url: str
+    platform: Optional[str] = None  # auto-detect if empty
+
+
+class PlatformScrapeResponse(BaseModel):
+    success: bool
+    platform: str
+    method: str
+    product: Optional[ProductData] = None
+    error: Optional[str] = None
+
+
+@app.post("/api/v1/scrape/platform", response_model=PlatformScrapeResponse)
+async def scrape_platform(
+    req: PlatformScrapeRequest,
+):
+    """Auto-detect platform from URL and scrape product data.
+    Supported: shopee, lazada, tiktokshop
+    """
+    proxy = os.environ.get(
+        "PROXY_URL",
+        os.environ.get("PROXY_LIST", "").split(",")[0]
+        if os.environ.get("PROXY_LIST") else ""
+    )
+
+    # Auto-detect platform
+    platform = req.platform
+    if not platform:
+        url_lower = req.url.lower()
+        if "shopee" in url_lower:
+            platform = "shopee"
+        elif "lazada" in url_lower:
+            platform = "lazada"
+        elif "tiktok" in url_lower:
+            platform = "tiktokshop"
+
+    if not platform:
+        return PlatformScrapeResponse(
+            success=False, platform="unknown", method="none",
+            error="Could not detect platform from URL. Supported: shopee, lazada, tiktok"
+        )
+
+    scraper = get_platform_scraper(platform, proxy=proxy)
+    if not scraper:
+        return PlatformScrapeResponse(
+            success=False, platform=platform, method="none",
+            error=f"Platform scraper '{platform}' not available"
+        )
+
+    try:
+        result = await scraper.scrape(req.url)
+        product = result.get("product", {})
+
+        return PlatformScrapeResponse(
+            success=result.get("success", False),
+            platform=platform,
+            method=result.get("method", "platform_scraper"),
+            product=ProductData(
+                name=product.get("name", ""),
+                price=product.get("price"),
+                currency=product.get("currency", "THB"),
+                images=product.get("images", []),
+                description=product.get("description", ""),
+                source_url=req.url,
+                source_site=platform,
+            ) if product.get("name") else None,
+            error=result.get("error"),
+        )
+    except Exception as e:
+        logger.error(f"Platform scrape error [{platform}]: {e}")
+        return PlatformScrapeResponse(
+            success=False, platform=platform, method="error",
+            error=str(e)[:200]
+        )
+
+
+@app.get("/api/v1/scrape/platforms", response_model=dict)
+async def list_platforms():
+    """List available platform scrapers"""
+    return {
+        "success": True,
+        "platforms": list(_platform_scrapers.keys()),
+    }
 
 
 def main():

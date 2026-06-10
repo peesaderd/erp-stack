@@ -26,11 +26,45 @@ logger = logging.getLogger("tiktok-ugc.pipeline_affiliate")
 # ─── Config ────────────────────────────────────────────────────────────────
 
 FAL_KEY = os.environ.get("FAL_API_KEY", "") or os.environ.get("FAL_KEY", "")
-WAVESPEED_KEY = os.environ.get("WAVESPEED_API_KEY", "")
+WAVESPEED_KEY = os.environ.get("WAVESPEED_API_KEY", "") or os.environ.get("WAVESPEED_KEY", "")
 
 STORAGE_DIR = Path(__file__).parent / "storage"
 TMP_DIR = STORAGE_DIR / "tmp"
 TMP_DIR.mkdir(parents=True, exist_ok=True)
+
+# ─── Step 0: Image Generation (Seedream V4.5 @ Fal.ai) ────────────────────
+
+def generate_image(prompt: str, image_size: str = "square_hd", num_images: int = 1) -> str:
+    """
+    สร้างรูปภาพผ่าน Seedream V4.5 @ Fal.ai (ByteDance — ภาษาไทยใช้ได้)
+
+    Args:
+        prompt: คำอธิบายภาพ (ภาษาไทย/อังกฤษ)
+        image_size: ขนาด (square_hd, square, portrait_4_3, landscape_4_3 ฯลฯ)
+        num_images: จำนวนภาพ
+
+    Returns:
+        URL ของรูปภาพ
+
+    Cost: $0.04/ภาพ
+    """
+    url = "https://fal.run/fal-ai/bytedance/seedream/v4.5/text-to-image"
+    headers = {"Authorization": f"Key {FAL_KEY}", "Content-Type": "application/json"}
+    payload = {
+        "prompt": prompt,
+        "image_size": image_size,
+        "num_images": num_images,
+        "expand_prompt": True
+    }
+
+    resp = requests.post(url, headers=headers, json=payload, timeout=60)
+    resp.raise_for_status()
+    data = resp.json()
+    images = data.get("images", [])
+    if not images:
+        raise RuntimeError(f"Seedream failed: {data}")
+    return images[0].get("url", "")
+
 
 # ─── Step 1: Voice Over (MiniMax Speech @ Fal.ai) ─────────────────────────
 
@@ -84,7 +118,7 @@ def generate_video_scene(prompt: str, duration: int = 8,
 
     Cost: $0.16/8วิ
     """
-    url = "https://api.wavespeed.ai/api/v3/wavespeed-ai/wan-2.2/t2v-480p-ultra-fast"
+    submit_url = "https://api.wavespeed.ai/api/v3/wavespeed-ai/wan-2.2/t2v-480p-ultra-fast"
     headers = {"Authorization": f"Bearer {WAVESPEED_KEY}", "Content-Type": "application/json"}
     payload = {
         "prompt": prompt,
@@ -94,24 +128,33 @@ def generate_video_scene(prompt: str, duration: int = 8,
         "seed": -1
     }
 
-    resp = requests.post(url, headers=headers, json=payload, timeout=30)
+    resp = requests.post(submit_url, headers=headers, json=payload, timeout=30)
     resp.raise_for_status()
     data = resp.json()
-    prediction_id = data.get("prediction_id") or data.get("id", "")
+    # WaveSpeed response: { code, message, data: { id, urls: { get: status_url } } }
+    if data.get("code") != 200:
+        raise RuntimeError(f"WaveSpeed submit failed: {data}")
+    inner = data.get("data", {})
+    prediction_id = inner.get("id", "")
+    status_url = inner.get("urls", {}).get("get", "")
+    if not status_url:
+        raise RuntimeError(f"WaveSpeed: no status URL in response: {data}")
 
     # Poll until complete
-    status_url = f"{url}/{prediction_id}"
     for _ in range(60):  # max 5 min wait
         time.sleep(5)
         status_resp = requests.get(status_url, headers=headers, timeout=10)
         status_data = status_resp.json()
-        st = status_data.get("status", "")
-        if st == "completed":
-            return status_data.get("output", {}).get("video_url", "") or \
-                   status_data.get("video_url", "") or \
-                   status_data.get("url", "")
+        # WaveSpeed nested: { code, data: { status, outputs: [...] } }
+        inner_data = status_data.get("data", {}) if status_data.get("code") == 200 else status_data
+        st = inner_data.get("status", "")
+        outputs = inner_data.get("outputs", [])
+        if st == "completed" and outputs:
+            return outputs[0]
         elif st in ("failed", "error"):
             raise RuntimeError(f"WaveSpeed failed: {status_data}")
+        elif st == "created" or not st:
+            continue  # still processing
     raise TimeoutError("WaveSpeed video generation timed out")
 
 
@@ -229,7 +272,8 @@ def run_pipeline(
     voice_id: str = "English_Trustworth_Man",
     bgm_url: Optional[str] = None,
     enable_lip_sync: bool = False,
-    video_duration: int = 8
+    video_duration: int = 8,
+    image_prompt: Optional[str] = None
 ) -> dict:
     """
     รัน full pipeline สร้างคลิป Affiliate
@@ -241,6 +285,7 @@ def run_pipeline(
         bgm_url: URL BGM (ไม่ใส่ = ไม่มี BGM)
         enable_lip_sync: เปิด Lip Sync หรือไม่
         video_duration: ความยาวต่อ scene (วินาที)
+        image_prompt: ถ้าใส่ = สร้างรูป Seedream ก่อน (ใช้เป็น I2V หรือ thumbnail)
 
     Returns:
         dict { "final_path": Path, "cost_estimate": float, "files": {...} }
@@ -251,8 +296,19 @@ def run_pipeline(
     logger.info(f"Scenes: {len(scene_prompts)} × {video_duration}s")
     logger.info(f"Lip Sync: {'ON' if enable_lip_sync else 'OFF'}")
 
+    cost_image = 0.0
+    image_path = None
+
+    # 0. Optional Image (Seedream)
+    if image_prompt:
+        logger.info("Step 0/6: Generating image via Seedream V4.5...")
+        image_url = generate_image(image_prompt)
+        image_path = TMP_DIR / f"image_{run_id}.png"
+        download_file(image_url, image_path)
+        cost_image = 0.04
+
     # 1. Voice
-    logger.info("Step 1/5: Generating voice...")
+    logger.info("Step 1/6: Generating voice...")
     voice_url = generate_voice(script, voice_id=voice_id)
     voice_path = TMP_DIR / f"voice_{run_id}.mp3"
     download_file(voice_url, voice_path)
@@ -260,7 +316,7 @@ def run_pipeline(
     cost_voice = (voice_char_count / 1000) * 0.06
 
     # 2. Video scenes
-    logger.info("Step 2/5: Generating video scenes...")
+    logger.info("Step 2/6: Generating video scenes...")
     video_paths = []
     for i, prompt in enumerate(scene_prompts):
         logger.info(f"  Scene {i+1}/{len(scene_prompts)}: {prompt[:40]}...")
@@ -274,7 +330,7 @@ def run_pipeline(
 
     # 3. Concat scenes
     if len(video_paths) > 1:
-        logger.info("Step 3/5: Concatenating scenes...")
+        logger.info("Step 3/6: Concatenating scenes...")
         concat_path = TMP_DIR / f"concat_{run_id}.mp4"
         concat_videos(video_paths, concat_path)
     else:
@@ -282,10 +338,7 @@ def run_pipeline(
 
     # 4. Optional Lip Sync
     if enable_lip_sync:
-        logger.info("Step 4/5: Lip sync...")
-        # Upload concat video + voice to temp storage if needed
-        # VEED needs URLs — use direct file paths converted to data URLs or upload
-        # For now, skip lip sync if not URL-based
+        logger.info("Step 4/6: Lip sync...")
         logger.warning("Lip Sync requires hosted URLs — implement upload sub-step")
         cost_lip_sync = total_seconds * 0.0067
     else:
@@ -304,8 +357,9 @@ def run_pipeline(
     merge_audio_video(concat_path, voice_path, bgm_path, final_path)
 
     # Cost summary
-    cost_total = cost_voice + cost_video + cost_lip_sync
+    cost_total = cost_voice + cost_video + cost_lip_sync + cost_image
     cost_breakdown = {
+        "image": round(cost_image, 4),
         "voice": round(cost_voice, 4),
         "video": round(cost_video, 4),
         "lip_sync": round(cost_lip_sync, 4),
@@ -340,6 +394,7 @@ if __name__ == "__main__":
     parser.add_argument("--bgm", default="", help="BGM URL (optional)")
     parser.add_argument("--lip-sync", action="store_true", help="Enable lip sync")
     parser.add_argument("--duration", type=int, default=8, help="Seconds per scene")
+    parser.add_argument("--image", default="", help="Seedream image prompt (optional)")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO)
@@ -350,7 +405,8 @@ if __name__ == "__main__":
         voice_id=args.voice,
         bgm_url=args.bgm or None,
         enable_lip_sync=args.lip_sync,
-        video_duration=args.duration
+        video_duration=args.duration,
+        image_prompt=args.image or None
     )
 
     print("\n✅ Done!")

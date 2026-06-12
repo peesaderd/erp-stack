@@ -552,10 +552,7 @@ select.input { cursor: pointer; }
       <label class="text-sm text-secondary mb-2" style="display:block">รายละเอียดสินค้า (Product Details)</label>
       <textarea class="input" id="productDetails" rows="3" placeholder="เช่น: เนื้อแมทท์, 12 สี, ติดทน 12 ชม., มีส่วนผสมบำรุงปาก, ราคา ฿199"></textarea>
     </div>
-    <div class="mb-3">
-      <label class="text-sm text-secondary mb-2" style="display:block">Prompt สร้างวิดีโอ (AI Video Prompt)</label>
-      <textarea class="input" id="videoPrompt" rows="3" placeholder="เช่น: สาวเอเชียกำลังถือลิปสติก ยิ้ม หันซ้ายขวา โชว์เนื้อสีแมทท์ แสงธรรมชาติ 4K"></textarea>
-    </div>
+
 
 
     <div class="mb-4">
@@ -1628,7 +1625,7 @@ function useProduct(jsonEncoded) {
     document.getElementById("productUrl").value = p.url || "";
     document.getElementById("productTitle").value = p.title || "";
     document.getElementById("productDetails").value = (p.description_th || p.description || "");
-    document.getElementById("videoPrompt").value = p.ai_prompt || "";
+
     if (p.ugc_style) document.getElementById("ugcStyle").value = p.ugc_style;
     if (p.images && p.images[0]) {
       uploadedImages.product = p.images[0];

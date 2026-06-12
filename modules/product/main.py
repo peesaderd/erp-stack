@@ -1033,6 +1033,8 @@ async def api_list_scraped_products(
                     "source_site": r.source_site,
                     "sku": r.sku,
                     "url": r.url,
+                    "description": r.description or "",
+                    "images": r.images or [],
                     "scraped_at": r.scraped_at.isoformat() if r.scraped_at else None,
                     "has_analyzed": has_analyzed,
                 })

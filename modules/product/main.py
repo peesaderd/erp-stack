@@ -1126,6 +1126,13 @@ async def api_analyze_from_scrape(req: dict):
             result = await analyze_product(raw_data, r.source_site or "generic")
             # Patch source field if analyzer guessed wrong
             analyzed_products = result.get("products", [])
+            platform_url = r.url or ""
+            if not platform_url and r.sku:
+                if r.source_site == "shopee":
+                    platform_url = f"https://shopee.co.th/product/{r.sku}"
+                elif r.source_site == "lazada":
+                    platform_url = f"https://www.lazada.co.th/products/i{r.sku}.html"
+
             for ap in analyzed_products:
                 ap["source"] = r.source_site or ap.get("source", "generic")
                 if r.name and not ap.get("title"):
@@ -1134,8 +1141,60 @@ async def api_analyze_from_scrape(req: dict):
                     ap["price_avg"] = float(r.price)
                 if r.sku:
                     ap["product_id"] = r.sku
+                if platform_url:
+                    ap["url"] = platform_url
                 if scraped_images:
                     ap["images"] = scraped_images
+                # Inject raw_data fields (commission, gmv, seller) if exist
+                if raw_data.get("commission"):
+                    ap["commission_rate"] = float(raw_data["commission"].replace("%",""))
+                if raw_data.get("gmv_total"):
+                    gmvs = str(raw_data["gmv_total"]).replace("฿","").replace(",","").strip()
+                    if gmvs.endswith("K"):
+                        ap["gmv_total"] = float(gmvs[:-1]) * 1000
+                    elif gmvs.endswith("M"):
+                        ap["gmv_total"] = float(gmvs[:-1]) * 1000000
+                    else:
+                        try:
+                            ap["gmv_total"] = float(gmvs)
+                        except:
+                            pass
+                if raw_data.get("seller"):
+                    seller_info = raw_data["seller"]
+                    if isinstance(seller_info, dict):
+                        if not ap.get("seller_name"):
+                            ap["seller_name"] = seller_info.get("name", ap.get("seller_name", ""))
+                    elif isinstance(seller_info, str):
+                        if not ap.get("seller_name"):
+                            ap["seller_name"] = seller_info
+                if raw_data.get("sold_30d"):
+                    try:
+                        sv = str(raw_data["sold_30d"]).replace(",","").strip()
+                        if sv.endswith("K"):
+                            ap["sold_month"] = int(float(sv[:-1]) * 1000)
+                        elif sv.endswith("M"):
+                            ap["sold_month"] = int(float(sv[:-1]) * 1000000)
+                        else:
+                            ap["sold_month"] = int(float(sv))
+                    except: pass
+                if raw_data.get("sold_7d"):
+                    try:
+                        sv = str(raw_data["sold_7d"]).replace(",","").strip()
+                        if sv.endswith("K"):
+                            ap["sold_week"] = int(float(sv[:-1]) * 1000)
+                        else:
+                            ap["sold_week"] = int(float(sv))
+                    except: pass
+                if raw_data.get("sold_count"):
+                    try:
+                        sv = str(raw_data["sold_count"]).replace(",","").strip()
+                        if sv.endswith("M"):
+                            ap["sold_total"] = int(float(sv[:-1]) * 1000000)
+                        elif sv.endswith("K"):
+                            ap["sold_total"] = int(float(sv[:-1]) * 1000)
+                        else:
+                            ap["sold_total"] = max(ap.get("sold_total",0), int(float(sv)))
+                    except: pass
 
             for ap in analyzed_products:
                 # Always store, regardless of skip_enrich

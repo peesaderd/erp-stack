@@ -242,6 +242,8 @@ class AnalyzedProduct(Base):
     sales_gmv_7d_usd = Column(Float, default=0.0)
     sales_gmv_30d_usd = Column(Float, default=0.0)
     sales_gmv_total_usd = Column(Float, default=0.0)
+    gmv_total = Column(Float, default=0.0)
+    url = Column(Text, default="")
     seller_name = Column(String(200), default="")
     seller_id = Column(String(100), default="")
     categories = Column(JSON, default=list)

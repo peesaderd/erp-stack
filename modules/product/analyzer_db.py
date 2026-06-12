@@ -176,7 +176,13 @@ async def get_analyzed_products(
                     "commission": f"{r.commission_rate}%",
                     "source": r.source,
                     "seller_name": r.seller_name,
+                    "seller_id": r.seller_id,
+                    "url": r.url or "",
+                    "gmv_total": r.gmv_total or 0,
+                    "commission_rate": r.commission_rate or 0,
                     "enriched": r.enriched,
+                    "sold_week": r.sold_week or 0,
+                    "sold_month": r.sold_month or 0,
                 })
 
             return {

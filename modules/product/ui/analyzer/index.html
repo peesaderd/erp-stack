@@ -1,0 +1,1368 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Product Analyzer Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --sidebar-bg: #0f172a;
+        --sidebar-hover: #1e293b;
+        --sidebar-active: #0ea5e9;
+        --sidebar-text: #94a3b8;
+        --sidebar-text-active: #f1f5f9;
+        --bg: #f1f5f9;
+        --surface: #ffffff;
+        --surface-alt: #f8fafc;
+        --fg: #0f172a;
+        --fg-2: #475569;
+        --fg-3: #94a3b8;
+        --border: #e2e8f0;
+        --border-soft: #f0f2f5;
+        --accent: #0ea5e9;
+        --accent-soft: rgba(14,165,233,0.08);
+        --accent-hover: #0284c7;
+        --accent-gradient: linear-gradient(135deg, #0ea5e9, #38bdf8);
+        --green: #10b981;
+        --green-soft: rgba(16,185,129,0.12);
+        --orange: #f59e0b;
+        --orange-soft: rgba(245,158,11,0.12);
+        --red: #ef4444;
+        --red-soft: rgba(239,68,68,0.12);
+        --purple: #8b5cf6;
+        --purple-soft: rgba(139,92,246,0.12);
+        --font: 'Inter', 'Noto Sans Thai', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        --font-mono: 'SF Mono', 'IBM Plex Mono', 'Fira Code', monospace;
+        --text-xs: 11px;
+        --text-sm: 13px;
+        --text-base: 15px;
+        --text-lg: 17px;
+        --text-xl: 20px;
+        --text-2xl: 26px;
+        --text-3xl: 34px;
+        --space-1: 4px;
+        --space-2: 8px;
+        --space-3: 12px;
+        --space-4: 16px;
+        --space-5: 20px;
+        --space-6: 24px;
+        --space-8: 32px;
+        --space-10: 40px;
+        --space-12: 48px;
+        --radius-sm: 8px;
+        --radius-md: 12px;
+        --radius-lg: 16px;
+        --radius-xl: 20px;
+        --radius-pill: 999px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.03);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05), 0 2px 4px rgba(0,0,0,0.03);
+        --shadow-lg: 0 12px 40px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04);
+        --shadow-xl: 0 20px 60px rgba(0,0,0,0.08), 0 8px 20px rgba(0,0,0,0.04);
+        --fast: 150ms cubic-bezier(0.2, 0, 0, 1);
+        --base: 250ms cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      *, *::before, *::after { box-sizing: border-box; }
+      html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: var(--font);
+        font-size: var(--text-base);
+        line-height: 1.5;
+        display: flex;
+      }
+
+      ::-webkit-scrollbar { width: 6px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+      ::-webkit-scrollbar-thumb:hover { background: var(--fg-3); }
+
+      .sidebar {
+        width: 260px;
+        min-height: 100vh;
+        background: var(--sidebar-bg);
+        display: flex;
+        flex-direction: column;
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 100;
+        transition: transform var(--base);
+      }
+      .sidebar-brand {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        padding: var(--space-6) var(--space-5);
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+      }
+      .sidebar-brand .mark {
+        width: 36px;
+        height: 36px;
+        background: var(--accent-gradient);
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        color: #fff;
+        font-weight: 700;
+        flex-shrink: 0;
+      }
+      .sidebar-brand .brand-text {
+        color: #fff;
+        font-weight: 700;
+        font-size: var(--text-base);
+        line-height: 1.2;
+      }
+      .sidebar-brand .brand-sub {
+        color: var(--sidebar-text);
+        font-size: var(--text-xs);
+        font-weight: 400;
+      }
+      .sidebar-nav {
+        padding: var(--space-3) var(--space-3);
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+      }
+      .sidebar-nav .nav-item {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        padding: var(--space-3) var(--space-4);
+        border: none;
+        background: none;
+        color: var(--sidebar-text);
+        font: 500 var(--text-sm)/1 var(--font);
+        cursor: pointer;
+        border-radius: var(--radius-md);
+        transition: all var(--fast);
+        text-decoration: none;
+        width: 100%;
+        text-align: left;
+      }
+      .sidebar-nav .nav-item:hover {
+        background: var(--sidebar-hover);
+        color: var(--sidebar-text-active);
+      }
+      .sidebar-nav .nav-item.active {
+        background: rgba(14,165,233,0.12);
+        color: var(--sidebar-text-active);
+        font-weight: 600;
+      }
+      .sidebar-nav .nav-item .nav-icon {
+        width: 20px;
+        text-align: center;
+        font-size: 16px;
+        flex-shrink: 0;
+      }
+      .sidebar-nav .nav-divider {
+        height: 1px;
+        background: rgba(255,255,255,0.06);
+        margin: var(--space-2) var(--space-4);
+      }
+      .sidebar-nav .nav-label {
+        font-size: var(--text-xs);
+        font-weight: 600;
+        color: rgba(255,255,255,0.25);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        padding: var(--space-3) var(--space-4) var(--space-1);
+      }
+      .sidebar-footer {
+        padding: var(--space-4) var(--space-5);
+        border-top: 1px solid rgba(255,255,255,0.06);
+      }
+
+      .main {
+        margin-left: 260px;
+        flex: 1;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: var(--space-4) var(--space-8);
+        background: var(--surface);
+        border-bottom: 1px solid var(--border-soft);
+        position: sticky;
+        top: 0;
+        z-index: 50;
+      }
+      .topbar-left {
+        display: flex;
+        align-items: center;
+        gap: var(--space-4);
+      }
+      .topbar-left .page-title-small {
+        font-weight: 700;
+        font-size: var(--text-base);
+        color: var(--fg);
+      }
+      .topbar-left .page-breadcrumb {
+        font-size: var(--text-xs);
+        color: var(--fg-3);
+      }
+      .topbar-left .page-breadcrumb span { color: var(--accent); }
+      .topbar-actions {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+      }
+      .topbar-status {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        font-size: var(--text-xs);
+        font-weight: 600;
+        color: var(--fg-3);
+        padding: var(--space-1) var(--space-3);
+        background: var(--surface-alt);
+        border-radius: var(--radius-pill);
+      }
+      .topbar-status::before {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--green);
+        content: '';
+      }
+      .hamburger {
+        display: none;
+        background: none;
+        border: none;
+        color: var(--fg);
+        font-size: 20px;
+        cursor: pointer;
+        padding: var(--space-2);
+        border-radius: var(--radius-sm);
+      }
+      .hamburger:hover { background: var(--surface-alt); }
+
+      .content {
+        flex: 1;
+        padding: var(--space-6) var(--space-8);
+        max-width: 1280px;
+        margin: 0 auto;
+        width: 100%;
+      }
+
+      .section-label {
+        font-size: var(--text-xs);
+        font-weight: 600;
+        color: var(--fg-3);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: var(--space-4);
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+      }
+      .section-label::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: var(--border);
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: var(--space-4);
+        margin-bottom: var(--space-8);
+      }
+      .stat-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: var(--space-5);
+        box-shadow: var(--shadow-sm);
+        transition: all var(--fast);
+        position: relative;
+        overflow: hidden;
+      }
+      .stat-card:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+      }
+      .stat-card .stat-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: var(--space-3);
+      }
+      .stat-card .stat-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        flex-shrink: 0;
+      }
+      .stat-card .stat-label {
+        font-size: var(--text-xs);
+        font-weight: 600;
+        color: var(--fg-3);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: var(--space-1);
+      }
+      .stat-card .stat-value {
+        font-size: var(--text-2xl);
+        font-weight: 800;
+        color: var(--fg);
+        line-height: 1.1;
+      }
+      .stat-card .stat-sub {
+        font-size: var(--text-xs);
+        color: var(--fg-3);
+        margin-top: var(--space-1);
+      }
+
+      .section {
+        margin-bottom: var(--space-8);
+      }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-xl);
+        box-shadow: var(--shadow-sm);
+        margin-bottom: var(--space-5);
+        overflow: hidden;
+        transition: box-shadow var(--fast);
+      }
+      .card:hover { box-shadow: var(--shadow-md); }
+      .card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: var(--space-5) var(--space-6);
+        border-bottom: 1px solid var(--border-soft);
+      }
+      .card-header h2 {
+        margin: 0;
+        font-size: var(--text-base);
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+      }
+      .card-header .card-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 20px;
+        height: 20px;
+        padding: 0 6px;
+        border-radius: var(--radius-pill);
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-size: 10px;
+        font-weight: 700;
+      }
+      .card-body { padding: var(--space-6); }
+
+      .form-group {
+        margin-bottom: var(--space-5);
+      }
+      .form-group label {
+        display: block;
+        font-size: var(--text-xs);
+        font-weight: 600;
+        color: var(--fg-3);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: var(--space-2);
+      }
+      .form-group .hint {
+        font-size: var(--text-xs);
+        color: var(--fg-3);
+        margin-top: var(--space-1);
+      }
+      textarea {
+        width: 100%;
+        min-height: 100px;
+        padding: var(--space-4);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        background: var(--surface);
+        color: var(--fg);
+        font: 500 var(--text-sm)/1.5 var(--font-mono);
+        transition: all var(--fast);
+        outline: none;
+        resize: vertical;
+      }
+      textarea:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px var(--accent-soft);
+      }
+      textarea::placeholder { color: var(--fg-3); }
+      input, select {
+        width: 100%;
+        min-height: 44px;
+        padding: 0 var(--space-4);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        background: var(--surface);
+        color: var(--fg);
+        font: 500 var(--text-sm)/1 var(--font);
+        transition: all var(--fast);
+        outline: none;
+      }
+      input:focus, select:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px var(--accent-soft);
+      }
+      input::placeholder { color: var(--fg-3); }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--space-2);
+        min-height: 44px;
+        padding: 0 var(--space-6);
+        border: none;
+        border-radius: var(--radius-md);
+        font: 600 var(--text-sm)/1 var(--font);
+        cursor: pointer;
+        transition: all var(--fast);
+        white-space: nowrap;
+        text-decoration: none;
+      }
+      .btn:active { transform: scale(0.97); }
+      .btn-primary {
+        background: var(--accent-gradient);
+        color: #fff;
+        box-shadow: 0 4px 14px rgba(14,165,233,0.3);
+      }
+      .btn-primary:hover {
+        box-shadow: 0 6px 20px rgba(14,165,233,0.4);
+        transform: translateY(-1px);
+      }
+      .btn-primary:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+      .btn-secondary {
+        background: var(--surface);
+        color: var(--fg);
+        border: 1px solid var(--border);
+      }
+      .btn-secondary:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+        background: var(--accent-soft);
+      }
+      .btn-soft {
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+      .btn-soft:hover {
+        background: rgba(14,165,233,0.15);
+      }
+      .btn-sm { min-height: 34px; padding: 0 var(--space-4); font-size: var(--text-xs); }
+      .btn-icon {
+        width: 44px;
+        padding: 0;
+      }
+      .btn-danger { background: var(--red); color: #fff; }
+      .btn-danger:hover { background: #dc2626; }
+      .btn-outline {
+        background: transparent;
+        color: var(--fg);
+        border: 1px solid var(--border);
+      }
+      .btn-outline:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+        background: var(--accent-soft);
+      }
+
+      .field-row {
+        display: flex;
+        gap: var(--space-3);
+        align-items: flex-end;
+        flex-wrap: wrap;
+      }
+      .field-row .field-grow { flex: 1; min-width: 200px; }
+      .field-row .field-shrink { flex-shrink: 0; }
+
+      .result-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: var(--space-5);
+        box-shadow: var(--shadow-sm);
+        transition: all var(--fast);
+      }
+      .result-card:hover { box-shadow: var(--shadow-md); }
+      .result-card .rc-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: var(--space-4);
+        margin-bottom: var(--space-4);
+      }
+      .result-card .rc-title {
+        font-size: var(--text-lg);
+        font-weight: 700;
+        margin: 0;
+        line-height: 1.3;
+      }
+      .result-card .rc-title-th {
+        font-size: var(--text-sm);
+        color: var(--fg-2);
+        margin: var(--space-1) 0 0;
+      }
+      .result-card .rc-score {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        flex-shrink: 0;
+      }
+      .score-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 12px;
+        border-radius: var(--radius-pill);
+        font-size: var(--text-sm);
+        font-weight: 700;
+      }
+      .score-badge.high { background: var(--green-soft); color: var(--green); }
+      .score-badge.medium { background: var(--orange-soft); color: var(--orange); }
+      .score-badge.low { background: var(--red-soft); color: var(--red); }
+      .result-card .rc-details {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: var(--space-3);
+      }
+      .result-card .rc-detail-item {
+        padding: var(--space-3);
+        background: var(--surface-alt);
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border-soft);
+      }
+      .result-card .rc-detail-item .rd-label {
+        font-size: var(--text-xs);
+        font-weight: 600;
+        color: var(--fg-3);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: var(--space-1);
+      }
+      .result-card .rc-detail-item .rd-value {
+        font-size: var(--text-sm);
+        font-weight: 600;
+        color: var(--fg);
+      }
+      .result-card .rc-keywords {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-1);
+        margin-top: var(--space-3);
+      }
+      .keyword-tag {
+        display: inline-flex;
+        padding: 2px 10px;
+        border-radius: var(--radius-pill);
+        font-size: 10px;
+        font-weight: 600;
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+
+      .badge-tag {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px 10px;
+        border-radius: var(--radius-pill);
+        font-size: 10px;
+        font-weight: 600;
+      }
+      .badge-tag.bg-teal { background: var(--accent-soft); color: var(--accent); }
+      .badge-tag.bg-green { background: var(--green-soft); color: var(--green); }
+      .badge-tag.bg-orange { background: var(--orange-soft); color: var(--orange); }
+      .badge-tag.bg-red { background: var(--red-soft); color: var(--red); }
+      .badge-tag.bg-purple { background: var(--purple-soft); color: var(--purple); }
+      .badge-tag.bg-slate { background: rgba(100,116,139,0.12); color: #64748b; }
+
+      .export-filters {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: var(--space-4);
+        margin-bottom: var(--space-5);
+      }
+
+      .spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid var(--border);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin .7s linear infinite;
+        display: inline-block;
+        vertical-align: middle;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+
+      .toast {
+        position: fixed;
+        bottom: var(--space-6);
+        right: var(--space-6);
+        background: var(--fg);
+        color: var(--surface);
+        padding: var(--space-3) var(--space-5);
+        border-radius: var(--radius-md);
+        font-size: var(--text-sm);
+        font-weight: 600;
+        opacity: 0;
+        transform: translateY(12px);
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        z-index: 1000;
+        pointer-events: none;
+        box-shadow: var(--shadow-lg);
+        max-width: 400px;
+      }
+      .toast.show { opacity: 1; transform: translateY(0); }
+
+      .empty-state {
+        text-align: center;
+        padding: var(--space-10) var(--space-6);
+        color: var(--fg-3);
+      }
+      .empty-state .empty-icon {
+        font-size: 40px;
+        margin-bottom: var(--space-4);
+      }
+      .empty-state .empty-title {
+        font-size: var(--text-base);
+        font-weight: 600;
+        color: var(--fg-2);
+        margin-bottom: var(--space-2);
+      }
+      .empty-state .empty-sub {
+        font-size: var(--text-sm);
+      }
+
+      .file-upload-zone {
+        border: 2px dashed var(--border);
+        border-radius: var(--radius-lg);
+        padding: var(--space-8);
+        text-align: center;
+        cursor: pointer;
+        transition: all var(--fast);
+        background: var(--surface-alt);
+      }
+      .file-upload-zone:hover {
+        border-color: var(--accent);
+        background: var(--accent-soft);
+      }
+      .file-upload-zone .upload-icon {
+        font-size: 32px;
+        margin-bottom: var(--space-3);
+      }
+      .file-upload-zone .upload-label {
+        font-size: var(--text-sm);
+        font-weight: 600;
+        color: var(--fg-2);
+      }
+      .file-upload-zone .upload-hint {
+        font-size: var(--text-xs);
+        color: var(--fg-3);
+        margin-top: var(--space-1);
+      }
+
+      .result-list {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-4);
+      }
+
+      .loader-overlay {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--space-3);
+        padding: var(--space-8);
+        color: var(--fg-3);
+        font-size: var(--text-sm);
+      }
+
+      @media (max-width: 1024px) {
+        .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      }
+
+      @media (max-width: 768px) {
+        .sidebar {
+          transform: translateX(-100%);
+        }
+        .sidebar.open {
+          transform: translateX(0);
+        }
+        .sidebar-overlay {
+          display: none;
+          position: fixed;
+          inset: 0;
+          background: rgba(0,0,0,0.4);
+          z-index: 99;
+        }
+        .sidebar-overlay.show { display: block; }
+        .main { margin-left: 0; }
+        .hamburger { display: flex; }
+        .topbar { padding: var(--space-3) var(--space-4); }
+        .content { padding: var(--space-4); }
+        .stats-grid { grid-template-columns: repeat(2, 1fr); gap: var(--space-3); }
+        .export-filters { grid-template-columns: 1fr 1fr; }
+      }
+
+      @media (max-width: 480px) {
+        .stats-grid { grid-template-columns: 1fr; }
+        .export-filters { grid-template-columns: 1fr; }
+        .result-card .rc-header { flex-direction: column; }
+        .result-card .rc-details { grid-template-columns: 1fr 1fr; }
+        .topbar-status { display: none; }
+        .field-row { flex-direction: column; }
+        .field-row .field-grow { min-width: 100%; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <span class="mark">A</span>
+        <div>
+          <div class="brand-text">Product Analyzer</div>
+          <div class="brand-sub">AI-Powered Insights</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-label">เมนูหลัก</div>
+        <button class="nav-item active" data-section="dashboard">
+          <span class="nav-icon">📊</span>
+          ภาพรวม
+        </button>
+        <button class="nav-item" data-section="analyze">
+          <span class="nav-icon">🔍</span>
+          วิเคราะห์สินค้า
+        </button>
+        <button class="nav-item" data-section="batch">
+          <span class="nav-icon">📦</span>
+          วิเคราะห์แบบกลุ่ม
+        </button>
+        <button class="nav-item" data-section="export">
+          <span class="nav-icon">📥</span>
+          ส่งออกข้อมูล
+        </button>
+        <div class="nav-divider"></div>
+        <div class="nav-label">ลิงก์ด่วน</div>
+        <button class="nav-item" onclick="window.open('/','_self')">
+          <span class="nav-icon">🏠</span>
+          หน้าแรก
+        </button>
+        <button class="nav-item" onclick="window.open('http://localhost:8106','_blank')">
+          <span class="nav-icon">⚙️</span>
+          Scraper Dashboard
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <div style="font-size:10px;color:rgba(255,255,255,0.2);text-align:center">
+          Analyzer v1.0
+        </div>
+      </div>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="hamburger" id="hamburger" aria-label="Toggle menu">☰</button>
+          <div>
+            <div class="page-title-small" id="page-title">📊 ภาพรวม</div>
+            <div class="page-breadcrumb" id="page-breadcrumb">Product Analyzer <span>/</span> ภาพรวม</div>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <span class="topbar-status">ระบบพร้อมใช้งาน</span>
+        </div>
+      </header>
+
+      <main class="content" id="app-content"></main>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+      const DEFAULT_API = 'http://localhost:8106';
+      const params = new URLSearchParams(window.location.search);
+      const API_BASE = params.get('api') || '';
+
+      const $ = s => document.querySelector(s);
+      const $$ = s => document.querySelectorAll(s);
+
+      function toast(msg, isError) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.style.background = isError ? '#ef4444' : '#0f172a';
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 3000);
+      }
+
+      function htmlEscape(s) {
+        if (s == null) return '-';
+        const d = document.createElement('div');
+        d.textContent = String(s).slice(0, 10000);
+        return d.innerHTML;
+      }
+
+      async function api(method, path, body) {
+        const base = API_BASE || DEFAULT_API;
+        const opts = { method, headers: { 'Content-Type': 'application/json' } };
+        if (body) opts.body = JSON.stringify(body);
+        const res = await fetch(`${base}${path}`, opts);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || data.error || data.message || 'คำขอไม่สำเร็จ');
+        return data;
+      }
+
+      function getScoreBadge(score) {
+        if (score == null) return '<span class="score-badge low">N/A</span>';
+        const s = Number(score);
+        if (s >= 7) return `<span class="score-badge high">🔥 ${s.toFixed(1)}</span>`;
+        if (s >= 4) return `<span class="score-badge medium">📈 ${s.toFixed(1)}</span>`;
+        return `<span class="score-badge low">⬇ ${s.toFixed(1)}</span>`;
+      }
+
+      function ratingStars(rating) {
+        if (rating == null) return '-';
+        const r = Number(rating);
+        const full = Math.floor(r);
+        const half = r - full >= 0.5;
+        let s = '';
+        for (let i = 0; i < full; i++) s += '★';
+        if (half) s += '½';
+        s += '☆'.repeat(Math.max(0, 5 - full - (half ? 1 : 0)));
+        return `${s} ${r.toFixed(1)}`;
+      }
+
+      function formatNumber(n) {
+        if (n == null) return '0';
+        return Number(n).toLocaleString();
+      }
+
+      function formatCurrency(n) {
+        if (n == null) return '-';
+        return `฿${Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      }
+
+      function productResultHTML(p, index) {
+        if (!p) return '';
+        const score = p.viral_score != null ? Number(p.viral_score) : p.ai_scores?.viral_score;
+        return `
+          <div class="result-card">
+            <div class="rc-header">
+              <div>
+                <h3 class="rc-title">${htmlEscape(p.title || p.product_name || 'สินค้า')}</h3>
+                ${p.title_thai || p.title_th ? `<p class="rc-title-th">🇹🇭 ${htmlEscape(p.title_thai || p.title_th)}</p>` : ''}
+              </div>
+              <div class="rc-score">
+                ${getScoreBadge(score)}
+              </div>
+            </div>
+            <div class="rc-details">
+              <div class="rc-detail-item">
+                <div class="rd-label">คะแนนความไวรัล</div>
+                <div class="rd-value" style="color:var(--accent);font-size:var(--text-lg)">
+                  ${score != null ? Number(score).toFixed(1) : '-'}
+                  <span style="font-size:var(--text-xs);color:var(--fg-3);font-weight:400">/ 10</span>
+                </div>
+              </div>
+              <div class="rc-detail-item">
+                <div class="rd-label">หมวดหมู่</div>
+                <div class="rd-value">${htmlEscape(p.category || '-')}</div>
+              </div>
+              <div class="rc-detail-item">
+                <div class="rd-label">เรตติ้ง</div>
+                <div class="rd-value">${ratingStars(p.rating)}</div>
+              </div>
+              <div class="rc-detail-item">
+                <div class="rd-label">ยอดขาย</div>
+                <div class="rd-value">${formatNumber(p.sold_count || p.sold || 0)}</div>
+              </div>
+              <div class="rc-detail-item">
+                <div class="rd-label">ราคา</div>
+                <div class="rd-value">${p.price != null ? formatCurrency(p.price) : '-'}</div>
+              </div>
+              <div class="rc-detail-item">
+                <div class="rd-label">แพลตฟอร์ม</div>
+                <div class="rd-value">${htmlEscape(p.platform || p.source || '-')}</div>
+              </div>
+            </div>
+            ${(p.keywords && p.keywords.length) ? `
+            <div class="rc-keywords">
+              ${p.keywords.map(k => `<span class="keyword-tag">${htmlEscape(k)}</span>`).join('')}
+            </div>` : ''}
+          </div>
+        `;
+      }
+
+      /* ========== Navigation ========== */
+      let currentSection = 'dashboard';
+      const pageTitles = {
+        dashboard: '📊 ภาพรวม',
+        analyze: '🔍 วิเคราะห์สินค้า',
+        batch: '📦 วิเคราะห์แบบกลุ่ม',
+        export: '📥 ส่งออกข้อมูล'
+      };
+      const pageBreadcrumbs = {
+        dashboard: 'ภาพรวม',
+        analyze: 'วิเคราะห์สินค้า',
+        batch: 'วิเคราะห์แบบกลุ่ม',
+        export: 'ส่งออกข้อมูล'
+      };
+
+      function navigate(section) {
+        currentSection = section;
+        $$('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.section === section));
+        document.getElementById('page-title').textContent = pageTitles[section] || '📊 ภาพรวม';
+        document.getElementById('page-breadcrumb').innerHTML = `Product Analyzer <span>/</span> ${pageBreadcrumbs[section] || 'ภาพรวม'}`;
+        const content = document.getElementById('app-content');
+        content.innerHTML = '';
+
+        switch (section) {
+          case 'dashboard': renderDashboard(content); break;
+          case 'analyze': renderAnalyze(content); break;
+          case 'batch': renderBatch(content); break;
+          case 'export': renderExport(content); break;
+        }
+      }
+
+      $$('.nav-item[data-section]').forEach(item => {
+        item.addEventListener('click', () => navigate(item.dataset.section));
+      });
+
+      /* ========== Sidebar Toggle ========== */
+      const hamburger = document.getElementById('hamburger');
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('sidebar-overlay');
+      hamburger.addEventListener('click', () => {
+        sidebar.classList.toggle('open');
+        overlay.classList.toggle('show');
+      });
+      overlay.addEventListener('click', () => {
+        sidebar.classList.remove('open');
+        overlay.classList.remove('show');
+      });
+
+      /* ========== Dashboard ========== */
+      async function renderDashboard(c) {
+        c.innerHTML = `
+          <div class="section-label">ภาพรวมระบบวิเคราะห์สินค้า</div>
+          <div class="stats-grid" id="stats-grid">
+            <div class="stat-card">
+              <div class="stat-top">
+                <div class="stat-label">สินค้าที่วิเคราะห์แล้ว</div>
+                <div class="stat-icon" style="background:var(--accent-soft);color:var(--accent)">📦</div>
+              </div>
+              <div class="stat-value" id="stat-total">-</div>
+              <div class="stat-sub">รายการทั้งหมด</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-top">
+                <div class="stat-label">คะแนนความไวรัลเฉลี่ย</div>
+                <div class="stat-icon" style="background:var(--green-soft);color:var(--green)">🔥</div>
+              </div>
+              <div class="stat-value" id="stat-viral">-</div>
+              <div class="stat-sub">/ 10</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-top">
+                <div class="stat-label">สินค้ามาแรง</div>
+                <div class="stat-icon" style="background:var(--orange-soft);color:var(--orange)">📈</div>
+              </div>
+              <div class="stat-value" id="stat-trending">-</div>
+              <div class="stat-sub">รายการกำลังมาแรง</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-top">
+                <div class="stat-label">เรตติ้งเฉลี่ย</div>
+                <div class="stat-icon" style="background:var(--purple-soft);color:var(--purple)">⭐</div>
+              </div>
+              <div class="stat-value" id="stat-rating">-</div>
+              <div class="stat-sub">/ 5</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <h2>🏆 หมวดหมู่ยอดนิยม</h2>
+            </div>
+            <div class="card-body" id="categories-body">
+              <div class="loader-overlay"><span class="spinner"></span> กำลังโหลด...</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <h2>⚡ การดำเนินการด่วน</h2>
+            </div>
+            <div class="card-body">
+              <div class="field-row">
+                <button class="btn btn-primary" onclick="navigate('analyze')">🔍 วิเคราะห์สินค้าเดียว</button>
+                <button class="btn btn-secondary" onclick="navigate('batch')">📦 วิเคราะห์แบบกลุ่ม</button>
+                <button class="btn btn-secondary" onclick="navigate('export')">📥 ส่งออกข้อมูล</button>
+                <button class="btn btn-soft" onclick="window.open('http://localhost:8106','_blank')">⚙️ Scraper Dashboard</button>
+              </div>
+            </div>
+          </div>
+        `;
+
+        try {
+          const stats = await api('GET', '/api/v1/analyze/stats');
+          document.getElementById('stat-total').textContent = formatNumber(stats.total);
+          document.getElementById('stat-viral').textContent = stats.avg_viral_score != null ? Number(stats.avg_viral_score).toFixed(1) : '-';
+          document.getElementById('stat-trending').textContent = formatNumber(stats.trending_count);
+          document.getElementById('stat-rating').textContent = stats.avg_rating != null ? Number(stats.avg_rating).toFixed(1) : '-';
+
+          const cats = stats.top_categories || [];
+          const categoriesBody = document.getElementById('categories-body');
+          if (cats.length) {
+            categoriesBody.innerHTML = `
+              <div style="display:flex;flex-wrap:wrap;gap:var(--space-3)">
+                ${cats.map(c => `
+                  <span class="badge-tag bg-teal" style="font-size:var(--text-sm);padding:6px 16px">
+                    ${htmlEscape(c.name || c)} <span style="font-weight:400;opacity:0.7">(${c.count || 0})</span>
+                  </span>
+                `).join('')}
+              </div>
+            `;
+          } else {
+            categoriesBody.innerHTML = '<div class="empty-state"><div class="empty-sub">ยังไม่มีข้อมูลหมวดหมู่</div></div>';
+          }
+        } catch (e) {
+          ['stat-total','stat-viral','stat-trending','stat-rating'].forEach(id => {
+            document.getElementById(id).textContent = '⚠️';
+          });
+          document.getElementById('categories-body').innerHTML =
+            `<div style="color:var(--red);padding:var(--space-4)">⚠️ ${htmlEscape(e.message)}</div>`;
+        }
+      }
+
+      /* ========== Analyze Single ========== */
+      function renderAnalyze(c) {
+        c.innerHTML = `
+          <div class="section-label">วิเคราะห์สินค้าเดี่ยว</div>
+          <div class="card">
+            <div class="card-header">
+              <h2>🔍 ป้อนข้อมูลสินค้า</h2>
+              <span class="card-badge">JSON</span>
+            </div>
+            <div class="card-body">
+              <div class="form-group">
+                <label for="analyze-input">ข้อมูลสินค้า (JSON)</label>
+                <textarea id="analyze-input" placeholder='{"title": "สินค้าตัวอย่าง", "price": 299, "category": "อิเล็กทรอนิกส์", "description": "รายละเอียดสินค้า..."}' rows="6">{
+  "title": "สินค้าตัวอย่าง",
+  "price": 299,
+  "category": "อิเล็กทรอนิกส์",
+  "description": "รายละเอียดสินค้า..."
+}</textarea>
+                <div class="hint">ป้อนข้อมูลสินค้าในรูปแบบ JSON เพื่อวิเคราะห์</div>
+              </div>
+              <button class="btn btn-primary" id="analyze-btn" onclick="doAnalyze()">
+                <span>▶ วิเคราะห์</span>
+              </button>
+            </div>
+          </div>
+          <div id="analyze-result"></div>
+        `;
+      }
+
+      async function doAnalyze() {
+        const input = document.getElementById('analyze-input').value.trim();
+        if (!input) { toast('กรุณาป้อนข้อมูลสินค้า', true); return; }
+
+        let data;
+        try { data = JSON.parse(input); }
+        catch (e) { toast('รูปแบบ JSON ไม่ถูกต้อง', true); return; }
+
+        const btn = document.getElementById('analyze-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> กำลังวิเคราะห์...';
+
+        const resultDiv = document.getElementById('analyze-result');
+        resultDiv.innerHTML = `<div class="card"><div class="card-body loader-overlay"><span class="spinner"></span> กำลังวิเคราะห์สินค้า...</div></div>`;
+
+        try {
+          const d = await api('POST', '/api/v1/analyze', data);
+          const p = d.product || d.data || d;
+          resultDiv.innerHTML = `
+            <div class="section-label" style="margin-top:var(--space-4)">ผลการวิเคราะห์</div>
+            <div class="result-list">
+              ${productResultHTML(p)}
+            </div>
+            <div class="card" style="margin-top:var(--space-4)">
+              <div class="card-header">
+                <h2>📋 ข้อมูลดิบ</h2>
+              </div>
+              <div class="card-body">
+                <pre style="background:var(--surface-alt);padding:var(--space-4);border-radius:var(--radius-md);font-family:var(--font-mono);font-size:11px;line-height:1.6;overflow:auto;max-height:300px;margin:0">${htmlEscape(JSON.stringify(d, null, 2))}</pre>
+              </div>
+            </div>
+          `;
+        } catch (e) {
+          resultDiv.innerHTML = `<div class="card"><div class="card-body" style="color:var(--red)">⚠️ ${htmlEscape(e.message)}</div></div>`;
+        }
+
+        btn.disabled = false;
+        btn.innerHTML = '<span>▶ วิเคราะห์</span>';
+      }
+
+      /* ========== Batch ========== */
+      function renderBatch(c) {
+        c.innerHTML = `
+          <div class="section-label">วิเคราะห์แบบกลุ่ม</div>
+          <div class="card">
+            <div class="card-header">
+              <h2>📦 อัปโหลดไฟล์ JSON</h2>
+              <span class="card-badge">Batch</span>
+            </div>
+            <div class="card-body">
+              <div class="form-group">
+                <label>อัปโหลดไฟล์ JSON</label>
+                <div class="file-upload-zone" id="upload-zone">
+                  <div class="upload-icon">📁</div>
+                  <div class="upload-label">คลิกเพื่อเลือกไฟล์ หรือลากไฟล์มาวาง</div>
+                  <div class="upload-hint">รองรับไฟล์ JSON ที่มีอาร์เรย์ของสินค้า</div>
+                  <input type="file" id="file-input" accept=".json" style="display:none">
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="batch-input">หรือวาง JSON Array</label>
+                <textarea id="batch-input" placeholder='[{"title": "สินค้า 1", "price": 199}, {"title": "สินค้า 2", "price": 399}]' rows="5"></textarea>
+                <div class="hint">วางอาร์เรย์ JSON ของสินค้าหลายรายการ</div>
+              </div>
+              <button class="btn btn-primary" id="batch-btn" onclick="doBatchAnalyze()">
+                <span>📊 วิเคราะห์ทั้งหมด</span>
+              </button>
+            </div>
+          </div>
+          <div class="card" id="batch-progress-card" style="display:none">
+            <div class="card-header">
+              <h2>⏳ ความคืบหน้า</h2>
+              <span class="card-badge" id="batch-progress-count">0/0</span>
+            </div>
+            <div class="card-body">
+              <div style="width:100%;height:8px;background:var(--border-soft);border-radius:4px;overflow:hidden">
+                <div id="batch-progress-bar" style="height:100%;width:0%;background:var(--accent-gradient);border-radius:4px;transition:width 0.3s"></div>
+              </div>
+              <div id="batch-status" style="font-size:var(--text-sm);color:var(--fg-3);margin-top:var(--space-3)">กำลังเตรียมข้อมูล...</div>
+            </div>
+          </div>
+          <div id="batch-result"></div>
+        `;
+
+        const uploadZone = document.getElementById('upload-zone');
+        const fileInput = document.getElementById('file-input');
+        const batchInput = document.getElementById('batch-input');
+
+        uploadZone.addEventListener('click', () => fileInput.click());
+        uploadZone.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          uploadZone.style.borderColor = 'var(--accent)';
+          uploadZone.style.background = 'var(--accent-soft)';
+        });
+        uploadZone.addEventListener('dragleave', () => {
+          uploadZone.style.borderColor = 'var(--border)';
+          uploadZone.style.background = 'var(--surface-alt)';
+        });
+        uploadZone.addEventListener('drop', (e) => {
+          e.preventDefault();
+          uploadZone.style.borderColor = 'var(--border)';
+          uploadZone.style.background = 'var(--surface-alt)';
+          const files = e.dataTransfer.files;
+          if (files.length > 0) handleFile(files[0]);
+        });
+        fileInput.addEventListener('change', (e) => {
+          if (e.target.files.length > 0) handleFile(e.target.files[0]);
+        });
+
+        function handleFile(file) {
+          if (!file.name.endsWith('.json')) {
+            toast('กรุณาเลือกไฟล์ .json เท่านั้น', true);
+            return;
+          }
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            batchInput.value = event.target.result;
+            toast('📂 โหลดไฟล์เรียบร้อย');
+          };
+          reader.onerror = () => toast('ไม่สามารถอ่านไฟล์ได้', true);
+          reader.readAsText(file);
+        }
+      }
+
+      async function doBatchAnalyze() {
+        const input = document.getElementById('batch-input').value.trim();
+        if (!input) { toast('กรุณาป้อนข้อมูลสินค้าหรืออัปโหลดไฟล์', true); return; }
+
+        let items;
+        try {
+          items = JSON.parse(input);
+          if (!Array.isArray(items)) items = [items];
+        } catch (e) {
+          toast('รูปแบบ JSON ไม่ถูกต้อง — ต้องเป็นอาร์เรย์', true);
+          return;
+        }
+
+        if (items.length === 0) { toast('ไม่มีข้อมูลสินค้า', true); return; }
+
+        const btn = document.getElementById('batch-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> กำลังวิเคราะห์...';
+
+        const progressCard = document.getElementById('batch-progress-card');
+        const progressBar = document.getElementById('batch-progress-bar');
+        const progressCount = document.getElementById('batch-progress-count');
+        const statusEl = document.getElementById('batch-status');
+        const resultDiv = document.getElementById('batch-result');
+
+        progressCard.style.display = 'block';
+        resultDiv.innerHTML = '';
+
+        try {
+          const d = await api('POST', '/api/v1/analyze/batch', { products: items });
+          const results = d.results || d.products || d.data || [];
+
+          progressBar.style.width = '100%';
+          progressCount.textContent = `${results.length}/${items.length}`;
+          statusEl.textContent = `วิเคราะห์เสร็จสิ้น ${results.length} รายการ`;
+
+          if (results.length) {
+            resultDiv.innerHTML = `
+              <div class="section-label" style="margin-top:var(--space-4)">ผลการวิเคราะห์ทั้งหมด (${results.length} รายการ)</div>
+              <div class="result-list">
+                ${results.map((p, i) => productResultHTML(p, i)).join('')}
+              </div>
+            `;
+          } else {
+            resultDiv.innerHTML = `<div class="card"><div class="card-body empty-state"><div class="empty-icon">📭</div><div class="empty-title">ไม่มีผลลัพธ์</div></div></div>`;
+          }
+        } catch (e) {
+          progressCard.style.display = 'none';
+          resultDiv.innerHTML = `<div class="card"><div class="card-body" style="color:var(--red)">⚠️ ${htmlEscape(e.message)}</div></div>`;
+        }
+
+        btn.disabled = false;
+        btn.innerHTML = '<span>📊 วิเคราะห์ทั้งหมด</span>';
+      }
+
+      /* ========== Export ========== */
+      function renderExport(c) {
+        c.innerHTML = `
+          <div class="section-label">ส่งออกข้อมูลสินค้า</div>
+          <div class="card">
+            <div class="card-header">
+              <h2>📥 ตัวกรองการส่งออก</h2>
+            </div>
+            <div class="card-body">
+              <div class="export-filters">
+                <div class="form-group" style="margin-bottom:0">
+                  <label>คะแนนขั้นต่ำ</label>
+                  <input type="number" id="export-rating" placeholder="เรตติ้ง (0-5)" min="0" max="5" step="0.5" value="">
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                  <label>ยอดขายขั้นต่ำ</label>
+                  <input type="number" id="export-sold" placeholder="จำนวนยอดขาย" min="0" value="">
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                  <label>ค่าคอมมิชชัน</label>
+                  <input type="number" id="export-commission" placeholder="%" min="0" max="100" value="">
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                  <label>หมวดหมู่</label>
+                  <input type="text" id="export-category" placeholder="เช่น อิเล็กทรอนิกส์">
+                </div>
+              </div>
+              <div class="field-row">
+                <button class="btn btn-primary" onclick="doExport()">
+                  <span>📥 ส่งออกข้อมูล</span>
+                </button>
+                <button class="btn btn-secondary" onclick="clearExportFilters()">
+                  <span>🗑 ล้างค่า</span>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div id="export-result"></div>
+        `;
+      }
+
+      async function doExport() {
+        const min_rating = document.getElementById('export-rating').value;
+        const min_sold = document.getElementById('export-sold').value;
+        const commission = document.getElementById('export-commission').value;
+        const category = document.getElementById('export-category').value.trim();
+
+        const btn = document.querySelector('#export-result .btn-primary');
+        const resultDiv = document.getElementById('export-result');
+        resultDiv.innerHTML = `<div class="card"><div class="card-body loader-overlay"><span class="spinner"></span> กำลังส่งออกข้อมูล...</div></div>`;
+
+        try {
+          const params = new URLSearchParams();
+          if (min_rating) params.set('min_rating', min_rating);
+          if (min_sold) params.set('min_sold', min_sold);
+          if (commission) params.set('commission', commission);
+          if (category) params.set('category', category);
+
+          const qs = params.toString();
+          const path = `/api/v1/analyze/export${qs ? '?' + qs : ''}`;
+          const data = await api('GET', path);
+
+          const products = data.products || data.data || data.results || (Array.isArray(data) ? data : [data]);
+          const count = products.length;
+
+          if (!count) {
+            resultDiv.innerHTML = `<div class="card"><div class="card-body empty-state"><div class="empty-icon">📭</div><div class="empty-title">ไม่พบข้อมูล</div><div class="empty-sub">ลองปรับเปลี่ยนตัวกรอง</div></div></div>`;
+            return;
+          }
+
+          resultDiv.innerHTML = `
+            <div class="section-label" style="margin-top:var(--space-4)">ผลลัพธ์ (${count} รายการ)</div>
+            <div class="result-list">
+              ${products.map(p => productResultHTML(p)).join('')}
+            </div>
+          `;
+          toast(`📥 ส่งออก ${count} รายการเรียบร้อย`);
+        } catch (e) {
+          resultDiv.innerHTML = `<div class="card"><div class="card-body" style="color:var(--red)">⚠️ ${htmlEscape(e.message)}</div></div>`;
+        }
+      }
+
+      function clearExportFilters() {
+        ['export-rating','export-sold','export-commission','export-category'].forEach(id => {
+          document.getElementById(id).value = '';
+        });
+        document.getElementById('export-result').innerHTML = '';
+      }
+
+      /* ========== Init ========== */
+      navigate('dashboard');
+    </script>
+  </body>
+</html>

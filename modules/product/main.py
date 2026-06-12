@@ -1117,23 +1117,30 @@ async def api_analyze_from_scrape(req: dict):
                 raw_data["description"] = r.description or ""
 
             # Force source to match source_site (scraped data may lack platform fields)
+            scraped_images = r.images or []
+            if not scraped_images:
+                cover = raw_data.get("cover_url", raw_data.get("cover", ""))
+                if cover:
+                    scraped_images = [cover]
+
             result = await analyze_product(raw_data, r.source_site or "generic")
             # Patch source field if analyzer guessed wrong
             analyzed_products = result.get("products", [])
             for ap in analyzed_products:
                 ap["source"] = r.source_site or ap.get("source", "generic")
-                # Override with scraped metadata (more accurate than guessed)
                 if r.name and not ap.get("title"):
                     ap["title"] = r.name
                 if r.price and (not ap.get("price_avg") or ap["price_avg"] == 0):
                     ap["price_avg"] = float(r.price)
                 if r.sku:
                     ap["product_id"] = r.sku
+                if scraped_images:
+                    ap["images"] = scraped_images
 
-            for p in analyzed_products:
-                if not skip_enrich:
-                    await store_analyzed(p)
-                results.append(p)
+            for ap in analyzed_products:
+                # Always store, regardless of skip_enrich
+                await store_analyzed(ap)
+                results.append(ap)
 
         return {
             "success": True,

@@ -217,6 +217,48 @@ async def get_cached_product(url: str) -> Optional[Dict]:
         if cached and cached.expires_at and cached.expires_at > datetime.now(timezone.utc):
             return _product_to_dict(cached)
     return None
+# ─── Product Image Filter ────────────────────────────────────────
+# Reject non-product images: icons, thumbnails of UI elements, 360 spinners, etc.
+_PRODUCT_IMAGE_BLACKLIST = [
+    "icon_zoom", "icon-thumbnail", "360_icon", "360_73",
+    "imageblock-360", "spinner", "loading", "pixel.",
+    "transparent", "1x1", "placeholder", "spritesheet",
+    "ui-icon", "tooltip", "badge_", "rating-star",
+]
+
+def filter_product_images(images: list) -> list:
+    """Keep only actual product images; reject UI icons, 360 spinners, placeholders."""
+    filtered = []
+    for url in images:
+        if not url or not isinstance(url, str):
+            continue
+        url_lower = url.lower()
+        # Reject blacklisted patterns
+        if any(pat in url_lower for pat in _PRODUCT_IMAGE_BLACKLIST):
+            continue
+        # Reject tiny icon sizes in URL path
+        if re.search(r'[\/]_?SX\d{1,2}_?[\/._]', url_lower):  # SX40, SY60 = tiny thumbnails
+            continue
+        # Reject SVGs unless clearly product-related
+        if url_lower.endswith('.svg'):
+            continue
+        # Keep JPG/PNG/WEBP URLs that look like product images
+        # Keep: product image extensions + common CDN patterns
+        if any(ext in url_lower for ext in ['.jpg', '.jpeg', '.png', '.webp', '.avif']):
+            filtered.append(url)
+        elif url_lower.endswith('.image') or '.jpg' in url_lower or '.png' in url_lower:
+            # URLs without extension but containing jpg/png (TikTok, Shopee CDN)
+            filtered.append(url)
+    # Dedup
+    seen = set()
+    unique = []
+    for u in filtered:
+        if u not in seen:
+            seen.add(u)
+            unique.append(u)
+    return unique
+
+
 
 
 async def cache_product(url: str, data: Dict, tier: str = "free") -> str:
@@ -228,6 +270,7 @@ async def cache_product(url: str, data: Dict, tier: str = "free") -> str:
     images = data.get("images", [])
     if isinstance(images, str):
         images = [images]
+    images = filter_product_images(images)
 
     async with async_session_factory() as session:
         # Check if exists

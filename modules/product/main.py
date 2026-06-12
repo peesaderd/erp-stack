@@ -1078,11 +1078,35 @@ async def api_analyze_from_scrape(req: dict):
         if not records:
             return {"success": True, "count": 0, "products": [], "message": "No scraped products matching filters"}
 
+        # Collect IDs of already-analyzed products to skip
+        from sqlalchemy import select
+        from product.db_models import AnalyzedProduct
+        existing_product_ids = set()
+        async with async_session_factory() as chk_session:
+            for r in records:
+                if r.sku:
+                    result = await chk_session.execute(
+                        select(AnalyzedProduct).where(
+                            AnalyzedProduct.product_id == r.sku,
+                            AnalyzedProduct.source == (r.source_site or ""),
+                        )
+                    )
+                    if result.scalar_one_or_none():
+                        existing_product_ids.add(r.id)
+
         # Convert ScrapedProduct → dict for analyzer pipeline
         from product.analyze_pipeline import analyze_product
         results = []
         skipped = 0
         for r in records:
+            # Skip empty names (no useful data)
+            if not r.name or r.name.strip() == "Shopee Thailand" or r.name.strip() == "":
+                skipped += 1
+                continue
+            # Skip already analyzed
+            if r.id in existing_product_ids:
+                skipped += 1
+                continue
             raw_data = r.raw_data or {}
             # Inject fields from cache if raw_data is empty
             if not raw_data.get("product_name"):

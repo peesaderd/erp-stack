@@ -111,10 +111,13 @@ async def get_analyzed_products(
     min_sold: int = 0,
     commission: float = 0,
     category: str = None,
+    source: str = None,
+    seller_id: str = None,
+    seller_name: str = None,
     limit: int = 100,
     offset: int = 0,
 ) -> dict:
-    """Query analyzed products with filters."""
+    """Query analyzed products with filters. source/seller_id for multi-platform."""
     async with async_session_factory() as session:
         try:
             stmt = select(AnalyzedProduct)
@@ -126,6 +129,12 @@ async def get_analyzed_products(
                 stmt = stmt.where(AnalyzedProduct.commission_rate >= commission)
             if category:
                 stmt = stmt.where(AnalyzedProduct.category == category)
+            if source:
+                stmt = stmt.where(AnalyzedProduct.source == source)
+            if seller_id:
+                stmt = stmt.where(AnalyzedProduct.seller_id == seller_id)
+            if seller_name:
+                stmt = stmt.where(AnalyzedProduct.seller_name == seller_name)
 
             result = await session.execute(stmt)
             all_records = result.scalars().all()

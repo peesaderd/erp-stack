@@ -953,15 +953,172 @@ async def api_export_analyzed(
     min_rating: Optional[float] = None,
     min_sold: Optional[int] = None,
     commission: Optional[float] = None,
+    source: Optional[str] = None,
+    seller_id: Optional[str] = None,
+    seller_name: Optional[str] = None,
 ):
-    """Export analyzed products for TUS with optional filters"""
+    """Export analyzed products with optional filters.
+    source: tiktok|shopee|lazada|facebook|generic
+    seller_id/seller_name: filter by specific shop.
+    """
     result = await get_analyzed_products(
         min_rating=min_rating,
         min_sold=min_sold,
         commission=commission,
         category=category,
+        source=source,
+        seller_id=seller_id,
+        seller_name=seller_name,
     )
     return result
+
+@app.get("/api/v1/analyze/scraped-products")
+async def api_list_scraped_products(
+    source_site: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+):
+    """List scraped products available for analysis.
+    Filters by source_site (tiktok, shopee, lazada, etc.)
+    Returns product list + available sources.
+    """
+    from sqlalchemy import select, func
+    from product.db_models import ScrapedProduct, AnalyzedProduct
+    try:
+        async with async_session_factory() as session:
+            # Get available sources
+            src_result = await session.execute(
+                select(ScrapedProduct.source_site, func.count(ScrapedProduct.id))
+                .where(ScrapedProduct.source_site != "")
+                .group_by(ScrapedProduct.source_site)
+            )
+            available_sources = []
+            source_counts = {}
+            for src, cnt in src_result:
+                available_sources.append(src)
+                source_counts[src] = cnt
+
+            # Query products
+            stmt = select(ScrapedProduct).order_by(ScrapedProduct.scraped_at.desc())
+            if source_site:
+                stmt = stmt.where(ScrapedProduct.source_site == source_site)
+
+            # Get total before limit
+            total_stmt = select(func.count()).select_from(ScrapedProduct)
+            if source_site:
+                total_stmt = total_stmt.where(ScrapedProduct.source_site == source_site)
+            total = (await session.execute(total_stmt)).scalar() or 0
+
+            records = (await session.execute(
+                stmt.limit(limit).offset(offset)
+            )).scalars().all()
+
+            # Check which products have analyzed versions
+            products = []
+            for r in records:
+                # Check if analyzed exists
+                has_analyzed = False
+                if r.sku or r.name:
+                    check = await session.execute(
+                        select(func.count(AnalyzedProduct.id))
+                        .where(AnalyzedProduct.product_id == (r.sku or r.id))
+                    )
+                    has_analyzed = (check.scalar() or 0) > 0
+
+                products.append({
+                    "id": r.id,
+                    "name": r.name,
+                    "price": r.price,
+                    "currency": r.currency,
+                    "source_site": r.source_site,
+                    "sku": r.sku,
+                    "url": r.url,
+                    "scraped_at": r.scraped_at.isoformat() if r.scraped_at else None,
+                    "has_analyzed": has_analyzed,
+                })
+
+            return {
+                "success": True,
+                "products": products,
+                "total": total,
+                "sources": available_sources,
+                "source_counts": source_counts,
+            }
+    except Exception as e:
+        logger.error(f"list_scraped_products failed: {e}")
+        return {"success": False, "products": [], "total": 0, "sources": [], "error": str(e)}
+
+
+@app.post("/api/v1/analyze/from-scrape")
+async def api_analyze_from_scrape(req: dict):
+    """Pull scraped products from DB → Normalize → Enrich → Export.
+    Filters by source_site, seller_name. Skips already-analyzed.
+    Body: { source_site: str, seller_name: str, limit: int, skip_enrich: bool }
+    """
+    from sqlalchemy import select
+    from product.db_models import ScrapedProduct
+
+    source_site = req.get("source_site")
+    seller_name = req.get("seller_name")
+    limit = min(req.get("limit", 50), 200)
+    skip_enrich = req.get("skip_enrich", False)
+
+    try:
+        async with async_session_factory() as session:
+            stmt = select(ScrapedProduct).order_by(ScrapedProduct.scraped_at.desc())
+            if source_site:
+                stmt = stmt.where(ScrapedProduct.source_site == source_site)
+            if seller_name:
+                stmt = stmt.where(ScrapedProduct.name.ilike(f"%{seller_name}%"))
+
+            records = (await session.execute(stmt.limit(limit))).scalars().all()
+
+        if not records:
+            return {"success": True, "count": 0, "products": [], "message": "No scraped products matching filters"}
+
+        # Convert ScrapedProduct → dict for analyzer pipeline
+        from product.analyze_pipeline import analyze_product
+        results = []
+        skipped = 0
+        for r in records:
+            raw_data = r.raw_data or {}
+            # Inject fields from cache if raw_data is empty
+            if not raw_data.get("product_name"):
+                raw_data["product_name"] = r.name or ""
+            if not raw_data.get("price"):
+                raw_data["price"] = r.price or 0
+            if not raw_data.get("description"):
+                raw_data["description"] = r.description or ""
+
+            # Force source to match source_site (scraped data may lack platform fields)
+            result = await analyze_product(raw_data, r.source_site or "generic")
+            # Patch source field if analyzer guessed wrong
+            analyzed_products = result.get("products", [])
+            for ap in analyzed_products:
+                ap["source"] = r.source_site or ap.get("source", "generic")
+                # Override with scraped metadata (more accurate than guessed)
+                if r.name and not ap.get("title"):
+                    ap["title"] = r.name
+                if r.price and (not ap.get("price_avg") or ap["price_avg"] == 0):
+                    ap["price_avg"] = float(r.price)
+                if r.sku:
+                    ap["product_id"] = r.sku
+
+            for p in analyzed_products:
+                if not skip_enrich:
+                    await store_analyzed(p)
+                results.append(p)
+
+        return {
+            "success": True,
+            "count": len(results),
+            "products": results,
+            "skipped": skipped,
+            "message": f"Analyzed {len(results)} products from {source_site or 'all'} scraped data",
+        }
+    except Exception as e:
+        logger.error(f"analyze_from_scrape failed: {e}")
+        return {"success": False, "count": 0, "products": [], "error": str(e), "message": str(e)}
 
 @app.get("/api/v1/analyze/stats")
 async def api_analyze_stats():

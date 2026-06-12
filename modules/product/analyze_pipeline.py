@@ -169,14 +169,28 @@ class ProductNormalizer:
 
     @classmethod
     async def normalize(cls, raw_data: dict, source_hint: str = "") -> UnifiedProduct:
-        source = source_hint or cls.detect_source(raw_data)
-        if source == "tiktok" or "total_sale_cnt" in raw_data or "product_name" in raw_data:
+        # source_hint wins. If empty, try auto-detect from raw_data fields.
+        auto = cls.detect_source(raw_data)
+        source = source_hint or auto
+        if source == "tiktok":
             return cls._normalize_tiktok(raw_data)
-        elif source == "apify" or "sold_count" in raw_data:
+        elif source == "apify":
             return cls._normalize_apify(raw_data)
-        elif source == "shopee" or "itemid" in raw_data:
+        elif source == "shopee":
             return cls._normalize_shopee(raw_data)
-        elif source == "lazada" or "item_id" in raw_data:
+        elif source == "lazada":
+            return cls._normalize_lazada(raw_data)
+        elif source == "facebook":
+            return cls._normalize_generic(raw_data)
+        elif source == "generic":
+            return cls._normalize_generic(raw_data)
+        elif auto == "tiktok":
+            return cls._normalize_tiktok(raw_data)
+        elif auto == "apify":
+            return cls._normalize_apify(raw_data)
+        elif auto == "shopee":
+            return cls._normalize_shopee(raw_data)
+        elif auto == "lazada":
             return cls._normalize_lazada(raw_data)
         else:
             return cls._normalize_generic(raw_data)
@@ -453,10 +467,16 @@ async def get_analyzed_products(
     min_sold: Optional[int] = None,
     commission: Optional[float] = None,
     category: Optional[str] = None,
+    source: Optional[str] = None,
+    seller_id: Optional[str] = None,
+    seller_name: Optional[str] = None,
 ) -> dict:
     return await _get_products(
         min_rating=min_rating or 0,
         min_sold=min_sold or 0,
         commission=commission or 0,
         category=category,
+        source=source,
+        seller_id=seller_id,
+        seller_name=seller_name,
     )

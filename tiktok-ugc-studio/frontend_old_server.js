@@ -23,24 +23,12 @@ app.use('/api/tiktok/scraper', createProxyMiddleware({
   timeout: 60000,
 }));
 
-const fs = require('fs');
-
-// Serve video/media files from /api/tiktok/media/<filename>
-app.get('/api/tiktok/media/:filename', (req, res) => {
-  const safePath = path.resolve(__dirname, '../storage', path.basename(req.params.filename));
-  if (fs.existsSync(safePath)) {
-    res.sendFile(safePath);
-  } else {
-    res.status(404).json({ error: 'File not found' });
-  }
-});
-
 // Serve static frontend files from a 'public' directory
 const publicPath = path.join(__dirname, 'public');
 app.use(express.static(publicPath));
 
-// All other routes → index.html (SPA) — use middleware not route
-app.use((req, res) => {
+// All other routes → index.html (SPA)
+app.get('*', (req, res) => {
   res.sendFile(path.join(publicPath, 'index.html'));
 });
 

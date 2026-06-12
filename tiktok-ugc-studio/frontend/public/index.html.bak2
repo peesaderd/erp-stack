@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0a0a0f">
+<title>TikTok UGC Studio</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0a0a0f;--surface:#12121a;--surface2:#1a1a26;--surface3:#22223a;--primary:#ff2a6d;--primary-light:#ff4d8a;--accent:#05d9e8;--accent2:#7b2ff7;--text:#f0f0f5;--text2:#9090aa;--text3:#606080;--success:#00e676;--warning:#ffab00;--radius:14px;--radius-sm:10px;--safe-bottom:env(safe-area-inset-bottom,16px)}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased;font-size:15px}
+.app{display:flex;flex-direction:column;height:100%;max-width:430px;margin:0 auto;position:relative;overflow:hidden}
+
+/* Header */
+.header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 8px;flex-shrink:0}
+.header h1{font-size:18px;font-weight:700;background:linear-gradient(135deg,var(--primary),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.header-actions{display:flex;gap:8px}
+.header-btn{width:36px;height:36px;border-radius:50%;border:none;background:var(--surface2);color:var(--text2);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.2s}
+.header-btn:active{transform:scale(.92)}
+
+/* Tab bar */
+.tabs{display:flex;gap:4px;padding:0 16px 8px;flex-shrink:0}
+.tab{flex:1;padding:10px 0;text-align:center;font-size:13px;font-weight:600;color:var(--text3);border:none;background:none;cursor:pointer;border-radius:var(--radius-sm);transition:.2s;position:relative}
+.tab.active{color:var(--text);background:var(--surface2)}
+.tab.active::after{content:'';position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);width:24px;height:2.5px;border-radius:2px;background:var(--primary)}
+
+/* Main scrollable area */
+.main{flex:1;overflow-y:auto;padding:8px 16px var(--safe-bottom);-webkit-overflow-scrolling:touch}
+.main::-webkit-scrollbar{width:3px}
+.main::-webkit-scrollbar-track{background:transparent}
+.main::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:4px}
+
+/* Cards */
+.card{background:var(--surface);border-radius:var(--radius);padding:16px;margin-bottom:12px;border:1px solid rgba(255,255,255,.04)}
+.card-primary{background:linear-gradient(135deg,var(--surface2),var(--surface));border:1px solid rgba(255,42,109,.15)}
+.card-title{font-size:14px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.card-title .icon{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px}
+
+/* Form */
+.input-group{margin-bottom:12px}
+.input-group label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:4px}
+.input{width:100%;padding:12px 14px;border-radius:var(--radius-sm);border:1px solid var(--surface2);background:var(--surface2);color:var(--text);font-size:14px;outline:none;transition:.2s;font-family:inherit}
+.input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(255,42,109,.15)}
+.input::placeholder{color:var(--text3)}
+textarea.input{resize:none;min-height:80px}
+
+/* Buttons */
+.btn{width:100%;padding:14px;border-radius:var(--radius);border:none;font-size:15px;font-weight:700;cursor:pointer;transition:.2s;display:flex;align-items:center;justify-content:center;gap:8px;font-family:inherit}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:linear-gradient(135deg,var(--primary),var(--primary-light));color:#fff;box-shadow:0 4px 16px rgba(255,42,109,.3)}
+.btn-primary:disabled{opacity:.4;cursor:default}
+.btn-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--surface3)}
+.btn-accent{background:linear-gradient(135deg,var(--accent2),var(--primary));color:#fff}
+.btn-sm{padding:10px 16px;width:auto;font-size:13px}
+.btn-icon{width:40px;height:40px;padding:0;border-radius:50%}
+
+/* Account item */
+.account-item{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--surface2);border-radius:var(--radius-sm);margin-bottom:8px;transition:.2s}
+.account-item:active{background:var(--surface3)}
+.account-avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--accent));display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;font-weight:700;flex-shrink:0}
+.account-info{flex:1;min-width:0}
+.account-name{font-size:14px;font-weight:600}
+.account-status{font-size:11px;color:var(--text3);margin-top:1px}
+.account-status .dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:4px}
+.dot-green{background:var(--success);box-shadow:0 0 6px rgba(0,230,118,.4)}
+.dot-red{background:var(--text3)}
+.account-action{font-size:11px;padding:6px 12px;border-radius:20px;border:1px solid var(--surface3);background:none;color:var(--text2);cursor:pointer;white-space:nowrap;font-family:inherit;transition:.2s}
+.account-action.primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+
+/* Empty state */
+.empty{text-align:center;padding:32px 16px}
+.empty-icon{font-size:40px;margin-bottom:12px;opacity:.3}
+.empty-text{font-size:14px;color:var(--text3);line-height:1.5}
+
+/* Toast */
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);padding:12px 20px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;z-index:100;animation:toastIn .3s ease;max-width:90%}
+.toast.success{background:rgba(0,230,118,.15);color:var(--success);border:1px solid rgba(0,230,118,.2)}
+.toast.error{background:rgba(255,42,109,.15);color:var(--primary);border:1px solid rgba(255,42,109,.2)}
+.toast.info{background:rgba(5,217,232,.15);color:var(--accent);border:1px solid rgba(5,217,232,.2)}
+@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+
+/* Modal overlay */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:50;display:flex;align-items:flex-end;justify-content:center;animation:fadeIn .2s}
+.modal{background:var(--surface);border-radius:var(--radius) var(--radius) 0 0;padding:24px 20px var(--safe-bottom);width:100%;max-width:430px;max-height:85vh;overflow-y:auto;animation:slideUp .3s ease}
+.modal-title{font-size:16px;font-weight:700;margin-bottom:16px}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+
+/* Skeleton loading */
+.skeleton{background:linear-gradient(90deg,var(--surface2) 25%,var(--surface3) 50%,var(--surface2) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:8px}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* Chip / Tag */
+.chip{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;background:var(--surface2);color:var(--text2);transition:.2s;cursor:pointer;border:1px solid var(--surface3)}
+.chip.active{background:rgba(255,42,109,.15);color:var(--primary);border-color:rgba(255,42,109,.25)}
+.chip-remove{font-size:14px;cursor:pointer;opacity:.5}
+
+/* Progress bar */
+.progress{height:3px;background:var(--surface2);border-radius:4px;overflow:hidden;margin:8px 0}
+.progress-bar{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--primary),var(--accent));transition:width .5s ease}
+
+/* Log item */
+.log-item{display:flex;align-items:flex-start;gap:8px;padding:8px 0;font-size:12px;border-bottom:1px solid rgba(255,255,255,.03)}
+.log-item:last-child{border-bottom:none}
+.log-time{color:var(--text3);white-space:nowrap;font-size:11px;min-width:56px}
+.log-status{width:6px;height:6px;border-radius:50%;margin-top:5px;flex-shrink:0}
+.log-status.success{background:var(--success)}
+.log-status.error{background:var(--primary)}
+.log-status.pending{background:var(--warning)}
+.log-text{color:var(--text2);word-break:break-all}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="header">
+    <h1>TikTok Studio</h1>
+    <div class="header-actions">
+      <button class="header-btn" onclick="refreshAll()" title="รีเฟรช">↻</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="accounts" onclick="switchTab('accounts')">📱 บัญชี</button>
+    <button class="tab" data-tab="upload" onclick="switchTab('upload')">🎬 โพสต์</button>
+    <button class="tab" data-tab="batch" onclick="switchTab('batch')">📦 Batch</button>
+    <button class="tab" data-tab="logs" onclick="switchTab('logs')">📋 ประวัติ</button>
+  </div>
+
+  <div class="main" id="mainContent">
+    <!-- Accounts Tab -->
+    <div id="tab-accounts" class="tab-content">
+      <div class="card card-primary">
+        <div class="card-title"><span class="icon">➕</span> เพิ่มบัญชี TikTok</div>
+        <div class="input-group">
+          <label>ชื่อบัญชี (ID)</label>
+          <input class="input" id="acctId" placeholder="เช่น main_tiktok_01" />
+        </div>
+        <div class="input-group">
+          <label>ชื่อผู้ใช้ (ไม่ต้องใส่ถ้าใช้ QR)</label>
+          <input class="input" id="acctUser" placeholder="@username" />
+        </div>
+        <div class="input-group">
+          <label>รหัสผ่าน (ไม่ต้องใส่ถ้าใช้ QR)</label>
+          <input class="input" type="password" id="acctPass" placeholder="••••••••" />
+        </div>
+        <button class="btn btn-primary" onclick="addAccount()">➕ เพิ่มบัญชี</button>
+      </div>
+      <div id="accountsList">
+        <div class="skeleton" style="height:60px;margin-bottom:8px"></div>
+        <div class="skeleton" style="height:60px"></div>
+      </div>
+    </div>
+
+    <!-- Upload Tab -->
+    <div id="tab-upload" class="tab-content" style="display:none">
+      <div class="card">
+        <div class="card-title"><span class="icon">🎬</span> เลือกบัญชี</div>
+        <select class="input" id="uploadAccount"></select>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="icon">📁</span> ที่อยู่ไฟล์วิดีโอ</div>
+        <div class="input-group">
+          <input class="input" id="videoPath" placeholder="/path/to/video.mp4" />
+        </div>
+        <div class="input-group">
+          <label>หรือ Product URL (Scrape + Generate + Upload)</label>
+          <input class="input" id="productUrl" placeholder="https://www.lazada.co.th/..." />
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="icon">📝</span> Caption & Hashtags</div>
+        <div class="input-group">
+          <textarea class="input" id="caption" placeholder="ข้อความ caption"></textarea>
+        </div>
+        <div class="input-group">
+          <input class="input" id="hashtags" placeholder="#tiktok #ugc (คั่นด้วยเว้นวรรค)" />
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="icon">⏰</span> ตั้งเวลา</div>
+        <div class="input-group">
+          <select class="input" id="scheduleHours">
+            <option value="0">โพสต์ทันที</option>
+            <option value="1">1 ชม.</option>
+            <option value="2">2 ชม.</option>
+            <option value="4">4 ชม.</option>
+            <option value="8">8 ชม.</option>
+            <option value="24">24 ชม.</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="uploadVideo()" id="uploadBtn">🎬 โพสต์วิดีโอ</button>
+    </div>
+
+    <!-- Batch Tab -->
+    <div id="tab-batch" class="tab-content" style="display:none">
+      <div class="card">
+        <div class="card-title"><span class="icon">📦</span> Batch Upload</div>
+        <p style="font-size:13px;color:var(--text3);margin-bottom:12px;line-height:1.5">เพิ่มวิดีโอหลาย ๆ คลิป โดยเว้นระยะเวลาระหว่างโพสต์อัตโนมัติ</p>
+        <div class="input-group">
+          <label>เลือกบัญชี</label>
+          <select class="input" id="batchAccount"></select>
+        </div>
+        <div class="input-group">
+          <label>ระยะห่างระหว่างคลิป (นาที)</label>
+          <select class="input" id="staggerMins">
+            <option value="15">15 นาที</option>
+            <option value="30" selected>30 นาที</option>
+            <option value="60">1 ชม.</option>
+            <option value="120">2 ชม.</option>
+            <option value="360">6 ชม.</option>
+          </select>
+        </div>
+      </div>
+      <div id="batchItems">
+        <div class="card">
+          <div class="card-title"><span class="icon" style="font-size:11px">1</span> วิดีโอ 1</div>
+          <div class="input-group">
+            <input class="input batch-path" placeholder="path/to/video1.mp4" />
+          </div>
+          <div class="input-group">
+            <input class="input batch-caption" placeholder="Caption (เว้นว่างใช้ค่าเริ่มต้น)" />
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-sm btn-secondary" onclick="addBatchItem()" style="margin-bottom:12px">➕ เพิ่มรายการ</button>
+      <button class="btn btn-accent" onclick="runBatch()" id="batchBtn">📦 เริ่ม Batch Upload</button>
+    </div>
+
+    <!-- Logs Tab -->
+    <div id="tab-logs" class="tab-content" style="display:none">
+      <div id="logsContent">
+        <div class="skeleton" style="height:40px;margin-bottom:8px"></div>
+        <div class="skeleton" style="height:40px;margin-bottom:8px"></div>
+        <div class="skeleton" style="height:40px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast"></div>
+
+<script>
+const API = window.location.origin + '/api/i2m/ugc';
+const SCRAPER = '# ' + window.location.origin + '/api/i2m/scraper';
+const ACTIVE_TAB_KEY = 'tiktok_active_tab';
+
+// ─── Tab Switching ──────────────────────────────────────────────────
+
+function switchTab(name) {
+  document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + name).style.display = 'block';
+  document.querySelector(`[data-tab="${name}"]`).classList.add('active');
+  localStorage.setItem(ACTIVE_TAB_KEY, name);
+  if (name === 'accounts') loadAccounts();
+  if (name === 'logs') loadLogs();
+  if (name === 'upload') populateAccountSelect('uploadAccount');
+  if (name === 'batch') populateAccountSelect('batchAccount');
+}
+
+// ─── Toast ────────────────────────────────────────────────────────────
+
+let toastTimer = null;
+function showToast(msg, type = 'info') {
+  const el = document.getElementById('toast');
+  el.innerHTML = `<div class="toast ${type}">${msg}</div>`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.innerHTML = '', 3000);
+}
+
+// ─── Loading State ────────────────────────────────────────────────────
+
+function setLoading(id, loading) {
+  const btn = document.getElementById(id);
+  if (!btn) return;
+  btn.disabled = loading;
+  btn.innerHTML = loading ? '<span style="display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite"></span> กำลังดำเนินการ...' : btn.getAttribute('data-orig') || btn.innerHTML;
+  if (!btn.getAttribute('data-orig')) btn.setAttribute('data-orig', btn.innerHTML);
+}
+
+// ─── Accounts ─────────────────────────────────────────────────────────
+
+async function loadAccounts() {
+  const el = document.getElementById('accountsList');
+  try {
+    const resp = await fetch(`${API}/tiktok/accounts`);
+    const data = await resp.json();
+    if (!data.accounts || data.accounts.length === 0) {
+      el.innerHTML = '<div class="empty"><div class="empty-icon">📱</div><div class="empty-text">ยังไม่มีบัญชี กด "เพิ่มบัญชี" ด้านบน</div></div>';
+      return;
+    }
+    el.innerHTML = data.accounts.map(a => `
+      <div class="account-item">
+        <div class="account-avatar">${(a.username || a.account_id || '?')[0].toUpperCase()}</div>
+        <div class="account-info">
+          <div class="account-name">${a.username || a.account_id}</div>
+          <div class="account-status">
+            <span class="dot ${a.session_valid ? 'dot-green' : 'dot-red'}"></span>
+            ${a.session_valid ? 'ออนไลน์' : 'ออฟไลน์'}
+            ${a.last_login ? ' · ล่าสุด ' + new Date(a.last_login).toLocaleDateString('th-TH') : ''}
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${!a.session_valid ? `<button class="account-action primary" onclick="loginAccount('${a.account_id}')">🔑 เข้าสู่ระบบ</button>` : `<button class="account-action" onclick="checkSession('${a.account_id}')">✓ เช็ค</button>`}
+          <button class="account-action" onclick="removeAccount('${a.account_id}')">🗑️ ลบ</button>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-text">เชื่อมต่อ API ไม่ได้: ${e.message}</div></div>`;
+  }
+}
+
+async function addAccount() {
+  const id = document.getElementById('acctId').value.trim();
+  if (!id) { showToast('กรุณากรอกชื่อบัญชี', 'error'); return; }
+  try {
+    const resp = await fetch(`${API}/tiktok/account/add`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        account_id: id,
+        username: document.getElementById('acctUser').value.trim(),
+        password: document.getElementById('acctPass').value,
+        use_qr: true
+      })
+    });
+    const data = await resp.json();
+    if (data.success) {
+      showToast(`✅ เพิ่มบัญชี ${id} แล้ว`, 'success');
+      document.getElementById('acctId').value = '';
+      document.getElementById('acctUser').value = '';
+      document.getElementById('acctPass').value = '';
+      loadAccounts();
+    } else {
+      showToast(`❌ ${data.detail || 'เกิดข้อผิดพลาด'}`, 'error');
+    }
+  } catch(e) {
+    showToast(`❌ ${e.message}`, 'error');
+  }
+}
+
+async function removeAccount(id) {
+  if (!confirm(`ลบบัญชี ${id}?`)) return;
+  try {
+    const resp = await fetch(`${API}/tiktok/account/remove`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({account_id: id})
+    });
+    const data = await resp.json();
+    if (data.success) {
+      showToast(`🗑️ ลบ ${id} แล้ว`, 'success');
+      loadAccounts();
+    }
+  } catch(e) { showToast(`❌ ${e.message}`, 'error'); }
+}
+
+async function loginAccount(id) {
+  showToast(`🔑 กำลังเปิดหน้าเข้าสู่ระบบสำหรับ ${id}...`, 'info');
+  try {
+    const resp = await fetch(`${API}/tiktok/login`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({account_id: id, use_qr: true})
+    });
+    const data = await resp.json();
+    if (data.qr_code) {
+      // Show QR modal
+      const overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      overlay.innerHTML = `
+        <div class="modal">
+          <div class="modal-title">🔑 สแกน QR เพื่อเข้าสู่ระบบ</div>
+          <p style="font-size:13px;color:var(--text3);margin-bottom:16px;line-height:1.5">เปิด TikTok → โปรไฟล์ → Scan QR หรือไปที่ Settings > QR Code</p>
+          <div style="text-align:center;margin:16px 0">
+            <img src="data:image/png;base64,${data.qr_code}" style="width:240px;height:240px;border-radius:var(--radius);background:#fff;padding:8px" />
+          </div>
+          <p style="font-size:12px;color:var(--text3);text-align:center">สแกน QR แล้วรอสักครู่...</p>
+          <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove();checkSession('${id}')" style="margin-top:16px" id="qrCheckBtn">✓ เช็คสถานะ</button>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+      // Auto-check after 30s
+      setTimeout(() => {
+        const btn = document.getElementById('qrCheckBtn');
+        if (btn) btn.click();
+      }, 30000);
+    } else if (data.session_valid) {
+      showToast('✅ เข้าสู่ระบบสำเร็จ!', 'success');
+      loadAccounts();
+    } else {
+      showToast(`❌ ${data.error || 'เข้าสู่ระบบล้มเหลว'}`, 'error');
+    }
+  } catch(e) { showToast(`❌ ${e.message}`, 'error'); }
+}
+
+async function checkSession(id) {
+  try {
+    const resp = await fetch(`${API}/tiktok/session/check`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({account_id: id})
+    });
+    const data = await resp.json();
+    if (data.valid) {
+      showToast(`✅ ${data.username || id} — เซสชั่นยังใช้งานได้`, 'success');
+    } else {
+      showToast(`❌ เซสชั่นหมดอายุ กรุณาเข้าสู่ระบบใหม่`, 'error');
+    }
+    loadAccounts();
+  } catch(e) { showToast(`❌ ${e.message}`, 'error'); }
+}
+
+// ─── Account Selector Helper ─────────────────────────────────────────
+
+async function populateAccountSelect(id) {
+  const sel = document.getElementById(id);
+  try {
+    const resp = await fetch(`${API}/tiktok/accounts`);
+    const data = await resp.json();
+    const valid = (data.accounts || []).filter(a => a.session_valid);
+    sel.innerHTML = valid.map(a => `<option value="${a.account_id}">${a.username || a.account_id}</option>`).join('');
+    if (!valid.length) sel.innerHTML = '<option value="">— ยังไม่มีบัญชีที่ล็อกอิน —</option>';
+  } catch(e) {
+    sel.innerHTML = '<option value="">— โหลดบัญชีไม่ได้ —</option>';
+  }
+}
+
+// ─── Upload ──────────────────────────────────────────────────────────
+
+async function uploadVideo() {
+  const accountId = document.getElementById('uploadAccount').value;
+  if (!accountId) { showToast('❌ เลือกบัญชีก่อน', 'error'); return; }
+  const videoPath = document.getElementById('videoPath').value.trim();
+  const productUrl = document.getElementById('productUrl').value.trim();
+  if (!videoPath && !productUrl) { showToast('❌ กรุณาใส่ path วิดีโอ หรือ Product URL', 'error'); return; }
+  const caption = document.getElementById('caption').value.trim();
+  const hashtags = document.getElementById('hashtags').value.trim().split(/\s+/).filter(h => h).map(h => h.replace(/^#/, ''));
+  const scheduleHours = parseInt(document.getElementById('scheduleHours').value);
+
+  setLoading('uploadBtn', true);
+  try {
+    const body = { account_id: accountId, video_path: videoPath, caption, hashtags, schedule_hours: scheduleHours || null };
+    if (productUrl) {
+      body.product_url = productUrl;
+      body.ugc_style = 'ugc_review';
+    }
+    const resp = await fetch(`${API}/tiktok/upload`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    });
+    const data = await resp.json();
+    if (data.success) {
+      showToast(`✅ โพสต์สำเร็จ!${data.video_id ? ' ID: ' + data.video_id : ''}`, 'success');
+      document.getElementById('videoPath').value = '';
+      document.getElementById('caption').value = '';
+      document.getElementById('hashtags').value = '';
+      document.getElementById('productUrl').value = '';
+    } else {
+      showToast(`❌ ${data.error || data.detail || 'โพสต์ล้มเหลว'}`, 'error');
+    }
+  } catch(e) { showToast(`❌ ${e.message}`, 'error'); }
+  setLoading('uploadBtn', false);
+}
+
+// ─── Batch ────────────────────────────────────────────────────────────
+
+let batchCount = 1;
+function addBatchItem() {
+  batchCount++;
+  const div = document.createElement('div');
+  div.className = 'card';
+  div.innerHTML = `
+    <div class="card-title"><span class="icon" style="font-size:11px">${batchCount}</span> วิดีโอ ${batchCount} <button class="chip" onclick="this.closest('.card').remove()" style="margin-left:auto;padding:2px 8px">✕</button></div>
+    <div class="input-group">
+      <input class="input batch-path" placeholder="path/to/video${batchCount}.mp4" />
+    </div>
+    <div class="input-group">
+      <input class="input batch-caption" placeholder="Caption (เว้นว่างใช้ค่าเริ่มต้น)" />
+    </div>
+  `;
+  document.getElementById('batchItems').appendChild(div);
+}
+
+async function runBatch() {
+  const accountId = document.getElementById('batchAccount').value;
+  if (!accountId) { showToast('❌ เลือกบัญชีก่อน', 'error'); return; }
+  const stagger = parseInt(document.getElementById('staggerMins').value);
+  const items = document.querySelectorAll('.batch-path');
+  if (!items.length || !items[0].value.trim()) { showToast('❌ ใส่อย่างน้อย 1 path', 'error'); return; }
+
+  const captions = document.querySelectorAll('.batch-caption');
+  const videos = [];
+  items.forEach((el, i) => {
+    const path = el.value.trim();
+    if (path) {
+      videos.push({
+        video_path: path,
+        caption: captions[i]?.value?.trim() || '',
+        hashtags: [],
+        schedule_hours: 0
+      });
+    }
+  });
+
+  setLoading('batchBtn', true);
+  try {
+    const resp = await fetch(`${API}/tiktok/batch-upload`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        account_id: accountId,
+        videos,
+        stagger_minutes: stagger
+      })
+    });
+    const data = await resp.json();
+    if (data.success) {
+      showToast(`✅ Batch เสร็จ: ${data.succeeded}/${data.total} สำเร็จ`, data.failed === 0 ? 'success' : 'info');
+    } else {
+      showToast(`❌ ${data.error || data.detail || 'Batch ล้มเหลว'}`, 'error');
+    }
+  } catch(e) { showToast(`❌ ${e.message}`, 'error'); }
+  setLoading('batchBtn', false);
+}
+
+// ─── Logs ────────────────────────────────────────────────────────────
+
+async function loadLogs() {
+  const el = document.getElementById('logsContent');
+  try {
+    const resp = await fetch(`${API}/tiktok/published`);
+    const data = await resp.json();
+    if (!data.videos || data.videos.length === 0) {
+      el.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">ยังไม่มีประวัติการโพสต์</div></div>';
+      return;
+    }
+    el.innerHTML = data.videos.slice().reverse().slice(0, 50).map(v => `
+      <div class="log-item">
+        <span class="log-status success"></span>
+        <span class="log-time">${v.published_at ? new Date(v.published_at).toLocaleTimeString('th-TH', {hour:'2-digit',minute:'2-digit'}) : '-'}</span>
+        <span class="log-text">${(v.caption || v.video || '').substring(0, 60)}${(v.caption||'').length > 60 ? '...' : ''}</span>
+        <span style="margin-left:auto;font-size:11px;color:var(--text3);white-space:nowrap">${v.account_id || ''}</span>
+      </div>
+    `).join('');
+  } catch(e) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-text">โหลดประวัติไม่ได้: ${e.message}</div></div>`;
+  }
+}
+
+// ─── Refresh ─────────────────────────────────────────────────────────
+
+function refreshAll() {
+  const active = document.querySelector('.tab.active');
+  if (active) switchTab(active.getAttribute('data-tab'));
+}
+
+// ─── Init ────────────────────────────────────────────────────────────
+
+document.addEventListener('DOMContentLoaded', () => {
+  const saved = localStorage.getItem(ACTIVE_TAB_KEY) || 'accounts';
+  switchTab(saved);
+});
+</script>
+</body>
+</html>

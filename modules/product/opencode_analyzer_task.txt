@@ -1,0 +1,54 @@
+# Product Analyzer Module — Task for OpenCode
+
+You are building a Product Analysis System. Read and understand these existing files first:
+
+1. /home/openhands/erp-stack/modules/product/main.py
+2. /home/openhands/erp-stack/modules/product/analyze_pipeline.py
+3. /home/openhands/erp-stack/modules/product/analyze_models.py
+4. /home/openhands/erp-stack/modules/product/analyzer.py
+5. /home/openhands/erp-stack/modules/product/scraper_service.py
+6. /home/openhands/erp-stack/modules/product/scraper.py
+
+## Task: Complete the Product Analysis System
+
+### 1. UPDATE /home/openhands/erp-stack/modules/product/analyze_pipeline.py
+Add to the existing pipeline:
+- ErrorRateLimiter class (rate-limit API calls with exponential backoff)
+- In-memory cache (dict with TTL 5 min)
+- Better TikTok field mapping based on these actual Apify output fields:
+  product_name, price, product_rating, review_count, seller_name, commission_rate, sold_count, total_sales, week_sales, week_sold_count
+- Shopee normalizer stub (detect from field patterns)
+- Lazada normalizer stub (detect from field patterns)
+
+### 2. UPDATE /home/openhands/erp-stack/modules/product/analyzer.py
+Keep existing analyze_with_vision(). Add:
+- async enrich_product(product_data: dict) -> dict — Uses OpenCode API to enrich product data:
+  - Translate title to Thai
+  - Extract Thai keywords for TikTok
+  - Detect category
+- translate_to_thai(text: str) -> str — Direct OpenCode API call
+- extract_keywords(title: str, desc: str) -> list[str] — Direct OpenCode API call
+- score_viral_potential(product_data: dict) -> float — Rule-based scoring (no AI needed)
+
+### 3. UPDATE /home/openhands/erp-stack/modules/product/main.py
+Add these API endpoints WITHOUT removing any existing endpoints:
+- POST /api/v1/analyze — analyze single product
+  Body: {"raw_data": {...}, "source": "tiktok"}
+  Returns: Unified product with enrichment
+- POST /api/v1/analyze/batch — batch analyze
+  Body: {"raw_data_list": [...], "source": "tiktok", "filters": {}}
+- GET /api/v1/analyze/export — export analyzed products for TUS
+  Query params: min_rating, min_sold, commission, category
+- GET /api/v1/analyze/stats — statistics of analyzed products
+  Returns: {total, avg_rating, avg_viral_score, top_categories, trending_count}
+
+### API Key for enrichment calls:
+OpenCode API at https://api.opencode.ai/v1 with key sk-LTP2Z9x9adJjxgzUfcWjoQS9lxekHw5xMhKUs5NkCCULT9jhCryWgCFOPdwfngi0
+Model: opencode-go/deepseek-v4-flash
+The API is OpenAI-compatible at the /v1/chat/completions endpoint.
+
+### Important:
+- Do NOT delete any existing code
+- Handle errors gracefully (never crash)
+- Add proper logging
+- Return complete, working code

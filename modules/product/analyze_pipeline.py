@@ -1,0 +1,286 @@
+"""Product Analysis Pipeline — Normalizer → Enricher → Exporter
+Transforms raw scraped data (TikTok Shop, Shopee, Lazada) into TUS-ready analyzed data.
+"""
+import os, json, logging, httpx, asyncio, re
+from typing import Optional, Dict, List, Any
+from datetime import datetime
+from dataclasses import dataclass, field, asdict
+
+logger = logging.getLogger("analyze_pipeline")
+
+MISTRAL_KEY = os.environ.get("MISTRAL_API_KEY", "")
+
+# ─── Unified Data Model ──────────────────────────────────────────────────────
+
+@dataclass
+class UnifiedProduct:
+    product_id: str = ""
+    title: str = ""
+    title_th: str = ""
+    description: str = ""
+    price_min: float = 0.0
+    price_max: float = 0.0
+    price_avg: float = 0.0
+    currency: str = "THB"
+    rating: float = 0.0
+    review_count: int = 0
+    sold_total: int = 0
+    sold_week: int = 0
+    sold_month: int = 0
+    sales_gmv_7d: float = 0.0
+    sales_gmv_30d: float = 0.0
+    sales_gmv_total: float = 0.0
+    sales_gmv_7d_usd: float = 0.0
+    sales_gmv_30d_usd: float = 0.0
+    sales_gmv_total_usd: float = 0.0
+    seller_name: str = ""
+    seller_id: str = ""
+    categories: List[str] = field(default_factory=list)
+    category: str = ""
+    images: List[str] = field(default_factory=list)
+    commission_rate: float = 0.0
+    influencer_count: int = 0
+    video_count: int = 0
+    rank: int = 0
+    source: str = ""
+    scrape_timestamp: str = ""
+    viral_score: float = 0.0
+    trending: bool = False
+    keywords: List[str] = field(default_factory=list)
+    enriched: bool = False
+
+# ─── Stage 1: Normalizer ─────────────────────────────────────────────────────
+
+class ProductNormalizer:
+    SOURCE_PATTERNS = {
+        "tiktok": ["total_sale_cnt", "product_id", "total_sale_gmv_amt", "cover_url"],
+        "apify": ["sold_count", "title", "total_sales", "seller_name"],
+    }
+
+    @staticmethod
+    def detect_source(raw_data: dict) -> str:
+        """Auto-detect data source from field names"""
+        for src, fields in ProductNormalizer.SOURCE_PATTERNS.items():
+            if any(f in raw_data for f in fields):
+                return src
+        return "generic"
+
+    @staticmethod
+    def _safe_float(val, default=0.0) -> float:
+        try: return float(val) if val else default
+        except: return default
+
+    @staticmethod
+    def _safe_int(val, default=0) -> int:
+        try: return int(val) if val else default
+        except: return default
+
+    @staticmethod
+    def _parse_price_str(price_str: str) -> float:
+        """Parse '฿12.52' or '$0.38' to float"""
+        if not price_str: return 0.0
+        cleaned = re.sub(r'[^\d.]', '', price_str)
+        try: return float(cleaned)
+        except: return 0.0
+
+    @classmethod
+    async def normalize(cls, raw_data: dict, source_hint: str = "") -> UnifiedProduct:
+        source = source_hint or cls.detect_source(raw_data)
+        if source == "tiktok" or "total_sale_cnt" in raw_data:
+            return cls._normalize_tiktok(raw_data)
+        elif source == "apify" or "sold_count" in raw_data:
+            return cls._normalize_apify(raw_data)
+        else:
+            return cls._normalize_generic(raw_data)
+
+    @classmethod
+    def _normalize_tiktok(cls, d: dict) -> UnifiedProduct:
+        seller = d.get("seller", {}) or {}
+        return UnifiedProduct(
+            product_id=str(d.get("product_id", "")),
+            title=d.get("product_title", d.get("product_name", "")),
+            description=d.get("product_name", ""),
+            price_min=cls._safe_float(d.get("min_price", 0)),
+            price_max=cls._safe_float(d.get("max_price", 0)),
+            price_avg=cls._safe_float(d.get("avg_price", d.get("real_price", 0))),
+            currency="THB",
+            rating=cls._safe_float(d.get("product_rating", 0)),
+            review_count=cls._safe_int(d.get("review_count", 0)),
+            sold_total=cls._safe_int(d.get("total_sale_cnt", 0)),
+            sold_week=cls._safe_int(d.get("total_sale_7d_cnt", 0)),
+            sold_month=cls._safe_int(d.get("total_sale_30d_cnt", 0)),
+            sales_gmv_7d=cls._parse_price_str(d.get("total_sale_gmv_7d_amt", "0")),
+            sales_gmv_30d=cls._parse_price_str(d.get("total_sale_gmv_30d_amt", "0")),
+            sales_gmv_total=cls._parse_price_str(d.get("total_sale_gmv_amt", "0")),
+            seller_name=seller.get("seller_name", d.get("seller_name", "")),
+            seller_id=str(seller.get("seller_id", d.get("seller_id", ""))),
+            categories=[c.strip() for c in d.get("categories", "").split("/") if c.strip()],
+            images=[d.get("cover_url", "")] if d.get("cover_url") else [],
+            commission_rate=cls._safe_float(d.get("commission", "0").replace("%","")),
+            influencer_count=cls._safe_int(d.get("influencers_count", d.get("total_ifl_cnt", 0))),
+            video_count=cls._safe_int(d.get("videos_count", d.get("total_video_count", 0))),
+            rank=cls._safe_int(d.get("rank", 0)),
+            source="tiktok",
+            scrape_timestamp=datetime.utcnow().isoformat(),
+        )
+
+    @classmethod
+    def _normalize_apify(cls, d: dict) -> UnifiedProduct:
+        return UnifiedProduct(
+            product_id=str(d.get("id", d.get("product_id", ""))),
+            title=d.get("title", ""),
+            description=d.get("description", ""),
+            price_min=cls._safe_float(d.get("min_price", d.get("price", 0))),
+            price_max=cls._safe_float(d.get("max_price", d.get("price", 0))),
+            price_avg=cls._safe_float(d.get("price", d.get("avg_price", 0))),
+            currency=d.get("currency", "USD"),
+            rating=cls._safe_float(d.get("product_rating", d.get("rating", 0))),
+            review_count=cls._safe_int(d.get("review_count", 0)),
+            sold_total=cls._safe_int(d.get("sold_count", d.get("total_sold", 0))),
+            sold_week=cls._safe_int(d.get("week_sold_count", 0)),
+            categories=(d.get("categories", "") or "").split("|") if isinstance(d.get("categories"), str) else (d.get("categories") or []),
+            images=[d.get("images_privatization", [None])[0]] if d.get("images_privatization") else [],
+            commission_rate=cls._safe_float(str(d.get("commission_rate", "0")).replace("%","")),
+            seller_name=d.get("seller_name", ""),
+            source="apify",
+            scrape_timestamp=datetime.utcnow().isoformat(),
+        )
+
+    @classmethod
+    def _normalize_generic(cls, d: dict) -> UnifiedProduct:
+        return UnifiedProduct(
+            product_id=str(d.get("id", "")),
+            title=d.get("title", d.get("name", "")),
+            description=d.get("description", ""),
+            price_avg=cls._safe_float(d.get("price", 0)),
+            rating=cls._safe_float(d.get("rating", 0)),
+            source="generic",
+            scrape_timestamp=datetime.utcnow().isoformat(),
+        )
+
+# ─── Stage 2: Enricher ───────────────────────────────────────────────────────
+
+CATEGORY_MAP = {
+    "beauty": "ความงาม", "fashion": "แฟชั่น", "electronics": "อิเล็กทรอนิกส์",
+    "home": "บ้าน", "food": "อาหาร", "sports": "กีฬา", "pets": "สัตว์เลี้ยง",
+    "health": "สุขภาพ", "kids": "เด็ก", "accessories": "เครื่องประดับ",
+}
+
+class ProductEnricher:
+    @staticmethod
+    async def enrich(product: UnifiedProduct) -> UnifiedProduct:
+        try:
+            product.category = await _detect_category(product.title, product.categories)
+            product.title_th = await _translate_to_thai(product.title)
+            product.keywords = await _extract_keywords(product.title, product.description)
+            product.viral_score = _score_viral(product)
+            if product.sold_total > 0:
+                product.trending = (product.sold_week / product.sold_total) > 0.1
+            product.enriched = True
+            return product
+        except Exception as e:
+            logger.error(f"Enrichment failed: {e}")
+            product.enriched = False
+            return product
+
+# ─── Stage 3: Exporter ───────────────────────────────────────────────────────
+
+class ProductExporter:
+    @staticmethod
+    def export_for_tus(products: List[UnifiedProduct], filters: dict = None) -> dict:
+        filters = filters or {}
+        result = []
+        for p in products:
+            if filters.get("min_rating") and p.rating < filters["min_rating"]: continue
+            if filters.get("min_sold") and p.sold_total < filters["min_sold"]: continue
+            if filters.get("commission") and p.commission_rate < filters["commission"]: continue
+            if filters.get("category") and p.category != filters["category"]: continue
+            result.append({
+                "product_id": p.product_id, "title": p.title, "title_th": p.title_th,
+                "price_thb": p.price_avg, "rating": p.rating, "sold_total": p.sold_total,
+                "viral_score": p.viral_score, "trending": p.trending,
+                "category": p.category, "keywords": p.keywords,
+                "images": p.images, "commission": f"{p.commission_rate}%",
+                "source": p.source, "seller_name": p.seller_name,
+            })
+        return {"tus_ready": True, "products": result, "count": len(result),
+                "timestamp": datetime.utcnow().isoformat()}
+
+# ─── Helper Functions ────────────────────────────────────────────────────────
+
+async def _call_mistral(prompt: str, max_tokens: int = 500) -> str:
+    if not MISTRAL_KEY: return ""
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(
+                "https://api.mistral.ai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {MISTRAL_KEY}", "Content-Type": "application/json"},
+                json={"model": "mistral-large-latest",
+                      "messages": [{"role": "user", "content": prompt}],
+                      "max_tokens": max_tokens, "temperature": 0.3})
+            if resp.status_code == 200:
+                return resp.json()["choices"][0]["message"]["content"].strip()
+            logger.warning(f"Mistral error: {resp.status_code} {resp.text[:200]}")
+            return ""
+    except Exception as e:
+        logger.error(f"Mistral call failed: {e}")
+        return ""
+
+async def _detect_category(title: str, categories: list) -> str:
+    if categories and categories[0]:
+        for en, th in CATEGORY_MAP.items():
+            if en in categories[0].lower() or th in categories[0]:
+                return th
+    for en, th in CATEGORY_MAP.items():
+        if en in title.lower():
+            return th
+    return categories[0] if categories else "อื่นๆ"
+
+async def _translate_to_thai(text: str) -> str:
+    if not text: return ""
+    prompt = f"Translate this product title to Thai naturally (keep brand names):\n\n{text}"
+    result = await _call_mistral(prompt)
+    return result if result else text
+
+async def _extract_keywords(title: str, description: str) -> list:
+    if not title: return []
+    prompt = f"Extract 5-10 Thai keywords for TikTok caption from:\nTitle: {title}\nDesc: {description}\nReturn JSON array only."
+    result = await _call_mistral(prompt, max_tokens=200)
+    if result:
+        try: return json.loads(result)
+        except:
+            import re; words = re.findall(r'"([^"]+)"', result)
+            return words[:10] if words else []
+    return []
+
+def _score_viral(p: UnifiedProduct) -> float:
+    score = (
+        min(1.0, p.sold_total / 10000) * 30 +
+        min(1.0, p.rating / 5.0) * 20 +
+        min(1.0, (p.sold_week / max(1, p.sold_total))) * 20 +
+        min(1.0, p.influencer_count / 50) * 15 +
+        min(1.0, p.sales_gmv_7d / max(1, p.sales_gmv_30d)) * 15
+    )
+    return round(min(100, max(0, score)), 2)
+
+# ─── Pipeline Entry Points ────────────────────────────────────────────────────
+
+async def analyze_product(raw_data: dict, source: str = "") -> dict:
+    """Single product: Normalize → Enrich → Export"""
+    try:
+        normalized = await ProductNormalizer.normalize(raw_data, source)
+        enriched = await ProductEnricher.enrich(normalized)
+        return ProductExporter.export_for_tus([enriched])
+    except Exception as e:
+        logger.error(f"Pipeline failed: {e}")
+        return {"tus_ready": False, "error": str(e), "products": [], "count": 0, "timestamp": datetime.utcnow().isoformat()}
+
+async def batch_analyze(raw_data_list: list, source: str = "", filters: dict = None) -> dict:
+    """Batch: Normalize → Enrich → Export with filters"""
+    try:
+        normalized = [await ProductNormalizer.normalize(d, source) for d in raw_data_list]
+        enriched = [await ProductEnricher.enrich(p) for p in normalized]
+        return ProductExporter.export_for_tus(enriched, filters)
+    except Exception as e:
+        logger.error(f"Batch pipeline failed: {e}")
+        return {"tus_ready": False, "error": str(e), "products": [], "count": 0, "timestamp": datetime.utcnow().isoformat()}

@@ -28,6 +28,8 @@ from product.models import (
 )
 from product.scraper import scrape_url, _try_http_extract
 from product.analyzer import analyze_with_vision
+from product.analyze_pipeline import analyze_product, batch_analyze
+from product.analyze_models import AnalyzeRequest, AnalyzeResponse, BatchAnalyzeRequest, BatchAnalyzeResponse, ExportResponse
 from product.db_models import SCRAPE_TIERS, get_tier_config
 from product.export_service import (
     export_products_to_sheet, is_ready as sheets_ready, get_setup_instructions,
@@ -915,3 +917,38 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Product Analysis API — Normalize → Enrich → Export for TUS
+# ═══════════════════════════════════════════════════════════════════════════
+
+@app.post("/api/v1/analyze", response_model=AnalyzeResponse)
+async def api_analyze_product(request: AnalyzeRequest):
+    """Analyze a single product: Normalize → Enrich → Export for TUS"""
+    try:
+        result = await analyze_product(request.raw_data, request.source)
+        return AnalyzeResponse(**result)
+    except Exception as e:
+        logger.error(f"Analysis failed: {e}")
+        return AnalyzeResponse(tus_ready=False, products=[], count=0, timestamp=datetime.utcnow().isoformat(), error=str(e))
+
+@app.post("/api/v1/analyze/batch", response_model=BatchAnalyzeResponse)
+async def api_batch_analyze(request: BatchAnalyzeRequest):
+    """Batch analyze products with optional filters"""
+    try:
+        result = await batch_analyze(request.raw_data_list, request.source, request.filters)
+        return BatchAnalyzeResponse(**result)
+    except Exception as e:
+        logger.error(f"Batch analysis failed: {e}")
+        return BatchAnalyzeResponse(tus_ready=False, products=[], count=0, timestamp=datetime.utcnow().isoformat(), error=str(e))
+
+@app.get("/api/v1/analyze/export")
+async def api_export_analyzed(
+    category: Optional[str] = None,
+    min_rating: Optional[float] = None,
+    min_sold: Optional[int] = None,
+    commission: Optional[float] = None,
+):
+    """Export analyzed products for TUS (stub — ready for DB integration)"""
+    return {"tus_ready": True, "products": [], "count": 0, "timestamp": datetime.utcnow().isoformat(), "message": "DB storage not yet implemented — store analyzed data first"}

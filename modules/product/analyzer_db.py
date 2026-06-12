@@ -16,14 +16,27 @@ async def store_analyzed(product: dict) -> str:
     """Store/update an analyzed product. Returns product id."""
     async with async_session_factory() as session:
         try:
-            pid = product.get("product_id", "")
-            src = product.get("source", "")
+            pid = product.get("product_id", "") or ""
+            title = product.get("title", "") or ""
+            src = product.get("source", "") or ""
             existing = None
+            # Try dedup by product_id + source first
             if pid and src:
                 result = await session.execute(
                     select(AnalyzedProduct).where(
                         and_(
                             AnalyzedProduct.product_id == pid,
+                            AnalyzedProduct.source == src,
+                        )
+                    )
+                )
+                existing = result.scalar_one_or_none()
+            # Fallback: dedup by title + source (for scraped data without product_id)
+            if not existing and title and src:
+                result = await session.execute(
+                    select(AnalyzedProduct).where(
+                        and_(
+                            AnalyzedProduct.title == title,
                             AnalyzedProduct.source == src,
                         )
                     )

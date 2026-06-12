@@ -1,44 +1,20 @@
-"""Analyzer Database CRUD — async PostgreSQL, replaces in-memory store.
-
-Uses AnalyzedProduct model from db_models.py and shared async database session.
+"""Analyzer Database CRUD — uses shared.database async PostgreSQL session.
+Replaces in-memory store for analyzed product data.
 """
 import os, logging
-from typing import Optional, List, Dict, Any
+from typing import Optional
 from datetime import datetime, timezone
-
 from sqlalchemy import func, select, and_, text
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
-
+from shared.database import async_session_factory
 from product.db_models import AnalyzedProduct
+import uuid
 
 logger = logging.getLogger("analyzer_db")
 
-DB_URL = os.environ.get(
-    "ANALYZER_DB_URL",
-    "postgresql+asyncpg://openhands:OpenHands%40ERP2026@127.0.0.1:5432/erp_stack"
-)
-
-_engine = None
-
-def get_engine():
-    global _engine
-    if _engine is None:
-        _engine = create_async_engine(DB_URL, echo=False, pool_size=5, max_overflow=10)
-    return _engine
-
-async def _run(fn):
-    async with async_sessionmaker(get_engine(), expire_on_commit=False)() as session:
-        try:
-            result = await fn(session)
-            await session.commit()
-            return result
-        except Exception as e:
-            await session.rollback()
-            raise
 
 async def store_analyzed(product: dict) -> str:
     """Store/update an analyzed product. Returns product id."""
-    async with async_sessionmaker(get_engine(), expire_on_commit=False)() as session:
+    async with async_session_factory() as session:
         try:
             pid = product.get("product_id", "")
             src = product.get("source", "")
@@ -63,9 +39,8 @@ async def store_analyzed(product: dict) -> str:
                 existing.updated_at = now_str
                 record_id = existing.id
             else:
-                import uuid; _uuid = lambda: str(uuid.uuid4())
                 record = AnalyzedProduct(
-                    id=_uuid(),
+                    id=str(uuid.uuid4()),
                     created_at=now_str,
                     updated_at=now_str,
                     **{k: v for k, v in product.items()
@@ -85,7 +60,7 @@ async def store_analyzed(product: dict) -> str:
 
 async def get_analyzed_stats() -> dict:
     """Aggregate stats from all analyzed products."""
-    async with async_sessionmaker(get_engine(), expire_on_commit=False)() as session:
+    async with async_session_factory() as session:
         try:
             total = (await session.execute(
                 select(func.count(AnalyzedProduct.id))
@@ -140,7 +115,7 @@ async def get_analyzed_products(
     offset: int = 0,
 ) -> dict:
     """Query analyzed products with filters."""
-    async with async_sessionmaker(get_engine(), expire_on_commit=False)() as session:
+    async with async_session_factory() as session:
         try:
             stmt = select(AnalyzedProduct)
             if min_rating > 0:
@@ -205,11 +180,3 @@ async def store_analyzed_batch(products: list) -> int:
         if await store_analyzed(p):
             count += 1
     return count
-
-
-async def init_db():
-    """Create tables if not exists. Run on service startup."""
-    from shared.database import Base
-    async with get_engine().begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    logger.info("Analyzer DB tables ready")

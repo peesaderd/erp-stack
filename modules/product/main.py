@@ -1133,6 +1133,14 @@ async def api_analyze_from_scrape(req: dict):
                 elif r.source_site == "lazada":
                     platform_url = f"https://www.lazada.co.th/products/i{r.sku}.html"
 
+            # Only keep products with affiliate commission
+            raw_comm = raw_data.get("commission", "0%")
+            has_comm = False
+            if isinstance(raw_comm, str):
+                has_comm = raw_comm.replace("%","").strip() not in ("", "0", "0.0")
+            elif isinstance(raw_comm, (int, float)):
+                has_comm = float(raw_comm) > 0.01
+
             for ap in analyzed_products:
                 ap["source"] = r.source_site or ap.get("source", "generic")
                 if r.name and not ap.get("title"):
@@ -1145,6 +1153,8 @@ async def api_analyze_from_scrape(req: dict):
                     ap["url"] = platform_url
                 if scraped_images:
                     ap["images"] = scraped_images
+                # Store commission for affiliate filter
+                ap["has_commission"] = has_comm
                 # Inject raw_data fields (commission, gmv, seller) if exist
                 if raw_data.get("commission"):
                     ap["commission_rate"] = float(raw_data["commission"].replace("%",""))
@@ -1197,7 +1207,10 @@ async def api_analyze_from_scrape(req: dict):
                     except: pass
 
             for ap in analyzed_products:
-                # Always store, regardless of skip_enrich
+                # Skip non-affiliate products
+                if not ap.get("has_commission", False):
+                    skipped += 1
+                    continue
                 await store_analyzed(ap)
                 results.append(ap)
 

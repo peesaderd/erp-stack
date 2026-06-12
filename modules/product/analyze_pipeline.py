@@ -1,14 +1,94 @@
 """Product Analysis Pipeline — Normalizer → Enricher → Exporter
 Transforms raw scraped data (TikTok Shop, Shopee, Lazada) into TUS-ready analyzed data.
 """
-import os, json, logging, httpx, asyncio, re
+import os, json, logging, httpx, asyncio, re, time
 from typing import Optional, Dict, List, Any
 from datetime import datetime
 from dataclasses import dataclass, field, asdict
+from collections import Counter
 
 logger = logging.getLogger("analyze_pipeline")
 
 MISTRAL_KEY = os.environ.get("MISTRAL_API_KEY", "")
+
+# ─── Error Rate Limiter ─────────────────────────────────────────────────────
+
+class ErrorRateLimiter:
+    """Rate-limit API calls with exponential backoff."""
+    def __init__(self, max_calls: int = 10, period: float = 60.0, backoff_factor: float = 2.0):
+        self.max_calls = max_calls
+        self.period = period
+        self.backoff_factor = backoff_factor
+        self._call_times: List[float] = []
+        self._error_count: int = 0
+        self._backoff_until: float = 0.0
+
+    def _prune(self):
+        now = time.time()
+        cutoff = now - self.period
+        self._call_times = [t for t in self._call_times if t > cutoff]
+
+    def can_call(self) -> bool:
+        now = time.time()
+        if now < self._backoff_until:
+            return False
+        self._prune()
+        return len(self._call_times) < self.max_calls
+
+    async def wait_if_needed(self):
+        now = time.time()
+        if now < self._backoff_until:
+            wait = self._backoff_until - now
+            logger.info(f"Rate limited — waiting {wait:.1f}s")
+            await asyncio.sleep(wait)
+        self._prune()
+        while len(self._call_times) >= self.max_calls:
+            await asyncio.sleep(1.0)
+            self._prune()
+
+    def record_call(self):
+        self._call_times.append(time.time())
+
+    def record_error(self):
+        self._error_count += 1
+        backoff_seconds = min(60, 1.0 * (self.backoff_factor ** (self._error_count - 1)))
+        self._backoff_until = time.time() + backoff_seconds
+        logger.warning(f"Rate limiter backoff: {backoff_seconds}s (error #{self._error_count})")
+
+    def record_success(self):
+        self._error_count = 0
+
+_rate_limiter = ErrorRateLimiter()
+
+# ─── In-Memory Cache (TTL 5 min) ─────────────────────────────────────────────
+
+class TTLCache:
+    """Simple in-memory cache with TTL."""
+    def __init__(self, ttl_seconds: int = 300):
+        self._cache: Dict[str, tuple] = {}
+        self._ttl = ttl_seconds
+
+    def get(self, key: str):
+        if key in self._cache:
+            value, expiry = self._cache[key]
+            if time.time() < expiry:
+                return value
+            del self._cache[key]
+        return None
+
+    def set(self, key: str, value):
+        self._cache[key] = (value, time.time() + self._ttl)
+
+    def clear(self):
+        self._cache.clear()
+
+    def cleanup(self):
+        now = time.time()
+        stale = [k for k, (_, exp) in self._cache.items() if now >= exp]
+        for k in stale:
+            del self._cache[k]
+
+_cache = TTLCache()
 
 # ─── Unified Data Model ──────────────────────────────────────────────────────
 
@@ -53,8 +133,10 @@ class UnifiedProduct:
 
 class ProductNormalizer:
     SOURCE_PATTERNS = {
-        "tiktok": ["total_sale_cnt", "product_id", "total_sale_gmv_amt", "cover_url"],
-        "apify": ["sold_count", "title", "total_sales", "seller_name"],
+        "tiktok": ["total_sale_cnt", "product_id", "total_sale_gmv_amt", "cover_url", "product_name", "product_rating"],
+        "apify": ["sold_count", "title", "total_sales", "seller_name", "commission_rate", "week_sales", "week_sold_count"],
+        "shopee": ["itemid", "shopid", "cmtid", "historical_sold", "shopee_verified"],
+        "lazada": ["item_id", "shop_id", "lazada_sku", "lzd_sku", "seller_sku"],
     }
 
     @staticmethod
@@ -86,10 +168,14 @@ class ProductNormalizer:
     @classmethod
     async def normalize(cls, raw_data: dict, source_hint: str = "") -> UnifiedProduct:
         source = source_hint or cls.detect_source(raw_data)
-        if source == "tiktok" or "total_sale_cnt" in raw_data:
+        if source == "tiktok" or "total_sale_cnt" in raw_data or "product_name" in raw_data:
             return cls._normalize_tiktok(raw_data)
         elif source == "apify" or "sold_count" in raw_data:
             return cls._normalize_apify(raw_data)
+        elif source == "shopee" or "itemid" in raw_data:
+            return cls._normalize_shopee(raw_data)
+        elif source == "lazada" or "item_id" in raw_data:
+            return cls._normalize_lazada(raw_data)
         else:
             return cls._normalize_generic(raw_data)
 
@@ -97,17 +183,17 @@ class ProductNormalizer:
     def _normalize_tiktok(cls, d: dict) -> UnifiedProduct:
         seller = d.get("seller", {}) or {}
         return UnifiedProduct(
-            product_id=str(d.get("product_id", "")),
-            title=d.get("product_title", d.get("product_name", "")),
-            description=d.get("product_name", ""),
+            product_id=str(d.get("product_id", d.get("id", ""))),
+            title=d.get("product_title", d.get("product_name", d.get("title", ""))),
+            description=d.get("product_name", d.get("description", "")),
             price_min=cls._safe_float(d.get("min_price", 0)),
             price_max=cls._safe_float(d.get("max_price", 0)),
-            price_avg=cls._safe_float(d.get("avg_price", d.get("real_price", 0))),
+            price_avg=cls._safe_float(d.get("avg_price", d.get("real_price", d.get("price", 0)))),
             currency="THB",
-            rating=cls._safe_float(d.get("product_rating", 0)),
+            rating=cls._safe_float(d.get("product_rating", d.get("rating", 0))),
             review_count=cls._safe_int(d.get("review_count", 0)),
-            sold_total=cls._safe_int(d.get("total_sale_cnt", 0)),
-            sold_week=cls._safe_int(d.get("total_sale_7d_cnt", 0)),
+            sold_total=cls._safe_int(d.get("total_sale_cnt", d.get("sold_count", d.get("total_sales", 0)))),
+            sold_week=cls._safe_int(d.get("total_sale_7d_cnt", d.get("week_sales", d.get("week_sold_count", 0)))),
             sold_month=cls._safe_int(d.get("total_sale_30d_cnt", 0)),
             sales_gmv_7d=cls._parse_price_str(d.get("total_sale_gmv_7d_amt", "0")),
             sales_gmv_30d=cls._parse_price_str(d.get("total_sale_gmv_30d_amt", "0")),
@@ -116,7 +202,7 @@ class ProductNormalizer:
             seller_id=str(seller.get("seller_id", d.get("seller_id", ""))),
             categories=[c.strip() for c in d.get("categories", "").split("/") if c.strip()],
             images=[d.get("cover_url", "")] if d.get("cover_url") else [],
-            commission_rate=cls._safe_float(d.get("commission", "0").replace("%","")),
+            commission_rate=cls._safe_float(d.get("commission_rate", d.get("commission", "0")).replace("%", "")),
             influencer_count=cls._safe_int(d.get("influencers_count", d.get("total_ifl_cnt", 0))),
             video_count=cls._safe_int(d.get("videos_count", d.get("total_video_count", 0))),
             rank=cls._safe_int(d.get("rank", 0)),
@@ -128,21 +214,65 @@ class ProductNormalizer:
     def _normalize_apify(cls, d: dict) -> UnifiedProduct:
         return UnifiedProduct(
             product_id=str(d.get("id", d.get("product_id", ""))),
-            title=d.get("title", ""),
-            description=d.get("description", ""),
+            title=d.get("title", d.get("product_name", "")),
+            description=d.get("description", d.get("product_name", "")),
             price_min=cls._safe_float(d.get("min_price", d.get("price", 0))),
             price_max=cls._safe_float(d.get("max_price", d.get("price", 0))),
             price_avg=cls._safe_float(d.get("price", d.get("avg_price", 0))),
             currency=d.get("currency", "USD"),
             rating=cls._safe_float(d.get("product_rating", d.get("rating", 0))),
             review_count=cls._safe_int(d.get("review_count", 0)),
-            sold_total=cls._safe_int(d.get("sold_count", d.get("total_sold", 0))),
-            sold_week=cls._safe_int(d.get("week_sold_count", 0)),
+            sold_total=cls._safe_int(d.get("sold_count", d.get("total_sales", d.get("total_sold", 0)))),
+            sold_week=cls._safe_int(d.get("week_sold_count", d.get("week_sales", 0))),
             categories=(d.get("categories", "") or "").split("|") if isinstance(d.get("categories"), str) else (d.get("categories") or []),
             images=[d.get("images_privatization", [None])[0]] if d.get("images_privatization") else [],
-            commission_rate=cls._safe_float(str(d.get("commission_rate", "0")).replace("%","")),
+            commission_rate=cls._safe_float(str(d.get("commission_rate", "0")).replace("%", "")),
             seller_name=d.get("seller_name", ""),
             source="apify",
+            scrape_timestamp=datetime.utcnow().isoformat(),
+        )
+
+    @classmethod
+    def _normalize_shopee(cls, d: dict) -> UnifiedProduct:
+        return UnifiedProduct(
+            product_id=str(d.get("itemid", d.get("id", ""))),
+            title=d.get("title", d.get("name", "")),
+            description=d.get("description", ""),
+            price_min=cls._safe_float(d.get("price_min", d.get("price", 0))),
+            price_max=cls._safe_float(d.get("price_max", d.get("price", 0))),
+            price_avg=cls._safe_float(d.get("price", d.get("avg_price", 0))),
+            currency="THB",
+            rating=cls._safe_float(d.get("item_rating", d.get("rating", d.get("product_rating", 0)))),
+            review_count=cls._safe_int(d.get("cmt_count", d.get("review_count", 0))),
+            sold_total=cls._safe_int(d.get("historical_sold", d.get("sold_count", d.get("total_sales", 0)))),
+            sold_week=cls._safe_int(d.get("week_sold_count", d.get("week_sales", 0))),
+            seller_name=d.get("shop_location", d.get("seller_name", "")),
+            categories=[],
+            images=d.get("images", [])[:8] if isinstance(d.get("images"), list) else [],
+            commission_rate=cls._safe_float(d.get("commission_rate", "0").replace("%", "")),
+            source="shopee",
+            scrape_timestamp=datetime.utcnow().isoformat(),
+        )
+
+    @classmethod
+    def _normalize_lazada(cls, d: dict) -> UnifiedProduct:
+        return UnifiedProduct(
+            product_id=str(d.get("item_id", d.get("id", ""))),
+            title=d.get("title", d.get("name", "")),
+            description=d.get("description", ""),
+            price_min=cls._safe_float(d.get("price_min", d.get("price", 0))),
+            price_max=cls._safe_float(d.get("price_max", d.get("price", 0))),
+            price_avg=cls._safe_float(d.get("price", d.get("avg_price", 0))),
+            currency="THB",
+            rating=cls._safe_float(d.get("item_rating", d.get("rating", d.get("product_rating", 0)))),
+            review_count=cls._safe_int(d.get("review_count", 0)),
+            sold_total=cls._safe_int(d.get("sold_count", d.get("total_sales", d.get("historical_sold", 0)))),
+            sold_week=cls._safe_int(d.get("week_sold_count", d.get("week_sales", 0))),
+            seller_name=d.get("seller_name", ""),
+            categories=[],
+            images=d.get("images", [])[:8] if isinstance(d.get("images"), list) else [],
+            commission_rate=cls._safe_float(d.get("commission_rate", "0").replace("%", "")),
+            source="lazada",
             scrape_timestamp=datetime.utcnow().isoformat(),
         )
 
@@ -210,6 +340,7 @@ class ProductExporter:
 
 async def _call_mistral(prompt: str, max_tokens: int = 500) -> str:
     if not MISTRAL_KEY: return ""
+    await _rate_limiter.wait_if_needed()
     try:
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.post(
@@ -218,8 +349,12 @@ async def _call_mistral(prompt: str, max_tokens: int = 500) -> str:
                 json={"model": "mistral-large-latest",
                       "messages": [{"role": "user", "content": prompt}],
                       "max_tokens": max_tokens, "temperature": 0.3})
+            _rate_limiter.record_call()
             if resp.status_code == 200:
+                _rate_limiter.record_success()
                 return resp.json()["choices"][0]["message"]["content"].strip()
+            if resp.status_code == 429:
+                _rate_limiter.record_error()
             logger.warning(f"Mistral error: {resp.status_code} {resp.text[:200]}")
             return ""
     except Exception as e:
@@ -238,19 +373,35 @@ async def _detect_category(title: str, categories: list) -> str:
 
 async def _translate_to_thai(text: str) -> str:
     if not text: return ""
+    cache_key = f"trans_{text[:100]}"
+    cached = _cache.get(cache_key)
+    if cached:
+        return cached
     prompt = f"Translate this product title to Thai naturally (keep brand names):\n\n{text}"
     result = await _call_mistral(prompt)
-    return result if result else text
+    if not result:
+        result = text
+    _cache.set(cache_key, result)
+    return result
 
 async def _extract_keywords(title: str, description: str) -> list:
     if not title: return []
+    cache_key = f"kw_{title[:100]}"
+    cached = _cache.get(cache_key)
+    if cached:
+        return cached
     prompt = f"Extract 5-10 Thai keywords for TikTok caption from:\nTitle: {title}\nDesc: {description}\nReturn JSON array only."
     result = await _call_mistral(prompt, max_tokens=200)
     if result:
-        try: return json.loads(result)
+        try:
+            keywords = json.loads(result)
+            _cache.set(cache_key, keywords)
+            return keywords
         except:
             import re; words = re.findall(r'"([^"]+)"', result)
-            return words[:10] if words else []
+            keywords = words[:10] if words else []
+            _cache.set(cache_key, keywords)
+            return keywords
     return []
 
 def _score_viral(p: UnifiedProduct) -> float:
@@ -284,3 +435,43 @@ async def batch_analyze(raw_data_list: list, source: str = "", filters: dict = N
     except Exception as e:
         logger.error(f"Batch pipeline failed: {e}")
         return {"tus_ready": False, "error": str(e), "products": [], "count": 0, "timestamp": datetime.utcnow().isoformat()}
+
+_analyzed_store: List[dict] = []
+
+async def store_analyzed(product: dict):
+    _analyzed_store.append(product)
+
+async def get_analyzed_stats() -> dict:
+    products = _analyzed_store
+    if not products:
+        return {"total": 0, "avg_rating": 0.0, "avg_viral_score": 0.0, "top_categories": [], "trending_count": 0}
+    total = len(products)
+    avg_rating = sum(p.get("rating", 0) for p in products) / total
+    avg_viral = sum(p.get("viral_score", 0) for p in products) / total
+    from collections import Counter
+    cats = Counter(p.get("category", "") for p in products if p.get("category"))
+    top_categories = [{"category": c, "count": n} for c, n in cats.most_common(10)]
+    trending_count = sum(1 for p in products if p.get("trending"))
+    return {
+        "total": total,
+        "avg_rating": round(avg_rating, 2),
+        "avg_viral_score": round(avg_viral, 2),
+        "top_categories": top_categories,
+        "trending_count": trending_count,
+    }
+
+async def get_analyzed_products(
+    min_rating: Optional[float] = None,
+    min_sold: Optional[int] = None,
+    commission: Optional[float] = None,
+    category: Optional[str] = None,
+) -> dict:
+    products = _analyzed_store
+    filtered = []
+    for p in products:
+        if min_rating is not None and p.get("rating", 0) < min_rating: continue
+        if min_sold is not None and p.get("sold_total", 0) < min_sold: continue
+        if commission is not None and p.get("commission_rate", 0) < commission: continue
+        if category and p.get("category", "") != category: continue
+        filtered.append(p)
+    return {"tus_ready": True, "products": filtered, "count": len(filtered), "timestamp": datetime.utcnow().isoformat()}

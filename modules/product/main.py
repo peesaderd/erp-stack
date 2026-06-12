@@ -28,7 +28,7 @@ from product.models import (
 )
 from product.scraper import scrape_url, _try_http_extract
 from product.analyzer import analyze_with_vision
-from product.analyze_pipeline import analyze_product, batch_analyze
+from product.analyze_pipeline import analyze_product, batch_analyze, store_analyzed, get_analyzed_stats, get_analyzed_products
 from product.analyze_models import AnalyzeRequest, AnalyzeResponse, BatchAnalyzeRequest, BatchAnalyzeResponse, ExportResponse
 from product.db_models import SCRAPE_TIERS, get_tier_config
 from product.export_service import (
@@ -928,6 +928,8 @@ async def api_analyze_product(request: AnalyzeRequest):
     """Analyze a single product: Normalize → Enrich → Export for TUS"""
     try:
         result = await analyze_product(request.raw_data, request.source)
+        for p in result.get("products", []):
+            await store_analyzed(p)
         return AnalyzeResponse(**result)
     except Exception as e:
         logger.error(f"Analysis failed: {e}")
@@ -938,6 +940,8 @@ async def api_batch_analyze(request: BatchAnalyzeRequest):
     """Batch analyze products with optional filters"""
     try:
         result = await batch_analyze(request.raw_data_list, request.source, request.filters)
+        for p in result.get("products", []):
+            await store_analyzed(p)
         return BatchAnalyzeResponse(**result)
     except Exception as e:
         logger.error(f"Batch analysis failed: {e}")
@@ -950,5 +954,17 @@ async def api_export_analyzed(
     min_sold: Optional[int] = None,
     commission: Optional[float] = None,
 ):
-    """Export analyzed products for TUS (stub — ready for DB integration)"""
-    return {"tus_ready": True, "products": [], "count": 0, "timestamp": datetime.utcnow().isoformat(), "message": "DB storage not yet implemented — store analyzed data first"}
+    """Export analyzed products for TUS with optional filters"""
+    result = await get_analyzed_products(
+        min_rating=min_rating,
+        min_sold=min_sold,
+        commission=commission,
+        category=category,
+    )
+    return result
+
+@app.get("/api/v1/analyze/stats")
+async def api_analyze_stats():
+    """Get statistics of analyzed products"""
+    stats = await get_analyzed_stats()
+    return stats

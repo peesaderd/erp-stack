@@ -25,6 +25,17 @@ app.use('/api/tiktok/scraper', createProxyMiddleware({
 
 const fs = require('fs');
 
+
+// Product Analyzer proxy
+app.use('/api/tiktok/analyze', createProxyMiddleware({
+  target: 'http://localhost:8106',
+  changeOrigin: true,
+  pathRewrite: { '^/api/tiktok/analyze': '/' },
+  proxyTimeout: 120000,
+  timeout: 120000,
+}));
+
+
 // Serve video/media files from /api/tiktok/media/<filename>
 app.get('/api/tiktok/media/:filename', (req, res) => {
   const safePath = path.resolve(__dirname, '../storage', path.basename(req.params.filename));

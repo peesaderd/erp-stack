@@ -1123,7 +1123,12 @@ async def api_analyze_from_scrape(req: dict):
                 if cover:
                     scraped_images = [cover]
 
-            result = await analyze_product(raw_data, r.source_site or "generic")
+            if skip_enrich:
+                from product.analyze_pipeline import ProductNormalizer, ProductExporter
+                normalized = await ProductNormalizer.normalize(raw_data, r.source_site or "generic")
+                result = ProductExporter.export_for_tus([normalized])
+            else:
+                result = await analyze_product(raw_data, r.source_site or "generic")
             # Patch source field if analyzer guessed wrong
             analyzed_products = result.get("products", [])
             platform_url = r.url or ""
@@ -1199,9 +1204,19 @@ async def api_analyze_from_scrape(req: dict):
                     try:
                         sv = str(raw_data["sold_count"]).replace(",","").strip()
                         if sv.endswith("M"):
-                            ap["sold_total"] = int(float(sv[:-1]) * 1000000)
+                            ap["sold_total"] = max(ap.get("sold_total",0), int(float(sv[:-1]) * 1000000))
                         elif sv.endswith("K"):
-                            ap["sold_total"] = int(float(sv[:-1]) * 1000)
+                            ap["sold_total"] = max(ap.get("sold_total",0), int(float(sv[:-1]) * 1000))
+                        else:
+                            ap["sold_total"] = max(ap.get("sold_total",0), int(float(sv)))
+                    except: pass
+                if raw_data.get("total_sale_cnt"):
+                    try:
+                        sv = str(raw_data["total_sale_cnt"]).replace(",","").strip()
+                        if sv.endswith("M"):
+                            ap["sold_total"] = max(ap.get("sold_total",0), int(float(sv[:-1]) * 1000000))
+                        elif sv.endswith("K"):
+                            ap["sold_total"] = max(ap.get("sold_total",0), int(float(sv[:-1]) * 1000))
                         else:
                             ap["sold_total"] = max(ap.get("sold_total",0), int(float(sv)))
                     except: pass

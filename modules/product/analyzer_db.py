@@ -180,6 +180,8 @@ async def get_analyzed_products(
                     "url": r.url or "",
                     "gmv_total": r.gmv_total or 0,
                     "commission_rate": r.commission_rate or 0,
+                    "description": r.description or "",
+                    "description_th": r.title_th or "",
                     "enriched": r.enriched,
                     "sold_week": r.sold_week or 0,
                     "sold_month": r.sold_month or 0,

@@ -201,7 +201,7 @@ class ProductNormalizer:
         return UnifiedProduct(
             product_id=str(d.get("product_id", d.get("id", ""))),
             title=d.get("product_title", d.get("product_name", d.get("title", ""))),
-            description=d.get("product_name", d.get("description", "")),
+            description=d.get("rich_text", d.get("short_description", d.get("product_name", d.get("description", "")))),
             price_min=cls._safe_float(d.get("min_price", 0)),
             price_max=cls._safe_float(d.get("max_price", 0)),
             price_avg=cls._safe_float(d.get("avg_price", d.get("real_price", d.get("price", 0)))),

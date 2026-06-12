@@ -1111,10 +1111,14 @@ async def api_analyze_from_scrape(req: dict):
             # Inject fields from cache if raw_data is empty
             if not raw_data.get("product_name"):
                 raw_data["product_name"] = r.name or ""
+            if not raw_data.get("product_title"):
+                raw_data["product_title"] = r.name or ""
             if not raw_data.get("price"):
                 raw_data["price"] = r.price or 0
             if not raw_data.get("description"):
                 raw_data["description"] = r.description or ""
+            if not raw_data.get("rich_text"):
+                raw_data["rich_text"] = r.description or ""
 
             # Force source to match source_site (scraped data may lack platform fields)
             scraped_images = r.images or []

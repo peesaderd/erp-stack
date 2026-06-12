@@ -212,3 +212,50 @@ def calculate_scrape_cost(user_tier: str, current_month_usage: int) -> float:
 # Price History
 # ──────────────────────────────────────────────
 
+
+
+# ──────────────────────────────────────────────
+# Analyzed Product (Product Analyzer Module)
+# ──────────────────────────────────────────────
+
+class AnalyzedProduct(Base):
+    """Analyzed/enriched product data. Written by the Analyzer pipeline."""
+    __tablename__ = "analyzed_products"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    product_id = Column(String, default="", index=True)
+    title = Column(Text, default="")
+    title_th = Column(Text, default="")
+    description = Column(Text, default="")
+    price_min = Column(Float, default=0.0)
+    price_max = Column(Float, default=0.0)
+    price_avg = Column(Float, default=0.0)
+    currency = Column(String(3), default="THB")
+    rating = Column(Float, default=0.0)
+    review_count = Column(Integer, default=0)
+    sold_total = Column(Integer, default=0)
+    sold_week = Column(Integer, default=0)
+    sold_month = Column(Integer, default=0)
+    sales_gmv_7d = Column(Float, default=0.0)
+    sales_gmv_30d = Column(Float, default=0.0)
+    sales_gmv_total = Column(Float, default=0.0)
+    sales_gmv_7d_usd = Column(Float, default=0.0)
+    sales_gmv_30d_usd = Column(Float, default=0.0)
+    sales_gmv_total_usd = Column(Float, default=0.0)
+    seller_name = Column(String(200), default="")
+    seller_id = Column(String(100), default="")
+    categories = Column(JSON, default=list)
+    category = Column(String(100), default="")
+    images = Column(JSON, default=list)
+    commission_rate = Column(Float, default=0.0)
+    influencer_count = Column(Integer, default=0)
+    video_count = Column(Integer, default=0)
+    rank = Column(Integer, default=0)
+    source = Column(String(50), default="", index=True)
+    scrape_timestamp = Column(String(50), default="")
+    viral_score = Column(Float, default=0.0)
+    trending = Column(Boolean, default=False)
+    keywords = Column(JSON, default=list)
+    enriched = Column(Boolean, default=False)
+    created_at = Column(String(50), default="")
+    updated_at = Column(String(50), default="")

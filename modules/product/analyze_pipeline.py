@@ -6,6 +6,8 @@ from typing import Optional, Dict, List, Any
 from datetime import datetime
 from dataclasses import dataclass, field, asdict
 from collections import Counter
+from product.analyzer_db import store_analyzed as _store_analyzed, get_analyzed_stats as _get_stats, get_analyzed_products as _get_products
+from product.analyzer_db import store_analyzed_batch
 
 logger = logging.getLogger("analyze_pipeline")
 
@@ -436,29 +438,15 @@ async def batch_analyze(raw_data_list: list, source: str = "", filters: dict = N
         logger.error(f"Batch pipeline failed: {e}")
         return {"tus_ready": False, "error": str(e), "products": [], "count": 0, "timestamp": datetime.utcnow().isoformat()}
 
-_analyzed_store: List[dict] = []
+# DB-backed store — see analyzer_db.py
+from product.analyzer_db import store_analyzed as _store_analyzed, get_analyzed_stats as _get_stats, get_analyzed_products as _get_products
+from product.analyzer_db import store_analyzed_batch
 
 async def store_analyzed(product: dict):
-    _analyzed_store.append(product)
+    await _store_analyzed(product)
 
 async def get_analyzed_stats() -> dict:
-    products = _analyzed_store
-    if not products:
-        return {"total": 0, "avg_rating": 0.0, "avg_viral_score": 0.0, "top_categories": [], "trending_count": 0}
-    total = len(products)
-    avg_rating = sum(p.get("rating", 0) for p in products) / total
-    avg_viral = sum(p.get("viral_score", 0) for p in products) / total
-    from collections import Counter
-    cats = Counter(p.get("category", "") for p in products if p.get("category"))
-    top_categories = [{"category": c, "count": n} for c, n in cats.most_common(10)]
-    trending_count = sum(1 for p in products if p.get("trending"))
-    return {
-        "total": total,
-        "avg_rating": round(avg_rating, 2),
-        "avg_viral_score": round(avg_viral, 2),
-        "top_categories": top_categories,
-        "trending_count": trending_count,
-    }
+    return await _get_stats()
 
 async def get_analyzed_products(
     min_rating: Optional[float] = None,
@@ -466,12 +454,9 @@ async def get_analyzed_products(
     commission: Optional[float] = None,
     category: Optional[str] = None,
 ) -> dict:
-    products = _analyzed_store
-    filtered = []
-    for p in products:
-        if min_rating is not None and p.get("rating", 0) < min_rating: continue
-        if min_sold is not None and p.get("sold_total", 0) < min_sold: continue
-        if commission is not None and p.get("commission_rate", 0) < commission: continue
-        if category and p.get("category", "") != category: continue
-        filtered.append(p)
-    return {"tus_ready": True, "products": filtered, "count": len(filtered), "timestamp": datetime.utcnow().isoformat()}
+    return await _get_products(
+        min_rating=min_rating or 0,
+        min_sold=min_sold or 0,
+        commission=commission or 0,
+        category=category,
+    )

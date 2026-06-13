@@ -862,7 +862,7 @@ async function generateScript() {
     if (details) body.product_details = details;
     if (manual) body.product_name = manual;
 
-    const res = await fetch(API.replace('/scraper','') + '/scripts/generate', {
+    const res = await fetch(window.location.origin + '/api/tiktok/scripts/generate', {
       method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
     });
     if (!res.ok) throw new Error('Generate failed');

@@ -51,21 +51,21 @@ app.post('/api/tiktok/scripts/generate', (req, res) => {
   let cta = "";
   
   if (isBeauty) {
-    hook = "You will not believe how good this is! ✨";
-    value = "Let me introduce you to " + title + ". " + details + ". This product is honestly amazing — the results speak for themselves.";
-    cta = "Get yours now at the link below! 🛍️ FREE delivery today!";
+    hook = "ไม่เชื่อใช่ไหมว่าตัวนี้ดีขนาดนี้! ✨";
+    value = "ขอแนะนำ " + title + "\n" + details + "\nตัวนี้บอกเลยว่าดีจริง ใช้แล้วเห็นผลชัดเจน ผิวดีขึ้นแบบไม่น่าเชื่อ ลองดูได้เลย!";
+    cta = "สั่งซื้อเลยที่ลิงก์ด้านล่าง! 🛍️ ส่งฟรีวันนี้! #ของดีบอกต่อ #สินค้าแนะนำ";
   } else if (ugc_style === "usage") {
-    hook = "Wait till you see what this can do! 🤯";
-    value = "Unboxing and testing " + (title || "this product") + ". " + details + ". The quality is insane for the price.";
-    cta = "Link in bio! Order now before stock runs out 🔗";
+    hook = "เดี๋ยวรู้เลยว่าตัวนี้ทำอะไรได้บ้าง! 🤯";
+    value = "มาแกะกล่อง + ลองใช้ " + (title || "สินค้าตัวนี้") + "\n" + details + "\nคุณภาพดีเกินราคา แนะนำเลย!";
+    cta = "กดลิงก์ด้านล่างเลย! ของใกล้หมดแล้ว 🔗 #ของมันต้องมี #รีวิวสินค้า";
   } else if (ugc_style === "review") {
-    hook = "Honest review: is it worth the hype? 🤔";
-    value = "I've been using " + (title || "this product") + " for a while now. " + details + ". Here's my honest take — pros, cons, and everything.";
-    cta = "Follow for more reviews! Don't forget to save this 📌";
+    hook = "รีวิวแบบจริงใจ: มันดีจริงไหม? 🤔";
+    value = "เราใช้ " + (title || "สินค้าตัวนี้") + " มาซักพักแล้ว\n" + details + "\นี่คือความจริงใจ ข้อดี ข้อเสีย มีครบ!";
+    cta = "กดติดตามเพื่อดูรีวิวเพิ่มเติม! อย่าลืมเซฟไว้นะ 📌 #รีวิวของดี";
   } else {
-    hook = "You NEED this in your life! 🔥";
-    value = "Check out " + (title || "this amazing product") + ". " + details + ". Perfect for everyday use. You won't regret it!";
-    cta = "Link in bio! Free shipping available 🚚";
+    hook = "ต้องมีติดบ้าน! 🔥";
+    value = "มาดู " + (title || "สินค้าตัวนี้") + "\n" + details + "\nใช้ดีจนต้องบอกต่อ คุ้มค่ามาก!";
+    cta = "ลิงก์ในโปรไฟล์! สั่งเลยก่อนของหมด 🛒 #สินค้าดีบอกต่อ #ของใช้ประจำวัน";
   }
   
   res.json({

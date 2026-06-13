@@ -2539,6 +2539,29 @@ async def pfm_auto_publish(req: TikTokUploadRequest):
         return {"success": False, "error": str(e)[:300]}
 
 
+@app.get("/products/list")
+async def tus_products(
+    preset: str = "auto_affiliate",
+    limit: int = 10,
+    category: str = None,
+):
+    """Get TUS-ready products from Analysis Module.
+
+    Returns analyzed products with viral scores, ready for pipeline gen.
+    """
+    try:
+        from tus_analyzer_pipeline import fetch_trending_for_tus
+        result = await fetch_trending_for_tus(
+            preset=preset,
+            limit=limit,
+            category=category,
+        )
+        return result
+    except Exception as e:
+        logger.exception(f"Products list failed")
+        raise HTTPException(status_code=502, detail=str(e))
+
+
 @app.get("/stats")
 def stats():
     return {

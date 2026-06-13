@@ -82,6 +82,9 @@ try:
 except Exception as e:
     logger.warning(f"Static mount (may already exist): {e}")
 
+# Pipeline results store (in-memory, tracks background pipeline jobs)
+_pipeline_results = {}
+
 # ─── Pydantic Models ───────────────────────────────────────────────────────
 
 class ScriptRequest(BaseModel):
@@ -119,7 +122,10 @@ class VideoRequest(BaseModel):
     image_url: Optional[str] = None
     script: Optional[str] = None
     ugc_style: Optional[str] = None
-    negative_prompt: Optional[str] = None  # Added for P1: negative prompt support
+    negative_prompt: Optional[str] = None
+    product_title: Optional[str] = None
+    product_url: Optional[str] = None
+    product_image: Optional[str] = None
 
 
 class VideoTaskRequest(BaseModel):
@@ -1054,37 +1060,83 @@ def script_templates():
 
 @app.post("/video/generate")
 def generate_video(req: VideoRequest):
-    """Start video generation task with optional negative prompt"""
-    from video_gen import generate_video, build_video_prompt, VideoProvider
+    """Full UGC pipeline: Seedream image → MiniMax TTS → WaveSpeed video → FFmpeg merge"""
+    from pipeline_affiliate import run_pipeline as affiliate_run
+    import uuid, json, threading
 
-    prompt = req.prompt
+    job_id = f"vid_{uuid.uuid4().hex[:8]}"
 
-    # If script is provided, build a video prompt from it
-    if req.script and req.ugc_style:
-        prompt = build_video_prompt(req.script, req.ugc_style)
+    # Build script from prompt (hook + value + cta)
+    script = req.prompt or ""
+    if req.script:
+        script = req.script
 
-    try:
-        provider = VideoProvider(req.provider)
-    except ValueError:
-        raise HTTPException(status_code=400, detail=f"Unknown provider: {req.provider}")
+    # Scene prompts — 1 scene for 8s, 2 scenes for 16s+
+    scene_prompts = [script]
+    if req.duration >= 16:
+        scene_prompts = [
+            f"{script} [Scene 1: product showcase, establishing shot]",
+            f"{script} [Scene 2: product usage, close-up details]",
+        ]
 
-    try:
-        result = generate_video(
-            prompt=prompt,
-            provider=provider,
-            model_tier=req.model_tier,
-            duration=req.duration,
-            aspect_ratio=req.aspect_ratio,
-            image_url=req.image_url,
-            negative_prompt=req.negative_prompt,
-        )
-        # Include negative_prompt used in response
-        result["negative_prompt"] = req.negative_prompt or ""
-        return result
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=str(e))
+    duration = min(req.duration, 8)
+
+    def _run():
+        try:
+            # Build image prompt from product info
+            img_prompt = None
+            if req.product_title:
+                img_prompt = f"{req.product_title} product photography, clean background, professional lighting, product showcase"
+            elif req.prompt:
+                img_prompt = f"{req.prompt} product photography, clean background"
+
+            result = affiliate_run(
+                script=script,
+                scene_prompts=scene_prompts,
+                voice_id="English_Trustworth_Man",
+                video_duration=duration,
+                enable_lip_sync=False,
+                image_prompt=img_prompt,
+            )
+            VIDEOS_DIR.mkdir(parents=True, exist_ok=True)
+            final_path = result["final_path"]
+            import shutil
+            dest = VIDEOS_DIR / f"final_{job_id}.mp4"
+            shutil.copy2(final_path, dest)
+            _pipeline_results[job_id] = {
+                "status": "completed",
+                "video_url": f"/static/videos/final_{job_id}.mp4",
+                "cost": result.get("cost_estimate", 0),
+                "cost_breakdown": result.get("cost_breakdown", {}),
+                "job_id": job_id,
+            }
+        except Exception as e:
+            logger.exception(f"Pipeline {job_id} failed")
+            _pipeline_results[job_id] = {
+                "status": "failed",
+                "error": str(e),
+                "job_id": job_id,
+            }
+
+    thread = threading.Thread(target=_run, daemon=True)
+    thread.start()
+
+    _pipeline_results[job_id] = {
+        "status": "processing",
+        "job_id": job_id,
+        "message": "Pipeline running...",
+    }
+
+    return {"status": "queued", "job_id": job_id, "duration": req.duration}
+
+
+@app.get("/video/status/{job_id}")
+def video_pipeline_status(job_id: str):
+    """Check full pipeline job status (background pipeline_affiliate run)"""
+    result = _pipeline_results.get(job_id)
+    if not result:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+    return result
 
 
 @app.post("/video/status")
@@ -1115,9 +1167,13 @@ def video_providers():
         "aspect_ratios": ["9:16", "16:9", "1:1"],
         "durations": [8, 16],
         "duration_options": [
-            {"value": 8, "label": "8 วิ ~$0.08", "description": "คลิปสั้น เหมาะ TikTok Affiliate"},
-            {"value": 16, "label": "16 วิ ~$0.16 (2 scenes)", "description": "2 scenes ต่อกัน"}
+            {"value": 8, "label": "8 วิ ~$0.13", "description": "Seedream > MiniMax > WaveSpeed > FFmpeg merge"},
+            {"value": 16, "label": "16 วิ ~$0.25 (2 scenes)", "description": "2 scenes concat + full pipeline"}
         ],
+        "pipeline": {
+            "steps": ["Seedream Image", "MiniMax TTS", "WaveSpeed Video", "FFmpeg Merge", "BGM (optional)", "Lip Sync (optional)"],
+            "engine": "pipeline_affiliate",
+        },
     }
 
 

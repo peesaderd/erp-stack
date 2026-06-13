@@ -993,10 +993,35 @@ async function startGeneration() {
     });
     if (!res.ok) throw new Error('Generation failed');
     const data = await res.json();
-    document.getElementById('progressBar').style.width = '100%';
-    document.getElementById('progressText').textContent = '✅ วิดีโอ ' + label + 'พร้อมแล้ว! วิดีโอ: ' + (data.task_id || '');
-    showToast('วิดีโอ ' + label + 'สร้างเสร็จ ✅','success');
-    setTimeout(() => loadPipeline(), 1500);
+    const jobId = data.job_id;
+    document.getElementById('progressText').textContent = '⏳ กำลังสร้างวิดีโอ ' + label + ' (Pipeline)...';
+    document.getElementById('progressBar').style.width = '60%';
+
+    // Poll pipeline status
+    let attempts = 0;
+    const pollJob = async () => {
+      while (attempts < 60) {
+        attempts++;
+        await new Promise(r => setTimeout(r, 5000));
+        try {
+          const sres = await fetch(API + '/video/status/' + jobId);
+          const sdata = await sres.json();
+          if (sdata.status === 'completed') {
+            document.getElementById('progressBar').style.width = '100%';
+            document.getElementById('progressText').textContent = '✅ วิดีโอ ' + label + 'พร้อมแล้ว! ต้นทุน ~$' + (sdata.cost || '0.13');
+            showToast('วิดีโอ ' + label + 'สร้างเสร็จ ✅','success');
+            setTimeout(() => loadPipeline(), 1000);
+            return;
+          } else if (sdata.status === 'failed') {
+            throw new Error(sdata.error || 'Pipeline failed');
+          }
+        } catch(e) {
+          if (attempts > 5) throw e;
+        }
+      }
+      throw new Error('Timeout waiting for video');
+    };
+    pollJob();
   } catch(e) {
     document.getElementById('progressText').textContent = '❌ ล้มเหลว: ' + e.message;
     showToast('Generation failed: ' + e.message,'error');

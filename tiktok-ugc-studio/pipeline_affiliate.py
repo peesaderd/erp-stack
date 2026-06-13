@@ -1,13 +1,12 @@
 """
-TikTok UGC Studio — Affiliate Video Pipeline (MVP)
-===================================================
-Pipeline: WaveSpeed Wan 2.2 Ultra (video) → MiniMax Speech (voice) → VEED Lip Sync (optional) → FFmpeg (merge)
+TikTok UGC Studio — Affiliate Video Pipeline (Prodia Only)
+===========================================================
+Pipeline: Prodia FLUX (image) → MiniMax TTS (voice) → Wan 2.7 img2vid+audio (lip sync built-in) → FFmpeg (concat)
 
 ต้นทุนต่อคลิป:
-  - 8 วิ (ไม่มี Lip Sync):  ~$0.17
-  - 16 วิ (ไม่มี Lip Sync): ~$0.33
-  - 8 วิ (มี Lip Sync):     ~$0.22
-  - 16 วิ (มี Lip Sync):    ~$0.44
+  - 8 วิ (Lip Sync in video):  ~$0.034
+  - 16 วิ (Lip Sync in video): ~$0.064
+  - 2 scenes:                  ~$0.064
 """
 
 import os

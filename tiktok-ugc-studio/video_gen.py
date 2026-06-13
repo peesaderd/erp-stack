@@ -1,6 +1,7 @@
 """
 TikTok UGC Studio — AI Video Generation Pipeline
-Providers: WaveSpeed + fal.ai
+Default: Prodia Wan 2.7 (img2vid+audio, $0.03)
+Fallback: WaveSpeed Wan 2.2 ($0.08) -> Fal.ai ($0.10+)
 """
 
 import os
@@ -18,10 +19,21 @@ logger = logging.getLogger("tiktok-ugc.video_gen")
 # ─── Provider Configuration ────────────────────────────────────────────
 
 class VideoProvider(str, Enum):
+    PRODIA = "prodia"
     WAVESPEED = "wavespeed"
     FAL = "fal"
 
 PROVIDER_CONFIG = {
+    VideoProvider.PRODIA: {
+        "key": os.environ.get("PRODIA_TOKEN", ""),
+        "models": {"standard": "inference.wan2-7.img2vid.v1",
+                    "t2v": "inference.wan2-7.txt2vid.v1"},
+        "default_model": "inference.wan2-7.img2vid.v1",
+        "base_url": "https://inference.prodia.com/v2",
+        "image_to_video": True,
+        "rate_limit_rps": 5,
+        "estimate_cost": 0.03,  # $0.03/gen
+    },
     VideoProvider.WAVESPEED: {
         "key": os.environ.get("WAVESPEED_API_KEY", ""),
         "models": {"standard": "wavespeed-ai/wan-2.2/t2v-480p-ultra-fast"},
@@ -113,9 +125,11 @@ def retryable(max_retries=3, base_delay=1.0, backoff=2.0, retry_statuses=(429, 5
 # ─── Provider Fallback Chain ───────────────────────────────────────────
 
 PROVIDER_FALLBACK_CHAIN = [
-    # Only one primary provider — WaveSpeed Wan 2.2 Ultra Fast
+    # Primary — Prodia Wan 2.7 ($0.03, lip sync built-in)
+    (VideoProvider.PRODIA, "standard"),
+    # Fallback — WaveSpeed Wan 2.2 ($0.08, no lip sync)
     (VideoProvider.WAVESPEED, "standard"),
-    # Fal.ai fallback (more expensive, slower)
+    # Last resort — Fal.ai ($0.10+)
     (VideoProvider.FAL, "standard"),
     (VideoProvider.FAL, "kling"),
 ]
@@ -170,7 +184,7 @@ UGC_PRESETS = {
 
 def generate_video(
     prompt: str,
-    provider: VideoProvider = VideoProvider.WAVESPEED,
+    provider: VideoProvider = VideoProvider.PRODIA,
     model_tier: str = "standard",
     duration: int = 8,
     aspect_ratio: str = "9:16",
@@ -414,11 +428,13 @@ def _fal_status(config, task_id):
 # ─── Provider Dispatch Tables ─────────────────────────────────────────
 
 _PROVIDER_HANDLERS = {
+    VideoProvider.PRODIA: _ws_generate,  # Prodia uses same shape
     VideoProvider.WAVESPEED: _ws_generate,
     VideoProvider.FAL: _fal_generate,
 }
 
 _STATUS_HANDLERS = {
+    VideoProvider.PRODIA: _ws_status,
     VideoProvider.WAVESPEED: _ws_status,
     VideoProvider.FAL: _fal_status,
 }
@@ -502,7 +518,7 @@ class TaskQueue:
         except Exception as e:
             logger.warning(f"SQLite task DB init failed: {e}")
     
-    def enqueue(self, prompt: str, provider: str = "wavespeed", model_tier: str = "standard",
+    def enqueue(self, prompt: str, provider: str = "prodia", model_tier: str = "standard",
                 duration: int = 8, aspect_ratio: str = "9:16",
                 image_url: str = None, face_image_url: str = None) -> str:
         """Add task to queue, returns task_id"""
@@ -604,7 +620,7 @@ class TaskQueue:
 # Global singleton
 task_queue = TaskQueue()
 
-def enqueue_video_task(prompt, provider="wavespeed", model_tier="standard", duration=8,
+def enqueue_video_task(prompt, provider="prodia", model_tier="standard", duration=8,
                        aspect_ratio="9:16", image_url=None, face_image_url=None) -> str:
     """Enqueue video generation and return task_id immediately"""
     return task_queue.enqueue(prompt, provider, model_tier, duration, aspect_ratio, image_url, face_image_url)

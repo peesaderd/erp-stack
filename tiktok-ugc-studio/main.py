@@ -115,7 +115,7 @@ class ConcatRequest(BaseModel):
 
 class VideoRequest(BaseModel):
     prompt: str
-    provider: str = "wavespeed"
+    provider: str = "prodia"
     model_tier: str = "standard"
     duration: int = 8
     aspect_ratio: str = "9:16"
@@ -135,7 +135,7 @@ class VideoTaskRequest(BaseModel):
 
 class QueueVideoRequest(BaseModel):
     prompt: str
-    provider: str = "wavespeed"
+    provider: str = "prodia"
     model_tier: str = "standard"
     duration: int = 8
     aspect_ratio: str = "9:16"
@@ -1060,7 +1060,7 @@ def script_templates():
 
 @app.post("/video/generate")
 def generate_video(req: VideoRequest):
-    """Full UGC pipeline: Seedream image → MiniMax TTS → WaveSpeed video → FFmpeg merge"""
+    """Full UGC pipeline: FLUX image → MiniMax TTS → Prodia Wan 2.7 video → FFmpeg merge"""
     from pipeline_affiliate import run_pipeline as affiliate_run
     import uuid, json, threading
 
@@ -1167,12 +1167,12 @@ def video_providers():
         "aspect_ratios": ["9:16", "16:9", "1:1"],
         "durations": [8, 16],
         "duration_options": [
-            {"value": 8, "label": "8 วิ ~$0.13", "description": "Seedream > MiniMax > WaveSpeed > FFmpeg merge"},
-            {"value": 16, "label": "16 วิ ~$0.25 (2 scenes)", "description": "2 scenes concat + full pipeline"}
+            {"value": 8, "label": "8 วิ ~$0.034", "description": "Prodia FLUX > MiniMax TTS > Wan 2.7 img2vid+audio (Lip Sync built-in)"},
+            {"value": 16, "label": "16 วิ ~$0.064 (2 scenes)", "description": "2 scenes concat + Wan 2.7 audio-driven"}
         ],
         "pipeline": {
-            "steps": ["Seedream Image", "MiniMax TTS", "WaveSpeed Video", "FFmpeg Merge", "BGM (optional)", "Lip Sync (optional)"],
-            "engine": "pipeline_affiliate",
+            "steps": ["SAM3 Analyze", "FLUX Image", "MiniMax TTS", "Wan 2.7 img2vid+audio", "FFmpeg Concat"],
+            "engine": "pipeline_default",
         },
     }
 

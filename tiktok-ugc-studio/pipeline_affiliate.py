@@ -21,32 +21,90 @@ from typing import Optional
 
 import requests
 
+# SAM3 client (optional)
+from sam3_client import segment_image, mask_to_rgba, track_object_in_video
+
 logger = logging.getLogger("tiktok-ugc.pipeline_affiliate")
 
 # ─── Config ────────────────────────────────────────────────────────────────
 
 FAL_KEY = os.environ.get("FAL_API_KEY", "") or os.environ.get("FAL_KEY", "")
 WAVESPEED_KEY = os.environ.get("WAVESPEED_API_KEY", "") or os.environ.get("WAVESPEED_KEY", "")
+PRODIA_TOKEN = os.environ.get("PRODIA_TOKEN", "") or os.environ.get("PRODIA_KEY", "")
 
 STORAGE_DIR = Path(__file__).parent / "storage"
 TMP_DIR = STORAGE_DIR / "tmp"
 TMP_DIR.mkdir(parents=True, exist_ok=True)
 
-# ─── Step 0: Image Generation (Seedream V4.5 @ Fal.ai) ────────────────────
+# ─── Step 0: Image Generation (FLUX schnell @ Prodia) ────────────────────
 
 def generate_image(prompt: str, image_size: str = "square_hd", num_images: int = 1) -> str:
     """
-    สร้างรูปภาพผ่าน Seedream V4.5 @ Fal.ai (ByteDance — ภาษาไทยใช้ได้)
+    สร้างรูปภาพผ่าน FLUX schnell @ Prodia
+    ถูกกว่า Seedream 40 เท่า
 
     Args:
-        prompt: คำอธิบายภาพ (ภาษาไทย/อังกฤษ)
-        image_size: ขนาด (square_hd, square, portrait_4_3, landscape_4_3 ฯลฯ)
+        prompt: คำอธิบายภาพ
+        image_size: ขนาด (square_hd=1024x1024)
         num_images: จำนวนภาพ
 
     Returns:
         URL ของรูปภาพ
 
-    Cost: $0.04/ภาพ
+    Cost: $0.001/ภาพ
+    """
+    if not PRODIA_TOKEN:
+        # Fallback to Seedream if Prodia not configured
+        logger.warning("PRODIA_TOKEN not configured, falling back to Seedream")
+        return generate_image_fal(prompt, image_size, num_images)
+
+    # Prodia FLUX schnell — asynchronous job + poll
+    submit_url = "https://inference.prodia.com/v2/job"
+    headers = {"Authorization": f"Bearer {PRODIA_TOKEN}", "Content-Type": "application/json"}
+    payload = {
+        "type": "inference.flux-fast.schnell.txt2img.v2",
+        "config": {
+            "prompt": prompt,
+            "steps": 4,
+            "seed": -1
+        }
+    }
+
+    resp = requests.post(submit_url, headers=headers, json=payload, timeout=30)
+    resp.raise_for_status()
+    data = resp.json()
+    job_id = data.get("job", {}).get("id", "") or data.get("id", "")
+    if not job_id:
+        raise RuntimeError(f"Prodia image submit failed: {data}")
+
+    # Poll
+    status_url = f"https://inference.prodia.com/v2/job/{job_id}"
+    for _ in range(60):
+        time.sleep(2)
+        status_resp = requests.get(status_url, headers=headers, timeout=10)
+        status_data = status_resp.json()
+        status = status_data.get("status", "")
+        if status == "completed":
+            output = status_data.get("output", {}) or status_data.get("result", {})
+            if isinstance(output, dict):
+                url = output.get("url", "") or output.get("image", {}).get("url", "")
+            else:
+                url = str(output) if output else ""
+            if not url:
+                image_url = status_data.get("image", {}).get("url", "") or status_data.get("output_url", "")
+                if image_url:
+                    return image_url
+                raise RuntimeError(f"Prodia image completed but no URL: {status_data}")
+            return url
+        elif status in ("failed", "error"):
+            raise RuntimeError(f"Prodia image failed: {status_data}")
+
+    raise TimeoutError("Prodia image generation timed out")
+
+
+def generate_image_fal(prompt: str, image_size: str = "square_hd", num_images: int = 1) -> str:
+    """
+    Fallback: Seedream V4.5 @ Fal.ai ($0.04/ภาพ)
     """
     url = "https://fal.run/fal-ai/bytedance/seedream/v4.5/text-to-image"
     headers = {"Authorization": f"Key {FAL_KEY}", "Content-Type": "application/json"}
@@ -56,7 +114,6 @@ def generate_image(prompt: str, image_size: str = "square_hd", num_images: int =
         "num_images": num_images,
         "expand_prompt": True
     }
-
     resp = requests.post(url, headers=headers, json=payload, timeout=60)
     resp.raise_for_status()
     data = resp.json()
@@ -101,10 +158,10 @@ def generate_voice(text: str, voice_id: str = "English_Trustworth_Man",
     return audio_url
 
 
-# ─── Step 2: Video Scene (Wan 2.2 Ultra Fast @ WaveSpeed) ────────────────
+# ─── Step 2a: Video Scene (Wan 2.2 Ultra Fast @ WaveSpeed) ────────────────
 
-def generate_video_scene(prompt: str, duration: int = 8,
-                         negative_prompt: str = "blurry, low quality, distorted") -> str:
+def generate_video_wavespeed(prompt: str, duration: int = 8,
+                              negative_prompt: str = "blurry, low quality, distorted") -> str:
     """
     สร้างวิดีโอ 1 scene ผ่าน WaveSpeed Wan 2.2 Ultra Fast 480p
 
@@ -131,7 +188,6 @@ def generate_video_scene(prompt: str, duration: int = 8,
     resp = requests.post(submit_url, headers=headers, json=payload, timeout=30)
     resp.raise_for_status()
     data = resp.json()
-    # WaveSpeed response: { code, message, data: { id, urls: { get: status_url } } }
     if data.get("code") != 200:
         raise RuntimeError(f"WaveSpeed submit failed: {data}")
     inner = data.get("data", {})
@@ -140,12 +196,10 @@ def generate_video_scene(prompt: str, duration: int = 8,
     if not status_url:
         raise RuntimeError(f"WaveSpeed: no status URL in response: {data}")
 
-    # Poll until complete
-    for _ in range(60):  # max 5 min wait
+    for _ in range(60):
         time.sleep(5)
         status_resp = requests.get(status_url, headers=headers, timeout=10)
         status_data = status_resp.json()
-        # WaveSpeed nested: { code, data: { status, outputs: [...] } }
         inner_data = status_data.get("data", {}) if status_data.get("code") == 200 else status_data
         st = inner_data.get("status", "")
         outputs = inner_data.get("outputs", [])
@@ -154,8 +208,83 @@ def generate_video_scene(prompt: str, duration: int = 8,
         elif st in ("failed", "error"):
             raise RuntimeError(f"WaveSpeed failed: {status_data}")
         elif st == "created" or not st:
-            continue  # still processing
+            continue
     raise TimeoutError("WaveSpeed video generation timed out")
+
+
+# ─── Step 2b: Video Scene (Wan 2.7 @ Prodia) ──────────────────────────────
+
+def generate_video_prodia(prompt: str, duration: int = 8) -> str:
+    """
+    สร้างวิดีโอ 1 scene ผ่าน Prodia Wan 2.7 480p
+    รองรับ 2-15 วิ ต่อ gen
+
+    Args:
+        prompt: คำอธิบาย scene
+        duration: ความยาววินาที (2-15 วิ)
+
+    Returns:
+        URL ของไฟล์วิดีโอ MP4
+
+    Cost: $0.03/gen (ไม่จำกัดวินาที)
+    """
+    if not PRODIA_TOKEN:
+        raise RuntimeError("PRODIA_TOKEN not configured")
+
+    # Prodia REST API v2
+    job_url = "https://inference.prodia.com/v2/job"
+    headers = {"Authorization": f"Bearer {PRODIA_TOKEN}", "Content-Type": "application/json"}
+
+    # Submit job
+    payload = {
+        "type": "inference.wan2-7.txt2vid.v1",
+        "config": {
+            "prompt": prompt,
+            "num_inference_steps": 30,
+        }
+    }
+
+    resp = requests.post(job_url, headers=headers, json=payload, timeout=30)
+    resp.raise_for_status()
+    data = resp.json()
+    job_id = data.get("job", {}).get("id", "") or data.get("id", "")
+    if not job_id:
+        raise RuntimeError(f"Prodia submit failed: {data}")
+
+    # Poll until complete
+    status_url = f"https://inference.prodia.com/v2/job/{job_id}"
+    for _ in range(120):  # max 10 min
+        time.sleep(5)
+        status_resp = requests.get(status_url, headers=headers, timeout=10)
+        status_data = status_resp.json()
+        status = status_data.get("status", "")
+
+        if status == "completed":
+            # Get output URL
+            output = status_data.get("output", {}) or status_data.get("result", {})
+            if isinstance(output, dict):
+                url = output.get("url", "") or output.get("video", {}).get("url", "")
+            else:
+                url = str(output) if output else ""
+            if not url:
+                # Check alternative response format
+                video_url = status_data.get("video", {}).get("url", "") or status_data.get("output_url", "")
+                if video_url:
+                    return video_url
+                raise RuntimeError(f"Prodia completed but no video URL: {status_data}")
+            return url
+
+        elif status in ("failed", "error"):
+            raise RuntimeError(f"Prodia failed: {status_data}")
+
+    raise TimeoutError("Prodia video generation timed out")
+
+
+# ─── Video Scene (Prodia Wan 2.7 — วิธีเดียว) ─────────────────────────────
+
+def generate_video_scene(prompt: str, duration: int = 8, **kwargs) -> str:
+    """สร้างวิดีโอ 1 scene ผ่าน Prodia Wan 2.7 ($0.03/gen)"""
+    return generate_video_prodia(prompt, duration)
 
 
 # ─── Step 3: Lip Sync (VEED @ Fal.ai) — Optional ─────────────────────────
@@ -277,6 +406,7 @@ def run_pipeline(
 ) -> dict:
     """
     รัน full pipeline สร้างคลิป Affiliate
+    ใช้ Prodia Wan 2.7 + FLUX schnell ($0.03-0.04/clip)
 
     Args:
         script: ข้อความเสียงพากย์ (ภาษาไทย)
@@ -285,7 +415,7 @@ def run_pipeline(
         bgm_url: URL BGM (ไม่ใส่ = ไม่มี BGM)
         enable_lip_sync: เปิด Lip Sync หรือไม่
         video_duration: ความยาวต่อ scene (วินาที)
-        image_prompt: ถ้าใส่ = สร้างรูป Seedream ก่อน (ใช้เป็น I2V หรือ thumbnail)
+        image_prompt: ถ้าใส่ = สร้างรูป FLUX ก่อน
 
     Returns:
         dict { "final_path": Path, "cost_estimate": float, "files": {...} }
@@ -305,7 +435,7 @@ def run_pipeline(
         image_url = generate_image(image_prompt)
         image_path = TMP_DIR / f"image_{run_id}.png"
         download_file(image_url, image_path)
-        cost_image = 0.04
+        cost_image = 0.001  # Prodia FLUX; fallback Seedream = 0.04
 
     # 1. Voice
     logger.info("Step 1/6: Generating voice...")
@@ -326,7 +456,7 @@ def run_pipeline(
         video_paths.append(vpath)
 
     total_seconds = len(scene_prompts) * video_duration
-    cost_video = len(scene_prompts) * 0.16  # $0.16/scene
+    cost_video = len(scene_prompts) * 0.03  # Prodia Wan 2.7 = $0.03/scene
 
     # 3. Concat scenes
     if len(video_paths) > 1:
@@ -395,6 +525,7 @@ if __name__ == "__main__":
     parser.add_argument("--lip-sync", action="store_true", help="Enable lip sync")
     parser.add_argument("--duration", type=int, default=8, help="Seconds per scene")
     parser.add_argument("--image", default="", help="Seedream image prompt (optional)")
+    # Prodia เท่านั้น
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO)

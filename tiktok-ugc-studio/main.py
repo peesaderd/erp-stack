@@ -1095,8 +1095,9 @@ def generate_video(req: VideoRequest):
                 scene_prompts=scene_prompts,
                 voice_id="English_Trustworth_Man",
                 video_duration=duration,
-                enable_lip_sync=False,
                 image_prompt=img_prompt,
+                product_image=req.product_image if req.product_image and os.path.exists(req.product_image) else None,
+                enable_sam3=bool(req.product_image),
             )
             VIDEOS_DIR.mkdir(parents=True, exist_ok=True)
             final_path = result["final_path"]

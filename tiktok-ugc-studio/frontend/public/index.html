@@ -848,7 +848,7 @@ function goContentStep(step) {
 
 async function generateScript() {
   const url = document.getElementById('productUrl').value;
-  const manual = document.getElementById('manualScript').value;
+  const manual = document.getElementById('manualScript')?.value || '';
   const style = document.getElementById('ugcStyle').value;
   if (!url && !manual) { showToast('ใส่ URL หรือรายละเอียดสินค้าก่อน','error'); return; }
 

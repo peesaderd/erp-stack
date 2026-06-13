@@ -611,18 +611,20 @@ select.input { cursor: pointer; }
     <div class="card-title mb-3">Video Generation Config</div>
 
     <div class="mb-3">
-      <label class="text-sm text-secondary mb-2" style="display:block">AI Provider</label>
-      <select class="input" id="videoProvider"><option value="kling">Kling</option><option value="runway">Runway</option><option value="pika">Pika</option><option value="minimax">Minimax</option></select>
+      <label class="text-sm text-secondary mb-2" style="display:block">AI Engine</label>
+      <div class="chip-display" style="padding:8px 12px;background:var(--bg-tertiary);border-radius:var(--radius-lg);display:flex;align-items:center;gap:8px">
+        <span>⚡ WaveSpeed Wan 2.2</span>
+        <span class="text-xs text-secondary">(~$0.08/คลิป)</span>
+      </div>
     </div>
 
     <div class="mb-3">
       <label class="text-sm text-secondary mb-2" style="display:block">Duration</label>
       <div class="duration-chips">
-        <span class="duration-chip" onclick="selectDuration(this,'5')">5s</span>
-        <span class="duration-chip selected" onclick="selectDuration(this,'8')">8s</span>
-        <span class="duration-chip" onclick="selectDuration(this,'10')">10s</span>
-        <span class="duration-chip" onclick="selectDuration(this,'15')">15s</span>
+        <span class="duration-chip selected" onclick="selectDuration(this,'8')">8s ~$0.08</span>
+        <span class="duration-chip" onclick="selectDuration(this,'16')">16s ~$0.16 (2 scenes)</span>
       </div>
+      <div class="text-xs text-secondary mt-1" id="durationHint">คลิปสั้นเหมาะกับ TikTok Affiliate โอกาสขายสูง</div>
     </div>
 
     <div class="mb-3">
@@ -888,6 +890,8 @@ function selectDuration(el, dur) {
   document.querySelectorAll('.duration-chip').forEach(c => c.classList.remove('selected'));
   el.classList.add('selected');
   sessionStorage.setItem('selectedDuration', dur);
+  const hint = document.getElementById('durationHint');
+  if (hint) hint.textContent = dur == 16 ? '🎬 16 วิ = 2 scenes อัตโนมัติ ต้นทุน ~$0.16' : 'คลิปสั้นเหมาะกับ TikTok Affiliate โอกาสขายสูง';
 }
 
 /* ═══ Image Upload Handlers ═══ */
@@ -956,35 +960,46 @@ async function startGeneration() {
   const progress = document.getElementById('generationProgress');
   btn.disabled = true; btn.style.opacity = '.6';
   progress.style.display = 'block';
-  document.getElementById('progressText').textContent = 'Generating video...';
-  document.getElementById('progressBar').style.width = '30%';
+  document.getElementById('progressText').textContent = '⚡ กำลังสร้างวิดีโอ...';
+  document.getElementById('progressBar').style.width = '20%';
+
+  const duration = parseInt(sessionStorage.getItem('selectedDuration') || '8');
+  const totalScenes = duration >= 16 ? 2 : 1;
 
   try {
+    const basePrompt = hook + '. ' + value + (cta ? '. ' + cta : '');
+    const title = document.getElementById('productTitle').value.trim();
+    const imageUrl = uploadedImages.product || null;
+    
+      // Single request — backend handles 8s (1 scene) or 16s (2 scenes + concat)
+    const label = duration + ' วิ';
+    document.getElementById('progressText').textContent = '🎬 กำลังสร้างวิดีโอ ' + label + '...';
+    document.getElementById('progressBar').style.width = '40%';
+    
     const body = {
-      prompt: hook + '. ' + value + (cta ? '. ' + cta : ''),
-      provider: document.getElementById('videoProvider').value,
-      duration: parseInt(sessionStorage.getItem('selectedDuration') || '8'),
+      prompt: basePrompt,
+      provider: 'wavespeed',
+      duration: duration,
       ugc_style: sessionStorage.getItem('selectedStyle') || 'holding',
       aspect_ratio: sessionStorage.getItem('aspectRatio') || '9:16',
       negative_prompt: document.getElementById('negativePrompt').value || null,
+      product_title: title || undefined,
+      product_url: document.getElementById('productUrl').value || undefined,
+      product_image: imageUrl,
     };
-    const title = document.getElementById('productTitle').value.trim();
-    if (title) body.product_title = title;
-    if (document.getElementById('productUrl').value) body.product_url = document.getElementById('productUrl').value;
-    if (uploadedImages.product) body.product_image = uploadedImages.product;
-    if (uploadedImages.model) body.model_image = uploadedImages.model;
-
+    
     const res = await fetch(API + '/video/generate', {
       method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
     });
     if (!res.ok) throw new Error('Generation failed');
     const data = await res.json();
     document.getElementById('progressBar').style.width = '100%';
-    document.getElementById('progressText').textContent = '✅ Video queued! Job: ' + (data.job_id || data.id || '');
-    showToast('Video generation queued!','success');
+    document.getElementById('progressText').textContent = '✅ วิดีโอ ' + label + 'พร้อมแล้ว! วิดีโอ: ' + (data.task_id || '');
+    showToast('วิดีโอ ' + label + 'สร้างเสร็จ ✅','success');
+    setTimeout(() => loadPipeline(), 1500);
   } catch(e) {
-    document.getElementById('progressText').textContent = '❌ Failed: ' + e.message;
-    showToast('Generation failed','error');
+    document.getElementById('progressText').textContent = '❌ ล้มเหลว: ' + e.message;
+    showToast('Generation failed: ' + e.message,'error');
   } finally {
     btn.disabled = false; btn.style.opacity = '1';
   }

@@ -105,9 +105,14 @@ class UGCRequest(BaseModel):
     negative_prompt: Optional[str] = None  # Custom negative prompt override
 
 
+class ConcatRequest(BaseModel):
+    video_urls: list[str]
+    output_duration: int = 16
+
+
 class VideoRequest(BaseModel):
     prompt: str
-    provider: str = "kling"
+    provider: str = "wavespeed"
     model_tier: str = "standard"
     duration: int = 8
     aspect_ratio: str = "9:16"
@@ -1108,7 +1113,11 @@ def video_providers():
         "providers": get_available_providers(),
         "ugc_styles": list(UGC_PRESETS.keys()),
         "aspect_ratios": ["9:16", "16:9", "1:1"],
-        "durations": [5, 8, 10, 15, 30, 60],
+        "durations": [8, 16],
+        "duration_options": [
+            {"value": 8, "label": "8 วิ ~$0.08", "description": "คลิปสั้น เหมาะ TikTok Affiliate"},
+            {"value": 16, "label": "16 วิ ~$0.16 (2 scenes)", "description": "2 scenes ต่อกัน"}
+        ],
     }
 
 
@@ -1261,6 +1270,11 @@ def queue_status(req: TaskStatusRequest):
 
 
 # ─── Video with Fallback ───────────────────────────────────────────────────
+
+@app.post("/video/concat")
+def concat_videos_ep(req: ConcatRequest):
+    """Concat endpoint kept for compat — all concat handled in generate_video for 16s"""
+    return {"status": "ok", "note": "Concat handled internally in generate_video for 16s"}
 
 @app.post("/video/generate-with-fallback")
 def generate_video_with_fallback(req: VideoRequest):

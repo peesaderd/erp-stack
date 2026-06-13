@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 """
-TikTok UGC Studio - Default Pipeline (Prodia Only)
-Pipeline: Image (FLUX) -> Video (Wan 2.7) -> Voice (MiniMax) -> FFmpeg
+TikTok UGC Studio - Default Pipeline v4 (Prodia + Wan 2.7 Audio-Driven)
+======================================================================
+Pipeline: SAM3 Analyze -> Voice (MiniMax) -> Wan 2.7 img2vid+Audio (Lip Sync in one!)
 
 Design:
-- 8s: 1 clip, voice 1.5s-6.5s (5s), end scene 6.5s-8s
-- 16s: 2 clips, FFmpeg concat, same voice timing each clip
-- Prodia ONLY - no provider option
+- Wan 2.7 img2vid + audio = Lip sync ในคลิปเดียว ไม่ต้อง VEED/Wav2Lip
+- SAM3 วิเคราะห์รูปก่อน gen เพื่อ improve prompt + layout
+- Voice สร้างก่อน video เพราะ Wan 2.7 ต้องการ audio input
 
 Cost:
-  8s = $0.034/scene
-  16s = $0.064/scene
+  8s = $0.034/clip (SAM3 + Voice + Video)
+  16s = ~$0.064/clip (2 clips)
 """
 
 import os
@@ -54,6 +55,7 @@ VOICE_END_SEC = VOICE_START_SEC + VOICE_DURATION_SEC  # 6.5s
 PRODIA_BASE = "https://inference.prodia.com/v2"
 PRODIA_IMAGE_TYPE = "inference.flux-fast.schnell.txt2img.v2"
 PRODIA_VIDEO_TYPE = "inference.wan2-7.txt2vid.v1"
+PRODIA_IMG2VID_TYPE = "inference.wan2-7.img2vid.v1"  # Audio-driven lip sync!
 
 
 # --- Helpers ---
@@ -258,15 +260,116 @@ def generate_image(prompt: str, reference_analysis: dict = None) -> str:
     return url
 
 
-# --- Step 2: Video (Wan 2.7 @ Prodia $0.03/gen) ---
+# --- Step 2: Video (Wan 2.7 img2vid + Audio = Lip Sync in one) $0.03/gen ---
 def generate_video(prompt: str, duration: int = 8, reference_analysis: dict = None) -> str:
+    """Standard T2V (text-to-video) — no audio"""
     enhanced = prompt
     if reference_analysis and reference_analysis.get("prompt_insights"):
         enhanced = prompt + ", " + reference_analysis["prompt_insights"]
-        logger.info(f"  Video prompt enhanced with SAM3")
 
-    logger.info(f"Video via Prodia Wan 2.7 ({duration}s): {enhanced[:40]}...")
+    logger.info(f"Video via Wan 2.7 T2V ({duration}s): {enhanced[:40]}...")
     payload = {"type": PRODIA_VIDEO_TYPE, "config": {"prompt": enhanced}}
+    resp = requests.post(f"{PRODIA_BASE}/job", headers=_prodia_headers(), json=payload, timeout=30)
+    resp.raise_for_status()
+    data = resp.json()
+    job_id = data.get("job", {}).get("id", "") or data.get("id", "")
+    if not job_id:
+        raise RuntimeError(f"Prodia video submit failed: {data}")
+    result = _poll_job(job_id, max_polls=120, sleep_s=5)
+    url = _extract_url(result, "url")
+    logger.info(f"  Video OK")
+    return url
+
+
+def generate_video_with_image_and_audio(image_path: str, audio_path: str, prompt: str,
+                                         duration: int = 8,
+                                         resolution: str = "720P",
+                                         reference_analysis: dict = None) -> str:
+    """
+    Wan 2.7 img2vid + Audio — สร้างคลิปที่มี Lip Sync ในคลิกเดียว!
+
+    ส่งรูป (portrait/product) + เสียง (MP3/WAV)
+    → Wan 2.7 สร้างคลิปปากขยับตามเสียง + movement
+
+    Args:
+        image_path: Path to image (product/portrait)
+        audio_path: Path to audio file (MP3/WAV)
+        prompt: Scene description
+        duration: Clip duration (2-15s)
+        resolution: 720P or 1080P
+        reference_analysis: SAM3 analysis result (optional)
+
+    Returns:
+        URL of generated video with built-in lip sync
+
+    Cost: $0.03/gen (เท่า T2V!) — ไม่ต้องเสีย VEED/Wav2Lip เพิ่ม!
+    """
+    enhanced = prompt
+    if reference_analysis and reference_analysis.get("prompt_insights"):
+        enhanced = prompt + ", " + reference_analysis["prompt_insights"]
+
+    logger.info(f"Video via Wan 2.7 img2vid+audio ({duration}s): {enhanced[:40]}...")
+
+    # Read file bytes
+    with open(image_path, "rb") as f:
+        image_data = f.read()
+    with open(audio_path, "rb") as f:
+        audio_data = f.read()
+
+    # Multipart upload: image + audio + config
+    config_payload = {
+        "type": PRODIA_IMG2VID_TYPE,
+        "config": {
+            "prompt": enhanced,
+            "duration": duration,
+            "resolution": resolution,
+            "negative_prompt": "low resolution, error, worst quality, deformed, blurry",
+        }
+    }
+    # Note: audio automatically trimmed to match duration
+
+    files = {
+        "image": ("image.png", image_data, "image/png"),
+        "audio": ("audio.mp3", audio_data, "audio/mpeg"),
+        "config": (None, json.dumps(config_payload), "application/json"),
+    }
+
+    resp = requests.post(f"{PRODIA_BASE}/job", headers=_prodia_headers(), files=files, timeout=60)
+    resp.raise_for_status()
+
+    # Check response type
+    ct = resp.headers.get("content-type", "")
+    job_id = ""
+    if "multipart" in ct or "application/octet" in ct:
+        # Direct binary output
+        result_path = TMP_DIR / f"img2vid_{uuid.uuid4().hex[:8]}.mp4"
+        with open(result_path, "wb") as f:
+            f.write(resp.content)
+        # Upload to temp storage or return URL
+        # For now: save locally and return path
+        logger.info(f"  Video saved locally: {result_path}")
+        return str(result_path)
+
+    try:
+        data = resp.json()
+        job_id = data.get("job", {}).get("id", "") or data.get("id", "")
+    except:
+        pass
+
+    if not job_id:
+        # Maybe direct binary response with unknown content type
+        result_path = TMP_DIR / f"img2vid_{uuid.uuid4().hex[:8]}.mp4"
+        with open(result_path, "wb") as f:
+            f.write(resp.content)
+        logger.info(f"  Video saved locally: {result_path}")
+        return str(result_path)
+
+    # Poll for completion
+    result = _poll_job(f"{PRODIA_BASE}/job/{job_id}", _prodia_headers(), max_polls=120, sleep_s=5)
+
+    url = _extract_url(result, "url")
+    logger.info(f"  Video OK (with audio-driven lip sync!)")
+    return url
     resp = requests.post(f"{PRODIA_BASE}/job", headers=_prodia_headers(), json=payload, timeout=30)
     resp.raise_for_status()
     data = resp.json()
@@ -388,35 +491,57 @@ def run_pipeline(
         image_paths.append(img_path)
     cost_image = num_scenes * 0.001
 
-    # Step 2: Videos (with SAM3 enhanced prompt)
-    video_paths = []
-    for i, prompt in enumerate(scene_prompts):
-        logger.info(f"Step {1 + num_scenes + i}/{3 + num_scenes}: Video {i+1}")
-        vid_url = generate_video(prompt, clip_duration, reference_analysis=sam3_analysis)
-        vid_path = TMP_DIR / f"vid_{run_id}_{i}.mp4"
-        download_file(vid_url, vid_path)
-        video_paths.append(vid_path)
-    cost_video = num_scenes * 0.03
-
-    # Step 3: Voice
-    logger.info(f"Step {1 + 2*num_scenes}/{3 + num_scenes}: Voice")
+    # Step 2: Voice (ต้องสร้างก่อน Video เพราะ Wan 2.7 ต้องการ audio input)
+    logger.info(f"Step {1 + num_scenes}/{3 + num_scenes}: Voice (for audio-driven video)")
     voice_url = generate_voice(script, voice_id=voice_id)
     voice_path = TMP_DIR / f"voice_{run_id}.mp3"
     download_file(voice_url, voice_path)
     cost_voice = (len(script) / 1000) * 0.06
 
-    # Step 4: Concat if multi-scene
-    if num_scenes > 1:
-        logger.info(f"Step {2 + 2*num_scenes}/{3 + num_scenes}: Concat")
-        concat_path = TMP_DIR / f"concat_{run_id}.mp4"
-        concat_videos(video_paths, concat_path)
-        video_for_merge = concat_path
-    else:
-        video_for_merge = video_paths[0]
+    # Step 3: Videos with Audio + Image (Wan 2.7 img2vid = Lip Sync in one!)
+    video_paths = []
+    for i, prompt in enumerate(scene_prompts):
+        logger.info(f"Step {2 + num_scenes + i}/{3 + num_scenes}: Video {i+1} (img2vid+audio)")
 
-    # Step 5: Merge voice
-    final_path = STORAGE_DIR / f"default_{run_id}.mp4"
-    merge_voice_video(video_for_merge, voice_path, final_path, start_sec=voice_timing)
+        # First image (FLUX gen)
+        img_url = generate_image(prompt, reference_analysis=sam3_analysis)
+        img_path = TMP_DIR / f"vid_img_{run_id}_{i}.png"
+        download_file(img_url, img_path)
+
+        # Then img2vid with audio
+        if product_image and os.path.exists(product_image):
+            # Use real product image for first scene!
+            ref_img = product_image
+        else:
+            ref_img = img_path
+
+        vid_url = generate_video_with_image_and_audio(
+            image_path=ref_img,
+            audio_path=voice_path,
+            prompt=prompt,
+            duration=clip_duration,
+            reference_analysis=sam3_analysis
+        )
+        vid_path = TMP_DIR / f"vid_{run_id}_{i}.mp4"
+        download_file(vid_url, vid_path)
+        video_paths.append(vid_path)
+    cost_video = num_scenes * 0.03
+
+    # Step 4: Concat if multi-scene (video already has audio from Wan 2.7 img2vid!)
+    if num_scenes > 1:
+        logger.info(f"Step {3 + num_scenes}/{3 + num_scenes}: Concat {num_scenes} clips")
+        final_path = STORAGE_DIR / f"default_{run_id}.mp4"
+        concat_videos(video_paths, final_path)
+    else:
+        # Single scene — just rename/download
+        final_path = STORAGE_DIR / f"default_{run_id}.mp4"
+        # If vid_url is remote, download to final
+        if str(video_paths[0]).startswith("http"):
+            download_file(video_paths[0], final_path)
+        else:
+            # Already local
+            import shutil
+            shutil.copy2(video_paths[0], final_path)
 
     # Cost summary
     cost_total = cost_sam3 + cost_image + cost_video + cost_voice
@@ -435,10 +560,10 @@ def run_pipeline(
     for fp in image_paths:
         fp.unlink(missing_ok=True)
     for fp in video_paths:
-        fp.unlink(missing_ok=True)
-    voice_path.unlink(missing_ok=True)
-    if num_scenes > 1:
-        concat_path.unlink(missing_ok=True)
+        if fp.exists():
+            fp.unlink(missing_ok=True)
+    if voice_path and voice_path.exists():
+        voice_path.unlink(missing_ok=True)
 
     return {
         "run_id": run_id,
@@ -446,7 +571,8 @@ def run_pipeline(
         "duration": total_duration,
         "scenes": num_scenes,
         "voice_script": script,
-        "voice_timing": {"start": voice_timing, "duration": VOICE_DURATION_SEC, "end": voice_timing + VOICE_DURATION_SEC},
+        "voice_timing": {"start": 0, "duration": clip_duration, "end": clip_duration},  # Audio native in video
+        "lip_sync": "built-in (Wan 2.7 img2vid+audio)",
         "cost_estimate": cost_total,
         "cost_breakdown": cost_breakdown,
         "files": {"final": str(final_path)},

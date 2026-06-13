@@ -3,11 +3,13 @@ TUS Analyzer Pipeline — Bridge between Product Analyzer & TikTok UGC Studio
 ============================================================================
 - Call Product Analyzer API (/api/v1/analyze) from TUS
 - Filter products by viral score, category, trending
+- Download product images via DataImpulse Proxy (hdnet.workers.dev is 403)
 - Auto-feed into TikTok UGC Studio Post For Me pipeline
 - Cron-ready for scheduled analysis
 """
 
-import os, json, logging, httpx
+import os, json, logging, httpx, uuid
+from pathlib import Path
 from typing import Optional, List, Dict
 from datetime import datetime, timedelta
 
@@ -16,6 +18,21 @@ logger = logging.getLogger("tus-analyzer-pipeline")
 # API Base (proxy through TUS frontend or direct)
 ANALYZER_API = os.environ.get("ANALYZER_API", "http://localhost:8106")
 TUS_API = os.environ.get("TUS_API", "http://localhost:8105")
+
+# Local image storage สำหรับรูปสินค้า
+PRODUCT_IMAGE_DIR = Path(__file__).parent / "storage" / "product_images"
+PRODUCT_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+
+# TUS static route prefix (served by FastAPI StaticFiles)
+IMAGE_URL_PREFIX = "/static/product_images"
+
+# DataImpulse Proxy config (from .env)
+DATAIMPULSE_PROXY = os.environ.get("DATAIMPULSE_PROXY", "")
+PROXY_DICT = {
+    "http": DATAIMPULSE_PROXY,
+    "https": DATAIMPULSE_PROXY,
+} if DATAIMPULSE_PROXY else None
+
 
 # ─── Analyzer Client ────────────────────────────────────────────────────
 
@@ -78,20 +95,69 @@ FILTER_PRESETS = {
     },
     "high_commission": {
         "description": "Best commission rate products",
-        "min_commission": 5.0,
-        "min_sold": 10,
-        "min_viral": 10,
+        "min_commission": 10,
+        "min_rating": 0,
+        "min_sold": 0,
+        "min_viral": 0,
         "trending_only": False,
     },
-    "new_trending": {
-        "description": "Recently trending products with traction",
+    "trending_now": {
+        "description": "Trending products right now",
+        "trending_only": True,
+        "min_rating": 0,
         "min_sold": 0,
-        "trending_only": False,
+        "min_viral": 0,
+    },
+    "low_cost": {
+        "description": "Low price products (impulse buy)",
+        "max_price": 100,
+        "min_rating": 0,
+        "min_sold": 0,
         "min_viral": 0,
     },
 }
 
-# ─── Pipeline Functions ─────────────────────────────────────────────────
+
+# ─── Download Helpers ────────────────────────────────────────────────────
+
+def _download_product_image(img_url: str) -> tuple:
+    """
+    Download product image via DataImpulse proxy.
+
+    Args:
+        img_url: hdnet.workers.dev URL
+
+    Returns:
+        (bytes | None, str) — content and extension
+    """
+    ext = img_url.rsplit(".", 1)[-1].split("?")[0]
+    if ext not in ("jpg", "jpeg", "png", "webp"):
+        ext = "jpg"
+
+    import requests
+    try:
+        resp = requests.get(
+            img_url,
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "Accept": "image/webp,image/*,*/*;q=0.8",
+                "Referer": "https://shop.tiktok.com/",
+            },
+            proxies=PROXY_DICT,
+            timeout=15,
+        )
+        if resp.status_code == 200 and len(resp.content) > 1000:
+            logger.info(f"  Downloaded via proxy: {len(resp.content)} bytes")
+            return resp.content, ext
+        else:
+            logger.warning(f"  Proxy download failed: {resp.status_code}")
+    except Exception as e:
+        logger.warning(f"  Proxy download error: {e}")
+
+    return None, ext
+
+
+# ─── Main: fetch_trending_for_tus ─────────────────────────────────────────
 
 async def fetch_trending_for_tus(
     preset: str = "auto_affiliate",
@@ -100,24 +166,7 @@ async def fetch_trending_for_tus(
 ) -> dict:
     """Fetch analyzed products filtered for TikTok UGC Studio post generation.
     
-    Returns TUS-ready data:
-    {
-        "products": [{
-            "title": "เสื้อผ้าแฟชั่น",
-            "title_th": "...",
-            "viral_score": 85.5,
-            "trending": True,
-            "category": "แฟชั่น",
-            "keywords": ["แฟชั่น", "เสื้อผ้า"],
-            "price_thb": 299,
-            "rating": 4.5,
-            "commission": "10%",
-            "images": ["..."],
-        }],
-        "preset": "auto_affiliate",
-        "count": 5,
-        "generated_at": "2026-06-12T..."
-    }
+    Returns TUS-ready data with LOCAL image URLs (downloaded via DataImpulse proxy).
     """
     client = AnalyzerClient()
     try:
@@ -142,7 +191,39 @@ async def fetch_trending_for_tus(
             filtered.append(p)
 
         filtered = filtered[:limit]
-        
+
+        # ── Download images via DataImpulse Proxy ──
+        for p in filtered:
+            old_images = p.get("images", [])
+            local_images = []
+
+            for img_url in old_images:
+                if not img_url:
+                    continue
+
+                # Already local?
+                if img_url.startswith("/static/"):
+                    local_images.append(img_url)
+                    continue
+
+                # Download via proxy
+                content, ext = _download_product_image(img_url)
+                if content:
+                    local_name = f"{p['product_id']}_{uuid.uuid4().hex[:4]}.{ext}"
+                    local_path = PRODUCT_IMAGE_DIR / local_name
+                    with open(local_path, "wb") as f:
+                        f.write(content)
+                    local_url = f"{IMAGE_URL_PREFIX}/{local_name}"
+                    local_images.append(local_url)
+                    logger.info(f"  Saved: {local_name}")
+                else:
+                    # Fallback: keep original URL (may 403 in UI)
+                    local_images.append(img_url)
+
+            if local_images:
+                p["images"] = local_images
+                p["images_local"] = True
+
         # Attach preset metadata
         tus_data = {
             "products": filtered,
@@ -154,7 +235,6 @@ async def fetch_trending_for_tus(
             "tus_ready": True,
         }
 
-        # Log to TUS pipeline
         logger.info(f"TUS Pipeline: preset={preset}, count={len(filtered)}/{result.get('count', 0)} available")
 
         return tus_data
@@ -184,7 +264,6 @@ async def analyze_and_push_to_tus(
     try:
         # Step 1: Get raw data
         if raw_products is None:
-            # Fetch from Apify dataset
             apify_key = os.environ.get("APIFY_API_KEY", "")
             if not apify_key or not apify_dataset_id:
                 raise ValueError("Need apify_dataset_id + APIFY_API_KEY, or raw_products")
@@ -212,62 +291,91 @@ async def analyze_and_push_to_tus(
         if auto_post and tus_data.get("products"):
             post_data = {
                 "products": tus_data["products"],
-                "campaign": preset,
-                "batch_id": datetime.utcnow().strftime("%Y%m%d_%H%M%S"),
+                "preset": preset,
+                "auto_generate": True,
             }
-            async with httpx.AsyncClient() as hx:
-                pr = await hx.post(
-                    f"{TUS_API}/api/auto-post",
-                    json=post_data,
-                    timeout=300,
-                )
-                if pr.status_code == 200:
-                    posted = pr.json().get("posts", [])
-                    logger.info(f"Auto-posted {len(posted)} videos")
+            try:
+                async with httpx.AsyncClient() as hx:
+                    r = await hx.post(
+                        f"{TUS_API}/postforme/post",
+                        json=post_data,
+                        timeout=30,
+                    )
+                    if r.status_code == 200:
+                        posted = r.json().get("posted", [])
+                        logger.info(f"Auto-posted {len(posted)} products")
+                    else:
+                        logger.warning(f"Auto-post returned {r.status_code}: {r.text}")
+            except Exception as e:
+                logger.error(f"Auto-post failed: {e}")
 
         return {
-            "status": "success",
-            "raw_count": len(raw_products) if raw_products else 0,
+            "status": "ok",
+            "preset": preset,
             "analyzed_count": analyzed.get("count", 0),
-            "tus_ready": tus_data,
-            "auto_posted": posted if auto_post else None,
-            "timestamp": datetime.utcnow().isoformat(),
+            "tus_ready": tus_data.get("count", 0),
+            "auto_posted": len(posted),
         }
 
     except Exception as e:
-        logger.error(f"Pipeline failed: {e}")
-        return {"status": "error", "error": str(e), "timestamp": datetime.utcnow().isoformat()}
+        logger.exception("analyze_and_push_to_tus failed")
+        return {"status": "error", "error": str(e)}
     finally:
         await client.client.aclose()
 
 
-# ─── Sync Entry Points for Scripting ────────────────────────────────────
-
 def fetch_trending(preset: str = "auto_affiliate", limit: int = 10, category: str = None) -> dict:
-    """Sync version for CLI/script usage."""
+    """Sync entry point for cli usage."""
     import asyncio
-    return asyncio.run(fetch_trending_for_tus(preset, limit, category))
+    return asyncio.run(fetch_trending_for_tus(preset=preset, limit=limit, category=category))
 
 
 def run_pipeline(
     apify_dataset_id: str = None,
-    raw_products_file: str = None,
+    json_file: str = None,
     source: str = "tiktok",
     preset: str = "auto_affiliate",
     auto_post: bool = False,
 ) -> dict:
     """Sync entry point: pass JSON file path or Apify dataset id."""
-    import asyncio
+    if json_file:
+        with open(json_file) as f:
+            raw_products = json.load(f)
+        return asyncio.run(analyze_and_push_to_tus(
+            raw_products=raw_products, source=source, preset=preset, auto_post=auto_post,
+        ))
+    else:
+        return asyncio.run(analyze_and_push_to_tus(
+            apify_dataset_id=apify_dataset_id, source=source, preset=preset, auto_post=auto_post,
+        ))
 
-    raw = None
-    if raw_products_file:
-        with open(raw_products_file) as f:
-            raw = json.load(f)
 
-    return asyncio.run(analyze_and_push_to_tus(
-        apify_dataset_id=apify_dataset_id,
-        raw_products=raw,
-        source=source,
-        preset=preset,
-        auto_post=auto_post,
-    ))
+# ─── CLI ───────────────────────────────────────────────────────────────────
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="TUS Analyzer Pipeline")
+    parser.add_argument("--apify-dataset", help="Apify dataset ID")
+    parser.add_argument("--json-file", help="Product JSON file")
+    parser.add_argument("--source", default="tiktok", help="Data source")
+    parser.add_argument("--preset", default="auto_affiliate", help="Filter preset")
+    parser.add_argument("--auto-post", action="store_true", help="Auto post to TikTok")
+    parser.add_argument("--fetch", action="store_true", help="Just fetch trending products")
+    parser.add_argument("--limit", type=int, default=10, help="Max products")
+    args = parser.parse_args()
+
+    logging.basicConfig(level=logging.INFO)
+
+    if args.fetch:
+        result = fetch_trending(preset=args.preset, limit=args.limit)
+        print(json.dumps(result, indent=2, ensure_ascii=False))
+    else:
+        result = run_pipeline(
+            apify_dataset_id=args.apify_dataset,
+            json_file=args.json_file,
+            source=args.source,
+            preset=args.preset,
+            auto_post=args.auto_post,
+        )
+        print(f"Status: {result.get('status')}")
+        print(json.dumps(result, indent=2, ensure_ascii=False))

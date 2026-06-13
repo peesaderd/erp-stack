@@ -23,7 +23,7 @@ for d in [STORAGE_DIR, TTS_DIR, IMAGES_DIR, VIDEOS_DIR]:
 # TikTok accounts storage
 TIKTOK_ACCOUNTS_FILE = STORAGE_DIR / "tiktok_accounts.json"
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from io import BytesIO
 from fastapi import File, Form, UploadFile
@@ -81,6 +81,14 @@ try:
     app.mount("/static", StaticFiles(directory=STORAGE_DIR), name="static")
 except Exception as e:
     logger.warning(f"Static mount (may already exist): {e}")
+
+# Product images directory (for local product photos from scraping)
+PRODUCT_IMAGE_DIR = Path(STORAGE_DIR) / "product_images"
+PRODUCT_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+try:
+    app.mount("/static/product_images", StaticFiles(directory=PRODUCT_IMAGE_DIR), name="product_images")
+except Exception as e:
+    logger.warning(f"Images static mount: {e}")
 
 # Pipeline results store (in-memory, tracks background pipeline jobs)
 _pipeline_results = {}
@@ -1558,6 +1566,28 @@ async def upscale_image(image_url: str = ""):
     """Upscale image via Image Gen module."""
     result = await _proxy("POST", "image-gen", "/api/image/v1/upscale", {"imageUrl": image_url})
     return result
+
+
+@app.get("/api/image-proxy")
+async def image_proxy(url: str = Query(...)):
+    from fastapi.responses import Response
+    """Proxy for downloading product images from external CDN.
+
+    TikTok shop images hosted on hdnet.workers.dev give 403 directly.
+    This endpoint proxies the request with browser-like headers.
+    """
+    import httpx
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        "Accept": "image/webp,image/avif,image/*,*/*;q=0.8",
+        "Accept-Language": "th-TH,th;q=0.9,en;q=0.8",
+        "Referer": "https://shop.tiktok.com/",
+        "Sec-Fetch-Site": "cross-site",
+        "Sec-Fetch-Mode": "no-cors",
+    }
+    async with httpx.AsyncClient(follow_redirects=True, timeout=15) as client:
+        resp = await client.get(url, headers=headers)
+        return Response(content=resp.content, media_type=resp.headers.get("content-type", "image/webp"), status_code=resp.status_code)
 
 
 @app.get("/images/templates")

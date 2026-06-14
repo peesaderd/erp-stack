@@ -531,7 +531,7 @@ async function loadAnalyzed() {
       var vc = p.viral_score >= 70 ? 'color:var(--green);font-weight:600' : p.viral_score >= 30 ? '' : 'color:var(--text2)';
       var kw = p.keywords ? p.keywords.slice(0,3).join(', ') : '';
       tr.innerHTML =
-        '<td><strong>' + esc(p.title||'—') + '</strong>' + </td>' +
+        '<td><strong>' + esc(p.title||'—') + '</strong></td>' +
         '<td><span class="badge badge-teal">' + platformIcon(p.source) + ' ' + esc(p.source||'?') + '</span></td>' +
         '<td>' + fmtPrice(p.price_thb) + '</td>' +
         '<td>' + (p.rating ? '⭐' + p.rating : '—') + '</td>' +
@@ -599,6 +599,7 @@ async function refreshAll() {
 document.addEventListener('DOMContentLoaded', function() {
   loadChips();
   loadRaw();
+  loadAnalyzed();
 });
 </script>
 </body>

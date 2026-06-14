@@ -1068,16 +1068,24 @@ def script_templates():
 
 @app.post("/video/generate")
 def generate_video(req: VideoRequest):
-    """Full UGC pipeline: FLUX image → MiniMax TTS → Prodia Wan 2.7 video → FFmpeg merge"""
+    """
+    Full UGC pipeline v4:
+      Script → FLUX Image → MiniMax Voice → Wan 2.7 img2vid+audio → Background Sound → FFmpeg Concat
+
+    Returns video ready for Post For Me with metadata (product_name, link, tags).
+    """
     from pipeline_affiliate import run_pipeline as affiliate_run
-    import uuid, json, threading
+    import uuid, json, threading, subprocess
 
     job_id = f"vid_{uuid.uuid4().hex[:8]}"
 
-    # Build script from prompt (hook + value + cta)
+    # Build script from prompt / product info
     script = req.prompt or ""
     if req.script:
         script = req.script
+    elif req.product_title:
+        # Auto-generate hook + CTA from product name
+        script = f"Check out this {req.product_title}! Amazing quality and great value. Link in bio! 🛍️"
 
     # Scene prompts — 1 scene for 8s, 2 scenes for 16s+
     scene_prompts = [script]
@@ -1109,14 +1117,59 @@ def generate_video(req: VideoRequest):
             )
             VIDEOS_DIR.mkdir(parents=True, exist_ok=True)
             final_path = result["final_path"]
-            import shutil
-            dest = VIDEOS_DIR / f"final_{job_id}.mp4"
-            shutil.copy2(final_path, dest)
+
+            # Step 5: Add background sound (if available)
+            bgm_path = STORAGE_DIR / "sounds" / "bg_ambient.mp3"
+            if bgm_path.exists():
+                bgm_output = STORAGE_DIR / "videos" / f"final_{job_id}.mp4"
+                # Mix background sound at 15% volume behind the main audio
+                cmd = [
+                    "ffmpeg", "-y",
+                    "-i", str(final_path),
+                    "-i", str(bgm_path),
+                    "-filter_complex",
+                    "[1:a]volume=0.15[bg];[0:a][bg]amix=inputs=2:duration=first[out]",
+                    "-map", "0:v",
+                    "-map", "[out]",
+                    "-c:v", "copy",
+                    "-c:a", "aac",
+                    "-shortest",
+                    str(bgm_output),
+                ]
+                try:
+                    subprocess.run(cmd, check=True, capture_output=True, timeout=60)
+                    logger.info(f"  BGM added: {bgm_output}")
+                    final_video_path = bgm_output
+                except Exception as bgm_err:
+                    logger.warning(f"  BGM failed (fallback to no sound): {bgm_err}")
+                    import shutil
+                    shutil.copy2(final_path, VIDEOS_DIR / f"final_{job_id}.mp4")
+                    final_video_path = VIDEOS_DIR / f"final_{job_id}.mp4"
+            else:
+                import shutil
+                final_video_path = VIDEOS_DIR / f"final_{job_id}.mp4"
+                shutil.copy2(final_path, final_video_path)
+                logger.info(f"  No BGM found, plain copy")
+
+            # Build metadata for Post For Me
             _pipeline_results[job_id] = {
                 "status": "completed",
                 "video_url": f"/static/videos/final_{job_id}.mp4",
                 "cost": result.get("cost_estimate", 0),
                 "cost_breakdown": result.get("cost_breakdown", {}),
+                "metadata": {
+                    "product_name": req.product_title or "",
+                    "product_url": req.product_url or "",
+                    "product_image": req.product_image or "",
+                    "script": script,
+                    "duration": req.duration,
+                    "aspect_ratio": req.aspect_ratio or "9:16",
+                    "tags": [
+                        req.product_title.replace(" ", "") if req.product_title else "product",
+                        "ugc",
+                        "review",
+                    ],
+                },
                 "job_id": job_id,
             }
         except Exception as e:

@@ -2,48 +2,55 @@ const express = require('express');
 const path = require('path');
 const http = require('http');
 const app = express();
-app.use(express.json());
 const PORT = 8120;
 
-// Direct proxy helper
-function proxyTo(targetHost, targetPort) {
+// Proxy helper — no express.json() so raw body passes through
+function proxyTo(host, port) {
   return (req, res) => {
+    const targetPath = req.path
+      .replace('/api/tiktok/ugc', '')
+      .replace('/api/tiktok/scraper', '')
+      .replace('/api/tiktok/analyze', '') || '/';
+    
     const options = {
-      hostname: targetHost,
-      port: targetPort,
-      path: req.path.replace(/^\/api\/tiktok\/ugc/, '').replace(/^\/api\/tiktok\/scraper/, '').replace(/^\/api\/tiktok\/analyze/, '') || '/',
+      hostname: host,
+      port,
+      path: targetPath,
       method: req.method,
-      headers: { ...req.headers, host: targetHost + ':' + targetPort },
+      headers: { ...req.headers, host: host + ':' + port, connection: 'close' },
       timeout: 180000,
     };
-    const proxy = http.request(options, (proxyRes) => {
+
+    const proxyReq = http.request(options, (proxyRes) => {
       res.writeHead(proxyRes.statusCode, proxyRes.headers);
       proxyRes.pipe(res);
     });
-    proxy.on('error', (e) => { res.status(500).json({ error: e.message }); });
-    if (req.body && Object.keys(req.body).length > 0) {
-      proxy.write(JSON.stringify(req.body));
-    }
-    req.on('data', chunk => proxy.write(chunk));
-    req.on('end', () => proxy.end());
-    proxy.end();
+
+    proxyReq.on('error', (e) => {
+      if (!res.headersSent) res.status(500).json({ error: e.message });
+    });
+
+    req.pipe(proxyReq);
   };
 }
 
-// Proxy routes
+// Proxy routes BEFORE express.json() to preserve raw body
 app.all('/api/tiktok/ugc/*', proxyTo('localhost', 8105));
 app.all('/api/tiktok/scraper/*', proxyTo('localhost', 8106));
 app.all('/api/tiktok/analyze/*', proxyTo('localhost', 8106));
 
-// Health
+// Health — before json middleware
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-// Static
+// JSON middleware for non-proxy routes
+app.use(express.json());
+
+// Static files
 app.use(express.static(path.join(__dirname, 'public')));
 
 // SPA fallback
 app.use((req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`TUS Frontend v2 on :${PORT}`);
+  console.log(`TUS Frontend v3 on :${PORT}`);
 });

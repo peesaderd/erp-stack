@@ -1,17 +1,76 @@
 """Product Analysis Pipeline — Normalizer → Enricher → Exporter
 Transforms raw scraped data (TikTok Shop, Shopee, Lazada) into TUS-ready analyzed data.
 """
-import os, json, logging, httpx, asyncio, re, time
+import os, json, logging, httpx, asyncio, re, time, uuid
 from typing import Optional, Dict, List, Any
 from datetime import datetime
 from dataclasses import dataclass, field, asdict
 from collections import Counter
 from product.analyzer_db import store_analyzed as _store_analyzed, get_analyzed_stats as _get_stats, get_analyzed_products as _get_products
 from product.analyzer_db import store_analyzed_batch
+from pathlib import Path
 
 logger = logging.getLogger("analyze_pipeline")
 
 MISTRAL_KEY = os.environ.get("MISTRAL_API_KEY", "")
+
+# ─── Local Image Storage ───────────────────────────────────
+# Images are downloaded to Analysis module static dir
+# This is the source of truth — TUS reads from here
+PRODUCT_IMAGE_DIR = Path("/home/openhands/erp-stack/tiktok-ugc-studio/storage/product_images")
+PRODUCT_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+
+# Proxy for hdnet.workers.dev download
+DATAIMPULSE_PROXY = os.environ.get("DATAIMPULSE_PROXY", "")
+PROXY_DICT = {"http": DATAIMPULSE_PROXY, "https": DATAIMPULSE_PROXY} if DATAIMPULSE_PROXY else None
+
+
+async def _download_images_local(product_id: str, image_urls: list) -> list:
+    """Download product images to local storage via proxy.
+    
+    Returns list of local image URLs (falls back to original URL if fails).
+    """
+    if not image_urls:
+        return []
+    
+    local_images = []
+    for url in image_urls:
+        if not url:
+            continue
+        # Already local
+        if url.startswith("/static/") or "localhost" in url:
+            local_images.append(url)
+            continue
+        
+        ext = url.rsplit(".", 1)[-1].split("?")[0] if "." in url else "jpg"
+        local_name = f"{product_id}_{uuid.uuid4().hex[:4]}.{ext}"
+        local_path = PRODUCT_IMAGE_DIR / local_name
+        
+        try:
+            async with httpx.AsyncClient(
+                proxies=PROXY_DICT,
+                timeout=20,
+                verify=False
+            ) as client:
+                resp = await client.get(
+                    url,
+                    headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
+                    follow_redirects=True,
+                )
+                if resp.status_code == 200 and len(resp.content) > 1000:
+                    local_path.write_bytes(resp.content)
+                    local_images.append(f"/static/product_images/{local_name}")
+                    logger.info(f"  Downloaded image: {local_name} ({len(resp.content)} bytes)")
+                else:
+                    # Proxy failed too — keep original URL
+                    local_images.append(url)
+                    logger.warning(f"  Download failed {url[:50]}: HTTP {resp.status_code}")
+        except Exception as e:
+            local_images.append(url)
+            logger.warning(f"  Download error {url[:50]}: {e}")
+    
+    return local_images
+
 
 # ─── Error Rate Limiter ─────────────────────────────────────────────────────
 
@@ -322,6 +381,10 @@ class ProductEnricher:
             product.viral_score = _score_viral(product)
             if product.sold_total > 0:
                 product.trending = (product.sold_week / product.sold_total) > 0.1
+            
+            # Download product images to local storage
+            product.images = await _download_images_local(product.product_id, product.images)
+            
             product.enriched = True
             return product
         except Exception as e:

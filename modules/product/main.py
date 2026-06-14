@@ -10,6 +10,7 @@ import httpx
 
 from fastapi import FastAPI, HTTPException, Header, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional, List
 import uvicorn
@@ -234,6 +235,12 @@ async def serve_ui(full_path: str = ""):
         return FileResponse(file_path)
     return FileResponse(_os.path.join(_ui_dir, "index.html"))
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+# Serve product images from local storage
+from pathlib import Path
+_static_product_path = Path("/home/openhands/erp-stack/tiktok-ugc-studio/storage/product_images")
+_static_product_path.mkdir(parents=True, exist_ok=True)
+app.mount("/static/product_images", StaticFiles(directory=str(_static_product_path)), name="product_images")
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────

@@ -96,7 +96,7 @@ _pipeline_results = {}
 # ─── Pydantic Models ───────────────────────────────────────────────────────
 
 class ScriptRequest(BaseModel):
-    product_name: str
+    product_name: str = ""
     customer_problem: str = ""
     main_benefit: str = ""
     target_audience: str = ""
@@ -104,6 +104,10 @@ class ScriptRequest(BaseModel):
     cta: str = ""
     duration: str = "8s"
     extra_rules: str = ""
+    product_url: str = ""
+    product_title: str = ""
+    product_details: str = ""
+    ugc_style: str = ""
 
 
 class UGCRequest(BaseModel):
@@ -1038,8 +1042,10 @@ def generate_script(req: ScriptRequest):
     """Generate TikTok review script using AiBot prompt system"""
     from script_gen import generate_tiktok_review_script
     try:
+        # Fallback product_name from product_title or product_url if not provided
+        pname = req.product_name or req.product_title or req.product_url.split('/')[-1].replace('_',' ').replace('-',' ').strip() or 'สินค้า'
         result = generate_tiktok_review_script(
-            product_name=req.product_name,
+            product_name=pname,
             customer_problem=req.customer_problem,
             main_benefit=req.main_benefit,
             target_audience=req.target_audience,

@@ -38,6 +38,16 @@ function proxyTo(host, port) {
 app.all('/api/tiktok/ugc/*', proxyTo('localhost', 8105));
 app.all('/api/tiktok/scraper/*', proxyTo('localhost', 8106));
 app.all('/api/tiktok/analyze/*', proxyTo('localhost', 8106));
+app.all('/api/tiktok/image-storage/*', proxyTo('localhost', 8105));
+
+// Legacy image-storage fallback (direct to image-gen)
+app.all('/api/tiktok/image-storage/*', (req, res) => {
+  const filename = req.path.replace('/api/tiktok/image-storage/', '');
+  http.get('http://localhost:8110/storage/images/' + filename, (proxyRes) => {
+    res.writeHead(proxyRes.statusCode, { 'Content-Type': proxyRes.headers['content-type'] || 'image/jpeg', 'Content-Length': proxyRes.headers['content-length'] });
+    proxyRes.pipe(res);
+  }).on('error', () => res.status(404).json({ error: 'not found' }));
+});
 
 // Health — before json middleware
 app.get('/health', (req, res) => res.json({ status: 'ok' }));

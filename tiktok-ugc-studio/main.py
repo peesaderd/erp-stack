@@ -1725,6 +1725,24 @@ async def _proxy(method: str, module: str, path: str, body: dict = None) -> dict
         return {"ok": False, "status": 0, "error": str(e), "data": None}
 
 
+# ─── Image Storage (direct proxy to image-gen) ──────────────────────────
+from fastapi.responses import Response
+
+@app.get("/image-storage/{filename}")
+async def image_storage_proxy(filename: str):
+    """Proxy image files from image-gen storage module."""
+    import httpx
+    url = f"http://localhost:8110/storage/images/{filename}"
+    try:
+        async with httpx.AsyncClient(timeout=30.0, verify=False) as client:
+            resp = await client.get(url)
+            if resp.status_code >= 400:
+                return {"ok": False, "error": "Image not found"}
+            return Response(content=resp.content, media_type=resp.headers.get("content-type", "image/jpeg"))
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
 # ─── Image Gallery (proxy to Image Gen Module :8110) ─────────────────────
 
 class ImageGenerateRequest(BaseModel):

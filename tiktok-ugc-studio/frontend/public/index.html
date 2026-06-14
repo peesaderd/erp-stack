@@ -978,7 +978,7 @@ async function generateImageFromStep3() {
     const images = data.data?.data?.images || data.data?.images || data.images || [];
     let imgUrl = images[0]?.url || '';
     if (imgUrl.startsWith('http://localhost:8110/storage/images/')) {
-      imgUrl = window.location.origin + '/api/tiktok/image-storage/' + imgUrl.split('/').pop();
+      imgUrl = window.location.origin + '/api/i2m/ugc/image-storage/' + imgUrl.split('/').pop();
     }
     if (!imgUrl) throw new Error('No image');
     const modelImg = document.getElementById('modelImgPreview');

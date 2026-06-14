@@ -1820,6 +1820,74 @@ async def generate_product_image(product_name: str = "", description: str = "", 
     return result
 
 
+class BuildPromptRequest(BaseModel):
+    product_name: str = ""
+    description: str = ""
+    ugc_style: str = "holding"
+    use_mistral: bool = False
+
+
+@app.post("/images/build-prompt")
+async def build_image_prompt(req: BuildPromptRequest):
+    """
+    Image Prompt Builder — วิเคราะห์สินค้า + UGC Style
+    → สร้าง Image Prompt ที่ Dynamic (gender, setting, lighting ตามสินค้า)
+    
+    Body:
+        product_name: ชื่อสินค้า
+        description: รายละเอียดสินค้า
+        ugc_style: holding / usage / review / talking
+        use_mistral: ถ้า True จะเรียก Mistral เพื่อวิเคราะห์เพิ่ม
+    """
+    from image_prompt_builder import process_image_prompt_request
+    result = await process_image_prompt_request(
+        product_name=req.product_name,
+        description=req.description,
+        ugc_style=req.ugc_style,
+        use_mistral=req.use_mistral,
+    )
+    return {"ok": True, **result}
+
+
+class GenerateEnhancedRequest(BaseModel):
+    product_name: str = ""
+    description: str = ""
+    ugc_style: str = "holding"
+    use_mistral: bool = False
+    count: int = 1
+
+
+@app.post("/images/generate-enhanced")
+async def generate_enhanced_image(req: GenerateEnhancedRequest):
+    """
+    Enhanced image generation — build prompt → generate image
+    
+    1. เรียก Image Prompt Builder เพื่อวิเคราะห์สินค้า
+    2. สร้าง prompt ที่ dynamic + negative prompt
+    3. ส่งไป Prodia/Fal พร้อม aspect ratio และ thaiModel
+    """
+    from image_prompt_builder import process_image_prompt_request
+    prompt_info = await process_image_prompt_request(
+        product_name=req.product_name,
+        description=req.description,
+        ugc_style=req.ugc_style,
+        use_mistral=req.use_mistral,
+    )
+    
+    gen_result = await _proxy("POST", "image-gen", "/api/image/v1/generate", {
+        "prompt": prompt_info["prompt"],
+        "aspectRatio": prompt_info["aspect_ratio"],
+        "thaiModel": False,
+        "count": req.count,
+        "provider": "prodia",
+    })
+    
+    return {
+        "prompt_info": prompt_info,
+        "generation_result": gen_result,
+    }
+
+
 @app.get("/images/gallery")
 async def image_gallery():
     """List generated images from Image Gen module storage."""

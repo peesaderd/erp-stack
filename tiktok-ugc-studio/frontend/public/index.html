@@ -970,19 +970,22 @@ async function generateImageFromStep3() {
   const productDetails = document.getElementById('productDetails').value || '';
   const style = document.getElementById('selectedStyleLabel')?.textContent?.split(' —')[0]?.trim()?.toLowerCase().replace(/ /g,'_') || 'holding';
   
-  // Build style-specific prompt
-  let styleDesc = 'Thai female model, young adult, smiling at camera, both hands holding product clearly visible, product packaging visible, authentic Thai style, soft natural lighting, professional e-commerce quality, high detail, realistic skin texture';
-  if (style === 'usage') {
-    styleDesc = 'Thai female model, young adult, actively using the product in daily setting, candid shot, natural lighting, hands holding product, product clearly visible, authentic lifestyle scene, warm atmosphere';
-  } else if (style === 'review') {
-    styleDesc = 'Thai female model, young adult, holding product up showing the packaging, smiling, warm interior lighting, product front-facing camera, like unboxing reaction, high quality product photography';
-  } else if (style === 'talking') {
-    styleDesc = 'Thai female model, young adult, talking while holding product, camera-facing, talking head style, product casually held, bright soft key light, professional vlog lighting, e-commerce thumbnail quality';
-  }
-  
-  const prompt = `${styleDesc}. Product: ${productName}. ${productDetails ? 'Details: ' + productDetails + '.' : ''} Clothing: casual comfortable outfit. Holding product in both hands, product label facing camera. Clean background, professional lighting.`;
-  
   try {
+    // Use enhanced prompt builder — dynamic gender, setting, lighting based on product
+    const builder = await fetch(window.location.origin + '/api/tiktok/ugc/images/build-prompt', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        product_name: productName,
+        description: productDetails,
+        ugc_style: style,
+        use_mistral: false
+      })
+    });
+    if (!builder.ok) throw new Error('Build prompt failed');
+    const builderData = await builder.json();
+    const prompt = builderData.prompt || builderData.data?.prompt || '';
+    if (!prompt) throw new Error('No prompt built');
+    
     const res = await fetch(window.location.origin + '/api/tiktok/ugc/images/generate', {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({prompt, count: 1})

@@ -121,19 +121,50 @@ class ConcatRequest(BaseModel):
     output_duration: int = 16
 
 
+class SceneBlock(BaseModel):
+    """Scene definition for UGC video."""
+    script: str  # บทพูดของ Scene นี้
+    duration: int = 8  # วินาที
+    mood: str = "energetic"  # energetic | calm | luxurious | fun | informative
+    sound_style: str = "upbeat_pop"  # upbeat_pop | chill_loft | luxury_jazz | asmr | energetic_edm
+    style: str = "product_usage"  # holding_product | product_usage | ugc_review | talking_head
+
+
 class VideoRequest(BaseModel):
-    prompt: str
+    """Full UGC Video Generation Request.
+
+    Structure:
+      Product → Script (Hook + Value + CTA) → Scenes → Style → Generate
+    """
+    # Product info
+    product_title: str = ""
+    product_url: str = ""
+    product_image: str = ""
+    product_price: Optional[float] = None
+    product_commission: Optional[float] = None
+    tags: list[str] = []  # แยก Tag ออกจาก CTA
+
+    # Script — แยกกัน!
+    hook: str = ""  # ส่วนเปิด
+    value: str = ""  # คุณค่าสินค้า
+    cta: str = ""  # คำกระตุ้นการซื้อ (แยก!)  
+
+    # Style & Content type
+    content_type: str = "affiliate"  # viral | affiliate | carousel
+    ugc_style: str = "product_usage"  # holding_product | product_usage | ugc_review | talking_head
+    aspect_ratio: str = "9:16"
+    duration: int = 8  # total seconds
+
+    # Scenes
+    scenes: list[SceneBlock] = []  # ถ้าไม่ระบุ จะ gen อัตโนมัติ
+
+    # Legacy fields (backward compat)
+    prompt: str = ""
     provider: str = "prodia"
     model_tier: str = "standard"
-    duration: int = 8
-    aspect_ratio: str = "9:16"
     image_url: Optional[str] = None
     script: Optional[str] = None
-    ugc_style: Optional[str] = None
     negative_prompt: Optional[str] = None
-    product_title: Optional[str] = None
-    product_url: Optional[str] = None
-    product_image: Optional[str] = None
 
 
 class VideoTaskRequest(BaseModel):
@@ -1069,48 +1100,117 @@ def script_templates():
 @app.post("/video/generate")
 def generate_video(req: VideoRequest):
     """
-    Full UGC pipeline v4:
-      Script → FLUX Image → MiniMax Voice → Wan 2.7 img2vid+audio → Background Sound → FFmpeg Concat
+    Full UGC pipeline v4 — ละเอียดทุกขั้นตอน!
 
-    Returns video ready for Post For Me with metadata (product_name, link, tags).
+    Structure:
+      Product → Script (Hook + Value + CTA) → [Scenes (Style + Mood + Sound)] → Generate
+
+    Request (VideoRequest):
+      - product_title, product_url, product_image, product_price, product_commission, tags
+      - hook, value, cta (แยกกัน!)
+      - scenes[]: [{ script, duration, mood, sound_style, style }]
+      - content_type: viral | affiliate | carousel
+      - ugc_style: holding_product | product_usage | ugc_review | talking_head
+      - duration: total seconds
+
+    Response:
+      - video_url, metadata (product_name, tags[], link, price, commission)
     """
     from pipeline_affiliate import run_pipeline as affiliate_run
     import uuid, json, threading, subprocess
 
     job_id = f"vid_{uuid.uuid4().hex[:8]}"
 
-    # Build script from prompt / product info
-    script = req.prompt or ""
-    if req.script:
-        script = req.script
+    # ── Step 1: Build script from Hook + Value + CTA (แยกกัน!) ──
+    if req.hook and req.value and req.cta:
+        script_parts = [req.hook]
+        if req.value:
+            script_parts.append(req.value)
+        script_parts.append(req.cta)
+        full_script = " ".join(script_parts)
+    elif req.script:
+        full_script = req.script
+    elif req.prompt:
+        full_script = req.prompt
     elif req.product_title:
-        # Auto-generate hook + CTA from product name
-        script = f"Check out this {req.product_title}! Amazing quality and great value. Link in bio! 🛍️"
+        full_script = f"Check out this {req.product_title}! Amazing quality, great value! Link in bio! 🛍️"
+    else:
+        full_script = "Check out this amazing product!"
 
-    # Scene prompts — 1 scene for 8s, 2 scenes for 16s+
-    scene_prompts = [script]
-    if req.duration >= 16:
-        scene_prompts = [
-            f"{script} [Scene 1: product showcase, establishing shot]",
-            f"{script} [Scene 2: product usage, close-up details]",
+    # ── Step 2: Build scene blocks ──
+    # แต่ละ scene มี: script, duration, style, mood, sound_style
+    sound_styles = {
+        "holding_product": "upbeat_pop",
+        "product_usage": "chill_loft",
+        "ugc_review": "informative_jazz",
+        "talking_head": "energetic_edm",
+    }
+    moods = {
+        "holding_product": "energetic",
+        "product_usage": "calm",
+        "ugc_review": "informative",
+        "talking_head": "fun",
+    }
+
+    scenes = []
+    if req.scenes:
+        scenes = req.scenes
+    elif req.duration <= 8:
+        # 1 scene — ใช้ style ที่เลือก
+        scenes = [SceneBlock(
+            script=full_script,
+            duration=min(req.duration, 8),
+            mood=moods.get(req.ugc_style, "energetic"),
+            sound_style=sound_styles.get(req.ugc_style, "upbeat_pop"),
+            style=req.ugc_style,
+        )]
+    else:
+        # 2 scenes — Showcase + Detail
+        scenes = [
+            SceneBlock(
+                script=f"{req.hook or ''} Let me show you this!" if req.hook else f"Check out {req.product_title}! Let me show you!",
+                duration=8,
+                mood="energetic",
+                sound_style="upbeat_pop",
+                style="holding_product",
+            ),
+            SceneBlock(
+                script=f"{req.value or ''} {req.cta or 'Link in bio!'}" if req.value else f"Amazing right? {req.cta or 'Link in bio! 🛍️'}",
+                duration=8,
+                mood="calm",
+                sound_style="chill_loft",
+                style="product_usage",
+            ),
         ]
 
-    duration = min(req.duration, 8)
+    scene_prompts = [s.script for s in scenes]
+    duration_per_scene = min(scenes[0].duration, 8) if scenes else 8
 
     def _run():
         try:
-            # Build image prompt from product info
+            # Build image prompt from product info + mood
             img_prompt = None
             if req.product_title:
-                img_prompt = f"{req.product_title} product photography, clean background, professional lighting, product showcase"
+                img_prompt = f"{req.product_title} product photography, {moods.get(req.ugc_style, 'energetic')} vibe, clean background, professional lighting, product showcase"
             elif req.prompt:
                 img_prompt = f"{req.prompt} product photography, clean background"
 
+            # Select sound based on style
+            selected_sound_style = scenes[0].sound_style if scenes else "upbeat_pop"
+
+            logger.info(f"=== Pipeline v4 [{job_id}] ===")
+            logger.info(f"  Product: {req.product_title}")
+            logger.info(f"  Content: {req.content_type}")
+            logger.info(f"  Style: {req.ugc_style}")
+            logger.info(f"  Scenes: {len(scenes)}")
+            logger.info(f"  Sound: {selected_sound_style}")
+            logger.info(f"  Tags: {req.tags}")
+
             result = affiliate_run(
-                script=script,
+                script=full_script,
                 scene_prompts=scene_prompts,
                 voice_id="English_Trustworth_Man",
-                video_duration=duration,
+                video_duration=duration_per_scene,
                 image_prompt=img_prompt,
                 product_image=req.product_image if req.product_image and os.path.exists(req.product_image) else None,
                 enable_sam3=bool(req.product_image),
@@ -1118,11 +1218,23 @@ def generate_video(req: VideoRequest):
             VIDEOS_DIR.mkdir(parents=True, exist_ok=True)
             final_path = result["final_path"]
 
-            # Step 5: Add background sound (if available)
-            bgm_path = STORAGE_DIR / "sounds" / "bg_ambient.mp3"
+            # Step 5: Add background sound (style-based)
+            bgm_styles = {
+                "upbeat_pop": "bg_upbeat.mp3",
+                "chill_loft": "bg_chill.mp3",
+                "informative_jazz": "bg_jazz.mp3",
+                "energetic_edm": "bg_edm.mp3",
+                "luxury_jazz": "bg_jazz.mp3",
+                "asmr": "bg_ambient.mp3",
+            }
+            bgm_filename = bgm_styles.get(selected_sound_style, "bg_ambient.mp3")
+            bgm_path = STORAGE_DIR / "sounds" / bgm_filename
+
+            if not bgm_path.exists():
+                bgm_path = STORAGE_DIR / "sounds" / "bg_ambient.mp3"
+
             if bgm_path.exists():
                 bgm_output = STORAGE_DIR / "videos" / f"final_{job_id}.mp4"
-                # Mix background sound at 15% volume behind the main audio
                 cmd = [
                     "ffmpeg", "-y",
                     "-i", str(final_path),
@@ -1138,10 +1250,10 @@ def generate_video(req: VideoRequest):
                 ]
                 try:
                     subprocess.run(cmd, check=True, capture_output=True, timeout=60)
-                    logger.info(f"  BGM added: {bgm_output}")
+                    logger.info(f"  BGM ({bgm_filename}) added")
                     final_video_path = bgm_output
                 except Exception as bgm_err:
-                    logger.warning(f"  BGM failed (fallback to no sound): {bgm_err}")
+                    logger.warning(f"  BGM failed: {bgm_err}")
                     import shutil
                     shutil.copy2(final_path, VIDEOS_DIR / f"final_{job_id}.mp4")
                     final_video_path = VIDEOS_DIR / f"final_{job_id}.mp4"
@@ -1149,9 +1261,9 @@ def generate_video(req: VideoRequest):
                 import shutil
                 final_video_path = VIDEOS_DIR / f"final_{job_id}.mp4"
                 shutil.copy2(final_path, final_video_path)
-                logger.info(f"  No BGM found, plain copy")
+                logger.info(f"  No BGM, plain copy")
 
-            # Build metadata for Post For Me
+            # Build metadata for Post For Me — ละเอียด!
             _pipeline_results[job_id] = {
                 "status": "completed",
                 "video_url": f"/static/videos/final_{job_id}.mp4",
@@ -1161,14 +1273,27 @@ def generate_video(req: VideoRequest):
                     "product_name": req.product_title or "",
                     "product_url": req.product_url or "",
                     "product_image": req.product_image or "",
-                    "script": script,
+                    "product_price": req.product_price,
+                    "product_commission": req.product_commission,
+                    "tags": req.tags,  # แยก! ไม่ปน CTA
+                    "hook": req.hook,
+                    "value": req.value,
+                    "cta": req.cta,  # แยก!
+                    "content_type": req.content_type,
+                    "ugc_style": req.ugc_style,
+                    "scenes": [
+                        {
+                            "style": s.style,
+                            "mood": s.mood,
+                            "sound_style": s.sound_style,
+                            "duration": s.duration,
+                            "script": s.script[:50] + "..." if len(s.script) > 50 else s.script,
+                        }
+                        for s in scenes
+                    ],
+                    "sound_style": selected_sound_style,
                     "duration": req.duration,
                     "aspect_ratio": req.aspect_ratio or "9:16",
-                    "tags": [
-                        req.product_title.replace(" ", "") if req.product_title else "product",
-                        "ugc",
-                        "review",
-                    ],
                 },
                 "job_id": job_id,
             }
@@ -1186,10 +1311,22 @@ def generate_video(req: VideoRequest):
     _pipeline_results[job_id] = {
         "status": "processing",
         "job_id": job_id,
-        "message": "Pipeline running...",
+        "message": f"Pipeline running... Style: {req.ugc_style}, Content: {req.content_type}, Tags: {req.tags}",
     }
 
-    return {"status": "queued", "job_id": job_id, "duration": req.duration}
+    return {
+        "status": "queued",
+        "job_id": job_id,
+        "duration": req.duration,
+        "metadata_preview": {
+            "product": req.product_title,
+            "style": req.ugc_style,
+            "content_type": req.content_type,
+            "scenes": len(scenes),
+            "tags": req.tags,
+            "sound": scenes[0].sound_style if scenes else "upbeat_pop",
+        },
+    }
 
 
 @app.get("/video/status/{job_id}")

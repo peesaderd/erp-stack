@@ -247,6 +247,8 @@ select.input { cursor: pointer; }
 .style-card:hover { border-color: var(--brand); }
 .style-card.selected { border-color: var(--brand); background: rgba(124,58,237,.05); }
 .style-card-emoji { font-size: 32px; margin-bottom: 8px; }
+.style-select-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 8px 0; }
+.style-select-grid .style-card { text-align: center; padding: 12px 8px; }
 
 /* Image upload zones */
 .upload-zone {
@@ -557,7 +559,35 @@ select.input { cursor: pointer; }
 
     <div class="mb-4">
       <label class="text-sm text-secondary mb-2" style="display:block">UGC Style</label>
-      <select class="input" id="ugcStyle"><option value="holding">Holding Product</option><option value="usage">Product Usage</option><option value="review">UGC Review</option><option value="talking">Talking Head</option></select>
+      <div id="selectedStyleChip" onclick="document.getElementById('styleModal').classList.add('open')" style="padding:10px 14px;border:1px solid var(--border-primary);border-radius:var(--radius-lg);cursor:pointer;display:flex;align-items:center;gap:8px">
+        <span id="selectedStyleIcon">🤳</span>
+        <span id="selectedStyleLabel">Holding Product — ถือสินค้าพูด</span>
+        <span style="margin-left:auto;font-size:12px;color:var(--text-tertiary)">▼</span>
+      </div>
+    </div>
+
+    <!-- UGC Style Modal -->
+    <div class="modal-overlay" id="styleModal">
+      <div class="modal" style="max-width:320px">
+        <div class="modal-header" style="border:none;padding:16px 0 8px">
+          <div class="font-medium">UGC Content Style</div>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('styleModal').classList.remove('open')" style="font-size:18px">✕</button>
+        </div>
+        <div class="style-select-grid" id="styleModalGrid">
+          <div class="style-card selected" data-style="holding" onclick="selectStyleFromModal(this,'holding')">
+            <div class="style-card-emoji">🤳</div><div class="font-medium">Holding Product</div><div class="text-xs text-secondary">ถือสินค้าพูด</div>
+          </div>
+          <div class="style-card" data-style="usage" onclick="selectStyleFromModal(this,'usage')">
+            <div class="style-card-emoji">📱</div><div class="font-medium">Product Usage</div><div class="text-xs text-secondary">สาธิตการใช้</div>
+          </div>
+          <div class="style-card" data-style="review" onclick="selectStyleFromModal(this,'review')">
+            <div class="style-card-emoji">⭐</div><div class="font-medium">UGC Review</div><div class="text-xs text-secondary">รีวิวสินค้า</div>
+          </div>
+          <div class="style-card" data-style="talking" onclick="selectStyleFromModal(this,'talking')">
+            <div class="style-card-emoji">🎤</div><div class="font-medium">Talking Head</div><div class="text-xs text-secondary">พูดหน้ากล้อง</div>
+          </div>
+        </div>
+      </div>
     </div>
     <button class="btn btn-primary" onclick="generateScript()">Next: Generate Script →</button>
   </div>
@@ -579,32 +609,11 @@ select.input { cursor: pointer; }
     </div>
     <div style="display:flex;gap:8px">
       <button class="btn btn-secondary" onclick="goContentStep(1)">← Back</button>
-      <button class="btn btn-primary" onclick="goContentStep(3)">Next: Select Style →</button>
-    </div>
-  </div>
-
-  <!-- Step 3: Style -->
-  <div class="card step-content" id="contentStep3">
-    <div class="card-title mb-3">เลือก UGC Style</div>
-    <div class="grid-4" id="styleGrid">
-      <div class="style-card selected" data-style="holding" onclick="selectStyle(this,'holding')">
-        <div class="style-card-emoji">🤳</div><div class="font-medium">Holding Product</div><div class="text-xs text-secondary">ถือสินค้าพูด</div>
-      </div>
-      <div class="style-card" data-style="usage" onclick="selectStyle(this,'usage')">
-        <div class="style-card-emoji">📱</div><div class="font-medium">Product Usage</div><div class="text-xs text-secondary">สาธิตการใช้</div>
-      </div>
-      <div class="style-card" data-style="review" onclick="selectStyle(this,'review')">
-        <div class="style-card-emoji">⭐</div><div class="font-medium">UGC Review</div><div class="text-xs text-secondary">รีวิวสินค้า</div>
-      </div>
-      <div class="style-card" data-style="talking" onclick="selectStyle(this,'talking')">
-        <div class="style-card-emoji">🎤</div><div class="font-medium">Talking Head</div><div class="text-xs text-secondary">พูดหน้ากล้อง</div>
-      </div>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:16px">
-      <button class="btn btn-secondary" onclick="goContentStep(2)">← Back</button>
       <button class="btn btn-primary" onclick="goContentStep(4)">Next: Video Config →</button>
     </div>
   </div>
+
+
 
   <!-- Step 4: Generate -->
   <div class="card step-content" id="contentStep4">
@@ -851,7 +860,7 @@ function goContentStep(step) {
 async function generateScript() {
   const url = document.getElementById('productUrl').value;
   const manual = document.getElementById('manualScript')?.value || '';
-  const style = document.getElementById('ugcStyle').value;
+  const style = document.getElementById('selectedStyleLabel')?.textContent?.split(' —')[0]?.trim()?.toLowerCase().replace(/ /g,'_') || 'holding';
   if (!url && !manual) { showToast('ใส่ URL หรือรายละเอียดสินค้าก่อน','error'); return; }
 
   showToast('Generating script...','info');
@@ -884,6 +893,18 @@ function selectStyle(el, style) {
   document.querySelectorAll('.style-card').forEach(c => c.classList.remove('selected'));
   el.classList.add('selected');
   sessionStorage.setItem('selectedStyle', style);
+}
+
+function selectStyleFromModal(el, style) {
+  document.querySelectorAll('#styleModalGrid .style-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  sessionStorage.setItem('selectedStyle', style);
+  const icon = el.querySelector('.style-card-emoji')?.textContent || '🤳';
+  const label = el.querySelector('.font-medium')?.textContent || style;
+  const sub = el.querySelector('.text-xs')?.textContent || '';
+  document.getElementById('selectedStyleIcon').textContent = icon;
+  document.getElementById('selectedStyleLabel').textContent = label + ' — ' + sub;
+  document.getElementById('styleModal').classList.remove('open');
 }
 
 function selectDuration(el, dur) {
@@ -1670,7 +1691,10 @@ function useProduct(jsonEncoded) {
     document.getElementById("productTitle").value = p.title || "";
     document.getElementById("productDetails").value = (p.description_th || p.description || "");
 
-    if (p.ugc_style) document.getElementById("ugcStyle").value = p.ugc_style;
+    if (p.ugc_style) {
+      const el = document.querySelector(`#styleModalGrid .style-card${p.ugc_style === 'holding' ? '.selected' : "[data-style='" + p.ugc_style + "']"}`);
+      if (el) selectStyleFromModal(el, p.ugc_style);
+    }
     if (p.images && p.images[0]) {
       uploadedImages.product = p.images[0];
       const zone = document.getElementById("productImgZone");

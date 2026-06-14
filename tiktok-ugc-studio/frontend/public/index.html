@@ -966,8 +966,22 @@ function goToStep3() {
 
 async function generateImageFromStep3() {
   showToast('✨ กำลังสร้างรูป...','info');
-  const productDesc = (document.getElementById('productTitle').value || '') + '. ' + (document.getElementById('productDetails').value || '');
-  const prompt = 'Thai female model, young adult, holding ' + productDesc + ', smiling at camera, soft natural lighting, authentic Thai setting, both hands holding product, product clearly visible, studio background, professional quality';
+  const productName = document.getElementById('productTitle').value || document.getElementById('productName').value || 'สินค้า';
+  const productDetails = document.getElementById('productDetails').value || '';
+  const style = document.getElementById('selectedStyleLabel')?.textContent?.split(' —')[0]?.trim()?.toLowerCase().replace(/ /g,'_') || 'holding';
+  
+  // Build style-specific prompt
+  let styleDesc = 'Thai female model, young adult, smiling at camera, both hands holding product clearly visible, product packaging visible, authentic Thai style, soft natural lighting, professional e-commerce quality, high detail, realistic skin texture';
+  if (style === 'usage') {
+    styleDesc = 'Thai female model, young adult, actively using the product in daily setting, candid shot, natural lighting, hands holding product, product clearly visible, authentic lifestyle scene, warm atmosphere';
+  } else if (style === 'review') {
+    styleDesc = 'Thai female model, young adult, holding product up showing the packaging, smiling, warm interior lighting, product front-facing camera, like unboxing reaction, high quality product photography';
+  } else if (style === 'talking') {
+    styleDesc = 'Thai female model, young adult, talking while holding product, camera-facing, talking head style, product casually held, bright soft key light, professional vlog lighting, e-commerce thumbnail quality';
+  }
+  
+  const prompt = `${styleDesc}. Product: ${productName}. ${productDetails ? 'Details: ' + productDetails + '.' : ''} Clothing: casual comfortable outfit. Holding product in both hands, product label facing camera. Clean background, professional lighting.`;
+  
   try {
     const res = await fetch(window.location.origin + '/api/tiktok/ugc/images/generate', {
       method: 'POST', headers: {'Content-Type':'application/json'},

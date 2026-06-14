@@ -185,6 +185,7 @@ async def get_analyzed_products(
                     "enriched": r.enriched,
                     "sold_week": r.sold_week or 0,
                     "sold_month": r.sold_month or 0,
+                    "link": f"https://shop.tiktok.com/view/product/{r.product_id}" if r.product_id else "",
                 })
 
             return {

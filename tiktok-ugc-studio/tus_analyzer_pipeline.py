@@ -194,6 +194,10 @@ async def fetch_trending_for_tus(
 
         # ── Download images via DataImpulse Proxy ──
         for p in filtered:
+            # Add TikTok product link
+            product_id = p.get("product_id", "")
+            p["link"] = f"https://shop.tiktok.com/view/product/{product_id}" if product_id else ""
+
             old_images = p.get("images", [])
             local_images = []
 

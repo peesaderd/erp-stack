@@ -309,7 +309,6 @@ function showAnalyzedModal(p) {
   var html =
     imgHtml +
     '<div class="detail-row"><div class="detail-label">ชื่อสินค้า</div><div class="detail-value"><strong>' + esc(p.title||'—') + '</strong></div></div>' +
-    (p.title_th ? '<div class="detail-row"><div class="detail-label">ชื่อ (ไทย)</div><div class="detail-value">' + esc(p.title_th) + '</div></div>' : '') +
     '<div class="detail-row"><div class="detail-label">Platform</div><div class="detail-value"><span class="badge badge-teal">' + platformIcon(p.source) + ' ' + esc(p.source||'ไม่ระบุ') + '</span></div></div>' +
     '<div class="detail-row"><div class="detail-label">ร้านค้า</div><div class="detail-value">' + esc(p.seller_name||'—') + '</div></div>' +
     '<div class="detail-row"><div class="detail-label">ราคา</div><div class="detail-value">' + fmtPrice(p.price_thb) + '</div></div>' +
@@ -319,6 +318,7 @@ function showAnalyzedModal(p) {
     '<div class="detail-row"><div class="detail-label">คอมมิชชั่น</div><div class="detail-value">' + esc(p.commission||'—') + '</div></div>' +
     '<div class="detail-row"><div class="detail-label">หมวดหมู่</div><div class="detail-value"><span class="badge badge-yellow">' + esc(p.category||'อื่นๆ') + '</span></div></div>' +
     '<div class="detail-row"><div class="detail-label">แนวโน้ม</div><div class="detail-value">' + (p.trending ? '🔥 กำลังมาแรง' : '❄️ ทั่วไป') + '</div></div>' +
+    '<div class="detail-row"><div class="detail-label">ลิงก์</div><div class="detail-value"><a href="' + escAttr(p.link || p.url || '') + '" target="_blank" rel="noopener">🔗 เปิดใน TikTok</a></div></div>' +
     '<div class="detail-row"><div class="detail-label">คำค้น</div><div class="detail-value"><div class="kw-list">' + kwHtml + '</div></div></div>';
   document.getElementById('modalBody').innerHTML = html;
   document.getElementById('productModal').classList.add('open');
@@ -531,7 +531,7 @@ async function loadAnalyzed() {
       var vc = p.viral_score >= 70 ? 'color:var(--green);font-weight:600' : p.viral_score >= 30 ? '' : 'color:var(--text2)';
       var kw = p.keywords ? p.keywords.slice(0,3).join(', ') : '';
       tr.innerHTML =
-        '<td><strong>' + esc(p.title||'—') + '</strong>' + (p.title_th ? '<br><small style="color:var(--text2)">' + esc(p.title_th) + '</small>' : '') + '</td>' +
+        '<td><strong>' + esc(p.title||'—') + '</strong>' + </td>' +
         '<td><span class="badge badge-teal">' + platformIcon(p.source) + ' ' + esc(p.source||'?') + '</span></td>' +
         '<td>' + fmtPrice(p.price_thb) + '</td>' +
         '<td>' + (p.rating ? '⭐' + p.rating : '—') + '</td>' +

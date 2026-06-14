@@ -2882,6 +2882,162 @@ def stats():
         "prompts_loaded": True,
     }
 
+# ─── UGC Video Pipeline (Prodia → ffmpeg) ──────────────────────────────────
+
+class UGCVideoRequest(BaseModel):
+    product_image_url: str = ""
+    product_name: str = ""
+    scene_prompt: str = ""
+    duration_seconds: int = 16
+    fps: float = 1.0
+    resolution: str = "480p"
+    model_gender: str = "female"
+    style: str = "holding"
+    generate_video: bool = True
+
+
+@app.post("/images/video")
+async def generate_ugc_video(req: UGCVideoRequest):
+    """
+    UGC Video Pipeline — Prodia Only
+    
+    Pipeline:
+      1. SAM3 segment → mask product
+      2. T2I create scene background (FLUX.2 klein 4B)
+      3. Img2Img keyframes — product in scene (klein 4B img2img)
+      4. Face restore each keyframe
+      5. ffmpeg → combine keyframes → MP4 video (480p 16fps)
+    
+    Body:
+        product_image_url:  URL รูปสินค้าจริง
+        product_name:       ชื่อสินค้า
+        scene_prompt:       prompt ของ scene (ถ้าไม่ใส่ จะ gen auto)
+        duration_seconds:   ความยาวคลิป (default 16)
+        fps:                keyframes ต่อวินาที (default 1)
+        resolution:         '480p' | '720p' | '1080p'
+        model_gender:       'female' | 'male' | 'unisex'
+        style:              'holding' | 'usage' | 'review' | 'talking'
+        generate_video:     ถ้า True จะประกอบ keyframes เป็น MP4
+    """
+    if not req.product_image_url:
+        raise HTTPException(status_code=400, detail="product_image_url is required")
+    
+    # Step 1: Generate keyframes via image-gen UGC pipeline
+    frames_result = await _proxy("POST", "image-gen", "/api/image/v1/ugc/generate-frames", {
+        "productImageUrl": req.product_image_url,
+        "productName": req.product_name or "product",
+        "scenePrompt": req.scene_prompt or "",
+        "durationSeconds": req.duration_seconds,
+        "fps": req.fps,
+        "resolution": req.resolution,
+        "modelGender": req.model_gender,
+        "style": req.style,
+    })
+    
+    if not frames_result.get("ok"):
+        raise HTTPException(status_code=500, detail=frames_result.get("error", "Keyframe generation failed"))
+    
+    frames_data = frames_result["data"]
+    
+    # Step 2: Optionally compose video from keyframes via ffmpeg
+    video_info = None
+    if req.generate_video and frames_data.get("keyframes"):
+        video_info = await _compose_keyframes_to_video(
+            keyframes=frames_data["keyframes"],
+            duration=req.duration_seconds,
+            fps=req.fps,
+            task_id=frames_data.get("taskId", "ugc"),
+            resolution=req.resolution,
+        )
+    
+    return {
+        "ok": True,
+        "keyframe_pipeline": frames_data,
+        "video": video_info,
+    }
+
+
+async def _compose_keyframes_to_video(keyframes: list, duration: int, fps: float, task_id: str, resolution: str):
+    """Use ffmpeg to assemble keyframe images into an MP4 video."""
+    import subprocess
+    import tempfile
+    import shutil
+    
+    res_map = {"480p": (512, 910), "720p": (720, 1280), "960p": (960, 1704), "1080p": (1080, 1920)}
+    w, h = res_map.get(resolution, (480, 854))
+    
+    # Download all keyframes to temp dir
+    tmp_dir = Path(tempfile.mkdtemp(prefix=f"ugc_{task_id}_"))
+    frame_files = []
+    
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=30, verify=False) as client:
+            for i, kf in enumerate(keyframes):
+                url = kf.get("url", "")
+                if not url:
+                    continue
+                resp = await client.get(url)
+                if resp.status_code >= 400:
+                    continue
+                fname = tmp_dir / f"frame_{i:04d}.jpg"
+                fname.write_bytes(resp.content)
+                frame_files.append(str(fname))
+        
+        if len(frame_files) < 2:
+            return {"error": f"Need at least 2 frames, got {len(frame_files)}"}
+        
+        # ffmpeg: concatenate frames with constant frame rate
+        output_filename = f"ugc_{task_id}_{duration}s_{resolution}.mp4"
+        output_path = VIDEOS_DIR / output_filename
+        
+        input_pattern = str(tmp_dir / "frame_%04d.jpg")
+        
+        # Use cat concat for known frame count
+        # Scale to exact resolution, use h264 for TikTok compatibility
+        cmd = [
+            "ffmpeg", "-y",
+            "-framerate", str(fps),
+            "-i", input_pattern,
+            "-vf", f"scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,setsar=1",
+            "-c:v", "libx264",
+            "-preset", "medium",
+            "-crf", "22",
+            "-pix_fmt", "yuv420p",
+            "-r", "24",  # Output framerate 24fps
+            str(output_path),
+        ]
+        
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await proc.communicate()
+        
+        if proc.returncode != 0:
+            error_text = stderr.decode()[-500:] if stderr else "ffmpeg error"
+            return {"error": f"ffmpeg failed: {error_text}"}
+        
+        file_size = output_path.stat().st_size
+        public_url = f"/static/videos/{output_filename}"
+        
+        return {
+            "url": public_url,
+            "filename": output_filename,
+            "size_bytes": file_size,
+            "duration": duration,
+            "fps": fps,
+            "width": w,
+            "height": h,
+            "frame_count": len(frame_files),
+            "path": str(output_path),
+        }
+    finally:
+        # Cleanup temp files
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # ERP Modular Registration (startup)
 # ═══════════════════════════════════════════════════════════════════════

@@ -1,65 +1,49 @@
 const express = require('express');
 const path = require('path');
-const { createProxyMiddleware } = require('http-proxy-middleware');
-
+const http = require('http');
 const app = express();
 app.use(express.json());
 const PORT = 8120;
 
-// TikTok UGC Studio API proxy
-app.use('/api/tiktok/ugc', createProxyMiddleware({
-  target: 'http://localhost:8105',
-  changeOrigin: true,
-  pathRewrite: { '^/api/tiktok/ugc': '/' },
-  proxyTimeout: 300000,
-  timeout: 300000,
-}));
+// Direct proxy helper
+function proxyTo(targetHost, targetPort) {
+  return (req, res) => {
+    const options = {
+      hostname: targetHost,
+      port: targetPort,
+      path: req.path.replace(/^\/api\/tiktok\/ugc/, '').replace(/^\/api\/tiktok\/scraper/, '').replace(/^\/api\/tiktok\/analyze/, '') || '/',
+      method: req.method,
+      headers: { ...req.headers, host: targetHost + ':' + targetPort },
+      timeout: 180000,
+    };
+    const proxy = http.request(options, (proxyRes) => {
+      res.writeHead(proxyRes.statusCode, proxyRes.headers);
+      proxyRes.pipe(res);
+    });
+    proxy.on('error', (e) => { res.status(500).json({ error: e.message }); });
+    if (req.body && Object.keys(req.body).length > 0) {
+      proxy.write(JSON.stringify(req.body));
+    }
+    req.on('data', chunk => proxy.write(chunk));
+    req.on('end', () => proxy.end());
+    proxy.end();
+  };
+}
 
-// Product Scraper proxy
-app.use('/api/tiktok/scraper', createProxyMiddleware({
-  target: 'http://localhost:8106',
-  changeOrigin: true,
-  pathRewrite: { '^/api/tiktok/scraper': '/' },
-  proxyTimeout: 60000,
-  timeout: 60000,
-}));
+// Proxy routes
+app.all('/api/tiktok/ugc/*', proxyTo('localhost', 8105));
+app.all('/api/tiktok/scraper/*', proxyTo('localhost', 8106));
+app.all('/api/tiktok/analyze/*', proxyTo('localhost', 8106));
 
-const fs = require('fs');
+// Health
+app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
+// Static
+app.use(express.static(path.join(__dirname, 'public')));
 
-// Product Analyzer proxy
-app.use('/api/tiktok/analyze', createProxyMiddleware({
-  target: 'http://localhost:8106',
-  changeOrigin: true,
-  pathRewrite: { '^/api/tiktok/analyze': '/' },
-  proxyTimeout: 120000,
-  timeout: 120000,
-}));
-
-
-
-
-// Serve video/media files from /api/tiktok/media/<filename>
-app.get('/api/tiktok/media/:filename', (req, res) => {
-  const safePath = path.resolve(__dirname, '../storage', path.basename(req.params.filename));
-  if (fs.existsSync(safePath)) {
-    res.sendFile(safePath);
-  } else {
-    res.status(404).json({ error: 'File not found' });
-  }
-});
-
-// Serve static frontend files from a 'public' directory
-const publicPath = path.join(__dirname, 'public');
-app.use(express.static(publicPath));
-
-// All other routes → index.html (SPA) — use middleware not route
-app.use((req, res) => {
-  res.sendFile(path.join(publicPath, 'index.html'));
-});
+// SPA fallback
+app.use((req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`TikTok UGC Studio Frontend running on http://0.0.0.0:${PORT}`);
-  console.log(`  API: http://localhost:${PORT}/api/tiktok/ugc/ (→ :8105)`);
-  console.log(`  API: http://localhost:${PORT}/api/tiktok/scraper/ (→ :8106)`);
+  console.log(`TUS Frontend v2 on :${PORT}`);
 });

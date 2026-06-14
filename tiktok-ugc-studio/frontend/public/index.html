@@ -916,6 +916,8 @@ async function generateScript() {
     if (title) body.product_title = title;
     if (details) body.product_details = details;
     if (manual) body.product_name = manual;
+    if (!body.product_name && title) body.product_name = title;
+    if (!body.product_name && url) body.product_name = url.split('/').pop() || url;
 
     const res = await fetch(window.location.origin + '/api/tiktok/ugc/scripts/generate', {
       method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)

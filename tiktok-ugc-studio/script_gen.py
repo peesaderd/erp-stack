@@ -109,22 +109,85 @@ def generate_tiktok_review_script(
 
     user_prompt = fill_template(user_tpl, user_data)
 
-    # Try LLM
-    raw = _call_llm(system, f"{master}\n\n{user_prompt}")
+    # Try LLM with structured output instruction
+    structured_instruction = (
+        "\n\n"
+        "🚨 IMPORTANT — Return as JSON ONLY with these keys:\n"
+        '{"hook": "...", "body": "...", "cta": "...", '
+        '"scene": "...", "voice": "...", "prompt": "...", '
+        '"mood": "...", "hashtags": "..."}\n'
+        'hook = ช่วงเปิด 1-2 ประโยค\n'
+        'body = เนื้อหาคุณค่าสินค้า\n'
+        'cta = เชิญชวนซื้อ\n'
+        'scene = บรรยายฉาก เช่น "สาวไทยถือสินค้าหน้าฉากเรียบ"\n'
+        'voice = บรรยายเสียง เช่น "หญิงไทย อายุ 20-30 เป็นกันเอง"\n'
+        'prompt = full AI prompt สำหรับสร้างวิดีโอ\n'
+        'mood = อารมณ์ เช่น "เป็นกันเอง, เชื่อถือได้"\n'
+        'hashtags = คั่นด้วยช่องว่าง เช่น "#UGC #รีวิวสินค้า"\n'
+        "Return ONLY valid JSON, no markdown, no extra text."
+    )
+    raw = _call_llm(system, f"{master}\n\n{user_prompt}\n\n{structured_instruction}")
 
     if raw:
-        return {
-            "script": raw,
-            "uses_llm": True,
-            "duration": duration,
-            "product": product_name,
-        }
+        try:
+            import json as _json
+            parsed = _json.loads(raw)
+            return {
+                "script": {
+                    "hook": parsed.get("hook", ""),
+                    "body": parsed.get("body", ""),
+                    "value_proposition": parsed.get("body", ""),
+                    "cta": parsed.get("cta", ""),
+                },
+                "hook": parsed.get("hook", ""),
+                "value_proposition": parsed.get("body", ""),
+                "value": parsed.get("body", ""),
+                "body": parsed.get("body", ""),
+                "cta": parsed.get("cta", ""),
+                "scene": parsed.get("scene", ""),
+                "voice": parsed.get("voice", ""),
+                "voice_style": parsed.get("voice", ""),
+                "prompt": parsed.get("prompt", ""),
+                "video_prompt": parsed.get("prompt", ""),
+                "mood": parsed.get("mood", ""),
+                "mood_tone": parsed.get("mood", ""),
+                "hashtags": parsed.get("hashtags", ""),
+                "uses_llm": True,
+                "duration": duration,
+                "product": product_name,
+            }
+        except Exception:
+            pass
 
-    # Fallback: template-based script
-    script = _template_script(user_data, duration)
+    # Fallback
+    variations_d = json.loads(load_prompt('variation.json') or '{}')
+    hook_text = f"{random.choice(variations_d.get('hooks', ['แนะนำสินค้าดี']))}! {product_name} ต้องดู!"
+    body_text = f"{product_name} {main_benefit or 'คุณภาพดี'} ใช้งานง่าย ได้ผลจริง ลองใช้แล้วประทับใจมาก"
+    cta_text = f"{random.choice(variations_d.get('ctas', ['กดตะกร้าเลย']))}! {product_name} ราคาพิเศษวันนี้เท่านั้น!"
+    
+    script = {
+        "hook": hook_text,
+        "body": body_text,
+        "value_proposition": body_text,
+        "cta": cta_text,
+    }
+    
     return {
         "script": script,
-        "uses_llm": False,
+        "hook": hook_text,
+        "value_proposition": body_text,
+        "value": body_text,
+        "body": body_text,
+        "cta": cta_text,
+        "scene": "สาวไทยถือสินค้าหน้าฉากหลังเรียบ แต่งตัวสบายๆ",
+        "voice": "หญิงไทย อายุ 20-30 ปี น้ำเสียงเป็นกันเอง พูดชัด",
+        "voice_style": "หญิงไทย อายุ 20-30 ปี น้ำเสียงเป็นกันเอง พูดชัด",
+        "prompt": f"Thai female model holding {product_name}, smiling at camera, soft natural lighting, {product_name} clearly visible, authentic Thai setting, studio background, professional quality",
+        "video_prompt": f"Thai female model holding {product_name}, smiling, soft lighting, studio background",
+        "mood": "เป็นกันเอง, เชื่อถือได้, อบอุ่น",
+        "mood_tone": "เป็นกันเอง, เชื่อถือได้, อบอุ่น",
+        "hashtags": "#UGC #รีวิวสินค้า #ของดีบอกต่อ",
+        "uses_llm": raw is not None,
         "duration": duration,
         "product": product_name,
     }

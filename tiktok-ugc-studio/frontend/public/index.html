@@ -609,13 +609,57 @@ select.input { cursor: pointer; }
     </div>
     <div style="display:flex;gap:8px">
       <button class="btn btn-secondary" onclick="goContentStep(1)">← Back</button>
-      <button class="btn btn-primary" onclick="goContentStep(4)">Next: Video Config →</button>
+      <button class="btn btn-primary" onclick="goToStep3()">Next: สรุปรายละเอียด →</button>
     </div>
   </div>
 
+  <!-- Step 3: สรุปก่อนสร้างรูป -->
+  <div class="card step-content" id="contentStep3">
+    <div class="card-title mb-3">📋 สรุปรายละเอียด Content</div>
+    
+    <div class="mb-4" id="step3Thumbnail" style="text-align:center">
+      <img id="step3ProductImg" src="" alt="Product" style="max-width:160px;max-height:160px;border-radius:var(--radius-lg);border:2px solid var(--border-primary);display:none">
+      <div id="step3NoImg" class="text-sm text-secondary" style="padding:16px">📷 ไม่มีรูปสินค้า</div>
+    </div>
 
+    <div class="mb-3" style="background:var(--bg-tertiary);border-radius:var(--radius-lg);padding:14px">
+      <div class="text-xs text-secondary mb-2">🎬 Hook</div>
+      <div class="text-sm" id="step3Hook">-</div>
+    </div>
+    <div class="mb-3" style="background:var(--bg-tertiary);border-radius:var(--radius-lg);padding:14px">
+      <div class="text-xs text-secondary mb-2">💡 Value / UGC</div>
+      <div class="text-sm" id="step3Value">-</div>
+    </div>
+    <div class="mb-3" style="background:var(--bg-tertiary);border-radius:var(--radius-lg);padding:14px">
+      <div class="text-xs text-secondary mb-2">🎯 CTA</div>
+      <div class="text-sm" id="step3Cta">-</div>
+    </div>
+    <div class="mb-3" style="background:var(--bg-tertiary);border-radius:var(--radius-lg);padding:14px">
+      <div class="text-xs text-secondary mb-2">🎞️ Scene</div>
+      <div class="text-sm" id="step3Scene">-</div>
+    </div>
+    <div class="mb-3" style="background:var(--bg-tertiary);border-radius:var(--radius-lg);padding:14px">
+      <div class="text-xs text-secondary mb-2">🎙️ Voice & Audio</div>
+      <div class="text-sm" id="step3Voice">-</div>
+    </div>
+    <div class="mb-3" style="background:var(--bg-tertiary);border-radius:var(--radius-lg);padding:14px">
+      <div class="text-xs text-secondary mb-2">🤖 AI Prompt</div>
+      <div class="text-sm" id="step3Prompt">-</div>
+    </div>
+    <div class="mb-3" style="background:var(--bg-tertiary);border-radius:var(--radius-lg);padding:14px">
+      <div class="text-xs text-secondary mb-2">🎨 Mood & Tone</div>
+      <div class="text-sm" id="step3Mood">-</div>
+    </div>
+    <div class="mb-3" style="background:var(--bg-tertiary);border-radius:var(--radius-lg);padding:14px">
+      <div class="text-xs text-secondary mb-2">🏷️ Hashtags</div>
+      <div class="text-sm" id="step3Hashtags">-</div>
+    </div>
 
-  <!-- Step 4: Generate -->
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btn-secondary" onclick="goContentStep(2)">← แก้ไข</button>
+      <button class="btn btn-primary" style="flex:1" onclick="generateImageFromStep3()">✨ สร้างรูป</button>
+    </div>
+  </div>
   <div class="card step-content" id="contentStep4">
     <div class="card-title mb-3">Video Generation Config</div>
 
@@ -873,7 +917,7 @@ async function generateScript() {
     if (details) body.product_details = details;
     if (manual) body.product_name = manual;
 
-    const res = await fetch(window.location.origin + '/api/tiktok/scripts/generate', {
+    const res = await fetch(window.location.origin + '/api/tiktok/ugc/scripts/generate', {
       method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
     });
     if (!res.ok) throw new Error('Generate failed');
@@ -886,6 +930,62 @@ async function generateScript() {
     goContentStep(2);
   } catch(e) {
     showToast('Failed: '+e.message,'error');
+  }
+}
+
+function goToStep3() {
+  // Populate summary from Step 2 data
+  document.getElementById('step3Hook').textContent = document.getElementById('scriptHook').value || '-';
+  document.getElementById('step3Value').textContent = document.getElementById('scriptValue').value || '-';
+  document.getElementById('step3Cta').textContent = document.getElementById('scriptCta').value || '-';
+  
+  const lastScript = JSON.parse(localStorage.getItem('lastScript') || '{}');
+  document.getElementById('step3Scene').textContent = lastScript.scene || lastScript.scenes?.join(', ') || lastScript.script?.scene || 'UGC ถือสินค้าหน้าฉากหลังเรียบ';
+  document.getElementById('step3Voice').textContent = lastScript.voice || lastScript.voice_style || lastScript.script?.voice || 'เสียงไทยหญิง อายุ 20-30 น้ำเสียงเป็นกันเอง';
+  document.getElementById('step3Prompt').textContent = (lastScript.prompt || lastScript.video_prompt || lastScript.script?.prompt || '').length > 5 ? (lastScript.prompt || lastScript.video_prompt || lastScript.script?.prompt) : '- กำลัง generate (ลองใหม่)...';
+  document.getElementById('step3Mood').textContent = lastScript.mood || lastScript.mood_tone || lastScript.script?.mood || 'เป็นกันเอง, เชื่อถือได้, อุ่นใจ';
+  document.getElementById('step3Hashtags').textContent = lastScript.hashtags || lastScript.script?.hashtags || '#UGC #รีวิวสินค้า #ของดีบอกต่อ';
+
+  // Show uploaded product image
+  const productImg = document.getElementById('productImgPreview') || document.querySelector('#productImgZone img');
+  const step3Img = document.getElementById('step3ProductImg');
+  const noImg = document.getElementById('step3NoImg');
+  if (productImg && productImg.src) {
+    step3Img.src = productImg.src;
+    step3Img.style.display = 'inline';
+    noImg.style.display = 'none';
+  } else {
+    step3Img.style.display = 'none';
+    noImg.style.display = 'block';
+  }
+  
+  goContentStep(3);
+}
+
+async function generateImageFromStep3() {
+  showToast('✨ กำลังสร้างรูป...','info');
+  const productDesc = (document.getElementById('productTitle').value || '') + '. ' + (document.getElementById('productDetails').value || '');
+  const prompt = 'Thai female model, young adult, holding ' + productDesc + ', smiling at camera, soft natural lighting, authentic Thai setting, both hands holding product, product clearly visible, studio background, professional quality';
+  try {
+    const res = await fetch(window.location.origin + '/api/tiktok/ugc/images/generate', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({prompt, count: 1})
+    });
+    if (!res.ok) throw new Error('API error');
+    const data = await res.json();
+    const images = data.data?.data?.images || data.data?.images || data.images || [];
+    let imgUrl = images[0]?.url || '';
+    if (imgUrl.startsWith('http://localhost:8110/storage/images/')) {
+      imgUrl = window.location.origin + '/api/tiktok/image-storage/' + imgUrl.split('/').pop();
+    }
+    if (!imgUrl) throw new Error('No image');
+    const modelImg = document.getElementById('modelImgPreview');
+    if (modelImg) { modelImg.src = imgUrl; modelImg.style.display = 'block'; }
+    const step3Img = document.getElementById('step3ProductImg');
+    if (step3Img) { step3Img.src = imgUrl; step3Img.style.display = 'inline'; document.getElementById('step3NoImg').style.display = 'none'; }
+    showToast('✅ รูปพร้อมใช้','success');
+  } catch(e) {
+    showToast('❌ สร้างรูปไม่สำเร็จ: ' + e.message,'error');
   }
 }
 

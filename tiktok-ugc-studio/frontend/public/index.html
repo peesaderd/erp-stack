@@ -977,15 +977,17 @@ async function startGeneration() {
     document.getElementById('progressBar').style.width = '40%';
     
     const body = {
-      prompt: basePrompt,
-      provider: 'wavespeed',
-      duration: duration,
-      ugc_style: sessionStorage.getItem('selectedStyle') || 'holding',
-      aspect_ratio: sessionStorage.getItem('aspectRatio') || '9:16',
-      negative_prompt: document.getElementById('negativePrompt').value || null,
       product_title: title || undefined,
       product_url: document.getElementById('productUrl').value || undefined,
       product_image: imageUrl,
+      tags: [],
+      hook: hook,
+      value: value,
+      cta: cta,
+      content_type: sessionStorage.getItem('selectedContentType') || 'affiliate',
+      ugc_style: sessionStorage.getItem('selectedStyle') || 'product_usage',
+      aspect_ratio: sessionStorage.getItem('aspectRatio') || '9:16',
+      duration: duration,
     };
     
     const res = await fetch(API + '/video/generate', {

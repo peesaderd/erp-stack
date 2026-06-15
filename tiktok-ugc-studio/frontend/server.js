@@ -10,7 +10,9 @@ function proxyTo(host, port) {
     const targetPath = req.path
       .replace('/api/tiktok/ugc', '')
       .replace('/api/tiktok/scraper', '')
-      .replace('/api/tiktok/analyze', '') || '/';
+      .replace('/api/tiktok/analyze', '')
+      .replace('/api/tiktok/static', '')
+      .replace('/api/tiktok/image-storage', '') || '/';
     
     const options = {
       hostname: host,
@@ -38,7 +40,31 @@ function proxyTo(host, port) {
 app.all('/api/tiktok/ugc/*', proxyTo('localhost', 8105));
 app.all('/api/tiktok/scraper/*', proxyTo('localhost', 8106));
 app.all('/api/tiktok/analyze/*', proxyTo('localhost', 8106));
+app.all('/api/tiktok/static/*', proxyTo('localhost', 8105));
 app.all('/api/tiktok/image-storage/*', proxyTo('localhost', 8105));
+
+// Direct video proxy (no /api/tiktok prefix — nginx sends /tiktok/ as /)
+app.get('/static/videos/:filename', (req, res) => {
+  http.get('http://localhost:8105/static/videos/' + req.params.filename, (proxyRes) => {
+    res.writeHead(proxyRes.statusCode, { 
+      'Content-Type': proxyRes.headers['content-type'] || 'video/mp4',
+      'Content-Length': proxyRes.headers['content-length'],
+      'Accept-Ranges': 'bytes',
+    });
+    proxyRes.pipe(res);
+  }).on('error', () => res.status(404).json({ error: 'video not found' }));
+});
+
+// Also handle image storage directly
+app.get('/storage/images/:filename', (req, res) => {
+  http.get('http://localhost:8110/storage/images/' + req.params.filename, (proxyRes) => {
+    res.writeHead(proxyRes.statusCode, { 
+      'Content-Type': proxyRes.headers['content-type'] || 'image/jpeg',
+      'Content-Length': proxyRes.headers['content-length'],
+    });
+    proxyRes.pipe(res);
+  }).on('error', () => res.status(404).json({ error: 'image not found' }));
+});
 
 // Legacy image-storage fallback (direct to image-gen)
 app.all('/api/tiktok/image-storage/*', (req, res) => {
@@ -54,6 +80,22 @@ app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 // JSON middleware for non-proxy routes
 app.use(express.json());
+
+// Proxy TUS static files (videos) BEFORE static middleware
+// nginx sends /tiktok/static/videos/xxx without stripping /tiktok prefix
+app.use((req, res, next) => {
+  // Match both /static/videos/* and /tiktok/static/videos/*
+  const videoMatch = req.path.match(/^\/?(?:tiktok\/)?static\/videos\/(.+)$/);
+  if (videoMatch) {
+    const target = 'http://localhost:8105/static/videos/' + videoMatch[1];
+    http.get(target, (proxyRes) => {
+      res.writeHead(proxyRes.statusCode, proxyRes.headers);
+      proxyRes.pipe(res);
+    }).on('error', () => res.status(404).json({ error: 'video not found' }));
+    return;
+  }
+  next();
+});
 
 // Static files
 app.use(express.static(path.join(__dirname, 'public')));

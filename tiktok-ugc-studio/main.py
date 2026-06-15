@@ -1701,14 +1701,14 @@ MODULE_URLS = {
 }
 
 
-async def _proxy(method: str, module: str, path: str, body: dict = None) -> dict:
+async def _proxy(method: str, module: str, path: str, body: dict = None, timeout: float = 90.0) -> dict:
     """Proxy request to a module, return normalized response."""
     base = MODULE_URLS.get(module)
     if not base:
         raise HTTPException(status_code=400, detail=f"Unknown module: {module}")
     url = f"{base}{path}"
     try:
-        async with httpx.AsyncClient(timeout=60.0, verify=False) as client:
+        async with httpx.AsyncClient(timeout=timeout, verify=False) as client:
             if method == "GET":
                 resp = await client.get(url)
             else:
@@ -2923,6 +2923,8 @@ async def generate_ugc_video(req: UGCVideoRequest):
         raise HTTPException(status_code=400, detail="product_image_url is required")
     
     # Step 1: Generate keyframes via image-gen UGC pipeline
+    # Estimate timeout: ~25s per frame + 30s overhead
+    est_timeout = (req.duration_seconds * req.fps * 30) + 60
     frames_result = await _proxy("POST", "image-gen", "/api/image/v1/ugc/generate-frames", {
         "productImageUrl": req.product_image_url,
         "productName": req.product_name or "product",
@@ -2932,7 +2934,7 @@ async def generate_ugc_video(req: UGCVideoRequest):
         "resolution": req.resolution,
         "modelGender": req.model_gender,
         "style": req.style,
-    })
+    }, timeout=est_timeout)
     
     if not frames_result.get("ok"):
         raise HTTPException(status_code=500, detail=frames_result.get("error", "Keyframe generation failed"))
@@ -2972,7 +2974,7 @@ async def _compose_keyframes_to_video(keyframes: list, duration: int, fps: float
     
     try:
         import httpx
-        async with httpx.AsyncClient(timeout=30, verify=False) as client:
+        async with httpx.AsyncClient(timeout=120, verify=False) as client:
             for i, kf in enumerate(keyframes):
                 url = kf.get("url", "")
                 if not url:

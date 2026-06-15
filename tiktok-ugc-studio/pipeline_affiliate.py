@@ -265,10 +265,13 @@ def sam3_analyze_image(image_path: str, run_id: str = "") -> dict:
 IMAGE_GEN_URL = "http://localhost:8110/api/image/v1/generate"
 
 def generate_image(prompt: str, reference_analysis: dict = None,
-                   aspect_ratio: str = "9:16") -> str:
+                   aspect_ratio: str = "9:16",
+                   input_image: str = None) -> str:
     """Generate image via image-gen service (Prodia FLUX on localhost:8110).
     
     aspect_ratio: 9:16 (TikTok portrait), 1:1 (square), 16:9 (landscape)
+    input_image: optional URL to reference product image for img2img
+                 (makes FLUX use the actual product instead of guessing)
     """
     enhanced = prompt
     if reference_analysis and reference_analysis.get("prompt_insights"):
@@ -276,12 +279,17 @@ def generate_image(prompt: str, reference_analysis: dict = None,
 
     logger.info(f"FLUX Image: {enhanced[:40]}...")
     
-    resp = requests.post(IMAGE_GEN_URL, json={
+    payload = {
         "prompt": enhanced,
         "count": 1,
         "upscale": False,
         "aspectRatio": aspect_ratio,
-    }, timeout=120)
+    }
+    if input_image:
+        payload["inputImage"] = input_image
+        logger.info(f"  Using reference image: {input_image[:60]}...")
+    
+    resp = requests.post(IMAGE_GEN_URL, json=payload, timeout=120)
     resp.raise_for_status()
     data = resp.json()
     
@@ -490,7 +498,8 @@ def run_pipeline(
     # Need a base image for img2vid — either product_image or FLUX gen
     if not ref_image_for_video and image_prompt:
         logger.info("Step 1/4: FLUX Image")
-        img_url = generate_image(image_prompt, reference_analysis=sam3_analysis)
+        img_url = generate_image(image_prompt, reference_analysis=sam3_analysis,
+                                 input_image=product_image)
         img_path = TMP_DIR / f"image_{run_id}.png"
         download_file(img_url, img_path)
         ref_image_for_video = str(img_path)

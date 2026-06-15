@@ -73,12 +73,12 @@ app.add_middleware(
 
 # Static file serving for generated assets (TTS, composed videos)
 from fastapi.staticfiles import StaticFiles
-STORAGE_DIR = os.path.join(os.path.dirname(__file__), "storage")
-os.makedirs(os.path.join(STORAGE_DIR, "tts"), exist_ok=True)
-os.makedirs(os.path.join(STORAGE_DIR, "composed"), exist_ok=True)
-os.makedirs(os.path.join(STORAGE_DIR, "videos"), exist_ok=True)
+STORAGE_DIR = Path(__file__).parent / "storage"
+(STORAGE_DIR / "tts").mkdir(parents=True, exist_ok=True)
+(STORAGE_DIR / "composed").mkdir(parents=True, exist_ok=True)
+(STORAGE_DIR / "videos").mkdir(parents=True, exist_ok=True)
 try:
-    app.mount("/static", StaticFiles(directory=STORAGE_DIR), name="static")
+    app.mount("/static", StaticFiles(directory=str(STORAGE_DIR)), name="static")
 except Exception as e:
     logger.warning(f"Static mount (may already exist): {e}")
 
@@ -1197,9 +1197,9 @@ def generate_video(req: VideoRequest):
             # Build image prompt from product info + mood
             img_prompt = None
             if req.product_title:
-                img_prompt = f"{req.product_title} product photography, {moods.get(req.ugc_style, 'energetic')} vibe, clean background, professional lighting, product showcase"
+                img_prompt = f"beautiful Thai woman holding {req.product_title}, glowing skin, pretty face, professional model quality, influencer-quality product photo, studio lighting, soft bokeh, holding product naturally, candid genuine smile"
             elif req.prompt:
-                img_prompt = f"{req.prompt} product photography, clean background"
+                img_prompt = f"beautiful Thai woman, {req.prompt}, glowing skin, professional model quality, studio lighting, soft bokeh"
 
             # Select sound based on style
             selected_sound_style = scenes[0].sound_style if scenes else "upbeat_pop"
@@ -1218,7 +1218,7 @@ def generate_video(req: VideoRequest):
                 voice_id="English_Trustworth_Man",
                 video_duration=duration_per_scene,
                 image_prompt=img_prompt,
-                product_image=req.product_image if req.product_image and os.path.exists(req.product_image) else None,
+                product_image=req.product_image if req.product_image else None,
                 enable_sam3=bool(req.product_image),
             )
             VIDEOS_DIR.mkdir(parents=True, exist_ok=True)
@@ -1726,7 +1726,7 @@ async def _proxy(method: str, module: str, path: str, body: dict = None, timeout
 
 
 # ─── Image Storage (direct proxy to image-gen) ──────────────────────────
-from fastapi.responses import Response
+from fastapi.responses import Response, FileResponse
 
 @app.get("/image-storage/{filename}")
 async def image_storage_proxy(filename: str):
@@ -1784,7 +1784,7 @@ async def upscale_image(image_url: str = ""):
 
 @app.get("/api/image-proxy")
 async def image_proxy(url: str = Query(...)):
-    from fastapi.responses import Response
+    from fastapi.responses import Response, FileResponse
     """Proxy for downloading product images from external CDN.
 
     TikTok shop images hosted on hdnet.workers.dev give 403 directly.
@@ -2854,14 +2854,71 @@ async def pfm_auto_publish(req: TikTokUploadRequest):
 @app.get("/products/list")
 async def tus_products(
     preset: str = "auto_affiliate",
-    limit: int = 10,
+    limit: int = 50,
     category: str = None,
 ):
-    """Get TUS-ready products from Analysis Module.
+    """Get TUS-ready products from TUS Product DB.
 
-    Returns analyzed products with viral scores, ready for pipeline gen.
+    Returns imported analyzed products with viral scores, ready for pipeline gen.
+    Falls back to Analysis Module if DB is empty.
     """
     try:
+        # Try TUS DB first
+        import sqlite3, json
+        db_path = os.path.join(os.path.dirname(__file__), "tus_products.db")
+        if os.path.exists(db_path):
+            conn = sqlite3.connect(db_path)
+            col_names = [d[1] for d in conn.execute("PRAGMA table_info(tus_products)").fetchall()]
+            query = "SELECT * FROM tus_products WHERE 1=1"
+            params = []
+            if category:
+                query += " AND category = ?"
+                params.append(category)
+            query += " ORDER BY tus_status ASC, viral_score DESC LIMIT ?"
+            params.append(limit)
+            rows = conn.execute(query, params).fetchall()
+            conn.close()
+
+            if rows:
+                products = [dict(zip(col_names, r)) for r in rows]
+                # Deserialize JSON fields
+                for p in products:
+                    if isinstance(p.get("images"), str):
+                        p["images"] = json.loads(p["images"])
+                    if isinstance(p.get("keywords"), str):
+                        p["keywords"] = json.loads(p["keywords"])
+                    # Ensure link
+                    if not p.get("url") and p.get("product_id"):
+                        p["url"] = f"https://shop.tiktok.com/view/product/{p['product_id']}"
+                    if not p.get("link"):
+                        p["link"] = p.get("url", "")
+                    # Fix image paths — convert relative /static/product_images/xxx to proxied URL
+                    if isinstance(p.get("images"), list):
+                        fixed = []
+                        for img in p["images"]:
+                            if img.startswith("/static/product_images/"):
+                                # Serve through TUS static mount (already has the files)
+                                fixed.append(f"/api/tiktok/ugc/static/product_images/{img.rsplit('/', 1)[-1]}")
+                            elif img.startswith("https://cdn-image.hdnet.workers.dev/"):
+                                # CDN images need proxy — use TUS image proxy endpoint
+                                fname = img.rsplit('/', 1)[-1]
+                                fixed.append(f"/api/tiktok/ugc/image-proxy/{fname}?url={img}")
+                            else:
+                                fixed.append(img)
+                        p["images"] = fixed
+
+                logger.info(f"Products list: {len(products)} from TUS DB (preset={preset})")
+                return {
+                    "products": products,
+                    "preset": preset,
+                    "count": len(products),
+                    "total_available": len(products),
+                    "source": "tus_db",
+                    "tus_ready": True,
+                }
+
+        # Fallback: Analysis Module
+        logger.info("TUS DB empty, falling back to Analysis Module")
         from tus_analyzer_pipeline import fetch_trending_for_tus
         result = await fetch_trending_for_tus(
             preset=preset,
@@ -2872,6 +2929,69 @@ async def tus_products(
     except Exception as e:
         logger.exception(f"Products list failed")
         raise HTTPException(status_code=502, detail=str(e))
+
+
+@app.get("/image-proxy/{filename}")
+async def image_proxy(filename: str, url: str = ""):
+    """Proxy CDN images that block direct browser hotlinking.
+    
+    Fetches via httpx (no browser Referer restrictions) and returns the image
+    with proper CORS headers so the frontend can display it.
+    """
+    import httpx
+    target_url = url
+    if not target_url:
+        # Try to find the file locally
+        local_path = PRODUCT_IMAGE_DIR / filename
+        if local_path.exists():
+            return FileResponse(local_path, media_type="image/jpeg" if filename.endswith(('.jpg', '.jpeg')) else "image/webp")
+        raise HTTPException(status_code=404, detail="Image not found")
+    
+    try:
+        async with httpx.AsyncClient(
+            timeout=30,
+            follow_redirects=True,
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9",
+                # No Referer set — server-side request bypasses CDN referer check
+            }
+        ) as client:
+            resp = await client.get(target_url)
+            resp.raise_for_status()
+            content = resp.content
+    except Exception:
+        # Fallback: try local file
+        local_path = PRODUCT_IMAGE_DIR / filename
+        if local_path.exists():
+            return FileResponse(local_path, media_type="image/jpeg" if filename.endswith(('.jpg', '.jpeg')) else "image/webp")
+        raise HTTPException(status_code=502, detail="Failed to fetch image from CDN")
+    
+    # Determine media type
+    if filename.endswith('.webp'):
+        media_type = "image/webp"
+    elif filename.endswith(('.jpg', '.jpeg')):
+        media_type = "image/jpeg"
+    elif filename.endswith('.png'):
+        media_type = "image/png"
+    else:
+        media_type = "image/jpeg"
+    
+    # Cache locally for future requests
+    try:
+        PRODUCT_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+        local_path = PRODUCT_IMAGE_DIR / filename
+        with open(local_path, "wb") as f:
+            f.write(content)
+        logger.info(f"Cached image: {filename} ({len(content)} bytes)")
+    except Exception:
+        pass
+    
+    return Response(content=content, media_type=media_type, headers={
+        "Cache-Control": "public, max-age=86400",
+        "Access-Control-Allow-Origin": "*",
+    })
 
 
 @app.get("/stats")

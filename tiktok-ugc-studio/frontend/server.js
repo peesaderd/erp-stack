@@ -7,12 +7,13 @@ const PORT = 8120;
 // Proxy helper — no express.json() so raw body passes through
 function proxyTo(host, port) {
   return (req, res) => {
-    const targetPath = req.path
+    const queryStr = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+    const targetPath = (req.path
       .replace('/api/tiktok/ugc', '')
       .replace('/api/tiktok/scraper', '')
       .replace('/api/tiktok/analyze', '')
       .replace('/api/tiktok/static', '')
-      .replace('/api/tiktok/image-storage', '') || '/';
+      .replace('/api/tiktok/image-storage', '') || '/') + queryStr;
     
     const options = {
       hostname: host,
@@ -42,6 +43,7 @@ app.all('/api/tiktok/scraper/*', proxyTo('localhost', 8106));
 app.all('/api/tiktok/analyze/*', proxyTo('localhost', 8106));
 app.all('/api/tiktok/static/*', proxyTo('localhost', 8105));
 app.all('/api/tiktok/image-storage/*', proxyTo('localhost', 8105));
+app.all('/api/tiktok/image-proxy/*', proxyTo('localhost', 8105));
 
 // Direct video proxy (no /api/tiktok prefix — nginx sends /tiktok/ as /)
 app.get('/static/videos/:filename', (req, res) => {

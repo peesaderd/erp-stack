@@ -969,6 +969,7 @@ async function generateImageFromStep3() {
   const productName = document.getElementById('productTitle').value || document.getElementById('productName').value || 'สินค้า';
   const productDetails = document.getElementById('productDetails').value || '';
   const style = document.getElementById('selectedStyleLabel')?.textContent?.split(' —')[0]?.trim()?.toLowerCase().replace(/ /g,'_') || 'holding';
+  const productImageUrl = uploadedImages.product || '';
   
   try {
     // Use enhanced prompt builder — dynamic gender, setting, lighting based on product
@@ -988,7 +989,7 @@ async function generateImageFromStep3() {
     
     const res = await fetch(window.location.origin + '/api/tiktok/ugc/images/generate', {
       method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({prompt, count: 1})
+      body: JSON.stringify({prompt, count: 1, image_url: productImageUrl})
     });
     if (!res.ok) throw new Error('API error');
     const data = await res.json();
@@ -1003,6 +1004,7 @@ async function generateImageFromStep3() {
     const step3Img = document.getElementById('step3ProductImg');
     if (step3Img) { step3Img.src = imgUrl; step3Img.style.display = 'inline'; document.getElementById('step3NoImg').style.display = 'none'; }
     showToast('✅ รูปพร้อมใช้','success');
+    goContentStep(4);
   } catch(e) {
     showToast('❌ สร้างรูปไม่สำเร็จ: ' + e.message,'error');
   }
@@ -1778,7 +1780,7 @@ async function loadAnalyzedProducts() {
   if (!grid) return;
   grid.innerHTML = '<div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line"></div>';
   try {
-    const r = await fetch(SCRAPER + "/api/v1/analyze/export?source=tiktok");
+    const r = await fetch(API + "/products/list?limit=50&preset=all");
     if (!r.ok) throw new Error("API Error");
     const d = await r.json();
     const products = d.products || [];
@@ -1815,7 +1817,7 @@ function useProduct(jsonEncoded) {
       if (el) selectStyleFromModal(el, p.ugc_style);
     }
     if (p.images && p.images[0]) {
-      uploadedImages.product = p.images[0];
+      uploadedImages.product = window.location.origin + p.images[0];
       const zone = document.getElementById("productImgZone");
       const pl = document.getElementById("productImgPlaceholder");
       zone.classList.add("has-image");

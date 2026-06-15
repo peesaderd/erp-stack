@@ -155,16 +155,32 @@ def sam3_analyze_image(image_path: str, run_id: str = "") -> dict:
     """
     from PIL import Image as PILImage
     import io
+    import tempfile
 
     logger.info(f"[SAM3] Analyzing: {image_path}")
+
+    # Download if URL
+    if image_path.startswith("http://") or image_path.startswith("https://"):
+        resp = requests.get(image_path, timeout=30)
+        resp.raise_for_status()
+        buf = io.BytesIO(resp.content)
+        img = PILImage.open(buf)
+        # Save to temp for segment_image
+        tmp_img = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+        img.save(tmp_img, format="PNG")
+        local_path = tmp_img.name
+        tmp_img.close()
+    else:
+        img = PILImage.open(image_path)
+        local_path = image_path
+
     objects = []
     masks = {}
-    img = PILImage.open(image_path)
     w, h = img.size
 
     for label in ["product", "person", "bag", "box", "bottle", "text", "logo"]:
         try:
-            result_masks = segment_image(image_path, prompt=label, confidence=0.4)
+            result_masks = segment_image(local_path, prompt=label, confidence=0.4)
             if result_masks:
                 best_mask = None
                 best_area = 0
@@ -244,26 +260,27 @@ def sam3_analyze_image(image_path: str, run_id: str = "") -> dict:
     }
 
 
-# ─── Step 1: Image (FLUX schnell @ Prodia $0.001) ─────────────────────────
+# ─── Step 1: Image (via Image-Gen Service) ──────────────────────────────
+
+IMAGE_GEN_URL = "http://localhost:8110/api/image/v1/generate"
 
 def generate_image(prompt: str, reference_analysis: dict = None) -> str:
-    """Generate image via FLUX schnell, optionally enhanced with SAM3 insights."""
+    """Generate image via image-gen service (Prodia FLUX on localhost:8110)."""
     enhanced = prompt
     if reference_analysis and reference_analysis.get("prompt_insights"):
         enhanced = prompt + ", " + reference_analysis["prompt_insights"]
 
     logger.info(f"FLUX Image: {enhanced[:40]}...")
-    payload = {"type": PRODIA_IMAGE_TYPE, "config": {"prompt": enhanced, "steps": 4}}
-
-    resp = requests.post(f"{PRODIA_BASE}/job", headers=_prodia_headers(), json=payload, timeout=30)
+    
+    resp = requests.post(IMAGE_GEN_URL, json={"prompt": enhanced, "count": 1, "upscale": False}, timeout=60)
     resp.raise_for_status()
     data = resp.json()
-    job_id = data.get("job", {}).get("id", "") or data.get("id", "")
-    if not job_id:
-        raise RuntimeError(f"Prodia image submit failed: {data}")
-    result = _poll_job(f"{PRODIA_BASE}/job/{job_id}", max_polls=30, sleep_s=2)
-    url = _extract_url(result, "url")
-    logger.info(f"  Image OK")
+    
+    if not data.get("success") or not data.get("images"):
+        raise RuntimeError(f"Image-gen service failed: {data}")
+    
+    url = data["images"][0]["url"]
+    logger.info(f"  Image OK: {url}")
     return url
 
 
@@ -304,7 +321,7 @@ def generate_video_with_image_and_audio(
     ส่งรูปสินค้า + เสียงพากย์ → Wan 2.7 สร้างคลิปปากขยับตามเสียง.
 
     Args:
-        image_path: Path to image (product/FLUX gen)
+        image_path: Path to image (product/FLUX gen) or URL
         audio_path: Path to audio (MiniMax MP3)
         prompt: Scene description
         duration: Clip duration (2-15s)
@@ -321,9 +338,14 @@ def generate_video_with_image_and_audio(
 
     logger.info(f"Wan 2.7 img2vid+audio ({duration}s): {enhanced[:40]}...")
 
-    # Read file bytes
-    with open(image_path, "rb") as f:
-        image_data = f.read()
+    # Read file bytes (support URL or local path)
+    if image_path.startswith("http://") or image_path.startswith("https://"):
+        resp = requests.get(image_path, timeout=30)
+        resp.raise_for_status()
+        image_data = resp.content
+    else:
+        with open(image_path, "rb") as f:
+            image_data = f.read()
     with open(audio_path, "rb") as f:
         audio_data = f.read()
 
@@ -336,45 +358,50 @@ def generate_video_with_image_and_audio(
         }
     }
 
-    files = {
-        "image": ("image.png", image_data, "image/png"),
-        "audio": ("audio.mp3", audio_data, "audio/mpeg"),
-        "config": (None, json.dumps(config_payload), "application/json"),
-    }
+    files = [
+        ("job", ("job.json", json.dumps(config_payload), "application/json")),
+        ("input", ("image.png", image_data, "image/png")),
+        ("input", ("audio.mp3", audio_data, "audio/mpeg")),
+    ]
 
-    resp = requests.post(f"{PRODIA_BASE}/job", headers=_prodia_headers(), files=files, timeout=60)
+    resp = requests.post(f"{PRODIA_BASE}/job", headers=_prodia_headers(), files=files, timeout=300)
     resp.raise_for_status()
 
-    # Check response — could be binary (MP4) or JSON (job ID for polling)
     ct = resp.headers.get("content-type", "")
-    if "multipart" in ct or "video" in ct or "octet" in ct:
-        result_path = TMP_DIR / f"img2vid_{uuid.uuid4().hex[:8]}.mp4"
-        with open(result_path, "wb") as f:
-            f.write(resp.content)
-        logger.info(f"  Video (binary) -> {result_path}")
-        return str(result_path)
 
-    try:
+    # Prodia v2 sync — could be binary video (MP4) or JSON
+    if "json" in ct:
         data = resp.json()
-        job_id = data.get("job", {}).get("id", "") or data.get("id", "")
-    except:
-        # Binary fallback
+        state = data.get("state", {}).get("current", "")
+        if state == "failed":
+            raise RuntimeError(f"Prodia Wan 2.7 failed: {data.get('error')}")
+
+        # Extract output URL from JSON response
+        url = ""
+        url_info = data.get("config", {}).get("url_info", [])
+        if url_info and len(url_info) > 0:
+            url = url_info[0].get("url", "")
+        if not url:
+            output = data.get("output", {})
+            url = output.get("url", "") or output.get("video", {}).get("url", "")
+
+        if not url:
+            raise RuntimeError(f"Prodia Wan 2.7: no URL in response: {data}")
+
+        # Download video from URL
+        vid_resp = requests.get(url, timeout=60)
+        vid_resp.raise_for_status()
         result_path = TMP_DIR / f"img2vid_{uuid.uuid4().hex[:8]}.mp4"
         with open(result_path, "wb") as f:
-            f.write(resp.content)
+            f.write(vid_resp.content)
+        logger.info(f"  Video OK (downloaded from URL)")
         return str(result_path)
-
-    if not job_id:
-        raise RuntimeError(f"Prodia img2vid submit failed: {data}")
-
-    result = _poll_job(f"{PRODIA_BASE}/job/{job_id}", max_polls=120, sleep_s=5)
-
-    # Check for binary video in poll result
-    if "_raw_video" in result:
-        resp = result["_response"]
+    else:
+        # Binary video response (MP4)
         result_path = TMP_DIR / f"img2vid_{uuid.uuid4().hex[:8]}.mp4"
         with open(result_path, "wb") as f:
             f.write(resp.content)
+        logger.info(f"  Video OK (binary MP4, {len(resp.content)} bytes)")
         return str(result_path)
 
     url = _extract_url(result, "url")
@@ -426,7 +453,7 @@ def run_pipeline(
     sam3_analysis = None
     ref_image_for_video = None
 
-    if enable_sam3 and product_image and os.path.exists(product_image):
+    if enable_sam3 and product_image:
         logger.info("Step 0/4: SAM3 Analyze")
         sam3_analysis = sam3_analyze_image(product_image, run_id)
         cost_sam3 = 0.0011
@@ -442,8 +469,8 @@ def run_pipeline(
             }, f, indent=2)
         logger.info(f"  Layout -> {layout_path}")
 
-        # Use real product image as video reference
-        ref_image_for_video = product_image
+        # Use real product image ONLY for SAM3 analysis
+        # Image gen (FLUX with model) will run separately below
 
     # ── Step 1: Image (FLUX) ──
     # Need a base image for img2vid — either product_image or FLUX gen

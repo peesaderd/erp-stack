@@ -265,15 +265,17 @@ def _build_component_prompt(
     model_age = category_info["age"]
     setting = category_info["setting"]
     
-    gender_th = "Thai woman" if model_gender == "female" else ("Thai man" if model_gender == "male" else "Thai person")
+    gender_th = "beautiful Thai woman" if model_gender == "female" else ("Thai man" if model_gender == "male" else "Thai person")
     
     prompt = (
         f"A {gender_th}, {model_age} years old, "
+        f"glowing skin, pretty face, professional model quality, "
+        f"influencer-quality, high-end e-commerce photography, "
         f"{style_info['model_action']}. "
         f"Setting: {setting}. "
         f"{style_info['camera']}, {style_info['vibe']}. "
         f"{lighting['composition']}, {lighting['atmosphere']}, {lighting['color_palette']}. "
-        f"The {product_name} is clearly in frame, {description}. "
+        f"The {product_name} is clearly in frame, held by the model, {description}. "
         f"{lighting['lighting']}. "
         f"Wearing casual everyday outfit appropriate for the scene. "
         f"Professional e-commerce quality, high detail, realistic skin texture. "

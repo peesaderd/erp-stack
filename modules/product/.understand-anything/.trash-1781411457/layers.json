@@ -1,0 +1,38 @@
+[
+  {
+    "id": "layer:api-gateway",
+    "name": "API Gateway",
+    "description": "FastAPI server and routing layer — entry point for all client requests",
+    "nodeIds": ["file:main.py", "config:ecosystem.config.js", "config:.env"]
+  },
+  {
+    "id": "layer:scraping-engine",
+    "name": "Scraping Engine",
+    "description": "Multi-layer extraction: HTTP → Playwright → JSON-LD → Vision. Includes platform-specific scrapers.",
+    "nodeIds": ["file:scraper.py", "file:scraper_service.py", "file:analyzer.py", "file:platforms/base.py", "file:platforms/lazada.py"]
+  },
+  {
+    "id": "layer:analysis-pipeline",
+    "name": "Analysis Pipeline",
+    "description": "Product data normalization, AI enrichment, and image download pipeline",
+    "nodeIds": ["file:analyze_pipeline.py", "file:analyze_models.py", "file:analyzer_db.py"]
+  },
+  {
+    "id": "layer:data-models",
+    "name": "Data & Models",
+    "description": "SQLAlchemy ORM models, Pydantic request/response schemas, and configuration",
+    "nodeIds": ["file:db_models.py", "file:models.py", "config:requirements.txt"]
+  },
+  {
+    "id": "layer:export-scheduler",
+    "name": "Export & Scheduler",
+    "description": "Background scheduler for recurring scrapes and Google Sheets export service",
+    "nodeIds": ["file:export_service.py", "file:scheduler.py"]
+  },
+  {
+    "id": "layer:package-init",
+    "name": "Package Structure",
+    "description": "Package init markers for module and platform subpackages",
+    "nodeIds": ["file:__init__.py", "file:platforms/__init__.py"]
+  }
+]

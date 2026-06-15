@@ -1,0 +1,50 @@
+{
+  "nodes": [
+    {
+      "id": "config:.env",
+      "type": "config",
+      "name": ".env",
+      "filePath": ".env",
+      "summary": "Environment variables for DataImpulse mobile proxy configuration, defining PROXY_URL and PROXY_LIST endpoints for web scraping traffic routing.",
+      "tags": [
+        "environment",
+        "proxy",
+        "dataimpulse",
+        "env-vars"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:ecosystem.config.js",
+      "type": "config",
+      "name": "ecosystem.config.js",
+      "filePath": "ecosystem.config.js",
+      "summary": "PM2 process manager configuration for the product-scraper service, running a FastAPI/uvicorn app on port 8106 with proxy environment variables, restart limits, and minimum uptime guard.",
+      "tags": [
+        "pm2",
+        "process-manager",
+        "fastapi",
+        "uvicorn",
+        "deployment",
+        "port-8106"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:requirements.txt",
+      "type": "config",
+      "name": "requirements.txt",
+      "filePath": "requirements.txt",
+      "summary": "Python dependency manifest listing FastAPI, uvicorn, pydantic, httpx, Playwright, and Pillow \u2014 the core stack for an HTTP API-driven product scraper with browser automation and image processing.",
+      "tags": [
+        "python",
+        "dependencies",
+        "fastapi",
+        "playwright",
+        "web-scraping"
+      ],
+      "complexity": "simple"
+    }
+  ],
+  "edges": []
+}

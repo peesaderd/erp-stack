@@ -1,0 +1,57 @@
+{
+  "batchIndex": 7,
+  "nodes": [
+    {
+      "id": "document:erp-modular/design/DESIGN.md",
+      "type": "document",
+      "name": "DESIGN.md",
+      "filePath": "erp-modular/design/DESIGN.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "sizeLines": 116,
+      "complexity": "moderate",
+      "summary": "Documentation: ERP Modular \u2014 Design System \u2014 covers Brand, Typography, Spacing (px), Radii",
+      "tags": [
+        "markdown",
+        "service:erp-modular",
+        "docs",
+        "module:erp-modular"
+      ]
+    },
+    {
+      "id": "document:erp-modular/design/PRODUCT.md",
+      "type": "document",
+      "name": "PRODUCT.md",
+      "filePath": "erp-modular/design/PRODUCT.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "sizeLines": 49,
+      "complexity": "moderate",
+      "summary": "Documentation: ERP Modular / Business OS \u2014 covers Who is this for?, Brand Voice, Design Principles, Anti-references (do NOT design like this)",
+      "tags": [
+        "markdown",
+        "service:erp-modular",
+        "docs",
+        "module:erp-modular"
+      ]
+    },
+    {
+      "id": "file:erp-modular/design/tokens.css",
+      "type": "file",
+      "name": "tokens.css",
+      "filePath": "erp-modular/design/tokens.css",
+      "language": "css",
+      "fileCategory": "markup",
+      "sizeLines": 60,
+      "complexity": "moderate",
+      "summary": "Stylesheet defining 1 classes and 13 IDs",
+      "tags": [
+        "markup",
+        "css",
+        "module:erp-modular",
+        "service:erp-modular"
+      ]
+    }
+  ],
+  "edges": []
+}

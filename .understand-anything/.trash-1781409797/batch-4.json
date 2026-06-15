@@ -1,0 +1,54 @@
+{
+  "batchIndex": 3,
+  "nodes": [
+    {
+      "id": "document:.github/ISSUE_TEMPLATE/bug.md",
+      "type": "document",
+      "name": "bug.md",
+      "filePath": ".github/ISSUE_TEMPLATE/bug.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "sizeLines": 34,
+      "complexity": "moderate",
+      "summary": "Documentation file (34 lines)",
+      "tags": [
+        "markdown",
+        "docs",
+        "module:.github"
+      ]
+    },
+    {
+      "id": "document:.github/ISSUE_TEMPLATE/change.md",
+      "type": "document",
+      "name": "change.md",
+      "filePath": ".github/ISSUE_TEMPLATE/change.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "sizeLines": 34,
+      "complexity": "moderate",
+      "summary": "Documentation file (34 lines)",
+      "tags": [
+        "markdown",
+        "docs",
+        "module:.github"
+      ]
+    },
+    {
+      "id": "document:.github/ISSUE_TEMPLATE/task.md",
+      "type": "document",
+      "name": "task.md",
+      "filePath": ".github/ISSUE_TEMPLATE/task.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "sizeLines": 30,
+      "complexity": "moderate",
+      "summary": "Documentation file (30 lines)",
+      "tags": [
+        "markdown",
+        "docs",
+        "module:.github"
+      ]
+    }
+  ],
+  "edges": []
+}

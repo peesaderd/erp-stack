@@ -1215,7 +1215,7 @@ def generate_video(req: VideoRequest):
             result = affiliate_run(
                 script=full_script,
                 scene_prompts=scene_prompts,
-                voice_id="English_Trustworth_Man",
+                voice_id="Wise_Woman",
                 video_duration=duration_per_scene,
                 image_prompt=img_prompt,
                 product_image=req.product_image if req.product_image else None,

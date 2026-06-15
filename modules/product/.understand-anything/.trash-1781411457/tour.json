@@ -1,0 +1,38 @@
+[
+  {
+    "order": 1,
+    "title": "Service Entry Point",
+    "description": "FastAPI server on port 8106. All scraping, analysis, and export endpoints are registered here. Also loads env config and starts the background scheduler.",
+    "nodeIds": ["file:main.py", "config:.env", "config:ecosystem.config.js"]
+  },
+  {
+    "order": 2,
+    "title": "Data Models & Schemas",
+    "description": "SQLAlchemy ORM models define the database schema. Pydantic models define the API contract for requests and responses.",
+    "nodeIds": ["file:db_models.py", "file:models.py", "file:analyze_models.py"]
+  },
+  {
+    "order": 3,
+    "title": "Scraping Engine",
+    "description": "Multi-layer scraping with proxy rotation and site-specific extraction. Falls back through HTTP → Playwright → JSON-LD → Vision AI analysis.",
+    "nodeIds": ["file:scraper.py", "file:analyzer.py", "file:platforms/base.py", "file:platforms/lazada.py"]
+  },
+  {
+    "order": 4,
+    "title": "Service Layer: Auth, Cache, Billing",
+    "description": "API key management (scp_ prefix), usage tracking and monthly billing, product caching with 24h TTL. Orchestrates scrapes with full audit trail.",
+    "nodeIds": ["file:scraper_service.py"]
+  },
+  {
+    "order": 5,
+    "title": "Analysis Pipeline",
+    "description": "Normalizes raw scraped data from various sources (Shopee, Lazada, TikTok), enriches with AI, downloads product images for TUS.",
+    "nodeIds": ["file:analyze_pipeline.py", "file:analyzer_db.py"]
+  },
+  {
+    "order": 6,
+    "title": "Scheduling & Export",
+    "description": "Background scheduler checks every 60s for due scrape jobs. Export service pushes product data to Google Sheets via Service Account.",
+    "nodeIds": ["file:scheduler.py", "file:export_service.py"]
+  }
+]

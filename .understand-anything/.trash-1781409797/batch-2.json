@@ -1,0 +1,40 @@
+{
+  "batchIndex": 1,
+  "nodes": [
+    {
+      "id": "resource:.github/workflows/deploy-all.yml",
+      "type": "resource",
+      "name": "deploy-all.yml",
+      "filePath": ".github/workflows/deploy-all.yml",
+      "language": "yaml",
+      "fileCategory": "infra",
+      "sizeLines": 107,
+      "complexity": "moderate",
+      "summary": "Configuration defining: name, on, concurrency, jobs",
+      "tags": [
+        "yaml",
+        "infra",
+        "module:.github",
+        "ci-cd"
+      ]
+    },
+    {
+      "id": "resource:.github/workflows/deploy-i2m.yml",
+      "type": "resource",
+      "name": "deploy-i2m.yml",
+      "filePath": ".github/workflows/deploy-i2m.yml",
+      "language": "yaml",
+      "fileCategory": "infra",
+      "sizeLines": 52,
+      "complexity": "moderate",
+      "summary": "Configuration defining: name, on, concurrency, jobs",
+      "tags": [
+        "yaml",
+        "infra",
+        "module:.github",
+        "ci-cd"
+      ]
+    }
+  ],
+  "edges": []
+}

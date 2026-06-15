@@ -1,0 +1,1320 @@
+{
+  "batchIndex": 20,
+  "nodes": [
+    {
+      "id": "document:tiktok-ugc-studio/design/PRODUCT.md",
+      "type": "document",
+      "name": "PRODUCT.md",
+      "filePath": "tiktok-ugc-studio/design/PRODUCT.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "sizeLines": 24,
+      "complexity": "moderate",
+      "summary": "Documentation: TikTok UGC Studio \u2014 covers \ud83c\udfaf Vision, \ud83d\ude80 Core Features, \ud83d\udcb0 Economics, \ud83d\udce6 Integration",
+      "tags": [
+        "markdown",
+        "docs",
+        "module:tiktok-ugc-studio",
+        "service:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/ecosystem.config.js",
+      "type": "file",
+      "name": "ecosystem.config.js",
+      "filePath": "tiktok-ugc-studio/ecosystem.config.js",
+      "language": "javascript",
+      "fileCategory": "code",
+      "sizeLines": 47,
+      "complexity": "moderate",
+      "summary": "JavaScript module (47 lines)",
+      "tags": [
+        "service:tiktok-ugc-studio",
+        "javascript",
+        "code",
+        "pm2",
+        "module:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/fal_client.py",
+      "type": "file",
+      "name": "fal_client.py",
+      "filePath": "tiktok-ugc-studio/fal_client.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 257,
+      "complexity": "complex",
+      "summary": "TikTok UGC Studio \u2014 Fal.ai Wan I2V Client (Async Queue)",
+      "tags": [
+        "python",
+        "has-imports",
+        "service:tiktok-ugc-studio",
+        "code",
+        "module:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/frontend_old_server.js",
+      "type": "file",
+      "name": "frontend_old_server.js",
+      "filePath": "tiktok-ugc-studio/frontend_old_server.js",
+      "language": "javascript",
+      "fileCategory": "code",
+      "sizeLines": 39,
+      "complexity": "moderate",
+      "summary": "Module exporting: express, path, app, PORT, publicPath",
+      "tags": [
+        "code",
+        "module:tiktok-ugc-studio",
+        "javascript",
+        "service:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "config:tiktok-ugc-studio/frontend/package.json",
+      "type": "config",
+      "name": "package.json",
+      "filePath": "tiktok-ugc-studio/frontend/package.json",
+      "language": "json",
+      "fileCategory": "config",
+      "sizeLines": 17,
+      "complexity": "simple",
+      "summary": "Configuration file for tiktok-ugc-studio/frontend",
+      "tags": [
+        "module:tiktok-ugc-studio",
+        "json",
+        "config",
+        "service:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/frontend/public/index.html.bak2",
+      "type": "file",
+      "name": "index.html.bak2",
+      "filePath": "tiktok-ugc-studio/frontend/public/index.html.bak2",
+      "language": "bak2",
+      "fileCategory": "code",
+      "sizeLines": 572,
+      "complexity": "complex",
+      "summary": "Code file for tiktok-ugc-studio/frontend/public",
+      "tags": [
+        "code",
+        "module:tiktok-ugc-studio",
+        "service:tiktok-ugc-studio",
+        "bak2"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/frontend/public/index.html.bak3",
+      "type": "file",
+      "name": "index.html.bak3",
+      "filePath": "tiktok-ugc-studio/frontend/public/index.html.bak3",
+      "language": "bak3",
+      "fileCategory": "code",
+      "sizeLines": 572,
+      "complexity": "complex",
+      "summary": "Code file for tiktok-ugc-studio/frontend/public",
+      "tags": [
+        "code",
+        "bak3",
+        "module:tiktok-ugc-studio",
+        "service:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/frontend/public/sw.js",
+      "type": "file",
+      "name": "sw.js",
+      "filePath": "tiktok-ugc-studio/frontend/public/sw.js",
+      "language": "javascript",
+      "fileCategory": "code",
+      "sizeLines": 112,
+      "complexity": "moderate",
+      "summary": "Module exporting: CACHE, BOS_PATHS, cache, keys, url",
+      "tags": [
+        "code",
+        "module:tiktok-ugc-studio",
+        "javascript",
+        "service:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/frontend/server.js",
+      "type": "file",
+      "name": "server.js",
+      "filePath": "tiktok-ugc-studio/frontend/server.js",
+      "language": "javascript",
+      "fileCategory": "code",
+      "sizeLines": 102,
+      "complexity": "moderate",
+      "summary": "Module exporting: express, path, app, PORT, fs",
+      "tags": [
+        "code",
+        "module:tiktok-ugc-studio",
+        "javascript",
+        "service:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/gemini_agent.py",
+      "type": "file",
+      "name": "gemini_agent.py",
+      "filePath": "tiktok-ugc-studio/gemini_agent.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 666,
+      "complexity": "complex",
+      "summary": "Product Analyzer \u2014 uses Mistral API for AI product analysis + prompt generation",
+      "tags": [
+        "python",
+        "has-imports",
+        "service:tiktok-ugc-studio",
+        "code",
+        "module:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/main.py",
+      "type": "file",
+      "name": "main.py",
+      "filePath": "tiktok-ugc-studio/main.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 2817,
+      "complexity": "very_complex",
+      "summary": "TikTok UGC Studio \u2014 Micro Service",
+      "tags": [
+        "fastapi",
+        "python",
+        "has-imports",
+        "service:tiktok-ugc-studio",
+        "code",
+        "pydantic",
+        "module:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/monitor/__init__.py",
+      "type": "file",
+      "name": "__init__.py",
+      "filePath": "tiktok-ugc-studio/monitor/__init__.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 4,
+      "complexity": "simple",
+      "summary": "Monitor Loop \u2014 performance tracking & content strategy optimization.",
+      "tags": [
+        "code",
+        "python",
+        "module:tiktok-ugc-studio",
+        "service:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/monitor/optimizer.py",
+      "type": "file",
+      "name": "optimizer.py",
+      "filePath": "tiktok-ugc-studio/monitor/optimizer.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 309,
+      "complexity": "complex",
+      "summary": "Content optimizer \u2014 analyzes performance and adjusts strategy.",
+      "tags": [
+        "python",
+        "has-imports",
+        "service:tiktok-ugc-studio",
+        "code",
+        "module:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/monitor/tracker.py",
+      "type": "file",
+      "name": "tracker.py",
+      "filePath": "tiktok-ugc-studio/monitor/tracker.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 144,
+      "complexity": "moderate",
+      "summary": "Video performance tracker \u2014 fetches and stores performance data.",
+      "tags": [
+        "python",
+        "has-imports",
+        "service:tiktok-ugc-studio",
+        "code",
+        "module:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/pipeline_affiliate.py",
+      "type": "file",
+      "name": "pipeline_affiliate.py",
+      "filePath": "tiktok-ugc-studio/pipeline_affiliate.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 563,
+      "complexity": "complex",
+      "summary": "TikTok UGC Studio \u2014 Affiliate Video Pipeline v4 (Prodia Only)",
+      "tags": [
+        "python",
+        "has-imports",
+        "service:tiktok-ugc-studio",
+        "code",
+        "module:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/pipeline_cartoon.py",
+      "type": "file",
+      "name": "pipeline_cartoon.py",
+      "filePath": "tiktok-ugc-studio/pipeline_cartoon.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 373,
+      "complexity": "complex",
+      "summary": "TikTok UGC Studio \u2014 Affiliate Cartoon Pipeline",
+      "tags": [
+        "python",
+        "has-imports",
+        "service:tiktok-ugc-studio",
+        "code",
+        "module:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/pipeline_default.py",
+      "type": "file",
+      "name": "pipeline_default.py",
+      "filePath": "tiktok-ugc-studio/pipeline_default.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 622,
+      "complexity": "complex",
+      "summary": "TikTok UGC Studio - Default Pipeline v4 (Prodia + Wan 2.7 Audio-Driven)",
+      "tags": [
+        "python",
+        "has-imports",
+        "service:tiktok-ugc-studio",
+        "code",
+        "module:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/postforme_integration.py",
+      "type": "file",
+      "name": "postforme_integration.py",
+      "filePath": "tiktok-ugc-studio/postforme_integration.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 217,
+      "complexity": "complex",
+      "summary": "Post For Me Integration \u2014 Social Media Auto Post API",
+      "tags": [
+        "python",
+        "has-imports",
+        "service:tiktok-ugc-studio",
+        "code",
+        "module:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/prompts/UGC_prompts/Holding_Product/master.prompt",
+      "type": "file",
+      "name": "master.prompt",
+      "filePath": "tiktok-ugc-studio/prompts/UGC_prompts/Holding_Product/master.prompt",
+      "language": "prompt",
+      "fileCategory": "code",
+      "sizeLines": 5,
+      "complexity": "simple",
+      "summary": "Code file for tiktok-ugc-studio/prompts/UGC_prompts/Holding_Product",
+      "tags": [
+        "code",
+        "module:tiktok-ugc-studio",
+        "prompt",
+        "service:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/prompts/UGC_prompts/Holding_Product/negative.prompt",
+      "type": "file",
+      "name": "negative.prompt",
+      "filePath": "tiktok-ugc-studio/prompts/UGC_prompts/Holding_Product/negative.prompt",
+      "language": "prompt",
+      "fileCategory": "code",
+      "sizeLines": 0,
+      "complexity": "simple",
+      "summary": "Code file for tiktok-ugc-studio/prompts/UGC_prompts/Holding_Product",
+      "tags": [
+        "code",
+        "module:tiktok-ugc-studio",
+        "prompt",
+        "service:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/prompts/UGC_prompts/Holding_Product/system.prompt",
+      "type": "file",
+      "name": "system.prompt",
+      "filePath": "tiktok-ugc-studio/prompts/UGC_prompts/Holding_Product/system.prompt",
+      "language": "prompt",
+      "fileCategory": "code",
+      "sizeLines": 15,
+      "complexity": "simple",
+      "summary": "Code file for tiktok-ugc-studio/prompts/UGC_prompts/Holding_Product",
+      "tags": [
+        "code",
+        "module:tiktok-ugc-studio",
+        "prompt",
+        "service:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/prompts/UGC_prompts/Holding_Product/user.template.prompt",
+      "type": "file",
+      "name": "user.template.prompt",
+      "filePath": "tiktok-ugc-studio/prompts/UGC_prompts/Holding_Product/user.template.prompt",
+      "language": "prompt",
+      "fileCategory": "code",
+      "sizeLines": 19,
+      "complexity": "simple",
+      "summary": "Code file for tiktok-ugc-studio/prompts/UGC_prompts/Holding_Product",
+      "tags": [
+        "code",
+        "module:tiktok-ugc-studio",
+        "prompt",
+        "service:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/prompts/UGC_prompts/Product_Usage/master.prompt",
+      "type": "file",
+      "name": "master.prompt",
+      "filePath": "tiktok-ugc-studio/prompts/UGC_prompts/Product_Usage/master.prompt",
+      "language": "prompt",
+      "fileCategory": "code",
+      "sizeLines": 5,
+      "complexity": "simple",
+      "summary": "Code file for tiktok-ugc-studio/prompts/UGC_prompts/Product_Usage",
+      "tags": [
+        "code",
+        "module:tiktok-ugc-studio",
+        "prompt",
+        "service:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/prompts/UGC_prompts/Product_Usage/negative.prompt",
+      "type": "file",
+      "name": "negative.prompt",
+      "filePath": "tiktok-ugc-studio/prompts/UGC_prompts/Product_Usage/negative.prompt",
+      "language": "prompt",
+      "fileCategory": "code",
+      "sizeLines": 0,
+      "complexity": "simple",
+      "summary": "Code file for tiktok-ugc-studio/prompts/UGC_prompts/Product_Usage",
+      "tags": [
+        "code",
+        "module:tiktok-ugc-studio",
+        "prompt",
+        "service:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/prompts/UGC_prompts/Product_Usage/system.prompt",
+      "type": "file",
+      "name": "system.prompt",
+      "filePath": "tiktok-ugc-studio/prompts/UGC_prompts/Product_Usage/system.prompt",
+      "language": "prompt",
+      "fileCategory": "code",
+      "sizeLines": 15,
+      "complexity": "simple",
+      "summary": "Code file for tiktok-ugc-studio/prompts/UGC_prompts/Product_Usage",
+      "tags": [
+        "code",
+        "module:tiktok-ugc-studio",
+        "prompt",
+        "service:tiktok-ugc-studio"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "source": "file:tiktok-ugc-studio/fal_client.py",
+      "target": "file:tiktok-ugc-studio/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/fal_client.py",
+      "target": "file:tiktok-ugc-studio/postforme_integration.py",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/fal_client.py",
+      "target": "file:tiktok-ugc-studio/frontend/package.json",
+      "type": "imports",
+      "label": "imports json"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/gemini_agent.py",
+      "target": "file:tiktok-ugc-studio/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/gemini_agent.py",
+      "target": "file:tiktok-ugc-studio/postforme_integration.py",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/gemini_agent.py",
+      "target": "file:tiktok-ugc-studio/frontend/package.json",
+      "type": "imports",
+      "label": "imports json"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/postforme_integration.py",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/frontend/package.json",
+      "type": "imports",
+      "label": "imports json"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/design/PRODUCT.md",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/fal_client.py",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/frontend_old_server.js",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/frontend/package.json",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/frontend/public/index.html.bak2",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/frontend/public/index.html.bak3",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/frontend/public/sw.js",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/frontend/server.js",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/gemini_agent.py",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/monitor/__init__.py",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/monitor/optimizer.py",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/monitor/tracker.py",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/pipeline_affiliate.py",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/pipeline_cartoon.py",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/pipeline_default.py",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/postforme_integration.py",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/prompts/UGC_prompts/Holding_Product/master.prompt",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/prompts/UGC_prompts/Holding_Product/negative.prompt",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/prompts/UGC_prompts/Holding_Product/system.prompt",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/prompts/UGC_prompts/Holding_Product/user.template.prompt",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/prompts/UGC_prompts/Product_Usage/master.prompt",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/prompts/UGC_prompts/Product_Usage/negative.prompt",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/prompts/UGC_prompts/Product_Usage/system.prompt",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/postforme_integration.py",
+      "type": "imports",
+      "label": "imports postforme_integration"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports sys"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/prompts/UGC_prompts/Holding_Product/system.prompt",
+      "type": "imports",
+      "label": "imports sys"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/prompts/UGC_prompts/Product_Usage/system.prompt",
+      "type": "imports",
+      "label": "imports sys"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/postforme_integration.py",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/monitor/__init__.py",
+      "type": "imports",
+      "label": "imports monitor"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/monitor/optimizer.py",
+      "type": "imports",
+      "label": "imports monitor"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/monitor/tracker.py",
+      "type": "imports",
+      "label": "imports monitor"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/monitor/__init__.py",
+      "type": "imports",
+      "label": "imports monitor"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/monitor/optimizer.py",
+      "type": "imports",
+      "label": "imports monitor"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/monitor/tracker.py",
+      "type": "imports",
+      "label": "imports monitor"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /product/scrape-and-generate"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /health"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /tts/generate"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /tts/script"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /pipeline/{job_id}/status"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /pipeline/list"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /scout/trends"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /scout/analyze"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /scout/compare"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /scout/templates"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /scout/templates/generate"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /scout/clone"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /scout/keywords"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /scout/extract"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /scout/targets"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /scout/targets/{target_id}"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /scout/targets"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /scout/targets/{target_id}"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /scout/targets/{target_id}"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /scout/targets/{target_id}/clips"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /scout/clips/{clip_id}"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /scout/targets/{target_id}/delete"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /scout/clips/{clip_id}/delete"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /scout/targets/analyze"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /scout/targets/{target_id}/clone"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /monitor/performance"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /monitor/videos"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /monitor/analytics/record"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /monitor/strategy"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /monitor/strategy/update"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /monitor/strategy/reset"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /monitor/optimize"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /pipeline/run"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /scripts/generate"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /scripts/ugc"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /scripts/variations"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /scripts/templates"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /video/generate"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /video/status/{job_id}"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /video/status"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /video/providers"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /prompts/list"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /prompts/{path:path}"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /scripts/generate-with-affiliate"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /affiliate/config"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /video/queue"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /video/queue-status"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /video/concat"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /video/generate-with-fallback"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /product/analyze"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /export"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /images/generate"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /images/remove-bg"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /images/edit"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /images/upscale"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /api/image-proxy"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /images/templates"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /images/product"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /images/gallery"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /videos/gallery"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /payment/create-checkout"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /payment/create-qr"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /payment/plans"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /payment/health"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /profile/health"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /profile/register"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /profile/tier/{user_id}"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /tiktok/batch-upload"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /tiktok/published"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /tiktok/accounts"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /tiktok/accounts"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /tiktok/accounts/{account_id}"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /tiktok/login"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /tiktok/qr-login"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /tiktok/qr-status/{token_id}"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /tiktok/check-session"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /tiktok/upload"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /tiktok/pipeline"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /pfm/accounts"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /pfm/post"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /pfm/post/{post_id}"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /pfm/auto-publish"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /products/list"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/main.py",
+      "target": "file:tiktok-ugc-studio/main.py",
+      "type": "defines",
+      "label": "route: /stats"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/monitor/optimizer.py",
+      "target": "file:tiktok-ugc-studio/frontend/package.json",
+      "type": "imports",
+      "label": "imports json"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/monitor/tracker.py",
+      "target": "file:tiktok-ugc-studio/frontend/package.json",
+      "type": "imports",
+      "label": "imports json"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/monitor/tracker.py",
+      "target": "file:tiktok-ugc-studio/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/monitor/tracker.py",
+      "target": "file:tiktok-ugc-studio/postforme_integration.py",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/pipeline_affiliate.py",
+      "target": "file:tiktok-ugc-studio/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/pipeline_affiliate.py",
+      "target": "file:tiktok-ugc-studio/postforme_integration.py",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/pipeline_affiliate.py",
+      "target": "file:tiktok-ugc-studio/frontend/package.json",
+      "type": "imports",
+      "label": "imports json"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/pipeline_cartoon.py",
+      "target": "file:tiktok-ugc-studio/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/pipeline_cartoon.py",
+      "target": "file:tiktok-ugc-studio/postforme_integration.py",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/pipeline_cartoon.py",
+      "target": "file:tiktok-ugc-studio/frontend/package.json",
+      "type": "imports",
+      "label": "imports json"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/pipeline_default.py",
+      "target": "file:tiktok-ugc-studio/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/pipeline_default.py",
+      "target": "file:tiktok-ugc-studio/postforme_integration.py",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/pipeline_default.py",
+      "target": "file:tiktok-ugc-studio/frontend/package.json",
+      "type": "imports",
+      "label": "imports json"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/postforme_integration.py",
+      "target": "file:tiktok-ugc-studio/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/postforme_integration.py",
+      "target": "file:tiktok-ugc-studio/postforme_integration.py",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/postforme_integration.py",
+      "target": "file:tiktok-ugc-studio/frontend/package.json",
+      "type": "imports",
+      "label": "imports json"
+    }
+  ]
+}

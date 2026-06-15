@@ -1,0 +1,212 @@
+[
+  {
+    "order": 1,
+    "title": "Project Overview",
+    "description": "Start with the README to understand the Business OS architecture \u2014 a modular platform integrating ERP Modular, TikTok UGC Studio, Etsy Wizard, Inner Monologue AI agent, and bridge integrations.",
+    "nodeIds": [
+      "document:README.md"
+    ]
+  },
+  {
+    "order": 2,
+    "title": "System Architecture",
+    "description": "ARCHITECTURE.md describes the service layering, Bridge Server integration, and how Plane, Planka, BookStack, and OpenObserve connect.",
+    "nodeIds": [
+      "document:ARCHITECTURE.md"
+    ]
+  },
+  {
+    "order": 3,
+    "title": "Project Status & Roadmap",
+    "description": "STATUS.md tracks current development state, active modules, and future roadmap for all Business OS components.",
+    "nodeIds": [
+      "document:STATUS.md"
+    ]
+  },
+  {
+    "order": 4,
+    "title": "Core Platform \u2014 ERP Modular Entry Point",
+    "description": "The ERP Modular service is the central API gateway (port 8102). FastAPI app with CRUD entity management, template rendering, auth, rate limiting, and subscription plans.",
+    "nodeIds": [
+      "file:erp-modular/main.py"
+    ]
+  },
+  {
+    "order": 5,
+    "title": "ERP Modular \u2014 API Gateway & Auth",
+    "description": "API Gateway with reverse proxy routing, JWT + RBAC authentication, token-bucket rate limiting, and a FastAPI CRUD router for modules, templates, and entities.",
+    "nodeIds": [
+      "file:erp-modular/api/gateway.py",
+      "file:erp-modular/api/auth.py",
+      "file:erp-modular/api/rate_limit.py",
+      "file:erp-modular/api/router.py"
+    ]
+  },
+  {
+    "order": 6,
+    "title": "ERP Modular \u2014 Core Engine & Plugins",
+    "description": "Database session management, plugin system with abstract base classes, and Jinja2 template engine for rendering.",
+    "nodeIds": [
+      "file:erp-modular/core/database.py",
+      "file:erp-modular/core/plugin.py",
+      "file:erp-modular/core/template_engine.py"
+    ]
+  },
+  {
+    "order": 7,
+    "title": "TikTok UGC Studio \u2014 Content Generation Pipeline",
+    "description": "Main service for automated social media content. Micro service entry, FFmpeg composer for video assembly, fal.ai client for AI image-to-video, and AI video generation pipeline.",
+    "nodeIds": [
+      "file:tiktok-ugc-studio/main.py",
+      "file:tiktok-ugc-studio/composer.py",
+      "file:tiktok-ugc-studio/fal_client.py",
+      "file:tiktok-ugc-studio/video_gen.py"
+    ]
+  },
+  {
+    "order": 8,
+    "title": "TikTok UGC Studio \u2014 Script Generation & TTS",
+    "description": "AI script generator creates compelling TikTok video scripts. gTTS text-to-speech wrapper generates voiceovers. Pipeline variants for affiliate, cartoon, and default content.",
+    "nodeIds": [
+      "file:tiktok-ugc-studio/script_gen.py",
+      "file:tiktok-ugc-studio/tts_gen.py",
+      "file:tiktok-ugc-studio/pipeline_affiliate.py",
+      "file:tiktok-ugc-studio/pipeline_cartoon.py",
+      "file:tiktok-ugc-studio/pipeline_default.py"
+    ]
+  },
+  {
+    "order": 9,
+    "title": "TikTok UGC Studio \u2014 Browser Automation & Posting",
+    "description": "Playwright-based browser uploader for TikTok, remote auth service for user login flow, VNC auth server for headless environments, and Post For Me integration for social media auto-posting.",
+    "nodeIds": [
+      "file:tiktok-ugc-studio/tiktok_browser.py",
+      "file:tiktok-ugc-studio/tiktok_remote_auth.py",
+      "file:tiktok-ugc-studio/vnc_auth_server.py",
+      "file:tiktok-ugc-studio/postforme_integration.py"
+    ]
+  },
+  {
+    "order": 10,
+    "title": "TikTok UGC Studio \u2014 Monitoring & Scout",
+    "description": "Monitor loop tracks performance and optimizes content strategy. Scout (R&D) provides trend intelligence, viral video analysis, competitor tracking, and content template generation.",
+    "nodeIds": [
+      "file:tiktok-ugc-studio/monitor/__init__.py",
+      "file:tiktok-ugc-studio/monitor/optimizer.py",
+      "file:tiktok-ugc-studio/monitor/tracker.py",
+      "file:tiktok-ugc-studio/scout/__init__.py",
+      "file:tiktok-ugc-studio/scout/analyzer.py",
+      "file:tiktok-ugc-studio/scout/trends.py"
+    ]
+  },
+  {
+    "order": 11,
+    "title": "Etsy Wizard \u2014 Listing Automation",
+    "description": "AI-powered Etsy listing assistant with micro service entry, product detection, image generation, and rules validation for marketplace compliance.",
+    "nodeIds": [
+      "file:etsy-wizard/main.py",
+      "file:etsy-wizard/__init__.py",
+      "file:etsy-wizard/detector.py",
+      "file:etsy-wizard/image_gen.py",
+      "file:etsy-wizard/rules/validator.py"
+    ]
+  },
+  {
+    "order": 12,
+    "title": "Etsy Wizard \u2014 Rules & Configuration",
+    "description": "Etsy marketplace rules for image format, listing content, and policy compliance. Assistant module provides AI-driven listing generation with fix and optimization.",
+    "nodeIds": [
+      "config:etsy-wizard/rules/image-rules.yaml",
+      "config:etsy-wizard/rules/listing-rules.yaml",
+      "config:etsy-wizard/rules/policy-rules.yaml",
+      "file:etsy-wizard/assistant/__init__.py"
+    ]
+  },
+  {
+    "order": 13,
+    "title": "Inner Monologue \u2014 AI Agent Framework",
+    "description": "Self-reflective AI agent with sub-agent delegation system, heartbeat monitoring, human-in-the-loop confirmation, persistent memory, and resilience patterns.",
+    "nodeIds": [
+      "file:inner_monologue/main.py",
+      "file:inner_monologue/agent.py"
+    ]
+  },
+  {
+    "order": 14,
+    "title": "Inner Monologue \u2014 Delegation & Resilience",
+    "description": "Multi-Agent Delegation System manages sub-agents. Resilience engine provides retry strategies with fallback providers. HITL provides confirmation mode and flag-as-needed workflow.",
+    "nodeIds": [
+      "file:inner_monologue/delegation.py",
+      "file:inner_monologue/resilience.py",
+      "file:inner_monologue/hitl.py"
+    ]
+  },
+  {
+    "order": 15,
+    "title": "Inner Monologue \u2014 Memory, Heartbeat & Scanner",
+    "description": "Persistent memory with condenser for long-term recall. Heartbeat monitor shows agent status. System Bot Scanner auto-discovers ERP Stack services.",
+    "nodeIds": [
+      "file:inner_monologue/memory.py",
+      "file:inner_monologue/heartbeat.py",
+      "file:inner_monologue/scanner.py"
+    ]
+  },
+  {
+    "order": 16,
+    "title": "Prompt Studio \u2014 Prompt Management",
+    "description": "Centralized prompt management service (port 8107). Loads, versions, and serves AI prompts with loader abstraction layer. Stores UGC prompts for product holding, usage, and review.",
+    "nodeIds": [
+      "file:prompt-studio/main.py",
+      "file:prompt-studio/prompt_loader.py"
+    ]
+  },
+  {
+    "order": 17,
+    "title": "Bridge Server \u2014 Integration Hub",
+    "description": "Bridge Server connects Plane, Planka, BookStack, and OpenObserve into a unified platform. App entry with settings config and handler modules.",
+    "nodeIds": [
+      "file:bridge-server/app.py",
+      "file:bridge-server/config.py"
+    ]
+  },
+  {
+    "order": 18,
+    "title": "Modules \u2014 Auth & Media",
+    "description": "Auth Module handles user registration, login, and OAuth (Google/GitHub). Media Module provides file upload and management service.",
+    "nodeIds": [
+      "file:modules/auth/main.py",
+      "file:modules/media/main.py"
+    ]
+  },
+  {
+    "order": 19,
+    "title": "Modules \u2014 Product Analysis Pipeline",
+    "description": "Product scraper with Playwright + Gemini Vision, analysis pipeline (normalizer \u2192 enricher \u2192 analyzer), database models for tracking sessions across Shopee, Lazada, TikTok Shop, Amazon, and more.",
+    "nodeIds": [
+      "file:modules/product/__init__.py",
+      "file:modules/product/analyze_pipeline.py",
+      "file:modules/product/db_models.py",
+      "file:modules/product/analyzer.py"
+    ]
+  },
+  {
+    "order": 20,
+    "title": "Infrastructure \u2014 Docker Orchestration",
+    "description": "Docker Compose files orchestrate all services: main stack, Plane, Planka, BookStack, OpenObserve, Siyuan, and network configuration. Multi-Dockerfile for each service.",
+    "nodeIds": [
+      "resource:docker-compose.yml",
+      "resource:docker-compose.network.yml",
+      "resource:erp-modular/docker-compose.yml"
+    ]
+  },
+  {
+    "order": 21,
+    "title": "Infrastructure \u2014 Deployment & CI/CD",
+    "description": "GitHub Actions workflows deploy all services. PM2 ecosystem configs manage processes. Aider configuration for AI-assisted development.",
+    "nodeIds": [
+      "resource:.github/workflows/deploy-all.yml",
+      "config:package.json",
+      "config:.aider.conf.yml"
+    ]
+  }
+]

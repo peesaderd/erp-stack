@@ -1,0 +1,2924 @@
+{
+  "version": "1.0.0",
+  "gitCommitHash": "3daba4f59bbf5cd5c936347b6d6f6ba6c6bb1c0c",
+  "generatedAt": "2026-06-14T04:30:57.258Z",
+  "files": {
+    "main.py": {
+      "filePath": "main.py",
+      "contentHash": "6818e8ba8059079021267e7e6eca5b350add1bf007e5ed6bd554c0d3074b8e66",
+      "functions": [
+        {
+          "name": "register_platform_scrapers",
+          "params": [],
+          "exported": true,
+          "lineCount": 18
+        },
+        {
+          "name": "get_platform_scraper",
+          "params": [
+            "platform",
+            "proxy"
+          ],
+          "exported": true,
+          "lineCount": 15
+        },
+        {
+          "name": "lifespan",
+          "params": [
+            "app"
+          ],
+          "exported": true,
+          "lineCount": 33
+        },
+        {
+          "name": "serve_ui",
+          "params": [
+            "full_path"
+          ],
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "_resolve_auth",
+          "params": [
+            "authorization",
+            "x_api_key"
+          ],
+          "returnType": "dict",
+          "exported": true,
+          "lineCount": 28
+        },
+        {
+          "name": "_get_tier_and_limit",
+          "params": [
+            "tier"
+          ],
+          "returnType": "tuple",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "health",
+          "params": [],
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "create_new_api_key",
+          "params": [
+            "req",
+            "x_user_id"
+          ],
+          "exported": true,
+          "lineCount": 17
+        },
+        {
+          "name": "list_user_api_keys",
+          "params": [
+            "x_user_id"
+          ],
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "revoke_api_key_endpoint",
+          "params": [
+            "req",
+            "x_user_id"
+          ],
+          "exported": true,
+          "lineCount": 11
+        },
+        {
+          "name": "get_pricing",
+          "params": [],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "export_setup_instructions",
+          "params": [],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "export_to_sheets",
+          "params": [
+            "spreadsheet_id",
+            "x_user_id",
+            "x_api_key",
+            "authorization",
+            "sheet_name",
+            "append",
+            "limit"
+          ],
+          "exported": true,
+          "lineCount": 58
+        },
+        {
+          "name": "scrape_product_v2",
+          "params": [
+            "req",
+            "authorization",
+            "x_api_key",
+            "x_user_id",
+            "x_forwarded_for"
+          ],
+          "exported": true,
+          "lineCount": 73
+        },
+        {
+          "name": "get_usage",
+          "params": [
+            "x_user_id",
+            "x_api_key",
+            "authorization"
+          ],
+          "exported": true,
+          "lineCount": 24
+        },
+        {
+          "name": "batch_scrape",
+          "params": [
+            "req",
+            "authorization",
+            "x_api_key",
+            "x_user_id",
+            "x_forwarded_for"
+          ],
+          "exported": true,
+          "lineCount": 74
+        },
+        {
+          "name": "export_pipeline",
+          "params": [
+            "req",
+            "x_user_id"
+          ],
+          "exported": true,
+          "lineCount": 27
+        },
+        {
+          "name": "create_scheduled_scrape_route",
+          "params": [
+            "req",
+            "x_user_id"
+          ],
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "list_scheduled_scrapes_route",
+          "params": [
+            "x_user_id"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "delete_scheduled_scrape_route",
+          "params": [
+            "job_id",
+            "x_user_id"
+          ],
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "scrape_product_legacy",
+          "params": [
+            "req"
+          ],
+          "exported": true,
+          "lineCount": 27
+        },
+        {
+          "name": "extract_html",
+          "params": [
+            "req"
+          ],
+          "exported": true,
+          "lineCount": 24
+        },
+        {
+          "name": "scrape_tiktok_shop",
+          "params": [
+            "req",
+            "authorization",
+            "x_api_key"
+          ],
+          "exported": true,
+          "lineCount": 47
+        },
+        {
+          "name": "tiktok_shop_status",
+          "params": [],
+          "exported": true,
+          "lineCount": 21
+        },
+        {
+          "name": "scrape_platform",
+          "params": [
+            "req"
+          ],
+          "exported": true,
+          "lineCount": 61
+        },
+        {
+          "name": "list_platforms",
+          "params": [],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "main",
+          "params": [],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "api_analyze_product",
+          "params": [
+            "request"
+          ],
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "api_batch_analyze",
+          "params": [
+            "request"
+          ],
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "api_export_analyzed",
+          "params": [
+            "category",
+            "min_rating",
+            "min_sold",
+            "commission",
+            "source",
+            "seller_id",
+            "seller_name"
+          ],
+          "exported": true,
+          "lineCount": 23
+        },
+        {
+          "name": "api_list_scraped_products",
+          "params": [
+            "source_site",
+            "limit",
+            "offset"
+          ],
+          "exported": true,
+          "lineCount": 76
+        },
+        {
+          "name": "api_analyze_from_scrape",
+          "params": [
+            "req"
+          ],
+          "exported": true,
+          "lineCount": 191
+        },
+        {
+          "name": "api_analyze_stats",
+          "params": [],
+          "exported": true,
+          "lineCount": 4
+        }
+      ],
+      "classes": [
+        {
+          "name": "ApiKeyCreateRequest",
+          "methods": [],
+          "properties": [
+            "name"
+          ],
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "ApiKeyCreateResponse",
+          "methods": [],
+          "properties": [
+            "success",
+            "id",
+            "key",
+            "prefix",
+            "name",
+            "error"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "ApiKeyListResponse",
+          "methods": [],
+          "properties": [
+            "success",
+            "keys",
+            "error"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "ApiKeyRevokeRequest",
+          "methods": [],
+          "properties": [
+            "key_id"
+          ],
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "ApiKeyRevokeResponse",
+          "methods": [],
+          "properties": [
+            "success",
+            "error"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "ScrapeResponseV2",
+          "methods": [],
+          "properties": [
+            "success",
+            "method",
+            "product",
+            "cost",
+            "cached",
+            "remaining_quota",
+            "error"
+          ],
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "ExportRequest",
+          "methods": [],
+          "properties": [
+            "spreadsheet_id",
+            "user_id",
+            "sheet_name",
+            "append",
+            "limit"
+          ],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "ExportResponse",
+          "methods": [],
+          "properties": [
+            "success",
+            "sheet_name",
+            "rows_written",
+            "updated_range",
+            "setup_instructions",
+            "error"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "UsageResponse",
+          "methods": [],
+          "properties": [
+            "success",
+            "total_scrapes"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "TikTokScrapeRequest",
+          "methods": [],
+          "properties": [
+            "url",
+            "use_vision"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "TikTokScrapeResponse",
+          "methods": [],
+          "properties": [
+            "success",
+            "method",
+            "source_site",
+            "product",
+            "error"
+          ],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "TikTokStatusResponse",
+          "methods": [],
+          "properties": [
+            "status",
+            "platform",
+            "scraper_ready",
+            "message"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "PricingResponse",
+          "methods": [],
+          "properties": [
+            "success",
+            "tiers",
+            "error"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "PlatformScrapeRequest",
+          "methods": [],
+          "properties": [
+            "url",
+            "platform"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "PlatformScrapeResponse",
+          "methods": [],
+          "properties": [
+            "success",
+            "platform",
+            "method",
+            "product",
+            "error"
+          ],
+          "exported": true,
+          "lineCount": 6
+        }
+      ],
+      "imports": [
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "sys",
+          "specifiers": [
+            "sys"
+          ]
+        },
+        {
+          "source": "re",
+          "specifiers": [
+            "re"
+          ]
+        },
+        {
+          "source": "secrets",
+          "specifiers": [
+            "secrets"
+          ]
+        },
+        {
+          "source": "datetime",
+          "specifiers": [
+            "datetime",
+            "timezone"
+          ]
+        },
+        {
+          "source": "contextlib",
+          "specifiers": [
+            "asynccontextmanager"
+          ]
+        },
+        {
+          "source": "uuid",
+          "specifiers": [
+            "uuid"
+          ]
+        },
+        {
+          "source": "asyncio",
+          "specifiers": [
+            "asyncio"
+          ]
+        },
+        {
+          "source": "httpx",
+          "specifiers": [
+            "httpx"
+          ]
+        },
+        {
+          "source": "fastapi",
+          "specifiers": [
+            "FastAPI",
+            "HTTPException",
+            "Header",
+            "Query"
+          ]
+        },
+        {
+          "source": "fastapi.middleware.cors",
+          "specifiers": [
+            "CORSMiddleware"
+          ]
+        },
+        {
+          "source": "fastapi.staticfiles",
+          "specifiers": [
+            "StaticFiles"
+          ]
+        },
+        {
+          "source": "pydantic",
+          "specifiers": [
+            "BaseModel"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Optional",
+            "List"
+          ]
+        },
+        {
+          "source": "uvicorn",
+          "specifiers": [
+            "uvicorn"
+          ]
+        },
+        {
+          "source": "shared.database",
+          "specifiers": [
+            "Base",
+            "engine",
+            "async_session_factory",
+            "init_db"
+          ]
+        },
+        {
+          "source": "product.models",
+          "specifiers": [
+            "ScrapeRequest",
+            "ScrapeResponse",
+            "ProductData",
+            "BatchScrapeItem",
+            "BatchScrapeRequest",
+            "BatchScrapeResponse",
+            "ExportToPipelineRequest",
+            "ExportToPipelineResponse",
+            "ScheduledScrapeCreate",
+            "ScheduledScrapeResponse"
+          ]
+        },
+        {
+          "source": "product.scraper",
+          "specifiers": [
+            "scrape_url",
+            "_try_http_extract"
+          ]
+        },
+        {
+          "source": "product.analyzer",
+          "specifiers": [
+            "analyze_with_vision"
+          ]
+        },
+        {
+          "source": "product.analyze_pipeline",
+          "specifiers": [
+            "analyze_product",
+            "batch_analyze",
+            "store_analyzed",
+            "get_analyzed_stats",
+            "get_analyzed_products"
+          ]
+        },
+        {
+          "source": "product.analyze_models",
+          "specifiers": [
+            "AnalyzeRequest",
+            "AnalyzeResponse",
+            "BatchAnalyzeRequest",
+            "BatchAnalyzeResponse",
+            "ExportResponse"
+          ]
+        },
+        {
+          "source": "product.db_models",
+          "specifiers": [
+            "SCRAPE_TIERS",
+            "get_tier_config"
+          ]
+        },
+        {
+          "source": "product.export_service",
+          "specifiers": [
+            "export_products_to_sheet",
+            "get_setup_instructions",
+            "sheets_ready"
+          ]
+        },
+        {
+          "source": "product.scraper_service",
+          "specifiers": [
+            "create_api_key",
+            "validate_api_key",
+            "list_api_keys",
+            "revoke_api_key",
+            "get_cached_product",
+            "cache_product",
+            "log_scrape",
+            "get_user_usage",
+            "scrape_with_tracking",
+            "export_to_pipeline",
+            "create_scheduled_scrape",
+            "list_scheduled_scrapes",
+            "delete_scheduled_scrape",
+            "run_scheduled_scrape"
+          ]
+        },
+        {
+          "source": "product.scheduler",
+          "specifiers": [
+            "start_scheduler"
+          ]
+        },
+        {
+          "source": "fastapi.responses",
+          "specifiers": [
+            "FileResponse"
+          ]
+        },
+        {
+          "source": "os",
+          "specifiers": [
+            "_os"
+          ]
+        },
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        }
+      ],
+      "exports": [
+        "ApiKeyCreateRequest",
+        "ApiKeyCreateResponse",
+        "ApiKeyListResponse",
+        "ApiKeyRevokeRequest",
+        "ApiKeyRevokeResponse",
+        "ScrapeResponseV2",
+        "ExportRequest",
+        "ExportResponse",
+        "UsageResponse",
+        "TikTokScrapeRequest",
+        "TikTokScrapeResponse",
+        "TikTokStatusResponse",
+        "register_platform_scrapers",
+        "get_platform_scraper",
+        "PricingResponse",
+        "lifespan",
+        "serve_ui",
+        "_resolve_auth",
+        "_get_tier_and_limit",
+        "health",
+        "create_new_api_key",
+        "list_user_api_keys",
+        "revoke_api_key_endpoint",
+        "get_pricing",
+        "export_setup_instructions",
+        "export_to_sheets",
+        "scrape_product_v2",
+        "get_usage",
+        "batch_scrape",
+        "export_pipeline",
+        "create_scheduled_scrape_route",
+        "list_scheduled_scrapes_route",
+        "delete_scheduled_scrape_route",
+        "scrape_product_legacy",
+        "extract_html",
+        "scrape_tiktok_shop",
+        "tiktok_shop_status",
+        "PlatformScrapeRequest",
+        "PlatformScrapeResponse",
+        "scrape_platform",
+        "list_platforms",
+        "main",
+        "api_analyze_product",
+        "api_batch_analyze",
+        "api_export_analyzed",
+        "api_list_scraped_products",
+        "api_analyze_from_scrape",
+        "api_analyze_stats"
+      ],
+      "totalLines": 1259,
+      "hasStructuralAnalysis": true
+    },
+    "scraper.py": {
+      "filePath": "scraper.py",
+      "contentHash": "2b806de7ca1188e92f466219a42b19565169dd28b9ed7b3622539f2af67a8a3a",
+      "functions": [
+        {
+          "name": "_get_next_proxy",
+          "params": [],
+          "returnType": "Optional[str]",
+          "exported": true,
+          "lineCount": 20
+        },
+        {
+          "name": "record_proxy_error",
+          "params": [
+            "proxy"
+          ],
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "_try_http_extract",
+          "params": [
+            "url",
+            "proxy_url"
+          ],
+          "returnType": "Optional[Dict[str, Any]]",
+          "exported": true,
+          "lineCount": 86
+        },
+        {
+          "name": "_detect_site",
+          "params": [
+            "url"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "_launch_browser",
+          "params": [
+            "storage_state",
+            "proxy_url"
+          ],
+          "exported": true,
+          "lineCount": 41
+        },
+        {
+          "name": "_random_delay",
+          "params": [
+            "page",
+            "min_ms",
+            "max_ms"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "_human_scroll",
+          "params": [
+            "page"
+          ],
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "_evaluate_selectors",
+          "params": [
+            "page",
+            "field",
+            "site_selectors"
+          ],
+          "returnType": "Any",
+          "exported": true,
+          "lineCount": 24
+        },
+        {
+          "name": "_extract_jsonld",
+          "params": [
+            "page"
+          ],
+          "returnType": "Dict",
+          "exported": true,
+          "lineCount": 16
+        },
+        {
+          "name": "_extract_nuxt_state",
+          "params": [
+            "page"
+          ],
+          "returnType": "Dict",
+          "exported": true,
+          "lineCount": 26
+        },
+        {
+          "name": "_deep_get",
+          "params": [
+            "obj",
+            "key"
+          ],
+          "exported": true,
+          "lineCount": 16
+        },
+        {
+          "name": "_extract_all",
+          "params": [
+            "page"
+          ],
+          "returnType": "Dict",
+          "exported": true,
+          "lineCount": 78
+        },
+        {
+          "name": "_extract_images",
+          "params": [
+            "page"
+          ],
+          "returnType": "List[str]",
+          "exported": true,
+          "lineCount": 33
+        },
+        {
+          "name": "_parse_price",
+          "params": [
+            "text"
+          ],
+          "returnType": "Optional[float]",
+          "exported": true,
+          "lineCount": 13
+        },
+        {
+          "name": "_save_session",
+          "params": [
+            "ctx",
+            "domain"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 11
+        },
+        {
+          "name": "_load_session",
+          "params": [
+            "domain"
+          ],
+          "returnType": "Optional[Dict]",
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "_intercept_api_data",
+          "params": [
+            "page",
+            "site",
+            "timeout"
+          ],
+          "returnType": "Optional[Dict]",
+          "exported": true,
+          "lineCount": 42
+        },
+        {
+          "name": "_parse_shopee_api",
+          "params": [
+            "responses"
+          ],
+          "returnType": "Optional[Dict]",
+          "exported": true,
+          "lineCount": 37
+        },
+        {
+          "name": "_parse_lazada_api",
+          "params": [
+            "responses"
+          ],
+          "returnType": "Optional[Dict]",
+          "exported": true,
+          "lineCount": 30
+        },
+        {
+          "name": "_parse_tiktok_api",
+          "params": [
+            "responses"
+          ],
+          "returnType": "Optional[Dict]",
+          "exported": true,
+          "lineCount": 24
+        },
+        {
+          "name": "_scrape_with_api_intercept",
+          "params": [
+            "page",
+            "site",
+            "url",
+            "proxy_url"
+          ],
+          "returnType": "Optional[Dict]",
+          "exported": true,
+          "lineCount": 71
+        },
+        {
+          "name": "scrape_url",
+          "params": [
+            "url",
+            "proxy_url",
+            "rotate_proxy"
+          ],
+          "returnType": "dict",
+          "exported": true,
+          "lineCount": 166
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "asyncio",
+          "specifiers": [
+            "asyncio"
+          ]
+        },
+        {
+          "source": "re",
+          "specifiers": [
+            "re"
+          ]
+        },
+        {
+          "source": "json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "random",
+          "specifiers": [
+            "random"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Optional",
+            "Dict",
+            "List",
+            "Any"
+          ]
+        },
+        {
+          "source": "urllib.parse",
+          "specifiers": [
+            "urlparse"
+          ]
+        },
+        {
+          "source": "datetime",
+          "specifiers": [
+            "datetime"
+          ]
+        }
+      ],
+      "exports": [
+        "_get_next_proxy",
+        "record_proxy_error",
+        "_try_http_extract",
+        "_detect_site",
+        "_launch_browser",
+        "_random_delay",
+        "_human_scroll",
+        "_evaluate_selectors",
+        "_extract_jsonld",
+        "_extract_nuxt_state",
+        "_deep_get",
+        "_extract_all",
+        "_extract_images",
+        "_parse_price",
+        "_save_session",
+        "_load_session",
+        "_intercept_api_data",
+        "_parse_shopee_api",
+        "_parse_lazada_api",
+        "_parse_tiktok_api",
+        "_scrape_with_api_intercept",
+        "scrape_url"
+      ],
+      "totalLines": 1022,
+      "hasStructuralAnalysis": true
+    },
+    "scraper_service.py": {
+      "filePath": "scraper_service.py",
+      "contentHash": "cd5af165b72d48883461b11b7faeb6657a12d1abc5ab6e339a4e2c7f283c001a",
+      "functions": [
+        {
+          "name": "create_api_key",
+          "params": [
+            "user_id",
+            "name"
+          ],
+          "returnType": "dict",
+          "exported": true,
+          "lineCount": 33
+        },
+        {
+          "name": "validate_api_key",
+          "params": [
+            "raw_key"
+          ],
+          "returnType": "Optional[Dict]",
+          "exported": true,
+          "lineCount": 45
+        },
+        {
+          "name": "list_api_keys",
+          "params": [
+            "user_id"
+          ],
+          "returnType": "List[Dict]",
+          "exported": true,
+          "lineCount": 20
+        },
+        {
+          "name": "revoke_api_key",
+          "params": [
+            "key_id",
+            "user_id"
+          ],
+          "returnType": "bool",
+          "exported": true,
+          "lineCount": 12
+        },
+        {
+          "name": "get_cached_product",
+          "params": [
+            "url"
+          ],
+          "returnType": "Optional[Dict]",
+          "exported": true,
+          "lineCount": 14
+        },
+        {
+          "name": "filter_product_images",
+          "params": [
+            "images"
+          ],
+          "returnType": "list",
+          "exported": true,
+          "lineCount": 31
+        },
+        {
+          "name": "cache_product",
+          "params": [
+            "url",
+            "data",
+            "tier"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 65
+        },
+        {
+          "name": "_product_to_dict",
+          "params": [
+            "p"
+          ],
+          "returnType": "Dict",
+          "exported": true,
+          "lineCount": 15
+        },
+        {
+          "name": "log_scrape",
+          "params": [
+            "user_id",
+            "url",
+            "success",
+            "method",
+            "duration_ms",
+            "product_id",
+            "api_key_id",
+            "proxy_used",
+            "ip_address",
+            "cost"
+          ],
+          "exported": true,
+          "lineCount": 54
+        },
+        {
+          "name": "get_user_usage",
+          "params": [
+            "user_id"
+          ],
+          "returnType": "Dict",
+          "exported": true,
+          "lineCount": 44
+        },
+        {
+          "name": "export_to_pipeline",
+          "params": [
+            "product_ids",
+            "hook",
+            "cta",
+            "duration"
+          ],
+          "returnType": "List[dict]",
+          "exported": true,
+          "lineCount": 32
+        },
+        {
+          "name": "create_scheduled_scrape",
+          "params": [
+            "user_id",
+            "name",
+            "urls",
+            "schedule",
+            "export_to_pipeline"
+          ],
+          "returnType": "dict",
+          "exported": true,
+          "lineCount": 36
+        },
+        {
+          "name": "list_scheduled_scrapes",
+          "params": [
+            "user_id"
+          ],
+          "returnType": "List[dict]",
+          "exported": true,
+          "lineCount": 22
+        },
+        {
+          "name": "delete_scheduled_scrape",
+          "params": [
+            "job_id",
+            "user_id"
+          ],
+          "returnType": "bool",
+          "exported": true,
+          "lineCount": 15
+        },
+        {
+          "name": "run_scheduled_scrape",
+          "params": [
+            "job_id"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 31
+        },
+        {
+          "name": "detect_category",
+          "params": [
+            "product_name",
+            "description"
+          ],
+          "returnType": "ProductCategory",
+          "exported": true,
+          "lineCount": 13
+        },
+        {
+          "name": "scrape_with_tracking",
+          "params": [
+            "url",
+            "user_id",
+            "api_key_id",
+            "use_vision",
+            "proxy_url",
+            "rotate_proxy",
+            "user_tier",
+            "ip_address"
+          ],
+          "returnType": "Dict",
+          "exported": true,
+          "lineCount": 78
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "hashlib",
+          "specifiers": [
+            "hashlib"
+          ]
+        },
+        {
+          "source": "secrets",
+          "specifiers": [
+            "secrets"
+          ]
+        },
+        {
+          "source": "asyncio",
+          "specifiers": [
+            "asyncio"
+          ]
+        },
+        {
+          "source": "datetime",
+          "specifiers": [
+            "datetime",
+            "timezone",
+            "timedelta"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Optional",
+            "Dict",
+            "List"
+          ]
+        },
+        {
+          "source": "sqlalchemy",
+          "specifiers": [
+            "select",
+            "func",
+            "and_"
+          ]
+        },
+        {
+          "source": "sqlalchemy.ext.asyncio",
+          "specifiers": [
+            "AsyncSession"
+          ]
+        },
+        {
+          "source": "shared.database",
+          "specifiers": [
+            "async_session_factory"
+          ]
+        },
+        {
+          "source": "product.db_models",
+          "specifiers": [
+            "ApiKey",
+            "ScrapedProduct",
+            "ScrapeLog",
+            "CreditUsage",
+            "PriceHistory",
+            "ScheduledScrape",
+            "SCRAPE_TIERS",
+            "get_tier_config",
+            "calculate_scrape_cost",
+            "_hash_url",
+            "_uuid"
+          ]
+        },
+        {
+          "source": "product.models",
+          "specifiers": [
+            "ProductCategory"
+          ]
+        },
+        {
+          "source": "httpx",
+          "specifiers": [
+            "httpx"
+          ]
+        },
+        {
+          "source": "product.scraper",
+          "specifiers": [
+            "_scrape_url"
+          ]
+        }
+      ],
+      "exports": [
+        "create_api_key",
+        "validate_api_key",
+        "list_api_keys",
+        "revoke_api_key",
+        "get_cached_product",
+        "filter_product_images",
+        "cache_product",
+        "_product_to_dict",
+        "log_scrape",
+        "get_user_usage",
+        "export_to_pipeline",
+        "create_scheduled_scrape",
+        "list_scheduled_scrapes",
+        "delete_scheduled_scrape",
+        "run_scheduled_scrape",
+        "detect_category",
+        "scrape_with_tracking"
+      ],
+      "totalLines": 761,
+      "hasStructuralAnalysis": true
+    },
+    "analyze_pipeline.py": {
+      "filePath": "analyze_pipeline.py",
+      "contentHash": "b07e270884de3417a8d41a94315d2e371baad415ef657db3469ab18d7c94a3b9",
+      "functions": [
+        {
+          "name": "_download_images_local",
+          "params": [
+            "product_id",
+            "image_urls"
+          ],
+          "returnType": "list",
+          "exported": true,
+          "lineCount": 45
+        },
+        {
+          "name": "_call_mistral",
+          "params": [
+            "prompt",
+            "max_tokens"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 22
+        },
+        {
+          "name": "_detect_category",
+          "params": [
+            "title",
+            "categories"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "_translate_to_thai",
+          "params": [
+            "text"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 12
+        },
+        {
+          "name": "_extract_keywords",
+          "params": [
+            "title",
+            "description"
+          ],
+          "returnType": "list",
+          "exported": true,
+          "lineCount": 19
+        },
+        {
+          "name": "_score_viral",
+          "params": [
+            "p"
+          ],
+          "returnType": "float",
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "analyze_product",
+          "params": [
+            "raw_data",
+            "source"
+          ],
+          "returnType": "dict",
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "batch_analyze",
+          "params": [
+            "raw_data_list",
+            "source",
+            "filters"
+          ],
+          "returnType": "dict",
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "store_analyzed",
+          "params": [
+            "product"
+          ],
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "get_analyzed_stats",
+          "params": [],
+          "returnType": "dict",
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "get_analyzed_products",
+          "params": [
+            "min_rating",
+            "min_sold",
+            "commission",
+            "category",
+            "source",
+            "seller_id",
+            "seller_name"
+          ],
+          "returnType": "dict",
+          "exported": true,
+          "lineCount": 18
+        }
+      ],
+      "classes": [
+        {
+          "name": "ErrorRateLimiter",
+          "methods": [
+            "__init__",
+            "_prune",
+            "can_call",
+            "wait_if_needed",
+            "record_call",
+            "record_error",
+            "record_success"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 44
+        },
+        {
+          "name": "TTLCache",
+          "methods": [
+            "__init__",
+            "get",
+            "set",
+            "clear",
+            "cleanup"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 25
+        },
+        {
+          "name": "UnifiedProduct",
+          "methods": [],
+          "properties": [
+            "product_id",
+            "title",
+            "title_th",
+            "description",
+            "price_min",
+            "price_max",
+            "price_avg",
+            "currency",
+            "rating",
+            "review_count",
+            "sold_total",
+            "sold_week",
+            "sold_month",
+            "sales_gmv_7d",
+            "sales_gmv_30d",
+            "sales_gmv_total",
+            "sales_gmv_7d_usd",
+            "sales_gmv_30d_usd",
+            "sales_gmv_total_usd",
+            "seller_name",
+            "seller_id",
+            "categories",
+            "category",
+            "images",
+            "commission_rate",
+            "influencer_count",
+            "video_count",
+            "rank",
+            "source",
+            "scrape_timestamp",
+            "viral_score",
+            "trending",
+            "keywords",
+            "enriched"
+          ],
+          "exported": true,
+          "lineCount": 35
+        },
+        {
+          "name": "ProductNormalizer",
+          "methods": [
+            "detect_source",
+            "_safe_float",
+            "_safe_int",
+            "_parse_price_str",
+            "normalize",
+            "_normalize_tiktok",
+            "_normalize_apify",
+            "_normalize_shopee",
+            "_normalize_lazada",
+            "_normalize_generic"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 170
+        },
+        {
+          "name": "ProductEnricher",
+          "methods": [
+            "enrich"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 20
+        },
+        {
+          "name": "ProductExporter",
+          "methods": [
+            "export_for_tus"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 20
+        }
+      ],
+      "imports": [
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "httpx",
+          "specifiers": [
+            "httpx"
+          ]
+        },
+        {
+          "source": "asyncio",
+          "specifiers": [
+            "asyncio"
+          ]
+        },
+        {
+          "source": "re",
+          "specifiers": [
+            "re"
+          ]
+        },
+        {
+          "source": "time",
+          "specifiers": [
+            "time"
+          ]
+        },
+        {
+          "source": "uuid",
+          "specifiers": [
+            "uuid"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Optional",
+            "Dict",
+            "List",
+            "Any"
+          ]
+        },
+        {
+          "source": "datetime",
+          "specifiers": [
+            "datetime"
+          ]
+        },
+        {
+          "source": "dataclasses",
+          "specifiers": [
+            "dataclass",
+            "field",
+            "asdict"
+          ]
+        },
+        {
+          "source": "collections",
+          "specifiers": [
+            "Counter"
+          ]
+        },
+        {
+          "source": "product.analyzer_db",
+          "specifiers": [
+            "_store_analyzed",
+            "_get_stats",
+            "_get_products"
+          ]
+        },
+        {
+          "source": "product.analyzer_db",
+          "specifiers": [
+            "store_analyzed_batch"
+          ]
+        },
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        },
+        {
+          "source": "product.analyzer_db",
+          "specifiers": [
+            "_store_analyzed",
+            "_get_stats",
+            "_get_products"
+          ]
+        },
+        {
+          "source": "product.analyzer_db",
+          "specifiers": [
+            "store_analyzed_batch"
+          ]
+        }
+      ],
+      "exports": [
+        "_download_images_local",
+        "ErrorRateLimiter",
+        "TTLCache",
+        "UnifiedProduct",
+        "ProductNormalizer",
+        "ProductEnricher",
+        "ProductExporter",
+        "_call_mistral",
+        "_detect_category",
+        "_translate_to_thai",
+        "_extract_keywords",
+        "_score_viral",
+        "analyze_product",
+        "batch_analyze",
+        "store_analyzed",
+        "get_analyzed_stats",
+        "get_analyzed_products"
+      ],
+      "totalLines": 546,
+      "hasStructuralAnalysis": true
+    },
+    "db_models.py": {
+      "filePath": "db_models.py",
+      "contentHash": "c0f086996908f4f03d967445411a32ecf882dee4a274297d070b54eefc930998",
+      "functions": [
+        {
+          "name": "_utcnow",
+          "params": [],
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "_uuid",
+          "params": [],
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "_hash_url",
+          "params": [
+            "url"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "get_tier_config",
+          "params": [
+            "tier"
+          ],
+          "returnType": "dict",
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "calculate_scrape_cost",
+          "params": [
+            "user_tier",
+            "current_month_usage"
+          ],
+          "returnType": "float",
+          "exported": true,
+          "lineCount": 6
+        }
+      ],
+      "classes": [
+        {
+          "name": "ApiKey",
+          "methods": [],
+          "properties": [],
+          "exported": true,
+          "lineCount": 17
+        },
+        {
+          "name": "ScrapedProduct",
+          "methods": [],
+          "properties": [],
+          "exported": true,
+          "lineCount": 23
+        },
+        {
+          "name": "ScrapeLog",
+          "methods": [],
+          "properties": [],
+          "exported": true,
+          "lineCount": 19
+        },
+        {
+          "name": "CreditUsage",
+          "methods": [],
+          "properties": [],
+          "exported": true,
+          "lineCount": 11
+        },
+        {
+          "name": "PriceHistory",
+          "methods": [],
+          "properties": [],
+          "exported": true,
+          "lineCount": 12
+        },
+        {
+          "name": "ScheduledScrape",
+          "methods": [],
+          "properties": [],
+          "exported": true,
+          "lineCount": 14
+        },
+        {
+          "name": "AnalyzedProduct",
+          "methods": [],
+          "properties": [],
+          "exported": true,
+          "lineCount": 43
+        }
+      ],
+      "imports": [
+        {
+          "source": "uuid",
+          "specifiers": [
+            "uuid"
+          ]
+        },
+        {
+          "source": "hashlib",
+          "specifiers": [
+            "hashlib"
+          ]
+        },
+        {
+          "source": "json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "datetime",
+          "specifiers": [
+            "datetime",
+            "timezone"
+          ]
+        },
+        {
+          "source": "sqlalchemy",
+          "specifiers": [
+            "Column",
+            "String",
+            "Integer",
+            "Float",
+            "Boolean",
+            "DateTime",
+            "ForeignKey",
+            "Text",
+            "JSON",
+            "BigInteger"
+          ]
+        },
+        {
+          "source": "sqlalchemy.orm",
+          "specifiers": [
+            "relationship"
+          ]
+        },
+        {
+          "source": "shared.database",
+          "specifiers": [
+            "Base"
+          ]
+        }
+      ],
+      "exports": [
+        "_utcnow",
+        "_uuid",
+        "_hash_url",
+        "ApiKey",
+        "ScrapedProduct",
+        "ScrapeLog",
+        "CreditUsage",
+        "PriceHistory",
+        "ScheduledScrape",
+        "get_tier_config",
+        "calculate_scrape_cost",
+        "AnalyzedProduct"
+      ],
+      "totalLines": 264,
+      "hasStructuralAnalysis": true
+    },
+    "analyzer.py": {
+      "filePath": "analyzer.py",
+      "contentHash": "ed8dddd679a8f02d4b4c13f215cd24a20db478a04b1e21c8b42b020632979e57",
+      "functions": [
+        {
+          "name": "analyze_with_vision",
+          "params": [
+            "image_url"
+          ],
+          "returnType": "Optional[Dict]",
+          "exported": true,
+          "lineCount": 74
+        },
+        {
+          "name": "_parse_price",
+          "params": [
+            "text"
+          ],
+          "returnType": "Optional[float]",
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "_call_opencode",
+          "params": [
+            "prompt",
+            "max_tokens",
+            "temperature"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 24
+        },
+        {
+          "name": "translate_to_thai",
+          "params": [
+            "text"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "extract_keywords",
+          "params": [
+            "title",
+            "desc"
+          ],
+          "returnType": "List[str]",
+          "exported": true,
+          "lineCount": 18
+        },
+        {
+          "name": "score_viral_potential",
+          "params": [
+            "product_data"
+          ],
+          "returnType": "float",
+          "exported": true,
+          "lineCount": 19
+        },
+        {
+          "name": "enrich_product",
+          "params": [
+            "product_data"
+          ],
+          "returnType": "dict",
+          "exported": true,
+          "lineCount": 27
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "httpx",
+          "specifiers": [
+            "httpx"
+          ]
+        },
+        {
+          "source": "base64",
+          "specifiers": [
+            "base64"
+          ]
+        },
+        {
+          "source": "re",
+          "specifiers": [
+            "re"
+          ]
+        },
+        {
+          "source": "asyncio",
+          "specifiers": [
+            "asyncio"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Optional",
+            "Dict",
+            "List",
+            "Any"
+          ]
+        }
+      ],
+      "exports": [
+        "analyze_with_vision",
+        "_parse_price",
+        "_call_opencode",
+        "translate_to_thai",
+        "extract_keywords",
+        "score_viral_potential",
+        "enrich_product"
+      ],
+      "totalLines": 205,
+      "hasStructuralAnalysis": true
+    },
+    "analyzer_db.py": {
+      "filePath": "analyzer_db.py",
+      "contentHash": "ea84ff0ad3a58463b12356040050a4600b4032122d01bc65f7a426f8f7d25fad",
+      "functions": [
+        {
+          "name": "store_analyzed",
+          "params": [
+            "product"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 57
+        },
+        {
+          "name": "get_analyzed_stats",
+          "params": [],
+          "returnType": "dict",
+          "exported": true,
+          "lineCount": 46
+        },
+        {
+          "name": "get_analyzed_products",
+          "params": [
+            "min_rating",
+            "min_sold",
+            "commission",
+            "category",
+            "source",
+            "seller_id",
+            "seller_name",
+            "limit",
+            "offset"
+          ],
+          "returnType": "dict",
+          "exported": true,
+          "lineCount": 83
+        },
+        {
+          "name": "store_analyzed_batch",
+          "params": [
+            "products"
+          ],
+          "returnType": "int",
+          "exported": true,
+          "lineCount": 7
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Optional"
+          ]
+        },
+        {
+          "source": "datetime",
+          "specifiers": [
+            "datetime",
+            "timezone"
+          ]
+        },
+        {
+          "source": "sqlalchemy",
+          "specifiers": [
+            "func",
+            "select",
+            "and_",
+            "text"
+          ]
+        },
+        {
+          "source": "shared.database",
+          "specifiers": [
+            "async_session_factory"
+          ]
+        },
+        {
+          "source": "product.db_models",
+          "specifiers": [
+            "AnalyzedProduct"
+          ]
+        },
+        {
+          "source": "uuid",
+          "specifiers": [
+            "uuid"
+          ]
+        }
+      ],
+      "exports": [
+        "store_analyzed",
+        "get_analyzed_stats",
+        "get_analyzed_products",
+        "store_analyzed_batch"
+      ],
+      "totalLines": 214,
+      "hasStructuralAnalysis": true
+    },
+    "analyze_models.py": {
+      "filePath": "analyze_models.py",
+      "contentHash": "a98cde12f9af59eb857500e0451cd7755b2683c18f83d3423b9ec8b98363055b",
+      "functions": [],
+      "classes": [
+        {
+          "name": "AnalyzeRequest",
+          "methods": [],
+          "properties": [
+            "raw_data",
+            "source"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "AnalyzeResponse",
+          "methods": [],
+          "properties": [
+            "tus_ready",
+            "products",
+            "count",
+            "timestamp",
+            "error"
+          ],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "BatchAnalyzeRequest",
+          "methods": [],
+          "properties": [
+            "raw_data_list",
+            "source",
+            "filters"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "BatchAnalyzeResponse",
+          "methods": [],
+          "properties": [
+            "tus_ready",
+            "products",
+            "count",
+            "timestamp",
+            "error"
+          ],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "ExportResponse",
+          "methods": [],
+          "properties": [
+            "tus_ready",
+            "products",
+            "count",
+            "timestamp"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "AnalyzeFromScrapeRequest",
+          "methods": [],
+          "properties": [
+            "source_site",
+            "seller_name",
+            "limit",
+            "min_rating",
+            "skip_enrich"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "AnalyzeFromScrapeResponse",
+          "methods": [],
+          "properties": [
+            "success",
+            "count",
+            "products",
+            "skipped",
+            "message"
+          ],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "ScrapedProductListItem",
+          "methods": [],
+          "properties": [
+            "id",
+            "name",
+            "price",
+            "currency",
+            "source_site",
+            "sku",
+            "scraped_at",
+            "has_analyzed"
+          ],
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "ScrapedProductListResponse",
+          "methods": [],
+          "properties": [
+            "success",
+            "products",
+            "total",
+            "sources"
+          ],
+          "exported": true,
+          "lineCount": 5
+        }
+      ],
+      "imports": [
+        {
+          "source": "pydantic",
+          "specifiers": [
+            "BaseModel"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Optional",
+            "List",
+            "Dict",
+            "Any"
+          ]
+        }
+      ],
+      "exports": [
+        "AnalyzeRequest",
+        "AnalyzeResponse",
+        "BatchAnalyzeRequest",
+        "BatchAnalyzeResponse",
+        "ExportResponse",
+        "AnalyzeFromScrapeRequest",
+        "AnalyzeFromScrapeResponse",
+        "ScrapedProductListItem",
+        "ScrapedProductListResponse"
+      ],
+      "totalLines": 69,
+      "hasStructuralAnalysis": true
+    },
+    "models.py": {
+      "filePath": "models.py",
+      "contentHash": "9090d3d345f922a58c540de62bcdc7472b764b0a649845a0d7028dcce49d9059",
+      "functions": [],
+      "classes": [
+        {
+          "name": "ScrapeRequest",
+          "methods": [],
+          "properties": [
+            "url",
+            "use_vision",
+            "proxy",
+            "rotate_proxy"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "ProductData",
+          "methods": [],
+          "properties": [
+            "name",
+            "price",
+            "currency",
+            "images",
+            "description",
+            "sku",
+            "brand",
+            "source_url",
+            "source_site"
+          ],
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "ScrapeResponse",
+          "methods": [],
+          "properties": [
+            "success",
+            "method",
+            "product",
+            "error"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "BatchScrapeItem",
+          "methods": [],
+          "properties": [
+            "url",
+            "use_vision"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "BatchScrapeRequest",
+          "methods": [],
+          "properties": [
+            "items",
+            "max_concurrent",
+            "notify_on_complete"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "BatchScrapeResponse",
+          "methods": [],
+          "properties": [
+            "success",
+            "batch_id",
+            "total",
+            "completed",
+            "results",
+            "error"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "ExportToPipelineRequest",
+          "methods": [],
+          "properties": [
+            "product_ids",
+            "limit",
+            "hook",
+            "cta",
+            "duration"
+          ],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "ExportToPipelineResponse",
+          "methods": [],
+          "properties": [
+            "success",
+            "jobs",
+            "error"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "ScheduledScrapeCreate",
+          "methods": [],
+          "properties": [
+            "name",
+            "urls",
+            "schedule",
+            "export_to_pipeline"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "ScheduledScrapeResponse",
+          "methods": [],
+          "properties": [
+            "success",
+            "id",
+            "name",
+            "urls",
+            "schedule",
+            "status",
+            "next_run",
+            "last_run",
+            "error"
+          ],
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "ProductCategory",
+          "methods": [],
+          "properties": [
+            "category",
+            "confidence",
+            "subcategory"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "BatchScrapeItem",
+          "methods": [],
+          "properties": [
+            "url",
+            "use_vision"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "BatchScrapeRequest",
+          "methods": [],
+          "properties": [
+            "items",
+            "max_concurrent",
+            "notify_on_complete"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "BatchScrapeResponse",
+          "methods": [],
+          "properties": [
+            "success",
+            "batch_id",
+            "total",
+            "completed",
+            "results",
+            "error"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "ExportToPipelineRequest",
+          "methods": [],
+          "properties": [
+            "product_ids",
+            "limit",
+            "hook",
+            "cta",
+            "duration"
+          ],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "ExportToPipelineResponse",
+          "methods": [],
+          "properties": [
+            "success",
+            "jobs",
+            "error"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "ScheduledScrapeCreate",
+          "methods": [],
+          "properties": [
+            "name",
+            "urls",
+            "schedule",
+            "export_to_pipeline"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "ScheduledScrapeResponse",
+          "methods": [],
+          "properties": [
+            "success",
+            "id",
+            "name",
+            "urls",
+            "schedule",
+            "status",
+            "next_run",
+            "last_run",
+            "error"
+          ],
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "ProductCategory",
+          "methods": [],
+          "properties": [
+            "category",
+            "confidence",
+            "subcategory"
+          ],
+          "exported": true,
+          "lineCount": 4
+        }
+      ],
+      "imports": [
+        {
+          "source": "pydantic",
+          "specifiers": [
+            "BaseModel",
+            "HttpUrl"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Optional",
+            "List",
+            "Dict"
+          ]
+        }
+      ],
+      "exports": [
+        "ScrapeRequest",
+        "ProductData",
+        "ScrapeResponse",
+        "BatchScrapeItem",
+        "BatchScrapeRequest",
+        "BatchScrapeResponse",
+        "ExportToPipelineRequest",
+        "ExportToPipelineResponse",
+        "ScheduledScrapeCreate",
+        "ScheduledScrapeResponse",
+        "ProductCategory",
+        "BatchScrapeItem",
+        "BatchScrapeRequest",
+        "BatchScrapeResponse",
+        "ExportToPipelineRequest",
+        "ExportToPipelineResponse",
+        "ScheduledScrapeCreate",
+        "ScheduledScrapeResponse",
+        "ProductCategory"
+      ],
+      "totalLines": 149,
+      "hasStructuralAnalysis": true
+    },
+    "export_service.py": {
+      "filePath": "export_service.py",
+      "contentHash": "3c628347f24c14c3f5cee2f4e61bb285f6773c7d51fc5366f696aa8aa60fbc03",
+      "functions": [
+        {
+          "name": "is_ready",
+          "params": [],
+          "returnType": "bool",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "export_products_to_sheet",
+          "params": [
+            "spreadsheet_id",
+            "products",
+            "sheet_name",
+            "append"
+          ],
+          "returnType": "dict",
+          "exported": true,
+          "lineCount": 95
+        },
+        {
+          "name": "get_setup_instructions",
+          "params": [],
+          "returnType": "dict",
+          "exported": true,
+          "lineCount": 16
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Optional",
+            "List",
+            "Dict"
+          ]
+        },
+        {
+          "source": "datetime",
+          "specifiers": [
+            "datetime"
+          ]
+        }
+      ],
+      "exports": [
+        "is_ready",
+        "export_products_to_sheet",
+        "get_setup_instructions"
+      ],
+      "totalLines": 148,
+      "hasStructuralAnalysis": true
+    },
+    "scheduler.py": {
+      "filePath": "scheduler.py",
+      "contentHash": "a2689132f5fe823813b8387b8cb04d12efb4aba5e9d6d036da8a14743a6a9b86",
+      "functions": [
+        {
+          "name": "run_scheduler_loop",
+          "params": [],
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "check_due_jobs",
+          "params": [],
+          "exported": true,
+          "lineCount": 32
+        },
+        {
+          "name": "start_scheduler",
+          "params": [],
+          "exported": true,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "asyncio",
+          "specifiers": [
+            "asyncio"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "datetime",
+          "specifiers": [
+            "datetime",
+            "timezone",
+            "timedelta"
+          ]
+        },
+        {
+          "source": "sqlalchemy",
+          "specifiers": [
+            "select"
+          ]
+        },
+        {
+          "source": "shared.database",
+          "specifiers": [
+            "async_session_factory"
+          ]
+        },
+        {
+          "source": "product.db_models",
+          "specifiers": [
+            "ScheduledScrape"
+          ]
+        },
+        {
+          "source": "product.scraper_service",
+          "specifiers": [
+            "run_scheduled_scrape"
+          ]
+        }
+      ],
+      "exports": [
+        "run_scheduler_loop",
+        "check_due_jobs",
+        "start_scheduler"
+      ],
+      "totalLines": 63,
+      "hasStructuralAnalysis": true
+    },
+    "__init__.py": {
+      "filePath": "__init__.py",
+      "contentHash": "fdc23425357250e51a4962eaba9778768c308220af32beea54262eb7756715e1",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 2,
+      "hasStructuralAnalysis": true
+    },
+    "ecosystem.config.js": {
+      "filePath": "ecosystem.config.js",
+      "contentHash": "474e13b4ca212b436b49dc6b0b2ec9ed9f2208ab6b0947330d37b9f5d3078b38",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 16,
+      "hasStructuralAnalysis": true
+    },
+    "requirements.txt": {
+      "filePath": "requirements.txt",
+      "contentHash": "2bc2b249c1f43c4491e05207d81d372786cc96b3127034a84ab767b70ddb77e3",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 7,
+      "hasStructuralAnalysis": false
+    },
+    ".env": {
+      "filePath": ".env",
+      "contentHash": "d5a46e837a003858e9e8406896539d09370c87f7fcd6e0ec8a0051c51aa26eab",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 5,
+      "hasStructuralAnalysis": true
+    },
+    "platforms/__init__.py": {
+      "filePath": "platforms/__init__.py",
+      "contentHash": "c6783a2c0cb09f1b7a712078b77dc373ebea1c2f1ed68be8be40254230957c7b",
+      "functions": [],
+      "classes": [
+        {
+          "name": "BaseScraper",
+          "methods": [
+            "__init__",
+            "scrape",
+            "detect",
+            "normalize_product"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 40
+        }
+      ],
+      "imports": [
+        {
+          "source": "abc",
+          "specifiers": [
+            "ABC",
+            "abstractmethod"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Optional",
+            "Dict",
+            "Any"
+          ]
+        }
+      ],
+      "exports": [
+        "BaseScraper"
+      ],
+      "totalLines": 48,
+      "hasStructuralAnalysis": true
+    },
+    "platforms/base.py": {
+      "filePath": "platforms/base.py",
+      "contentHash": "c39c40b424f36f41f75e5e9f2f54454bf9184b1602979888f2750d4cc837f8e0",
+      "functions": [],
+      "classes": [
+        {
+          "name": "BaseScraper",
+          "methods": [
+            "__init__",
+            "scrape",
+            "detect",
+            "normalize_product"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 42
+        }
+      ],
+      "imports": [
+        {
+          "source": "abc",
+          "specifiers": [
+            "ABC",
+            "abstractmethod"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Optional",
+            "Dict",
+            "Any"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        }
+      ],
+      "exports": [
+        "BaseScraper"
+      ],
+      "totalLines": 53,
+      "hasStructuralAnalysis": true
+    },
+    "platforms/lazada.py": {
+      "filePath": "platforms/lazada.py",
+      "contentHash": "db561cadf188758a0e1bef97dabe1d65fec3be70f28fdd5ba6e88d25c5298e0f",
+      "functions": [],
+      "classes": [
+        {
+          "name": "LazadaScraper",
+          "methods": [
+            "detect",
+            "scrape",
+            "_scrape_playwright",
+            "_scrape_http",
+            "_extract_from_html",
+            "_extract_from_state"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 178
+        }
+      ],
+      "imports": [
+        {
+          "source": "re",
+          "specifiers": [
+            "re"
+          ]
+        },
+        {
+          "source": "json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "logging",
+          "specifiers": [
+            "logging"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Optional",
+            "Dict",
+            "Any",
+            "List"
+          ]
+        },
+        {
+          "source": "urllib.parse",
+          "specifiers": [
+            "urlparse"
+          ]
+        },
+        {
+          "source": "bs4",
+          "specifiers": [
+            "BeautifulSoup"
+          ]
+        },
+        {
+          "source": ".base",
+          "specifiers": [
+            "BaseScraper"
+          ]
+        }
+      ],
+      "exports": [
+        "LazadaScraper"
+      ],
+      "totalLines": 244,
+      "hasStructuralAnalysis": true
+    }
+  }
+}

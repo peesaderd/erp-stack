@@ -1,5 +1,5 @@
 """Scraper service layer — auth, caching, billing, usage tracking."""
-import os, json, logging, hashlib, secrets, asyncio
+import os, json, logging, hashlib, secrets, asyncio, re
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, List
 

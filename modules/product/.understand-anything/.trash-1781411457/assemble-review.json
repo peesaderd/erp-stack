@@ -1,0 +1,13 @@
+{
+  "issues": [],
+  "warnings": [
+    "3 duplicate nodes removed during merge (config nodes also in batch-2)",
+    "23 importMap entries had no matching file: node — expected because some imports go to external packages (e.g. shared.database)"
+  ],
+  "stats": {
+    "totalNodes": 18,
+    "totalEdges": 25,
+    "fileNodes": 15,
+    "configNodes": 3
+  }
+}

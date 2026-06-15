@@ -1,0 +1,2984 @@
+{
+  "batchIndex": 18,
+  "nodes": [
+    {
+      "id": "file:modules/product/analyzer_db.py",
+      "type": "file",
+      "name": "analyzer_db.py",
+      "filePath": "modules/product/analyzer_db.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 213,
+      "complexity": "complex",
+      "summary": "Analyzer Database CRUD \u2014 uses shared.database async PostgreSQL session.",
+      "tags": [
+        "service:product",
+        "python",
+        "has-imports",
+        "code",
+        "module:modules",
+        "database"
+      ]
+    },
+    {
+      "id": "file:modules/product/analyzer.py",
+      "type": "file",
+      "name": "analyzer.py",
+      "filePath": "modules/product/analyzer.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 204,
+      "complexity": "complex",
+      "summary": "AI Vision fallback analyzer for product images.",
+      "tags": [
+        "service:product",
+        "python",
+        "has-imports",
+        "code",
+        "module:modules"
+      ]
+    },
+    {
+      "id": "file:modules/product/db_models.py",
+      "type": "file",
+      "name": "db_models.py",
+      "filePath": "modules/product/db_models.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 263,
+      "complexity": "complex",
+      "summary": "Product scraper database models \u2014 usage tracking, caching, API keys.",
+      "tags": [
+        "service:product",
+        "python",
+        "has-classes",
+        "has-imports",
+        "code",
+        "module:modules",
+        "database"
+      ]
+    },
+    {
+      "id": "file:modules/product/ecosystem.config.js",
+      "type": "file",
+      "name": "ecosystem.config.js",
+      "filePath": "modules/product/ecosystem.config.js",
+      "language": "javascript",
+      "fileCategory": "code",
+      "sizeLines": 15,
+      "complexity": "simple",
+      "summary": "JavaScript module (15 lines)",
+      "tags": [
+        "service:product",
+        "javascript",
+        "code",
+        "pm2",
+        "module:modules"
+      ]
+    },
+    {
+      "id": "file:modules/product/export_service.py",
+      "type": "file",
+      "name": "export_service.py",
+      "filePath": "modules/product/export_service.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 147,
+      "complexity": "moderate",
+      "summary": "Google Sheets export service for scraped product data.",
+      "tags": [
+        "service:product",
+        "python",
+        "has-imports",
+        "code",
+        "module:modules"
+      ]
+    },
+    {
+      "id": "file:modules/product/main.py",
+      "type": "file",
+      "name": "main.py",
+      "filePath": "modules/product/main.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 1258,
+      "complexity": "very_complex",
+      "summary": "Product Scraper Micro-Service",
+      "tags": [
+        "fastapi",
+        "service:product",
+        "python",
+        "has-imports",
+        "code",
+        "pydantic",
+        "module:modules"
+      ]
+    },
+    {
+      "id": "file:modules/product/models.py",
+      "type": "file",
+      "name": "models.py",
+      "filePath": "modules/product/models.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 148,
+      "complexity": "moderate",
+      "summary": "Product scraper data models",
+      "tags": [
+        "service:product",
+        "python",
+        "has-classes",
+        "code",
+        "pydantic",
+        "module:modules"
+      ]
+    },
+    {
+      "id": "file:modules/product/platforms/__init__.py",
+      "type": "file",
+      "name": "__init__.py",
+      "filePath": "modules/product/platforms/__init__.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 47,
+      "complexity": "moderate",
+      "summary": "Base Scraper \u2014 Abstract class \u0e2a\u0e33\u0e2b\u0e23\u0e31\u0e1a platform scrapers \u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14",
+      "tags": [
+        "service:product",
+        "python",
+        "has-classes",
+        "code",
+        "module:modules"
+      ]
+    },
+    {
+      "id": "file:modules/product/platforms/base.py",
+      "type": "file",
+      "name": "base.py",
+      "filePath": "modules/product/platforms/base.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 52,
+      "complexity": "moderate",
+      "summary": "BaseScraper \u2014 Abstract class \u0e2a\u0e33\u0e2b\u0e23\u0e31\u0e1a platform scrapers \u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14",
+      "tags": [
+        "service:product",
+        "python",
+        "has-classes",
+        "has-imports",
+        "code",
+        "module:modules"
+      ]
+    },
+    {
+      "id": "file:modules/product/platforms/lazada.py",
+      "type": "file",
+      "name": "lazada.py",
+      "filePath": "modules/product/platforms/lazada.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 243,
+      "complexity": "complex",
+      "summary": "Lazada Thailand Scraper \u2014 Scrape product data from Lazada.co.th",
+      "tags": [
+        "service:product",
+        "python",
+        "has-classes",
+        "has-imports",
+        "code",
+        "module:modules"
+      ]
+    },
+    {
+      "id": "file:modules/product/platforms/shopee.py",
+      "type": "file",
+      "name": "shopee.py",
+      "filePath": "modules/product/platforms/shopee.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 240,
+      "complexity": "complex",
+      "summary": "Shopee Thailand Scraper \u2014 Scrape product data from Shopee.co.th",
+      "tags": [
+        "service:product",
+        "python",
+        "has-classes",
+        "has-imports",
+        "code",
+        "module:modules"
+      ]
+    },
+    {
+      "id": "file:modules/product/platforms/tiktok_shop.py",
+      "type": "file",
+      "name": "tiktok_shop.py",
+      "filePath": "modules/product/platforms/tiktok_shop.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 314,
+      "complexity": "complex",
+      "summary": "TikTok Shop Scraper \u2014 Scrape product data from TikTok Shop",
+      "tags": [
+        "service:product",
+        "python",
+        "has-imports",
+        "code",
+        "module:modules"
+      ]
+    },
+    {
+      "id": "file:modules/product/scheduler.py",
+      "type": "file",
+      "name": "scheduler.py",
+      "filePath": "modules/product/scheduler.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 62,
+      "complexity": "moderate",
+      "summary": "Simple background scheduler for recurring scrapes.",
+      "tags": [
+        "service:product",
+        "python",
+        "has-imports",
+        "code",
+        "module:modules",
+        "database"
+      ]
+    },
+    {
+      "id": "file:modules/product/scraper_service.py",
+      "type": "file",
+      "name": "scraper_service.py",
+      "filePath": "modules/product/scraper_service.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 760,
+      "complexity": "complex",
+      "summary": "Scraper service layer \u2014 auth, caching, billing, usage tracking.",
+      "tags": [
+        "service:product",
+        "python",
+        "has-imports",
+        "code",
+        "module:modules",
+        "database"
+      ]
+    },
+    {
+      "id": "file:modules/product/scraper.py",
+      "type": "file",
+      "name": "scraper.py",
+      "filePath": "modules/product/scraper.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 1021,
+      "complexity": "very_complex",
+      "summary": "Ultra-stealth product scraper with multi-layer extraction.",
+      "tags": [
+        "service:product",
+        "python",
+        "has-imports",
+        "code",
+        "module:modules"
+      ]
+    },
+    {
+      "id": "file:modules/product/simple_proxy.py",
+      "type": "file",
+      "name": "simple_proxy.py",
+      "filePath": "modules/product/simple_proxy.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 92,
+      "complexity": "moderate",
+      "summary": "Simple forward HTTP/HTTPS proxy (Python, no root).",
+      "tags": [
+        "service:product",
+        "python",
+        "has-imports",
+        "code",
+        "module:modules"
+      ]
+    },
+    {
+      "id": "file:modules/product/ui/analyzer/index.html",
+      "type": "file",
+      "name": "index.html",
+      "filePath": "modules/product/ui/analyzer/index.html",
+      "language": "html",
+      "fileCategory": "markup",
+      "sizeLines": 605,
+      "complexity": "complex",
+      "summary": "HTML page: Product Analyzer \u2014 ERP",
+      "tags": [
+        "markup",
+        "service:product",
+        "module:modules",
+        "html"
+      ]
+    },
+    {
+      "id": "file:modules/product/ui/index.html",
+      "type": "file",
+      "name": "index.html",
+      "filePath": "modules/product/ui/index.html",
+      "language": "html",
+      "fileCategory": "markup",
+      "sizeLines": 1224,
+      "complexity": "very_complex",
+      "summary": "HTML page: Product Scraper",
+      "tags": [
+        "markup",
+        "service:product",
+        "module:modules",
+        "html"
+      ]
+    },
+    {
+      "id": "file:modules/profile/__init__.py",
+      "type": "file",
+      "name": "__init__.py",
+      "filePath": "modules/profile/__init__.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 0,
+      "complexity": "simple",
+      "summary": "Profile Module \u2014 Business & Client Profile Management",
+      "tags": [
+        "code",
+        "service:profile",
+        "python",
+        "module:modules"
+      ]
+    },
+    {
+      "id": "file:modules/profile/main.py",
+      "type": "file",
+      "name": "main.py",
+      "filePath": "modules/profile/main.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 362,
+      "complexity": "complex",
+      "summary": "Profile Module \u2014 Business & Client Profile Management (port 8107)",
+      "tags": [
+        "fastapi",
+        "service:profile",
+        "python",
+        "has-classes",
+        "has-imports",
+        "code",
+        "pydantic",
+        "module:modules"
+      ]
+    },
+    {
+      "id": "script:modules/profile/start.sh",
+      "type": "script",
+      "name": "start.sh",
+      "filePath": "modules/profile/start.sh",
+      "language": "shell",
+      "fileCategory": "script",
+      "sizeLines": 11,
+      "complexity": "simple",
+      "summary": "Shell script executing: cd",
+      "tags": [
+        "service:profile",
+        "shell",
+        "script",
+        "module:modules",
+        "deployment"
+      ]
+    },
+    {
+      "id": "file:modules/shared/__init__.py",
+      "type": "file",
+      "name": "__init__.py",
+      "filePath": "modules/shared/__init__.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 12,
+      "complexity": "simple",
+      "summary": "Shared module for ERP Stack micro-services.",
+      "tags": [
+        "code",
+        "python",
+        "service:shared",
+        "module:modules"
+      ]
+    },
+    {
+      "id": "file:modules/shared/database.py",
+      "type": "file",
+      "name": "database.py",
+      "filePath": "modules/shared/database.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 29,
+      "complexity": "moderate",
+      "summary": "Shared database connection \u2014 SQLAlchemy async with PostgreSQL",
+      "tags": [
+        "python",
+        "has-classes",
+        "has-imports",
+        "code",
+        "module:modules",
+        "database",
+        "service:shared"
+      ]
+    },
+    {
+      "id": "file:modules/shared/models.py",
+      "type": "file",
+      "name": "models.py",
+      "filePath": "modules/shared/models.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 174,
+      "complexity": "moderate",
+      "summary": "Shared SQLAlchemy models \u2014 users, sessions, products, transactions, media",
+      "tags": [
+        "python",
+        "has-classes",
+        "has-imports",
+        "code",
+        "module:modules",
+        "database",
+        "service:shared"
+      ]
+    },
+    {
+      "id": "document:prompt-studio/design/DESIGN.md",
+      "type": "document",
+      "name": "DESIGN.md",
+      "filePath": "prompt-studio/design/DESIGN.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "sizeLines": 20,
+      "complexity": "moderate",
+      "summary": "Documentation: Prompt Studio \u2014 Design \u2014 covers API, Transition Plan, Color",
+      "tags": [
+        "markdown",
+        "service:prompt-studio",
+        "docs",
+        "module:prompt-studio"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "source": "file:modules/product/analyzer_db.py",
+      "target": "file:modules/shared/__init__.py",
+      "type": "imports",
+      "label": "imports shared"
+    },
+    {
+      "source": "file:modules/product/analyzer_db.py",
+      "target": "file:modules/shared/database.py",
+      "type": "imports",
+      "label": "imports shared"
+    },
+    {
+      "source": "file:modules/product/analyzer_db.py",
+      "target": "file:modules/shared/models.py",
+      "type": "imports",
+      "label": "imports shared"
+    },
+    {
+      "source": "file:modules/product/analyzer_db.py",
+      "target": "file:modules/product/analyzer_db.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/analyzer_db.py",
+      "target": "file:modules/product/analyzer.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/analyzer_db.py",
+      "target": "file:modules/product/db_models.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/analyzer_db.py",
+      "target": "file:modules/product/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/analyzer_db.py",
+      "target": "file:modules/product/export_service.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/analyzer_db.py",
+      "target": "file:modules/product/main.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/analyzer_db.py",
+      "target": "file:modules/product/models.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/analyzer_db.py",
+      "target": "file:modules/product/platforms/__init__.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/analyzer_db.py",
+      "target": "file:modules/product/platforms/base.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/analyzer_db.py",
+      "target": "file:modules/product/platforms/lazada.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/analyzer_db.py",
+      "target": "file:modules/product/platforms/shopee.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/analyzer_db.py",
+      "target": "file:modules/product/platforms/tiktok_shop.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/analyzer_db.py",
+      "target": "file:modules/product/scheduler.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/analyzer_db.py",
+      "target": "file:modules/product/scraper_service.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/analyzer_db.py",
+      "target": "file:modules/product/scraper.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/analyzer_db.py",
+      "target": "file:modules/product/simple_proxy.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/analyzer_db.py",
+      "target": "file:modules/product/ui/analyzer/index.html",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/analyzer_db.py",
+      "target": "file:modules/product/ui/index.html",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/db_models.py",
+      "target": "file:modules/shared/__init__.py",
+      "type": "imports",
+      "label": "imports shared"
+    },
+    {
+      "source": "file:modules/product/db_models.py",
+      "target": "file:modules/shared/database.py",
+      "type": "imports",
+      "label": "imports shared"
+    },
+    {
+      "source": "file:modules/product/db_models.py",
+      "target": "file:modules/shared/models.py",
+      "type": "imports",
+      "label": "imports shared"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/shared/__init__.py",
+      "type": "imports",
+      "label": "imports shared"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/shared/database.py",
+      "type": "imports",
+      "label": "imports shared"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/shared/models.py",
+      "type": "imports",
+      "label": "imports shared"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/analyzer_db.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/analyzer.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/db_models.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/export_service.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/models.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/__init__.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/base.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/lazada.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/shopee.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/tiktok_shop.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/scheduler.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/scraper_service.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/scraper.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/simple_proxy.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/ui/analyzer/index.html",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/ui/index.html",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/analyzer_db.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/analyzer.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/db_models.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/export_service.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/models.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/__init__.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/base.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/lazada.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/shopee.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/tiktok_shop.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/scheduler.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/scraper_service.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/scraper.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/simple_proxy.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/ui/analyzer/index.html",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/ui/index.html",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/analyzer_db.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/analyzer.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/db_models.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/export_service.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/models.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/__init__.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/base.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/lazada.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/shopee.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/tiktok_shop.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/scheduler.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/scraper_service.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/scraper.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/simple_proxy.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/ui/analyzer/index.html",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/ui/index.html",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/analyzer_db.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/analyzer.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/db_models.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/export_service.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/models.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/__init__.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/base.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/lazada.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/shopee.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/tiktok_shop.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/scheduler.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/scraper_service.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/scraper.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/simple_proxy.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/ui/analyzer/index.html",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/ui/index.html",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/analyzer_db.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/analyzer.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/db_models.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/export_service.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/models.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/__init__.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/base.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/lazada.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/shopee.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/tiktok_shop.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/scheduler.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/scraper_service.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/scraper.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/simple_proxy.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/ui/analyzer/index.html",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/ui/index.html",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/analyzer_db.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/analyzer.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/db_models.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/export_service.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/models.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/__init__.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/base.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/lazada.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/shopee.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/tiktok_shop.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/scheduler.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/scraper_service.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/scraper.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/simple_proxy.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/ui/analyzer/index.html",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/ui/index.html",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/analyzer_db.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/analyzer.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/db_models.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/export_service.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/models.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/__init__.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/base.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/lazada.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/shopee.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/tiktok_shop.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/scheduler.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/scraper_service.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/scraper.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/simple_proxy.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/ui/analyzer/index.html",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/ui/index.html",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/analyzer_db.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/analyzer.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/db_models.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/export_service.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/models.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/__init__.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/base.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/lazada.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/shopee.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/tiktok_shop.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/scheduler.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/scraper_service.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/scraper.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/simple_proxy.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/ui/analyzer/index.html",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/ui/index.html",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/analyzer_db.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/analyzer.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/db_models.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/export_service.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/models.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/__init__.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/base.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/lazada.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/shopee.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/platforms/tiktok_shop.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/scheduler.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/scraper_service.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/scraper.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/simple_proxy.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/ui/analyzer/index.html",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/ui/index.html",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "defines",
+      "label": "route: /app"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "defines",
+      "label": "route: /app/"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "defines",
+      "label": "route: /app/{full_path:path}"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "defines",
+      "label": "route: /health"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/keys/create"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/keys/list"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/keys/revoke"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/pricing"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/export/setup"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/export/sheets"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/scrape"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/usage"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/scrape/batch"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/export/pipeline"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/scrape/schedule"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/scrape/schedules"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/scrape/schedule/{job_id}"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/product/scrape"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/product/extract-html"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/scrape-tiktok"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/tiktokshop-status"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/scrape/platform"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/scrape/platforms"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/analyze"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/analyze/batch"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/analyze/export"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/analyze/scraped-products"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/analyze/from-scrape"
+    },
+    {
+      "source": "file:modules/product/main.py",
+      "target": "file:modules/product/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/analyze/stats"
+    },
+    {
+      "source": "file:modules/product/platforms/lazada.py",
+      "target": "file:modules/shared/__init__.py",
+      "type": "imports",
+      "label": "imports re"
+    },
+    {
+      "source": "file:modules/product/platforms/lazada.py",
+      "target": "file:modules/shared/database.py",
+      "type": "imports",
+      "label": "imports re"
+    },
+    {
+      "source": "file:modules/product/platforms/lazada.py",
+      "target": "file:modules/shared/models.py",
+      "type": "imports",
+      "label": "imports re"
+    },
+    {
+      "source": "file:modules/product/platforms/lazada.py",
+      "target": "file:modules/product/analyzer_db.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/lazada.py",
+      "target": "file:modules/product/analyzer.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/lazada.py",
+      "target": "file:modules/product/db_models.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/lazada.py",
+      "target": "file:modules/product/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/lazada.py",
+      "target": "file:modules/product/export_service.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/lazada.py",
+      "target": "file:modules/product/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/lazada.py",
+      "target": "file:modules/product/models.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/lazada.py",
+      "target": "file:modules/product/platforms/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/lazada.py",
+      "target": "file:modules/product/platforms/base.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/lazada.py",
+      "target": "file:modules/product/platforms/lazada.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/lazada.py",
+      "target": "file:modules/product/platforms/shopee.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/lazada.py",
+      "target": "file:modules/product/platforms/tiktok_shop.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/lazada.py",
+      "target": "file:modules/product/scheduler.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/lazada.py",
+      "target": "file:modules/product/scraper_service.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/lazada.py",
+      "target": "file:modules/product/scraper.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/lazada.py",
+      "target": "file:modules/product/simple_proxy.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/lazada.py",
+      "target": "file:modules/product/ui/analyzer/index.html",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/lazada.py",
+      "target": "file:modules/product/ui/index.html",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/lazada.py",
+      "target": "file:modules/profile/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/lazada.py",
+      "target": "file:modules/profile/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/lazada.py",
+      "target": "file:modules/profile/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/lazada.py",
+      "target": "file:modules/shared/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/lazada.py",
+      "target": "file:modules/shared/database.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/lazada.py",
+      "target": "file:modules/shared/models.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/lazada.py",
+      "target": "file:prompt-studio/design/DESIGN.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/shopee.py",
+      "target": "file:modules/shared/__init__.py",
+      "type": "imports",
+      "label": "imports re"
+    },
+    {
+      "source": "file:modules/product/platforms/shopee.py",
+      "target": "file:modules/shared/database.py",
+      "type": "imports",
+      "label": "imports re"
+    },
+    {
+      "source": "file:modules/product/platforms/shopee.py",
+      "target": "file:modules/shared/models.py",
+      "type": "imports",
+      "label": "imports re"
+    },
+    {
+      "source": "file:modules/product/platforms/shopee.py",
+      "target": "file:modules/product/analyzer_db.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/shopee.py",
+      "target": "file:modules/product/analyzer.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/shopee.py",
+      "target": "file:modules/product/db_models.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/shopee.py",
+      "target": "file:modules/product/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/shopee.py",
+      "target": "file:modules/product/export_service.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/shopee.py",
+      "target": "file:modules/product/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/shopee.py",
+      "target": "file:modules/product/models.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/shopee.py",
+      "target": "file:modules/product/platforms/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/shopee.py",
+      "target": "file:modules/product/platforms/base.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/shopee.py",
+      "target": "file:modules/product/platforms/lazada.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/shopee.py",
+      "target": "file:modules/product/platforms/shopee.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/shopee.py",
+      "target": "file:modules/product/platforms/tiktok_shop.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/shopee.py",
+      "target": "file:modules/product/scheduler.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/shopee.py",
+      "target": "file:modules/product/scraper_service.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/shopee.py",
+      "target": "file:modules/product/scraper.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/shopee.py",
+      "target": "file:modules/product/simple_proxy.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/shopee.py",
+      "target": "file:modules/product/ui/analyzer/index.html",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/shopee.py",
+      "target": "file:modules/product/ui/index.html",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/shopee.py",
+      "target": "file:modules/profile/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/shopee.py",
+      "target": "file:modules/profile/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/shopee.py",
+      "target": "file:modules/profile/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/shopee.py",
+      "target": "file:modules/shared/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/shopee.py",
+      "target": "file:modules/shared/database.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/shopee.py",
+      "target": "file:modules/shared/models.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/shopee.py",
+      "target": "file:prompt-studio/design/DESIGN.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/tiktok_shop.py",
+      "target": "file:modules/shared/__init__.py",
+      "type": "imports",
+      "label": "imports re"
+    },
+    {
+      "source": "file:modules/product/platforms/tiktok_shop.py",
+      "target": "file:modules/shared/database.py",
+      "type": "imports",
+      "label": "imports re"
+    },
+    {
+      "source": "file:modules/product/platforms/tiktok_shop.py",
+      "target": "file:modules/shared/models.py",
+      "type": "imports",
+      "label": "imports re"
+    },
+    {
+      "source": "file:modules/product/platforms/tiktok_shop.py",
+      "target": "file:modules/product/analyzer_db.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/tiktok_shop.py",
+      "target": "file:modules/product/analyzer.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/tiktok_shop.py",
+      "target": "file:modules/product/db_models.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/tiktok_shop.py",
+      "target": "file:modules/product/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/tiktok_shop.py",
+      "target": "file:modules/product/export_service.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/tiktok_shop.py",
+      "target": "file:modules/product/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/tiktok_shop.py",
+      "target": "file:modules/product/models.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/tiktok_shop.py",
+      "target": "file:modules/product/platforms/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/tiktok_shop.py",
+      "target": "file:modules/product/platforms/base.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/tiktok_shop.py",
+      "target": "file:modules/product/platforms/lazada.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/tiktok_shop.py",
+      "target": "file:modules/product/platforms/shopee.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/tiktok_shop.py",
+      "target": "file:modules/product/platforms/tiktok_shop.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/tiktok_shop.py",
+      "target": "file:modules/product/scheduler.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/tiktok_shop.py",
+      "target": "file:modules/product/scraper_service.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/tiktok_shop.py",
+      "target": "file:modules/product/scraper.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/tiktok_shop.py",
+      "target": "file:modules/product/simple_proxy.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/tiktok_shop.py",
+      "target": "file:modules/product/ui/analyzer/index.html",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/tiktok_shop.py",
+      "target": "file:modules/product/ui/index.html",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/tiktok_shop.py",
+      "target": "file:modules/profile/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/tiktok_shop.py",
+      "target": "file:modules/profile/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/tiktok_shop.py",
+      "target": "file:modules/profile/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/tiktok_shop.py",
+      "target": "file:modules/shared/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/tiktok_shop.py",
+      "target": "file:modules/shared/database.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/tiktok_shop.py",
+      "target": "file:modules/shared/models.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/platforms/tiktok_shop.py",
+      "target": "file:prompt-studio/design/DESIGN.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/shared/__init__.py",
+      "type": "imports",
+      "label": "imports shared"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/shared/database.py",
+      "type": "imports",
+      "label": "imports shared"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/shared/models.py",
+      "type": "imports",
+      "label": "imports shared"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/product/analyzer_db.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/product/analyzer.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/product/db_models.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/product/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/product/export_service.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/product/main.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/product/models.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/product/platforms/__init__.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/product/platforms/base.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/product/platforms/lazada.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/product/platforms/shopee.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/product/platforms/tiktok_shop.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/product/scheduler.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/product/scraper_service.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/product/scraper.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/product/simple_proxy.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/product/ui/analyzer/index.html",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/product/ui/index.html",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/product/analyzer_db.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/product/analyzer.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/product/db_models.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/product/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/product/export_service.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/product/main.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/product/models.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/product/platforms/__init__.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/product/platforms/base.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/product/platforms/lazada.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/product/platforms/shopee.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/product/platforms/tiktok_shop.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/product/scheduler.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/product/scraper_service.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/product/scraper.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/product/simple_proxy.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/product/ui/analyzer/index.html",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scheduler.py",
+      "target": "file:modules/product/ui/index.html",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/shared/__init__.py",
+      "type": "imports",
+      "label": "imports shared"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/shared/database.py",
+      "type": "imports",
+      "label": "imports shared"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/shared/models.py",
+      "type": "imports",
+      "label": "imports shared"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/analyzer_db.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/analyzer.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/db_models.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/export_service.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/main.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/models.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/platforms/__init__.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/platforms/base.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/platforms/lazada.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/platforms/shopee.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/platforms/tiktok_shop.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/scheduler.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/scraper_service.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/scraper.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/simple_proxy.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/ui/analyzer/index.html",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/ui/index.html",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/analyzer_db.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/analyzer.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/db_models.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/export_service.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/main.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/models.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/platforms/__init__.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/platforms/base.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/platforms/lazada.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/platforms/shopee.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/platforms/tiktok_shop.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/scheduler.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/scraper_service.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/scraper.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/simple_proxy.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/ui/analyzer/index.html",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/ui/index.html",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/analyzer_db.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/analyzer.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/db_models.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/export_service.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/main.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/models.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/platforms/__init__.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/platforms/base.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/platforms/lazada.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/platforms/shopee.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/platforms/tiktok_shop.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/scheduler.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/scraper_service.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/scraper.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/simple_proxy.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/ui/analyzer/index.html",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/scraper_service.py",
+      "target": "file:modules/product/ui/index.html",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/profile/main.py",
+      "target": "file:modules/profile/main.py",
+      "type": "defines",
+      "label": "route: /health"
+    },
+    {
+      "source": "file:modules/profile/main.py",
+      "target": "file:modules/profile/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/profiles/business"
+    },
+    {
+      "source": "file:modules/profile/main.py",
+      "target": "file:modules/profile/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/profiles/business"
+    },
+    {
+      "source": "file:modules/profile/main.py",
+      "target": "file:modules/profile/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/profiles/business/{profile_id}"
+    },
+    {
+      "source": "file:modules/profile/main.py",
+      "target": "file:modules/profile/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/profiles/business/{profile_id}"
+    },
+    {
+      "source": "file:modules/profile/main.py",
+      "target": "file:modules/profile/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/profiles/business/{profile_id}"
+    },
+    {
+      "source": "file:modules/profile/main.py",
+      "target": "file:modules/profile/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/profiles/client"
+    },
+    {
+      "source": "file:modules/profile/main.py",
+      "target": "file:modules/profile/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/profiles/client"
+    },
+    {
+      "source": "file:modules/profile/main.py",
+      "target": "file:modules/profile/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/profiles/client/{client_id}"
+    },
+    {
+      "source": "file:modules/profile/main.py",
+      "target": "file:modules/profile/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/profiles/client/{client_id}"
+    },
+    {
+      "source": "file:modules/profile/main.py",
+      "target": "file:modules/profile/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/profiles/client/{client_id}"
+    },
+    {
+      "source": "file:modules/profile/main.py",
+      "target": "file:modules/profile/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/profiles/{owner_type}/{owner_id}/contacts"
+    },
+    {
+      "source": "file:modules/profile/main.py",
+      "target": "file:modules/profile/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/profiles/{owner_type}/{owner_id}/contacts"
+    },
+    {
+      "source": "file:modules/profile/main.py",
+      "target": "file:modules/profile/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/profiles/{owner_type}/{owner_id}/addresses"
+    },
+    {
+      "source": "file:modules/profile/main.py",
+      "target": "file:modules/profile/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/profiles/{owner_type}/{owner_id}/addresses"
+    },
+    {
+      "source": "file:modules/profile/main.py",
+      "target": "file:modules/profile/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/profiles/erp-sync"
+    },
+    {
+      "source": "file:modules/shared/database.py",
+      "target": "file:modules/product/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:modules/shared/models.py",
+      "target": "file:modules/shared/__init__.py",
+      "type": "imports",
+      "label": "imports shared"
+    },
+    {
+      "source": "file:modules/shared/models.py",
+      "target": "file:modules/shared/database.py",
+      "type": "imports",
+      "label": "imports shared"
+    },
+    {
+      "source": "file:modules/shared/models.py",
+      "target": "file:modules/shared/models.py",
+      "type": "imports",
+      "label": "imports shared"
+    }
+  ]
+}

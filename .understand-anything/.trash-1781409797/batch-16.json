@@ -1,0 +1,1495 @@
+{
+  "batchIndex": 15,
+  "nodes": [
+    {
+      "id": "file:.aiderignore",
+      "type": "file",
+      "name": ".aiderignore",
+      "filePath": ".aiderignore",
+      "language": "unknown",
+      "fileCategory": "code",
+      "sizeLines": 16,
+      "complexity": "simple",
+      "summary": "Code file for ",
+      "tags": [
+        "code",
+        "unknown"
+      ]
+    },
+    {
+      "id": "file:.planka_token",
+      "type": "file",
+      "name": ".planka_token",
+      "filePath": ".planka_token",
+      "language": "unknown",
+      "fileCategory": "code",
+      "sizeLines": 1,
+      "complexity": "simple",
+      "summary": "Code file for ",
+      "tags": [
+        "code",
+        "unknown"
+      ]
+    },
+    {
+      "id": "file:.understandignore",
+      "type": "file",
+      "name": ".understandignore",
+      "filePath": ".understandignore",
+      "language": "unknown",
+      "fileCategory": "code",
+      "sizeLines": 19,
+      "complexity": "simple",
+      "summary": "Code file for ",
+      "tags": [
+        "code",
+        "unknown"
+      ]
+    },
+    {
+      "id": "file:bookstack_client.py",
+      "type": "file",
+      "name": "bookstack_client.py",
+      "filePath": "bookstack_client.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 75,
+      "complexity": "moderate",
+      "summary": "BookStackClient \u2014 knowledge base integration for Brain Server.",
+      "tags": [
+        "code",
+        "python",
+        "has-classes",
+        "has-imports"
+      ]
+    },
+    {
+      "id": "file:brain_server_v6.py",
+      "type": "file",
+      "name": "brain_server_v6.py",
+      "filePath": "brain_server_v6.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 707,
+      "complexity": "complex",
+      "summary": "Brain Server v6.3 \u2014 Inner Monologue Agent + Memory + Self-Reflection + Resilience",
+      "tags": [
+        "code",
+        "python",
+        "has-imports"
+      ]
+    },
+    {
+      "id": "file:bridge-server/__init__.py",
+      "type": "file",
+      "name": "__init__.py",
+      "filePath": "bridge-server/__init__.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 0,
+      "complexity": "simple",
+      "summary": "Python module (0 lines)",
+      "tags": [
+        "code",
+        "module:bridge-server",
+        "python",
+        "service:bridge"
+      ]
+    },
+    {
+      "id": "file:bridge-server/app.py",
+      "type": "file",
+      "name": "app.py",
+      "filePath": "bridge-server/app.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 582,
+      "complexity": "complex",
+      "summary": "Bridge Server \u2014 ERP Stack Integration Layer",
+      "tags": [
+        "fastapi",
+        "python",
+        "has-classes",
+        "has-imports",
+        "service:bridge",
+        "code",
+        "module:bridge-server"
+      ]
+    },
+    {
+      "id": "file:bridge-server/config.py",
+      "type": "file",
+      "name": "config.py",
+      "filePath": "bridge-server/config.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 37,
+      "complexity": "moderate",
+      "summary": "Module defining classes: Settings",
+      "tags": [
+        "python",
+        "has-classes",
+        "has-imports",
+        "service:bridge",
+        "code",
+        "module:bridge-server"
+      ]
+    },
+    {
+      "id": "file:bridge-server/ecosystem.config.cjs",
+      "type": "file",
+      "name": "ecosystem.config.cjs",
+      "filePath": "bridge-server/ecosystem.config.cjs",
+      "language": "javascript",
+      "fileCategory": "code",
+      "sizeLines": 15,
+      "complexity": "simple",
+      "summary": "JavaScript module (15 lines)",
+      "tags": [
+        "service:bridge",
+        "javascript",
+        "code",
+        "module:bridge-server",
+        "pm2"
+      ]
+    },
+    {
+      "id": "file:bridge-server/ecosystem.config.js",
+      "type": "file",
+      "name": "ecosystem.config.js",
+      "filePath": "bridge-server/ecosystem.config.js",
+      "language": "javascript",
+      "fileCategory": "code",
+      "sizeLines": 15,
+      "complexity": "simple",
+      "summary": "JavaScript module (15 lines)",
+      "tags": [
+        "service:bridge",
+        "javascript",
+        "code",
+        "module:bridge-server",
+        "pm2"
+      ]
+    },
+    {
+      "id": "file:bridge-server/handlers/__init__.py",
+      "type": "file",
+      "name": "__init__.py",
+      "filePath": "bridge-server/handlers/__init__.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 0,
+      "complexity": "simple",
+      "summary": "Python module (0 lines)",
+      "tags": [
+        "code",
+        "module:bridge-server",
+        "python",
+        "service:bridge"
+      ]
+    },
+    {
+      "id": "file:ecosystem-product.config.js",
+      "type": "file",
+      "name": "ecosystem-product.config.js",
+      "filePath": "ecosystem-product.config.js",
+      "language": "javascript",
+      "fileCategory": "code",
+      "sizeLines": 21,
+      "complexity": "moderate",
+      "summary": "JavaScript module (21 lines)",
+      "tags": [
+        "code",
+        "javascript"
+      ]
+    },
+    {
+      "id": "file:ecosystem.config.cjs",
+      "type": "file",
+      "name": "ecosystem.config.cjs",
+      "filePath": "ecosystem.config.cjs",
+      "language": "javascript",
+      "fileCategory": "code",
+      "sizeLines": 22,
+      "complexity": "moderate",
+      "summary": "JavaScript module (22 lines)",
+      "tags": [
+        "code",
+        "pm2",
+        "javascript"
+      ]
+    },
+    {
+      "id": "file:erp-modular/{models,api,core}/__init__.py",
+      "type": "file",
+      "name": "__init__.py",
+      "filePath": "erp-modular/{models,api,core}/__init__.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 0,
+      "complexity": "simple",
+      "summary": "Python module (0 lines)",
+      "tags": [
+        "code",
+        "service:erp-modular",
+        "python",
+        "module:erp-modular"
+      ]
+    },
+    {
+      "id": "file:erp-modular/api/__init__.py",
+      "type": "file",
+      "name": "__init__.py",
+      "filePath": "erp-modular/api/__init__.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 0,
+      "complexity": "simple",
+      "summary": "Python module (0 lines)",
+      "tags": [
+        "code",
+        "service:erp-modular",
+        "python",
+        "module:erp-modular"
+      ]
+    },
+    {
+      "id": "file:erp-modular/api/auth.py",
+      "type": "file",
+      "name": "auth.py",
+      "filePath": "erp-modular/api/auth.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 223,
+      "complexity": "complex",
+      "summary": "Auth/Authorization \u2014 JWT + RBAC \u0e2a\u0e33\u0e2b\u0e23\u0e31\u0e1a ERP Modular API Gateway",
+      "tags": [
+        "fastapi",
+        "python",
+        "has-classes",
+        "module:erp-modular",
+        "has-imports",
+        "code",
+        "service:erp-modular",
+        "pydantic"
+      ]
+    },
+    {
+      "id": "file:erp-modular/api/gateway.py",
+      "type": "file",
+      "name": "gateway.py",
+      "filePath": "erp-modular/api/gateway.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 246,
+      "complexity": "complex",
+      "summary": "API Gateway \u2014 Reverse Proxy + Routing + Auth \u0e2a\u0e33\u0e2b\u0e23\u0e31\u0e1a ERP Modular",
+      "tags": [
+        "fastapi",
+        "python",
+        "module:erp-modular",
+        "has-imports",
+        "code",
+        "service:erp-modular"
+      ]
+    },
+    {
+      "id": "file:erp-modular/api/rate_limit.py",
+      "type": "file",
+      "name": "rate_limit.py",
+      "filePath": "erp-modular/api/rate_limit.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 224,
+      "complexity": "complex",
+      "summary": "Rate Limiting \u2014 Token Bucket Algorithm \u0e2a\u0e33\u0e2b\u0e23\u0e31\u0e1a ERP Modular API Gateway",
+      "tags": [
+        "fastapi",
+        "python",
+        "has-classes",
+        "module:erp-modular",
+        "has-imports",
+        "code",
+        "service:erp-modular"
+      ]
+    },
+    {
+      "id": "file:erp-modular/api/router.py",
+      "type": "file",
+      "name": "router.py",
+      "filePath": "erp-modular/api/router.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 603,
+      "complexity": "complex",
+      "summary": "FastAPI CRUD Router \u0e2a\u0e33\u0e2b\u0e23\u0e31\u0e1a Module/Template/Entity/Plugin/App",
+      "tags": [
+        "fastapi",
+        "python",
+        "module:erp-modular",
+        "code",
+        "service:erp-modular"
+      ]
+    },
+    {
+      "id": "file:erp-modular/core/__init__.py",
+      "type": "file",
+      "name": "__init__.py",
+      "filePath": "erp-modular/core/__init__.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 0,
+      "complexity": "simple",
+      "summary": "Python module (0 lines)",
+      "tags": [
+        "code",
+        "service:erp-modular",
+        "python",
+        "module:erp-modular"
+      ]
+    },
+    {
+      "id": "file:erp-modular/core/database.py",
+      "type": "file",
+      "name": "database.py",
+      "filePath": "erp-modular/core/database.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 15,
+      "complexity": "simple",
+      "summary": "Database session management",
+      "tags": [
+        "code",
+        "service:erp-modular",
+        "python",
+        "module:erp-modular"
+      ]
+    },
+    {
+      "id": "file:erp-modular/core/plugin_interface.py",
+      "type": "file",
+      "name": "plugin_interface.py",
+      "filePath": "erp-modular/core/plugin_interface.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 64,
+      "complexity": "moderate",
+      "summary": "Abstract base class for all plugins.",
+      "tags": [
+        "python",
+        "has-classes",
+        "module:erp-modular",
+        "code",
+        "service:erp-modular",
+        "pydantic"
+      ]
+    },
+    {
+      "id": "file:erp-modular/core/plugin.py",
+      "type": "file",
+      "name": "plugin.py",
+      "filePath": "erp-modular/core/plugin.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 91,
+      "complexity": "moderate",
+      "summary": "Plugin Interface - Abstract Base Class \u0e2a\u0e33\u0e2b\u0e23\u0e31\u0e1a Plugin \u0e43\u0e19 ERP Modular",
+      "tags": [
+        "python",
+        "has-classes",
+        "module:erp-modular",
+        "code",
+        "service:erp-modular"
+      ]
+    },
+    {
+      "id": "file:erp-modular/core/template_engine.py",
+      "type": "file",
+      "name": "template_engine.py",
+      "filePath": "erp-modular/core/template_engine.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 174,
+      "complexity": "moderate",
+      "summary": "Template Engine \u2014 Jinja2 + custom loader \u0e2a\u0e33\u0e2b\u0e23\u0e31\u0e1a ERP Modular",
+      "tags": [
+        "python",
+        "has-classes",
+        "module:erp-modular",
+        "has-imports",
+        "code",
+        "service:erp-modular"
+      ]
+    },
+    {
+      "id": "file:erp-modular/ecosystem.config.cjs",
+      "type": "file",
+      "name": "ecosystem.config.cjs",
+      "filePath": "erp-modular/ecosystem.config.cjs",
+      "language": "javascript",
+      "fileCategory": "code",
+      "sizeLines": 16,
+      "complexity": "simple",
+      "summary": "JavaScript module (16 lines)",
+      "tags": [
+        "module:erp-modular",
+        "javascript",
+        "code",
+        "service:erp-modular",
+        "pm2"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "source": "file:brain_server_v6.py",
+      "target": "file:bookstack_client.py",
+      "type": "imports",
+      "label": "imports bookstack_client"
+    },
+    {
+      "source": "file:bridge-server/app.py",
+      "target": "file:bridge-server/config.py",
+      "type": "imports",
+      "label": "imports config"
+    },
+    {
+      "source": "file:bridge-server/app.py",
+      "target": "file:bridge-server/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports config"
+    },
+    {
+      "source": "file:bridge-server/app.py",
+      "target": "file:bridge-server/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports config"
+    },
+    {
+      "source": "file:bridge-server/app.py",
+      "target": "file:ecosystem-product.config.js",
+      "type": "imports",
+      "label": "imports config"
+    },
+    {
+      "source": "file:bridge-server/app.py",
+      "target": "file:ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports config"
+    },
+    {
+      "source": "file:bridge-server/app.py",
+      "target": "file:erp-modular/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports config"
+    },
+    {
+      "source": "file:bridge-server/app.py",
+      "target": "file:bridge-server/app.py",
+      "type": "defines",
+      "label": "route: /webhooks/plane"
+    },
+    {
+      "source": "file:bridge-server/app.py",
+      "target": "file:bridge-server/app.py",
+      "type": "defines",
+      "label": "route: /webhooks/planka"
+    },
+    {
+      "source": "file:bridge-server/app.py",
+      "target": "file:bridge-server/app.py",
+      "type": "defines",
+      "label": "route: /webhooks/bookstack"
+    },
+    {
+      "source": "file:bridge-server/app.py",
+      "target": "file:bridge-server/app.py",
+      "type": "defines",
+      "label": "route: /webhooks/openobserve"
+    },
+    {
+      "source": "file:bridge-server/app.py",
+      "target": "file:bridge-server/app.py",
+      "type": "defines",
+      "label": "route: /health"
+    },
+    {
+      "source": "file:bridge-server/app.py",
+      "target": "file:bridge-server/app.py",
+      "type": "defines",
+      "label": "route: /api/status"
+    },
+    {
+      "source": "file:bridge-server/app.py",
+      "target": "file:bridge-server/app.py",
+      "type": "defines",
+      "label": "route: /api/plane/refresh-session"
+    },
+    {
+      "source": "file:bridge-server/app.py",
+      "target": "file:bridge-server/app.py",
+      "type": "defines",
+      "label": "route: /api/sync/plane-to-planka"
+    },
+    {
+      "source": "file:bridge-server/app.py",
+      "target": "file:bridge-server/app.py",
+      "type": "defines",
+      "label": "route: /api/sync/plane-to-bookstack"
+    },
+    {
+      "source": "file:bridge-server/app.py",
+      "target": "file:bridge-server/app.py",
+      "type": "defines",
+      "label": "route: /api/test/plane-session"
+    },
+    {
+      "source": "file:bridge-server/app.py",
+      "target": "file:bridge-server/app.py",
+      "type": "defines",
+      "label": "route: /api/test/plane-401-retry"
+    },
+    {
+      "source": "file:bridge-server/app.py",
+      "target": "file:bridge-server/app.py",
+      "type": "defines",
+      "label": "route: /api/health/full"
+    },
+    {
+      "source": "file:bridge-server/config.py",
+      "target": "file:bridge-server/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:bridge-server/config.py",
+      "target": "file:bridge-server/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:bridge-server/config.py",
+      "target": "file:ecosystem-product.config.js",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:bridge-server/config.py",
+      "target": "file:ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:bridge-server/config.py",
+      "target": "file:erp-modular/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:erp-modular/api/auth.py",
+      "target": "file:bridge-server/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:erp-modular/api/auth.py",
+      "target": "file:bridge-server/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:erp-modular/api/auth.py",
+      "target": "file:ecosystem-product.config.js",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:erp-modular/api/auth.py",
+      "target": "file:ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:erp-modular/api/auth.py",
+      "target": "file:erp-modular/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:erp-modular/api/auth.py",
+      "target": "file:erp-modular/api/auth.py",
+      "type": "defines",
+      "label": "route: /admin"
+    },
+    {
+      "source": "file:erp-modular/api/auth.py",
+      "target": "file:erp-modular/api/auth.py",
+      "type": "defines",
+      "label": "route: /admin"
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:bridge-server/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:bridge-server/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:ecosystem-product.config.js",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:erp-modular/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:.aiderignore",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:.planka_token",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:.understandignore",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:bookstack_client.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:brain_server_v6.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:bridge-server/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:bridge-server/app.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:bridge-server/config.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:bridge-server/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:bridge-server/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:bridge-server/handlers/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:ecosystem-product.config.js",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:erp-modular/{models,api,core}/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:erp-modular/api/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:erp-modular/api/auth.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:erp-modular/api/gateway.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:erp-modular/api/rate_limit.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:erp-modular/core/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:erp-modular/core/database.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:erp-modular/core/plugin_interface.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:erp-modular/core/plugin.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:erp-modular/core/template_engine.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:erp-modular/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:.aiderignore",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:.planka_token",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:.understandignore",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:bookstack_client.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:brain_server_v6.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:bridge-server/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:bridge-server/app.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:bridge-server/config.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:bridge-server/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:bridge-server/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:bridge-server/handlers/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:ecosystem-product.config.js",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:erp-modular/{models,api,core}/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:erp-modular/api/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:erp-modular/api/auth.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:erp-modular/api/gateway.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:erp-modular/api/rate_limit.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:erp-modular/core/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:erp-modular/core/database.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:erp-modular/core/plugin_interface.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:erp-modular/core/plugin.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:erp-modular/core/template_engine.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:erp-modular/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:erp-modular/{models,api,core}/__init__.py",
+      "type": "imports",
+      "label": "imports models"
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:erp-modular/{models,api,core}/__init__.py",
+      "type": "imports",
+      "label": "imports core"
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:erp-modular/core/__init__.py",
+      "type": "imports",
+      "label": "imports core"
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:erp-modular/core/database.py",
+      "type": "imports",
+      "label": "imports core"
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:erp-modular/core/plugin_interface.py",
+      "type": "imports",
+      "label": "imports core"
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:erp-modular/core/plugin.py",
+      "type": "imports",
+      "label": "imports core"
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:erp-modular/core/template_engine.py",
+      "type": "imports",
+      "label": "imports core"
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:erp-modular/api/gateway.py",
+      "type": "defines",
+      "label": "route: /auth/token"
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:erp-modular/api/gateway.py",
+      "type": "defines",
+      "label": "route: /auth/verify"
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:erp-modular/api/gateway.py",
+      "type": "defines",
+      "label": "route: /apps"
+    },
+    {
+      "source": "file:erp-modular/api/gateway.py",
+      "target": "file:erp-modular/api/gateway.py",
+      "type": "defines",
+      "label": "route: /health"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/{models,api,core}/__init__.py",
+      "type": "imports",
+      "label": "imports models"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/{models,api,core}/__init__.py",
+      "type": "imports",
+      "label": "imports core"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/core/__init__.py",
+      "type": "imports",
+      "label": "imports core"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/core/database.py",
+      "type": "imports",
+      "label": "imports core"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/core/plugin_interface.py",
+      "type": "imports",
+      "label": "imports core"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/core/plugin.py",
+      "type": "imports",
+      "label": "imports core"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/core/template_engine.py",
+      "type": "imports",
+      "label": "imports core"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/{models,api,core}/__init__.py",
+      "type": "imports",
+      "label": "imports core"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/core/__init__.py",
+      "type": "imports",
+      "label": "imports core"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/core/database.py",
+      "type": "imports",
+      "label": "imports core"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/core/plugin_interface.py",
+      "type": "imports",
+      "label": "imports core"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/core/plugin.py",
+      "type": "imports",
+      "label": "imports core"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/core/template_engine.py",
+      "type": "imports",
+      "label": "imports core"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:.aiderignore",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:.planka_token",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:.understandignore",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:bookstack_client.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:brain_server_v6.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:bridge-server/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:bridge-server/app.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:bridge-server/config.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:bridge-server/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:bridge-server/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:bridge-server/handlers/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:ecosystem-product.config.js",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/{models,api,core}/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/auth.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/gateway.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/rate_limit.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/core/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/core/database.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/core/plugin_interface.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/core/plugin.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/core/template_engine.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "defines",
+      "label": "route: /modules"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "defines",
+      "label": "route: /modules/register"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "defines",
+      "label": "route: /modules"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "defines",
+      "label": "route: /modules/{module_id}"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "defines",
+      "label": "route: /modules/{module_id}"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "defines",
+      "label": "route: /modules/{module_id}"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "defines",
+      "label": "route: /templates"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "defines",
+      "label": "route: /templates"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "defines",
+      "label": "route: /templates/{template_id}"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "defines",
+      "label": "route: /templates/{template_id}"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "defines",
+      "label": "route: /templates/{template_id}"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "defines",
+      "label": "route: /entities"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "defines",
+      "label": "route: /entities"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "defines",
+      "label": "route: /entities/{entity_id}"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "defines",
+      "label": "route: /entities/{entity_id}"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "defines",
+      "label": "route: /entities/{entity_id}"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "defines",
+      "label": "route: /plugins"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "defines",
+      "label": "route: /plugins"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "defines",
+      "label": "route: /plugins/{plugin_id}"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "defines",
+      "label": "route: /plugins/{plugin_id}"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "defines",
+      "label": "route: /plugins/{plugin_id}"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "defines",
+      "label": "route: /apps"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "defines",
+      "label": "route: /apps"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "defines",
+      "label": "route: /apps/{app_id}"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "defines",
+      "label": "route: /apps/{app_id}"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "defines",
+      "label": "route: /apps/{app_id}"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "defines",
+      "label": "route: /templates/render"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "defines",
+      "label": "route: /templates/render-inline"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "defines",
+      "label": "route: /templates/{template_id}/render"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "defines",
+      "label": "route: /plugins/{plugin_id}/install"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "defines",
+      "label": "route: /plugins/{plugin_id}/activate"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "defines",
+      "label": "route: /plugins/{plugin_id}/deactivate"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "defines",
+      "label": "route: /plugins/{plugin_id}/uninstall"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "defines",
+      "label": "route: /plugins/{plugin_id}/execute"
+    },
+    {
+      "source": "file:erp-modular/api/router.py",
+      "target": "file:erp-modular/api/router.py",
+      "type": "defines",
+      "label": "route: /stats"
+    },
+    {
+      "source": "file:erp-modular/core/template_engine.py",
+      "target": "file:bridge-server/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:erp-modular/core/template_engine.py",
+      "target": "file:bridge-server/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:erp-modular/core/template_engine.py",
+      "target": "file:ecosystem-product.config.js",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:erp-modular/core/template_engine.py",
+      "target": "file:ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:erp-modular/core/template_engine.py",
+      "target": "file:erp-modular/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports os"
+    }
+  ]
+}

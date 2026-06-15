@@ -1,0 +1,73 @@
+{
+  "batchIndex": 6,
+  "nodes": [
+    {
+      "id": "config:erp-modular/.env.example",
+      "type": "config",
+      "name": ".env.example",
+      "filePath": "erp-modular/.env.example",
+      "language": "config",
+      "fileCategory": "config",
+      "sizeLines": 9,
+      "complexity": "simple",
+      "summary": "Configuration defining: ERP_JWT_SECRET, ERP_JWT_EXPIRE_MINUTES, BOOKSTACK_URL",
+      "tags": [
+        "service:erp-modular",
+        "module:erp-modular",
+        "config"
+      ]
+    },
+    {
+      "id": "document:erp-modular/ERP_ROADMAP.md",
+      "type": "document",
+      "name": "ERP_ROADMAP.md",
+      "filePath": "erp-modular/ERP_ROADMAP.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "sizeLines": 168,
+      "complexity": "moderate",
+      "summary": "Documentation: ERP Modular \u2014 Roadmap \u2014 covers \u0e20\u0e32\u0e1e\u0e23\u0e27\u0e21, Phase 1: Foundation \u2014 Core Data Model & API Layer (issues 1-3), Phase 2: Plugin System (issues 4-5), Phase 3: API Gateway (issues 6-8)",
+      "tags": [
+        "markdown",
+        "service:erp-modular",
+        "docs",
+        "module:erp-modular"
+      ]
+    },
+    {
+      "id": "document:erp-modular/READY_FOR_REVIEW.txt",
+      "type": "document",
+      "name": "READY_FOR_REVIEW.txt",
+      "filePath": "erp-modular/READY_FOR_REVIEW.txt",
+      "language": "txt",
+      "fileCategory": "docs",
+      "sizeLines": 32,
+      "complexity": "moderate",
+      "summary": "Docs file for erp-modular",
+      "tags": [
+        "service:erp-modular",
+        "docs",
+        "module:erp-modular",
+        "txt"
+      ]
+    },
+    {
+      "id": "document:erp-modular/requirements.txt",
+      "type": "document",
+      "name": "requirements.txt",
+      "filePath": "erp-modular/requirements.txt",
+      "language": "txt",
+      "fileCategory": "docs",
+      "sizeLines": 6,
+      "complexity": "simple",
+      "summary": "Python dependencies: fastapi>=0.104.0, uvicorn[standard]>=0.24.0, sqlmodel>=0.0.14, pydantic>=2.5.0, python-multipart>=0.0.6, alembic>=1.12.0",
+      "tags": [
+        "service:erp-modular",
+        "docs",
+        "module:erp-modular",
+        "txt"
+      ]
+    }
+  ],
+  "edges": []
+}

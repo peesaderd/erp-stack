@@ -1,0 +1,108 @@
+{
+  "batchIndex": 13,
+  "nodes": [
+    {
+      "id": "document:tiktok-ugc-studio/frontend/public/AIDER_TASK.md",
+      "type": "document",
+      "name": "AIDER_TASK.md",
+      "filePath": "tiktok-ugc-studio/frontend/public/AIDER_TASK.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "sizeLines": 0,
+      "complexity": "simple",
+      "summary": "Documentation file (0 lines)",
+      "tags": [
+        "markdown",
+        "docs",
+        "module:tiktok-ugc-studio",
+        "service:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/frontend/public/dashboard.html",
+      "type": "file",
+      "name": "dashboard.html",
+      "filePath": "tiktok-ugc-studio/frontend/public/dashboard.html",
+      "language": "html",
+      "fileCategory": "markup",
+      "sizeLines": 1304,
+      "complexity": "very_complex",
+      "summary": "HTML page: Dashboard \u2014 TikTok Growth Engine",
+      "tags": [
+        "module:tiktok-ugc-studio",
+        "markup",
+        "html",
+        "service:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/frontend/public/index.html",
+      "type": "file",
+      "name": "index.html",
+      "filePath": "tiktok-ugc-studio/frontend/public/index.html",
+      "language": "html",
+      "fileCategory": "markup",
+      "sizeLines": 1697,
+      "complexity": "very_complex",
+      "summary": "HTML page: TikTok Studio \u2014 Business OS",
+      "tags": [
+        "module:tiktok-ugc-studio",
+        "markup",
+        "html",
+        "service:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "config:tiktok-ugc-studio/frontend/public/manifest-studio.json",
+      "type": "config",
+      "name": "manifest-studio.json",
+      "filePath": "tiktok-ugc-studio/frontend/public/manifest-studio.json",
+      "language": "json",
+      "fileCategory": "config",
+      "sizeLines": 27,
+      "complexity": "moderate",
+      "summary": "Configuration file for tiktok-ugc-studio/frontend/public",
+      "tags": [
+        "module:tiktok-ugc-studio",
+        "json",
+        "config",
+        "service:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "config:tiktok-ugc-studio/frontend/public/manifest.json",
+      "type": "config",
+      "name": "manifest.json",
+      "filePath": "tiktok-ugc-studio/frontend/public/manifest.json",
+      "language": "json",
+      "fileCategory": "config",
+      "sizeLines": 25,
+      "complexity": "moderate",
+      "summary": "Configuration file for tiktok-ugc-studio/frontend/public",
+      "tags": [
+        "module:tiktok-ugc-studio",
+        "json",
+        "config",
+        "service:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/frontend/public/offline.html",
+      "type": "file",
+      "name": "offline.html",
+      "filePath": "tiktok-ugc-studio/frontend/public/offline.html",
+      "language": "html",
+      "fileCategory": "markup",
+      "sizeLines": 38,
+      "complexity": "moderate",
+      "summary": "HTML page: Offline \u2014 Business OS",
+      "tags": [
+        "module:tiktok-ugc-studio",
+        "markup",
+        "html",
+        "service:tiktok-ugc-studio"
+      ]
+    }
+  ],
+  "edges": []
+}

@@ -1,0 +1,7 @@
+# --- Detected dirs (uncomment to exclude) ---
+
+# --- Test file patterns (uncomment) ---
+
+# *.test.*
+# *.spec.*
+# *.snap

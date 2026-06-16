@@ -1,13 +1,13 @@
 """
 TikTok UGC Studio — Affiliate Video Pipeline v4.2 (Prodia Only)
 ==================================================================
-Pipeline: SAM3x2 → Klein 9B → Edge TTS (Thai) → Wan 2.7 img2vid → FFmpeg Voice Merge + BGM
+Pipeline: SAM3x2 → Klein 9B → MiniMax 2.8 HD → Wan 2.7 img2vid → FFmpeg Voice Merge + BGM
 
 Flow:
   0. SAM3 Analyze — วิเคราะห์ภาพสินค้า (object, safe zones, prompt insights)
   1. Image — Klein 9B Img2Img ($0.005) สร้างรูปอ้างอิงจากสินค้า
   1b. SAM3 Analyze — วิเคราะห์รูป UGC ที่สร้าง (verify objects)
-  2. Voice — Edge TTS (Thai voice, free) สร้างเสียงพากย์ไทย
+  2. Voice — MiniMax 2.8 HD (lovely_girl + language_boost=Thai)
   3. Video — Wan 2.7 img2vid ($0.03) สร้างคลิป silent
      Voice Merge — FFmpeg ใส่เสียงพากย์ + BGM
   4. Concat — FFmpeg ต่อหลาย scene (ถ้ามี)
@@ -20,7 +20,7 @@ Flow:
   - FFmpeg merge เสียงแยก — mix level ควบคุมได้
 
 ต้นทุนต่อคลิป:
-  - 8 วิ (SAM3x2 + Klein 9B + Edge TTS (ฟรี) + Wan 2.7):   ~$0.037
+  - 8 วิ (SAM3x2 + Klein 9B + MiniMax 2.8 HD + Wan 2.7):   ~$0.077
   - 16 วิ (2 scenes + concat):                              ~$0.067
 """
 
@@ -311,34 +311,30 @@ def generate_image(prompt: str, reference_analysis: dict = None,
     return url
 
 
-# ─── Step 2: Voice (Edge TTS — Thai voice, free!) ──────────────────────
+# ─── Step 2: Voice (MiniMax Speech 2.8 HD @ Fal.ai ~$0.10/1K chars) ─────
 
-import asyncio
-import edge_tts
-
-def generate_voice(text: str, voice_id: str = "th-TH-PremwadeeNeural",
+def generate_voice(text: str, voice_id: str = "lovely_girl",
                    speed: float = 1.0) -> str:
-    """Generate Thai voice via Edge TTS (free, no API key).
+    """Generate Thai-supporting voice via MiniMax Speech 2.8 HD.
     
-    Thai voices available:
-      - th-TH-PremwadeeNeural  (Female, Friendly)  ← DEFAULT
-      - th-TH-NiwatNeural      (Male, Friendly)
-    
-    Returns local file path (no download needed).
+    voice_id=lovely_girl (cute girl, best with Thai lang boost)
+    language_boost=Thai helps Thai pronunciation.
     """
-    run_id = uuid.uuid4().hex[:8]
-    output_path = TMP_DIR / f"voice_{run_id}.mp3"
-    
-    # rate adjusts speed: +X% or -X%
-    rate_str = f"+{int((speed-1.0)*100)}%" if speed >= 1.0 else f"-{int((1.0-speed)*100)}%"
-    
-    async def _gen():
-        communicate = edge_tts.Communicate(text, voice=voice_id, rate=rate_str)
-        await communicate.save(str(output_path))
-    
-    asyncio.run(_gen())
-    logger.info(f"  Edge TTS saved to {output_path} ({output_path.stat().st_size} bytes)")
-    return str(output_path)
+    url = "https://fal.run/fal-ai/minimax/speech-2.8-hd"
+    headers = {"Authorization": f"Key {FAL_KEY}", "Content-Type": "application/json"}
+    payload = {
+        "text": text,
+        "voice_setting": {"voice_id": voice_id, "speed": speed, "vol": 1.0, "pitch": 0},
+        "language_boost": "Thai",
+        "output_format": "url"
+    }
+    resp = requests.post(url, headers=headers, json=payload, timeout=30)
+    resp.raise_for_status()
+    data = resp.json()
+    audio_url = data.get("audio", {}).get("url", "")
+    if not audio_url:
+        raise RuntimeError(f"MiniMax Speech failed: {data}")
+    return audio_url
 
 
 # ─── Step 3: Video (Wan 2.7 img2vid+audio = Lip Sync in one!) $0.03 ─────
@@ -445,7 +441,7 @@ def generate_video(
 def run_pipeline(
     script: str,
     scene_prompts: list[str],
-    voice_id: str = "th-TH-PremwadeeNeural",
+    voice_id: str = "lovely_girl",
     video_duration: int = 8,
     image_prompt: Optional[str] = None,
     product_image: Optional[str] = None,
@@ -537,11 +533,13 @@ def run_pipeline(
             logger.warning(f"  SAM3 บนรูป UGC ล้มเหลว: {e}")
             video_sam3 = sam3_analysis
 
-    # ── Step 2: Voice (Edge TTS — ฟรี! ไม่ต้องใช้ API key) ──
-    logger.info(f"Step 2/6: Voice [ID: {voice_id}] (Edge TTS, free)")
-    voice_path = Path(generate_voice(script, voice_id=voice_id))
+    # ── Step 2: Voice (MiniMax 2.8 HD — lovely_girl + lang=Thai) ──
+    logger.info(f"Step 2/6: Voice [ID: {voice_id}] (MiniMax 2.8 HD)")
+    voice_url = generate_voice(script, voice_id=voice_id)
+    voice_path = TMP_DIR / f"voice_{run_id}.mp3"
+    download_file(voice_url, voice_path)
     voice_char_count = len(script)
-    cost_voice = 0.0  # Edge TTS = ฟรี! 🎉
+    cost_voice = (voice_char_count / 1000) * 0.10
 
     # ── Step 3: Video — Wan 2.7 img2vid (ไม่มี audio = no lip sync!) ──
     logger.info("Step 3/6: Video (img2vid)")

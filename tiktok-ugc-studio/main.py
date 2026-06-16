@@ -1221,7 +1221,7 @@ def generate_video(req: VideoRequest):
                 script=full_script,
                 scene_prompts=scene_prompts,
                 video_prompts=video_prompts,
-                voice_id="th-TH-PremwadeeNeural",
+                voice_id="lovely_girl",
                 video_duration=duration_per_scene,
                 image_prompt=img_prompt,
                 product_image=req.product_image if req.product_image else None,

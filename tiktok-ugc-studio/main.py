@@ -1756,8 +1756,20 @@ class ImageGenerateRequest(BaseModel):
 
 @app.post("/images/generate")
 async def generate_image(req: ImageGenerateRequest):
-    """Generate product image via Image Gen module."""
-    result = await _proxy("POST", "image-gen", "/api/image/v1/generate", req.model_dump())
+    """Generate product image via Image Gen module.
+    
+    ถ้ามี image_url → ส่งเป็น inputImage + ใช้ Klein 9B Img2Img
+    """
+    payload = req.model_dump()
+    
+    if payload.get("image_url"):
+        payload["inputImage"] = payload.pop("image_url")
+        payload["modelTier"] = "klein.9b"
+        payload["provider"] = "prodia"
+        payload["thaiModel"] = True
+        logger.info(f"Klein 9B Img2Img: {payload.get('prompt', '')[:60]}...")
+    
+    result = await _proxy("POST", "image-gen", "/api/image/v1/generate", payload)
     return result
 
 

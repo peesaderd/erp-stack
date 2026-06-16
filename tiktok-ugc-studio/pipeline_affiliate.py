@@ -1,25 +1,27 @@
 """
-TikTok UGC Studio — Affiliate Video Pipeline v4 (Prodia Only)
-===============================================================
-Pipeline: SAM3 Analyze → FLUX Image → MiniMax TTS → Wan 2.7 img2vid+audio (Lip Sync in video!) → FFmpeg Concat
+TikTok UGC Studio — Affiliate Video Pipeline v4.2 (Prodia Only)
+==================================================================
+Pipeline: SAM3x2 → Klein 9B → MiniMax TTS → Wan 2.7 img2vid → FFmpeg Voice Merge + BGM
 
 Flow:
-  1. SAM3 Analyze — วิเคราะห์ภาพสินค้า (object, safe zones, prompt insights)
-  2. Image — FLUX schnell ($0.001) สร้างรูปจาก prompt
-  3. Voice — MiniMax Speech ($0.003) สร้างเสียงพากย์
-  4. Video — Wan 2.7 img2vid+audio ($0.03) สร้างคลิป Lip Sync ในตัว!
-  5. Concat — FFmpeg ต่อหลาย scene (ถ้ามี)
-  6. BGM — เลือกใส่เพิ่มได้
+  0. SAM3 Analyze — วิเคราะห์ภาพสินค้า (object, safe zones, prompt insights)
+  1. Image — Klein 9B Img2Img ($0.005) สร้างรูปอ้างอิงจากสินค้า
+  1b. SAM3 Analyze — วิเคราะห์รูป UGC ที่สร้าง (verify objects)
+  2. Voice — MiniMax Speech ($0.003) สร้างเสียงพากย์
+  3. Video — Wan 2.7 img2vid ($0.03) สร้างคลิป silent
+     Voice Merge — FFmpeg ใส่เสียงพากย์ + BGM
+  4. Concat — FFmpeg ต่อหลาย scene (ถ้ามี)
+  5. BGM — เลือกใส่เพิ่มได้
 
 ข้อดี:
-  - ไม่ต้อง VEED/Wav2Lip ($0.054 ประหยัด!)
-  - ไม่ต้อง FFmpeg merge voice (audio อยู่ใน video แล้ว)
-  - Lip Sync native — ไม่มี overlay artifact
-  - SAM3 ช่วย improve prompt + layout
+  - SAM3x2: วิเคราะห์ทั้งรูปสินค้า + รูป UGC
+  - Klein 9B: img2img คุณภาพสูงกว่าลง FLUX Schnell
+  - ไม่ใช้ Lip Sync ของ Wan 2.7 (lip sync ล้มเหลวบ่อย)
+  - FFmpeg merge เสียงแยก — mix level ควบคุมได้
 
 ต้นทุนต่อคลิป:
-  - 8 วิ (SAM3 + FLUX + TTS + Wan 2.7):  ~$0.034
-  - 16 วิ (2 scenes + concat):            ~$0.064
+  - 8 วิ (SAM3x2 + Klein 9B + TTS + Wan 2.7):  ~$0.040
+  - 16 วิ (2 scenes + concat):                  ~$0.070
 """
 
 import os
@@ -277,7 +279,12 @@ def generate_image(prompt: str, reference_analysis: dict = None,
     if reference_analysis and reference_analysis.get("prompt_insights"):
         enhanced = prompt + ", " + reference_analysis["prompt_insights"]
 
-    logger.info(f"FLUX Image: {enhanced[:40]}...")
+    is_klein = bool(input_image)
+    
+    if is_klein:
+        logger.info(f"Klein 9B Img2Img: {enhanced[:60]}...")
+    else:
+        logger.info(f"FLUX Image: {enhanced[:40]}...")
     
     payload = {
         "prompt": enhanced,
@@ -287,6 +294,9 @@ def generate_image(prompt: str, reference_analysis: dict = None,
     }
     if input_image:
         payload["inputImage"] = input_image
+        payload["modelTier"] = "klein.9b"
+        payload["provider"] = "prodia"
+        payload["thaiModel"] = True
         logger.info(f"  Using reference image: {input_image[:60]}...")
     
     resp = requests.post(IMAGE_GEN_URL, json=payload, timeout=120)
@@ -329,37 +339,36 @@ def generate_voice(text: str, voice_id: str = "Wise_Woman",
 
 # ─── Step 3: Video (Wan 2.7 img2vid+audio = Lip Sync in one!) $0.03 ─────
 
-def generate_video_with_image_and_audio(
+def generate_video(
     image_path: str,
-    audio_path: str,
     prompt: str,
     duration: int = 8,
     reference_analysis: dict = None,
 ) -> str:
     """
-    Wan 2.7 img2vid + Audio — Lip Sync ในคลิปเดียว!
+    Wan 2.7 img2vid — ไม่มี Audio (no lip sync)
 
-    ส่งรูปสินค้า + เสียงพากย์ → Wan 2.7 สร้างคลิปปากขยับตามเสียง.
+    ส่งแค่รูป → Wan 2.7 สร้าง motion video ตาม prompt.
+    No audio = no weird lip movement. Voice + BGM merged later via FFmpeg.
 
     Args:
         image_path: Path to image (product/FLUX gen) or URL
-        audio_path: Path to audio (MiniMax MP3)
-        prompt: Scene description
+        prompt: Scene description (describe natural behavior: smile, nod, etc)
         duration: Clip duration (2-15s)
         reference_analysis: SAM3 analysis result (optional)
 
     Returns:
-        URL or local path of generated video with built-in lip sync
+        URL or local path of generated video (silent, no lip sync)
 
-    Cost: $0.03/gen (เท่า T2V!)
+    Cost: $0.03/gen
     """
     enhanced = prompt
     if reference_analysis and reference_analysis.get("prompt_insights"):
         enhanced = prompt + ", " + reference_analysis["prompt_insights"]
 
-    logger.info(f"Wan 2.7 img2vid+audio ({duration}s): {enhanced[:40]}...")
+    logger.info(f"Wan 2.7 img2vid ({duration}s): {enhanced[:40]}...")
 
-    # Read file bytes (support URL or local path)
+    # Read image bytes (support URL or local path)
     if image_path.startswith("http://") or image_path.startswith("https://"):
         resp = requests.get(image_path, timeout=30)
         resp.raise_for_status()
@@ -367,22 +376,19 @@ def generate_video_with_image_and_audio(
     else:
         with open(image_path, "rb") as f:
             image_data = f.read()
-    with open(audio_path, "rb") as f:
-        audio_data = f.read()
 
     config_payload = {
         "type": PRODIA_IMG2VID_TYPE,
         "config": {
             "prompt": enhanced,
             "duration": duration,
-            "negative_prompt": "low resolution, error, worst quality, deformed, blurry",
+            "negative_prompt": "low resolution, error, worst quality, deformed, blurry, disfigured face, wrong mouth, speaking, lips moving",
         }
     }
 
     files = [
         ("job", ("job.json", json.dumps(config_payload), "application/json")),
         ("input", ("image.png", image_data, "image/png")),
-        ("input", ("audio.mp3", audio_data, "audio/mpeg")),
     ]
 
     resp = requests.post(f"{PRODIA_BASE}/job", headers=_prodia_headers(), files=files, timeout=300)
@@ -422,7 +428,7 @@ def generate_video_with_image_and_audio(
         result_path = TMP_DIR / f"img2vid_{uuid.uuid4().hex[:8]}.mp4"
         with open(result_path, "wb") as f:
             f.write(resp.content)
-        logger.info(f"  Video OK (binary MP4, {len(resp.content)} bytes)")
+        logger.info(f"  Video OK (binary MP4, {len(resp.content)} bytes) — no lip sync")
         return str(result_path)
 
     url = _extract_url(result, "url")
@@ -441,6 +447,7 @@ def run_pipeline(
     product_image: Optional[str] = None,
     enable_sam3: bool = True,
     bgm_style: str = "chill_loft",
+    video_prompts: list[str] = None,
 ) -> dict:
     """
     Run full Affiliate Pipeline v4 — SAM3 → Voice → Wan 2.7 img2vid+audio
@@ -473,10 +480,11 @@ def run_pipeline(
 
     # ── Step 0: SAM3 Analyze ──
     sam3_analysis = None
+    video_sam3 = None
     ref_image_for_video = None
 
     if enable_sam3 and product_image:
-        logger.info("Step 0/4: SAM3 Analyze")
+        logger.info("Step 0/6: SAM3 Analyze")
         sam3_analysis = sam3_analyze_image(product_image, run_id)
         cost_sam3 = 0.0011
 
@@ -497,13 +505,13 @@ def run_pipeline(
     # ── Step 1: Image (FLUX) ──
     # Need a base image for img2vid — either product_image or FLUX gen
     if not ref_image_for_video and image_prompt:
-        logger.info("Step 1/4: FLUX Image")
+        logger.info("Step 1/6: FLUX Image")
         img_url = generate_image(image_prompt, reference_analysis=sam3_analysis,
                                  input_image=product_image)
         img_path = TMP_DIR / f"image_{run_id}.png"
         download_file(img_url, img_path)
         ref_image_for_video = str(img_path)
-        cost_image = 0.001
+        cost_image = 0.005
     elif not ref_image_for_video:
         # Fallback: generate generic product image
         generic_prompt = scene_prompts[0] if scene_prompts else "product showcase, clean background"
@@ -511,27 +519,40 @@ def run_pipeline(
         img_path = TMP_DIR / f"image_{run_id}.png"
         download_file(img_url, img_path)
         ref_image_for_video = str(img_path)
-        cost_image = 0.001
+        cost_image = 0.005
+
+    # ── Step 1b: SAM3 วิเคราะห์รูปที่สร้าง — ตรวจสอบก่อน video ──
+    video_sam3 = sam3_analysis  # default: ใช้ SAM3 จากสินค้า
+    if enable_sam3 and ref_image_for_video:
+        logger.info("Step 1b/6: SAM3 วิเคราะห์รูป UGC")
+        try:
+            video_sam3 = sam3_analyze_image(ref_image_for_video, run_id)
+            cost_sam3 += 0.0011
+            logger.info(f"  พบ objects: {[o['label'] for o in (video_sam3.get('objects') or [])]}")
+        except Exception as e:
+            logger.warning(f"  SAM3 บนรูป UGC ล้มเหลว: {e}")
+            video_sam3 = sam3_analysis
 
     # ── Step 2: Voice (สร้างก่อน video เพราะต้องใช้เป็น audio input!) ──
-    logger.info("Step 2/4: Voice")
+    logger.info(f"Step 2/6: Voice [ID: {voice_id}]")
     voice_url = generate_voice(script, voice_id=voice_id)
     voice_path = TMP_DIR / f"voice_{run_id}.mp3"
     download_file(voice_url, voice_path)
     voice_char_count = len(script)
     cost_voice = (voice_char_count / 1000) * 0.06
 
-    # ── Step 3: Video — Wan 2.7 img2vid+audio (Lip Sync in one!) ──
-    logger.info("Step 3/4: Video (img2vid+audio)")
+    # ── Step 3: Video — Wan 2.7 img2vid (ไม่มี audio = no lip sync!) ──
+    logger.info("Step 3/6: Video (img2vid)")
     video_paths = []
-    for i, prompt in enumerate(scene_prompts):
-        logger.info(f"  Scene {i+1}/{num_scenes}: {prompt[:40]}...")
-        vid_url = generate_video_with_image_and_audio(
+    vid_prompts = video_prompts if video_prompts else scene_prompts
+    for i in range(num_scenes):
+        vprompt = vid_prompts[i] if i < len(vid_prompts) else scene_prompts[i]
+        logger.info(f"  Scene {i+1}/{num_scenes}: {vprompt[:60]}...")
+        vid_url = generate_video(
             image_path=ref_image_for_video,
-            audio_path=voice_path,
-            prompt=prompt,
+            prompt=vprompt,
             duration=video_duration,
-            reference_analysis=sam3_analysis,
+            reference_analysis=video_sam3,
         )
         vpath = TMP_DIR / f"scene_{run_id}_{i}.mp4"
         download_file(vid_url, vpath)
@@ -539,9 +560,34 @@ def run_pipeline(
 
     cost_video = num_scenes * 0.03
 
+    # ── Voice Merge: FFmpeg เอา voice audio ใส่ video (no lip sync)
+    logger.info("Voice Merge: mixing voice audio into video")
+    merged_paths = []
+    for i, vpath in enumerate(video_paths):
+        merged = TMP_DIR / f"merged_{run_id}_{i}.mp4"
+        cmd = [
+            "ffmpeg", "-y",
+            "-i", str(vpath),
+            "-i", str(voice_path),
+            "-c:v", "copy",
+            "-c:a", "aac",
+            "-map", "0:v:0",
+            "-map", "1:a:0",
+            "-shortest",
+            str(merged),
+        ]
+        try:
+            subprocess.run(cmd, check=True, capture_output=True, timeout=30)
+            merged_paths.append(merged)
+            logger.info(f"  Scene {i}: voice merged")
+        except Exception as e:
+            logger.warning(f"  Voice merge failed for scene {i}: {e}, using original")
+            merged_paths.append(vpath)
+    video_paths = merged_paths
+
     # ── Step 4: Concat scenes (ถ้ามีหลาย scene) ──
     if num_scenes > 1:
-        logger.info("Step 4/4: Concat")
+        logger.info("Step 4/6: Concat")
         final_path = STORAGE_DIR / f"affiliate_{run_id}.mp4"
         concat_videos(video_paths, final_path)
     else:
@@ -586,7 +632,8 @@ def run_pipeline(
     # Cost summary
     cost_total = cost_sam3 + cost_image + cost_voice + cost_video
     cost_breakdown = {
-        "sam3": round(cost_sam3, 4),
+        "sam3_product": round(0.0011 if cost_sam3 >= 0.0011 else 0, 4),
+        "sam3_ugc": round(0.0011 if cost_sam3 >= 0.0022 else 0, 4),
         "image": round(cost_image, 4),
         "voice": round(cost_voice, 4),
         "video": round(cost_video, 4),

@@ -1212,10 +1212,16 @@ def generate_video(req: VideoRequest):
             logger.info(f"  Sound: {selected_sound_style}")
             logger.info(f"  Tags: {req.tags}")
 
+            # Build visual video prompts (NOT the voice script — prevents mouth-talking mismatch)
+            video_prompts = [
+                f"beautiful Thai woman holding {req.product_title or 'product'}, soft natural smile, mouth closed, not speaking, product showcase, studio lighting, gentle head turn, smooth motion"
+                for _ in scenes
+            ]
             result = affiliate_run(
                 script=full_script,
                 scene_prompts=scene_prompts,
-                voice_id="Wise_Woman",
+                video_prompts=video_prompts,
+                voice_id="lovely_girl",
                 video_duration=duration_per_scene,
                 image_prompt=img_prompt,
                 product_image=req.product_image if req.product_image else None,

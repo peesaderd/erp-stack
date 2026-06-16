@@ -313,11 +313,11 @@ def generate_image(prompt: str, reference_analysis: dict = None,
 
 # ─── Step 2: Voice (MiniMax Speech 2.8 HD @ Fal.ai ~$0.10/1K chars) ─────
 
-def generate_voice(text: str, voice_id: str = "Wise_Woman",
+def generate_voice(text: str, voice_id: str = "lovely_girl",
                    speed: float = 1.0) -> str:
     """Generate Thai-supporting voice via MiniMax Speech-02 Turbo.
     
-    Available voice IDs (tested): Wise_Woman, English_Trustworth_Man
+    Available voice IDs (recommended): lovely_girl (cute, Thai-capable), female-yujie (mature), female-chengshu (elegant)
     language_boost=Thai helps Thai pronunciation regardless of voice.
     """
     url = "https://fal.run/fal-ai/minimax/speech-2.8-hd"
@@ -441,7 +441,7 @@ def generate_video(
 def run_pipeline(
     script: str,
     scene_prompts: list[str],
-    voice_id: str = "Wise_Woman",
+    voice_id: str = "lovely_girl",
     video_duration: int = 8,
     image_prompt: Optional[str] = None,
     product_image: Optional[str] = None,
@@ -614,7 +614,7 @@ def run_pipeline(
                 "-i", str(final_path),
                 "-i", str(bgm_path),
                 "-filter_complex",
-                "[1:a]volume=0.15[bg];[0:a][bg]amix=inputs=2:duration=first[out]",
+                "[1:a]volume=0.80[bg];[0:a][bg]amix=inputs=2:duration=first[out]",
                 "-map", "0:v",
                 "-map", "[out]",
                 "-c:v", "copy",

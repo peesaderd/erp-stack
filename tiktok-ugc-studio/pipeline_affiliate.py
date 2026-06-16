@@ -606,7 +606,7 @@ def run_pipeline(
             "asmr": "bg_ambient.mp3",
         }
         bgm_filename = bgm_map.get(bgm_style, "bg_chill.mp3")
-        bgm_path = STORAGE_DIR / "sounds" / bgm_filename
+        bgm_path = Path(__file__).parent / "bgm" / bgm_filename
         if bgm_path.exists():
             bgm_output = STORAGE_DIR / f"affiliate_{run_id}_bgm.mp4"
             cmd = [

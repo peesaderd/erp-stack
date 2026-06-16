@@ -135,27 +135,9 @@ PROVIDER_FALLBACK_CHAIN = [
 ]
 
 def generate_video_with_fallback(prompt, duration=8, aspect_ratio="9:16", image_url=None, face_image_url=None, **kw):
-    """Try providers in priority order until one succeeds"""
-    errors = []
-    for provider, tier in PROVIDER_FALLBACK_CHAIN:
-        cfg = PROVIDER_CONFIG.get(provider)
-        if not cfg or not cfg.get("key"):
-            errors.append(f"{provider.value}: no key")
-            continue
-        try:
-            logger.info(f"Fallback attempt: {provider.value}/{tier}")
-            result = generate_video(
-                prompt=prompt, provider=provider, model_tier=tier,
-                duration=duration, aspect_ratio=aspect_ratio,
-                image_url=image_url, face_image_url=face_image_url, **kw,
-            )
-            result["fallback_attempted"] = errors
-            return result
-        except Exception as e:
-            errors.append(f"{provider.value}: {str(e)[:100]}")
-            logger.warning(f"{provider.value} failed: {e}, trying next")
-            continue
-    raise RuntimeError(f"All providers failed: {'; '.join(errors)}")
+    """DISABLED: Video fallback ปิดอยู่ - ใช้ pipeline_affiliate.py แทน"""
+    logger.warning("generate_video_with_fallback DISABLED - ใช้ pipeline_affiliate.py แทน")
+    raise RuntimeError("Video fallback chain DISABLED - main pipeline (pipeline_affiliate.py) เท่านั้น")
 
 # ─── Common generation presets for UGC videos ──────────────────────────
 

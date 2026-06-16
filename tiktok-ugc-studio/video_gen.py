@@ -135,27 +135,9 @@ PROVIDER_FALLBACK_CHAIN = [
 ]
 
 def generate_video_with_fallback(prompt, duration=8, aspect_ratio="9:16", image_url=None, face_image_url=None, **kw):
-    """Try providers in priority order until one succeeds"""
-    errors = []
-    for provider, tier in PROVIDER_FALLBACK_CHAIN:
-        cfg = PROVIDER_CONFIG.get(provider)
-        if not cfg or not cfg.get("key"):
-            errors.append(f"{provider.value}: no key")
-            continue
-        try:
-            logger.info(f"Fallback attempt: {provider.value}/{tier}")
-            result = generate_video(
-                prompt=prompt, provider=provider, model_tier=tier,
-                duration=duration, aspect_ratio=aspect_ratio,
-                image_url=image_url, face_image_url=face_image_url, **kw,
-            )
-            result["fallback_attempted"] = errors
-            return result
-        except Exception as e:
-            errors.append(f"{provider.value}: {str(e)[:100]}")
-            logger.warning(f"{provider.value} failed: {e}, trying next")
-            continue
-    raise RuntimeError(f"All providers failed: {'; '.join(errors)}")
+    """DISABLED: Video fallback ปิดอยู่ - ใช้ pipeline_affiliate.py แทน"""
+    logger.warning("generate_video_with_fallback DISABLED - ใช้ pipeline_affiliate.py แทน")
+    raise RuntimeError("Video fallback chain DISABLED - main pipeline (pipeline_affiliate.py) เท่านั้น")
 
 # ─── Common generation presets for UGC videos ──────────────────────────
 
@@ -518,6 +500,19 @@ class TaskQueue:
         except Exception as e:
             logger.warning(f"SQLite task DB init failed: {e}")
     
+    def enqueue_dummy(self, prompt: str, provider: str = "prodia", model_tier: str = "standard",
+                      duration: int = 8, aspect_ratio: str = "9:16",
+                      image_url: str = None, face_image_url: str = None) -> str:
+        """Return fake completed task - video gen DISABLED"""
+        import uuid
+        tid = f"vt-{uuid.uuid4().hex[:8]}"
+        self.tasks[tid] = {
+            "id": tid, "status": "completed",
+            "error": f"DISABLED: {provider}/{model_tier} ถูกปิด ใช้ pipeline_affiliate.py",
+            "created_at": time.time(), "completed_at": time.time(),
+        }
+        return tid
+
     def enqueue(self, prompt: str, provider: str = "prodia", model_tier: str = "standard",
                 duration: int = 8, aspect_ratio: str = "9:16",
                 image_url: str = None, face_image_url: str = None) -> str:
@@ -622,8 +617,9 @@ task_queue = TaskQueue()
 
 def enqueue_video_task(prompt, provider="prodia", model_tier="standard", duration=8,
                        aspect_ratio="9:16", image_url=None, face_image_url=None) -> str:
-    """Enqueue video generation and return task_id immediately"""
-    return task_queue.enqueue(prompt, provider, model_tier, duration, aspect_ratio, image_url, face_image_url)
+    """DISABLED: Video queue ปิดอยู่ - ใช้ pipeline_affiliate.py แทน"""
+    logger.warning("enqueue_video_task DISABLED - ใช้ pipeline_affiliate.py แทน")
+    return task_queue.enqueue_dummy(prompt, provider, model_tier, duration, aspect_ratio, image_url, face_image_url)
 
 
 def get_task_status(task_id: str) -> dict:

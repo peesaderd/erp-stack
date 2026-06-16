@@ -1441,55 +1441,14 @@ def get_affiliate_config():
 
 @app.post("/video/queue")
 def queue_video(req: QueueVideoRequest):
-    """Enqueue video generation task (background), returns task_id immediately"""
-    from video_gen import enqueue_video_task
-    try:
-        task_id = enqueue_video_task(
-            prompt=req.prompt,
-            provider=req.provider,
-            model_tier=req.model_tier,
-            duration=req.duration,
-            aspect_ratio=req.aspect_ratio,
-            image_url=req.image_url,
-            face_image_url=req.face_image_url,
-        )
-        return {"task_id": task_id, "status": "queued"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    """DISABLED — ใช้ pipeline_affiliate.py ผ่าน /video/generate แทน"""
+    raise HTTPException(status_code=410, detail="Video queue DISABLED — ใช้ POST /video/generate แทน")
 
 
 @app.post("/video/queue-status")
 def queue_status(req: TaskStatusRequest):
-    """Check queued task status — normalizes response for frontend"""
-    from video_gen import get_task_status
-    try:
-        raw = get_task_status(req.task_id)
-        status = raw.get("status", "unknown")
-        normalized = {
-            "task_id": req.task_id,
-            "status": status,
-            "url": "",
-            "video_url": "",
-        }
-        if status == "completed":
-            result_str = raw.get("result", "{}")
-            # result is stored as JSON string from json.dumps
-            if isinstance(result_str, str):
-                try:
-                    gen_result = json.loads(result_str)
-                except json.JSONDecodeError:
-                    # Might be a Python repr string from str(dict) — parse manually
-                    gen_result = {}
-            else:
-                gen_result = result_str or {}
-            video_url = gen_result.get("video_url", "") or gen_result.get("url", "")
-            normalized["url"] = video_url
-            normalized["video_url"] = video_url
-        elif status == "failed":
-            normalized["error"] = raw.get("error", "Unknown error")
-        return normalized
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    """DISABLED — ใช้ pipeline_affiliate.py ผ่าน /video/generate แทน"""
+    raise HTTPException(status_code=410, detail="Video queue status DISABLED")
 
 
 # ─── Video with Fallback ───────────────────────────────────────────────────
@@ -1501,21 +1460,8 @@ def concat_videos_ep(req: ConcatRequest):
 
 @app.post("/video/generate-with-fallback")
 def generate_video_with_fallback(req: VideoRequest):
-    """Generate video with automatic provider fallback chain"""
-    from video_gen import generate_video_with_fallback, build_video_prompt
-    prompt = req.prompt
-    if req.script and req.ugc_style:
-        prompt = build_video_prompt(req.script, req.ugc_style)
-    try:
-        result = generate_video_with_fallback(
-            prompt=prompt,
-            duration=req.duration,
-            aspect_ratio=req.aspect_ratio,
-            image_url=req.image_url,
-        )
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=str(e))
+    """DISABLED — ใช้ pipeline_affiliate.py ผ่าน /video/generate แทน"""
+    raise HTTPException(status_code=410, detail="Video fallback DISABLED — ใช้ POST /video/generate แทน")
 
 
 # ─── Product Analysis ───────────────────────────────────────────────────────
@@ -2030,7 +1976,7 @@ class PipelineJobStatusRequest(BaseModel):
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# UGC Studio v2 — TTS, Fal.ai, Composer, Wav2Lip Pipeline
+# UGC Studio v2 — TTS, Fal.ai, Composer Pipeline
 # ═══════════════════════════════════════════════════════════════════════
 
 class BatchUploadRequest(BaseModel):

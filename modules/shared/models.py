@@ -163,7 +163,7 @@ class GeneratedContent(Base):
     user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
     product_id = Column(String, ForeignKey("products.id"), nullable=True, index=True)
     content_type = Column(String, nullable=False)  # "image", "video"
-    provider = Column(String, default="")  # "fal", "wavespeed"
+    provider = Column(String, default="")  # "fal"
     model = Column(String, default="")
     prompt = Column(Text, default="")
     result_url = Column(String, default="")

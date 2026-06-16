@@ -1,7 +1,7 @@
 """
 Video Generation Module — Microservice
 =======================================
-AI UGC Video Generator: Script → TTS → Video Gen (Prodia/WaveSpeed/Fal) → Compose
+AI UGC Video Generator: Script → TTS → Video Gen (Prodia/Fal) → Compose
 Part of Business OS, registered with ERP Modular.
 
 Port: 8111
@@ -390,7 +390,7 @@ async def concat_videos(req: ConcatRequest):
 
 @app.post("/api/v1/video/generate-with-fallback")
 async def generate_with_fallback(req: GenerateWithFallbackRequest):
-    """Generate video with automatic provider fallback: Prodia→WaveSpeed→Fal."""
+    """Generate video with automatic provider fallback: Prodia→Fal."""
     from video.video_gen import generate_video_with_fallback, build_video_prompt
     prompt = build_video_prompt(req.prompt) if not req.prompt else req.prompt
     result = await generate_video_with_fallback(

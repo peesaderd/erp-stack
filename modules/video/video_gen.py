@@ -1,7 +1,7 @@
 """
 TikTok UGC Studio — AI Video Generation Pipeline
-Default: Prodia Wan 2.7 (img2vid+audio, $0.03)
-Fallback: WaveSpeed Wan 2.2 ($0.08) -> Fal.ai ($0.10+)
+Default: Prodia Wan 2.7 (img2vid, $0.03)
+Fallback: Fal.ai ($0.10+)
 """
 
 import os
@@ -20,7 +20,6 @@ logger = logging.getLogger("tiktok-ugc.video_gen")
 
 class VideoProvider(str, Enum):
     PRODIA = "prodia"
-    WAVESPEED = "wavespeed"
     FAL = "fal"
 
 PROVIDER_CONFIG = {
@@ -34,15 +33,7 @@ PROVIDER_CONFIG = {
         "rate_limit_rps": 5,
         "estimate_cost": 0.03,  # $0.03/gen
     },
-    VideoProvider.WAVESPEED: {
-        "key": os.environ.get("WAVESPEED_API_KEY", ""),
-        "models": {"standard": "wavespeed-ai/wan-2.2/t2v-480p-ultra-fast"},
-        "default_model": "wavespeed-ai/wan-2.2/t2v-480p-ultra-fast",
-        "base_url": "https://api.wavespeed.ai/api/v3",
-        "image_to_video": False,
-        "rate_limit_rps": 10,
-        "estimate_cost": 0.08,  # ~$0.08 per 8s job
-    },
+
     VideoProvider.FAL: {
         "key": os.environ.get("FAL_API_KEY", "") or os.environ.get("FAL_KEY", ""),
         "models": {
@@ -125,11 +116,9 @@ def retryable(max_retries=3, base_delay=1.0, backoff=2.0, retry_statuses=(429, 5
 # ─── Provider Fallback Chain ───────────────────────────────────────────
 
 PROVIDER_FALLBACK_CHAIN = [
-    # Primary — Prodia Wan 2.7 ($0.03, lip sync built-in)
+    # Primary — Prodia Wan 2.7 ($0.03)
     (VideoProvider.PRODIA, "standard"),
-    # Fallback — WaveSpeed Wan 2.2 ($0.08, no lip sync)
-    (VideoProvider.WAVESPEED, "standard"),
-    # Last resort — Fal.ai ($0.10+)
+    # Fallback — Fal.ai ($0.10+)
     (VideoProvider.FAL, "standard"),
     (VideoProvider.FAL, "kling"),
 ]
@@ -214,149 +203,7 @@ def check_status(provider: VideoProvider, task_id: str) -> dict:
 
 # ─── Provider-specific Implementations ─────────────────────────────────
 
-@retryable(max_retries=3)
-def _ws_generate(config, prompt, model, duration, aspect_ratio, image_url, face_image_url, timeout, negative_prompt=None):
-    """WaveSpeed API v3 — Wan 2.2 T2V Ultra Fast.
-    For 16s: generates 2 scenes, downloads immediately (CDN URLs expire!), concats via FFmpeg.
-    """
-    import uuid, subprocess, shutil, tempfile
-    from pathlib import Path
-    
-    url = f"{config['base_url']}/wavespeed-ai/wan-2.2/t2v-480p-ultra-fast"
-    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {config['key']}"}
-    
-    scene_count = max(1, min(2, (duration + 7) // 8))  # 8s→1, 16s→2
-    run_id = uuid.uuid4().hex[:8]
-    tmp_dir = Path(tempfile.gettempdir()) / f"ws_scenes_{run_id}"
-    tmp_dir.mkdir(parents=True, exist_ok=True)
-    
-    def _submit_scene(scene_prompt):
-        """Submit one scene and poll until done, return video URL"""
-        payload = {
-            "prompt": scene_prompt,
-            "size": "832*480",
-            "duration": 8,
-            "seed": -1,
-        }
-        if negative_prompt:
-            payload["negative_prompt"] = negative_prompt
-        if image_url:
-            payload["reference_images"] = [image_url]
-        
-        resp = requests.post(url, headers=headers, json=payload, timeout=timeout)
-        if resp.status_code != 200:
-            raise RuntimeError(f"WaveSpeed error ({resp.status_code}): {resp.text[:500]}")
-        data = resp.json()
-        if data.get("code") != 200:
-            raise RuntimeError(f"WaveSpeed submit failed: {data}")
-        inner = data.get("data", {})
-        prediction_id = inner.get("id", "")
-        status_url = inner.get("urls", {}).get("get", "")
-        if not status_url:
-            raise RuntimeError(f"WaveSpeed: no status URL: {data}")
-        
-        # Poll
-        for _ in range(60):
-            time.sleep(5)
-            sresp = requests.get(status_url, headers=headers, timeout=10)
-            sdata = sresp.json()
-            idata = sdata.get("data", {}) if sdata.get("code") == 200 else sdata
-            st = idata.get("status", "")
-            outs = idata.get("outputs", [])
-            if st == "completed" and outs:
-                return outs[0]
-            elif st in ("failed", "error"):
-                raise RuntimeError(f"WaveSpeed scene failed: {sdata}")
-        raise TimeoutError("WaveSpeed scene timed out")
-    
-    def _download(url, path):
-        """Download immediately — CDN URLs are temporary!"""
-        r = requests.get(url, timeout=120)
-        path.write_bytes(r.content)
-        return path
-    
-    scene_prompts = [
-        f"{prompt} [Scene 1: product showcase, establishing shot]",
-        f"{prompt} [Scene 2: product usage, close-up details, action shot]",
-    ]
-    
-    video_paths = []
-    task_id = run_id
-    
-    for i in range(scene_count):
-        logger.info(f"WaveSpeed scene {i+1}/{scene_count}...")
-        video_url = _submit_scene(scene_prompts[i])
-        logger.info(f"Scene {i+1} done, downloading...")
-        vpath = tmp_dir / f"scene_{i}.mp4"
-        _download(video_url, vpath)
-        video_paths.append(str(vpath))
-    
-    final_url = ""
-    storage_dir = Path(__file__).parent / "storage" / "videos"
-    storage_dir.mkdir(parents=True, exist_ok=True)
-    
-    if scene_count == 1:
-        # Single scene — copy to persistent storage
-        local_path = storage_dir / f"video_{run_id}.mp4"
-        shutil.copy2(video_paths[0], local_path)
-        final_url = f"/static/videos/video_{run_id}.mp4"
-    else:
-        # Concat 2 scenes via FFmpeg re-encode
-        output_path = storage_dir / f"concat_{run_id}.mp4"
-        
-        list_file = tmp_dir / "concat.txt"
-        with open(list_file, "w") as f:
-            for vp in video_paths:
-                f.write(f"file '{vp}'\n")
-        
-        cmd = [
-            "ffmpeg", "-y", "-f", "concat", "-safe", "0",
-            "-i", str(list_file),
-            "-c:v", "libx264", "-preset", "fast", "-crf", "23",
-            "-c:a", "aac", "-b:a", "128k",
-            str(output_path),
-        ]
-        subprocess.run(cmd, check=True, capture_output=True, timeout=180)
-        
-        final_url = f"/static/videos/concat_{run_id}.mp4"
-    
-    # Cleanup temp
-    shutil.rmtree(tmp_dir, ignore_errors=True)
-    
-    return {
-        "task_id": task_id,
-        "status": "completed",
-        "video_url": final_url,
-        "scene_count": scene_count,
-        "duration": scene_count * 8,
-    }
 
-
-def _ws_status(config, task_id):
-    """WaveSpeed API v3 — poll task result"""
-    url = f"{config['base_url']}/predictions/{task_id}/result"
-    headers = {"Authorization": f"Bearer {config['key']}"}
-    resp = requests.get(url, headers=headers, timeout=30)
-    body = resp.json()
-    data = body.get("data", {}) or {}
-    video_url = ""
-    # v3 response shapes (all possible WaveSpeed formats):
-    #   data.outputs[0]
-    #   body.outputs[0]
-    #   data.output.video_url or data.video_url
-    #   data.output.video.url
-    outputs = data.get("outputs", body.get("outputs", []))
-    if outputs:
-        video_url = outputs[0]
-    if not video_url:
-        output = data.get("output", {}) or {}
-        video_url = output.get("video_url", "") or output.get("video", {}).get("url", "") or data.get("video_url", "")
-    return {
-        "task_id": task_id,
-        "status": data.get("status", body.get("status", "unknown")),
-        "video_url": video_url,
-        "progress": 100 if data.get("status") == "completed" else 50 if data.get("status") == "processing" else None,
-    }
 
 
 @retryable(max_retries=3)
@@ -409,15 +256,12 @@ def _fal_status(config, task_id):
 
 # ─── Provider Dispatch Tables ─────────────────────────────────────────
 
+# Provider dispatch — only Fal.ai remains (WaveSpeed removed, Prodia handled by pipeline_affiliate.py)
 _PROVIDER_HANDLERS = {
-    VideoProvider.PRODIA: _ws_generate,  # Prodia uses same shape
-    VideoProvider.WAVESPEED: _ws_generate,
     VideoProvider.FAL: _fal_generate,
 }
 
 _STATUS_HANDLERS = {
-    VideoProvider.PRODIA: _ws_status,
-    VideoProvider.WAVESPEED: _ws_status,
     VideoProvider.FAL: _fal_status,
 }
 
@@ -500,6 +344,19 @@ class TaskQueue:
         except Exception as e:
             logger.warning(f"SQLite task DB init failed: {e}")
     
+    def enqueue_dummy(self, prompt: str, provider: str = "prodia", model_tier: str = "standard",
+                      duration: int = 8, aspect_ratio: str = "9:16",
+                      image_url: str = None, face_image_url: str = None) -> str:
+        """Return fake completed task - video gen DISABLED"""
+        import uuid
+        tid = f"vt-{uuid.uuid4().hex[:8]}"
+        self.tasks[tid] = {
+            "id": tid, "status": "completed",
+            "error": f"DISABLED: {provider}/{model_tier} ถูกปิด ใช้ pipeline_affiliate.py",
+            "created_at": time.time(), "completed_at": time.time(),
+        }
+        return tid
+
     def enqueue(self, prompt: str, provider: str = "prodia", model_tier: str = "standard",
                 duration: int = 8, aspect_ratio: str = "9:16",
                 image_url: str = None, face_image_url: str = None) -> str:
@@ -604,8 +461,9 @@ task_queue = TaskQueue()
 
 def enqueue_video_task(prompt, provider="prodia", model_tier="standard", duration=8,
                        aspect_ratio="9:16", image_url=None, face_image_url=None) -> str:
-    """Enqueue video generation and return task_id immediately"""
-    return task_queue.enqueue(prompt, provider, model_tier, duration, aspect_ratio, image_url, face_image_url)
+    """DISABLED: Video queue ปิดอยู่ - ใช้ pipeline_affiliate.py แทน"""
+    logger.warning("enqueue_video_task DISABLED - ใช้ pipeline_affiliate.py แทน")
+    return task_queue.enqueue_dummy(prompt, provider, model_tier, duration, aspect_ratio, image_url, face_image_url)
 
 
 def get_task_status(task_id: str) -> dict:

@@ -159,7 +159,7 @@ def merge_audio_video(
     """
     Merge audio with video with optional lip-sync offset adjustment.
 
-    Useful for Wav2Lip output: overlay the lip-synced audio onto the original
+    Useful for voice output: overlay the lip-synced audio onto the original
     video with a configurable offset (in seconds) to fine-tune sync.
 
     Args:

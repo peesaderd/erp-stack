@@ -20,8 +20,8 @@ Flow:
   - FFmpeg merge เสียงแยก — mix level ควบคุมได้
 
 ต้นทุนต่อคลิป:
-  - 8 วิ (SAM3x2 + Klein 9B + TTS + Wan 2.7):  ~$0.040
-  - 16 วิ (2 scenes + concat):                  ~$0.070
+  - 8 วิ (SAM3x2 + Klein 9B + MiniMax 2.8 HD + Wan 2.7):  ~$0.043
+  - 16 วิ (2 scenes + concat):                              ~$0.073
 """
 
 import os
@@ -311,7 +311,7 @@ def generate_image(prompt: str, reference_analysis: dict = None,
     return url
 
 
-# ─── Step 2: Voice (MiniMax Speech @ Fal.ai ~$0.003) ─────────────────────
+# ─── Step 2: Voice (MiniMax Speech 2.8 HD @ Fal.ai ~$0.10/1K chars) ─────
 
 def generate_voice(text: str, voice_id: str = "Wise_Woman",
                    speed: float = 1.0) -> str:
@@ -320,7 +320,7 @@ def generate_voice(text: str, voice_id: str = "Wise_Woman",
     Available voice IDs (tested): Wise_Woman, English_Trustworth_Man
     language_boost=Thai helps Thai pronunciation regardless of voice.
     """
-    url = "https://fal.run/fal-ai/minimax/speech-02-turbo"
+    url = "https://fal.run/fal-ai/minimax/speech-2.8-hd"
     headers = {"Authorization": f"Key {FAL_KEY}", "Content-Type": "application/json"}
     payload = {
         "text": text,
@@ -539,7 +539,7 @@ def run_pipeline(
     voice_path = TMP_DIR / f"voice_{run_id}.mp3"
     download_file(voice_url, voice_path)
     voice_char_count = len(script)
-    cost_voice = (voice_char_count / 1000) * 0.06
+    cost_voice = (voice_char_count / 1000) * 0.10
 
     # ── Step 3: Video — Wan 2.7 img2vid (ไม่มี audio = no lip sync!) ──
     logger.info("Step 3/6: Video (img2vid)")

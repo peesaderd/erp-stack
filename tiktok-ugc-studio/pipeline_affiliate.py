@@ -614,7 +614,7 @@ def run_pipeline(
                 "-i", str(final_path),
                 "-i", str(bgm_path),
                 "-filter_complex",
-                "[1:a]volume=3.0[bg];[0:a][bg]amix=inputs=2:duration=first[out]",
+                "[1:a]volume=0.50[bg];[0:a][bg]amix=inputs=2:duration=first[out]",
                 "-map", "0:v",
                 "-map", "[out]",
                 "-c:v", "copy",

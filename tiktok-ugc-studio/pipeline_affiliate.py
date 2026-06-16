@@ -606,7 +606,9 @@ def run_pipeline(
             "asmr": "bg_ambient.mp3",
         }
         bgm_filename = bgm_map.get(bgm_style, "bg_chill.mp3")
-        bgm_path = Path(__file__).parent / "bgm" / bgm_filename
+        # ใช้ bgm_fetcher ให้หา/โหลดเพลง (auto-download ถ้าไม่มี)
+        from bgm_fetcher import fetch_bgm
+        bgm_path = fetch_bgm(bgm_style, bgm_dir=Path(__file__).parent / "bgm")
         if bgm_path.exists():
             bgm_output = STORAGE_DIR / f"affiliate_{run_id}_bgm.mp4"
             cmd = [

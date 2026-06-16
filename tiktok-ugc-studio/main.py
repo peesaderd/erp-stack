@@ -1194,12 +1194,9 @@ def generate_video(req: VideoRequest):
 
     def _run():
         try:
-            # Build image prompt from product info + mood
-            img_prompt = None
-            if req.product_title:
-                img_prompt = f"beautiful Thai woman holding {req.product_title}, glowing skin, pretty face, professional model quality, influencer-quality product photo, studio lighting, soft bokeh, holding product naturally, candid genuine smile"
-            elif req.prompt:
-                img_prompt = f"beautiful Thai woman, {req.prompt}, glowing skin, professional model quality, studio lighting, soft bokeh"
+            # ใช้ scene prompts จาก AI ที่ Web UI gen มา (ไม่ hardcode)
+            # scene_prompts = [s.script for s in scenes] — มีอยู่แล้วข้างบน
+            img_prompt = scene_prompts[0] if scene_prompts else (req.product_title or "product")
 
             # Select sound based on style
             selected_sound_style = scenes[0].sound_style if scenes else "upbeat_pop"
@@ -1212,11 +1209,8 @@ def generate_video(req: VideoRequest):
             logger.info(f"  Sound: {selected_sound_style}")
             logger.info(f"  Tags: {req.tags}")
 
-            # Build visual video prompts (NOT the voice script — prevents mouth-talking mismatch)
-            video_prompts = [
-                f"beautiful Thai woman holding {req.product_title or 'product'}, soft natural smile, mouth closed, not speaking, product showcase, studio lighting, gentle head turn, smooth motion"
-                for _ in scenes
-            ]
+            # ใช้ scene prompts เป็น video prompt ด้วย (dynamic จาก AI ไม่ hardcode)
+            video_prompts = scene_prompts[:] if scene_prompts else [req.product_title or "product"]
             result = affiliate_run(
                 script=full_script,
                 scene_prompts=scene_prompts,
@@ -1226,54 +1220,16 @@ def generate_video(req: VideoRequest):
                 image_prompt=img_prompt,
                 product_image=req.product_image if req.product_image else None,
                 enable_sam3=bool(req.product_image),
+                bgm_style=selected_sound_style,
             )
             VIDEOS_DIR.mkdir(parents=True, exist_ok=True)
             final_path = result["final_path"]
 
-            # Step 5: Add background sound (style-based)
-            bgm_styles = {
-                "upbeat_pop": "bg_upbeat.mp3",
-                "chill_loft": "bg_chill.mp3",
-                "informative_jazz": "bg_jazz.mp3",
-                "energetic_edm": "bg_edm.mp3",
-                "luxury_jazz": "bg_jazz.mp3",
-                "asmr": "bg_ambient.mp3",
-            }
-            bgm_filename = bgm_styles.get(selected_sound_style, "bg_ambient.mp3")
-            bgm_path = STORAGE_DIR / "sounds" / bgm_filename
-
-            if not bgm_path.exists():
-                bgm_path = STORAGE_DIR / "sounds" / "bg_ambient.mp3"
-
-            if bgm_path.exists():
-                bgm_output = STORAGE_DIR / "videos" / f"final_{job_id}.mp4"
-                cmd = [
-                    "ffmpeg", "-y",
-                    "-i", str(final_path),
-                    "-i", str(bgm_path),
-                    "-filter_complex",
-                    "[1:a]volume=0.15[bg];[0:a][bg]amix=inputs=2:duration=first[out]",
-                    "-map", "0:v",
-                    "-map", "[out]",
-                    "-c:v", "copy",
-                    "-c:a", "aac",
-                    "-shortest",
-                    str(bgm_output),
-                ]
-                try:
-                    subprocess.run(cmd, check=True, capture_output=True, timeout=60)
-                    logger.info(f"  BGM ({bgm_filename}) added")
-                    final_video_path = bgm_output
-                except Exception as bgm_err:
-                    logger.warning(f"  BGM failed: {bgm_err}")
-                    import shutil
-                    shutil.copy2(final_path, VIDEOS_DIR / f"final_{job_id}.mp4")
-                    final_video_path = VIDEOS_DIR / f"final_{job_id}.mp4"
-            else:
-                import shutil
-                final_video_path = VIDEOS_DIR / f"final_{job_id}.mp4"
-                shutil.copy2(final_path, final_video_path)
-                logger.info(f"  No BGM, plain copy")
+            # pipeline จัดการ BGM + Voice Merge ไปแล้ว (Step 3-5)
+            # แค่ copy ผลลัพธ์ (ที่มี BGM แล้ว) มาไว้ videos/
+            import shutil
+            final_video_path = VIDEOS_DIR / f"final_{job_id}.mp4"
+            shutil.copy2(final_path, final_video_path)
 
             # Build metadata for Post For Me — ละเอียด!
             _pipeline_results[job_id] = {

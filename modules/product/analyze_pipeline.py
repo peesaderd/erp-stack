@@ -26,9 +26,11 @@ PROXY_DICT = {"http": DATAIMPULSE_PROXY, "https": DATAIMPULSE_PROXY} if DATAIMPU
 
 
 async def _download_images_local(product_id: str, image_urls: list) -> list:
-    """Download product images to local storage via proxy.
+    """Download ALL product images to local storage.
     
-    Returns list of local image URLs (falls back to original URL if fails).
+    Downloads every URL we can reach (no limit). Returns list of dicts with:
+      {"url": str, "local_path": str, "filename": str, "size": int}
+    Falls back to keeping the original URL if download fails.
     """
     if not image_urls:
         return []
@@ -39,7 +41,13 @@ async def _download_images_local(product_id: str, image_urls: list) -> list:
             continue
         # Already local
         if url.startswith("/static/") or "localhost" in url:
-            local_images.append(url)
+            fname = url.rsplit("/", 1)[-1] if "/" in url else url
+            local_images.append({
+                "url": url,
+                "local_path": str(PRODUCT_IMAGE_DIR / fname),
+                "filename": fname,
+                "size": (PRODUCT_IMAGE_DIR / fname).stat().st_size if (PRODUCT_IMAGE_DIR / fname).exists() else 0,
+            })
             continue
         
         ext = url.rsplit(".", 1)[-1].split("?")[0] if "." in url else "jpg"
@@ -59,17 +67,142 @@ async def _download_images_local(product_id: str, image_urls: list) -> list:
                 )
                 if resp.status_code == 200 and len(resp.content) > 1000:
                     local_path.write_bytes(resp.content)
-                    local_images.append(f"/static/product_images/{local_name}")
+                    local_images.append({
+                        "url": f"/static/product_images/{local_name}",
+                        "local_path": str(local_path),
+                        "filename": local_name,
+                        "size": len(resp.content),
+                    })
                     logger.info(f"  Downloaded image: {local_name} ({len(resp.content)} bytes)")
                 else:
-                    # Proxy failed too — keep original URL
-                    local_images.append(url)
+                    local_images.append({
+                        "url": url,
+                        "local_path": "",
+                        "filename": local_name,
+                        "size": 0,
+                    })
                     logger.warning(f"  Download failed {url[:50]}: HTTP {resp.status_code}")
         except Exception as e:
-            local_images.append(url)
+            local_images.append({
+                "url": url,
+                "local_path": "",
+                "filename": local_name,
+                "size": 0,
+            })
             logger.warning(f"  Download error {url[:50]}: {e}")
     
     return local_images
+
+
+async def _analyze_and_select_images(product_id: str, raw_images: list) -> tuple:
+    """Use Mistral Pixtral to analyze each product image and select the best ones.
+    
+    For each image, it asks Mistral to describe what's in the image and rate its quality.
+    Images that fail analysis (no product visible, blurry, text-only) get lower scores.
+    
+    Returns: (selected_urls, all_analyses)
+      - selected_urls: list of URLs for the best 3-5 images
+      - all_analyses: list of dicts with per-image analysis results
+    """
+    if not raw_images:
+        return [], []
+    
+    mistral_key = os.environ.get("MISTRAL_API_KEY", "")
+    if not mistral_key:
+        # No Mistral — just keep all images' URLs
+        return [img["url"] for img in raw_images], []
+    
+    analyses = []
+    for img in raw_images:
+        url = img["url"]
+        if not url.startswith("http"):
+            url = f"http://localhost:8105{img['url']}" if img['url'].startswith("/") else img['url']
+        
+        prompt = (
+            "Analyze this product image for a TikTok shop review video. "
+            "Return JSON only with these fields:\n"
+            '{"subjects": ["list of objects visible"], '
+            '"quality": <1-10>, '
+            '"has_product": <true/false>, '
+            '"background": "clean/messy/solid", '
+            '"text_on_image": <true/false>, '
+            '"recommended": <true/false>}\n'
+            "recommended=true if the product is clearly visible, "
+            "good lighting, and suitable for video background. "
+            "recommended=false if blurry, no product, or just text/logo."
+        )
+        
+        try:
+            async with httpx.AsyncClient(timeout=30) as client:
+                payload = {
+                    "model": "pixtral-large-2501",
+                    "messages": [{
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {"type": "image_url", "image_url": url}
+                        ]
+                    }],
+                    "temperature": 0.1,
+                    "max_tokens": 300,
+                }
+                resp = await client.post(
+                    "https://api.mistral.ai/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {mistral_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json=payload,
+                )
+                if resp.status_code == 200:
+                    text = resp.json()["choices"][0]["message"]["content"]
+                    # Extract JSON
+                    import re as _re
+                    start = text.find("{")
+                    end = text.rfind("}")
+                    if start >= 0 and end > start:
+                        analysis = json.loads(text[start:end+1])
+                    else:
+                        analysis = {"quality": 5, "has_product": True, "recommended": True}
+                else:
+                    analysis = {"quality": 5, "has_product": True, "recommended": True}
+                    logger.warning(f"Mistral vision error for {img['filename']}: {resp.status_code}")
+        except Exception as e:
+            analysis = {"quality": 5, "has_product": True, "recommended": True}
+            logger.warning(f"Mistral vision exception for {img['filename']}: {e}")
+        
+        analysis["_filename"] = img["filename"]
+        analysis["_url"] = img["url"]
+        analysis["_size"] = img["size"]
+        analyses.append(analysis)
+        logger.info(f"  Image {img['filename']}: recommended={analysis.get('recommended')}, quality={analysis.get('quality')}, subjects={analysis.get('subjects', [])[:3]}")
+    
+    # Score: recommended > has_product > quality > size
+    def _score(a):
+        s = 0
+        if a.get("recommended"): s += 50
+        if a.get("has_product"): s += 30
+        s += (a.get("quality", 5) / 10) * 15
+        if a.get("_size", 0) > 50000: s += 5
+        if a.get("text_on_image"): s -= 10
+        if a.get("background") == "messy": s -= 5
+        return s
+    
+    analyses.sort(key=_score, reverse=True)
+    
+    # Pick top 5 images that are recommended or score well
+    recommended = [a for a in analyses if a.get("recommended")]
+    fallback = [a for a in analyses if not a.get("recommended") and a.get("has_product")]
+    
+    selected = (recommended + fallback)[:5]
+    selected_urls = [a["_url"] for a in selected]
+    
+    if not selected_urls and analyses:
+        # Last resort — keep best quality ones
+        selected_urls = [a["_url"] for a in analyses[:3]]
+    
+    logger.info(f"  Selected {len(selected_urls)} best images for product {product_id}")
+    return selected_urls, analyses
 
 
 # ─── Error Rate Limiter ─────────────────────────────────────────────────────
@@ -382,8 +515,19 @@ class ProductEnricher:
             if product.sold_total > 0:
                 product.trending = (product.sold_week / product.sold_total) > 0.1
             
-            # Download product images to local storage
-            product.images = await _download_images_local(product.product_id, product.images)
+            # 1. Download ALL product images to local storage (no limit)
+            raw_images = await _download_images_local(product.product_id, product.images)
+            
+            # 2. Keep all raw image data for reference
+            all_photo_urls = [img["url"] for img in raw_images]
+            
+            # 3. Use Mistral Vision to analyze and select the best images
+            selected_urls, image_analyses = await _analyze_and_select_images(
+                product.product_id, raw_images
+            )
+            
+            # 4. Store both: all_downloaded + selected
+            product.images = selected_urls if selected_urls else all_photo_urls
             
             product.enriched = True
             return product
@@ -411,6 +555,7 @@ class ProductExporter:
                 "category": p.category, "keywords": p.keywords,
                 "images": p.images, "commission": f"{p.commission_rate}%",
                 "source": p.source, "seller_name": p.seller_name,
+                "image_count": len(p.images),
             })
         return {"tus_ready": True, "products": result, "count": len(result),
                 "timestamp": datetime.utcnow().isoformat()}

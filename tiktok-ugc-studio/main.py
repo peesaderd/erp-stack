@@ -3127,17 +3127,16 @@ async def tus_products(
                         p["url"] = f"https://shop.tiktok.com/view/product/{p['product_id']}"
                     if not p.get("link"):
                         p["link"] = p.get("url", "")
-                    # Fix image paths — convert relative /static/product_images/xxx to proxied URL
+                    # Fix image paths — normalize any old path format to /api/tiktok/static/...
                     if isinstance(p.get("images"), list):
                         fixed = []
                         for img in p["images"]:
-                            if img.startswith("/static/product_images/"):
-                                # Serve through TUS static mount (already has the files)
-                                fixed.append(f"/api/tiktok/ugc/static/product_images/{img.rsplit('/', 1)[-1]}")
-                            elif img.startswith("https://cdn-image.hdnet.workers.dev/"):
-                                # CDN images need proxy — use TUS image proxy endpoint
+                            if "/static/product_images/" in img:
                                 fname = img.rsplit('/', 1)[-1]
-                                fixed.append(f"/api/tiktok/ugc/image-proxy/{fname}?url={img}")
+                                fixed.append(f"/api/tiktok/static/product_images/{fname}")
+                            elif img.startswith("https://cdn-image.hdnet.workers.dev/"):
+                                fname = img.rsplit('/', 1)[-1]
+                                fixed.append(f"/api/tiktok/image-proxy/{fname}?url={img}")
                             else:
                                 fixed.append(img)
                         p["images"] = fixed

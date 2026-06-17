@@ -75,6 +75,21 @@ def fill_template(template: str, data: dict) -> str:
 
 # ─── Script Generators ─────────────────────────────────────────────────────
 
+def truncate_script_text(text: str, max_chars: int = 350) -> str:
+    """Truncate text to max_chars while preserving sentence boundaries."""
+    if len(text) <= max_chars:
+        return text
+    # Truncate at the last sentence boundary before max_chars
+    truncated = text[:max_chars]
+    last_period = truncated.rfind('.')
+    last_excl = truncated.rfind('!')
+    last_boundary = max(last_period, last_excl)
+    if last_boundary > max_chars * 0.7:  # Only use boundary if not too early
+        return text[:last_boundary + 1]
+    # No good boundary found; trim to fit '...' suffix
+    return truncated[:max(max_chars - 3, 0)] + "..."
+
+
 def generate_tiktok_review_script(
     product_name: str,
     customer_problem: str = "",
@@ -84,6 +99,7 @@ def generate_tiktok_review_script(
     cta: str = "",
     duration: str = "8s",
     extra_rules: str = "",
+    max_chars: int = 350,
 ) -> dict:
     """Generate a TikTok UGC review script using AiBot prompts"""
     # Load prompts
@@ -109,7 +125,7 @@ def generate_tiktok_review_script(
 
     user_prompt = fill_template(user_tpl, user_data)
 
-    # Try LLM with structured output instruction
+    # Try LLM with structured output instruction + length constraint
     structured_instruction = (
         "\n\n"
         "🚨 IMPORTANT — Return as JSON ONLY with these keys:\n"
@@ -124,7 +140,15 @@ def generate_tiktok_review_script(
         'prompt = full AI prompt สำหรับสร้างวิดีโอ\n'
         'mood = อารมณ์ เช่น "เป็นกันเอง, เชื่อถือได้"\n'
         'hashtags = คั่นด้วยช่องว่าง เช่น "#UGC #รีวิวสินค้า"\n'
-        "Return ONLY valid JSON, no markdown, no extra text."
+        "Return ONLY valid JSON, no markdown, no extra text.\n"
+        f"\n"
+        f"🚨 LENGTH CONSTRAINT: TOTAL hook + body + cta combined "
+        f"must be UNDER {max_chars} characters (including spaces).\n"
+        f"This is for TTS voiceover — shorter is better.\n"
+        f"Make every word count. Cut fluff. Use short punchy sentences.\n"
+        f"Priority: hook saved first, then CTA, then body gets shortened.\n"
+        f"If combined text would exceed {max_chars} chars, shorten body first, "
+        f"keep hook intact, keep CTA intact.\n"
     )
     raw = _call_llm(system, f"{master}\n\n{user_prompt}\n\n{structured_instruction}")
 
@@ -132,18 +156,41 @@ def generate_tiktok_review_script(
         try:
             import json as _json
             parsed = _json.loads(raw)
+
+            # Post-processing truncation to enforce max_chars on script parts
+            hook = parsed.get("hook", "")
+            body = parsed.get("body", "")
+            cta = parsed.get("cta", "")
+
+            # Priority: preserve hook and CTA; shrink body if over limit
+            combined = f"{hook} {body} {cta}"
+            if len(combined) > max_chars:
+                # Try shortening body first
+                overhead = len(combined) - max_chars
+                body_shortened = body[:-overhead] if len(body) > overhead else ""
+                # Refine to sentence boundary
+                if body_shortened:
+                    bp = max(body_shortened.rfind('.'), body_shortened.rfind('!'))
+                    if bp > 0:
+                        body_shortened = body_shortened[:bp + 1]
+                body = body_shortened
+                combined = f"{hook} {body} {cta}"
+                # If still over limit, use general truncation
+                if len(combined) > max_chars:
+                    combined = truncate_script_text(combined, max_chars)
+
             return {
                 "script": {
-                    "hook": parsed.get("hook", ""),
-                    "body": parsed.get("body", ""),
-                    "value_proposition": parsed.get("body", ""),
-                    "cta": parsed.get("cta", ""),
+                    "hook": hook,
+                    "body": body,
+                    "value_proposition": body,
+                    "cta": cta,
                 },
-                "hook": parsed.get("hook", ""),
-                "value_proposition": parsed.get("body", ""),
-                "value": parsed.get("body", ""),
-                "body": parsed.get("body", ""),
-                "cta": parsed.get("cta", ""),
+                "hook": hook,
+                "value_proposition": body,
+                "value": body,
+                "body": body,
+                "cta": cta,
                 "scene": parsed.get("scene", ""),
                 "voice": parsed.get("voice", ""),
                 "voice_style": parsed.get("voice", ""),

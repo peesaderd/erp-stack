@@ -313,7 +313,8 @@ Description: {description[:300]}
             tone=req.tone,
             cta=req.cta,
             duration=req.duration,
-            extra_rules=extra_context
+            extra_rules=extra_context,
+            max_chars=350,
         )
 
         # 3. Return combined result
@@ -1067,6 +1068,7 @@ def generate_script(req: ScriptRequest):
             cta=req.cta,
             duration=req.duration,
             extra_rules=req.extra_rules,
+            max_chars=350,
         )
         return result
     except Exception as e:
@@ -1569,6 +1571,7 @@ def generate_script_with_affiliate(req: AffiliateScriptRequest):
             cta=req.cta or "กดลิงก์ด้านล่าง",
             duration=req.duration,
             extra_rules=req.extra_rules,
+            max_chars=350,
         )
         # Build affiliate links for requested platforms
         affiliate_links = {}
@@ -2761,6 +2764,7 @@ async def tiktok_full_pipeline(req: TikTokUploadRequest):
         script_result = generate_tiktok_review_script(
             product_name=product_name,
             duration="8s",
+            max_chars=350,
         )
         script_text = script_result.get("script", "")
         pipeline_steps["script_gen"] = {"success": True, "length": len(script_text)}
@@ -3522,6 +3526,142 @@ def dashboard_track_event(req: TrackEventRequest):
     """Log a dashboard event for analytics."""
     logger.info(f"Dashboard event: {req.event} metadata={req.metadata}")
     return {"success": True, "event": req.event}
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Asset Library — List all generated assets
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@app.get("/pipeline/assets")
+def list_pipeline_assets():
+    """List all generated assets: product images, videos, BGM."""
+    import glob
+
+    storage = Path(__file__).parent / "storage"
+    images = []
+    videos = []
+
+    # Product images
+    prod_img_dir = storage / "product_images"
+    if prod_img_dir.exists():
+        for f in sorted(prod_img_dir.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True):
+            if f.is_file() and f.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp", ".gif"):
+                stat = f.stat()
+                images.append({
+                    "path": str(f.relative_to(storage)),
+                    "name": f.name,
+                    "url": f"/storage/{f.relative_to(storage)}",
+                    "size": stat.st_size,
+                    "created": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                })
+
+    # Generated images in storage/images/
+    img_dir = storage / "images"
+    if img_dir.exists():
+        for f in sorted(img_dir.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True):
+            if f.is_file() and f.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp", ".gif"):
+                stat = f.stat()
+                images.append({
+                    "path": str(f.relative_to(storage)),
+                    "name": f.name,
+                    "url": f"/storage/{f.relative_to(storage)}",
+                    "size": stat.st_size,
+                    "created": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                })
+
+    # Videos (storage/*.mp4, storage/videos/*)
+    for pattern in ["*.mp4", "*.mov", "*.webm", "*.gif"]:
+        for f in sorted(storage.glob(pattern), key=lambda p: p.stat().st_mtime, reverse=True):
+            if f.is_file():
+                stat = f.stat()
+                videos.append({
+                    "path": str(f.relative_to(storage)),
+                    "name": f.name,
+                    "url": f"/storage/{f.relative_to(storage)}",
+                    "size": stat.st_size,
+                    "created": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                })
+
+    # Also check storage/videos/
+    vid_dir = storage / "videos"
+    if vid_dir.exists():
+        for f in sorted(vid_dir.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True):
+            if f.is_file() and f.suffix.lower() in (".mp4", ".mov", ".webm", ".gif"):
+                # Avoid duplicates already found in root
+                rel = f.relative_to(storage)
+                if not any(v["path"] == str(rel) for v in videos):
+                    stat = f.stat()
+                    videos.append({
+                        "path": str(rel),
+                        "name": f.name,
+                        "url": f"/storage/{rel}",
+                        "size": stat.st_size,
+                        "created": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                    })
+
+    # Limit each category to 200 items
+    images = images[:200]
+    videos = videos[:200]
+
+    return {
+        "success": True,
+        "images": images,
+        "videos": videos,
+        "total_images": len(images),
+        "total_videos": len(videos),
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Pipeline Monitor — Detail / Retry / Cancel
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@app.get("/pipeline/detail/{job_id}")
+def pipeline_detail(job_id: str):
+    """Get full pipeline job with structured step details."""
+    job = _get_pipeline_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+    return {"success": True, "job": job}
+
+
+@app.post("/pipeline/{job_id}/retry")
+def pipeline_retry(job_id: str):
+    """Reset failed job steps and retry."""
+    conn = sqlite3.connect(PIPELINE_DB_PATH)
+    row = conn.execute(
+        "SELECT steps_data FROM pipeline_jobs WHERE job_id = ?", (job_id,)
+    ).fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(404, "Job not found")
+    steps = json.loads(row[0])
+    for k in steps:
+        if steps[k].get("status") == "error":
+            steps[k] = {"status": "pending"}
+    now = datetime.utcnow().isoformat()
+    conn.execute(
+        "UPDATE pipeline_jobs SET steps_data = ?, status = ?, updated_at = ? WHERE job_id = ?",
+        (json.dumps(steps), "restarted", now, job_id),
+    )
+    conn.commit()
+    conn.close()
+    return {"success": True, "message": "Job retry initiated"}
+
+
+@app.post("/pipeline/{job_id}/cancel")
+def pipeline_cancel(job_id: str):
+    """Cancel a running pipeline job."""
+    conn = sqlite3.connect(PIPELINE_DB_PATH)
+    conn.execute(
+        "UPDATE pipeline_jobs SET status = ?, updated_at = ? WHERE job_id = ? AND status = ?",
+        ("cancelled", datetime.utcnow().isoformat(), job_id, "running"),
+    )
+    conn.commit()
+    conn.close()
+    return {"success": True, "message": "Job cancelled"}
 
 
 # ═══════════════════════════════════════════════════════════════════════

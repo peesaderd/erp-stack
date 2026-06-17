@@ -19,38 +19,68 @@
    DESIGN SYSTEM — Untitled UI compatible
    ══════════════════════════════════════════ */
 :root {
+  /* ═══ Cyber Neon Design System ═══ */
   --font-body: "Inter", system-ui, -apple-system, sans-serif;
+  
   --color-white: #fff;
   --color-black: #000;
-  --color-neutral-50: #fafafa; --color-neutral-100: #f4f4f5; --color-neutral-200: #e4e4e7;
-  --color-neutral-300: #d4d4d8; --color-neutral-400: #a1a1aa; --color-neutral-500: #71717a;
-  --color-neutral-600: #52525b; --color-neutral-700: #3f3f46; --color-neutral-800: #27272a;
-  --color-neutral-900: #18181b; --color-neutral-950: #0a0a0b;
-  --color-brand-50: #f5f3ff; --color-brand-100: #ede9fe; --color-brand-200: #ddd6fe;
-  --color-brand-300: #c4b5fd; --color-brand-400: #a78bfa; --color-brand-500: #8b5cf6;
-  --color-brand-600: #7c3aed; --color-brand-700: #6d28d9; --color-brand-800: #5b21b6;
-  --color-brand-900: #4c1d95; --color-brand-950: #2e1065;
-  --color-red-50:#fef2f2;--color-red-100:#fee2e2;--color-red-400:#f87171;--color-red-500:#ef4444;--color-red-600:#dc2626;--color-red-950:#450a0a;
-  --color-green-50:#f0fdf4;--color-green-100:#dcfce7;--color-green-400:#4ade80;--color-green-500:#22c55e;--color-green-600:#16a34a;--color-green-950:#052e16;
-  --color-amber-50:#fffbeb;--color-amber-100:#fef3c7;--color-amber-400:#fbbf24;--color-amber-500:#f59e0b;--color-amber-600:#d97706;--color-amber-950:#451a03;
-  --color-blue-50:#eff6ff;--color-blue-400:#60a5fa;--color-blue-500:#3b82f6;--color-blue-600:#2563eb;--color-blue-950:#172554;
-  --bg-primary: #fff; --bg-secondary: #fafafa; --bg-tertiary: #f4f4f5;
-  --text-primary: #09090b; --text-secondary: #52525b; --text-tertiary: #a1a1aa;
-  --border-primary: #e4e4e7; --border-secondary: #f4f4f5;
-  --brand: #7c3aed; --brand-hover: #6d28d9;
+  
+  /* Neutral — dark by default (always-night mode) */
+  --color-neutral-50: #fafafa; --color-neutral-100: #f0f0f5; --color-neutral-200: #d0d0dd;
+  --color-neutral-300: #a0a0bb; --color-neutral-400: #7878a0; --color-neutral-500: #58587a;
+  --color-neutral-600: #3a3a5a; --color-neutral-700: #2a2a48; --color-neutral-800: #1e1e3a;
+  --color-neutral-900: #12122a; --color-neutral-950: #0a0a1a;
+
+  /* Neon Brand — Cyan + Purple */
+  --color-brand-50: #e8f8ff; --color-brand-100: #b0f0ff; --color-brand-200: #70e6ff;
+  --color-brand-300: #30dcff; --color-brand-400: #00d4ff; --color-brand-500: #00c0f0;
+  --color-brand-600: #00a0d0; --color-brand-700: #0080b0; --color-brand-800: #006090;
+  --color-brand-900: #004070; --color-brand-950: #002040;
+
+  --color-red-50:#ffebf0;--color-red-100:#ffc0d0;--color-red-400:#ff4080;--color-red-500:#ff0066;--color-red-600:#cc0055;--color-red-950:#330022;
+  --color-green-50:#e8fff0;--color-green-100:#b0ffd0;--color-green-400:#40ff90;--color-green-500:#00ff77;--color-green-600:#00cc55;--color-green-950:#003322;
+  --color-amber-50:#fff8e0;--color-amber-100:#ffeaa0;--color-amber-400:#ffcc40;--color-amber-500:#ffbb00;--color-amber-600:#cc9900;--color-amber-950:#332200;
+  --color-blue-50:#e0f0ff;--color-blue-400:#40a0ff;--color-blue-500:#0080ff;--color-blue-600:#0066cc;--color-blue-950:#002033;
+
+  /* Always dark — neon mode */
+  --bg-primary: #0a0a1a;
+  --bg-secondary: #12122a;
+  --bg-tertiary: #1a1a3e;
+  --bg-card: #151535;
+  --bg-card-hover: #202050;
+  --text-primary: #e8e8ff;
+  --text-secondary: #8888bb;
+  --text-tertiary: #555588;
+  --border-primary: rgba(0, 240, 255, 0.12);
+  --border-secondary: rgba(0, 240, 255, 0.06);
+  
+  --brand: #00d4ff;
+  --brand-hover: #00f0ff;
+  --accent-magenta: #ff00aa;
+  --accent-purple: #8844ff;
+  --accent-green: #00ff88;
+  --accent-yellow: #ffcc00;
+  
   --spacing: 0.25rem;
   --radius-sm: 0.375rem; --radius: 0.5rem; --radius-lg: 0.75rem; --radius-xl: 1rem;
-  --shadow-sm: 0 1px 2px rgba(0,0,0,.05); --shadow-md: 0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -2px rgba(0,0,0,.06);
-  --shadow-lg: 0 12px 16px -4px rgba(0,0,0,.08),0 4px 6px -2px rgba(0,0,0,.03);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.3); 
+  --shadow-md: 0 4px 12px rgba(0,0,0,.4),0 0 20px rgba(0,240,255,.08);
+  --shadow-lg: 0 12px 24px rgba(0,0,0,.5),0 0 40px rgba(0,240,255,.12);
+  --glow-cyan: 0 0 20px rgba(0, 240, 255, 0.3);
+  --glow-magenta: 0 0 20px rgba(255, 0, 170, 0.3);
 }
 
+/* Remove light mode entirely — always neon dark */
 .dark-mode {
-  --bg-primary: #0a0a0b; --bg-secondary: #18181b; --bg-tertiary: #27272a;
-  --text-primary: #fafafa; --text-secondary: #a1a1aa; --text-tertiary: #52525b;
-  --border-primary: #27272a; --border-secondary: #18181b;
-  --brand: #8b5cf6; --brand-hover: #a78bfa;
-  --shadow-sm: 0 1px 2px rgba(0,0,0,.2); --shadow-md: 0 4px 6px -1px rgba(0,0,0,.3);
-  --shadow-lg: 0 12px 16px -4px rgba(0,0,0,.25);
+  /* Same as root — identity mapping for .dark-mode class compatibility */
+  --bg-primary: #0a0a1a; --bg-secondary: #12122a; --bg-tertiary: #1a1a3e;
+  --bg-card: #151535; --bg-card-hover: #202050;
+  --text-primary: #e8e8ff; --text-secondary: #8888bb; --text-tertiary: #555588;
+  --border-primary: rgba(0, 240, 255, 0.12); --border-secondary: rgba(0, 240, 255, 0.06);
+  --brand: #00d4ff; --brand-hover: #00f0ff;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.3);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.4),0 0 20px rgba(0,240,255,.08);
+  --shadow-lg: 0 12px 24px rgba(0,0,0,.5),0 0 40px rgba(0,240,255,.12);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -64,11 +94,12 @@ body {
 .app { display: flex; flex-direction: column; height: 100vh; }
 .topbar {
   display: flex; align-items: center; gap: 12px; height: 56px; padding: 0 20px;
-  border-bottom: 1px solid var(--border-primary); background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-primary);
+  background: rgba(10,10,26,.92); backdrop-filter: blur(12px);
   flex-shrink: 0; position: sticky; top: 0; z-index: 40;
 }
 .topbar-brand { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
-.topbar-brand span { background: linear-gradient(135deg, var(--color-brand-500), var(--color-brand-300)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.topbar-brand span { background: linear-gradient(135deg, #00f0ff, #8844ff, #ff00aa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 .topbar-nav { display: flex; gap: 2px; flex: 1; margin: 0 16px; overflow-x: auto; scrollbar-width: none; }
 .topbar-nav::-webkit-scrollbar { display: none; }
 .topbar-nav button {
@@ -77,13 +108,25 @@ body {
   cursor: pointer; white-space: nowrap; transition: all .15s;
 }
 .topbar-nav button:hover { background: var(--bg-tertiary); color: var(--text-primary); }
-.topbar-nav button.active { background: rgba(124,58,237,.12); color: var(--brand); }
-.dark-mode .topbar-nav button.active { background: rgba(139,92,246,.15); }
+.topbar-nav button.active { background: rgba(0,212,255,.12); color: var(--brand); }
 .topbar-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .status-dot.online { background: var(--color-green-500); }
 .status-dot.offline { background: var(--color-red-500); }
 .main { flex: 1; overflow-y: auto; padding: 0; }
+
+/* Custom Neon Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,240,255,.2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,240,255,.4); }
+* { scrollbar-width: thin; scrollbar-color: rgba(0,240,255,.2) transparent; }
+
+/* Glow pulse animation */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 8px rgba(0,240,255,.2); }
+  50% { box-shadow: 0 0 20px rgba(0,240,255,.4), 0 0 40px rgba(0,240,255,.1); }
+}
 
 /* ═══ Components ═══ */
 .page { display: none; padding: 20px 24px; max-width: 1280px; margin: 0 auto; width: 100%; }
@@ -103,57 +146,102 @@ body {
 .stat-card .stat-value { font-size: 28px; font-weight: 700; line-height: 1.2; }
 .stat-card .stat-label { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
 
-/* Buttons */
+/* Buttons — Neon Cyber */
 .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; font-size: 13px; font-weight: 500;
-  border-radius: var(--radius); border: 1px solid transparent; cursor: pointer; transition: all .15s; white-space: nowrap; }
+  border-radius: var(--radius); border: 1px solid transparent; cursor: pointer; transition: all .2s; white-space: nowrap; }
 .btn-sm { padding: 5px 10px; font-size: 12px; }
-.btn-primary { background: var(--brand); color: #fff; border-color: var(--brand); }
-.btn-primary:hover { background: var(--brand-hover); }
-.btn-secondary { background: transparent; color: var(--text-primary); border-color: var(--border-primary); }
-.btn-secondary:hover { background: var(--bg-tertiary); }
+.btn-primary {
+  background: linear-gradient(135deg, var(--brand), var(--accent-purple));
+  color: #fff; border-color: transparent;
+  box-shadow: 0 0 12px rgba(0,212,255,.3);
+}
+.btn-primary:hover {
+  background: linear-gradient(135deg, var(--brand-hover), var(--accent-purple));
+  box-shadow: 0 0 20px rgba(0,240,255,.5);
+  transform: translateY(-1px);
+}
+.btn-secondary {
+  background: transparent; color: var(--text-primary);
+  border-color: rgba(0,240,255,.25);
+}
+.btn-secondary:hover {
+  background: rgba(0,240,255,.08);
+  border-color: var(--brand);
+  box-shadow: var(--glow-cyan);
+}
 .btn-ghost { background: transparent; color: var(--text-secondary); border-color: transparent; }
-.btn-ghost:hover { background: var(--bg-tertiary); color: var(--text-primary); }
-.btn-danger { background: var(--color-red-50); color: var(--color-red-600); border-color: transparent; }
-.dark-mode .btn-danger { background: rgba(239,68,68,.1); color: var(--color-red-400); }
-.btn-danger:hover { background: var(--color-red-100); }
+.btn-ghost:hover { background: rgba(0,240,255,.05); color: var(--brand); }
+.btn-danger { background: rgba(255,0,102,.1); color: var(--color-red-400); border: 1px solid rgba(255,0,102,.2); }
+.btn-danger:hover { background: rgba(255,0,102,.2); box-shadow: 0 0 12px rgba(255,0,102,.3); }
 .btn-icon { padding: 6px; min-width: 32px; justify-content: center; }
 
-/* Inputs */
+/* Inputs — Neon */
 .input { width: 100%; padding: 8px 12px; font-size: 13px; border: 1px solid var(--border-primary);
-  border-radius: var(--radius); background: var(--bg-primary); color: var(--text-primary);
-  outline: none; transition: border-color .15s;
+  border-radius: var(--radius); background: var(--bg-tertiary); color: var(--text-primary);
+  outline: none; transition: all .2s;
 }
-.input:focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(124,58,237,.1); }
-.dark-mode .input:focus { box-shadow: 0 0 0 3px rgba(139,92,246,.15); }
+.input:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(0,212,255,.15), 0 0 12px rgba(0,212,255,.1);
+}
 textarea.input { resize: vertical; min-height: 80px; }
 select.input { cursor: pointer; }
 
-/* Badges */
-.badge { display: inline-flex; align-items: center; padding: 2px 8px; font-size: 11px; font-weight: 500;
-  border-radius: 9999px; white-space: nowrap; }
-.badge-green { background: var(--color-green-50); color: var(--color-green-600); }
-.badge-amber { background: var(--color-amber-50); color: var(--color-amber-600); }
-.badge-red { background: var(--color-red-50); color: var(--color-red-600); }
-.badge-gray { background: var(--bg-tertiary); color: var(--text-secondary); }
-.badge-indigo { background: rgba(124,58,237,.1); color: var(--brand); }
-.dark-mode .badge-green { background: rgba(34,197,94,.1); color: var(--color-green-400); }
-.dark-mode .badge-amber { background: rgba(245,158,11,.1); color: var(--color-amber-400); }
-.dark-mode .badge-red { background: rgba(239,68,68,.1); color: var(--color-red-400); }
+/* Badges — Neon Pills */
+.badge { display: inline-flex; align-items: center; padding: 3px 10px; font-size: 11px; font-weight: 600;
+  border-radius: 9999px; white-space: nowrap; letter-spacing: .02em; }
+.badge-green { background: rgba(0,255,119,.12); color: var(--accent-green); box-shadow: 0 0 6px rgba(0,255,119,.15); }
+.badge-amber { background: rgba(255,187,0,.12); color: var(--accent-yellow); box-shadow: 0 0 6px rgba(255,187,0,.12); }
+.badge-red { background: rgba(255,0,102,.12); color: var(--color-red-400); box-shadow: 0 0 6px rgba(255,0,102,.12); }
+.badge-gray { background: rgba(136,136,187,.1); color: var(--text-secondary); }
+.badge-indigo { background: rgba(0,212,255,.1); color: var(--brand); box-shadow: 0 0 6px rgba(0,212,255,.15); }
 
 /* Table */
-.table-wrap { overflow-x: auto; border: 1px solid var(--border-primary); border-radius: var(--radius-xl); background: var(--bg-secondary); }
+.table-wrap { overflow-x: auto; border: 1px solid var(--border-primary); border-radius: var(--radius-xl); background: var(--bg-card); }
 .table-wrap table { width: 100%; border-collapse: collapse; }
 .table-wrap th { padding: 10px 16px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase;
-  letter-spacing: .05em; color: var(--text-secondary); border-bottom: 1px solid var(--border-primary); background: var(--bg-secondary); }
-.table-wrap td { padding: 10px 16px; font-size: 13px; border-bottom: 1px solid var(--border-secondary); }
+  letter-spacing: .05em; color: var(--text-secondary); border-bottom: 1px solid var(--border-primary); background: rgba(0,0,0,.2); }
+.table-wrap td { padding: 10px 16px; font-size: 13px; border-bottom: 1px solid rgba(0,240,255,.06); }
+.table-wrap tr:hover td { background: rgba(0,240,255,.03); }
 .table-wrap tr:last-child td { border-bottom: none; }
+
+/* Asset Library */
+.asset-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; }
+.asset-card { border-radius:var(--radius-lg); overflow:hidden; background:var(--bg-card); border:1px solid var(--border-primary); transition:all .2s; }
+.asset-card:hover { transform:translateY(-2px); border-color:var(--brand); box-shadow:0 4px 20px rgba(0,0,0,.4), 0 0 15px rgba(0,240,255,.1); }
+.asset-thumb { position:relative; aspect-ratio:1; overflow:hidden; background:#0a0a1a; display:flex; align-items:center; justify-content:center; }
+.asset-thumb img { width:100%; height:100%; object-fit:cover; }
+.asset-info { padding:8px 10px; }
+.asset-name { font-size:12px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.asset-meta { font-size:10px; color:var(--text-secondary); margin-top:2px; }
+.asset-type-badge { position:absolute; top:6px; right:6px; background:rgba(0,0,0,.6); backdrop-filter:blur(4px); border-radius:4px; padding:2px 6px; font-size:12px; color:#fff; }
+.asset-play-overlay { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.4); font-size:40px; opacity:0; transition:opacity .2s; }
+.asset-card:hover .asset-play-overlay { opacity:1; }
+.filter-tabs { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+.filter-tab { padding:6px 16px; border-radius:20px; cursor:pointer; font-size:13px; background:var(--bg-card); border:1px solid var(--border-primary); color:var(--text-secondary); transition:all .2s; }
+.filter-tab:hover { border-color:var(--brand); color:var(--brand); }
+.filter-tab.active { background:rgba(0,212,255,.12); border-color:var(--brand); color:var(--brand); }
+
+/* Pipeline Timeline */
+.timeline { position:relative; padding-left:28px; }
+.timeline::before { content:''; position:absolute; left:11px; top:8px; bottom:8px; width:2px; background:rgba(0,240,255,.15); }
+.timeline-item { position:relative; margin-bottom:20px; }
+.timeline-dot { position:absolute; left:-24px; top:4px; width:18px; height:18px; border-radius:50%; border:2px solid var(--border-primary); background:var(--bg-primary); display:flex; align-items:center; justify-content:center; font-size:9px; }
+.timeline-dot.done { border-color:var(--accent-green); background:rgba(0,255,119,.1); box-shadow:0 0 8px rgba(0,255,119,.2); }
+.timeline-dot.processing { border-color:var(--brand); background:rgba(0,212,255,.1); animation:pulse-glow 2s infinite; }
+.timeline-dot.error { border-color:var(--color-red-400); background:rgba(255,0,102,.1); }
+.timeline-dot.pending { border-color:var(--text-tertiary); }
+.timeline-body { background:var(--bg-card); border:1px solid var(--border-primary); border-radius:var(--radius-lg); padding:12px 16px; transition:all .2s; }
+.timeline-body:hover { border-color:rgba(0,240,255,.2); }
+.timeline-title { font-size:13px; font-weight:600; display:flex; align-items:center; gap:8px; }
+.timeline-detail { font-size:11px; color:var(--text-secondary); margin-top:4px; word-break:break-all; }
 
 /* Tabs */
 .tab-bar { display: flex; gap: 0; border-bottom: 1px solid var(--border-primary); margin-bottom: 16px; }
 .tab-bar button { padding: 10px 16px; font-size: 13px; font-weight: 500; border: none; background: transparent;
   color: var(--text-secondary); cursor: pointer; border-bottom: 2px solid transparent; transition: all .15s; }
 .tab-bar button:hover { color: var(--text-primary); }
-.tab-bar button.active { color: var(--brand); border-bottom-color: var(--brand); }
+.tab-bar button.active { color: var(--brand); border-bottom-color: var(--brand); box-shadow: 0 -1px 8px rgba(0,212,255,.15); }
 .tab-bar button .tab-count { margin-left: 6px; padding: 1px 7px; font-size: 11px; border-radius: 9999px; background: var(--bg-tertiary); }
 
 /* Grid layouts */
@@ -179,14 +267,13 @@ select.input { cursor: pointer; }
 .pipeline-steps { display: flex; gap: 4px; flex-wrap: wrap; }
 .pipeline-step { display: flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: var(--radius-sm);
   font-size: 11px; font-weight: 500; }
-.pipeline-step.done { background: var(--color-green-50); color: var(--color-green-600); }
-.pipeline-step.processing { background: var(--color-blue-50); color: var(--color-blue-600); }
-.pipeline-step.pending { background: var(--bg-tertiary); color: var(--text-tertiary); }
-.pipeline-step.failed { background: var(--color-red-50); color: var(--color-red-600); }
-.dark-mode .pipeline-step.done { background: rgba(34,197,94,.1); color: var(--color-green-400); }
-.dark-mode .pipeline-step.processing { background: rgba(59,130,246,.1); color: var(--color-blue-400); }
-.dark-mode .pipeline-step.pending { background: var(--bg-tertiary); color: var(--text-tertiary); }
-.dark-mode .pipeline-step.failed { background: rgba(239,68,68,.1); color: var(--color-red-400); }
+.pipeline-step.done { background: rgba(0,255,119,.1); color: var(--accent-green); }
+.pipeline-step.processing {
+  background: rgba(0,212,255,.1); color: var(--brand);
+  animation: pulse-glow 2s infinite;
+}
+.pipeline-step.pending { background: rgba(136,136,187,.08); color: var(--text-tertiary); }
+.pipeline-step.failed { background: rgba(255,0,102,.1); color: var(--color-red-400); }
 
 /* Account list */
 .account-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border-secondary); }
@@ -194,21 +281,23 @@ select.input { cursor: pointer; }
 .avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
   font-size: 14px; font-weight: 600; color: #fff; flex-shrink: 0; }
 
-/* Modal */
-.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 50;
-  align-items: center; justify-content: center; padding: 20px; }
+/* Modal — Glass morphism */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 50;
+  align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(4px); }
 .modal-overlay.open { display: flex; }
-.modal { background: var(--bg-secondary); border: 1px solid var(--border-primary); border-radius: var(--radius-xl);
-  padding: 24px; max-width: 400px; width: 100%; max-height: 90vh; overflow-y: auto; }
+.modal { background: rgba(21,21,53,.95); backdrop-filter: blur(16px);
+  border: 1px solid var(--border-primary); border-radius: var(--radius-xl);
+  padding: 24px; max-width: 400px; width: 100%; max-height: 90vh; overflow-y: auto;
+  box-shadow: var(--shadow-lg); }
 .modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
 .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
 
-/* Toast */
+/* Toast — Neon */
 .toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 20px; border-radius: var(--radius);
   font-size: 13px; font-weight: 500; z-index: 100; animation: slideUp .3s ease; max-width: 360px; }
-.toast.success { background: var(--color-green-600); color: #fff; }
-.toast.error { background: var(--color-red-600); color: #fff; }
-.toast.info { background: var(--brand); color: #fff; }
+.toast.success { background: rgba(0,255,119,.15); color: var(--accent-green); border: 1px solid rgba(0,255,119,.3); backdrop-filter: blur(8px); }
+.toast.error { background: rgba(255,0,102,.15); color: var(--color-red-400); border: 1px solid rgba(255,0,102,.3); backdrop-filter: blur(8px); }
+.toast.info { background: rgba(0,212,255,.15); color: var(--brand); border: 1px solid rgba(0,212,255,.3); backdrop-filter: blur(8px); }
 @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
 /* Skeleton */
@@ -371,6 +460,273 @@ select.input { cursor: pointer; }
 .product-card-footer .btn { font-size: 12px; }
 .product-card-platform { font-size: 11px; padding: 2px 6px; border-radius: 4px; background: var(--bg-tertiary); color: var(--text-secondary); }
 
+/* ═══ Asset Library ═══ */
+.asset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+.asset-card {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  cursor: pointer;
+  transition: transform .2s, box-shadow .2s;
+}
+.asset-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+.asset-thumb {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: var(--bg-tertiary);
+}
+.asset-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.asset-thumb video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.asset-info {
+  padding: 8px 10px;
+}
+.asset-name {
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.asset-meta {
+  font-size: 10px;
+  color: var(--text-secondary);
+  margin-top: 3px;
+}
+.asset-type-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(0,0,0,.55);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #fff;
+}
+.asset-play-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,.25);
+  font-size: 36px;
+  transition: background .2s;
+}
+.asset-card:hover .asset-play-overlay {
+  background: rgba(0,0,0,.4);
+}
+.filter-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.filter-tab {
+  padding: 6px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  color: var(--text-secondary);
+  transition: all .15s;
+}
+.filter-tab:hover {
+  color: var(--text-primary);
+  border-color: var(--color-brand-500);
+}
+.filter-tab.active {
+  background: var(--color-brand-600);
+  border-color: var(--color-brand-500);
+  color: #fff;
+}
+.asset-empty {
+  grid-column: 1 / -1;
+  padding: 48px 20px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+.asset-empty .icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+.asset-empty .msg {
+  font-size: 15px;
+  margin-bottom: 6px;
+}
+.asset-empty .hint {
+  font-size: 12px;
+}
+
+/* ═══ Pipeline Monitor ═══ */
+.pipeline-job-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: background .15s;
+}
+.pipeline-job-card:hover {
+  background: var(--bg-tertiary);
+}
+.pipeline-job-card .job-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+.pipeline-job-card .job-info .job-id {
+  font-weight: 600;
+  font-size: 14px;
+}
+.pipeline-job-card .job-info .job-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.pipeline-job-card .job-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+
+/* Timeline */
+.timeline {
+  position: relative;
+  padding-left: 32px;
+}
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 14px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: var(--border-primary);
+  border-radius: 2px;
+}
+.timeline-item {
+  position: relative;
+  padding: 0 0 20px 16px;
+}
+.timeline-item:last-child {
+  padding-bottom: 0;
+}
+.timeline-dot {
+  position: absolute;
+  left: -22px;
+  top: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--border-primary);
+  background: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  z-index: 1;
+}
+.timeline-dot.success {
+  border-color: var(--color-green-500);
+  background: var(--color-green-500);
+  color: #fff;
+}
+.timeline-dot.error {
+  border-color: var(--color-red-500);
+  background: var(--color-red-500);
+  color: #fff;
+}
+.timeline-dot.processing {
+  border-color: var(--color-blue-500);
+  background: var(--color-blue-500);
+  color: #fff;
+  animation: pulse-dot 1.5s infinite;
+}
+.timeline-dot.pending {
+  border-color: var(--border-primary);
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
+}
+.timeline-dot.cancelled {
+  border-color: var(--text-tertiary);
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
+}
+@keyframes pulse-dot {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,.4); }
+  50% { box-shadow: 0 0 0 6px rgba(59,130,246,0); }
+}
+.timeline-body {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+}
+.timeline-body .step-name {
+  font-weight: 600;
+  font-size: 13px;
+}
+.timeline-body .step-details {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+.timeline-body .step-details .detail-row {
+  display: flex;
+  gap: 6px;
+  padding: 2px 0;
+}
+.timeline-body .step-details .detail-label {
+  color: var(--text-tertiary);
+  min-width: 60px;
+}
+.pd-asset-thumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  font-size: 12px;
+  margin-top: 4px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.pd-asset-thumb:hover {
+  background: var(--bg-tertiary);
+}
+
 </style>
 </head>
 <body>
@@ -385,6 +741,7 @@ select.input { cursor: pointer; }
     <button data-tab="products" onclick="switchTab('products')">🎯 Products</button>
     <button data-tab="content" onclick="switchTab('content')">🎬 Content</button>
     <button data-tab="pipeline" onclick="switchTab('pipeline')">📦 Pipeline</button>
+    <button data-tab="assets" onclick="switchTab('assets')">🖼️ Assets</button>
     <button data-tab="scheduled" onclick="switchTab('scheduled')">📅 Scheduled</button>
     <button data-tab="social" onclick="switchTab('social')">📊 Social</button>
     <button data-tab="accounts" onclick="switchTab('accounts')">📱 Accounts</button>
@@ -409,6 +766,7 @@ select.input { cursor: pointer; }
     <button data-tab="products" onclick="switchTab('products');toggleSideNav()">🎯 Products</button>
     <button data-tab="content" onclick="switchTab('content');toggleSideNav()">🎬 Content</button>
     <button data-tab="pipeline" onclick="switchTab('pipeline');toggleSideNav()">📦 Pipeline</button>
+    <button data-tab="assets" onclick="switchTab('assets');toggleSideNav()">🖼️ Assets</button>
     <button data-tab="scheduled" onclick="switchTab('scheduled');toggleSideNav()">📅 Scheduled</button>
     <button data-tab="social" onclick="switchTab('social');toggleSideNav()">📊 Social</button>
     <button data-tab="accounts" onclick="switchTab('accounts');toggleSideNav()">📱 Accounts</button>
@@ -765,10 +1123,62 @@ select.input { cursor: pointer; }
 
 <!-- ═══ Pipeline ═══ -->
 <div id="page-pipeline" class="page">
-  <div class="page-header"><div><h2>Pipeline</h2><p>ติดตามสถานะงานวิดีโอ</p></div>
-    <button class="btn btn-secondary btn-sm" onclick="loadPipeline()">⟳ Refresh</button>
+  <div class="page-header">
+    <div><h2>📦 Pipeline Monitor</h2><p>ติดตามสถานะและจัดการงานทั้งหมด</p></div>
+    <div class="flex gap-2">
+      <select id="pipelineFilter" class="input" style="width:auto;padding:6px 10px;font-size:13px" onchange="loadPipelineJobs()">
+        <option value="all">All Jobs</option>
+        <option value="running">⏳ Running</option>
+        <option value="completed">✅ Completed</option>
+        <option value="pending">⏸ Pending</option>
+        <option value="error">❌ Failed</option>
+        <option value="cancelled">🚫 Cancelled</option>
+        <option value="restarted">🔄 Restarted</option>
+      </select>
+      <button class="btn btn-secondary btn-sm" onclick="loadPipelineJobs()">⟳ Refresh</button>
+      <button class="btn btn-ghost btn-sm" onclick="loadAssetLibrary()">🖼 Assets</button>
+    </div>
   </div>
-  <div id="pipelineList"></div>
+  <div id="pipelineJobList"><div class="text-sm text-secondary" style="text-align:center;padding:32px">Loading...</div></div>
+</div>
+
+<!-- Pipeline Detail Modal -->
+<div class="modal-overlay" id="pipelineDetailModal" style="z-index:100">
+  <div class="modal" style="max-width:800px;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div>
+        <h3 style="margin:0">📦 <span id="pdJobId">—</span></h3>
+        <span id="pdStatusBadge" class="badge"></span>
+        <span class="text-xs text-secondary ml-2" id="pdCreatedAt"></span>
+      </div>
+      <div class="flex gap-2">
+        <button class="btn btn-primary btn-sm" id="pdRetryBtn" onclick="retryJob(currentDetailJobId)" style="display:none">🔄 Retry</button>
+        <button class="btn btn-danger btn-sm" id="pdCancelBtn" onclick="cancelJobFromDetail(currentDetailJobId)" style="display:none">✖ Cancel</button>
+        <button class="btn btn-ghost btn-sm" onclick="closePipelineDetail()">✕</button>
+      </div>
+    </div>
+    <div id="pdAccountInfo" class="text-sm text-secondary mb-3"></div>
+    <div id="pdTimeline"></div>
+    <div id="pdAssets" style="margin-top:16px"></div>
+  </div>
+</div>
+
+<!-- Asset Library Modal -->
+<div class="modal-overlay" id="assetLibraryModal" style="z-index:100">
+  <div class="modal" style="max-width:900px;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3 style="margin:0">🖼 Asset Library</h3>
+      <div class="flex gap-2">
+        <select id="assetFilter" class="input" style="width:auto;padding:6px 10px;font-size:13px" onchange="loadAssetLibrary()">
+          <option value="all">All</option>
+          <option value="images">Images</option>
+          <option value="videos">Videos</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="closeAssetLibrary()">✕</button>
+      </div>
+    </div>
+    <div id="assetLibraryGrid"></div>
+  </div>
 </div>
 
 <!-- ═══ Scheduled ═══ -->
@@ -864,6 +1274,49 @@ select.input { cursor: pointer; }
   </div>
 </div>
 
+
+<!-- ═══ Asset Library ═══ -->
+<div id="page-assets" class="page">
+  <div class="page-header">
+    <div><h2>🖼️ Asset Library</h2><p>Browse generated images, videos, and audio assets</p></div>
+    <div class="flex gap-2">
+      <button class="btn btn-primary btn-sm" onclick="loadAssets(currentAssetFilter)">🔄 Refresh</button>
+    </div>
+  </div>
+
+  <!-- Stats row -->
+  <div class="stats-grid mb-4" id="assetStats">
+    <div class="stat-card"><div class="stat-value" id="assetImgCount">-</div><div class="stat-label">Images</div></div>
+    <div class="stat-card"><div class="stat-value" id="assetVidCount">-</div><div class="stat-label">Videos</div></div>
+    <div class="stat-card"><div class="stat-value" id="assetTotalCount">-</div><div class="stat-label">Total Assets</div></div>
+  </div>
+
+  <!-- Filter tabs -->
+  <div class="filter-tabs" id="assetFilterTabs">
+    <span class="filter-tab active" data-asset-type="all" onclick="filterAssets('all')">All</span>
+    <span class="filter-tab" data-asset-type="images" onclick="filterAssets('images')">📷 Images</span>
+    <span class="filter-tab" data-asset-type="videos" onclick="filterAssets('videos')">🎬 Videos</span>
+  </div>
+
+  <!-- Gallery grid -->
+  <div id="assetGallery" class="asset-grid">
+    <div class="skeleton skeleton-line"></div>
+    <div class="skeleton skeleton-line"></div>
+    <div class="skeleton skeleton-line"></div>
+    <div class="skeleton skeleton-line"></div>
+  </div>
+</div>
+
+<!-- ═══ Lightbox Modal ═══ -->
+<div class="modal-overlay" id="assetLightbox" style="background:rgba(0,0,0,.92);z-index:1000" onclick="closeAssetLightbox(event)">
+  <button class="btn btn-ghost" style="position:absolute;top:20px;right:20px;font-size:28px;color:#fff;background:rgba(255,255,255,.1);border:none;border-radius:50%;width:44px;height:44px;cursor:pointer;z-index:10;display:flex;align-items:center;justify-content:center" onclick="closeAssetLightbox()">✕</button>
+  <button id="lightboxPrev" class="btn btn-ghost" style="position:absolute;left:20px;top:50%;transform:translateY(-50%);font-size:32px;color:#fff;background:rgba(255,255,255,.1);border:none;border-radius:50%;width:48px;height:48px;cursor:pointer;z-index:10;display:none;align-items:center;justify-content:center" onclick="navigateLightbox(-1)">‹</button>
+  <button id="lightboxNext" class="btn btn-ghost" style="position:absolute;right:20px;top:50%;transform:translateY(-50%);font-size:32px;color:#fff;background:rgba(255,255,255,.1);border:none;border-radius:50%;width:48px;height:48px;cursor:pointer;z-index:10;display:none;align-items:center;justify-content:center" onclick="navigateLightbox(1)">›</button>
+  <div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;padding:60px">
+    <div id="lightboxContent" style="max-width:90vw;max-height:85vh;border-radius:var(--radius-xl);overflow:hidden"></div>
+  </div>
+  <div style="position:absolute;bottom:20px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,.7);font-size:13px;text-align:center" id="lightboxCaption"></div>
+</div>
 
 <!-- ═══ Social ═══ -->
 <div id="page-social" class="page">
@@ -966,7 +1419,8 @@ function switchTab(name) {
   document.getElementById('page-'+name)?.classList.add('active');
   document.querySelectorAll(`[data-tab="${name}"]`).forEach(b => b.classList.add('active'));
   if (name === 'dashboard') loadDashboard();
-  if (name === 'pipeline') loadPipeline();
+  if (name === 'pipeline') loadPipelineJobs();
+  if (name === 'assets') loadAssets();
   if (name === 'accounts') loadAccounts();
   if (name === 'history') loadHistory();
   if (name === 'scheduled') loadScheduledPosts();
@@ -1359,36 +1813,265 @@ async function startGeneration() {
 }
 
 /* ═══ Pipeline ═══ */
-async function loadPipeline() {
-  const el = document.getElementById('pipelineList');
+/* ═══ Pipeline Monitor ═══ */
+let currentDetailJobId = '';
+
+function statusBadgeClass(status) {
+  const map = { 'completed': 'badge-green', 'running': 'badge-blue', 'pending': 'badge', 'error': 'badge-red', 'cancelled': 'badge', 'restarted': 'badge-yellow' };
+  return map[status] || 'badge';
+}
+
+function statusIcon(status) {
+  const map = { 'completed': '✅', 'running': '⏳', 'pending': '⏸', 'error': '❌', 'cancelled': '🚫', 'restarted': '🔄' };
+  return map[status] || '❓';
+}
+
+function stepStatusIcon(status) {
+  const map = { 'success': '✅', 'processing': '⏳', 'pending': '⏸', 'error': '❌' };
+  return map[status] || '❓';
+}
+
+async function loadPipelineJobs() {
+  const el = document.getElementById('pipelineJobList');
+  const filter = document.getElementById('pipelineFilter')?.value || 'all';
   el.innerHTML = '<div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line"></div>';
   try {
-    const res = await fetch(API + '/video/completed');
+    const res = await fetch(API + '/pipeline/list?limit=100');
     if (!res.ok) throw new Error('Failed');
     const data = await res.json();
-    const jobs = data.jobs || [];
-    if (!jobs.length) { el.innerHTML = '<div class="text-sm text-secondary" style="text-align:center;padding:32px">ยังไม่มีวิดีโอที่สร้างเสร็จ</div>'; return; }
-
+    let jobs = data.jobs || [];
+    if (filter !== 'all') {
+      jobs = jobs.filter(j => j.status === filter);
+    }
+    if (!jobs.length) {
+      el.innerHTML = '<div class="text-sm text-secondary" style="text-align:center;padding:32px">📭 ไม่มีงานที่ตรงกับเงื่อนไข</div>';
+      return;
+    }
     el.innerHTML = jobs.map(j => {
-      const label = j.product_name || 'สินค้า';
-      const styleLabel = j.style || '';
-      const dur = j.duration || 8;
-      const cost = j.cost || '?';
-      return `<div class="pipeline-card">
-        <div class="pipeline-header"><div><strong>${j.job_id}</strong><span class="text-xs text-secondary ml-auto">${label}</span></div></div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">
-          <span class="badge badge-green">✅ Generate</span>
-          <span class="badge badge-indigo">${styleLabel}</span>
-          <span class="text-xs" style="color:var(--text-tertiary)">⏱ ${dur} วิ</span>
-          <span class="text-xs" style="color:var(--text-tertiary)">💰 ~$${cost}</span>
+      const badgeCls = statusBadgeClass(j.status);
+      const icon = statusIcon(j.status);
+      const timeAgo = timeSince(j.created_at);
+      const account = j.account_id || '—';
+      return `<div class="pipeline-job-card">
+        <div class="job-info">
+          <div class="job-id">${icon} ${j.job_id}</div>
+          <div class="job-meta">
+            <span class="badge ${badgeCls}">${j.status}</span>
+            <span>👤 ${account}</span>
+            <span>📦 ${j.product_url ? j.product_url.slice(0, 40) : '—'}</span>
+            <span>🕐 ${timeAgo}</span>
+          </div>
         </div>
-        <div style="display:flex;gap:6px;margin-top:8px">
-          <button class="btn btn-sm" onclick="window.open('${j.video_url}','_blank')">🎬 ดูวิดีโอ</button>
-          <button class="btn btn-primary btn-sm" onclick="openPostModal('${j.job_id}','${j.video_url}')">🚀 Post to TikTok</button>
+        <div class="job-actions">
+          <button class="btn btn-ghost btn-sm" onclick="loadPipelineDetail('${j.job_id}')">🔍 Details</button>
+          ${j.status === 'error' || j.status === 'restarted' ? `<button class="btn btn-sm" onclick="retryJob('${j.job_id}')">🔄 Retry</button>` : ''}
+          ${j.status === 'running' || j.status === 'pending' ? `<button class="btn btn-sm" style="color:var(--color-red-500)" onclick="cancelJobFromList('${j.job_id}')">✖</button>` : ''}
         </div>
       </div>`;
     }).join('');
-  } catch(e) { el.innerHTML = '<div class="text-sm text-secondary" style="text-align:center;padding:16px">Failed: ' + e.message + '</div>'; }
+  } catch(e) {
+    el.innerHTML = '<div class="text-sm text-secondary" style="text-align:center;padding:16px">Failed: ' + e.message + '</div>';
+  }
+}
+
+async function loadPipelineDetail(jobId) {
+  currentDetailJobId = jobId;
+  const modal = document.getElementById('pipelineDetailModal');
+  const idEl = document.getElementById('pdJobId');
+  const statusEl = document.getElementById('pdStatusBadge');
+  const createdEl = document.getElementById('pdCreatedAt');
+  const accountEl = document.getElementById('pdAccountInfo');
+  const timelineEl = document.getElementById('pdTimeline');
+  const assetsEl = document.getElementById('pdAssets');
+  const retryBtn = document.getElementById('pdRetryBtn');
+  const cancelBtn = document.getElementById('pdCancelBtn');
+
+  modal.classList.add('open');
+  idEl.textContent = 'Loading...';
+  statusEl.textContent = '...';
+  timelineEl.innerHTML = '<div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line"></div>';
+  assetsEl.innerHTML = '';
+  retryBtn.style.display = 'none';
+  cancelBtn.style.display = 'none';
+
+  try {
+    const res = await fetch(API + '/pipeline/detail/' + jobId);
+    if (!res.ok) throw new Error('Job not found');
+    const data = await res.json();
+    const job = data.job;
+
+    idEl.textContent = job.job_id;
+    statusEl.textContent = statusIcon(job.status) + ' ' + job.status;
+    statusEl.className = 'badge ' + statusBadgeClass(job.status);
+    createdEl.textContent = '🕐 ' + timeSince(job.created_at);
+    accountEl.innerHTML = '👤 ' + (job.account_id || '—') + (job.product_url ? ' &middot; 📦 ' + job.product_url.slice(0, 60) : '');
+
+    // Retry / Cancel buttons
+    if (job.status === 'error' || job.status === 'restarted') {
+      retryBtn.style.display = 'inline-flex';
+    }
+    if (job.status === 'running' || job.status === 'pending') {
+      cancelBtn.style.display = 'inline-flex';
+    }
+
+    // Render timeline
+    const steps = job.steps || {};
+    const stepNames = Object.keys(steps);
+    if (stepNames.length === 0) {
+      timelineEl.innerHTML = '<div class="text-sm text-secondary" style="text-align:center;padding:20px">No steps recorded yet.</div>';
+    } else {
+      timelineEl.innerHTML = '<div class="timeline">' + stepNames.map((name, i) => {
+        const step = steps[name];
+        const st = step.status || 'pending';
+        const dotClass = st === 'success' ? 'success' : st === 'error' ? 'error' : st === 'processing' ? 'processing' : 'pending';
+        const icon = stepStatusIcon(st);
+        const details = [];
+        for (const [k, v] of Object.entries(step)) {
+          if (k === 'status') continue;
+          const val = typeof v === 'string' ? v.slice(0, 120) : JSON.stringify(v).slice(0, 120);
+          if (val && val !== '{}' && val !== '[]') {
+            details.push('<div class="detail-row"><span class="detail-label">' + k.replace(/_/g, ' ') + '</span><span>' + val + '</span></div>');
+          }
+        }
+        return `<div class="timeline-item">
+          <div class="timeline-dot ${dotClass}">${icon}</div>
+          <div class="timeline-body">
+            <div class="step-name">${name}</div>
+            <div class="step-details">
+              <div class="detail-row"><span class="detail-label">status</span><span>${st}</span></div>
+              ${details.join('')}
+              ${step.filepath ? `<div class="detail-row"><span class="detail-label">file</span><a href="${step.filepath}" target="_blank" class="text-xs" style="color:var(--color-brand-500)">${step.filepath.split('/').pop()}</a></div>` : ''}
+            </div>
+          </div>
+        </div>`;
+      }).join('') + '</div>';
+    }
+
+    // Assets preview from steps
+    const assetFiles = [];
+    for (const [name, step] of Object.entries(steps)) {
+      if (step.filepath) assetFiles.push({ name, path: step.filepath });
+    }
+    if (assetFiles.length) {
+      assetsEl.innerHTML = '<div class="card-title mb-2" style="font-size:13px">📎 Generated Assets</div>'
+        + assetFiles.map(a => {
+          const isVideo = a.path.match(/\.(mp4|mov|webm)$/i);
+          return '<span class="pd-asset-thumb" onclick="window.open(\'' + a.path + '\',\'_blank\')">'
+            + (isVideo ? '🎬' : '🖼') + ' ' + a.path.split('/').pop() + '</span>';
+        }).join('');
+    }
+  } catch(e) {
+    idEl.textContent = 'Error';
+    timelineEl.innerHTML = '<div class="text-sm text-secondary" style="text-align:center;padding:20px;color:var(--color-red-500)">❌ ' + e.message + '</div>';
+  }
+}
+
+function closePipelineDetail() {
+  document.getElementById('pipelineDetailModal').classList.remove('open');
+  currentDetailJobId = '';
+}
+
+async function retryJob(jobId) {
+  try {
+    const res = await fetch(API + '/pipeline/' + jobId + '/retry', { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      showToast('🔄 Retry initiated for ' + jobId, 'success');
+      loadPipelineDetail(jobId);
+      loadPipelineJobs();
+    } else {
+      showToast('❌ ' + (data.error || 'Retry failed'), 'error');
+    }
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+async function cancelJobFromList(jobId) {
+  if (!confirm('Cancel job ' + jobId + '?')) return;
+  await cancelJobApi(jobId);
+  loadPipelineJobs();
+}
+
+async function cancelJobFromDetail(jobId) {
+  if (!confirm('Cancel job ' + jobId + '?')) return;
+  await cancelJobApi(jobId);
+  loadPipelineDetail(jobId);
+  loadPipelineJobs();
+}
+
+async function cancelJobApi(jobId) {
+  try {
+    const res = await fetch(API + '/pipeline/' + jobId + '/cancel', { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      showToast('🚫 Job ' + jobId + ' cancelled', 'info');
+    } else {
+      showToast('❌ ' + (data.error || 'Cancel failed'), 'error');
+    }
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+async function loadAssetLibrary() {
+  const modal = document.getElementById('assetLibraryModal');
+  const grid = document.getElementById('assetLibraryGrid');
+  const filter = document.getElementById('assetFilter')?.value || 'all';
+  modal.classList.add('open');
+  grid.innerHTML = '<div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line"></div>';
+  try {
+    const res = await fetch(API + '/pipeline/assets');
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+    const images = data.images || [];
+    const videos = data.videos || [];
+    let items = [];
+    if (filter === 'all' || filter === 'images') {
+      items = items.concat(images.map(a => ({ ...a, _type: 'image' })));
+    }
+    if (filter === 'all' || filter === 'videos') {
+      items = items.concat(videos.map(a => ({ ...a, _type: 'video' })));
+    }
+    if (!items.length) {
+      grid.innerHTML = '<div class="text-sm text-secondary" style="text-align:center;padding:40px">📭 No assets found</div>';
+      return;
+    }
+    grid.innerHTML = '<div class="asset-grid">' + items.map(a => {
+      const name = a.name || a.path.split('/').pop() || 'asset';
+      const size = a.size ? (a.size / 1024).toFixed(1) + ' KB' : '';
+      const time = a.created ? timeSince(a.created) : '';
+      if (a._type === 'video') {
+        return `<div class="asset-card" onclick="window.open('${a.url}','_blank')">
+          <div class="asset-thumb">
+            <video src="${a.url}" muted preload="metadata"></video>
+            <div class="asset-play-overlay">▶</div>
+            <span class="asset-type-badge">🎬</span>
+          </div>
+          <div class="asset-info">
+            <div class="asset-name" title="${name}">${name}</div>
+            <div class="asset-meta">${size} ${time ? '· ' + time : ''}</div>
+          </div>
+        </div>`;
+      }
+      return `<div class="asset-card" onclick="window.open('${a.url}','_blank')">
+        <div class="asset-thumb">
+          <img src="${a.url}" alt="${name}" loading="lazy">
+          <span class="asset-type-badge">🖼</span>
+        </div>
+        <div class="asset-info">
+          <div class="asset-name" title="${name}">${name}</div>
+          <div class="asset-meta">${size} ${time ? '· ' + time : ''}</div>
+        </div>
+      </div>`;
+    }).join('') + '</div>';
+  } catch(e) {
+    grid.innerHTML = '<div class="text-sm text-secondary" style="text-align:center;padding:40px;color:var(--color-red-500)">❌ ' + e.message + '</div>';
+  }
+}
+
+function closeAssetLibrary() {
+  document.getElementById('assetLibraryModal').classList.remove('open');
 }
 
 /* ═══ Post to TikTok ═══ */
@@ -2260,6 +2943,148 @@ function useProduct(jsonEncoded) {
     showToast("✅ " + (p.title || "").slice(0,40), "success");
   } catch(e) { showToast("Error: " + e.message, "error"); }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Asset Library
+   ═══════════════════════════════════════════════════════════════════════ */
+
+let currentAssetFilter = 'all';
+let cachedAssets = { images: [], videos: [] };
+let lightboxItems = [];
+let lightboxIndex = -1;
+
+async function loadAssets(type) {
+  currentAssetFilter = type || 'all';
+  const gallery = document.getElementById('assetGallery');
+  if (!gallery) return;
+  gallery.innerHTML = '<div class="skeleton skeleton-line" style="height:200px"></div><div class="skeleton skeleton-line" style="height:200px"></div><div class="skeleton skeleton-line" style="height:200px"></div><div class="skeleton skeleton-line" style="height:200px"></div>';
+
+  try {
+    const resp = await fetch(API + '/pipeline/assets');
+    const data = await resp.json();
+    if (!data.success) throw new Error(data.error || 'Failed to load assets');
+
+    cachedAssets = data;
+    renderAssets(currentAssetFilter);
+  } catch (e) {
+    gallery.innerHTML = '<div class="asset-empty"><div class="icon">⚠️</div><div class="msg">Could not load assets</div><div class="hint">' + e.message + '</div></div>';
+  }
+}
+
+function filterAssets(type) {
+  currentAssetFilter = type;
+  document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+  document.querySelector('.filter-tab[data-asset-type="' + type + '"]')?.classList.add('active');
+  renderAssets(type);
+}
+
+function formatSize(bytes) {
+  if (!bytes || bytes === 0) return '-';
+  const kb = bytes / 1024;
+  if (kb < 1024) return kb.toFixed(1) + ' KB';
+  return (kb / 1024).toFixed(1) + ' MB';
+}
+
+function renderAssets(type) {
+  const gallery = document.getElementById('assetGallery');
+  if (!gallery) return;
+
+  let items = [];
+  if (type === 'all' || type === 'images') {
+    items = items.concat((cachedAssets.images || []).map(i => ({ ...i, _type: 'image' })));
+  }
+  if (type === 'all' || type === 'videos') {
+    items = items.concat((cachedAssets.videos || []).map(v => ({ ...v, _type: 'video' })));
+  }
+
+  // Update stats
+  const imgCount = (cachedAssets.images || []).length;
+  const vidCount = (cachedAssets.videos || []).length;
+  document.getElementById('assetImgCount').textContent = imgCount;
+  document.getElementById('assetVidCount').textContent = vidCount;
+  document.getElementById('assetTotalCount').textContent = imgCount + vidCount;
+
+  if (items.length === 0) {
+    gallery.innerHTML = '<div class="asset-empty"><div class="icon">📂</div><div class="msg">No assets yet</div><div class="hint">Generate some content first!</div></div>';
+    return;
+  }
+
+  // Sort by date descending
+  items.sort((a, b) => (b.created || '').localeCompare(a.created || ''));
+
+  lightboxItems = items;
+
+  gallery.innerHTML = items.map((item, idx) => {
+    const isVideo = item._type === 'video';
+    const url = item.url || '/storage/' + item.path;
+    const ext = (item.name || '').split('.').pop().toLowerCase();
+    const isVideoExt = ['mp4', 'mov', 'webm', 'gif'].includes(ext);
+    const showPlay = isVideo || isVideoExt;
+    const badgeIcon = showPlay ? '🎬' : '📷';
+    const created = timeSince(item.created);
+    const size = formatSize(item.size);
+
+    return '<div class="asset-card" onclick="openAssetLightbox(' + idx + ')">'
+      + '<div class="asset-thumb">'
+      + '<img src="' + url + '" alt="' + (item.name || '') + '" loading="lazy" onerror="this.style.display=\'none\'" crossorigin="anonymous">'
+      + (showPlay ? '<div class="asset-play-overlay">▶️</div>' : '')
+      + '<span class="asset-type-badge">' + badgeIcon + '</span>'
+      + '</div>'
+      + '<div class="asset-info">'
+      + '<div class="asset-name" title="' + (item.name || '') + '">' + (item.name || '') + '</div>'
+      + '<div class="asset-meta">' + size + ' · ' + created + '</div>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+function openAssetLightbox(idx) {
+  lightboxIndex = idx;
+  const item = lightboxItems[idx];
+  if (!item) return;
+
+  const url = item.url || '/storage/' + item.path;
+  const ext = (item.name || '').split('.').pop().toLowerCase();
+  const isVideo = item._type === 'video' || ['mp4', 'mov', 'webm'].includes(ext);
+
+  const content = document.getElementById('lightboxContent');
+  if (isVideo) {
+    content.innerHTML = '<video src="' + url + '" controls autoplay style="max-width:90vw;max-height:85vh;border-radius:var(--radius-xl)"></video>';
+  } else {
+    content.innerHTML = '<img src="' + url + '" alt="' + (item.name || '') + '" style="max-width:90vw;max-height:85vh;border-radius:var(--radius-xl);object-fit:contain">';
+  }
+
+  document.getElementById('lightboxCaption').textContent = (item.name || '') + ' · ' + formatSize(item.size);
+
+  // Show/hide prev/next
+  document.getElementById('lightboxPrev').style.display = idx > 0 ? 'flex' : 'none';
+  document.getElementById('lightboxNext').style.display = idx < lightboxItems.length - 1 ? 'flex' : 'none';
+
+  document.getElementById('assetLightbox').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeAssetLightbox(e) {
+  if (e && e.target !== e.currentTarget) return;
+  document.getElementById('assetLightbox').classList.remove('open');
+  document.body.style.overflow = '';
+  document.getElementById('lightboxContent').innerHTML = '';
+}
+
+function navigateLightbox(dir) {
+  const next = lightboxIndex + dir;
+  if (next < 0 || next >= lightboxItems.length) return;
+  openAssetLightbox(next);
+}
+
+// Keyboard navigation
+document.addEventListener('keydown', function(e) {
+  if (!document.getElementById('assetLightbox')?.classList.contains('open')) return;
+  if (e.key === 'Escape') closeAssetLightbox();
+  if (e.key === 'ArrowLeft') navigateLightbox(-1);
+  if (e.key === 'ArrowRight') navigateLightbox(1);
+});
+
 </script>
 <script>
 if ('serviceWorker' in navigator) {

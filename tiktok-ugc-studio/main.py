@@ -3398,7 +3398,8 @@ async def _compose_keyframes_to_video(keyframes: list, duration: int, fps: float
 _media_drive_url = ""
 
 async def _upload_composed_video(output_path: str, task_id: str, job_id: str = ""):
-    """Upload composed video to Google Drive + log to Sheet (fire-and-forget)."""
+    """Upload composed video to Google Drive + log to Sheet (fire-and-forget).
+    Falls back to local storage URL if Drive upload isn't available."""
     global _media_drive_url
     try:
         async with httpx.AsyncClient(timeout=120) as client:
@@ -3408,23 +3409,32 @@ async def _upload_composed_video(output_path: str, task_id: str, job_id: str = "
                 "file_name": Path(output_path).name,
             })
             data = resp.json()
+            file_name = Path(output_path).name
             if data.get("success"):
-                _media_drive_url = data.get("drive_url", "")
-                logger.info(f"Uploaded to Drive: {_media_drive_url}")
-                # Also log to sheet if configured
+                drive_url = data.get("drive_url", "")
+                local_path = data.get("local_path", output_path)
+                _media_drive_url = drive_url or f"/static/videos/{file_name}"
+                drive_uploaded = data.get("drive_uploaded", False)
+                if drive_uploaded:
+                    logger.info(f"Uploaded to Drive: {_media_drive_url}")
+                else:
+                    logger.info(f"Drive skipped (local): {_media_drive_url}")
+                # Log to sheet if configured
                 spreadsheet_id = os.environ.get("MEDIA_SHEET_ID", "")
                 if spreadsheet_id:
                     await client.post(f"{DRIVE_API}/sheets/log-media", json={
                         "spreadsheet_id": spreadsheet_id,
                         "sheet_name": "Media Log",
-                        "filename": Path(output_path).name,
+                        "filename": file_name,
                         "file_type": "video" if ".mp4" in output_path else "image",
                         "drive_url": _media_drive_url,
-                        "drive_file_id": data.get("drive_file_id", ""),
+                        "drive_file_id": data.get("drive_file_id", "local-storage"),
                         "task_id": task_id,
                         "job_id": job_id,
+                        "product_name": "",
                         "file_size_bytes": data.get("size_bytes", 0),
                         "status": "completed",
+                        "notes": data.get("note", ""),
                     })
             else:
                 logger.warning(f"Drive upload failed: {data.get('error', 'unknown')}")

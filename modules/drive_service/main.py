@@ -115,51 +115,65 @@ async def drive_upload(req: UploadRequest):
         service = build("drive", "v3", credentials=creds)
 
         # Find or create folder
-        folder_id = _find_or_create_folder(service, req.folder_name)
+        try:
+            folder_id = _find_or_create_folder(service, req.folder_name)
+        except RuntimeError:
+            folder_id = None
 
-        # Determine file name
         fname = req.file_name or file_path.name
         mime_type = req.mime_type or mimetypes.guess_type(fname)[0] or "application/octet-stream"
+        file_size = file_path.stat().st_size
 
-        # Upload
-        media = MediaFileUpload(str(file_path), mimetype=mime_type, resumable=True)
-        file_metadata = {
-            "name": fname,
-            "parents": [folder_id],
-            "description": f"Uploaded from TUS at {datetime.now().isoformat()}",
-        }
+        drive_id = ""
+        drive_url = ""
+        drive_uploaded = False
 
-        uploaded = service.files().create(
-            body=file_metadata,
-            media_body=media,
-            fields="id, name, mimeType, size, webViewLink, webContentLink"
-        ).execute()
+        if folder_id:
+            try:
+                media = MediaFileUpload(str(file_path), mimetype=mime_type, resumable=True)
+                file_metadata = {
+                    "name": fname,
+                    "parents": [folder_id],
+                    "description": f"Uploaded from TUS at {datetime.now().isoformat()}",
+                }
 
-        # Make publicly viewable
-        try:
-            permission = {
-                "type": "anyone",
-                "role": "reader",
-            }
-            service.permissions().create(fileId=uploaded["id"], body=permission).execute()
-        except Exception:
-            pass  # Not critical
+                uploaded = service.files().create(
+                    body=file_metadata,
+                    media_body=media,
+                    fields="id, name, mimeType, size, webViewLink, webContentLink"
+                ).execute()
 
-        drive_url = uploaded.get("webViewLink", "")
-        if not drive_url:
-            # Build URL manually
-            drive_url = f"https://drive.google.com/file/d/{uploaded['id']}/view"
+                # Make publicly viewable
+                try:
+                    service.permissions().create(
+                        fileId=uploaded["id"],
+                        body={"type": "anyone", "role": "reader"}
+                    ).execute()
+                except Exception:
+                    pass
 
-        logger.info(f"Uploaded {fname} to Drive folder '{req.folder_name}' (id: {uploaded['id']})")
+                drive_id = uploaded["id"]
+                drive_url = uploaded.get("webViewLink", "") or f"https://drive.google.com/file/d/{uploaded['id']}/view"
+                drive_uploaded = True
+                logger.info(f"Uploaded {fname} to Drive folder '{req.folder_name}' (id: {drive_id})")
+            except Exception as e:
+                err_str = str(e)
+                if "storage quota" in err_str or "storageQuota" in err_str:
+                    logger.warning(f"Drive storage quota exceeded — skipping Drive upload, saving locally: {fname}")
+                else:
+                    logger.error(f"Drive upload failed: {err_str[:200]}")
 
         return {
             "success": True,
-            "drive_file_id": uploaded["id"],
-            "file_name": uploaded["name"],
-            "mime_type": uploaded.get("mimeType", mime_type),
-            "size_bytes": uploaded.get("size", file_path.stat().st_size),
+            "drive_uploaded": drive_uploaded,
+            "drive_file_id": drive_id,
+            "file_name": fname,
+            "mime_type": mime_type,
+            "size_bytes": file_size,
             "drive_url": drive_url,
             "folder": req.folder_name,
+            "local_path": str(file_path),
+            "note": "File saved locally (Drive upload skipped — no Shared Drive)" if not drive_uploaded else "",
         }
 
     except ImportError as e:
@@ -170,7 +184,7 @@ async def drive_upload(req: UploadRequest):
 
 
 def _find_or_create_folder(service, folder_name: str) -> str:
-    """Find a Drive folder by name, or create it."""
+    """Find a Drive folder by name, or create it. Returns ID or raises."""
     try:
         results = service.files().list(
             q=f"name='{folder_name}' and mimeType='application/vnd.google-apps.folder' and trashed=false",

@@ -51,3 +51,6 @@ erp_shared.egg-info/
 
 # Aider history
 .aider.*
+
+# Google Sheets / Drive credentials
+modules/product/sheets_credentials.json

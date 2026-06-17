@@ -38,17 +38,20 @@ TikTok UGC Studio (TUS) = Web UI + API Backend + Pipeline สำหรับส�
 - Web UI: https://openhands.m2igen.com/tiktok/
 - Static Images: https://openhands.m2igen.com/api/tiktok/ugc/static/images/
 - Static Videos: https://openhands.m2igen.com/api/tiktok/ugc/static/videos/
+- TUS API: http://localhost:8105
 
 **Backend Services (PM2):**
 | ID | Name | Port | Description |
 |---|---|---|---|
-| 5 | tiktok-ugc-studio | 8105 | Main API + Pipeline backend |
+| 5 | tiktok-ugc-studio | 8105 | 🎯 Main API + Pipeline backend |
 | 0 | image-gen | 8110 | Image generation (Prodia, Klein 9B) |
 | 3 | tiktok-frontend | 8120 | Web UI frontend |
 | 4 | product-scraper | 8106 | Scrape product URLs |
 | 6 | modules-auth | - | Authentication |
 | 7 | modules-media | - | Media storage |
 | 8 | modules-product | - | Product data |
+| 9 | **scheduler** | **8130** | 🆕 Auto-post scheduler + background worker |
+| 10 | **drive-service** | **8132** | 🆕 Google Drive + Sheets media uploader |
 
 ---
 
@@ -88,6 +91,8 @@ TikTok UGC Studio (TUS) = Web UI + API Backend + Pipeline สำหรับส�
 - **Fal.ai** — Wan 2.7 (img2vid), MiniMax Speech 2.8 HD (TTS)
 - **Mixkit CDN** (free) — BGM background music
 - **DeepSeek** (optional, via LLM_API_KEY) — AI script generation
+- **Google Drive API** — Upload composed videos + generated images
+- **Google Sheets API** — Media log tracking
 
 ---
 
@@ -245,6 +250,25 @@ TikTok UGC Studio (TUS) = Web UI + API Backend + Pipeline สำหรับส�
 | POST | `/monitor/strategy/update` | Update strategy parameters |
 | POST | `/monitor/strategy/reset` | Reset strategy to defaults |
 | POST | `/monitor/optimize` | Run full optimization loop |
+
+### Google Sheets Import
+| Method | Path | Description |
+|---|---|---|
+| GET | `/products/sheets/status` | Check Google Sheets credentials status |
+| POST | `/products/sheets/connect` | Test connection to a spreadsheet |
+| POST | `/products/sheets/import` | Import products from Sheet → TUS DB |
+
+### Scheduled Posts
+| Method | Path | Description |
+|---|---|---|
+| GET | `/posts/scheduled` | List scheduled posts (proxy → scheduler :8130) |
+| DELETE | `/posts/scheduled/{id}` | Cancel a pending scheduled post |
+
+### Drive & Sheets (Media Logger)
+| Method | Path | Description |
+|---|---|---|
+| GET | `/drive/connect` | Check drive-service health & credentials |
+| POST | `/drive/config` | Set MEDIA_SHEET_ID for auto-logging |
 
 ### Other
 | Method | Path | Description |
@@ -442,6 +466,9 @@ POST /scripts/ugc         # Generate UGC prompt
 | `tts_gen.py` | TTS via gTTS | `text_to_speech()`, `script_to_speech()` |
 | `sam3_client.py` | SAM3 image analysis client | `segment_image()`, `track_object_in_video()` |
 | `composer.py` | Video composition (legacy) | `compose_video()`, `add_sound_effects()` |
+| `../modules/scheduler/main.py` | Auto-post scheduler service (:8130) | `schedule_post()`, `_worker_loop()` polling every 60s |
+| `../modules/drive_service/main.py` | Google Drive + Sheets media logger (:8132) | `drive_upload()`, `sheets_log_media()`, `drive_list()` |
+| `../modules/product/export_service.py` | Google Sheets export (shared creds) | `export_products_to_sheet()`, `is_ready()` |
 | `video_gen.py` | Video gen (legacy/DISABLED) | `generate_video_with_fallback()` — DISABLED |
 | `AGENT_OPS.md` | **This file** | Operations manual |
 | `bgm/` | BGM music files (git tracked) | 5 files, ~3-4MB each |
@@ -473,6 +500,8 @@ POST /scripts/ugc         # Generate UGC prompt
 | `7b0bb43` | - | BGM to git-tracked bgm/ dir | - |
 | `a311ace` | - | bgm_fetcher auto-download | - |
 | `28a936b` | - | AGENT_OPS.md documentation | - |
+| `40f08f9` | - | Micro-service refactor: scheduler (:8130) + Google Sheets import + scheduled UI | - |
+| `4d63f81` | - | Google Drive + Sheets media logger (:8132) + auto-upload on video compose | - |
 
 ---
 
@@ -489,24 +518,50 @@ POST /scripts/ugc         # Generate UGC prompt
 
 **Loading:** `main.py` loads `.env` from `tiktok-ugc-studio/.env` on startup
 
+**New service env vars (from `.env` or shell):**
+| Variable | Default | Service | Purpose |
+|---|---|---|---|
+| `SCHEDULER_API` | `http://localhost:8130` | tiktok-ugc-studio | Scheduler endpoint |
+| `DRIVE_API` | `http://localhost:8132` | tiktok-ugc-studio | Drive service endpoint |
+| `MEDIA_SHEET_ID` | `""` | tiktok-ugc-studio | Google Sheet ID for media log |
+| `TUS_API` | `http://localhost:8105` | scheduler | TUS endpoint for worker callback |
+
 ---
 
 ## 18. Deployment
 
 ```bash
-# After code changes:
+# After code changes — deploy all:
 cd /home/openhands/erp-stack
-git add <files>
+git add -A
 git commit -m "description"
 git push
-pm2 restart 5       # tiktok-ugc-studio (main backend)
-pm2 restart 0       # image-gen (if image code changed)
-pm2 restart 3       # tiktok-frontend (if frontend code changed)
+
+# OR full deploy via ecosystem config (recommended):
+pm2 restart /home/openhands/erp-stack/tiktok-ugc-studio/ecosystem.config.js
+
+# OR individual restart:
+# tiktok-ugc-studio = main backend (port 8105)
+pm2 restart tiktok-ugc-studio
+# scheduler = auto-post (port 8130)
+pm2 restart scheduler
+# drive-service = Drive + Sheets (port 8132)
+pm2 restart drive-service
+# image-gen (port 8110)
+pm2 restart image-gen
+# tiktok-frontend (port 8120)
+pm2 restart tiktok-frontend
 ```
 
 **To check service status:**
 ```bash
-pm2 status 5 0 3
+pm2 status 5 0 3 9 10
+```
+
+**To restart all TUS services:**
+```bash
+# Full restart (3 new services)
+pm2 restart tiktok-ugc-studio scheduler drive-service
 ```
 
 **To view logs:**
@@ -539,6 +594,14 @@ tail -f /home/openhands/.pm2/logs/tiktok-ugc-studio-error.log
 
 ## 20. Next Steps (สิ่งที่ต้องทำต่อ)
 
+### 🆕 Drive & Sheets Setup Checklist
+- [ ] Place `sheets_credentials.json` at `modules/product/sheets_credentials.json`
+- [ ] Enable Google Drive API + Google Sheets API in GCP Console
+- [ ] Share Google Drive folder with service account email
+- [ ] Share Google Sheet with service account email
+- [ ] Set spreadsheet ID via: `curl -X POST http://localhost:8105/drive/config -H 'Content-Type: application/json' -d '{"spreadsheet_id":"YOUR_ID"}'`
+- [ ] Verify: `curl http://localhost:8105/drive/connect`
+
 ### Todo
 - [ ] Config/template system for pipeline recipes (save different pipeline configs)
 - [ ] Add more BGM track IDs to `bgm_fetcher.py` (currently 5-6 per style)
@@ -547,10 +610,18 @@ tail -f /home/openhands/.pm2/logs/tiktok-ugc-studio-error.log
 - [ ] Product photo diversity — ensure each product generates different model faces
 - [ ] Add Pixabay music as secondary BGM source (fallback if Mixkit CDN fails)
 
+### ✅ Completed
+- [x] Scheduler micro-service (:8130) — auto-post background worker
+- [x] Google Sheets product import — status/connect/import endpoints
+- [x] Drive & Sheets media logger (:8132) — auto-upload composed videos
+- [x] Frontend: Scheduled tab, Sheets import UI, schedule datetime picker
+- [x] Post-scheduling with date/time picker (immediate vs scheduled)
+
 ### Known Issues
 - Script is too long → costs more for MiniMax TTS ($0.054 instead of $0.02-0.03)
 - Some Klein 9B outputs have similar faces across products (same seed?)
 - BGM files are 2-4 minutes but only 8s is used (trimmed by FFmpeg -shortest)
+- Drive service needs `sheets_credentials.json` — same file as Sheets import
 
 ---
 

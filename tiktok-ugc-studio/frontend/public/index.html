@@ -967,8 +967,14 @@ select.input { cursor: pointer; }
 
 
 
+    <!-- Recipe Presets -->
+    <div class="mb-3">
+      <label class="text-sm text-secondary mb-2" style="display:block">🎬 Recipe Preset (เลือกแนว)</label>
+      <div id="recipePicker" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px"></div>
+    </div>
+
     <div class="mb-4">
-      <label class="text-sm text-secondary mb-2" style="display:block">UGC Style</label>
+      <label class="text-sm text-secondary mb-2" style="display:block">UGC Style <span class="text-xs text-secondary">(ปรับเอง)</span></label>
       <div id="selectedStyleChip" onclick="document.getElementById('styleModal').classList.add('open')" style="padding:10px 14px;border:1px solid var(--border-primary);border-radius:var(--radius-lg);cursor:pointer;display:flex;align-items:center;gap:8px">
         <span id="selectedStyleIcon">🤳</span>
         <span id="selectedStyleLabel">Holding Product — ถือสินค้าพูด</span>
@@ -1449,6 +1455,7 @@ function switchTab(name) {
   if (name === 'social') renderSocial();
   if (name === 'settings') loadProviders();
   if (name === 'products') loadAnalyzedProducts();
+  if (name === 'content') setTimeout(loadRecipes, 100);
 }
 
 /* ═══ Toast ═══ */
@@ -1666,6 +1673,59 @@ async function generateImageFromStep3() {
   }
 }
 
+// ── Recipe Templates ─────────────────────────────────────────────
+let _recipes = [];
+
+async function loadRecipes() {
+  const container = document.getElementById('recipePicker');
+  if (!container) return;
+  try {
+    const r = await fetch(API + '/pipeline/recipes');
+    const d = await r.json();
+    _recipes = d.recipes || [];
+    container.innerHTML = _recipes.map(r => {
+      const isSelected = r.name === 'gadget';
+      return '<div class="style-card' + (isSelected ? ' selected' : '') + '" data-recipe="' + r.name + '" onclick="selectRecipe(\'' + r.name + '\')" title="' + r.description + '">'
+        + '<div style="font-size:22px;line-height:1.2">' + r.label.split(' ')[0] + '</div>'
+        + '<div class="font-medium" style="font-size:11px;line-height:1.2;margin-top:4px">' + r.label.replace(/^[^\s]+\s/, '') + '</div>'
+        + '<div class="text-xs text-secondary" style="font-size:9px;line-height:1.2;margin-top:2px">' + r.description + '</div>'
+        + '</div>';
+    }).join('');
+  } catch(e) { /* silent */ }
+}
+
+function selectRecipe(name) {
+  document.querySelectorAll('#recipePicker .style-card').forEach(c => c.classList.remove('selected'));
+  const card = document.querySelector('#recipePicker [data-recipe="' + name + '"]');
+  if (card) card.classList.add('selected');
+
+  const recipe = _recipes.find(r => r.name === name);
+  if (!recipe) return;
+
+  // Apply recipe settings to the form
+  // UGC Style
+  const styleMap = {
+    'product_usage': ['📱', 'Product Usage — สาธิตการใช้'],
+    'holding_product': ['🤳', 'Holding Product — ถือสินค้าพูด'],
+    'ugc_review': ['⭐', 'UGC Review — รีวิวสินค้า'],
+    'talking_head': ['🎤', 'Talking Head — พูดหน้ากล้อง'],
+  };
+  const s = styleMap[recipe.ugc_style] || ['🤳', 'Holding Product'];
+  document.getElementById('selectedStyleIcon').textContent = s[0];
+  document.getElementById('selectedStyleLabel').textContent = s[1];
+  sessionStorage.setItem('selectedStyle', recipe.ugc_style);
+
+  // Duration
+  const durChips = document.querySelectorAll('.duration-chip');
+  durChips.forEach(c => {
+    const val = parseInt(c.getAttribute('onclick')?.match(/'?(\d+)'?\)/)?.[1] || '8');
+    if (val === recipe.duration) c.classList.add('selected');
+    else c.classList.remove('selected');
+  });
+  sessionStorage.setItem('selectedDuration', String(recipe.duration));
+
+}
+
 function selectStyle(el, style) {
   document.querySelectorAll('.style-card').forEach(c => c.classList.remove('selected'));
   el.classList.add('selected');
@@ -1790,6 +1850,7 @@ async function startGeneration() {
       aspect_ratio: sessionStorage.getItem('aspectRatio') || '9:16',
       duration: duration,
       negative_prompt: document.getElementById('negativePrompt').value.trim() || undefined,
+      recipe: document.querySelector('#recipePicker .style-card.selected')?.getAttribute('data-recipe') || undefined,
     };
     
     const res = await fetch(API + '/video/generate', {
@@ -2896,7 +2957,7 @@ document.addEventListener('DOMContentLoaded', () => {
   sessionStorage.setItem('aspectRatio', '9:16');
 
   // Initial loads
-  loadDashboard(); loadAccounts(); populateAccountSelect(); loadProviders(); autoInitSheets();
+  loadDashboard(); loadAccounts(); populateAccountSelect(); loadProviders(); autoInitSheets(); loadRecipes();
 });
 
 

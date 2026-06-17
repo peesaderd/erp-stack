@@ -866,6 +866,53 @@ select.input { cursor: pointer; }
   </div>
 </div>
 
+<!-- ═══ Post to TikTok Modal ═══ -->
+<div class="modal-overlay" id="postModal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header" style="border:none;padding:16px 0 8px">
+      <div class="font-medium">🚀 Post to TikTok</div>
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('postModal').classList.remove('open')" style="font-size:18px">✕</button>
+    </div>
+    <div id="postModalBody">
+      <div class="mb-3">
+        <label class="text-sm text-secondary mb-2" style="display:block">🎬 วิดีโอ</label>
+        <video id="postVideoPreview" controls style="width:100%;max-height:240px;border-radius:var(--radius-lg);background:#000"></video>
+      </div>
+      <div class="mb-3">
+        <label class="text-sm text-secondary mb-2" style="display:block">📱 TikTok Account</label>
+        <select class="input" id="postAccountSelect"><option value="">— เลือกบัญชี —</option></select>
+      </div>
+      <div class="mb-3">
+        <label class="text-sm text-secondary mb-2" style="display:block">🔗 Affiliate Link <span class="text-xs text-tertiary">(optional)</span></label>
+        <input class="input" id="postAffiliateLink" placeholder="https://shopee.co.th/..." value="">
+        <div class="text-xs text-secondary mt-1">ถ้าใส่ — จะแนบใน Caption อัตโนมัติ สำหรับปักตะกร้า</div>
+      </div>
+      <div class="mb-3">
+        <label class="text-sm text-secondary mb-2" style="display:block">📝 Caption <span class="text-xs text-tertiary">(optional)</span></label>
+        <textarea class="input" id="postCaption" rows="2" placeholder="ข้อความเพิ่มเติม..."></textarea>
+      </div>
+      <div class="mb-3">
+        <label class="text-sm text-secondary mb-2" style="display:block">⏰ Schedule</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="datetime-local" class="input" id="postScheduleTime" style="flex:1">
+          <button class="btn btn-sm" onclick="document.getElementById('postScheduleTime').value=''">📅 Now</button>
+        </div>
+        <div class="text-xs text-secondary mt-1">ถ้าไม่เลือกเวลา = Post ทันที</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button class="btn btn-secondary" onclick="document.getElementById('postModal').classList.remove('open')" style="flex:1">ยกเลิก</button>
+        <button class="btn btn-primary" id="postBtn" onclick="postToTikTok()" style="flex:1">🚀 Post Now</button>
+      </div>
+      <div id="postProgress" style="display:none;margin-top:12px">
+        <div class="text-sm text-secondary mb-2" id="postProgressText">กำลัง Post...</div>
+        <div style="height:4px;background:var(--bg-tertiary);border-radius:999px;overflow:hidden">
+          <div id="postProgressBar" style="height:100%;width:30%;background:var(--brand);border-radius:999px;transition:width .5s"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 </div><!-- /main -->
 </div><!-- /app -->
 
@@ -1214,30 +1261,132 @@ async function loadPipeline() {
   const el = document.getElementById('pipelineList');
   el.innerHTML = '<div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line"></div>';
   try {
-    const res = await fetch(API + '/video/queue');
+    const res = await fetch(API + '/video/completed');
     if (!res.ok) throw new Error('Failed');
     const data = await res.json();
-    const jobs = data.jobs || data || [];
-    if (!jobs.length) { el.innerHTML = '<div class="text-sm text-secondary" style="text-align:center;padding:32px">No pipeline jobs</div>'; return; }
+    const jobs = data.jobs || [];
+    if (!jobs.length) { el.innerHTML = '<div class="text-sm text-secondary" style="text-align:center;padding:32px">ยังไม่มีวิดีโอที่สร้างเสร็จ</div>'; return; }
 
     el.innerHTML = jobs.map(j => {
-      const steps = [
-        { key:'scrape', label:'Scrape', status: j.scrape_status || (j.status === 'completed' ? 'done' : j.status === 'failed' ? 'failed' : 'pending') },
-        { key:'script', label:'Script', status: j.script_status || (j.status === 'completed' ? 'done' : j.status === 'processing' ? 'processing' : 'pending') },
-        { key:'generate', label:'Generate', status: j.generate_status || (j.status === 'completed' ? 'done' : j.status === 'processing' ? 'processing' : 'pending') },
-        { key:'upload', label:'Upload', status: j.upload_status || (j.status === 'completed' ? 'done' : 'pending') },
-      ];
-      const icons = { done:'✅', processing:'⏳', failed:'❌', pending:'⏸' };
+      const label = j.product_name || 'สินค้า';
+      const styleLabel = j.style || '';
+      const dur = j.duration || 8;
+      const cost = j.cost || '?';
       return `<div class="pipeline-card">
-        <div class="pipeline-header"><div><strong>${j.job_id || j.id || 'Job'}</strong><span class="text-xs text-secondary ml-auto">${j.product_url ? j.product_url.slice(0,30)+'...' : ''}</span></div>
-          <div style="display:flex;gap:4px">
-            ${j.status !== 'completed' ? '<button class="btn btn-ghost btn-sm" onclick="cancelJob(\''+(j.job_id||j.id)+'\')">✕ Cancel</button>' : ''}
-          </div>
+        <div class="pipeline-header"><div><strong>${j.job_id}</strong><span class="text-xs text-secondary ml-auto">${label}</span></div></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">
+          <span class="badge badge-green">✅ Generate</span>
+          <span class="badge badge-indigo">${styleLabel}</span>
+          <span class="text-xs" style="color:var(--text-tertiary)">⏱ ${dur} วิ</span>
+          <span class="text-xs" style="color:var(--text-tertiary)">💰 ~$${cost}</span>
         </div>
-        <div class="pipeline-steps">${steps.map(s => `<span class="pipeline-step ${s.status}">${icons[s.status]||'⏸'} ${s.label}</span>`).join('')}</div>
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <button class="btn btn-sm" onclick="window.open('${j.video_url}','_blank')">🎬 ดูวิดีโอ</button>
+          <button class="btn btn-primary btn-sm" onclick="openPostModal('${j.job_id}','${j.video_url}')">🚀 Post to TikTok</button>
+        </div>
       </div>`;
     }).join('');
-  } catch(e) { el.innerHTML = '<div class="text-sm text-secondary" style="text-align:center;padding:16px">Failed to load pipeline</div>'; }
+  } catch(e) { el.innerHTML = '<div class="text-sm text-secondary" style="text-align:center;padding:16px">Failed: ' + e.message + '</div>'; }
+}
+
+/* ═══ Post to TikTok ═══ */
+let _postJobId = '';
+
+async function openPostModal(jobId, videoUrl) {
+  _postJobId = jobId;
+  const modal = document.getElementById('postModal');
+  const video = document.getElementById('postVideoPreview');
+  
+  // Set video preview
+  video.src = videoUrl;
+  
+  // Load accounts
+  const sel = document.getElementById('postAccountSelect');
+  sel.innerHTML = '<option value="">— กำลังโหลด —</option>';
+  try {
+    const r = await fetch(API + '/tiktok/accounts');
+    const d = await r.json();
+    const accounts = d.accounts || d || {};
+    sel.innerHTML = '<option value="">— เลือกบัญชี —</option>';
+    if (Array.isArray(accounts)) {
+      accounts.forEach(a => {
+        const name = a.username || a.name || a.account_id || a;
+        sel.innerHTML += `<option value="${name}">@${name}</option>`;
+      });
+    } else {
+      Object.keys(accounts).forEach(k => {
+        sel.innerHTML += `<option value="${k}">@${k}</option>`;
+      });
+    }
+  } catch(e) {
+    sel.innerHTML = '<option value="">❌ โหลดไม่สำเร็จ</option>';
+  }
+  
+  // Clear form
+  document.getElementById('postAffiliateLink').value = '';
+  document.getElementById('postCaption').value = '';
+  document.getElementById('postScheduleTime').value = '';
+  document.getElementById('postProgress').style.display = 'none';
+  document.getElementById('postBtn').disabled = false;
+  document.getElementById('postBtn').textContent = '🚀 Post Now';
+  
+  modal.classList.add('open');
+}
+
+async function postToTikTok() {
+  const account = document.getElementById('postAccountSelect').value;
+  if (!account) { showToast('เลือกบัญชี TikTok ก่อน','error'); return; }
+  
+  const link = document.getElementById('postAffiliateLink').value.trim();
+  const caption = document.getElementById('postCaption').value.trim();
+  const schedule = document.getElementById('postScheduleTime').value;
+  
+  const progress = document.getElementById('postProgress');
+  const bar = document.getElementById('postProgressBar');
+  const text = document.getElementById('postProgressText');
+  const btn = document.getElementById('postBtn');
+  
+  progress.style.display = 'block';
+  bar.style.width = '30%';
+  text.textContent = '⏳ กำลัง Post...';
+  btn.disabled = true;
+  
+  try {
+    const body = {
+      job_id: _postJobId,
+      account_id: account,
+      affiliate_link: link,
+      caption: caption,
+      schedule_at: schedule || 'now',
+    };
+    
+    const r = await fetch(API + '/video/post', {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+    });
+    bar.style.width = '80%';
+    
+    if (!r.ok) {
+      const errData = await r.json().catch(() => ({}));
+      throw new Error(errData.detail || 'Post failed');
+    }
+    
+    const data = await r.json();
+    bar.style.width = '100%';
+    text.textContent = '✅ โพสต์สำเร็จ! Video ID: ' + (data.video_id || 'OK');
+    showToast('✅ โพสต์ไปที่ @' + account + ' แล้ว!','success');
+    
+    setTimeout(() => {
+      document.getElementById('postModal').classList.remove('open');
+      loadPipeline();
+      loadHistory();
+    }, 1500);
+  } catch(e) {
+    bar.style.width = '100%';
+    bar.style.background = '#ef4444';
+    text.textContent = '❌ ' + e.message;
+    showToast('Post failed: ' + e.message,'error');
+    btn.disabled = false;
+  }
 }
 
 async function cancelJob(id) {

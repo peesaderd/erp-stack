@@ -1323,6 +1323,94 @@ def video_status(req: VideoTaskRequest):
         raise HTTPException(status_code=502, detail=str(e))
 
 
+# ─── Completed Jobs + Post to TikTok ──────────────────────────────────────
+
+class VideoPostRequest(BaseModel):
+    """Post a completed video to TikTok."""
+    job_id: str
+    account_id: str
+    affiliate_link: str = ""
+    caption: str = ""
+    schedule_at: Optional[str] = None  # ISO datetime or "now"
+
+
+@app.get("/video/completed")
+def list_completed_videos():
+    """Return all completed pipeline jobs with video URLs."""
+    jobs = []
+    for job_id, result in _pipeline_results.items():
+        if result.get("status") == "completed":
+            meta = result.get("metadata", {})
+            jobs.append({
+                "job_id": job_id,
+                "video_url": result.get("video_url", ""),
+                "cost": result.get("cost", 0),
+                "created_at": None,  # in-memory ไม่มี timestamp
+                "product_name": meta.get("product_name", ""),
+                "product_url": meta.get("product_url", ""),
+                "duration": meta.get("duration", 8),
+                "style": meta.get("ugc_style", ""),
+            })
+    # Return เรียงล่าสุดก่อน
+    jobs.reverse()
+    return {"jobs": jobs, "total": len(jobs)}
+
+
+@app.post("/video/post")
+async def post_video_to_tiktok(req: VideoPostRequest):
+    """Post a completed video to TikTok with affiliate link."""
+    # 1. หา video path จาก job
+    result = _pipeline_results.get(req.job_id)
+    if not result:
+        raise HTTPException(status_code=404, detail=f"Job {req.job_id} not found")
+    if result.get("status") != "completed":
+        raise HTTPException(status_code=400, detail=f"Job {req.job_id} is not completed")
+
+    video_url = result.get("video_url", "")
+    if not video_url:
+        raise HTTPException(status_code=400, detail="No video URL in job")
+
+    # แปลง /static/videos/... → absolute path
+    video_filename = video_url.replace("/static/videos/", "")
+    video_path = VIDEOS_DIR / video_filename
+    if not video_path.exists():
+        raise HTTPException(status_code=404, detail=f"Video file not found: {video_path}")
+
+    # 2. สร้าง caption (hook + affiliate link)
+    meta = result.get("metadata", {})
+    hook = meta.get("hook", "") or meta.get("product_name", "Check this out!")
+    caption = req.caption or hook
+    if req.affiliate_link:
+        caption += f"\n\n🔗 {req.affiliate_link}"
+
+    # 3. Post ผ่าน TikTok upload
+    from simple_tiktok_uploader import upload
+    accounts = _load_tiktok_accounts()
+    acct = accounts.get(req.account_id.lstrip("@"))
+    if not acct:
+        raise HTTPException(status_code=404, detail=f"Account {req.account_id} not found")
+
+    token = acct.get("session_token", "")
+    if not token:
+        raise HTTPException(status_code=400, detail="No TikTok session token. Login first.")
+
+    import os
+    os.environ["TIKTOK_SESSION"] = token
+
+    try:
+        upl_result = upload(str(video_path), caption)
+        post_id = getattr(upl_result, "id", "") or getattr(upl_result, "video_id", "")
+        return {
+            "success": True,
+            "job_id": req.job_id,
+            "video_id": post_id,
+            "account_id": req.account_id,
+            "caption": caption,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Upload failed: {str(e)[:300]}")
+
+
 @app.get("/video/providers")
 def video_providers():
     """List available and configured video providers"""

@@ -1407,8 +1407,8 @@ select.input { cursor: pointer; }
 </div><!-- /app -->
 
 <script>
-const API = window.location.origin + '/api/tiktok/ugc';
-const SCRAPER = window.location.origin + '/api/tiktok/scraper';
+const API = window.location.origin + '/api/tiktok';
+const SCRAPER = window.location.origin + '/api/tiktok';
 
 let currentStep = 1;
 
@@ -1453,7 +1453,7 @@ async function loadDashboard() {
   const statsCredits = document.getElementById('dashStatCredits');
   const jobsEl = document.getElementById('dashRecentJobs');
   try {
-    const res = await fetch(window.location.origin + '/dashboard/summary');
+    const res = await fetch(API + '/dashboard/summary');
     if (!res.ok) throw new Error('API error');
     const data = await res.json();
     if (!data.success) throw new Error('Not successful');
@@ -1488,7 +1488,7 @@ async function loadDashboard() {
     // Track event (fire-and-forget, first load only)
     if (!window._dashTracked) {
       window._dashTracked = true;
-      fetch(window.location.origin + '/dashboard/track-event', {
+      fetch(API + '/dashboard/track-event', {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({event: 'dashboard_view', metadata: {}})
@@ -3016,7 +3016,7 @@ function renderAssets(type) {
 
   gallery.innerHTML = items.map((item, idx) => {
     const isVideo = item._type === 'video';
-    const url = item.url || '/storage/' + item.path;
+    const url = item.url || '/tiktok/storage/' + item.path;
     const ext = (item.name || '').split('.').pop().toLowerCase();
     const isVideoExt = ['mp4', 'mov', 'webm', 'gif'].includes(ext);
     const showPlay = isVideo || isVideoExt;
@@ -3043,7 +3043,7 @@ function openAssetLightbox(idx) {
   const item = lightboxItems[idx];
   if (!item) return;
 
-  const url = item.url || '/storage/' + item.path;
+  const url = item.url || '/tiktok/storage/' + item.path;
   const ext = (item.name || '').split('.').pop().toLowerCase();
   const isVideo = item._type === 'video' || ['mp4', 'mov', 'webm'].includes(ext);
 

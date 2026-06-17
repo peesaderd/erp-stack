@@ -2945,6 +2945,7 @@ class SheetsImportRequest(BaseModel):
     spreadsheet_id: str
     sheet_name: str = "Products"
     limit: int = 50
+    mapping: dict = {}
 
 
 @app.get("/products/sheets/status")
@@ -2953,11 +2954,14 @@ async def sheets_status():
     try:
         configured = sheets_is_ready()
         creds_path = os.path.join(os.path.dirname(__file__), '..', 'modules', 'product', 'sheets_credentials.json')
+        sheet_id = os.environ.get("MEDIA_SHEET_ID", "")
         return {
             "success": True,
             "configured": configured,
             "credentials_file_exists": os.path.exists(creds_path),
             "credentials_path": creds_path,
+            "spreadsheet_id": sheet_id,
+            "spreadsheet_url": f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit" if sheet_id else "",
             "instructions": sheets_instructions() if not configured else None,
         }
     except Exception as e:
@@ -3003,14 +3007,21 @@ async def sheets_import(req: SheetsImportRequest):
             return {"success": False, "error": "Sheet is empty or has only headers"}
 
         headers = [h.strip().lower() for h in rows[0]]
-        col_map = {
-            'url': next((i for i, h in enumerate(headers) if h in ('url','link','product url','product link')), None),
-            'name': next((i for i, h in enumerate(headers) if h in ('name','title','product name','product')), None),
-            'price': next((i for i, h in enumerate(headers) if h in ('price','price_thb','cost')), None),
-            'commission': next((i for i, h in enumerate(headers) if h in ('commission','commission_rate','comm')), None),
-            'image': next((i for i, h in enumerate(headers) if h in ('image','image url','img','thumbnail')), None),
-            'category': next((i for i, h in enumerate(headers) if h in ('category','type')), None),
-        }
+        # Use user-provided mapping if sent, otherwise auto-detect
+        if req.mapping and any(v.strip() for v in req.mapping.values()):
+            col_map = {}
+            for field, col_name in req.mapping.items():
+                col_name = col_name.strip().lower()
+                col_map[field] = next((i for i, h in enumerate(headers) if h == col_name), None)
+        else:
+            col_map = {
+                'url': next((i for i, h in enumerate(headers) if h in ('url','link','product url','product link')), None),
+                'name': next((i for i, h in enumerate(headers) if h in ('name','title','product name','product')), None),
+                'price': next((i for i, h in enumerate(headers) if h in ('price','price_thb','cost')), None),
+                'commission': next((i for i, h in enumerate(headers) if h in ('commission','commission_rate','comm')), None),
+                'image_url': next((i for i, h in enumerate(headers) if h in ('image','image url','img','thumbnail','รูปภาพ')), None),
+                'category': next((i for i, h in enumerate(headers) if h in ('category','type','หมวดหมู่')), None),
+            }
 
         imported = []
         db_path = os.path.join(os.path.dirname(__file__), 'tus_products.db')
@@ -3042,7 +3053,7 @@ async def sheets_import(req: SheetsImportRequest):
             price = float(price_str.replace(',','').replace('฿','')) if price_str else 0
             comm_str = row[col_map['commission']].strip() if col_map['commission'] is not None and col_map['commission'] < len(row) else '0'
             comm = float(comm_str.replace('%','')) if comm_str else 0
-            img = row[col_map['image']].strip() if col_map['image'] is not None and col_map['image'] < len(row) else ''
+            img = row[col_map['image_url']].strip() if col_map['image_url'] is not None and col_map['image_url'] < len(row) else ''
             cat = row[col_map['category']].strip() if col_map['category'] is not None and col_map['category'] < len(row) else ''
             images_json = json.dumps([img] if img else [])
             conn.execute("""INSERT OR REPLACE INTO tus_products

@@ -857,12 +857,34 @@ select.input { cursor: pointer; }
       <span>📊 Google Sheets Import</span>
       <span id="sheetsStatusBadge" class="badge" style="background:var(--bg-tertiary);color:var(--text-secondary);font-size:11px">ตรวจสอบ...</span>
     </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+
+    <!-- Step 1: เลือก Spreadsheet + Open -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
       <input class="input" id="sheetsSpreadsheetId" placeholder="Spreadsheet ID (จาก URL .../d/{ID}/edit)" value="" style="flex:1;min-width:200px">
-      <input class="input" id="sheetsSheetName" placeholder="Sheet name" value="Products" style="width:100px">
-      <button class="btn btn-secondary btn-sm" onclick="checkSheetsStatus()">🔌 Connect</button>
-      <button class="btn btn-primary btn-sm" onclick="importFromSheets()">📥 Import</button>
+      <button class="btn btn-secondary btn-sm" onclick="window.open('https://docs.google.com/spreadsheets/d/'+document.getElementById('sheetsSpreadsheetId').value,'_blank')" title="เปิด Google Sheet">🔗 Open Sheet</button>
+      <button class="btn btn-secondary btn-sm" id="sheetsConnectBtn" onclick="connectSheet()">🔄 เชื่อมต่อ</button>
     </div>
+
+    <!-- Step 2: เลือก Sheet name + Map columns (แสดงหลังเชื่อมต่อ) -->
+    <div id="sheetsConfigArea" style="display:none;margin-top:8px;padding:10px;background:var(--bg-tertiary);border-radius:var(--radius-lg)">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+        <label style="font-size:12px;font-weight:500;min-width:60px">📄 Sheet:</label>
+        <select class="input" id="sheetsSheetSelector" style="flex:1;min-width:150px"></select>
+      </div>
+      <div style="font-size:12px;font-weight:500;margin-bottom:6px">🧩 Map Columns (field → คอลัมน์ใน Sheet)</div>
+      <div id="sheetsFieldMapping" style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <div><label style="font-size:11px;color:var(--text-secondary)">ชื่อสินค้า (title)</label><input class="input" id="map_title" value="ชื่อสินค้า" placeholder="column name" style="font-size:12px;padding:5px 8px"></div>
+        <div><label style="font-size:11px;color:var(--text-secondary)">ราคา (price)</label><input class="input" id="map_price" value="ราคา" placeholder="column name" style="font-size:12px;padding:5px 8px"></div>
+        <div><label style="font-size:11px;color:var(--text-secondary)">ลิงก์/URL (url)</label><input class="input" id="map_url" value="ลิงก์" placeholder="column name" style="font-size:12px;padding:5px 8px"></div>
+        <div><label style="font-size:11px;color:var(--text-secondary)">หมวดหมู่ (category)</label><input class="input" id="map_category" value="หมวดหมู่" placeholder="column name" style="font-size:12px;padding:5px 8px"></div>
+        <div><label style="font-size:11px;color:var(--text-secondary)">รูปภาพ (image_url)</label><input class="input" id="map_image_url" value="รูปภาพ" placeholder="column name" style="font-size:12px;padding:5px 8px"></div>
+        <div><label style="font-size:11px;color:var(--text-secondary)">Commission (%)</label><input class="input" id="map_commission" value="คอมมิชชั่น" placeholder="column name" style="font-size:12px;padding:5px 8px"></div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+        <button class="btn btn-primary btn-sm" onclick="importFromSheets()">📥 Import Products</button>
+      </div>
+    </div>
+
     <div id="sheetsResult" class="text-xs text-secondary mt-2"></div>
   </div>
 
@@ -2158,45 +2180,56 @@ async function cancelScheduledPost(postId) {
 /* ═══ Google Sheets ═══ */
 let _sheetsConfigured = false;
 
-async function checkSheetsStatus() {
+// Auto-connect on page load: check status + prefill ID
+async function autoInitSheets() {
+  const sidInput = document.getElementById('sheetsSpreadsheetId');
+  const badge = document.getElementById('sheetsStatusBadge');
+  if (!sidInput) return;
+  try {
+    const r = await fetch(API + '/products/sheets/status');
+    const d = await r.json();
+    if (d.configured && d.spreadsheet_id) {
+      sidInput.value = d.spreadsheet_id;
+      _sheetsConfigured = true;
+      badge.textContent = '✅ พร้อมเชื่อมต่อ'; badge.className = 'badge badge-indigo';
+      // Auto-connect to get worksheet list
+      connectSheet();
+    } else if (d.configured) {
+      badge.textContent = '✅ Credentials OK'; badge.className = 'badge badge-green';
+      _sheetsConfigured = true;
+    } else {
+      badge.textContent = '❌ ไม่ได้ตั้งค่า'; badge.className = 'badge badge-red';
+    }
+  } catch(e) { /* silent */ }
+}
+
+async function connectSheet() {
   const sid = document.getElementById('sheetsSpreadsheetId').value.trim();
-  const sname = document.getElementById('sheetsSheetName').value.trim() || 'Products';
   const badge = document.getElementById('sheetsStatusBadge');
   const result = document.getElementById('sheetsResult');
-  if (!result) return;
+  const configArea = document.getElementById('sheetsConfigArea');
+  if (!sid) { showToast('ใส่ Spreadsheet ID ก่อน', 'error'); return; }
 
-  if (!sid) {
-    try {
-      const r = await fetch(API + '/products/sheets/status');
-      const d = await r.json();
-      if (d.configured) {
-        badge.textContent = '✅ Connected'; badge.className = 'badge badge-green';
-        _sheetsConfigured = true;
-        result.innerHTML = '<span class="text-green">Credentials OK — ใส่ Spreadsheet ID แล้ว Connect</span>';
-      } else {
-        badge.textContent = '❌ Not Configured'; badge.className = 'badge badge-red';
-        _sheetsConfigured = false;
-        result.innerHTML = '<span class="text-red">กรุณาเตรียม credentials ก่อน</span>';
-      }
-    } catch(e) { badge.textContent = '⚠ Error'; result.innerHTML = e.message; }
-    return;
-  }
-
-  badge.textContent = '⏳ Connecting...';
+  badge.textContent = '⏳ กำลังเชื่อมต่อ...';
   result.innerHTML = '';
   try {
     const r = await fetch(API + '/products/sheets/connect', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({spreadsheet_id: sid, sheet_name: sname})
+      body: JSON.stringify({spreadsheet_id: sid, sheet_name: ''})
     });
     const d = await r.json();
     if (d.success) {
       badge.textContent = '✅ ' + d.title; badge.className = 'badge badge-green';
       _sheetsConfigured = true;
-      result.innerHTML = '<span class="text-green">✔ เชื่อมต่อสำเร็จ! <strong>' + d.title + '</strong></span>';
+      result.innerHTML = '<span class="text-green">✔ เชื่อมต่อสำเร็จ: <strong>' + d.title + '</strong></span>';
+      
+      // Populate sheet selector dropdown
+      const sel = document.getElementById('sheetsSheetSelector');
+      sel.innerHTML = d.worksheets.map(ws => '<option value="' + ws + '">' + ws + '</option>').join('');
+      configArea.style.display = 'block';
     } else {
       badge.textContent = '❌ Failed'; badge.className = 'badge badge-red';
-      result.innerHTML = '<span class="text-red">' + (d.error || 'Failed') + '</span>';
+      result.innerHTML = '<span class="text-red">' + (d.error || 'เชื่อมต่อไม่สำเร็จ') + '</span>';
     }
   } catch(e) {
     badge.textContent = '⚠ Error'; result.innerHTML = e.message;
@@ -2205,14 +2238,25 @@ async function checkSheetsStatus() {
 
 async function importFromSheets() {
   const sid = document.getElementById('sheetsSpreadsheetId').value.trim();
-  const sname = document.getElementById('sheetsSheetName').value.trim() || 'Products';
+  const sname = document.getElementById('sheetsSheetSelector').value || 'Products';
   const result = document.getElementById('sheetsResult');
   if (!sid) { showToast('ใส่ Spreadsheet ID ก่อน', 'error'); return; }
+  
+  // Collect field mapping
+  const mapping = {
+    title: document.getElementById('map_title')?.value || 'ชื่อสินค้า',
+    price: document.getElementById('map_price')?.value || 'ราคา',
+    url: document.getElementById('map_url')?.value || 'ลิงก์',
+    category: document.getElementById('map_category')?.value || 'หมวดหมู่',
+    image_url: document.getElementById('map_image_url')?.value || 'รูปภาพ',
+    commission: document.getElementById('map_commission')?.value || 'คอมมิชชั่น',
+  };
+  
   result.innerHTML = '<span>⏳ กำลัง Import...</span>';
   try {
     const r = await fetch(API + '/products/sheets/import', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({spreadsheet_id: sid, sheet_name: sname, limit: 50})
+      body: JSON.stringify({spreadsheet_id: sid, sheet_name: sname, limit: 50, mapping: mapping})
     });
     const d = await r.json();
     if (d.success) {
@@ -2852,7 +2896,7 @@ document.addEventListener('DOMContentLoaded', () => {
   sessionStorage.setItem('aspectRatio', '9:16');
 
   // Initial loads
-  loadDashboard(); loadAccounts(); populateAccountSelect(); loadProviders();
+  loadDashboard(); loadAccounts(); populateAccountSelect(); loadProviders(); autoInitSheets();
 });
 
 

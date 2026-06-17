@@ -3444,6 +3444,87 @@ async def _upload_composed_video(output_path: str, task_id: str, job_id: str = "
 
 
 # ═══════════════════════════════════════════════════════════════════════
+# Dashboard
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@app.get("/dashboard/summary")
+def dashboard_summary():
+    """Dashboard summary: credits, counts, recent jobs, quick actions."""
+    total_videos = 0
+    total_products = 0
+    recent_jobs = []
+
+    # Read pipeline.db -> total_videos + recent_jobs
+    if os.path.exists(PIPELINE_DB_PATH):
+        try:
+            conn = sqlite3.connect(PIPELINE_DB_PATH)
+            # Total jobs count
+            row = conn.execute("SELECT COUNT(*) FROM pipeline_jobs").fetchone()
+            total_videos = row[0] if row else 0
+
+            # Recent jobs (last 10)
+            rows = conn.execute(
+                "SELECT job_id, account_id, status, product_url, created_at, updated_at "
+                "FROM pipeline_jobs ORDER BY created_at DESC LIMIT 10"
+            ).fetchall()
+            conn.close()
+            for r in rows:
+                recent_jobs.append({
+                    "id": r[0],
+                    "account_id": r[1],
+                    "status": r[2],
+                    "product_url": r[3],
+                    "created_at": r[4],
+                    "updated_at": r[5],
+                })
+        except Exception as e:
+            logger.warning(f"Dashboard pipeline.db read error: {e}")
+
+    # Read tus_products.db -> total_products
+    products_db_path = os.path.join(os.path.dirname(__file__), "tus_products.db")
+    if os.path.exists(products_db_path):
+        try:
+            conn = sqlite3.connect(products_db_path)
+            row = conn.execute("SELECT COUNT(*) FROM tus_products").fetchone()
+            total_products = row[0] if row else 0
+            conn.close()
+        except Exception as e:
+            logger.warning(f"Dashboard products.db read error: {e}")
+
+    # Credit balance (placeholder / from file)
+    credit_balance = 0.0
+    credit_file = os.path.join(os.path.dirname(__file__), "credit_balance.txt")
+    if os.path.exists(credit_file):
+        try:
+            with open(credit_file) as f:
+                credit_balance = float(f.read().strip() or "0")
+        except Exception:
+            pass
+
+    return {
+        "success": True,
+        "credit_balance": credit_balance,
+        "total_videos": total_videos,
+        "total_products": total_products,
+        "recent_jobs": recent_jobs,
+        "quick_actions": ["generate_video", "import_products", "post_tiktok", "scheduled_posts"],
+    }
+
+
+class TrackEventRequest(BaseModel):
+    event: str = ""
+    metadata: dict = {}
+
+
+@app.post("/dashboard/track-event")
+def dashboard_track_event(req: TrackEventRequest):
+    """Log a dashboard event for analytics."""
+    logger.info(f"Dashboard event: {req.event} metadata={req.metadata}")
+    return {"success": True, "event": req.event}
+
+
+# ═══════════════════════════════════════════════════════════════════════
 # ERP Modular Registration (startup)
 # ═══════════════════════════════════════════════════════════════════════
 

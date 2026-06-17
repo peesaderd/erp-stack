@@ -428,8 +428,9 @@ select.input { cursor: pointer; }
 <!-- ═══ Dashboard ═══ -->
 <div id="page-dashboard" class="page active">
   <div class="page-header">
-    <div><h2>Dashboard</h2><p>ภาพรวมบัญชี TikTok ของคุณ</p></div>
+    <div><h2>📊 Dashboard</h2><p>ภาพรวมบัญชี TikTok ของคุณ</p></div>
     <div class="flex gap-2">
+      <button class="btn btn-ghost btn-sm" onclick="loadDashboard()" title="⟳ Refresh">⟳</button>
       <button class="btn btn-primary" onclick="switchTab('content')">+ สร้างเนื้อหาใหม่</button>
     </div>
   </div>
@@ -437,36 +438,45 @@ select.input { cursor: pointer; }
   <!-- Credit Balance -->
   <div class="card mb-4" style="background:linear-gradient(135deg,var(--color-brand-700),var(--color-brand-900));color:#fff;border:none">
     <div style="display:flex;justify-content:space-between;align-items:center">
-      <div><div style="font-size:12px;opacity:.8">ยอดเครดิตคงเหลือ</div><div style="font-size:32px;font-weight:700">฿1,250.00</div></div>
+      <div><div style="font-size:12px;opacity:.8">💳 ยอดเครดิตคงเหลือ</div><div style="font-size:32px;font-weight:700"><span id="dashCredits">฿0.00</span></div></div>
       <button class="btn" style="background:rgba(255,255,255,.2);color:#fff;border-color:rgba(255,255,255,.3)" onclick="showToast('Coming soon','info')">เติมเครดิต</button>
     </div>
   </div>
 
   <!-- Stats -->
-  <div class="stats-grid" id="statsGrid">
-    <div class="stat-card"><div class="stat-value" id="statVideos">47</div><div class="stat-label">Total Videos</div></div>
-    <div class="stat-card"><div class="stat-value" id="statToday">12</div><div class="stat-label">Published Today</div></div>
-    <div class="stat-card"><div class="stat-value" id="statActive">3</div><div class="stat-label">Active Jobs</div></div>
-    <div class="stat-card"><div class="stat-value" id="statScripts">156</div><div class="stat-label">Scripts Generated</div></div>
+  <div class="stats-grid" id="dashStatsGrid">
+    <div class="stat-card"><div class="stat-value" id="dashStatVideos">—</div><div class="stat-label">🎬 Total Videos</div></div>
+    <div class="stat-card"><div class="stat-value" id="dashStatProducts">—</div><div class="stat-label">📦 Total Products</div></div>
+    <div class="stat-card"><div class="stat-value" id="dashStatJobs">—</div><div class="stat-label">🔥 Recent Jobs</div></div>
+    <div class="stat-card"><div class="stat-value" id="dashStatCredits">฿0</div><div class="stat-label">💰 Credits</div></div>
   </div>
 
   <!-- Recent Jobs -->
   <div class="card mb-4">
-    <div class="card-header"><span class="card-title">Recent Jobs</span><button class="btn btn-ghost btn-sm" onclick="loadRecentJobs()">⟳</button></div>
-    <div id="recentJobs"><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line"></div></div>
+    <div class="card-header"><span class="card-title">🕐 Recent Jobs</span><button class="btn btn-ghost btn-sm" onclick="loadDashboard()">⟳</button></div>
+    <div id="dashRecentJobs"><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line"></div></div>
   </div>
 
-  <!-- Quick actions -->
-  <div class="grid-2">
-    <div class="card" style="cursor:pointer" onclick="switchTab('content')">
-      <div style="font-size:28px;margin-bottom:8px">🎬</div>
-      <div class="card-title">สร้างเนื้อหาใหม่</div>
-      <div class="text-sm text-secondary mt-2">สร้างสคริปต์และวิดีโอ UGC อัตโนมัติ</div>
-    </div>
-    <div class="card" style="cursor:pointer" onclick="switchTab('accounts')">
-      <div style="font-size:28px;margin-bottom:8px">📱</div>
-      <div class="card-title">จัดการบัญชี</div>
-      <div class="text-sm text-secondary mt-2">เพิ่มบัญชี TikTok และเช็คล็อกอิน</div>
+  <!-- Quick Actions -->
+  <div class="card">
+    <div class="card-title mb-3">⚡ Quick Actions</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
+      <div class="card" style="cursor:pointer;padding:16px;text-align:center" onclick="switchTab('content')">
+        <div style="font-size:28px;margin-bottom:6px">🎬</div>
+        <div class="card-title" style="font-size:13px">Generate Video</div>
+      </div>
+      <div class="card" style="cursor:pointer;padding:16px;text-align:center" onclick="switchTab('products')">
+        <div style="font-size:28px;margin-bottom:6px">📦</div>
+        <div class="card-title" style="font-size:13px">Import Products</div>
+      </div>
+      <div class="card" style="cursor:pointer;padding:16px;text-align:center" onclick="openPostModal()">
+        <div style="font-size:28px;margin-bottom:6px">🚀</div>
+        <div class="card-title" style="font-size:13px">Post to TikTok</div>
+      </div>
+      <div class="card" style="cursor:pointer;padding:16px;text-align:center" onclick="switchTab('scheduled')">
+        <div style="font-size:28px;margin-bottom:6px">📅</div>
+        <div class="card-title" style="font-size:13px">Scheduled Posts</div>
+      </div>
     </div>
   </div>
 </div>
@@ -955,7 +965,7 @@ function switchTab(name) {
   document.querySelectorAll('.topbar-nav button, .side-nav-body button').forEach(b => b.classList.remove('active'));
   document.getElementById('page-'+name)?.classList.add('active');
   document.querySelectorAll(`[data-tab="${name}"]`).forEach(b => b.classList.add('active'));
-  if (name === 'dashboard') loadRecentJobs();
+  if (name === 'dashboard') loadDashboard();
   if (name === 'pipeline') loadPipeline();
   if (name === 'accounts') loadAccounts();
   if (name === 'history') loadHistory();
@@ -979,22 +989,85 @@ function setLoading(elId, loading) {
   if (loading) el.innerHTML = '<div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line" style="width:60%"></div>';
 }
 
-/* ═══ Recent jobs (Dashboard) ═══ */
-async function loadRecentJobs() {
-  const el = document.getElementById('recentJobs');
-  setLoading('recentJobs', true);
+/* ═══ Dashboard ═══ */
+async function loadDashboard() {
+  setLoading('dashRecentJobs', true);
+  const creditsEl = document.getElementById('dashCredits');
+  const statsVideo = document.getElementById('dashStatVideos');
+  const statsProd = document.getElementById('dashStatProducts');
+  const statsJobs = document.getElementById('dashStatJobs');
+  const statsCredits = document.getElementById('dashStatCredits');
+  const jobsEl = document.getElementById('dashRecentJobs');
   try {
-    const res = await fetch(API + '/video/queue');
-    if (!res.ok) throw new Error('Failed');
+    const res = await fetch(window.location.origin + '/dashboard/summary');
+    if (!res.ok) throw new Error('API error');
     const data = await res.json();
-    if (!data?.jobs?.length) { el.innerHTML = '<div class="text-sm text-secondary" style="text-align:center;padding:16px">No recent jobs</div>'; return; }
-    el.innerHTML = data.jobs.slice(0,5).map(j => `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border-secondary)">
-        <div><div class="text-sm">${j.id || j.job_id || 'Job'}</div><div class="text-xs text-secondary">${j.product_url ? j.product_url.slice(0,40)+'...' : j.status || ''}</div></div>
-        <span class="badge ${j.status==='completed'?'badge-green':j.status==='processing'?'badge-indigo':j.status==='failed'?'badge-red':'badge-gray'}">${j.status || 'pending'}</span>
-      </div>
-    `).join('');
-  } catch(e) { el.innerHTML = '<div class="text-sm text-secondary" style="text-align:center;padding:16px">Failed to load jobs</div>'; }
+    if (!data.success) throw new Error('Not successful');
+    // Update credit balance
+    const bal = data.credit_balance || 0;
+    if (creditsEl) creditsEl.textContent = '฿' + bal.toLocaleString('th-TH', {minimumFractionDigits:2,maximumFractionDigits:2});
+    // Update stats
+    if (statsVideo) { statsVideo.textContent = data.total_videos || 0; animateValue(statsVideo); }
+    if (statsProd) { statsProd.textContent = data.total_products || 0; animateValue(statsProd); }
+    if (statsJobs) { statsJobs.textContent = (data.recent_jobs || []).length; animateValue(statsJobs); }
+    if (statsCredits) statsCredits.textContent = '฿' + bal.toLocaleString('th-TH', {minimumFractionDigits:0});
+    // Recent jobs
+    const jobs = data.recent_jobs || [];
+    if (!jobs.length) {
+      jobsEl.innerHTML = '<div class="text-sm text-secondary" style="text-align:center;padding:16px">\u{1F4AD} No recent jobs. Start by generating a video!</div>';
+    } else {
+      jobsEl.innerHTML = jobs.slice(0,10).map(j => {
+        const badgeClass = j.status === 'completed' ? 'badge-green' : j.status === 'processing' || j.status === 'in_progress' ? 'badge-indigo' : j.status === 'failed' ? 'badge-red' : 'badge-gray';
+        const timeAgo = j.created_at ? timeSince(j.created_at) : '';
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border-secondary)">
+          <div style="flex:1;min-width:0">
+            <div class="text-sm" style="font-weight:500">${j.id || 'Job'}</div>
+            <div class="text-xs text-secondary" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${j.product_url ? j.product_url.slice(0,50) : timeAgo}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+            <span class="text-xs text-secondary">${timeAgo}</span>
+            <span class="badge ${badgeClass}">${j.status || 'pending'}</span>
+          </div>
+        </div>`;
+      }).join('');
+    }
+    // Track event (fire-and-forget, first load only)
+    if (!window._dashTracked) {
+      window._dashTracked = true;
+      fetch(window.location.origin + '/dashboard/track-event', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({event: 'dashboard_view', metadata: {}})
+      }).catch(() => {});
+    }
+  } catch(e) {
+    if (jobsEl) jobsEl.innerHTML = '<div class="text-sm text-secondary" style="text-align:center;padding:16px">❌ Failed to load: ' + e.message + '</div>';
+  }
+}
+
+function timeSince(dateStr) {
+  if (!dateStr) return '';
+  const now = new Date();
+  const d = new Date(dateStr);
+  const sec = Math.floor((now - d) / 1000);
+  if (sec < 60) return 'just now';
+  const min = Math.floor(sec / 60);
+  if (min < 60) return min + 'm ago';
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return hr + 'h ago';
+  const day = Math.floor(hr / 24);
+  return day + 'd ago';
+}
+
+function animateValue(el) {
+  el.style.transition = 'transform .2s ease';
+  el.style.transform = 'scale(1.15)';
+  setTimeout(() => { el.style.transform = 'scale(1)'; }, 200);
+}
+
+/* ═══ Recent jobs (legacy) ═══ */
+async function loadRecentJobs() {
+  await loadDashboard();
 }
 
 /* ═══ Content wizard ═══ */
@@ -1793,7 +1866,7 @@ function toggleSideNav() {
 
 /* ═══ Refresh All ═══ */
 function refreshAll() {
-  loadRecentJobs(); loadPipeline(); loadAccounts(); loadHistory();
+  loadDashboard(); loadPipeline(); loadAccounts(); loadHistory();
   showToast('Refreshed','success');
 }
 
@@ -2096,7 +2169,7 @@ document.addEventListener('DOMContentLoaded', () => {
   sessionStorage.setItem('aspectRatio', '9:16');
 
   // Initial loads
-  loadRecentJobs(); loadAccounts(); populateAccountSelect(); loadProviders();
+  loadDashboard(); loadAccounts(); populateAccountSelect(); loadProviders();
 });
 
 

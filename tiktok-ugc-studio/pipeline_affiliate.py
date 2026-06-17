@@ -344,6 +344,7 @@ def generate_video(
     prompt: str,
     duration: int = 8,
     reference_analysis: dict = None,
+    negative_prompt: Optional[str] = None,
 ) -> str:
     """
     Wan 2.7 img2vid — ไม่มี Audio (no lip sync)
@@ -382,7 +383,7 @@ def generate_video(
         "config": {
             "prompt": enhanced,
             "duration": duration,
-            "negative_prompt": "low resolution, error, worst quality, deformed, blurry, disfigured face, wrong mouth, speaking, lips moving",
+            "negative_prompt": negative_prompt or "low resolution, error, worst quality, deformed, blurry, disfigured face, wrong mouth, speaking, lips moving",
         }
     }
 
@@ -448,6 +449,7 @@ def run_pipeline(
     enable_sam3: bool = True,
     bgm_style: str = "chill_loft",
     video_prompts: list[str] = None,
+    negative_prompt: Optional[str] = None,
 ) -> dict:
     """
     Run full Affiliate Pipeline v4 — SAM3 → Voice → Wan 2.7 img2vid+audio
@@ -545,6 +547,7 @@ def run_pipeline(
             prompt=vprompt,
             duration=video_duration,
             reference_analysis=video_sam3,
+            negative_prompt=negative_prompt,
         )
         vpath = TMP_DIR / f"scene_{run_id}_{i}.mp4"
         download_file(vid_url, vpath)

@@ -131,7 +131,7 @@ class UGCRequest(BaseModel):
     gender: str = "female"
     age: str = "25-35"
     scene: str = "home"
-    negative_prompt: Optional[str] = None  # Custom negative prompt override
+    negative_prompt: Optional[str] = None  # ถ้าไม่ระบุ ใช้ค่า default (นิ้วเกิน, หน้าเพี้ยน)  # Custom negative prompt override
 
 
 class ConcatRequest(BaseModel):
@@ -182,7 +182,7 @@ class VideoRequest(BaseModel):
     model_tier: str = "standard"
     image_url: Optional[str] = None
     script: Optional[str] = None
-    negative_prompt: Optional[str] = None
+    negative_prompt: Optional[str] = None  # ถ้าไม่ระบุ ใช้ค่า default (นิ้วเกิน, หน้าเพี้ยน)
 
 
 class VideoTaskRequest(BaseModel):
@@ -1235,6 +1235,7 @@ def generate_video(req: VideoRequest):
                 product_image=req.product_image if req.product_image else None,
                 enable_sam3=bool(req.product_image),
                 bgm_style=selected_sound_style,
+                negative_prompt=req.negative_prompt,
             )
             VIDEOS_DIR.mkdir(parents=True, exist_ok=True)
             final_path = result["final_path"]
@@ -2121,7 +2122,7 @@ class TikTokUploadRequest(BaseModel):
     generate_from_prompt: Optional[str] = None  # If set, generate video first
     ugc_style: Optional[str] = None  # UGC style for video gen
     product_url: Optional[str] = None  # Scrape product + generate + upload pipeline
-    negative_prompt: Optional[str] = None  # Added P1: negative prompt for video gen
+    negative_prompt: Optional[str] = None  # ถ้าไม่ระบุ ใช้ค่า default (นิ้วเกิน, หน้าเพี้ยน)  # Added P1: negative prompt for video gen
 
 
 class TikTokSessionRequest(BaseModel):

@@ -1240,6 +1240,7 @@ async function startGeneration() {
       ugc_style: sessionStorage.getItem('selectedStyle') || 'product_usage',
       aspect_ratio: sessionStorage.getItem('aspectRatio') || '9:16',
       duration: duration,
+      negative_prompt: document.getElementById('negativePrompt').value.trim() || undefined,
     };
     
     const res = await fetch(API + '/video/generate', {

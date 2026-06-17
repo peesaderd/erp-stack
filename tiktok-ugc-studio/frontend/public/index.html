@@ -589,6 +589,16 @@ select.input { cursor: pointer; }
         </div>
       </div>
     </div>
+    <!-- ═══ Duration Selector (กำหนดจำนวน scene และรูป) ═══ -->
+    <div class="mb-4">
+      <label class="text-sm text-secondary mb-2" style="display:block">ความยาววิดีโอ</label>
+      <div class="duration-chips">
+        <span class="duration-chip selected" onclick="selectDuration(this,'8')">8 วิ ~$0.09</span>
+        <span class="duration-chip" onclick="selectDuration(this,'16')">16 วิ ~$0.16 (2 scenes)</span>
+      </div>
+      <div class="text-xs text-secondary mt-1" id="durationHint">8 วิ = 1 scene, 16 วิ = 2 scenes (รูป + วิดีโออัตโนมัติ)</div>
+    </div>
+
     <button class="btn btn-primary" onclick="generateScript()">Next: Generate Script →</button>
   </div>
 
@@ -635,6 +645,10 @@ select.input { cursor: pointer; }
       <div class="text-sm" id="step3Cta">-</div>
     </div>
     <div class="mb-3" style="background:var(--bg-tertiary);border-radius:var(--radius-lg);padding:14px">
+      <div class="text-xs text-secondary mb-2">⏱️ ความยาว</div>
+      <div class="text-sm" id="step3Duration">8 วิ</div>
+    </div>
+    <div class="mb-3" style="background:var(--bg-tertiary);border-radius:var(--radius-lg);padding:14px">
       <div class="text-xs text-secondary mb-2">🎞️ Scene</div>
       <div class="text-sm" id="step3Scene">-</div>
     </div>
@@ -661,23 +675,23 @@ select.input { cursor: pointer; }
     </div>
   </div>
   <div class="card step-content" id="contentStep4">
-    <div class="card-title mb-3">Video Generation Config</div>
+    <div class="card-title mb-3">Generate Video</div>
 
     <div class="mb-3">
-      <label class="text-sm text-secondary mb-2" style="display:block">AI Engine</label>
+      <label class="text-sm text-secondary mb-2" style="display:block">Pipeline</label>
       <div class="chip-display" style="padding:8px 12px;background:var(--bg-tertiary);border-radius:var(--radius-lg);display:flex;align-items:center;gap:8px">
-        <span>⚡ WaveSpeed Wan 2.2</span>
-        <span class="text-xs text-secondary">(~$0.08/คลิป)</span>
+        <span>🎬 Prodia Wan 2.7 + MiniMax 2.8 HD</span>
+        <span class="text-xs text-secondary" id="costHint">ต้นทุน ~$0.09/คลิป</span>
       </div>
     </div>
 
     <div class="mb-3">
-      <label class="text-sm text-secondary mb-2" style="display:block">Duration</label>
+      <label class="text-sm text-secondary mb-2" style="display:block">Duration (ตั้งจาก Step 1)</label>
       <div class="duration-chips">
-        <span class="duration-chip selected" onclick="selectDuration(this,'8')">8s ~$0.08</span>
+        <span class="duration-chip selected" onclick="selectDuration(this,'8')">8s ~$0.09</span>
         <span class="duration-chip" onclick="selectDuration(this,'16')">16s ~$0.16 (2 scenes)</span>
       </div>
-      <div class="text-xs text-secondary mt-1" id="durationHint">คลิปสั้นเหมาะกับ TikTok Affiliate โอกาสขายสูง</div>
+      <div class="text-xs text-secondary mt-1" id="durationHint4">ตั้งค่าจาก Step 1 หรือกดเปลี่ยนที่นี่</div>
     </div>
 
     <div class="mb-3">
@@ -911,7 +925,7 @@ async function generateScript() {
   try {
     const title = document.getElementById('productTitle').value.trim();
     const details = document.getElementById('productDetails').value.trim();
-    const body = { ugc_style: style };
+    const body = { ugc_style: style, duration: sessionStorage.getItem('selectedDuration') || '8' };
     if (url) body.product_url = url;
     if (title) body.product_title = title;
     if (details) body.product_details = details;
@@ -940,6 +954,9 @@ function goToStep3() {
   document.getElementById('step3Hook').textContent = document.getElementById('scriptHook').value || '-';
   document.getElementById('step3Value').textContent = document.getElementById('scriptValue').value || '-';
   document.getElementById('step3Cta').textContent = document.getElementById('scriptCta').value || '-';
+  
+  const duration = sessionStorage.getItem('selectedDuration') || '8';
+  document.getElementById('step3Duration').textContent = duration + ' วิ' + (duration >= 16 ? ' (2 scenes)' : ' (1 scene)');
   
   const lastScript = JSON.parse(localStorage.getItem('lastScript') || '{}');
   document.getElementById('step3Scene').textContent = lastScript.scene || lastScript.scenes?.join(', ') || lastScript.script?.scene || 'UGC ถือสินค้าหน้าฉากหลังเรียบ';
@@ -1032,8 +1049,11 @@ function selectDuration(el, dur) {
   document.querySelectorAll('.duration-chip').forEach(c => c.classList.remove('selected'));
   el.classList.add('selected');
   sessionStorage.setItem('selectedDuration', dur);
-  const hint = document.getElementById('durationHint');
-  if (hint) hint.textContent = dur == 16 ? '🎬 16 วิ = 2 scenes อัตโนมัติ ต้นทุน ~$0.16' : 'คลิปสั้นเหมาะกับ TikTok Affiliate โอกาสขายสูง';
+  [document.getElementById('durationHint'), document.getElementById('durationHint4')].forEach(h => {
+    if (h) h.textContent = dur == 16 ? '🎬 16 วิ = 2 scenes (รูป + วิดีโออัตโนมัติ) ต้นทุน ~$0.16' : '8 วิ = 1 scene ต้นทุน ~$0.09';
+  });
+  const costHint = document.getElementById('costHint');
+  if (costHint) costHint.textContent = dur == 16 ? 'ต้นทุน ~$0.16 (2 scenes)' : 'ต้นทุน ~$0.09/clip';
 }
 
 /* ═══ Image Upload Handlers ═══ */

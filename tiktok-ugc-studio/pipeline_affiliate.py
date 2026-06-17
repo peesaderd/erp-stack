@@ -481,7 +481,6 @@ def run_pipeline(
     # ── Step 0: SAM3 Analyze ──
     sam3_analysis = None
     video_sam3 = None
-    ref_image_for_video = None
 
     if enable_sam3 and product_image:
         logger.info("Step 0/6: SAM3 Analyze")
@@ -499,34 +498,26 @@ def run_pipeline(
             }, f, indent=2)
         logger.info(f"  Layout -> {layout_path}")
 
-        # Use real product image ONLY for SAM3 analysis
-        # Image gen (FLUX with model) will run separately below
-
-    # ── Step 1: Image (FLUX) ──
-    # Need a base image for img2vid — either product_image or FLUX gen
-    if not ref_image_for_video and image_prompt:
-        logger.info("Step 1/6: FLUX Image")
-        img_url = generate_image(image_prompt, reference_analysis=sam3_analysis,
+    # ── Step 1: Image(s) — หนึ่งรูปต่อ scene ──
+    # สร้างรูปแยกตาม scene_prompts แต่ละ scene
+    ref_images = []  # list of Paths, one per scene
+    for i, scene_img_prompt in enumerate(scene_prompts if image_prompt else [image_prompt or scene_prompts[0]]):
+        effective_prompt = image_prompt if i == 0 else scene_img_prompt
+        logger.info(f"Step 1.{i}/6: Image for scene {i+1}")
+        img_url = generate_image(effective_prompt, reference_analysis=sam3_analysis,
                                  input_image=product_image)
-        img_path = TMP_DIR / f"image_{run_id}.png"
+        img_path = TMP_DIR / f"image_{run_id}_{i}.png"
         download_file(img_url, img_path)
-        ref_image_for_video = str(img_path)
-        cost_image = 0.005
-    elif not ref_image_for_video:
-        # Fallback: generate generic product image
-        generic_prompt = scene_prompts[0] if scene_prompts else "product showcase, clean background"
-        img_url = generate_image(generic_prompt, reference_analysis=sam3_analysis)
-        img_path = TMP_DIR / f"image_{run_id}.png"
-        download_file(img_url, img_path)
-        ref_image_for_video = str(img_path)
-        cost_image = 0.005
+        ref_images.append(img_path)
+        cost_image += 0.005
+        logger.info(f"  Scene {i+1} image saved")
 
-    # ── Step 1b: SAM3 วิเคราะห์รูปที่สร้าง — ตรวจสอบก่อน video ──
+    # ── Step 1b: SAM3 วิเคราะห์รูปแรก — ตรวจสอบก่อน video ──
     video_sam3 = sam3_analysis  # default: ใช้ SAM3 จากสินค้า
-    if enable_sam3 and ref_image_for_video:
-        logger.info("Step 1b/6: SAM3 วิเคราะห์รูป UGC")
+    if enable_sam3 and ref_images:
+        logger.info("Step 1b/6: SAM3 วิเคราะห์รูป UGC (scene 0)")
         try:
-            video_sam3 = sam3_analyze_image(ref_image_for_video, run_id)
+            video_sam3 = sam3_analyze_image(str(ref_images[0]), run_id)
             cost_sam3 += 0.0011
             logger.info(f"  พบ objects: {[o['label'] for o in (video_sam3.get('objects') or [])]}")
         except Exception as e:
@@ -547,9 +538,10 @@ def run_pipeline(
     vid_prompts = video_prompts if video_prompts else scene_prompts
     for i in range(num_scenes):
         vprompt = vid_prompts[i] if i < len(vid_prompts) else scene_prompts[i]
-        logger.info(f"  Scene {i+1}/{num_scenes}: {vprompt[:60]}...")
+        ref_img = str(ref_images[i]) if i < len(ref_images) else str(ref_images[0])
+        logger.info(f"  Scene {i+1}/{num_scenes}: {vprompt[:60]}... (img: scene_{i})")
         vid_url = generate_video(
-            image_path=ref_image_for_video,
+            image_path=ref_img,
             prompt=vprompt,
             duration=video_duration,
             reference_analysis=video_sam3,

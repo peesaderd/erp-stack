@@ -179,7 +179,7 @@ def generate_video(
     if not handler:
         raise ValueError(f"No handler for {provider.value}")
 
-    # Delegate to handler — _ws_generate handles 16s (2 scenes + concat) internally
+    # Delegate to handler (Fal.ai only — Prodia/WaveSpeed removed)
     result = handler(config, prompt, model, duration, aspect_ratio, image_url, face_image_url, timeout, negative_prompt)
     result.update({
         "provider": provider.value,

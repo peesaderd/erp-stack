@@ -99,6 +99,7 @@ _pipeline_results = {}
 
 # --- Google Sheets helper (proxy to modules/product/export_service) ---
 SCHEDULER_API = os.environ.get('SCHEDULER_API', 'http://localhost:8130')
+DRIVE_API = os.environ.get('DRIVE_API', 'http://localhost:8132')
 try:
     from export_service import is_ready as sheets_is_ready, get_setup_instructions as sheets_instructions
 except ImportError:
@@ -3373,6 +3374,9 @@ async def _compose_keyframes_to_video(keyframes: list, duration: int, fps: float
         file_size = output_path.stat().st_size
         public_url = f"/static/videos/{output_filename}"
         
+        # Fire-and-forget upload to Google Drive
+        asyncio.create_task(_upload_composed_video(str(output_path), task_id))
+        
         return {
             "url": public_url,
             "filename": output_filename,
@@ -3383,15 +3387,80 @@ async def _compose_keyframes_to_video(keyframes: list, duration: int, fps: float
             "height": h,
             "frame_count": len(frame_files),
             "path": str(output_path),
+            "drive_url": _media_drive_url,
         }
     finally:
         # Cleanup temp files
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
+# ─── Drive Upload Helper (non-blocking) ────────────────────────────────────
+_media_drive_url = ""
+
+async def _upload_composed_video(output_path: str, task_id: str, job_id: str = ""):
+    """Upload composed video to Google Drive + log to Sheet (fire-and-forget)."""
+    global _media_drive_url
+    try:
+        async with httpx.AsyncClient(timeout=120) as client:
+            resp = await client.post(f"{DRIVE_API}/drive/upload", json={
+                "file_path": output_path,
+                "folder_name": "TikTok UGC Media",
+                "file_name": Path(output_path).name,
+            })
+            data = resp.json()
+            if data.get("success"):
+                _media_drive_url = data.get("drive_url", "")
+                logger.info(f"Uploaded to Drive: {_media_drive_url}")
+                # Also log to sheet if configured
+                spreadsheet_id = os.environ.get("MEDIA_SHEET_ID", "")
+                if spreadsheet_id:
+                    await client.post(f"{DRIVE_API}/sheets/log-media", json={
+                        "spreadsheet_id": spreadsheet_id,
+                        "sheet_name": "Media Log",
+                        "filename": Path(output_path).name,
+                        "file_type": "video" if ".mp4" in output_path else "image",
+                        "drive_url": _media_drive_url,
+                        "drive_file_id": data.get("drive_file_id", ""),
+                        "task_id": task_id,
+                        "job_id": job_id,
+                        "file_size_bytes": data.get("size_bytes", 0),
+                        "status": "completed",
+                    })
+            else:
+                logger.warning(f"Drive upload failed: {data.get('error', 'unknown')}")
+    except Exception as e:
+        logger.warning(f"Drive upload skipped (service not running?): {e}")
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # ERP Modular Registration (startup)
 # ═══════════════════════════════════════════════════════════════════════
+
+
+# ===== Drive & Sheets Config =====
+
+@app.get("/drive/connect")
+async def drive_connect():
+    """Check Drive service health + credentials status."""
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(f"{DRIVE_API}/health")
+            d = resp.json()
+            return {"success": True, "drive_service": d, "sheet_id": os.environ.get("MEDIA_SHEET_ID", "")}
+    except Exception as e:
+        return {"success": False, "error": f"Drive service unavailable: {e}", "instructions": "Start drive_service on port 8132"}
+
+
+@app.post("/drive/config")
+async def drive_config(req: dict):
+    """Configure the media logging spreadsheet ID."""
+    sid = req.get("spreadsheet_id", "")
+    if sid:
+        os.environ["MEDIA_SHEET_ID"] = sid
+        return {"success": True, "media_sheet_id": sid}
+    current = os.environ.get("MEDIA_SHEET_ID", "")
+    return {"success": True, "media_sheet_id": current if current else "(not set)"}
+
 
 @app.on_event("startup")
 async def register_with_erp():

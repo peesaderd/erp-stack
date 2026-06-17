@@ -13,5 +13,12 @@ module.exports = {
     args: 'main:app --host 0.0.0.0 --port 8130',
     interpreter: 'python3',
     watch: false,
+  }, {
+    name: 'drive-service',
+    cwd: __dirname + '/../modules/drive_service',
+    script: 'uvicorn',
+    args: 'main:app --host 0.0.0.0 --port 8132',
+    interpreter: 'python3',
+    watch: false,
   }]
 };

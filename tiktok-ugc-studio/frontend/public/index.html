@@ -385,6 +385,7 @@ select.input { cursor: pointer; }
     <button data-tab="products" onclick="switchTab('products')">🎯 Products</button>
     <button data-tab="content" onclick="switchTab('content')">🎬 Content</button>
     <button data-tab="pipeline" onclick="switchTab('pipeline')">📦 Pipeline</button>
+    <button data-tab="scheduled" onclick="switchTab('scheduled')">📅 Scheduled</button>
     <button data-tab="social" onclick="switchTab('social')">📊 Social</button>
     <button data-tab="accounts" onclick="switchTab('accounts')">📱 Accounts</button>
     <button data-tab="history" onclick="switchTab('history')">📋 History</button>
@@ -408,6 +409,7 @@ select.input { cursor: pointer; }
     <button data-tab="products" onclick="switchTab('products');toggleSideNav()">🎯 Products</button>
     <button data-tab="content" onclick="switchTab('content');toggleSideNav()">🎬 Content</button>
     <button data-tab="pipeline" onclick="switchTab('pipeline');toggleSideNav()">📦 Pipeline</button>
+    <button data-tab="scheduled" onclick="switchTab('scheduled');toggleSideNav()">📅 Scheduled</button>
     <button data-tab="social" onclick="switchTab('social');toggleSideNav()">📊 Social</button>
     <button data-tab="accounts" onclick="switchTab('accounts');toggleSideNav()">📱 Accounts</button>
     <button data-tab="history" onclick="switchTab('history');toggleSideNav()">📋 History</button>
@@ -481,6 +483,21 @@ select.input { cursor: pointer; }
     <div class="stat-card"><div class="stat-value" id="prodTopComm">-</div><div class="stat-label">Max Commission</div></div>
     <div class="stat-card"><div class="stat-value" id="prodTotalSold">-</div><div class="stat-label">Total Sold</div></div>
   </div>
+
+  <div class="card mb-3" style="padding:14px">
+    <div class="card-title mb-2" style="display:flex;justify-content:space-between;align-items:center">
+      <span>📊 Google Sheets Import</span>
+      <span id="sheetsStatusBadge" class="badge" style="background:var(--bg-tertiary);color:var(--text-secondary);font-size:11px">ตรวจสอบ...</span>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <input class="input" id="sheetsSpreadsheetId" placeholder="Spreadsheet ID (จาก URL .../d/{ID}/edit)" value="" style="flex:1;min-width:200px">
+      <input class="input" id="sheetsSheetName" placeholder="Sheet name" value="Products" style="width:100px">
+      <button class="btn btn-secondary btn-sm" onclick="checkSheetsStatus()">🔌 Connect</button>
+      <button class="btn btn-primary btn-sm" onclick="importFromSheets()">📥 Import</button>
+    </div>
+    <div id="sheetsResult" class="text-xs text-secondary mt-2"></div>
+  </div>
+
   <div id="productGrid" class="product-grid">
     <div class="skeleton skeleton-line"></div>
     <div class="skeleton skeleton-line"></div>
@@ -744,6 +761,16 @@ select.input { cursor: pointer; }
   <div id="pipelineList"></div>
 </div>
 
+<!-- ═══ Scheduled ═══ -->
+<div id="page-scheduled" class="page" style="display:none">
+  <div class="page-header"><div><h2>📅 Scheduled Posts</h2><p>Auto-post queue with affiliate links</p></div>
+    <button class="btn btn-secondary btn-sm" onclick="loadScheduledPosts()">⟳ Refresh</button>
+  </div>
+  <div id="scheduledPostsList">
+    <div class="text-sm text-secondary" style="text-align:center;padding:24px">Loading...</div>
+  </div>
+</div>
+
 <!-- ═══ Accounts ═══ -->
 <div id="page-accounts" class="page">
   <div class="page-header">
@@ -932,6 +959,7 @@ function switchTab(name) {
   if (name === 'pipeline') loadPipeline();
   if (name === 'accounts') loadAccounts();
   if (name === 'history') loadHistory();
+  if (name === 'scheduled') loadScheduledPosts();
   if (name === 'social') renderSocial();
   if (name === 'settings') loadProviders();
   if (name === 'products') loadAnalyzedProducts();
@@ -1333,6 +1361,113 @@ async function openPostModal(jobId, videoUrl) {
   modal.classList.add('open');
 }
 
+/* ═══ Scheduled Posts ═══ */
+async function loadScheduledPosts() {
+  const el = document.getElementById('scheduledPostsList');
+  if (!el) return;
+  try {
+    const r = await fetch(API + '/posts/scheduled');
+    const d = await r.json();
+    const posts = d.posts || [];
+    if (!posts.length) {
+      el.innerHTML = '<div class="text-sm text-secondary" style="text-align:center;padding:24px">📭 ไม่มีโพสต์ที่ scheduled</div>';
+      return;
+    }
+    el.innerHTML = posts.map(p => {
+      const statusIcon = p.status === 'published' ? '✅' : p.status === 'failed' ? '❌' : '⏳';
+      const schedTime = p.schedule_at ? new Date(p.schedule_at).toLocaleString('th-TH') : '-';
+      return '<div class="card" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;margin-bottom:8px">'
+        + '<div><strong>' + statusIcon + ' ' + (p.account_id || '-') + '</strong> <span class="badge ' + (p.status === 'published' ? 'badge-green' : p.status === 'failed' ? 'badge-red' : 'badge') + '">' + p.status + '</span></div>'
+        + '<div class="text-xs text-secondary">⏰ ' + schedTime + (p.affiliate_link ? ' 🔗มีลิงก์' : '') + '</div>'
+        + '<div style="display:flex;gap:4px">'
+        + (p.status === 'pending' ? '<button class="btn btn-ghost btn-sm" onclick="cancelScheduledPost(' + p.id + ')">✖ ยกเลิก</button>' : '')
+        + '</div></div>';
+    }).join('');
+  } catch(e) {
+    if (el) el.innerHTML = '<div class="text-sm text-secondary" style="text-align:center;padding:16px">Failed: ' + e.message + '</div>';
+  }
+}
+
+async function cancelScheduledPost(postId) {
+  if (!confirm('ยกเลิกโพสต์นี้?')) return;
+  try {
+    const r = await fetch(API + '/posts/scheduled/' + postId, {method:'DELETE'});
+    const d = await r.json();
+    if (d.success) { showToast('✅ ยกเลิกแล้ว', 'success'); loadScheduledPosts(); }
+    else { showToast('❌ ' + (d.error || 'Failed'), 'error'); }
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+/* ═══ Google Sheets ═══ */
+let _sheetsConfigured = false;
+
+async function checkSheetsStatus() {
+  const sid = document.getElementById('sheetsSpreadsheetId').value.trim();
+  const sname = document.getElementById('sheetsSheetName').value.trim() || 'Products';
+  const badge = document.getElementById('sheetsStatusBadge');
+  const result = document.getElementById('sheetsResult');
+  if (!result) return;
+
+  if (!sid) {
+    try {
+      const r = await fetch(API + '/products/sheets/status');
+      const d = await r.json();
+      if (d.configured) {
+        badge.textContent = '✅ Connected'; badge.className = 'badge badge-green';
+        _sheetsConfigured = true;
+        result.innerHTML = '<span class="text-green">Credentials OK — ใส่ Spreadsheet ID แล้ว Connect</span>';
+      } else {
+        badge.textContent = '❌ Not Configured'; badge.className = 'badge badge-red';
+        _sheetsConfigured = false;
+        result.innerHTML = '<span class="text-red">กรุณาเตรียม credentials ก่อน</span>';
+      }
+    } catch(e) { badge.textContent = '⚠ Error'; result.innerHTML = e.message; }
+    return;
+  }
+
+  badge.textContent = '⏳ Connecting...';
+  result.innerHTML = '';
+  try {
+    const r = await fetch(API + '/products/sheets/connect', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({spreadsheet_id: sid, sheet_name: sname})
+    });
+    const d = await r.json();
+    if (d.success) {
+      badge.textContent = '✅ ' + d.title; badge.className = 'badge badge-green';
+      _sheetsConfigured = true;
+      result.innerHTML = '<span class="text-green">✔ เชื่อมต่อสำเร็จ! <strong>' + d.title + '</strong></span>';
+    } else {
+      badge.textContent = '❌ Failed'; badge.className = 'badge badge-red';
+      result.innerHTML = '<span class="text-red">' + (d.error || 'Failed') + '</span>';
+    }
+  } catch(e) {
+    badge.textContent = '⚠ Error'; result.innerHTML = e.message;
+  }
+}
+
+async function importFromSheets() {
+  const sid = document.getElementById('sheetsSpreadsheetId').value.trim();
+  const sname = document.getElementById('sheetsSheetName').value.trim() || 'Products';
+  const result = document.getElementById('sheetsResult');
+  if (!sid) { showToast('ใส่ Spreadsheet ID ก่อน', 'error'); return; }
+  result.innerHTML = '<span>⏳ กำลัง Import...</span>';
+  try {
+    const r = await fetch(API + '/products/sheets/import', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({spreadsheet_id: sid, sheet_name: sname, limit: 50})
+    });
+    const d = await r.json();
+    if (d.success) {
+      result.innerHTML = '<span class="text-green">✅ Imported <strong>' + d.imported_count + '</strong> products!</span>';
+      showToast('✅ Imported ' + d.imported_count + ' products!', 'success');
+      loadAnalyzedProducts();
+    } else {
+      result.innerHTML = '<span class="text-red">❌ ' + (d.error || 'Import failed') + '</span>';
+    }
+  } catch(e) { result.innerHTML = '<span class="text-red">' + e.message + '</span>'; }
+}
+
 async function postToTikTok() {
   const account = document.getElementById('postAccountSelect').value;
   if (!account) { showToast('เลือกบัญชี TikTok ก่อน','error'); return; }
@@ -1377,6 +1512,12 @@ async function postToTikTok() {
     
     setTimeout(() => {
       document.getElementById('postModal').classList.remove('open');
+      if (d.scheduled) {
+        showToast('📅 Scheduled! ' + new Date(d.schedule_at).toLocaleString('th-TH'), 'success');
+        loadScheduledPosts();
+      } else {
+        showToast('✅ Posted to TikTok!', 'success');
+      }
       loadPipeline();
       loadHistory();
     }, 1500);

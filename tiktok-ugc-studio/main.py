@@ -41,6 +41,10 @@ import sqlite3
 import sys
 sys.path.insert(0, os.path.dirname(__file__))
 
+# Path for ERP modules (product, scheduler)
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'modules', 'product'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'modules'))
+
 import os
 # Load .env file for API keys (avoids OpenClaw redaction issues in PM2)
 _env_file = os.path.join(os.path.dirname(__file__), '.env')
@@ -92,6 +96,15 @@ except Exception as e:
 
 # Pipeline results store (in-memory, tracks background pipeline jobs)
 _pipeline_results = {}
+
+# --- Google Sheets helper (proxy to modules/product/export_service) ---
+SCHEDULER_API = os.environ.get('SCHEDULER_API', 'http://localhost:8130')
+try:
+    from export_service import is_ready as sheets_is_ready, get_setup_instructions as sheets_instructions
+except ImportError:
+    logger.warning('sheets export_service not installed')
+    def sheets_is_ready(): return False
+    def sheets_instructions(): return {'steps': ['pip install gspread google-auth']}
 
 # ─── Pydantic Models ───────────────────────────────────────────────────────
 
@@ -1358,8 +1371,13 @@ def list_completed_videos():
 
 @app.post("/video/post")
 async def post_video_to_tiktok(req: VideoPostRequest):
-    """Post a completed video to TikTok with affiliate link."""
-    # 1. หา video path จาก job
+    """Post a completed video to TikTok with affiliate link.
+
+    Delegates to Scheduler Service (:8130) which handles immediate
+    posting or stores for scheduled delivery. Falls back to direct
+    upload if scheduler is unavailable.
+    """
+    # 1. Find video path from job
     result = _pipeline_results.get(req.job_id)
     if not result:
         raise HTTPException(status_code=404, detail=f"Job {req.job_id} not found")
@@ -1370,45 +1388,97 @@ async def post_video_to_tiktok(req: VideoPostRequest):
     if not video_url:
         raise HTTPException(status_code=400, detail="No video URL in job")
 
-    # แปลง /static/videos/... → absolute path
     video_filename = video_url.replace("/static/videos/", "")
     video_path = VIDEOS_DIR / video_filename
     if not video_path.exists():
         raise HTTPException(status_code=404, detail=f"Video file not found: {video_path}")
 
-    # 2. สร้าง caption (hook + affiliate link)
+    # 2. Build caption
     meta = result.get("metadata", {})
     hook = meta.get("hook", "") or meta.get("product_name", "Check this out!")
     caption = req.caption or hook
     if req.affiliate_link:
-        caption += f"\n\n🔗 {req.affiliate_link}"
+        caption += f"\n\n\U0001f517 {req.affiliate_link}"
 
-    # 3. Post ผ่าน TikTok upload
-    from simple_tiktok_uploader import upload
-    accounts = _load_tiktok_accounts()
-    acct = accounts.get(req.account_id.lstrip("@"))
-    if not acct:
-        raise HTTPException(status_code=404, detail=f"Account {req.account_id} not found")
-
-    token = acct.get("session_token", "")
-    if not token:
-        raise HTTPException(status_code=400, detail="No TikTok session token. Login first.")
-
-    import os
-    os.environ["TIKTOK_SESSION"] = token
-
+    # 3. Forward to Scheduler Service
     try:
-        upl_result = upload(str(video_path), caption)
-        post_id = getattr(upl_result, "id", "") or getattr(upl_result, "video_id", "")
-        return {
-            "success": True,
-            "job_id": req.job_id,
-            "video_id": post_id,
-            "account_id": req.account_id,
-            "caption": caption,
-        }
+        async with httpx.AsyncClient(timeout=120) as client:
+            resp = await client.post(f"{SCHEDULER_API}/schedule", json={
+                "job_id": req.job_id,
+                "account_id": req.account_id,
+                "caption": caption,
+                "affiliate_link": req.affiliate_link or "",
+                "video_path": str(video_path),
+                "schedule_at": req.schedule_at or "now",
+            })
+            if resp.status_code < 400:
+                sr = resp.json()
+                return {
+                    "success": True,
+                    "scheduled": sr.get("scheduled", False),
+                    "schedule_id": sr.get("schedule_id", 0),
+                    "job_id": req.job_id,
+                    "account_id": req.account_id,
+                    "caption": caption,
+                    "schedule_at": req.schedule_at,
+                }
+            else:
+                return {"success": False, "error": f"Scheduler error: {resp.text[:200]}"}
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Upload failed: {str(e)[:300]}")
+        # Fallback: post directly (legacy direct upload)
+        logger.warning(f"Scheduler unavailable, posting directly: {e}")
+        from simple_tiktok_uploader import upload
+        accounts = _load_tiktok_accounts()
+        acct = accounts.get(req.account_id.lstrip("@"))
+        if not acct:
+            raise HTTPException(status_code=404, detail=f"Account {req.account_id} not found")
+        token = acct.get("session_token", "")
+        if not token:
+            raise HTTPException(status_code=400, detail="No TikTok session token. Login first.")
+        import os
+        os.environ["TIKTOK_SESSION"] = token
+        try:
+            upl_result = upload(str(video_path), caption)
+            post_id = getattr(upl_result, "id", "") or getattr(upl_result, "video_id", "")
+            return {"success": True, "scheduled": False, "fallback": True,
+                    "job_id": req.job_id, "video_id": post_id,
+                    "account_id": req.account_id, "caption": caption}
+        except Exception as e2:
+            raise HTTPException(status_code=502, detail=f"Upload failed: {str(e2)[:300]}")
+
+
+@app.post("/video/do-post")
+async def do_post_video(req: VideoPostRequest):
+    """Internal endpoint: execute a TikTok post immediately.
+    
+    Called by Scheduler Service when a scheduled post is due.
+    Does the actual TikTok upload via simple_tiktok_uploader.
+    """
+    # Resolve video path
+    if req.job_id:
+        result = _pipeline_results.get(req.job_id)
+        if result:
+            video_url = result.get("video_url", "")
+            if video_url:
+                video_filename = video_url.replace("/static/videos/", "")
+                video_path = VIDEOS_DIR / video_filename
+                if video_path.exists():
+                    caption = req.caption or result.get("metadata", {}).get("hook", "") or result.get("metadata", {}).get("product_name", "Check this out!")
+                    if req.affiliate_link:
+                        caption += f"\n\n\U0001f517 {req.affiliate_link}"
+
+                    from simple_tiktok_uploader import upload
+                    accounts = _load_tiktok_accounts()
+                    acct = accounts.get(req.account_id.lstrip("@"))
+                    if acct and acct.get("session_token"):
+                        token = acct["session_token"]
+                        import os
+                        os.environ["TIKTOK_SESSION"] = token
+                        upl_result = upload(str(video_path), caption)
+                        post_id = getattr(upl_result, "id", "") or getattr(upl_result, "video_id", "")
+                        return {"success": True, "video_id": post_id, "account_id": req.account_id}
+
+    return {"success": False, "error": "Could not resolve video path or account"}
 
 
 @app.get("/video/providers")
@@ -2855,6 +2925,157 @@ async def pfm_auto_publish(req: TikTokUploadRequest):
             "pfm_account_id": target_account,
             "result": result
         }
+    except Exception as e:
+        return {"success": False, "error": str(e)[:300]}
+
+
+# ===== Google Sheets - Product Links =====
+
+class SheetsConnectRequest(BaseModel):
+    spreadsheet_id: str
+    sheet_name: str = "Products"
+
+class SheetsImportRequest(BaseModel):
+    spreadsheet_id: str
+    sheet_name: str = "Products"
+    limit: int = 50
+
+
+@app.get("/products/sheets/status")
+async def sheets_status():
+    """Check Google Sheets credentials configuration."""
+    try:
+        configured = sheets_is_ready()
+        creds_path = os.path.join(os.path.dirname(__file__), '..', 'modules', 'product', 'sheets_credentials.json')
+        return {
+            "success": True,
+            "configured": configured,
+            "credentials_file_exists": os.path.exists(creds_path),
+            "credentials_path": creds_path,
+            "instructions": sheets_instructions() if not configured else None,
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)[:300]}
+
+
+@app.post("/products/sheets/connect")
+async def sheets_connect(req: SheetsConnectRequest):
+    """Test Google Sheets connection."""
+    try:
+        if not sheets_is_ready():
+            return {"success": False, "error": "Credentials not configured", "instructions": sheets_instructions()}
+        import gspread
+        from google.oauth2.service_account import Credentials
+        creds_path = os.path.join(os.path.dirname(__file__), '..', 'modules', 'product', 'sheets_credentials.json')
+        creds = Credentials.from_service_account_file(creds_path, scopes=["https://www.googleapis.com/auth/spreadsheets"])
+        client = gspread.authorize(creds)
+        sheet = client.open_by_key(req.spreadsheet_id)
+        worksheets = [ws.title for ws in sheet.worksheets()]
+        return {"success": True, "spreadsheet_id": req.spreadsheet_id, "title": sheet.title, "worksheets": worksheets}
+    except Exception as e:
+        return {"success": False, "error": str(e)[:300]}
+
+
+@app.post("/products/sheets/import")
+async def sheets_import(req: SheetsImportRequest):
+    """Import products from Google Sheet into TUS product DB."""
+    try:
+        if not sheets_is_ready():
+            return {"success": False, "error": "Google Sheets not configured"}
+        import gspread
+        from google.oauth2.service_account import Credentials
+        creds_path = os.path.join(os.path.dirname(__file__), '..', 'modules', 'product', 'sheets_credentials.json')
+        creds = Credentials.from_service_account_file(creds_path, scopes=["https://www.googleapis.com/auth/spreadsheets"])
+        client = gspread.authorize(creds)
+        sheet = client.open_by_key(req.spreadsheet_id)
+        try:
+            ws = sheet.worksheet(req.sheet_name)
+        except Exception:
+            ws = sheet.sheet1
+        rows = ws.get_all_values()
+        if not rows or len(rows) < 2:
+            return {"success": False, "error": "Sheet is empty or has only headers"}
+
+        headers = [h.strip().lower() for h in rows[0]]
+        col_map = {
+            'url': next((i for i, h in enumerate(headers) if h in ('url','link','product url','product link')), None),
+            'name': next((i for i, h in enumerate(headers) if h in ('name','title','product name','product')), None),
+            'price': next((i for i, h in enumerate(headers) if h in ('price','price_thb','cost')), None),
+            'commission': next((i for i, h in enumerate(headers) if h in ('commission','commission_rate','comm')), None),
+            'image': next((i for i, h in enumerate(headers) if h in ('image','image url','img','thumbnail')), None),
+            'category': next((i for i, h in enumerate(headers) if h in ('category','type')), None),
+        }
+
+        imported = []
+        db_path = os.path.join(os.path.dirname(__file__), 'tus_products.db')
+        conn = sqlite3.connect(db_path)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS tus_products (
+                product_id TEXT PRIMARY KEY,
+                title TEXT, title_th TEXT,
+                price_thb REAL, category TEXT,
+                commission_rate REAL, url TEXT,
+                images TEXT DEFAULT '[]',
+                source TEXT DEFAULT 'google_sheets',
+                imported_at TEXT, tus_status TEXT DEFAULT 'pending'
+            )
+        """)
+
+        count = 0
+        for row in rows[1:]:
+            if count >= req.limit:
+                break
+            if not row or not row[0].strip():
+                continue
+            prod_url = row[col_map['url']].strip() if col_map['url'] is not None and col_map['url'] < len(row) else ''
+            if not prod_url:
+                continue
+            prod_id = str(uuid.uuid5(uuid.NAMESPACE_URL, prod_url))
+            name = row[col_map['name']].strip() if col_map['name'] is not None and col_map['name'] < len(row) else ''
+            price_str = row[col_map['price']].strip() if col_map['price'] is not None and col_map['price'] < len(row) else '0'
+            price = float(price_str.replace(',','').replace('฿','')) if price_str else 0
+            comm_str = row[col_map['commission']].strip() if col_map['commission'] is not None and col_map['commission'] < len(row) else '0'
+            comm = float(comm_str.replace('%','')) if comm_str else 0
+            img = row[col_map['image']].strip() if col_map['image'] is not None and col_map['image'] < len(row) else ''
+            cat = row[col_map['category']].strip() if col_map['category'] is not None and col_map['category'] < len(row) else ''
+            images_json = json.dumps([img] if img else [])
+            conn.execute("""INSERT OR REPLACE INTO tus_products
+                (product_id, title, title_th, price_thb, category, commission_rate, url, images, source, imported_at, tus_status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'google_sheets', datetime('now'), 'pending')""",
+                (prod_id, name, name, price, cat, comm, prod_url, images_json))
+            imported.append({"product_id": prod_id, "title": name, "url": prod_url})
+            count += 1
+
+        conn.commit()
+        conn.close()
+        return {"success": True, "spreadsheet_id": req.spreadsheet_id, "sheet_name": req.sheet_name, "imported_count": len(imported), "products": imported}
+    except Exception as e:
+        return {"success": False, "error": str(e)[:300]}
+
+
+# ===== Scheduled Posts - Proxy to Scheduler Service =====
+
+@app.get("/posts/scheduled")
+async def list_scheduled_posts(status: str = "", limit: int = 50):
+    """List scheduled posts from Scheduler Service."""
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            params = {}
+            if status: params["status"] = status
+            params["limit"] = str(limit)
+            resp = await client.get(f"{SCHEDULER_API}/scheduled", params=params)
+            return resp.json()
+    except Exception as e:
+        return {"success": False, "error": f"Scheduler unavailable: {str(e)[:200]}", "posts": [], "count": 0}
+
+
+@app.delete("/posts/scheduled/{post_id}")
+async def cancel_scheduled_post(post_id: int):
+    """Cancel a scheduled post via Scheduler Service."""
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.delete(f"{SCHEDULER_API}/scheduled/{post_id}")
+            return resp.json()
     except Exception as e:
         return {"success": False, "error": str(e)[:300]}
 

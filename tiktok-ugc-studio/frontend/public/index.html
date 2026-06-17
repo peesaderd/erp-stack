@@ -503,11 +503,14 @@ select.input { cursor: pointer; }
 
   <!-- Step 1: Product (with Image Upload + Aspect Ratio) -->
   <div class="card step-content active" id="contentStep1">
-    <div class="card-title mb-3">Product URL หรือป้อนข้อมูลสินค้า</div>
+    <div class="card-title mb-3">📦 ข้อมูลสินค้า</div>
 
     <div class="mb-3">
-      <label class="text-sm text-secondary mb-2" style="display:block">Product URL</label>
-      <input class="input" id="productUrl" placeholder="https://shopee.co.th/... หรือ https://lazada.co.th/..." value="">
+      <label class="text-sm text-secondary mb-2" style="display:block">Product URL <span class="text-xs text-tertiary">(optional — ถ้ามีระบบจะดึงข้อมูลให้)</span></label>
+      <div style="display:flex;gap:6px">
+        <input class="input" id="productUrl" placeholder="https://shopee.co.th/... หรือ https://lazada.co.th/..." value="" style="flex:1">
+        <button class="btn btn-secondary" onclick="openProductPicker()" title="เลือกจากคลังสินค้า">📦</button>
+      </div>
     </div>
 
     <!-- ═══ Image Upload Zone (Fal / WaveSpeed style) ═══ -->
@@ -589,6 +592,20 @@ select.input { cursor: pointer; }
         </div>
       </div>
     </div>
+    <!-- ═══ Product Picker Modal ═══ -->
+    <div class="modal-overlay" id="productPickerModal">
+      <div class="modal" style="max-width:640px;max-height:80vh;overflow-y:auto">
+        <div class="modal-header" style="border:none;padding:16px 0 8px">
+          <div class="font-medium">📦 เลือกสินค้าที่วิเคราะห์แล้ว</div>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('productPickerModal').classList.remove('open')" style="font-size:18px">✕</button>
+        </div>
+        <div id="productPickerGrid" class="product-grid" style="max-height:60vh;overflow-y:auto;padding:4px">
+          <div class="skeleton skeleton-line"></div>
+        </div>
+        <div class="text-xs text-secondary mt-2" style="text-align:center">หรือ <a href="#" onclick="switchTab('products');document.getElementById('productPickerModal').classList.remove('open');return false">ไปที่หน้าสินค้า 🎯</a></div>
+      </div>
+    </div>
+
     <!-- ═══ Duration Selector (กำหนดจำนวน scene และรูป) ═══ -->
     <div class="mb-4">
       <label class="text-sm text-secondary mb-2" style="display:block">ความยาววิดีโอ</label>
@@ -917,19 +934,17 @@ function goContentStep(step) {
 
 async function generateScript() {
   const url = document.getElementById('productUrl').value;
-  const manual = document.getElementById('manualScript')?.value || '';
+  const title = document.getElementById('productTitle').value.trim();
+  const details = document.getElementById('productDetails').value.trim();
   const style = document.getElementById('selectedStyleLabel')?.textContent?.split(' —')[0]?.trim()?.toLowerCase().replace(/ /g,'_') || 'holding';
-  if (!url && !manual) { showToast('ใส่ URL หรือรายละเอียดสินค้าก่อน','error'); return; }
+  if (!url && !title && !details) { showToast('ใส่ชื่อสินค้าหรือ URL ก่อน','error'); return; }
 
   showToast('Generating script...','info');
   try {
-    const title = document.getElementById('productTitle').value.trim();
-    const details = document.getElementById('productDetails').value.trim();
     const body = { ugc_style: style, duration: sessionStorage.getItem('selectedDuration') || '8' };
     if (url) body.product_url = url;
     if (title) body.product_title = title;
     if (details) body.product_details = details;
-    if (manual) body.product_name = manual;
     if (!body.product_name && title) body.product_name = title;
     if (!body.product_name && url) body.product_name = url.split('/').pop() || url;
 
@@ -1823,6 +1838,39 @@ async function loadAnalyzedProducts() {
       return `<div class="product-card" onclick="useProduct('${enc}')">${imgHtml}<div class="product-card-body"><div class="product-card-title">${p.title || "Unknown"}</div><div class="product-card-meta"><span class="product-card-price">฿${Number(price).toLocaleString()}</span><span class="product-card-comm">💰 ${comm}%</span><span class="product-card-platform">${p.source || "tiktok"}</span></div><div class="product-card-sold">🔥 Sold ${sold.toLocaleString()} pcs</div><div class="product-card-footer"><span class="text-xs text-secondary truncate" style="max-width:140px">${pUrl}</span><button class="btn btn-primary btn-sm">🎬 Create Video</button></div></div></div>`;
     }).join("");
   } catch(e) { grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">Error: ' + e.message + '</div>'; }
+}
+
+/* ═══ Product Picker Modal ═══ */
+async function openProductPicker() {
+  const modal = document.getElementById('productPickerModal');
+  const grid = document.getElementById('productPickerGrid');
+  modal.classList.add('open');
+  grid.innerHTML = '<div class="skeleton skeleton-line"></div>';
+  try {
+    const r = await fetch(API + '/products/list?limit=50&preset=all');
+    if (!r.ok) throw new Error('API Error');
+    const d = await r.json();
+    const products = d.products || [];
+    if (!products.length) {
+      grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;text-align:center;padding:40px">😕 ยังไม่มีสินค้าที่วิเคราะห์<br><span class="text-xs text-secondary">ไปที่หน้าสินค้าเพื่อวิเคราะห์ก่อน</span></div>';
+      return;
+    }
+    grid.innerHTML = products.slice(0, 20).map(p => {
+      const img = (p.images && p.images[0]) || '';
+      const comm = p.commission_rate || 0;
+      const price = p.price_thb || 0;
+      const enc = encodeURIComponent(JSON.stringify(p));
+      const imgHtml = img ? `<img class="product-card-img" src="${img}" alt="" loading="lazy" onerror="this.style.display=\'none\'">` : '<div class="product-card-img" style="display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);font-size:32px">📦</div>';
+      return `<div class="product-card" onclick="selectProductFromPicker(\'${enc}\')">${imgHtml}<div class="product-card-body"><div class="product-card-title">${p.title || 'Unknown'}</div><div class="product-card-meta"><span class="product-card-price">฿${Number(price).toLocaleString()}</span><span class="product-card-comm">💰 ${comm}%</span></div></div></div>`;
+    }).join('');
+  } catch(e) {
+    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;text-align:center;padding:40px">❌ โหลดสินค้าล้มเหลว: ' + e.message + '</div>';
+  }
+}
+
+function selectProductFromPicker(jsonEncoded) {
+  document.getElementById('productPickerModal').classList.remove('open');
+  useProduct(jsonEncoded);
 }
 
 function useProduct(jsonEncoded) {

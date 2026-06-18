@@ -6,6 +6,9 @@ module.exports = {
     args: 'main:app --host 0.0.0.0 --port 8105',
     interpreter: 'python3',
     watch: false,
+    env: {
+      PFM_API_KEY: 'pfm_live_4qR2sT7hvEo6qFKMQssker',
+    },
   }, {
     name: 'scheduler',
     cwd: __dirname + '/../modules/scheduler',

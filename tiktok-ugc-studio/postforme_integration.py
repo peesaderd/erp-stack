@@ -21,16 +21,10 @@ from typing import Optional
 
 logger = logging.getLogger("tiktok-ugc.postforme")
 
-PFM_API_KEY = os.environ.get("PFM_API_KEY", "pfm_live_4qR2sT7hvEo6qFKMQssker")
+PFM_API_KEY = os.environ.get("PFM_API_KEY")
+if not PFM_API_KEY:
+    raise ValueError("PFM_API_KEY environment variable is required. Set it in .env file or export PFM_API_KEY=...")
 PFM_BASE_URL = "https://api.postforme.dev/v1"
-
-# Connected account IDs (from dashboard)
-# Account IDs เริ่มต้นด้วย 'sa_' ตาม OpenAPI spec
-PFM_ACCOUNTS = {
-    "tiktok_putterfreshshop": "spc_i0Ly8cwH9vJml9VS6t4j",
-    "facebook_kunyay": "spc_sffrL9Nul7Z2ms2rJELZ1",
-    "facebook_putter_gaming": "spc_OdQDPsF5ZucdSgSIwQUJc",
-}
 
 
 # ─── Platform Constants ────────────────────────────────────────────────────

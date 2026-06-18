@@ -3078,6 +3078,16 @@ async def ugc_accounts_connect(req: TikTokUGCAccountConnectRequest):
         return {"success": False, "error": str(e)[:300]}
 
 
+@app.post("/ugc/accounts/connect")
+async def ugc_accounts_connect_alias(req: TikTokUGCAccountConnectRequest):
+    return await ugc_accounts_connect(req)
+
+
+@app.get("/ugc/accounts")
+async def ugc_list_accounts_alias():
+    return await ugc_list_accounts()
+
+
 @app.get("/api/tiktok/ugc/accounts")
 async def ugc_list_accounts():
     """List all connected social accounts via Post For Me."""
@@ -3086,6 +3096,11 @@ async def ugc_list_accounts():
         return {"success": True, "accounts": accounts, "total": len(accounts)}
     except Exception as e:
         return {"success": False, "error": str(e)[:300]}
+
+
+@app.post("/ugc/post")
+async def ugc_create_post_alias(req: TikTokUGCPostRequest):
+    return await ugc_create_post(req)
 
 
 @app.post("/api/tiktok/ugc/post")
@@ -3131,6 +3146,11 @@ async def ugc_create_post(req: TikTokUGCPostRequest):
         return {"success": False, "error": str(e)[:300]}
 
 
+@app.post("/ugc/schedule")
+async def ugc_schedule_post_alias(req: TikTokUGCScheduleRequest):
+    return await ugc_schedule_post(req)
+
+
 @app.post("/api/tiktok/ugc/schedule")
 async def ugc_schedule_post(req: TikTokUGCScheduleRequest):
     """Schedule content for later posting via Post For Me."""
@@ -3173,6 +3193,11 @@ async def ugc_schedule_post(req: TikTokUGCScheduleRequest):
         return {"success": False, "error": str(e)[:300]}
 
 
+@app.get("/ugc/posts")
+async def ugc_list_posts_alias(limit: int = 50, status: str = ""):
+    return await ugc_list_posts(limit, status)
+
+
 @app.get("/api/tiktok/ugc/posts")
 async def ugc_list_posts(limit: int = 50, status: str = ""):
     """List all posts made via Post For Me."""
@@ -3181,6 +3206,11 @@ async def ugc_list_posts(limit: int = 50, status: str = ""):
         return {"success": True, "posts": posts, "total": len(posts)}
     except Exception as e:
         return {"success": False, "error": str(e)[:300]}
+
+
+@app.get("/ugc/posts/{post_id}")
+async def ugc_get_post_alias(post_id: str):
+    return await ugc_get_post(post_id)
 
 
 @app.get("/api/tiktok/ugc/posts/{post_id}")
@@ -3221,6 +3251,11 @@ async def ugc_webhook_pfm(req: TikTokUGCWebhookRequest):
         return {"success": False, "error": str(e)[:300]}
 
 
+@app.post("/ugc/webhook/pfm")
+async def ugc_webhook_pfm_alias(req: TikTokUGCWebhookRequest):
+    return await ugc_webhook_pfm(req)
+
+
 @app.post("/api/tiktok/ugc/media/upload-url")
 async def ugc_media_upload_url(req: TikTokUGCPresignedUploadRequest):
     """Generate a presigned upload URL for media (delegates to PFM or returns direct upload info).
@@ -3249,6 +3284,11 @@ async def ugc_media_upload_url(req: TikTokUGCPresignedUploadRequest):
         }
     except Exception as e:
         return {"success": False, "error": str(e)[:300]}
+
+
+@app.post("/ugc/media/upload-url")
+async def ugc_media_upload_url_alias(req: TikTokUGCPresignedUploadRequest):
+    return await ugc_media_upload_url(req)
 
 
 # ===== Google Sheets - Product Links =====

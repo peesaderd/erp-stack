@@ -3490,13 +3490,21 @@ async function pfmFetchAccounts() {
         '<div class="card-label">' + pf.name + '</div>' +
         (connected ? '<div class="card-sub">' + (info.username||'Connected') + '</div>' : '<div class="card-sub" style="color:var(--color-red-400)">Not connected</div>');
       
-      card.onclick = function(){
-        if (connected) {
-          pfmOpenDetail(plat, accts);
-        } else {
-          pfmOpenConnectModal(plat);
-        }
-      };
+      // Mark unsupported platforms (Instagram via PFM = 400 error)
+      if (plat === 'instagram' && !connected) {
+        card.style.opacity = '0.45';
+        card.style.cursor = 'not-allowed';
+        card.querySelector('.card-sub').textContent = 'Coming Soon';
+        card.onclick = function(){};  // disabled click
+      } else {
+        card.onclick = function(){
+          if (connected) {
+            pfmOpenDetail(plat, accts);
+          } else {
+            pfmOpenConnectModal(plat);
+          }
+        };
+      }
       grid.appendChild(card);
     });
   }

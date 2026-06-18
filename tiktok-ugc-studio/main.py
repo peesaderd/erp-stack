@@ -32,11 +32,13 @@ from postforme_integration import (
     get_accounts as pfm_get_accounts,
     post_to_platform as pfm_post,
     get_post_status as pfm_post_status,
+    get_auth_url as pfm_get_auth_url,
 )
 from pydantic import BaseModel
 import base64
 import uuid
 import sqlite3
+import requests
 
 import sys
 sys.path.insert(0, os.path.dirname(__file__))
@@ -507,6 +509,93 @@ def pipeline_list(limit: int = 20):
     ).fetchall()
     conn.close()
     return {"success": True, "jobs": [{"job_id": r[0], "account_id": r[1], "status": r[2], "product_url": r[3], "created_at": r[4], "updated_at": r[5]} for r in rows]}
+
+# ─── PFM Posts Database ───────────────────────────────────────────────────────
+
+def _init_pfm_db():
+    conn = sqlite3.connect(PIPELINE_DB_PATH)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS pfm_posts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            post_id TEXT UNIQUE,
+            account_id TEXT,
+            caption TEXT,
+            media_urls TEXT DEFAULT '[]',
+            platform TEXT,
+            status TEXT DEFAULT 'pending',
+            scheduled_at TEXT,
+            created_at TEXT,
+            updated_at TEXT,
+            webhook_data TEXT DEFAULT '{}'
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+_init_pfm_db()
+
+def _save_pfm_post(post_id: str, account_id: str, caption: str, media_urls: list, platform: str = "", scheduled_at: str = ""):
+    conn = sqlite3.connect(PIPELINE_DB_PATH)
+    now = datetime.utcnow().isoformat()
+    conn.execute(
+        "INSERT OR REPLACE INTO pfm_posts (post_id, account_id, caption, media_urls, platform, status, scheduled_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (post_id, account_id, caption, json.dumps(media_urls), platform, "pending", scheduled_at, now, now)
+    )
+    conn.commit()
+    conn.close()
+
+def _update_pfm_post(post_id: str, status: str, webhook_data: dict = None):
+    conn = sqlite3.connect(PIPELINE_DB_PATH)
+    now = datetime.utcnow().isoformat()
+    webhook_json = json.dumps(webhook_data) if webhook_data else "{}"
+    conn.execute(
+        "UPDATE pfm_posts SET status = ?, updated_at = ?, webhook_data = ? WHERE post_id = ?",
+        (status, now, webhook_json, post_id)
+    )
+    conn.commit()
+    conn.close()
+
+def _get_pfm_post(post_id: str) -> dict:
+    conn = sqlite3.connect(PIPELINE_DB_PATH)
+    row = conn.execute("SELECT * FROM pfm_posts WHERE post_id = ?", (post_id,)).fetchone()
+    conn.close()
+    if not row:
+        return None
+    return {
+        "id": row[0],
+        "post_id": row[1],
+        "account_id": row[2],
+        "caption": row[3],
+        "media_urls": json.loads(row[4]),
+        "platform": row[5],
+        "status": row[6],
+        "scheduled_at": row[7],
+        "created_at": row[8],
+        "updated_at": row[9],
+        "webhook_data": json.loads(row[10]) if row[10] else {},
+    }
+
+def _list_pfm_posts(limit: int = 50, status: str = "") -> list:
+    conn = sqlite3.connect(PIPELINE_DB_PATH)
+    query = "SELECT * FROM pfm_posts WHERE 1=1"
+    params = []
+    if status:
+        query += " AND status = ?"
+        params.append(status)
+    query += " ORDER BY created_at DESC LIMIT ?"
+    params.append(limit)
+    rows = conn.execute(query, params).fetchall()
+    conn.close()
+    return [
+        {
+            "id": r[0], "post_id": r[1], "account_id": r[2],
+            "caption": r[3][:100] if r[3] else "",
+            "media_urls": json.loads(r[4]) if r[4] else [],
+            "platform": r[5], "status": r[6],
+            "scheduled_at": r[7], "created_at": r[8], "updated_at": r[9],
+        }
+        for r in rows
+    ]
 
 # ─── TikTok Scout (R&D) ──────────────────────────────────────────────────────
 
@@ -2930,6 +3019,233 @@ async def pfm_auto_publish(req: TikTokUploadRequest):
             "status": result.get("status", ""),
             "pfm_account_id": target_account,
             "result": result
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)[:300]}
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Post For Me — TikTok UGC Integration Routes
+# ═══════════════════════════════════════════════════════════════════════
+
+class TikTokUGCAccountConnectRequest(BaseModel):
+    platform: str = "tiktok"
+    permissions: list[str] = []
+
+class TikTokUGCPostRequest(BaseModel):
+    account_id: str
+    caption: str = ""
+    media_urls: list[str] = []
+    platform: str = "tiktok"
+    schedule_at: Optional[str] = None
+    privacy_status: str = "public"
+    is_ai_generated: bool = True
+    allow_duet: bool = True
+    allow_stitch: bool = True
+
+class TikTokUGCScheduleRequest(BaseModel):
+    account_id: str
+    caption: str = ""
+    media_urls: list[str] = []
+    platform: str = "tiktok"
+    scheduled_at: str
+    privacy_status: str = "public"
+    is_ai_generated: bool = True
+
+class TikTokUGCWebhookRequest(BaseModel):
+    event: str = ""
+    post_id: str = ""
+    status: str = ""
+    account_id: str = ""
+    platform: str = ""
+    data: dict = {}
+
+class TikTokUGCPresignedUploadRequest(BaseModel):
+    filename: str = ""
+    content_type: str = "video/mp4"
+    file_size: int = 0
+
+
+@app.post("/api/tiktok/ugc/accounts/connect")
+async def ugc_accounts_connect(req: TikTokUGCAccountConnectRequest):
+    """Get OAuth URL to connect a social account via Post For Me."""
+    try:
+        url = pfm_get_auth_url(platform=req.platform, permissions=req.permissions or None)
+        if url:
+            return {"success": True, "auth_url": url, "platform": req.platform}
+        return {"success": False, "error": "Failed to get auth URL"}
+    except Exception as e:
+        return {"success": False, "error": str(e)[:300]}
+
+
+@app.get("/api/tiktok/ugc/accounts")
+async def ugc_list_accounts():
+    """List all connected social accounts via Post For Me."""
+    try:
+        accounts = pfm_get_accounts()
+        return {"success": True, "accounts": accounts, "total": len(accounts)}
+    except Exception as e:
+        return {"success": False, "error": str(e)[:300]}
+
+
+@app.post("/api/tiktok/ugc/post")
+async def ugc_create_post(req: TikTokUGCPostRequest):
+    """Post content to TikTok (or other platform) via Post For Me."""
+    try:
+        platform_configs = {}
+        if req.platform == "tiktok":
+            from postforme_integration import make_tiktok_config
+            platform_configs = make_tiktok_config(
+                privacy_status=req.privacy_status,
+                is_ai_generated=req.is_ai_generated,
+                allow_duet=req.allow_duet,
+                allow_stitch=req.allow_stitch,
+            )
+
+        result = pfm_post(
+            social_accounts=[req.account_id],
+            caption=req.caption,
+            media=[{"url": u} for u in req.media_urls],
+            platform_configurations={req.platform: platform_configs} if platform_configs else None,
+            scheduled_at=req.schedule_at,
+        )
+
+        post_id = result.get("id", "") or result.get("data", {}).get("id", "")
+        _save_pfm_post(
+            post_id=post_id,
+            account_id=req.account_id,
+            caption=req.caption,
+            media_urls=req.media_urls,
+            platform=req.platform,
+            scheduled_at=req.schedule_at or "",
+        )
+
+        return {
+            "success": True,
+            "post_id": post_id,
+            "status": result.get("status", "pending"),
+            "platform": req.platform,
+            "result": result,
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)[:300]}
+
+
+@app.post("/api/tiktok/ugc/schedule")
+async def ugc_schedule_post(req: TikTokUGCScheduleRequest):
+    """Schedule content for later posting via Post For Me."""
+    try:
+        platform_configs = {}
+        if req.platform == "tiktok":
+            from postforme_integration import make_tiktok_config
+            platform_configs = make_tiktok_config(
+                privacy_status=req.privacy_status,
+                is_ai_generated=req.is_ai_generated,
+            )
+
+        result = pfm_post(
+            social_accounts=[req.account_id],
+            caption=req.caption,
+            media=[{"url": u} for u in req.media_urls],
+            platform_configurations={req.platform: platform_configs} if platform_configs else None,
+            scheduled_at=req.scheduled_at,
+        )
+
+        post_id = result.get("id", "") or result.get("data", {}).get("id", "")
+        _save_pfm_post(
+            post_id=post_id,
+            account_id=req.account_id,
+            caption=req.caption,
+            media_urls=req.media_urls,
+            platform=req.platform,
+            scheduled_at=req.scheduled_at,
+        )
+
+        return {
+            "success": True,
+            "post_id": post_id,
+            "status": "scheduled",
+            "scheduled_at": req.scheduled_at,
+            "platform": req.platform,
+            "result": result,
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)[:300]}
+
+
+@app.get("/api/tiktok/ugc/posts")
+async def ugc_list_posts(limit: int = 50, status: str = ""):
+    """List all posts made via Post For Me."""
+    try:
+        posts = _list_pfm_posts(limit=limit, status=status)
+        return {"success": True, "posts": posts, "total": len(posts)}
+    except Exception as e:
+        return {"success": False, "error": str(e)[:300]}
+
+
+@app.get("/api/tiktok/ugc/posts/{post_id}")
+async def ugc_get_post(post_id: str):
+    """Get detailed status of a specific post."""
+    try:
+        local = _get_pfm_post(post_id)
+        pfm_result = None
+        try:
+            pfm_result = pfm_post_status(post_id)
+        except Exception:
+            pass
+
+        return {
+            "success": True,
+            "post_id": post_id,
+            "local": local,
+            "pfm_status": pfm_result,
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)[:300]}
+
+
+@app.post("/api/tiktok/ugc/webhook/pfm")
+async def ugc_webhook_pfm(req: TikTokUGCWebhookRequest):
+    """Webhook receiver for Post For Me status updates."""
+    logger.info(f"PFM webhook: event={req.event}, post_id={req.post_id}, status={req.status}")
+    try:
+        if req.post_id:
+            _update_pfm_post(
+                post_id=req.post_id,
+                status=req.status or "unknown",
+                webhook_data=req.model_dump(),
+            )
+        return {"success": True, "received": True}
+    except Exception as e:
+        logger.error(f"PFM webhook error: {e}")
+        return {"success": False, "error": str(e)[:300]}
+
+
+@app.post("/api/tiktok/ugc/media/upload-url")
+async def ugc_media_upload_url(req: TikTokUGCPresignedUploadRequest):
+    """Generate a presigned upload URL for media (delegates to PFM or returns direct upload info).
+
+    If PFM supports presigned URLs, returns one. Otherwise returns instructions
+    for uploading directly to the storage directory.
+    """
+    try:
+        filename = req.filename or f"ugc_{uuid.uuid4().hex[:8]}.mp4"
+        content_type = req.content_type or "video/mp4"
+
+        upload_dir = STORAGE_DIR / "uploads"
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        upload_path = upload_dir / filename
+
+        public_url = f"/static/uploads/{filename}"
+
+        return {
+            "success": True,
+            "upload_url": public_url,
+            "upload_path": str(upload_path),
+            "method": "direct_upload",
+            "content_type": content_type,
+            "filename": filename,
+            "note": "Upload file via PUT to the returned upload_url with Content-Type header",
         }
     except Exception as e:
         return {"success": False, "error": str(e)[:300]}

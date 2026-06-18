@@ -727,6 +727,17 @@ select.input { cursor: pointer; }
   background: var(--bg-tertiary);
 }
 
+/* ═══ Post For Me ═══ */
+.pfm-tab-btn { padding:8px 18px; border:1px solid var(--border-primary); background:var(--bg-secondary); color:var(--text-secondary); cursor:pointer; border-radius:var(--radius); font-size:13px; }
+.pfm-tab-btn.active { background:var(--brand); color:var(--color-black); border-color:var(--brand); font-weight:600; }
+.pfm-pane { }
+.pfm-pane.active { display:block; }
+/* PFM tables */
+#pfm-accounts-list table, #pfm-history-list table { width:100%; border-collapse:collapse; margin-top:8px; }
+#pfm-accounts-list th, #pfm-history-list th { background:var(--bg-tertiary); padding:8px 12px; text-align:left; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-secondary); }
+#pfm-accounts-list td, #pfm-history-list td { padding:8px 12px; border-bottom:1px solid var(--border-secondary); font-size:13px; }
+#pfm-accounts-list tr:hover td, #pfm-history-list tr:hover td { background:var(--bg-card-hover); }
+
 </style>
 </head>
 <body>
@@ -744,6 +755,7 @@ select.input { cursor: pointer; }
     <button data-tab="assets" onclick="switchTab('assets')">🖼️ Assets</button>
     <button data-tab="scheduled" onclick="switchTab('scheduled')">📅 Scheduled</button>
     <button data-tab="social" onclick="switchTab('social')">📊 Social</button>
+    <button data-tab="pfm" onclick="switchTab('pfm')">📱 Post For Me</button>
     <button data-tab="accounts" onclick="switchTab('accounts')">📱 Accounts</button>
     <button data-tab="history" onclick="switchTab('history')">📋 History</button>
     <button data-tab="settings" onclick="switchTab('settings')">⚙️ Settings</button>
@@ -769,6 +781,7 @@ select.input { cursor: pointer; }
     <button data-tab="assets" onclick="switchTab('assets');toggleSideNav()">🖼️ Assets</button>
     <button data-tab="scheduled" onclick="switchTab('scheduled');toggleSideNav()">📅 Scheduled</button>
     <button data-tab="social" onclick="switchTab('social');toggleSideNav()">📊 Social</button>
+    <button data-tab="pfm" onclick="switchTab('pfm');toggleSideNav()">📱 Post For Me</button>
     <button data-tab="accounts" onclick="switchTab('accounts');toggleSideNav()">📱 Accounts</button>
     <button data-tab="history" onclick="switchTab('history');toggleSideNav()">📋 History</button>
     <button data-tab="settings" onclick="switchTab('settings');toggleSideNav()">⚙️ Settings</button>
@@ -1346,6 +1359,80 @@ select.input { cursor: pointer; }
   <div style="position:absolute;bottom:20px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,.7);font-size:13px;text-align:center" id="lightboxCaption"></div>
 </div>
 
+<!-- ═══ Post For Me ═══ -->
+<div id="page-pfm" class="page">
+  <div class="page-header"><div><h2>📱 Post For Me</h2><p>Cross-platform social media posting — TikTok, Facebook, Instagram, YouTube, X, LinkedIn, Pinterest, Bluesky, Threads</p></div></div>
+  <div class="flex gap-2 mb-3" style="flex-wrap:wrap">
+    <button class="pfm-tab-btn active" data-tab="accounts" onclick="pfmSwitchTab('accounts')">📱 Accounts</button>
+    <button class="pfm-tab-btn" data-tab="post" onclick="pfmSwitchTab('post')">✏️ Post</button>
+    <button class="pfm-tab-btn" data-tab="schedule" onclick="pfmSwitchTab('schedule')">📅 Schedule</button>
+    <button class="pfm-tab-btn" data-tab="history" onclick="pfmSwitchTab('history')">📋 History</button>
+  </div>
+
+  <!-- Accounts -->
+  <div id="pfm-accounts" class="pfm-pane active">
+    <div class="flex gap-2 mb-3" style="flex-wrap:wrap">
+      <select id="pfm-platform-select" class="input" style="flex:1;min-width:180px">
+        <option value="tiktok">TikTok</option><option value="tiktok_business">TikTok Business</option>
+        <option value="facebook">Facebook</option><option value="instagram">Instagram</option>
+        <option value="x">X (Twitter)</option><option value="linkedin">LinkedIn</option>
+        <option value="youtube">YouTube</option><option value="pinterest">Pinterest</option>
+        <option value="bluesky">Bluesky</option><option value="threads">Threads</option>
+      </select>
+      <button class="btn btn-primary" onclick="pfmConnect()">🔗 Connect</button>
+      <button class="btn btn-secondary" onclick="pfmFetchAccounts()">🔄 Refresh</button>
+    </div>
+    <div class="card"><div class="card-body"><div id="pfm-accounts-list"><div class="text-sm text-secondary">Loading accounts...</div></div></div></div>
+  </div>
+
+  <!-- Post -->
+  <div id="pfm-post" class="pfm-pane" style="display:none">
+    <div class="card"><div class="card-body">
+      <div class="mb-2"><label class="form-label">Platform<br><select id="pfm-post-platform" class="input" onchange="pfmShowOpts()">
+        <option value="tiktok">TikTok</option><option value="tiktok_business">TikTok Business</option>
+        <option value="facebook">Facebook</option><option value="instagram">Instagram</option>
+        <option value="x">X (Twitter)</option><option value="linkedin">LinkedIn</option>
+        <option value="youtube">YouTube</option><option value="pinterest">Pinterest</option>
+        <option value="bluesky">Bluesky</option><option value="threads">Threads</option>
+      </select></label></div>
+      <div class="mb-2"><label class="form-label">Account(s)<br><select id="pfm-post-accounts" class="input" multiple size="3"></select></label></div>
+      <div class="mb-2"><label class="form-label">Caption<br><textarea id="pfm-post-caption" class="input" rows="4" placeholder="Write your caption..." oninput="document.getElementById('pfm-cc').textContent=this.value.length"></textarea>
+        <span class="text-xs text-secondary"><span id="pfm-cc">0</span> chars</span></label></div>
+      <div class="mb-2"><label class="form-label">Media URL (optional)<br><input type="text" id="pfm-post-media" class="input" placeholder="https://..."></label></div>
+      <div id="pfm-opts" class="mb-2" style="padding:12px;background:var(--bg-tertiary);border-radius:var(--radius)"></div>
+      <button class="btn btn-primary" onclick="pfmPostNow()">🚀 Post Now</button>
+      <div id="pfm-post-res" class="mt-2"></div>
+    </div></div>
+  </div>
+
+  <!-- Schedule -->
+  <div id="pfm-schedule" class="pfm-pane" style="display:none">
+    <div class="card"><div class="card-body">
+      <div class="mb-2"><label class="form-label">Platform<br><select id="pfm-sched-platform" class="input">
+        <option value="tiktok">TikTok</option><option value="tiktok_business">TikTok Business</option>
+        <option value="facebook">Facebook</option><option value="instagram">Instagram</option>
+        <option value="x">X (Twitter)</option><option value="linkedin">LinkedIn</option>
+        <option value="youtube">YouTube</option><option value="pinterest">Pinterest</option>
+        <option value="bluesky">Bluesky</option><option value="threads">Threads</option>
+      </select></label></div>
+      <div class="mb-2"><label class="form-label">Account(s)<br><select id="pfm-sched-accounts" class="input" multiple size="3"></select></label></div>
+      <div class="mb-2"><label class="form-label">Caption<br><textarea id="pfm-sched-caption" class="input" rows="4"></textarea></label></div>
+      <div class="mb-2"><label class="form-label">Media URL<br><input type="text" id="pfm-sched-media" class="input" placeholder="https://..."></label></div>
+      <div class="mb-2"><label class="form-label">Schedule Time<br><input type="datetime-local" id="pfm-sched-time" class="input"></label></div>
+      <button class="btn btn-primary" onclick="pfmSchedule()">📅 Schedule</button>
+      <div id="pfm-sched-res" class="mt-2"></div>
+    </div></div>
+  </div>
+
+  <!-- History -->
+  <div id="pfm-history" class="pfm-pane" style="display:none">
+    <div class="card"><div class="card-body">
+      <div class="flex gap-2 mb-3"><button class="btn btn-secondary" onclick="pfmFetchHistory()">🔄 Refresh</button></div>
+      <div id="pfm-history-list"><div class="text-sm text-secondary">Loading history...</div></div>
+    </div></div>
+  </div>
+</div>
+
 <!-- ═══ Social ═══ -->
 <div id="page-social" class="page">
   <div class="page-header">
@@ -1453,6 +1540,7 @@ function switchTab(name) {
   if (name === 'history') loadHistory();
   if (name === 'scheduled') loadScheduledPosts();
   if (name === 'social') renderSocial();
+  if (name === 'pfm') pfmFetchAccounts();
   if (name === 'settings') loadProviders();
   if (name === 'products') loadAnalyzedProducts();
   if (name === 'content') setTimeout(loadRecipes, 100);
@@ -3190,6 +3278,113 @@ document.addEventListener('keydown', function(e) {
   if (e.key === 'ArrowLeft') navigateLightbox(-1);
   if (e.key === 'ArrowRight') navigateLightbox(1);
 });
+
+/* ═══ Post For Me — JS ═══ */
+const PFM_API = '/api/tiktok/ugc';
+
+function pfmSwitchTab(name) {
+  document.querySelectorAll('.pfm-tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.pfm-pane').forEach(p => p.style.display = 'none');
+  document.querySelector(`.pfm-tab-btn[data-tab="${name}"]`)?.classList.add('active');
+  document.getElementById('pfm-'+name).style.display = 'block';
+}
+
+async function pfmFetch(url, opts={}) {
+  try {
+    const r = await fetch(PFM_API + url, { headers: {'Content-Type':'application/json', ...opts.headers}, ...opts });
+    return await r.json();
+  } catch(e) { return {success:false, error: e.message}; }
+}
+
+const PFM_PLATFORM_OPTS = {
+  tiktok: [{k:'privacy_status',l:'Privacy',t:'select',o:['public','private'],d:'public'},{k:'is_ai_generated',l:'AI Generated',t:'checkbox',d:true},{k:'allow_duet',l:'Allow Duet',t:'checkbox',d:true},{k:'allow_stitch',l:'Allow Stitch',t:'checkbox',d:true}],
+  facebook: [{k:'placement',l:'Placement',t:'select',o:['timeline','reels','stories'],d:'timeline'},{k:'privacy_status',l:'Privacy',t:'select',o:['public','private'],d:'public'}],
+  instagram: [{k:'placement',l:'Placement',t:'select',o:['timeline','reels','stories'],d:'timeline'},{k:'is_ai_generated',l:'AI Generated',t:'checkbox',d:true}],
+  youtube: [{k:'privacy_status',l:'Privacy',t:'select',o:['public','private','unlisted'],d:'public'},{k:'made_for_kids',l:'Made for Kids',t:'checkbox'}],
+};
+
+function pfmShowOpts() {
+  const p = document.getElementById('pfm-post-platform').value;
+  const opts = PFM_PLATFORM_OPTS[p] || [];
+  const c = document.getElementById('pfm-opts');
+  c.innerHTML = '<strong style="font-size:12px;color:var(--text-secondary)">Platform Options:</strong><br>';
+  opts.forEach(o => {
+    if(o.t==='select') c.innerHTML += `<label style="display:inline-block;margin:4px 8px 4px 0">${o.l}: <select class="pfm-opt input" style="width:auto" data-k="${o.k}">${o.o.map(v => `<option value="${v}"${v===o.d?' selected':''}>${v}</option>`).join('')}</select></label>`;
+    if(o.t==='checkbox') c.innerHTML += `<label style="display:inline-block;margin:4px 8px 4px 0"><input type="checkbox" class="pfm-opt" data-k="${o.k}"${o.d?' checked':''}> ${o.l}</label>`;
+  });
+}
+
+async function pfmConnect() {
+  const p = document.getElementById('pfm-platform-select').value;
+  const d = document.getElementById('pfm-accounts-list');
+  d.innerHTML = '<div class="text-sm text-secondary">⏳ Getting auth URL...</div>';
+  const r = await pfmFetch('/accounts/connect', {method:'POST', body:JSON.stringify({platform:p, permissions:['posts','feeds']})});
+  if(r.success && r.auth_url) d.innerHTML = `<div class="text-sm">✅ Open this URL to connect:<br><a href="${r.auth_url}" target="_blank" style="word-break:break-all;font-size:12px">${r.auth_url}</a><br><span class="text-xs text-secondary">After connecting, click Refresh</span></div>`;
+  else d.innerHTML = `<div class="text-sm" style="color:var(--color-red-400)">❌ ${r.error||'Failed'}</div>`;
+}
+
+async function pfmFetchAccounts() {
+  const d = document.getElementById('pfm-accounts-list');
+  d.innerHTML = '<div class="text-sm text-secondary">⏳ Loading...</div>';
+  const r = await pfmFetch('/accounts');
+  if(r.success) {
+    let html = `<div class="text-sm text-secondary mb-2">${r.total} connected accounts</div><table><tr><th>Platform</th><th>Username</th><th>Status</th><th>Token</th><th>ID</th></tr>`;
+    (r.accounts||[]).forEach(a => {
+      const exp = a.access_token_expires_at ? new Date(a.access_token_expires_at).toLocaleDateString() : '-';
+      const sc = a.status==='connected'?'var(--color-green-400)':'var(--color-red-400)';
+      html += `<tr><td>${a.platform||'-'}</td><td>${a.username||'-'}</td><td style="color:${sc}">${a.status||'-'}</td><td style="font-size:11px">${exp}</td><td style="font-size:11px">${(a.id||'').substring(0,16)}</td></tr>`;
+    });
+    html += '</table>';
+    d.innerHTML = html;
+    ['pfm-post-accounts','pfm-sched-accounts'].forEach(id => {
+      const sel = document.getElementById(id); if(!sel) return;
+      sel.innerHTML = '';
+      (r.accounts||[]).forEach(a => { const o=document.createElement('option'); o.value=a.id; o.textContent=a.platform+' — '+(a.username||a.id); sel.appendChild(o); });
+    });
+  } else d.innerHTML = `<div class="text-sm" style="color:var(--color-red-400)">❌ ${r.error||'Failed'}</div>`;
+}
+
+async function pfmPostNow() {
+  const d = document.getElementById('pfm-post-res');
+  d.innerHTML = '<div class="text-sm text-secondary">⏳ Posting...</div>';
+  const sel = Array.from(document.getElementById('pfm-post-accounts').selectedOptions).map(o=>o.value);
+  if(!sel.length) { d.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ Select account(s)</div>'; return; }
+  const p = document.getElementById('pfm-post-platform').value;
+  const caption = document.getElementById('pfm-post-caption').value;
+  const mediaUrl = document.getElementById('pfm-post-media').value;
+  const r = await pfmFetch('/post', {method:'POST', body:JSON.stringify({account_id:sel[0], caption, media_urls:mediaUrl?[mediaUrl]:[], platform:p})});
+  if(r.success) d.innerHTML = `<div class="text-sm" style="color:var(--color-green-400)">✅ Posted! ID: ${r.post_id} | Status: ${r.status}</div><pre style="font-size:11px;background:var(--bg-tertiary);padding:8px;border-radius:var(--radius);overflow:auto;max-height:200px">${JSON.stringify(r.result,null,2)}</pre>`;
+  else d.innerHTML = `<div class="text-sm" style="color:var(--color-red-400)">❌ ${r.error||'Post failed'}</div>`;
+}
+
+async function pfmSchedule() {
+  const d = document.getElementById('pfm-sched-res');
+  d.innerHTML = '<div class="text-sm text-secondary">⏳ Scheduling...</div>';
+  const sel = Array.from(document.getElementById('pfm-sched-accounts').selectedOptions).map(o=>o.value);
+  if(!sel.length) { d.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ Select account(s)</div>'; return; }
+  const caption = document.getElementById('pfm-sched-caption').value;
+  const mediaUrl = document.getElementById('pfm-sched-media').value;
+  const st = document.getElementById('pfm-sched-time').value;
+  if(!st) { d.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ Select schedule time</div>'; return; }
+  const p = document.getElementById('pfm-sched-platform').value;
+  const r = await pfmFetch('/schedule', {method:'POST', body:JSON.stringify({account_id:sel[0], caption, media_urls:mediaUrl?[mediaUrl]:[], platform:p, scheduled_at:new Date(st).toISOString()})});
+  if(r.success) d.innerHTML = `<div class="text-sm" style="color:var(--color-green-400)">✅ Scheduled! ID: ${r.post_id} | At: ${r.scheduled_at||st}</div><pre style="font-size:11px;background:var(--bg-tertiary);padding:8px;border-radius:var(--radius);overflow:auto;max-height:200px">${JSON.stringify(r.result,null,2)}</pre>`;
+  else d.innerHTML = `<div class="text-sm" style="color:var(--color-red-400)">❌ ${r.error||'Schedule failed'}</div>`;
+}
+
+async function pfmFetchHistory() {
+  const d = document.getElementById('pfm-history-list');
+  d.innerHTML = '<div class="text-sm text-secondary">⏳ Loading...</div>';
+  const r = await pfmFetch('/posts');
+  if(r.success) {
+    if(!r.posts||!r.posts.length) { d.innerHTML = '<div class="text-sm text-secondary">No posts yet.</div>'; return; }
+    const sc = {pending:'orange',scheduled:'var(--color-blue-400)',processing:'orange',completed:'var(--color-green-400)',failed:'var(--color-red-400)'};
+    let html = '<table><tr><th>ID</th><th>Platform</th><th>Caption</th><th>Status</th><th>Created</th></tr>';
+    r.posts.forEach(p => { html += `<tr><td style="font-size:11px">${(p.post_id||p.id||'').substring(0,12)}</td><td>${p.platform||'-'}</td><td>${(p.caption||'').substring(0,40)}</td><td style="color:${sc[p.status]||'gray'};font-weight:600">${p.status}</td><td style="font-size:11px">${p.created_at?new Date(p.created_at).toLocaleString():'-'}</td></tr>`; });
+    html += '</table>';
+    d.innerHTML = html;
+  } else d.innerHTML = `<div class="text-sm" style="color:var(--color-red-400)">❌ ${r.error||'Failed'}</div>`;
+}
 
 </script>
 <script>

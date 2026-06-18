@@ -3560,6 +3560,9 @@ function pfmDisconnectAccount() {
 
 async function pfmPostNow() {
   const d = document.getElementById('pfm-post-res');
+  d.innerHTML = '<div class="text-sm text-secondary">⏳ Refresh accounts...</div>';
+  // Always fetch latest accounts first to get fresh IDs
+  await pfmFetchAccounts();
   d.innerHTML = '<div class="text-sm text-secondary">⏳ Posting...</div>';
   const sel = Array.from(document.getElementById('pfm-post-accounts').selectedOptions).map(o=>o.value);
   if(!sel.length) { d.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ Select account(s)</div>'; return; }
@@ -3567,12 +3570,14 @@ async function pfmPostNow() {
   const caption = document.getElementById('pfm-post-caption').value;
   const mediaUrl = document.getElementById('pfm-post-media').value;
   const r = await pfmFetch('/post', {method:'POST', body:JSON.stringify({account_id:sel[0], caption, media_urls:mediaUrl?[mediaUrl]:[], platform:p})});
-  if(r.success) d.innerHTML = `<div class="text-sm" style="color:var(--color-green-400)">✅ Posted! ID: ${r.post_id} | Status: ${r.status}</div><pre style="font-size:11px;background:var(--bg-tertiary);padding:8px;border-radius:var(--radius);overflow:auto;max-height:200px">${JSON.stringify(r.result,null,2)}</pre>`;
-  else d.innerHTML = `<div class="text-sm" style="color:var(--color-red-400)">❌ ${r.error||'Post failed'}</div>`;
+  if(r.success) d.innerHTML = '<div class="text-sm" style="color:var(--color-green-400)">✅ Posted! ID: ' + r.post_id + ' | Status: ' + r.status + '</div><pre style="font-size:11px;background:var(--bg-tertiary);padding:8px;border-radius:var(--radius);overflow:auto;max-height:200px">' + JSON.stringify(r.result||{},null,2) + '</pre>';
+  else d.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ ' + (r.error||'Post failed') + '</div>';
 }
 
 async function pfmSchedule() {
   const d = document.getElementById('pfm-sched-res');
+  d.innerHTML = '<div class="text-sm text-secondary">⏳ Refresh accounts...</div>';
+  await pfmFetchAccounts();
   d.innerHTML = '<div class="text-sm text-secondary">⏳ Scheduling...</div>';
   const sel = Array.from(document.getElementById('pfm-sched-accounts').selectedOptions).map(o=>o.value);
   if(!sel.length) { d.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ Select account(s)</div>'; return; }
@@ -3582,8 +3587,8 @@ async function pfmSchedule() {
   if(!st) { d.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ Select schedule time</div>'; return; }
   const p = document.getElementById('pfm-sched-platform').value;
   const r = await pfmFetch('/schedule', {method:'POST', body:JSON.stringify({account_id:sel[0], caption, media_urls:mediaUrl?[mediaUrl]:[], platform:p, scheduled_at:new Date(st).toISOString()})});
-  if(r.success) d.innerHTML = `<div class="text-sm" style="color:var(--color-green-400)">✅ Scheduled! ID: ${r.post_id} | At: ${r.scheduled_at||st}</div><pre style="font-size:11px;background:var(--bg-tertiary);padding:8px;border-radius:var(--radius);overflow:auto;max-height:200px">${JSON.stringify(r.result,null,2)}</pre>`;
-  else d.innerHTML = `<div class="text-sm" style="color:var(--color-red-400)">❌ ${r.error||'Schedule failed'}</div>`;
+  if(r.success) d.innerHTML = '<div class="text-sm" style="color:var(--color-green-400)">✅ Scheduled! ID: ' + r.post_id + ' | At: ' + (r.scheduled_at||st) + '</div><pre style="font-size:11px;background:var(--bg-tertiary);padding:8px;border-radius:var(--radius);overflow:auto;max-height:200px">' + JSON.stringify(r.result||{},null,2) + '</pre>';
+  else d.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ ' + (r.error||'Schedule failed') + '</div>';
 }
 
 async function pfmFetchHistory() {

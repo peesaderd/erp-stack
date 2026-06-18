@@ -732,6 +732,10 @@ select.input { cursor: pointer; }
 .pfm-tab-btn.active { background:var(--brand); color:var(--color-black); border-color:var(--brand); font-weight:600; }
 .pfm-pane { }
 .pfm-pane.active { display:block; }
+.pfm-icon { transition:all .15s ease; }
+.pfm-icon:hover { background:var(--bg-card-hover) !important; border-color:var(--brand) !important; transform:scale(1.08); }
+.pfm-icon.connected { border-color:var(--color-green-400) !important; box-shadow:0 0 8px rgba(0,255,119,.25); }
+.pfm-icon.connected::after { content:'✅'; position:absolute; top:-4px; right:-4px; font-size:10px; }
 /* PFM tables */
 #pfm-accounts-list table, #pfm-history-list table { width:100%; border-collapse:collapse; margin-top:8px; }
 #pfm-accounts-list th, #pfm-history-list th { background:var(--bg-tertiary); padding:8px 12px; text-align:left; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-secondary); }
@@ -1371,18 +1375,49 @@ select.input { cursor: pointer; }
 
   <!-- Accounts -->
   <div id="pfm-accounts" class="pfm-pane active">
-    <div class="flex gap-2 mb-3" style="flex-wrap:wrap">
-      <select id="pfm-platform-select" class="input" style="flex:1;min-width:180px">
-        <option value="tiktok">TikTok</option><option value="tiktok_business">TikTok Business</option>
-        <option value="facebook">Facebook</option><option value="instagram">Instagram</option>
-        <option value="x">X (Twitter)</option><option value="linkedin">LinkedIn</option>
-        <option value="youtube">YouTube</option><option value="pinterest">Pinterest</option>
-        <option value="bluesky">Bluesky</option><option value="threads">Threads</option>
-      </select>
-      <button class="btn btn-primary" onclick="pfmConnect()">🔗 Connect</button>
+    <div class="flex gap-2 mb-3" style="flex-wrap:wrap;align-items:center">
+      <div class="pfm-platform-icons" style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="pfm-icon" data-platform="tiktok" onclick="pfmOpenConnectModal('tiktok')" title="TikTok" style="width:44px;height:44px;border-radius:12px;border:1px solid var(--border-primary);background:var(--bg-card);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px">🎵</button>
+        <button class="pfm-icon" data-platform="tiktok_business" onclick="pfmOpenConnectModal('tiktok_business')" title="TikTok Business" style="width:44px;height:44px;border-radius:12px;border:1px solid var(--border-primary);background:var(--bg-card);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px">💼</button>
+        <button class="pfm-icon" data-platform="facebook" onclick="pfmOpenConnectModal('facebook')" title="Facebook" style="width:44px;height:44px;border-radius:12px;border:1px solid var(--border-primary);background:var(--bg-card);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px">📘</button>
+        <button class="pfm-icon" data-platform="instagram" onclick="pfmOpenConnectModal('instagram')" title="Instagram" style="width:44px;height:44px;border-radius:12px;border:1px solid var(--border-primary);background:var(--bg-card);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px">📸</button>
+        <button class="pfm-icon" data-platform="x" onclick="pfmOpenConnectModal('x')" title="X (Twitter)" style="width:44px;height:44px;border-radius:12px;border:1px solid var(--border-primary);background:var(--bg-card);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px">𝕏</button>
+        <button class="pfm-icon" data-platform="linkedin" onclick="pfmOpenConnectModal('linkedin')" title="LinkedIn" style="width:44px;height:44px;border-radius:12px;border:1px solid var(--border-primary);background:var(--bg-card);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px">🔗</button>
+        <button class="pfm-icon" data-platform="youtube" onclick="pfmOpenConnectModal('youtube')" title="YouTube" style="width:44px;height:44px;border-radius:12px;border:1px solid var(--border-primary);background:var(--bg-card);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px">▶️</button>
+        <button class="pfm-icon" data-platform="pinterest" onclick="pfmOpenConnectModal('pinterest')" title="Pinterest" style="width:44px;height:44px;border-radius:12px;border:1px solid var(--border-primary);background:var(--bg-card);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px">📌</button>
+        <button class="pfm-icon" data-platform="bluesky" onclick="pfmOpenConnectModal('bluesky')" title="Bluesky" style="width:44px;height:44px;border-radius:12px;border:1px solid var(--border-primary);background:var(--bg-card);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px">☁️</button>
+        <button class="pfm-icon" data-platform="threads" onclick="pfmOpenConnectModal('threads')" title="Threads" style="width:44px;height:44px;border-radius:12px;border:1px solid var(--border-primary);background:var(--bg-card);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px">🧵</button>
+      </div>
       <button class="btn btn-secondary" onclick="pfmFetchAccounts()">🔄 Refresh</button>
     </div>
     <div class="card"><div class="card-body"><div id="pfm-accounts-list"><div class="text-sm text-secondary">Loading accounts...</div></div></div></div>
+  </div>
+
+  <!-- Connect Modal -->
+  <div class="modal-overlay" id="pfm-connect-modal" style="z-index:200">
+    <div class="modal" style="max-width:420px">
+      <div class="modal-header" style="border:none;padding:16px 0 8px;display:flex;justify-content:space-between;align-items:center">
+        <div class="font-medium" id="pfm-connect-title">🔗 Connect TikTok</div>
+        <button class="btn btn-ghost btn-sm" onclick="pfmCloseConnectModal()" style="font-size:18px">✕</button>
+      </div>
+      <div id="pfm-connect-body" class="mb-3">
+        <div class="flex gap-2 items-center mb-3" style="display:flex;align-items:center;gap:10px">
+          <span id="pfm-connect-icon" style="font-size:36px">🎵</span>
+          <div><div class="font-medium" id="pfm-connect-name">TikTok</div>
+          <div class="text-xs text-secondary">via Post For Me</div></div>
+        </div>
+        <div class="mb-3" style="padding:12px;background:var(--bg-tertiary);border-radius:var(--radius)">
+          <div class="text-xs text-secondary mb-2" style="font-weight:600">Permissions</div>
+          <label style="display:block;margin-bottom:6px;cursor:pointer"><input type="checkbox" id="pfm-perm-posts" checked> Posts & Publish</label>
+          <label style="display:block;cursor:pointer"><input type="checkbox" id="pfm-perm-feeds" checked> Read Feeds</label>
+        </div>
+      </div>
+      <div class="flex gap-2" style="justify-content:flex-end">
+        <button class="btn btn-ghost" onclick="pfmCloseConnectModal()">Cancel</button>
+        <button class="btn btn-primary" id="pfm-connect-btn" onclick="pfmDoConnect()">🔗 Connect</button>
+      </div>
+      <div id="pfm-connect-result" class="mt-2"></div>
+    </div>
   </div>
 
   <!-- Post -->
@@ -3280,7 +3315,7 @@ document.addEventListener('keydown', function(e) {
 });
 
 /* ═══ Post For Me — JS ═══ */
-const PFM_API = window.location.origin + '/ugc/api/tiktok/ugc';
+const PFM_API = window.location.origin + '/ugc';
 
 function pfmSwitchTab(name) {
   document.querySelectorAll('.pfm-tab-btn').forEach(b => b.classList.remove('active'));
@@ -3314,36 +3349,81 @@ function pfmShowOpts() {
   });
 }
 
-async function pfmConnect() {
-  const p = document.getElementById('pfm-platform-select').value;
-  const d = document.getElementById('pfm-accounts-list');
-  d.innerHTML = '<div class="text-sm text-secondary">⏳ Getting auth URL...</div>';
-  const r = await pfmFetch('/accounts/connect', {method:'POST', body:JSON.stringify({platform:p, permissions:['posts','feeds']})});
-  if(r.success && r.auth_url) {
-    // Open OAuth popup centered
-    const w = 600, h = 700;
-    const left = (screen.width - w) / 2;
-    const top = (screen.height - h) / 2;
-    const popup = window.open(r.auth_url, 'pfm-oauth', 
-      `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`);
+// PFM Platform Icons + Connect Modal
+const PFM_PLATFORMS = {
+  tiktok: { icon: '🎵', name: 'TikTok' },
+  tiktok_business: { icon: '💼', name: 'TikTok Business' },
+  facebook: { icon: '📘', name: 'Facebook' },
+  instagram: { icon: '📸', name: 'Instagram' },
+  x: { icon: '𝕏', name: 'X (Twitter)' },
+  linkedin: { icon: '🔗', name: 'LinkedIn' },
+  youtube: { icon: '▶️', name: 'YouTube' },
+  pinterest: { icon: '📌', name: 'Pinterest' },
+  bluesky: { icon: '☁️', name: 'Bluesky' },
+  threads: { icon: '🧵', name: 'Threads' },
+};
+
+let pfmConnectPlatform = 'tiktok';
+let pfmConnectPopup = null;
+let pfmConnectInterval = null;
+
+function pfmOpenConnectModal(platform) {
+  pfmConnectPlatform = platform;
+  const p = PFM_PLATFORMS[platform] || { icon: '❓', name: platform };
+  document.getElementById('pfm-connect-icon').textContent = p.icon;
+  document.getElementById('pfm-connect-name').textContent = p.name;
+  document.getElementById('pfm-connect-title').textContent = '🔗 Connect ' + p.name;
+  document.getElementById('pfm-connect-result').innerHTML = '';
+  document.getElementById('pfm-connect-btn').disabled = false;
+  document.getElementById('pfm-connect-btn').textContent = '🔗 Connect';
+  document.getElementById('pfm-connect-modal').classList.add('open');
+}
+
+function pfmCloseConnectModal() {
+  document.getElementById('pfm-connect-modal').classList.remove('open');
+  if (pfmConnectPopup && !pfmConnectPopup.closed) pfmConnectPopup.close();
+  if (pfmConnectInterval) { clearInterval(pfmConnectInterval); pfmConnectInterval = null; }
+}
+
+async function pfmDoConnect() {
+  const btn = document.getElementById('pfm-connect-btn');
+  const result = document.getElementById('pfm-connect-result');
+  btn.disabled = true;
+  btn.textContent = '⏳ Connecting...';
+  result.innerHTML = '<div class="text-sm text-secondary">Getting auth URL...</div>';
+  
+  const perms = [];
+  if (document.getElementById('pfm-perm-posts').checked) perms.push('posts');
+  if (document.getElementById('pfm-perm-feeds').checked) perms.push('feeds');
+  
+  const r = await pfmFetch('/accounts/connect', {method:'POST', body:JSON.stringify({platform:pfmConnectPlatform, permissions:perms})});
+  
+  if (r.success && r.auth_url) {
+    result.innerHTML = '<div class="text-sm text-secondary">⏳ Opening login popup...</div>';
+    const w=600, h=700;
+    const left = (screen.width-w)/2, top = (screen.height-h)/2;
+    pfmConnectPopup = window.open(r.auth_url, 'pfm-oauth', 'width='+w+',height='+h+',left='+left+',top='+top+',resizable=yes,scrollbars=yes');
     
-    d.innerHTML = `<div class="text-sm">⏳ Waiting for login...<br><span class="text-xs text-secondary">Complete login in the popup window</span></div>`;
+    result.innerHTML = '<div class="text-sm text-secondary">⏳ Waiting for login...<br><span class="text-xs">Complete login in the popup window</span></div>';
     
-    // Poll for popup close, then refresh accounts
-    const pollInterval = setInterval(async () => {
-      if (!popup || popup.closed) {
-        clearInterval(pollInterval);
-        d.innerHTML = '<div class="text-sm text-secondary">⏳ Checking for new accounts...</div>';
-        // Give PFM a moment to register the account
+    pfmConnectInterval = setInterval(async () => {
+      if (!pfmConnectPopup || pfmConnectPopup.closed) {
+        clearInterval(pfmConnectInterval);
+        pfmConnectInterval = null;
+        result.innerHTML = '<div class="text-sm text-secondary">⏳ Checking for new account...</div>';
         await new Promise(r => setTimeout(r, 2000));
         pfmFetchAccounts();
+        setTimeout(function(){ pfmCloseConnectModal(); }, 1000);
       }
     }, 500);
     
-    // Timeout after 5 minutes
-    setTimeout(() => { clearInterval(pollInterval); }, 300000);
+    setTimeout(function(){
+      if (pfmConnectInterval) { clearInterval(pfmConnectInterval); pfmConnectInterval = null; }
+    }, 300000);
   } else {
-    d.innerHTML = `<div class="text-sm" style="color:var(--color-red-400)">❌ ${r.error||'Failed'}</div>`;
+    result.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ ' + (r.error||'Failed') + '</div>';
+    btn.disabled = false;
+    btn.textContent = '🔗 Connect';
   }
 }
 
@@ -3352,20 +3432,30 @@ async function pfmFetchAccounts() {
   d.innerHTML = '<div class="text-sm text-secondary">⏳ Loading...</div>';
   const r = await pfmFetch('/accounts');
   if(r.success) {
-    let html = `<div class="text-sm text-secondary mb-2">${r.total} connected accounts</div><table><tr><th>Platform</th><th>Username</th><th>Status</th><th>Token</th><th>ID</th></tr>`;
+    let html = '<div class="text-sm text-secondary mb-2">' + r.total + ' connected accounts</div><table><tr><th>Platform</th><th>Username</th><th>Status</th><th>Token</th><th>ID</th></tr>';
     (r.accounts||[]).forEach(a => {
       const exp = a.access_token_expires_at ? new Date(a.access_token_expires_at).toLocaleDateString() : '-';
       const sc = a.status==='connected'?'var(--color-green-400)':'var(--color-red-400)';
-      html += `<tr><td>${a.platform||'-'}</td><td>${a.username||'-'}</td><td style="color:${sc}">${a.status||'-'}</td><td style="font-size:11px">${exp}</td><td style="font-size:11px">${(a.id||'').substring(0,16)}</td></tr>`;
+      html += '<tr><td>'+(a.platform||'-')+'</td><td>'+(a.username||'-')+'</td><td style="color:'+sc+'">'+(a.status||'-')+'</td><td style="font-size:11px">'+exp+'</td><td style="font-size:11px">'+((a.id||'').substring(0,16))+'</td></tr>';
     });
     html += '</table>';
     d.innerHTML = html;
-    ['pfm-post-accounts','pfm-sched-accounts'].forEach(id => {
+    
+    // Update platform icon connected indicators
+    const connectedPlatforms = new Set((r.accounts||[]).map(function(a){ return a.platform; }));
+    document.querySelectorAll('.pfm-icon').forEach(function(btn){
+      if (connectedPlatforms.has(btn.dataset.platform)) btn.classList.add('connected');
+      else btn.classList.remove('connected');
+    });
+    
+    ['pfm-post-accounts','pfm-sched-accounts'].forEach(function(id){
       const sel = document.getElementById(id); if(!sel) return;
       sel.innerHTML = '';
-      (r.accounts||[]).forEach(a => { const o=document.createElement('option'); o.value=a.id; o.textContent=a.platform+' — '+(a.username||a.id); sel.appendChild(o); });
+      (r.accounts||[]).forEach(function(a){
+        const o=document.createElement('option'); o.value=a.id; o.textContent=a.platform+' — '+(a.username||a.id); sel.appendChild(o);
+      });
     });
-  } else d.innerHTML = `<div class="text-sm" style="color:var(--color-red-400)">❌ ${r.error||'Failed'}</div>`;
+  } else d.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ ' + (r.error||'Failed') + '</div>';
 }
 
 async function pfmPostNow() {

@@ -109,8 +109,39 @@ async def _analyze_and_select_images(product_id: str, raw_images: list) -> tuple
     
     mistral_key = os.environ.get("MISTRAL_API_KEY", "")
     if not mistral_key:
-        # No Mistral — just keep all images' URLs
+        # No Mistral — use quality gate alone (no vision analysis)
+        try:
+            from product.sam3_quality_gate import batch_check as _quality_gate
+            quality_results = _quality_gate(raw_images)
+            keep = [i for i in quality_results if i.get("quality_recommended", True)]
+            logger.info(f"  Quality gate (no Mistral): {len(keep)}/{len(quality_results)} images passed")
+            return [img["url"] for img in keep], []
+        except ImportError:
+            pass
         return [img["url"] for img in raw_images], []
+    
+    # ─── SAM3 Quality Gate (Rule-based pre-filter) ───────────────
+    # Runs OpenCV analysis on downloaded images BEFORE Mistral vision API
+    # Filters out: blurry, too small, low contrast, text-only, corrupted
+    # Cost: $0 (FREE) — saves Mistral API calls on bad images
+    try:
+        from product.sam3_quality_gate import batch_check as _quality_gate
+        quality_results = _quality_gate(raw_images)
+        # Log quality scores
+        for qr in quality_results:
+            score = qr.get("quality_score", 50)
+            rec = qr.get("quality_recommended", True)
+            fname = qr.get("filename", "?")
+            logger.info(f"  Quality gate [{fname}]: score={score}/100, recommended={rec}")
+        # Separate into keep/reject lists
+        keep = [i for i in quality_results if i.get("quality_recommended", True)]
+        rejected = [i for i in quality_results if not i.get("quality_recommended", True)]
+        logger.info(f"  Quality gate: {len(keep)}/{len(quality_results)} images passed, {len(rejected)} rejected")
+        raw_images = keep + rejected[:1]  # Keep 1 borderline image for Mistral to double-check
+    except ImportError:
+        logger.warning("  SAM3 quality gate not available — skipping")
+    except Exception as _qe:
+        logger.warning(f"  Quality gate error (non-fatal): {_qe}")
     
     analyses = []
     for img in raw_images:

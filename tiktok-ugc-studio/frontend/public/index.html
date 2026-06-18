@@ -3490,8 +3490,9 @@ async function pfmFetchAccounts() {
         '<div class="card-label">' + pf.name + '</div>' +
         (connected ? '<div class="card-sub">' + (info.username||'Connected') + '</div>' : '<div class="card-sub" style="color:var(--color-red-400)">Not connected</div>');
       
-      // Mark unsupported platforms (Instagram via PFM = 400 error)
-      if (plat === 'instagram' && !connected) {
+      // Mark unsupported platforms (PFM limitations as of June 2026)
+      var unsupported = ['instagram', 'bluesky'];
+      if (unsupported.includes(plat) && !connected) {
         card.style.opacity = '0.45';
         card.style.cursor = 'not-allowed';
         card.querySelector('.card-sub').textContent = 'Coming Soon';

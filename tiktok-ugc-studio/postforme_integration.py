@@ -110,6 +110,11 @@ def get_auth_url(platform: str, permissions: list = None) -> str:
         str: OAuth URL for user to open in browser
 
     Endpoint: POST /v1/social-accounts/auth-url
+
+    Note:
+        Platforms NOT supported by PFM (as of 2026-06):
+        - instagram: 400 Bad Request
+        - bluesky: always fails
     """
     payload = {
         "platform": platform,

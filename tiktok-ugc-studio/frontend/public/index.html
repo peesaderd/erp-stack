@@ -732,10 +732,14 @@ select.input { cursor: pointer; }
 .pfm-tab-btn.active { background:var(--brand); color:var(--color-black); border-color:var(--brand); font-weight:600; }
 .pfm-pane { }
 .pfm-pane.active { display:block; }
-.pfm-icon { transition:all .15s ease; }
-.pfm-icon:hover { background:var(--bg-card-hover) !important; border-color:var(--brand) !important; transform:scale(1.08); }
-.pfm-icon.connected { border-color:var(--color-green-400) !important; box-shadow:0 0 8px rgba(0,255,119,.25); }
-.pfm-icon.connected::after { content:'✅'; position:absolute; top:-4px; right:-4px; font-size:10px; }
+.pfm-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
+.pfm-card { position:relative; border:2px solid var(--border-primary); border-radius:16px; background:var(--bg-card); cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:24px 12px; transition:all .2s ease; min-height:120px; }
+.pfm-card:hover { border-color:var(--brand); background:var(--bg-card-hover); transform:translateY(-2px); box-shadow:0 4px 16px rgba(0,0,0,.15); }
+.pfm-card.connected { border-color:var(--color-green-400) !important; box-shadow:0 0 12px rgba(0,200,80,.3); }
+.pfm-card .status-dot { position:absolute; top:-6px; right:-6px; width:22px; height:22px; background:#22c55e; border-radius:50%; border:3px solid var(--bg-card); display:none; align-items:center; justify-content:center; }
+.pfm-card.connected .status-dot { display:flex; }
+.pfm-card .card-label { font-size:13px; font-weight:600; color:var(--text-primary); letter-spacing:-0.2px; }
+.pfm-card .card-sub { font-size:11px; color:var(--text-secondary); }
 /* PFM tables */
 #pfm-accounts-list table, #pfm-history-list table { width:100%; border-collapse:collapse; margin-top:8px; }
 #pfm-accounts-list th, #pfm-history-list th { background:var(--bg-tertiary); padding:8px 12px; text-align:left; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-secondary); }
@@ -1376,37 +1380,29 @@ select.input { cursor: pointer; }
   <!-- Accounts -->
   <div id="pfm-accounts" class="pfm-pane active">
     <div class="flex gap-2 mb-3" style="flex-wrap:wrap;align-items:center">
-      <div class="pfm-platform-icons" style="display:flex;gap:6px;flex-wrap:wrap">
-        <button class="pfm-icon" data-platform="tiktok" onclick="pfmOpenConnectModal('tiktok')" title="TikTok" style="width:44px;height:44px;border-radius:12px;border:1px solid var(--border-primary);background:var(--bg-card);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px">🎵</button>
-        <button class="pfm-icon" data-platform="tiktok_business" onclick="pfmOpenConnectModal('tiktok_business')" title="TikTok Business" style="width:44px;height:44px;border-radius:12px;border:1px solid var(--border-primary);background:var(--bg-card);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px">💼</button>
-        <button class="pfm-icon" data-platform="facebook" onclick="pfmOpenConnectModal('facebook')" title="Facebook" style="width:44px;height:44px;border-radius:12px;border:1px solid var(--border-primary);background:var(--bg-card);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px">📘</button>
-        <button class="pfm-icon" data-platform="instagram" onclick="pfmOpenConnectModal('instagram')" title="Instagram" style="width:44px;height:44px;border-radius:12px;border:1px solid var(--border-primary);background:var(--bg-card);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px">📸</button>
-        <button class="pfm-icon" data-platform="x" onclick="pfmOpenConnectModal('x')" title="X (Twitter)" style="width:44px;height:44px;border-radius:12px;border:1px solid var(--border-primary);background:var(--bg-card);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px">𝕏</button>
-        <button class="pfm-icon" data-platform="linkedin" onclick="pfmOpenConnectModal('linkedin')" title="LinkedIn" style="width:44px;height:44px;border-radius:12px;border:1px solid var(--border-primary);background:var(--bg-card);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px">🔗</button>
-        <button class="pfm-icon" data-platform="youtube" onclick="pfmOpenConnectModal('youtube')" title="YouTube" style="width:44px;height:44px;border-radius:12px;border:1px solid var(--border-primary);background:var(--bg-card);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px">▶️</button>
-        <button class="pfm-icon" data-platform="pinterest" onclick="pfmOpenConnectModal('pinterest')" title="Pinterest" style="width:44px;height:44px;border-radius:12px;border:1px solid var(--border-primary);background:var(--bg-card);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px">📌</button>
-        <button class="pfm-icon" data-platform="bluesky" onclick="pfmOpenConnectModal('bluesky')" title="Bluesky" style="width:44px;height:44px;border-radius:12px;border:1px solid var(--border-primary);background:var(--bg-card);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px">☁️</button>
-        <button class="pfm-icon" data-platform="threads" onclick="pfmOpenConnectModal('threads')" title="Threads" style="width:44px;height:44px;border-radius:12px;border:1px solid var(--border-primary);background:var(--bg-card);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px">🧵</button>
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px">
+        <strong style="font-size:15px">📱 Connected Platforms</strong>
+        <button class="btn btn-ghost btn-sm" onclick="pfmFetchAccounts()" title="Refresh" style="min-width:32px">🔄</button>
       </div>
-      <button class="btn btn-secondary" onclick="pfmFetchAccounts()">🔄 Refresh</button>
-    </div>
-    <div class="card"><div class="card-body"><div id="pfm-accounts-list"><div class="text-sm text-secondary">Loading accounts...</div></div></div></div>
+      <div class="pfm-grid" id="pfm-platform-grid"><!-- rendered by JS --></div>
+      <div id="pfm-accounts-list"></div>
   </div>
 
   <!-- Connect Modal -->
+  <!-- Connect Modal (for not-connected platforms) -->
   <div class="modal-overlay" id="pfm-connect-modal" style="z-index:200">
-    <div class="modal" style="max-width:420px">
+    <div class="modal" style="max-width:400px">
       <div class="modal-header" style="border:none;padding:16px 0 8px;display:flex;justify-content:space-between;align-items:center">
-        <div class="font-medium" id="pfm-connect-title">🔗 Connect TikTok</div>
+        <div class="font-medium" id="pfm-connect-title">🔗 Connect Platform</div>
         <button class="btn btn-ghost btn-sm" onclick="pfmCloseConnectModal()" style="font-size:18px">✕</button>
       </div>
-      <div id="pfm-connect-body" class="mb-3">
-        <div class="flex gap-2 items-center mb-3" style="display:flex;align-items:center;gap:10px">
-          <span id="pfm-connect-icon" style="font-size:36px">🎵</span>
-          <div><div class="font-medium" id="pfm-connect-name">TikTok</div>
+      <div id="pfm-connect-body" style="padding:8px 0 16px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+          <span id="pfm-connect-icon" style="font-size:40px">🎵</span>
+          <div><div class="font-medium" style="font-size:16px" id="pfm-connect-name">TikTok</div>
           <div class="text-xs text-secondary">via Post For Me</div></div>
         </div>
-        <div class="mb-3" style="padding:12px;background:var(--bg-tertiary);border-radius:var(--radius)">
+        <div style="padding:12px;background:var(--bg-tertiary);border-radius:var(--radius)">
           <div class="text-xs text-secondary mb-2" style="font-weight:600">Permissions</div>
           <label style="display:block;margin-bottom:6px;cursor:pointer"><input type="checkbox" id="pfm-perm-posts" checked> Posts & Publish</label>
           <label style="display:block;cursor:pointer"><input type="checkbox" id="pfm-perm-feeds" checked> Read Feeds</label>
@@ -1417,6 +1413,28 @@ select.input { cursor: pointer; }
         <button class="btn btn-primary" id="pfm-connect-btn" onclick="pfmDoConnect()">🔗 Connect</button>
       </div>
       <div id="pfm-connect-result" class="mt-2"></div>
+    </div>
+  </div>
+
+  <!-- Account Detail Modal (for connected platforms) -->
+  <div class="modal-overlay" id="pfm-account-detail-modal" style="z-index:200">
+    <div class="modal" style="max-width:400px">
+      <div class="modal-header" style="border:none;padding:16px 0 8px;display:flex;justify-content:space-between;align-items:center">
+        <div class="font-medium" id="pfm-detail-title">📘 Account Details</div>
+        <button class="btn btn-ghost btn-sm" onclick="pfmCloseDetailModal()" style="font-size:18px">✕</button>
+      </div>
+      <div id="pfm-detail-body" style="padding:8px 0 16px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+          <span id="pfm-detail-icon" style="font-size:40px">📘</span>
+          <div><div class="font-medium" style="font-size:16px" id="pfm-detail-name">Username</div>
+          <div class="text-xs" style="color:var(--color-green-400)">✅ Connected</div></div>
+        </div>
+        <div id="pfm-detail-info"></div>
+      </div>
+      <div class="flex gap-2" style="justify-content:flex-end">
+        <button class="btn btn-ghost" onclick="pfmCloseDetailModal()">Close</button>
+        <button class="btn btn-danger" id="pfm-disconnect-btn" onclick="pfmDisconnectAccount()">🗑 Disconnect</button>
+      </div>
     </div>
   </div>
 
@@ -3317,6 +3335,28 @@ document.addEventListener('keydown', function(e) {
 /* ═══ Post For Me — JS ═══ */
 const PFM_API = window.location.origin + '/ugc';
 
+// Platform SVG logos (loaded from external file)
+const PFM_PLATFORMS = {
+  tiktok: { icon:'🎵', name:'TikTok' },
+  tiktok_business: { icon:'💼', name:'TikTok Business' },
+  facebook: { icon:'📘', name:'Facebook' },
+  instagram: { icon:'📸', name:'Instagram' },
+  x: { icon:'𝕏', name:'X (Twitter)' },
+  linkedin: { icon:'🔗', name:'LinkedIn' },
+  youtube: { icon:'▶️', name:'YouTube' },
+  pinterest: { icon:'📌', name:'Pinterest' },
+  bluesky: { icon:'☁️', name:'Bluesky' },
+  threads: { icon:'🧵', name:'Threads' }
+};
+
+let pfmConnectPlatform = 'tiktok';
+let pfmConnectPopup = null;
+let pfmConnectInterval = null;
+let pfmDetailAccountId = null;
+
+// Load SVG logos from external file
+!function(){var s=document.createElement('script');s.src='/tiktok/svg-platforms.js?'+Date.now();document.head.appendChild(s)}();
+
 function pfmSwitchTab(name) {
   document.querySelectorAll('.pfm-tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.pfm-pane').forEach(p => p.style.display = 'none');
@@ -3349,28 +3389,13 @@ function pfmShowOpts() {
   });
 }
 
-// PFM Platform Icons + Connect Modal
-const PFM_PLATFORMS = {
-  tiktok: { icon: '🎵', name: 'TikTok' },
-  tiktok_business: { icon: '💼', name: 'TikTok Business' },
-  facebook: { icon: '📘', name: 'Facebook' },
-  instagram: { icon: '📸', name: 'Instagram' },
-  x: { icon: '𝕏', name: 'X (Twitter)' },
-  linkedin: { icon: '🔗', name: 'LinkedIn' },
-  youtube: { icon: '▶️', name: 'YouTube' },
-  pinterest: { icon: '📌', name: 'Pinterest' },
-  bluesky: { icon: '☁️', name: 'Bluesky' },
-  threads: { icon: '🧵', name: 'Threads' },
-};
-
-let pfmConnectPlatform = 'tiktok';
-let pfmConnectPopup = null;
-let pfmConnectInterval = null;
 
 function pfmOpenConnectModal(platform) {
   pfmConnectPlatform = platform;
   const p = PFM_PLATFORMS[platform] || { icon: '❓', name: platform };
-  document.getElementById('pfm-connect-icon').textContent = p.icon;
+  const svgs = window.PLATFORM_SVGS || {};
+  var iconEl = document.getElementById('pfm-connect-icon');
+  if (svgs[platform]) { iconEl.innerHTML = svgs[platform]; } else { iconEl.textContent = p.icon; }
   document.getElementById('pfm-connect-name').textContent = p.name;
   document.getElementById('pfm-connect-title').textContent = '🔗 Connect ' + p.name;
   document.getElementById('pfm-connect-result').innerHTML = '';
@@ -3406,12 +3431,12 @@ async function pfmDoConnect() {
     
     result.innerHTML = '<div class="text-sm text-secondary">⏳ Waiting for login...<br><span class="text-xs">Complete login in the popup window</span></div>';
     
-    pfmConnectInterval = setInterval(async () => {
+    pfmConnectInterval = setInterval(async function(){
       if (!pfmConnectPopup || pfmConnectPopup.closed) {
         clearInterval(pfmConnectInterval);
         pfmConnectInterval = null;
         result.innerHTML = '<div class="text-sm text-secondary">⏳ Checking for new account...</div>';
-        await new Promise(r => setTimeout(r, 2000));
+        await new Promise(function(r){ setTimeout(r, 2000); });
         pfmFetchAccounts();
         setTimeout(function(){ pfmCloseConnectModal(); }, 1000);
       }
@@ -3428,34 +3453,100 @@ async function pfmDoConnect() {
 }
 
 async function pfmFetchAccounts() {
-  const d = document.getElementById('pfm-accounts-list');
-  d.innerHTML = '<div class="text-sm text-secondary">⏳ Loading...</div>';
   const r = await pfmFetch('/accounts');
-  if(r.success) {
-    let html = '<div class="text-sm text-secondary mb-2">' + r.total + ' connected accounts</div><table><tr><th>Platform</th><th>Username</th><th>Status</th><th>Token</th><th>ID</th></tr>';
-    (r.accounts||[]).forEach(a => {
-      const exp = a.access_token_expires_at ? new Date(a.access_token_expires_at).toLocaleDateString() : '-';
-      const sc = a.status==='connected'?'var(--color-green-400)':'var(--color-red-400)';
-      html += '<tr><td>'+(a.platform||'-')+'</td><td>'+(a.username||'-')+'</td><td style="color:'+sc+'">'+(a.status||'-')+'</td><td style="font-size:11px">'+exp+'</td><td style="font-size:11px">'+((a.id||'').substring(0,16))+'</td></tr>';
-    });
-    html += '</table>';
-    d.innerHTML = html;
+  if (!r.success) {
+    var d = document.getElementById('pfm-accounts-list');
+    if (d) d.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ ' + (r.error||'Failed') + '</div>';
+    return;
+  }
+  
+  var accounts = r.accounts || [];
+  var accountMap = {};
+  accounts.forEach(function(a){
+    if (!accountMap[a.platform]) accountMap[a.platform] = [];
+    accountMap[a.platform].push(a);
+  });
+  var connectedPlatforms = new Set(accounts.map(function(a){ return a.platform; }));
+  
+  // Render grid
+  var grid = document.getElementById('pfm-platform-grid');
+  if (grid) {
+    grid.innerHTML = '';
+    var platforms = ['tiktok','tiktok_business','facebook','instagram','x','linkedin','youtube','pinterest','bluesky','threads'];
+    var svgs = window.PLATFORM_SVGS || {};
     
-    // Update platform icon connected indicators
-    const connectedPlatforms = new Set((r.accounts||[]).map(function(a){ return a.platform; }));
-    document.querySelectorAll('.pfm-icon').forEach(function(btn){
-      if (connectedPlatforms.has(btn.dataset.platform)) btn.classList.add('connected');
-      else btn.classList.remove('connected');
+    platforms.forEach(function(plat){
+      var pf = PFM_PLATFORMS[plat] || { icon:'?', name:plat };
+      var accts = accountMap[plat] || [];
+      var connected = connectedPlatforms.has(plat);
+      var info = accts[0] || {};
+      var svgHtml = svgs[plat] || pf.icon;
+      
+      var card = document.createElement('div');
+      card.className = 'pfm-card' + (connected ? ' connected' : '');
+      card.innerHTML =
+        '<div class="status-dot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div>' +
+        '<div>' + svgHtml + '</div>' +
+        '<div class="card-label">' + pf.name + '</div>' +
+        (connected ? '<div class="card-sub">' + (info.username||'Connected') + '</div>' : '<div class="card-sub" style="color:var(--color-red-400)">Not connected</div>');
+      
+      card.onclick = function(){
+        if (connected) {
+          pfmOpenDetail(plat, accts);
+        } else {
+          pfmOpenConnectModal(plat);
+        }
+      };
+      grid.appendChild(card);
     });
-    
-    ['pfm-post-accounts','pfm-sched-accounts'].forEach(function(id){
-      const sel = document.getElementById(id); if(!sel) return;
-      sel.innerHTML = '';
-      (r.accounts||[]).forEach(function(a){
-        const o=document.createElement('option'); o.value=a.id; o.textContent=a.platform+' — '+(a.username||a.id); sel.appendChild(o);
-      });
+  }
+  
+  // Update selects for other tabs
+  ['pfm-post-accounts','pfm-sched-accounts'].forEach(function(id){
+    var sel = document.getElementById(id); if(!sel) return;
+    sel.innerHTML = '';
+    accounts.forEach(function(a){
+      var o=document.createElement('option'); o.value=a.id; o.textContent=a.platform+' - '+(a.username||a.id); sel.appendChild(o);
     });
-  } else d.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ ' + (r.error||'Failed') + '</div>';
+  });
+  
+  var d = document.getElementById('pfm-accounts-list');
+  if (d) d.innerHTML = '';
+}
+
+function pfmOpenDetail(platform, accounts) {
+  var pf = PFM_PLATFORMS[platform] || { icon:'?', name:platform };
+  var acc = accounts[0] || {};
+  pfmDetailAccountId = acc.id;
+  
+  var svgs = window.PLATFORM_SVGS || {};
+  var iconEl = document.getElementById('pfm-detail-icon');
+  if (svgs[platform]) { iconEl.innerHTML = svgs[platform]; } else { iconEl.textContent = pf.icon; }
+  document.getElementById('pfm-detail-name').textContent = acc.username || acc.id || 'Unknown';
+  document.getElementById('pfm-detail-title').textContent = pf.icon + ' ' + pf.name;
+  
+  var infoHtml = '<div style="background:var(--bg-tertiary);border-radius:var(--radius);padding:12px">';
+  infoHtml += '<div class="mb-2"><span class="text-xs text-secondary">Account ID</span><br><span style="font-size:13px;font-family:monospace">' + (acc.id||'-') + '</span></div>';
+  infoHtml += '<div class="mb-2"><span class="text-xs text-secondary">Platform</span><br><span style="font-size:13px">' + (acc.platform||'-') + '</span></div>';
+  infoHtml += '<div class="mb-2"><span class="text-xs text-secondary">Username</span><br><span style="font-size:13px">' + (acc.username||'-') + '</span></div>';
+  infoHtml += '<div class="mb-2"><span class="text-xs text-secondary">Status</span><br><span style="font-size:13px;color:var(--color-green-400)">' + (acc.status||'-') + '</span></div>';
+  if (acc.access_token_expires_at) {
+    infoHtml += '<div class="mb-2"><span class="text-xs text-secondary">Token Expires</span><br><span style="font-size:13px">' + new Date(acc.access_token_expires_at).toLocaleDateString() + '</span></div>';
+  }
+  infoHtml += '</div>';
+  
+  document.getElementById('pfm-detail-info').innerHTML = infoHtml;
+  document.getElementById('pfm-account-detail-modal').classList.add('open');
+}
+
+function pfmCloseDetailModal() {
+  document.getElementById('pfm-account-detail-modal').classList.remove('open');
+  pfmDetailAccountId = null;
+}
+
+function pfmDisconnectAccount() {
+  if (!pfmDetailAccountId) return;
+  pfmCloseDetailModal();
 }
 
 async function pfmPostNow() {

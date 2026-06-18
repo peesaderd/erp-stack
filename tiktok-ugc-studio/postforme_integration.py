@@ -13,6 +13,8 @@ Platforms: TikTok, Instagram, Facebook, X, LinkedIn, YouTube, Threads, Pinterest
 
 import os
 import json
+import sys
+import inspect
 import logging
 import requests
 from typing import Optional
@@ -28,6 +30,61 @@ PFM_ACCOUNTS = {
     "tiktok_putterfreshshop": "spc_i0Ly8cwH9vJml9VS6t4j",
     "facebook_kunyay": "spc_sffrL9Nul7Z2ms2rJELZ1",
     "facebook_putter_gaming": "spc_OdQDPsF5ZucdSgSIwQUJc",
+}
+
+
+# ─── Platform Constants ────────────────────────────────────────────────────
+
+PLATFORMS = [
+    "tiktok",
+    "tiktok_business",
+    "facebook",
+    "instagram",
+    "x",
+    "linkedin",
+    "youtube",
+    "pinterest",
+    "bluesky",
+    "threads",
+]
+
+PLATFORM_NAMES = {
+    "tiktok": "TikTok",
+    "tiktok_business": "TikTok Business",
+    "facebook": "Facebook",
+    "instagram": "Instagram",
+    "x": "X (Twitter)",
+    "linkedin": "LinkedIn",
+    "youtube": "YouTube",
+    "pinterest": "Pinterest",
+    "bluesky": "Bluesky",
+    "threads": "Threads",
+}
+
+PLATFORM_NAMES_TH = {
+    "tiktok": "ติ๊กต็อก",
+    "tiktok_business": "ติ๊กต็อก ธุรกิจ",
+    "facebook": "เฟซบุ๊ก",
+    "instagram": "อินสตาแกรม",
+    "x": "X (ทวิตเตอร์)",
+    "linkedin": "ลิงก์อิน",
+    "youtube": "ยูทูบ",
+    "pinterest": "พินเทอเรสต์",
+    "bluesky": "บลูสกาย",
+    "threads": "เธรดส์",
+}
+
+PLATFORM_DEFAULTS = {
+    "tiktok": {"privacy_status": "public", "is_ai_generated": True},
+    "tiktok_business": {"privacy_status": "public", "is_ai_generated": True},
+    "facebook": {"placement": "timeline", "privacy_status": "public"},
+    "instagram": {"placement": "timeline", "is_ai_generated": True},
+    "x": {},
+    "linkedin": {"visibility": "public"},
+    "youtube": {"privacy_status": "public"},
+    "pinterest": {},
+    "bluesky": {},
+    "threads": {"placement": "timeline"},
 }
 
 
@@ -192,22 +249,12 @@ def schedule_post_from_pipeline(
     media_urls: list[str],
     account_ids: list[str],
     scheduled_at: str = None,
+    platform: str = None,
     platform_configs: dict = None,
 ) -> dict:
-    """
-    Schedule a post from the content pipeline with platform-specific configs.
-
-    Args:
-        caption: Post caption
-        media_urls: List of public media URLs
-        account_ids: List of social account IDs
-        scheduled_at: ISO 8601 datetime (None = post immediately)
-        platform_configs: Platform-specific configurations
-                         e.g. { "tiktok": { "privacy_status": "public", "is_ai_generated": true } }
-
-    Returns:
-        dict: Post result with id, status, scheduled_at, etc.
-    """
+    if platform_configs is None and platform is not None:
+        defaults = PLATFORM_DEFAULTS.get(platform, {})
+        platform_configs = make_platform_config(platform, **defaults)
     media_objects = [{"url": u} for u in media_urls]
     return post_to_platform(
         social_accounts=account_ids,
@@ -216,6 +263,195 @@ def schedule_post_from_pipeline(
         scheduled_at=scheduled_at,
         platform_configurations=platform_configs,
     )
+
+
+# ─── Platform Config Helpers ───────────────────────────────────────────────
+
+def make_tiktok_config(
+    privacy_status: str = "public",
+    is_ai_generated: bool = True,
+    brand_organic_toggle: bool = None,
+    branded_content: bool = None,
+    brand_partner_name: str = None,
+    allow_duet: bool = None,
+    allow_stitch: bool = None,
+    disable_comment: bool = None,
+) -> dict:
+    config = {
+        "privacy_status": privacy_status,
+        "is_ai_generated": is_ai_generated,
+    }
+    if brand_organic_toggle is not None:
+        config["brand_organic_toggle"] = brand_organic_toggle
+    if branded_content is not None:
+        config["branded_content"] = branded_content
+    if brand_partner_name is not None:
+        config["brand_partner_name"] = brand_partner_name
+    if allow_duet is not None:
+        config["allow_duet"] = allow_duet
+    if allow_stitch is not None:
+        config["allow_stitch"] = allow_stitch
+    if disable_comment is not None:
+        config["disable_comment"] = disable_comment
+    return config
+
+
+def make_tiktok_business_config(**kwargs) -> dict:
+    return make_tiktok_config(**kwargs)
+
+
+def make_facebook_config(
+    placement: str = "timeline",
+    privacy_status: str = "public",
+    is_ai_generated: bool = None,
+    tagged_user_ids: list[str] = None,
+) -> dict:
+    config = {
+        "placement": placement,
+        "privacy_status": privacy_status,
+    }
+    if is_ai_generated is not None:
+        config["is_ai_generated"] = is_ai_generated
+    if tagged_user_ids:
+        config["tagged_user_ids"] = tagged_user_ids
+    return config
+
+
+def make_instagram_config(
+    placement: str = "timeline",
+    is_ai_generated: bool = True,
+    branded_content: bool = None,
+    brand_partner_name: str = None,
+) -> dict:
+    config = {
+        "placement": placement,
+        "is_ai_generated": is_ai_generated,
+    }
+    if branded_content is not None:
+        config["branded_content"] = branded_content
+    if brand_partner_name is not None:
+        config["brand_partner_name"] = brand_partner_name
+    return config
+
+
+def make_x_config(
+    is_ai_generated: bool = None,
+    sensitive_content: bool = None,
+    reply_settings: str = None,
+) -> dict:
+    config = {}
+    if is_ai_generated is not None:
+        config["is_ai_generated"] = is_ai_generated
+    if sensitive_content is not None:
+        config["sensitive_content"] = sensitive_content
+    if reply_settings is not None:
+        config["reply_settings"] = reply_settings
+    return config
+
+
+def make_linkedin_config(
+    visibility: str = "public",
+    is_ai_generated: bool = None,
+    article_url: str = None,
+) -> dict:
+    config = {"visibility": visibility}
+    if is_ai_generated is not None:
+        config["is_ai_generated"] = is_ai_generated
+    if article_url:
+        config["article_url"] = article_url
+    return config
+
+
+def make_youtube_config(
+    privacy_status: str = "public",
+    is_ai_generated: bool = None,
+    category_id: str = None,
+    tags: list[str] = None,
+    made_for_kids: bool = None,
+) -> dict:
+    config = {"privacy_status": privacy_status}
+    if is_ai_generated is not None:
+        config["is_ai_generated"] = is_ai_generated
+    if category_id:
+        config["category_id"] = category_id
+    if tags:
+        config["tags"] = tags
+    if made_for_kids is not None:
+        config["made_for_kids"] = made_for_kids
+    return config
+
+
+def make_pinterest_config(
+    board_id: str = None,
+    is_ai_generated: bool = None,
+    link_url: str = None,
+) -> dict:
+    config = {}
+    if board_id:
+        config["board_id"] = board_id
+    if is_ai_generated is not None:
+        config["is_ai_generated"] = is_ai_generated
+    if link_url:
+        config["link_url"] = link_url
+    return config
+
+
+def make_bluesky_config(
+    is_ai_generated: bool = None,
+    reply_to: str = None,
+) -> dict:
+    config = {}
+    if is_ai_generated is not None:
+        config["is_ai_generated"] = is_ai_generated
+    if reply_to:
+        config["reply_to"] = reply_to
+    return config
+
+
+def make_threads_config(
+    placement: str = "timeline",
+    is_ai_generated: bool = None,
+    allow_replies: bool = None,
+) -> dict:
+    config = {"placement": placement}
+    if is_ai_generated is not None:
+        config["is_ai_generated"] = is_ai_generated
+    if allow_replies is not None:
+        config["allow_replies"] = allow_replies
+    return config
+
+
+# ─── Account-Level Config Helper ───────────────────────────────────────────
+
+PLATFORM_CONFIG_MAKERS = {
+    "tiktok": make_tiktok_config,
+    "tiktok_business": make_tiktok_business_config,
+    "facebook": make_facebook_config,
+    "instagram": make_instagram_config,
+    "x": make_x_config,
+    "linkedin": make_linkedin_config,
+    "youtube": make_youtube_config,
+    "pinterest": make_pinterest_config,
+    "bluesky": make_bluesky_config,
+    "threads": make_threads_config,
+}
+
+
+def make_platform_config(platform: str, **kwargs) -> dict:
+    maker = PLATFORM_CONFIG_MAKERS.get(platform)
+    if maker is None:
+        raise ValueError(
+            f"Unknown platform '{platform}'. "
+            f"Valid: {', '.join(PLATFORMS)}"
+        )
+    return {platform: maker(**kwargs)}
+
+
+def make_account_configs(accounts: dict[str, dict]) -> dict:
+    configs = {}
+    for platform, opts in accounts.items():
+        configs.update(make_platform_config(platform, **opts))
+    return configs
 
 
 # ─── CLI ────────────────────────────────────────────────────────────────────
@@ -238,6 +474,13 @@ if __name__ == "__main__":
     p_post.add_argument("--text", required=True, help="Caption")
     p_post.add_argument("--media", nargs="+", help="Media URLs")
     p_post.add_argument("--schedule", help="Schedule datetime (ISO 8601)")
+
+    # platform-list
+    p_platform_list = sub.add_parser("platform-list", help="List supported platforms")
+
+    # platform-info
+    p_platform_info = sub.add_parser("platform-info", help="Show platform details")
+    p_platform_info.add_argument("--platform", required=True, help="Platform name")
 
     args = parser.parse_args()
 
@@ -269,3 +512,34 @@ if __name__ == "__main__":
         if post_id:
             print(f"\nPost ID: {post_id}")
             print(f"Status: {result.get('status', '?')}")
+
+    elif args.cmd == "platform-list":
+        print(f"Supported platforms ({len(PLATFORMS)}):")
+        for p in PLATFORMS:
+            name_en = PLATFORM_NAMES.get(p, p)
+            name_th = PLATFORM_NAMES_TH.get(p, "")
+            defaults = PLATFORM_DEFAULTS.get(p, {})
+            print(f"  {p:24s} {name_en:20s} {name_th}")
+            if defaults:
+                print(f"  {'':24s} Defaults: {json.dumps(defaults, ensure_ascii=False)}")
+
+    elif args.cmd == "platform-info":
+        plat = args.platform
+        if plat not in PLATFORMS:
+            print(f"Unknown platform '{plat}'. Valid: {', '.join(PLATFORMS)}")
+            sys.exit(1)
+        print(f"Platform:        {plat}")
+        print(f"Name (EN):       {PLATFORM_NAMES.get(plat, plat)}")
+        print(f"Name (TH):       {PLATFORM_NAMES_TH.get(plat, '')}")
+        print(f"Defaults:        {json.dumps(PLATFORM_DEFAULTS.get(plat, {}), ensure_ascii=False)}")
+        maker = PLATFORM_CONFIG_MAKERS.get(plat)
+        if maker:
+            sig = inspect.signature(maker)
+            print(f"\nParameters ({maker.__name__}):")
+            for name, param in sig.parameters.items():
+                default = param.default
+                if default is inspect.Parameter.empty:
+                    print(f"  {name} (required)")
+                else:
+                    default_repr = json.dumps(default) if isinstance(default, (dict, list, bool)) else repr(default)
+                    print(f"  {name} (default: {default_repr})")

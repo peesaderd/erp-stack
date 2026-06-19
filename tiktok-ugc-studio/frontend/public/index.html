@@ -740,6 +740,21 @@ select.input { cursor: pointer; }
 .pfm-card.connected .status-dot { display:flex; }
 .pfm-card .card-label { font-size:13px; font-weight:600; color:var(--text-primary); letter-spacing:-0.2px; }
 .pfm-card .card-sub { font-size:11px; color:var(--text-secondary); }
+/* ═══ Scout ═══ */
+.scout-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:12px; }
+.scout-card { border-radius:var(--radius-lg); overflow:hidden; background:var(--bg-card); border:1px solid var(--border-primary); transition:all .2s; cursor:pointer; }
+.scout-card:hover { transform:translateY(-2px); border-color:var(--accent-magenta); box-shadow:0 4px 20px rgba(0,0,0,.4),0 0 15px rgba(255,0,170,.15); }
+.scout-card-viral { border-color:var(--accent-green); }
+.scout-card-viral:hover { border-color:var(--accent-green); box-shadow:0 0 15px rgba(0,255,136,.2); }
+.scout-card-thumb { position:relative; aspect-ratio:9/16; overflow:hidden; background:var(--bg-tertiary); }
+.scout-card-thumb img, .scout-card-thumb video { width:100%; height:100%; object-fit:cover; }
+.scout-card-body { padding:10px 12px; }
+.scout-card-title { font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.scout-card-meta { display:flex; gap:8px; font-size:11px; color:var(--text-secondary); margin-top:4px; flex-wrap:wrap; }
+.scout-card-meta span { display:flex; align-items:center; gap:3px; }
+.scout-card-actions { display:flex; gap:6px; margin-top:8px; padding-top:8px; border-top:1px solid var(--border-secondary); }
+.scout-viral-badge { position:absolute; top:6px; left:6px; background:linear-gradient(135deg,var(--accent-green),#00cc88); border-radius:4px; padding:2px 8px; font-size:10px; font-weight:700; color:#fff; }
+.scout-eng-badge { position:absolute; top:6px; right:6px; background:rgba(0,0,0,.6); backdrop-filter:blur(4px); border-radius:4px; padding:2px 8px; font-size:10px; color:#fff; }
 /* PFM tables */
 #pfm-accounts-list table, #pfm-history-list table { width:100%; border-collapse:collapse; margin-top:8px; }
 #pfm-accounts-list th, #pfm-history-list th { background:var(--bg-tertiary); padding:8px 12px; text-align:left; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-secondary); }
@@ -792,6 +807,7 @@ select.input { cursor: pointer; }
     <button data-tab="scheduled" onclick="switchTab('scheduled')">📅 Scheduled</button>
     <button data-tab="social" onclick="switchTab('social')">📊 Social</button>
     <button data-tab="pfm" onclick="switchTab('pfm')">📱 Post For Me</button>
+    <button data-tab="scout" onclick="switchTab('scout')">🔍 Scout</button>
     <button data-tab="accounts" onclick="switchTab('accounts')">📱 Accounts</button>
     <button data-tab="history" onclick="switchTab('history')">📋 History</button>
     <button data-tab="settings" onclick="switchTab('settings')">⚙️ Settings</button>
@@ -823,6 +839,7 @@ select.input { cursor: pointer; }
     <button data-tab="scheduled" onclick="switchTab('scheduled');toggleSideNav()">📅 Scheduled</button>
     <button data-tab="social" onclick="switchTab('social');toggleSideNav()">📊 Social</button>
     <button data-tab="pfm" onclick="switchTab('pfm');toggleSideNav()">📱 Post For Me</button>
+    <button data-tab="scout" onclick="switchTab('scout');toggleSideNav()">🔍 Scout</button>
     <button data-tab="accounts" onclick="switchTab('accounts');toggleSideNav()">📱 Accounts</button>
     <button data-tab="history" onclick="switchTab('history');toggleSideNav()">📋 History</button>
     <button data-tab="settings" onclick="switchTab('settings');toggleSideNav()">⚙️ Settings</button>
@@ -1587,6 +1604,43 @@ select.input { cursor: pointer; }
   </div>
 </div>
 
+<!-- ═══ Scout ═══ -->
+<div id="page-scout" class="page">
+  <div class="page-header"><div><h2>🔍 Facebook/IG Scout</h2><p>ค้นหา Viral Clips จาก Facebook → Clone → Pipeline</p></div></div>
+
+  <div class="flex gap-2 mb-3" style="flex-wrap:wrap;align-items:center">
+    <select id="scout-niche" class="input" style="min-width:160px">
+      <option value="">All Niches</option>
+    </select>
+    <input type="number" id="scout-min-eng" class="input" style="width:100px" value="500" placeholder="Min eng">
+    <button class="btn btn-primary" onclick="scoutSearch()">🔍 Search</button>
+    <button class="btn btn-secondary" onclick="scoutRefreshNiches()">🔄 Niches</button>
+  </div>
+
+  <div id="scout-results">
+    <div class="text-sm text-secondary">Select niche and search</div>
+  </div>
+
+  <!-- Template Quick Clone -->
+  <div class="card mt-3">
+    <div class="card-header"><span class="card-title">🎬 Quick Clone</span></div>
+    <div class="card-body">
+      <div class="flex gap-2" style="flex-wrap:wrap">
+        <input type="text" id="scout-clone-product" class="input" style="flex:1" placeholder="Product name">
+        <select id="scout-clone-template" class="input" style="min-width:140px">
+          <option value="quick_review">Quick Review</option>
+          <option value="problem_solution">Problem → Solution</option>
+          <option value="before_after">Before → After</option>
+          <option value="comparison">Side-by-Side</option>
+          <option value="testimonial">Testimonial</option>
+        </select>
+        <button class="btn btn-primary" onclick="scoutQuickClone()">📝 Generate Clone</button>
+      </div>
+      <div id="scout-clone-result" class="mt-2"></div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ Social ═══ -->
 <div id="page-social" class="page">
   <div class="page-header">
@@ -1695,6 +1749,7 @@ function switchTab(name) {
   if (name === 'scheduled') loadScheduledPosts();
   if (name === 'social') renderSocial();
   if (name === 'pfm') pfmFetchAccounts();
+  if (name === 'scout') scoutRefreshNiches();
   if (name === 'settings') loadProviders();
   if (name === 'products') loadAnalyzedProducts();
   if (name === 'content') setTimeout(loadRecipes, 100);
@@ -3826,6 +3881,148 @@ async function pfmFetchHistory() {
     html += '</table>';
     d.innerHTML = html;
   } else d.innerHTML = `<div class="text-sm" style="color:var(--color-red-400)">❌ ${r.error||'Failed'}</div>`;
+}
+
+/* ═══ Scout — Facebook/IG Viral Clip Search ═══ */
+let _scoutNicheCache = [];
+let _scoutResults = [];
+
+async function scoutRefreshNiches() {
+  const sel = document.getElementById('scout-niche');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Loading...</option>';
+  try {
+    const r = await fetch(API + '/scout/facebook/niches');
+    const d = await r.json();
+    _scoutNicheCache = d.niches || [];
+    sel.innerHTML = '<option value="">All Niches</option>'
+      + _scoutNicheCache.map(function(n){ return '<option value="' + (n.id||n) + '">' + (n.name||n) + '</option>'; }).join('');
+  } catch(e) {
+    sel.innerHTML = '<option value="">All Niches</option><option value="beauty">Beauty</option><option value="fashion">Fashion</option><option value="food">Food</option>';
+  }
+}
+
+async function scoutSearch() {
+  const niche = document.getElementById('scout-niche').value;
+  const minEng = parseInt(document.getElementById('scout-min-eng').value) || 500;
+  const el = document.getElementById('scout-results');
+  el.innerHTML = '<div class="text-sm text-secondary"><div class="spinner" style="margin:12px auto"></div>Searching...</div>';
+  try {
+    const r = await fetch(API + '/scout/facebook/search', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({niche: niche || undefined, min_engagement: minEng, limit: 20})
+    });
+    const d = await r.json();
+    _scoutResults = d.posts || d.clips || d.results || [];
+    if (!_scoutResults.length) {
+      el.innerHTML = '<div class="text-sm text-secondary" style="text-align:center;padding:24px">📭 0 posts found. Try a different niche or lower min engagement.</div>';
+      return;
+    }
+    el.innerHTML = '<div class="scout-grid">' + _scoutResults.map((c, i) => {
+      const isViral = (c.views || 0) >= 10000 || (c.likes || 0) >= 2000;
+      const viralBadge = isViral ? '<span class="scout-viral-badge">🔥 VIRAL</span>' : '';
+      const eng = c.engagement_total || c.likes || 0;
+      const thumb = c.video_url || '';
+      const platform = c.platform || 'facebook';
+      return `<div class="scout-card ${isViral ? 'scout-card-viral' : ''}">
+        <div class="scout-card-thumb">
+          ${thumb ? `<img src="${thumb}" alt="" loading="lazy">` : '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-tertiary);font-size:32px">🎬</div>'}
+          ${viralBadge}
+          <span class="scout-eng-badge">❤️ ${eng.toLocaleString()}</span>
+        </div>
+        <div class="scout-card-body">
+          <div class="scout-card-title">${(c.message||c.caption||'').slice(0,60) || 'Untitled Clip'}</div>
+          <div class="scout-card-meta">
+            <span>👁️ ${(c.views || 0).toLocaleString()}</span>
+            <span>❤️ ${(c.likes || 0).toLocaleString()}</span>
+            <span>💬 ${(c.comments || 0).toLocaleString()}</span>
+            <span>📱 ${platform}</span>
+          </div>
+          <div class="scout-card-actions">
+            <button class="btn btn-primary btn-sm" onclick="scoutOpenDetail(${i})" style="flex:1">🎬 Clone</button>
+            <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();scoutClone(${i}, 'quick')">⚡ Quick</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('') + '</div>';
+  } catch(e) {
+    el.innerHTML = '<div class="text-sm text-secondary" style="text-align:center;padding:24px;color:var(--color-red-400)">❌ Search failed: ' + e.message + '</div>';
+  }
+}
+
+function scoutOpenDetail(idx) {
+  const clip = _scoutResults[idx];
+  if (!clip) return;
+  const html = `
+    <div style="margin-bottom:12px">
+      ${clip.video_url ? `<video src="${clip.video_url}" controls style="width:100%;max-height:320px;border-radius:var(--radius-lg);background:#000"></video>` : ''}
+      ${clip.thumbnail ? `<img src="${clip.thumbnail}" style="width:100%;max-height:320px;object-fit:contain;border-radius:var(--radius-lg)">` : ''}
+    </div>
+    <div class="text-sm mb-2"><strong>Message:</strong> ' + (clip.message||clip.caption||'-') + '</div>
+    <div class="scout-card-meta mb-3">
+      <span>❤️ ' + (clip.likes||0).toLocaleString() + '</span>
+      <span>🔄 ' + (clip.shares||0).toLocaleString() + '</span>
+      <span>💬 ' + (clip.comments||0).toLocaleString() + '</span>
+    </div>
+    <div class="flex gap-2">
+      <button class="btn btn-primary" onclick="scoutClone(' + idx + ', \'full\')" style="flex:1">🎬 Clone to Pipeline</button>
+      <button class="btn btn-secondary" onclick="scoutClone(' + idx + ', \'quick\')">⚡ Quick Clone</button>
+    </div>
+    <div id="scout-clone-progress-${idx}" class="mt-2"></div>
+  `;
+  showModal('🎬 Clip Detail', html);
+}
+
+async function scoutClone(idx, mode) {
+  const clip = _scoutResults[idx];
+  if (!clip) { showToast('No clip selected','error'); return; }
+  const progressEl = document.getElementById('scout-clone-progress-' + idx) || document.getElementById('scout-clone-result');
+  if (progressEl) progressEl.innerHTML = '<div class="text-sm text-secondary">⏳ Cloning to pipeline...</div>';
+  try {
+    const r = await fetch(API + '/scout/facebook/clone', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        source_clip: clip,
+        mode: mode,
+        product_name: document.getElementById('scout-clone-product')?.value || '',
+      })
+    });
+    const d = await r.json();
+    if (d.success) {
+      showToast('✅ Clone initiated! Job: ' + (d.job_id || 'OK'), 'success');
+      if (progressEl) progressEl.innerHTML = '<div class="text-sm" style="color:var(--color-green-400)">✅ Clone started! <a href="#" onclick="switchTab(\'pipeline\');return false">View in Pipeline →</a></div>';
+    } else {
+      showToast('❌ ' + (d.error || 'Clone failed'), 'error');
+      if (progressEl) progressEl.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ ' + (d.error || 'Failed') + '</div>';
+    }
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+    if (progressEl) progressEl.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ ' + e.message + '</div>';
+  }
+}
+
+async function scoutQuickClone() {
+  const productName = document.getElementById('scout-clone-product')?.value.trim();
+  const template = document.getElementById('scout-clone-template')?.value || 'quick_review';
+  if (!productName) { showToast('Enter a product name','error'); return; }
+  const el = document.getElementById('scout-clone-result');
+  el.innerHTML = '<div class="text-sm text-secondary">⏳ Generating clone script for "' + productName + '" using ' + template + '...</div>';
+  try {
+    const r = await fetch(API + '/scout/facebook/clone', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({product_name: productName, template: template})
+    });
+    const d = await r.json();
+    if (d.success) {
+      el.innerHTML = '<div class="text-sm" style="color:var(--color-green-400)">✅ Script generated! <a href="#" onclick="document.getElementById(\'productTitle\').value=\'' + productName.replace(/'/g, "\\'") + '\';switchTab(\'content\');return false">Open in Content Wizard →</a></div>'
+        + (d.script ? '<pre style="font-size:11px;background:var(--bg-tertiary);padding:8px;border-radius:var(--radius);margin-top:6px;max-height:120px;overflow:auto">' + d.script + '</pre>' : '');
+      showToast('✅ Clone script ready!', 'success');
+    } else {
+      el.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ ' + (d.error || 'Generation failed') + '</div>';
+    }
+  } catch(e) {
+    el.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ ' + e.message + '</div>';
+  }
 }
 
 </script>

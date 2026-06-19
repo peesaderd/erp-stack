@@ -602,6 +602,7 @@ def _list_pfm_posts(limit: int = 50, status: str = "") -> list:
 from scout.trends import discover_trends, analyze_viral_structure, search_trending_keywords
 from scout.analyzer import analyze_video, compare_with_competitors, extract_trending_elements
 from scout.templates import get_templates, generate_from_template, generate_clone_script
+from scout.facebook_scout import list_niches as fb_list_niches, search_posts as fb_search_posts, analyze_post as fb_analyze_post, clone_to_pipeline as fb_clone_to_pipeline
 
 
 @app.get("/scout/trends")
@@ -702,6 +703,47 @@ async def scout_extract(req: dict):
     return {"success": True, **result}
 
 
+@app.get("/scout/facebook/niches")
+async def facebook_list_niches():
+    """List available niches for Facebook scout."""
+    niches = await fb_list_niches()
+    return {"success": True, "niches": niches}
+
+
+@app.post("/scout/facebook/search")
+async def facebook_search(req: dict):
+    """Search viral posts from Facebook."""
+    niche = req.get("niche", "")
+    min_engagement = req.get("min_engagement", 500)
+    limit = req.get("limit", 20)
+    posts = await fb_search_posts(niche, min_engagement, limit)
+    if posts and "error" in posts[0]:
+        return {"success": False, "error": posts[0]["error"]}
+    return {"success": True, "total": len(posts), "posts": posts}
+
+
+@app.post("/scout/facebook/analyze")
+async def facebook_analyze(req: dict):
+    """Analyze a single Facebook post."""
+    post_id = req.get("post_id", "")
+    if not post_id:
+        return {"success": False, "error": "post_id required"}
+    result = await fb_analyze_post(post_id)
+    if "error" in result:
+        return {"success": False, "error": result["error"]}
+    return {"success": True, "result": result}
+
+
+@app.post("/scout/facebook/clone")
+async def facebook_clone(req: dict):
+    """Clone a viral post into pipeline."""
+    post_id = req.get("post_id", "")
+    product_name = req.get("product_name", "")
+    template_id = req.get("template_id", "")
+    if not post_id or not product_name:
+        return {"success": False, "error": "post_id and product_name required"}
+    result = await fb_clone_to_pipeline(post_id, product_name, template_id)
+    return result
 
 
 # ─── Scout Targets ──────────────────────────────────────────────────────────

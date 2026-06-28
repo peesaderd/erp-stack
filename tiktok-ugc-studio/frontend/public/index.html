@@ -19,68 +19,67 @@
    DESIGN SYSTEM — Untitled UI compatible
    ══════════════════════════════════════════ */
 :root {
-  /* ═══ Cyber Neon Design System ═══ */
-  --font-body: "Inter", system-ui, -apple-system, sans-serif;
+  /* ═══ Apple Core Fonts ═══ */
+  --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", sans-serif;
   
   --color-white: #fff;
   --color-black: #000;
   
-  /* Neutral — dark by default (always-night mode) */
-  --color-neutral-50: #fafafa; --color-neutral-100: #f0f0f5; --color-neutral-200: #d0d0dd;
-  --color-neutral-300: #a0a0bb; --color-neutral-400: #7878a0; --color-neutral-500: #58587a;
-  --color-neutral-600: #3a3a5a; --color-neutral-700: #2a2a48; --color-neutral-800: #1e1e3a;
-  --color-neutral-900: #12122a; --color-neutral-950: #0a0a1a;
+  /* Neutral — iOS dark theme compatible */
+  --color-neutral-50: #fafafa; --color-neutral-100: #f2f2f7; --color-neutral-200: #e5e5ea;
+  --color-neutral-300: #d1d1d6; --color-neutral-400: #c7c7cc; --color-neutral-500: #aeaeb2;
+  --color-neutral-600: #8e8e93; --color-neutral-700: #48484a; --color-neutral-800: #3a3a3c;
+  --color-neutral-900: #2c2c2e; --color-neutral-950: #1c1c1e;
 
-  /* Neon Brand — Cyan + Purple */
-  --color-brand-50: #e8f8ff; --color-brand-100: #b0f0ff; --color-brand-200: #70e6ff;
-  --color-brand-300: #30dcff; --color-brand-400: #00d4ff; --color-brand-500: #00c0f0;
-  --color-brand-600: #00a0d0; --color-brand-700: #0080b0; --color-brand-800: #006090;
-  --color-brand-900: #004070; --color-brand-950: #002040;
+  --color-red-50:#ffebf0;--color-red-100:#ffc0d0;--color-red-400:#ff453a;--color-red-500:#ff3b30;--color-red-600:#d32f2f;--color-red-950:#330000;
+  --color-green-50:#e8fff0;--color-green-100:#b0ffd0;--color-green-400:#30d158;--color-green-500:#34c759;--color-green-600:#2e7d32;--color-green-950:#002200;
+  --color-amber-50:#fff8e0;--color-amber-100:#ffeaa0;--color-amber-400:#ff9f0a;--color-amber-500:#ff9500;--color-amber-600:#f57c00;--color-amber-950:#331100;
+  --color-blue-50:#e0f0ff;--color-blue-400:#0a84ff;--color-blue-500:#007aff;--color-blue-600:#0288d1;--color-blue-950:#002033;
 
-  --color-red-50:#ffebf0;--color-red-100:#ffc0d0;--color-red-400:#ff4080;--color-red-500:#ff0066;--color-red-600:#cc0055;--color-red-950:#330022;
-  --color-green-50:#e8fff0;--color-green-100:#b0ffd0;--color-green-400:#40ff90;--color-green-500:#00ff77;--color-green-600:#00cc55;--color-green-950:#003322;
-  --color-amber-50:#fff8e0;--color-amber-100:#ffeaa0;--color-amber-400:#ffcc40;--color-amber-500:#ffbb00;--color-amber-600:#cc9900;--color-amber-950:#332200;
-  --color-blue-50:#e0f0ff;--color-blue-400:#40a0ff;--color-blue-500:#0080ff;--color-blue-600:#0066cc;--color-blue-950:#002033;
-
-  /* Always dark — neon mode */
-  --bg-primary: #0a0a1a;
-  --bg-secondary: #12122a;
-  --bg-tertiary: #1a1a3e;
-  --bg-card: #151535;
-  --bg-card-hover: #202050;
-  --text-primary: #e8e8ff;
-  --text-secondary: #8888bb;
-  --text-tertiary: #555588;
-  --border-primary: rgba(0, 240, 255, 0.12);
-  --border-secondary: rgba(0, 240, 255, 0.06);
+  /* iOS Dark Mode Colors */
+  --bg-primary: #000000;          /* True Black */
+  --bg-secondary: #1c1c1e;        /* Apple System Gray 6 */
+  --bg-tertiary: #2c2c2e;         /* Apple System Gray 5 */
+  --bg-card: #1c1c1e;
+  --bg-card-hover: #2c2c2e;
+  --text-primary: #ffffff;
+  --text-secondary: #8e8e93;      /* System Gray */
+  --text-tertiary: #aeaeb2;
+  --border-primary: rgba(255, 255, 255, 0.08);
+  --border-secondary: rgba(255, 255, 255, 0.04);
   
-  --brand: #00d4ff;
-  --brand-hover: #00f0ff;
-  --accent-magenta: #ff00aa;
-  --accent-purple: #8844ff;
-  --accent-green: #00ff88;
+  --brand: #007aff;               /* Apple Blue */
+  --brand-hover: #0a84ff;
+  --accent-magenta: #ff2d55;
+  --accent-purple: #af52de;
+  --accent-green: #34c759;
   --accent-yellow: #ffcc00;
   
   --spacing: 0.25rem;
-  --radius-sm: 0.375rem; --radius: 0.5rem; --radius-lg: 0.75rem; --radius-xl: 1rem;
-  --shadow-sm: 0 1px 3px rgba(0,0,0,.3); 
-  --shadow-md: 0 4px 12px rgba(0,0,0,.4),0 0 20px rgba(0,240,255,.08);
-  --shadow-lg: 0 12px 24px rgba(0,0,0,.5),0 0 40px rgba(0,240,255,.12);
-  --glow-cyan: 0 0 20px rgba(0, 240, 255, 0.3);
-  --glow-magenta: 0 0 20px rgba(255, 0, 170, 0.3);
+  --radius-sm: 8px; --radius: 12px; --radius-lg: 14px; --radius-xl: 16px;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05); 
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.12);
+  --shadow-lg: 0 12px 30px rgba(0,0,0,0.2);
+  --glow-cyan: 0 0 15px rgba(0, 122, 255, 0.15);
+  --glow-magenta: 0 0 15px rgba(255, 45, 85, 0.15);
 }
 
 /* Remove light mode entirely — always neon dark */
 .dark-mode {
-  /* Same as root — identity mapping for .dark-mode class compatibility */
-  --bg-primary: #0a0a1a; --bg-secondary: #12122a; --bg-tertiary: #1a1a3e;
-  --bg-card: #151535; --bg-card-hover: #202050;
-  --text-primary: #e8e8ff; --text-secondary: #8888bb; --text-tertiary: #555588;
-  --border-primary: rgba(0, 240, 255, 0.12); --border-secondary: rgba(0, 240, 255, 0.06);
-  --brand: #00d4ff; --brand-hover: #00f0ff;
-  --shadow-sm: 0 1px 3px rgba(0,0,0,.3);
-  --shadow-md: 0 4px 12px rgba(0,0,0,.4),0 0 20px rgba(0,240,255,.08);
-  --shadow-lg: 0 12px 24px rgba(0,0,0,.5),0 0 40px rgba(0,240,255,.12);
+  --bg-primary: #000000;
+  --bg-secondary: #1c1c1e;
+  --bg-tertiary: #2c2c2e;
+  --bg-card: #1c1c1e;
+  --bg-card-hover: #2c2c2e;
+  --text-primary: #ffffff;
+  --text-secondary: #8e8e93;
+  --border-primary: rgba(255, 255, 255, 0.08);
+  --border-secondary: rgba(255, 255, 255, 0.04);
+  --brand: #007aff;
+  --brand-hover: #0a84ff;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.12);
+  --shadow-lg: 0 12px 30px rgba(0,0,0,0.2);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -788,6 +787,120 @@ select.input { cursor: pointer; }
 .hero-section p { font-size:13px; opacity:.85; margin-bottom:16px; }
 .hero-section .btn { background:rgba(255,255,255,.2); color:#fff; border:1px solid rgba(255,255,255,.3); }
 .hero-section .btn:hover { background:rgba(255,255,255,.3); }
+
+
+/* ══════════════════════════════════════════
+   iOS STYLE OVERRIDES
+   ══════════════════════════════════════════ */
+.topbar {
+  background: rgba(28, 28, 30, 0.72) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.topbar-brand span {
+  background: linear-gradient(135deg, #ffffff, #8e8e93) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+.topbar-nav button.active {
+  background: rgba(0, 122, 255, 0.1) !important;
+  color: var(--brand) !important;
+}
+
+.btn-primary {
+  background: var(--brand) !important;
+  color: #fff !important;
+  border-color: transparent !important;
+  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.2) !important;
+  border-radius: 10px !important;
+  font-weight: 600 !important;
+}
+
+.btn-primary:hover {
+  background: #0a84ff !important;
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3) !important;
+  transform: none !important;
+}
+
+.btn-secondary {
+  background: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-primary) !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+}
+
+.btn-secondary:hover {
+  background: var(--bg-card-hover) !important;
+  border-color: var(--border-primary) !important;
+  box-shadow: none !important;
+}
+
+.btn-ghost {
+  border-radius: 10px !important;
+}
+
+.card, .stat-card, .table-wrap, .timeline-body, .product-card, .scout-card, .asset-card {
+  border-radius: 14px !important;
+  border: 1px solid var(--border-primary) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
+}
+
+.input {
+  border-radius: 10px !important;
+  border: 1.5px solid var(--border-primary) !important;
+  background: #2c2c2e !important;
+}
+
+.input:focus {
+  border-color: var(--brand) !important;
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.25) !important;
+}
+
+.toggle-track {
+  width: 44px !important;
+  height: 24px !important;
+  border-radius: 12px !important;
+  background: #39393d !important;
+}
+
+.toggle-track.on {
+  background: #34c759 !important;
+}
+
+.toggle-thumb {
+  width: 20px !important;
+  height: 20px !important;
+  top: 2px !important;
+  left: 2px !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4) !important;
+}
+
+.toggle-track.on .toggle-thumb {
+  left: 22px !important;
+}
+
+.modal {
+  background: rgba(28, 28, 30, 0.85) !important;
+  backdrop-filter: blur(30px) !important;
+  -webkit-backdrop-filter: blur(30px) !important;
+  border: 0.5px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4) !important;
+}
+
+.toast {
+  border-radius: 12px !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+}
+.toast.success { background: rgba(52, 199, 89, 0.15) !important; color: #34c759 !important; border: 0.5px solid rgba(52, 199, 89, 0.3) !important; }
+.toast.error { background: rgba(255, 59, 48, 0.15) !important; color: #ff3b30 !important; border: 0.5px solid rgba(255, 59, 48, 0.3) !important; }
+.toast.info { background: rgba(0, 122, 255, 0.15) !important; color: #007aff !important; border: 0.5px solid rgba(0, 122, 255, 0.3) !important; }
+
 
 </style>
 </head>

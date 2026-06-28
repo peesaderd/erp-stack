@@ -3796,7 +3796,7 @@ async function authRegister() {
 }
 
 function authOAuth(provider) {
-  showToast('Configure ' + provider.charAt(0).toUpperCase() + provider.slice(1) + ' OAuth in .env', 'info');
+  window.location.href = window.location.origin + '/api/auth/' + provider + '/login';
 }
 
 function authLogout() {
@@ -3833,7 +3833,29 @@ function updateAuthUI() {
 
 // Run updateAuthUI on load
 document.addEventListener('DOMContentLoaded', function() {
-  setTimeout(updateAuthUI, 50);
+  const urlParams = new URLSearchParams(window.location.search);
+  const token = urlParams.get('token');
+  if (token) {
+    localStorage.setItem('tus_token', token);
+    fetch(window.location.origin + '/api/auth/me', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    })
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok && d.user) {
+        localStorage.setItem('tus_user', JSON.stringify(d.user));
+      }
+      window.history.replaceState({}, document.title, window.location.pathname);
+      updateAuthUI();
+    })
+    .catch(e => {
+      console.error('Error fetching user profile:', e);
+      window.history.replaceState({}, document.title, window.location.pathname);
+      updateAuthUI();
+    });
+  } else {
+    setTimeout(updateAuthUI, 50);
+  }
 });
 
 async function pfmPostNow() {

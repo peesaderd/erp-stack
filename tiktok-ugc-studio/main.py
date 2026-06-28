@@ -2253,10 +2253,12 @@ async def proxy_auth_request(path: str, request: Request):
                 content=body,
             )
             from fastapi.responses import Response
+            # Filter out duplicate headers that make Nginx return 502
+            filtered_headers = {k: v for k, v in resp.headers.items() if k.lower() not in ("date", "server", "content-length")}
             return Response(
                 content=resp.content,
                 status_code=resp.status_code,
-                headers=dict(resp.headers),
+                headers=filtered_headers,
             )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Auth Proxy Error: {str(e)}")

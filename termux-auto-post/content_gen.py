@@ -12,10 +12,21 @@ import re
 from pathlib import Path
 from datetime import datetime
 
+import json
+from pathlib import Path
+
 # OpenCode API
 OPENCODE_API = "https://api.opencode.ai/v1/chat/completions"
-API_KEY = "sk-LTP...ngi0"  # TODO: load from config.json
-MODEL = "opencode-go/deepseek-v4-flash"
+
+# Load API key from config.json
+_config_path = Path(__file__).parent / "config.json"
+if _config_path.exists():
+    _cfg = json.loads(_config_path.read_text())
+    API_KEY = _cfg.get("ai", {}).get("api_key", "")
+    MODEL = _cfg.get("ai", {}).get("model", "opencode-go/deepseek-v4-flash")
+else:
+    API_KEY = ""
+    MODEL = "opencode-go/deepseek-v4-flash"
 
 
 def _call_opencode(prompt, system_prompt=None):

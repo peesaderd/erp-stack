@@ -347,8 +347,14 @@ def main():
         return
 
     if args.login:
-        from cookie_manager import login_interactive
-        login_interactive(args.login)
+        platform = args.login
+        if platform == "tiktok":
+            from platforms.tiktok import TikTok
+            tiktok = TikTok()
+            tiktok.login()
+        else:
+            from cookie_manager import login_interactive
+            login_interactive(platform)
         return
 
     config = load_config()

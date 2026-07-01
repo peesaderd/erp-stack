@@ -1,113 +1,126 @@
 """
-tiktok.py — Auto Post ไปยัง TikTok ผ่าน Cookie Session
+tiktok.py — Auto Post ไปยัง TikTok
 
-วิธีใช้ Cookie:
-  1. Login TikTok ผ่าน browser
-  2. เปิด DevTools → Application → Cookies
-  3. คัดลอก sessionid, tt_chain_token, msToken
-  4. วางใน cookies/tiktok.json
+วิธี: ใช้ tiktok-uploader library (Scan QR ครั้งเดียว ไม่ต้องยุ่งกับ Cookie)
 
-หรือใช้ cookie_manager.py --platform tiktok --login
+ติดตั้ง:
+  pip install tiktok-uploader
+
+ล็อกอินครั้งแรก:
+  python3 -c "from tiktok_uploader.auth import AuthBackend; AuthBackend().login('session.json')"
+  
+หรือ:
+  tiktok-uploader login --session-file session.json
+
+หลังจากนี้ โพสต์ได้เลยโดยไม่ต้องแตะ cookie อีก
 """
 
 import json
-import requests
+import subprocess
+import tempfile
 import time
-import random
 from pathlib import Path
 from .base import PlatformBase
 
 
 class TikTok(PlatformBase):
     name = "tiktok"
-    method = "cookie"
-
-    # TikTok Upload URLs
-    UPLOAD_URL = "https://www.tiktok.com/upload/"
-    API_UPLOAD_INIT = "https://www.tiktok.com/api/v1/video/upload/init/"
-    API_UPLOAD_COMPLETE = "https://www.tiktok.com/api/v1/video/upload/complete/"
-    API_PUBLISH = "https://www.tiktok.com/api/v1/video/publish/"
-    API_CREATOR_INFO = "https://www.tiktok.com/api/v1/user/me/"
+    method = "tiktok-uploader"
 
     def __init__(self, config=None):
         super().__init__(config)
-        self.session = requests.Session()
-        headers = self.get_headers()
-        self.session.headers.update(headers)
+        self.session_file = Path(__file__).parent.parent / "session.json"
+        self.auth = None
+        self._try_load_session()
 
-        # CSRF token
-        self.csrf_token = ""
-        self.creator_name = ""
+    def _try_load_session(self):
+        """เช็คว่ามี session file แล้วหรือยัง"""
+        if self.session_file.exists():
+            print(f"✅ TikTok: Session file found ({self.session_file.name})")
+            return True
+        else:
+            print(f"⚠️ TikTok: No session file. Run --login first.")
+            return False
 
     def check_login(self):
-        """ตรวจสอบว่า session ยังใช้ได้มั้ย"""
+        """ตรวจสอบ session ว่ายังใช้ได้"""
+        if not self.session_file.exists():
+            return False
+        # ลองโหลด session
         try:
-            resp = self.session.get(self.API_CREATOR_INFO, timeout=10)
-            if resp.status_code == 200:
-                data = resp.json()
-                if data.get("user"):
-                    self.creator_name = data["user"].get("uniqueId", "")
-                    print(f"✅ TikTok: Logged in as @{self.creator_name}")
-                    return True
-            print(f"⚠️ TikTok: Session invalid (status={resp.status_code})")
+            data = json.loads(self.session_file.read_text())
+            print(f"✅ TikTok: Session OK (expires: {data.get('expires', 'unknown')})")
+            return True
+        except:
+            return False
+
+    def login(self):
+        """
+        ล็อกอิน TikTok ด้วย QR Scan
+        เปิดในเบราว์เซอร์ → Scan QR ด้วยมือถือ → เสร็จ
+        """
+        print("""
+╔══════════════════════════════════════════╗
+║  🔐 TikTok Login                       ║
+╠══════════════════════════════════════════╣
+║  Browser จะเปิดขึ้นมา                    ║
+║  แสกน QR Code ด้วยมือถือ                ║
+║  แค่นี้! ไม่ต้องกรอกอะไรอีก             ║
+╚══════════════════════════════════════════╝
+""")
+        try:
+            # tiktok-uploader มี login built-in
+            result = subprocess.run(
+                ["tiktok-uploader", "login", "--session-file", str(self.session_file)],
+                timeout=120,
+            )
+            if result.returncode == 0:
+                print(f"✅ TikTok: Login สำเร็จ! Session saved to {self.session_file}")
+                return True
+            else:
+                print("❌ TikTok: Login failed")
+                return False
+        except FileNotFoundError:
+            print("❌ ไม่พบ tiktok-uploader — ลงก่อน: pip install tiktok-uploader")
+            return False
+        except subprocess.TimeoutExpired:
+            print("❌ Login timeout")
+            return False
+
+    def upload_video(self, video_path, caption=""):
+        """โพสต์วิดีโอด้วย tiktok-uploader"""
+        if not self.session_file.exists():
+            print("❌ TikTok: No session. Run --login first")
+            return False
+
+        print(f"📤 TikTok: Uploading {Path(video_path).name}...")
+        print(f"📝 Caption: {caption[:60]}...")
+
+        try:
+            result = subprocess.run([
+                "tiktok-uploader", "upload",
+                "--session-file", str(self.session_file),
+                video_path,
+                "--caption", caption,
+            ], timeout=120, capture_output=True, text=True)
+
+            if result.returncode == 0:
+                self._log_result(True, f"Uploaded: {Path(video_path).name}")
+                print(result.stdout[-200:])
+                return True
+            else:
+                self._log_result(False, result.stderr[:200])
+                return False
+
+        except FileNotFoundError:
+            print("❌ ไม่พบ tiktok-uploader")
+            return False
+        except subprocess.TimeoutExpired:
+            print("❌ Upload timeout (วิดีโออาจนานเกินไป)")
             return False
         except Exception as e:
-            print(f"❌ TikTok: Check login failed: {e}")
+            self._log_result(False, str(e))
             return False
-
-    def _get_csrf(self):
-        """ดึง CSRF token จาก session"""
-        try:
-            resp = self.session.get("https://www.tiktok.com/", timeout=10)
-            # Extract csrf token from cookies
-            for cookie in self.session.cookies:
-                if cookie.name in ("csrf_token", "s_v_web_id"):
-                    self.csrf_token = cookie.value
-                    break
-            return self.csrf_token
-        except:
-            return ""
-
-    def upload_video(self, video_path, caption="", hashtags="", schedule_time=None):
-        """
-        อัปโหลดวิดีโอไปยัง TikTok
-
-        Args:
-            video_path: path ไฟล์วิดีโอ
-            caption: คำบรรยาย
-            hashtags: แฮชแท็ก (space separated)
-            schedule_time: datetime object (ถ้าต้องการตั้งเวลา)
-        """
-        if not self.check_login():
-            return False
-
-        self._get_csrf()
-        print(f"📤 TikTok: Uploading {video_path}...")
-
-        # จำลอง upload — ของจริงต้องใช้ API upload flow ของ TikTok
-        # ซึ่งต้องทำหลายขั้นตอน (init → chunked upload → complete → publish)
-        # แต่ Concept คือส่งผ่าน session cookie + csrf token
-
-        print(f"📝 Caption: {caption[:50]}...")
-        print(f"#️⃣ Hashtags: {hashtags}")
-        print(f"⏰ Schedule: {schedule_time or 'ทันที'}")
-
-        # TODO: implement full upload flow
-        # อ้างอิงจาก tiktok_browser.py ที่มีอยู่แล้ว
-        print("⚙️ TODO: กำลังเขียน upload logic จริง...")
-        print("   ดูตัวอย่างจาก tiktok_browser.py")
-        
-        self._log_result(True, f"Video queued: {Path(video_path).name}")
-        return True
-
-    def post_image(self, image_path, caption=""):
-        """
-        โพสต์รูปภาพ (TikTok รองรับ Slideshow)
-        """
-        print(f"📸 TikTok: Posting image {image_path}...")
-        print(f"📝 Caption: {caption[:50]}...")
-        self._log_result(True, f"Image: {Path(image_path).name}")
-        return True
 
     def post_content(self, content):
         """
@@ -115,41 +128,32 @@ class TikTok(PlatformBase):
 
         content dict:
         {
-            "type": "video" | "image" | "text",
-            "media": ["path/to/video.mp4"] หรือ ["path/to/image.jpg"],
-            "caption": "ข้อความ",
-            "hashtags": "#skincare #review",
-            "link": "https://..."
+            "type": "video" | "image",
+            "media": ["path/to/file.mp4"],
+            "caption": "ข้อความ + #hashtags"
         }
         """
         if not self.check_login():
-            print("⚠️ TikTok: Skipping — not logged in")
             return False
 
         caption = content.get("caption", "")
         hashtags = content.get("hashtags", "")
         full_caption = f"{caption}\n\n{hashtags}" if hashtags else caption
-
-        ctype = content.get("type", "text")
         media = content.get("media", [])
 
-        if ctype == "video" and media:
+        if content.get("type") == "video" and media:
             return self.upload_video(media[0], full_caption)
-        elif ctype == "image" and media:
-            return self.post_image(media[0], full_caption)
         else:
-            print(f"⚠️ TikTok: Unsupported content type: {ctype}")
+            print(f"⚠️ TikTok: Video upload required (got type={content.get('type')})")
             return False
-
-    def format_for_platform(self, content, product):
-        """TikTok รองรับ video และ slideshow"""
-        return content
 
 
 # ─── Test ─────────────────────────────────────────────────
 
 if __name__ == "__main__":
     tiktok = TikTok()
-    print(f"🧪 Testing TikTok module...")
-    print(f"Cookie file: {tiktok.cookie_path}")
-    tiktok.check_login()
+    print("🧪 TikTok module (tiktok-uploader)")
+    if tiktok.check_login():
+        print("✅ Ready to upload")
+    else:
+        print("⚠️ Run --login first")

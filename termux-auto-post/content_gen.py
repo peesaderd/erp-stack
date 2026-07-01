@@ -65,7 +65,7 @@ Price: {product.get('price', '')} {product.get('currency', 'THB')}
 Category: {product.get('category', '')}
 Description: {product.get('description', '')}
 Rating: {product.get('rating', '')}/5
-Sold: {product.get('sold_count', 0)+} ชิ้น
+Sold: {product.get('sold_count', 0)} ชิ้น
 
 สร้าง Caption ขายของ ภาษาไทย+อังกฤษ
 """

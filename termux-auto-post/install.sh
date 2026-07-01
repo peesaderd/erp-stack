@@ -16,9 +16,19 @@ echo "║  📱 Termux Auto Post — Installer        ║"
 echo "╚══════════════════════════════════════════╝"
 echo ""
 
+# Install system dependencies (Termux)
+echo "📦 Installing system libraries..."
+pkg install libjpeg-turbo libpng freetype -y 2>/dev/null || echo "⚠️  Skip system packages (not Termux)"
+
 # Install dependencies
 echo "📦 Installing Python packages..."
 pip install -r requirements.txt
+
+# Fallback: ถ้า Pillow build ไม่ผ่าน
+if [ $? -ne 0 ]; then
+    echo "⚠️  Pillow failed — installing core packages only..."
+    pip install requests schedule rich python-dotenv
+fi
 
 # Create directories
 echo "📁 Creating directories..."

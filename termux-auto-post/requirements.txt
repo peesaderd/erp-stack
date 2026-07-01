@@ -6,3 +6,8 @@ python-dotenv>=1.0.0
 Pillow>=10.0.0
 ffmpeg-python>=0.2.0
 rich>=13.0.0
+
+# Termux users: if Pillow fails to build, run:
+#   pkg install libjpeg-turbo libpng freetype -y
+# Then retry: pip install Pillow
+# Or skip: pip install requests schedule rich python-dotenv

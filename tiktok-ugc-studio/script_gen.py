@@ -1,71 +1,49 @@
 """
-TikTok UGC Studio — AI Script Generator
-ใช้ AiBot Auto-Gen v4.5 prompt system + LLM API
+TikTok UGC Studio — AI Script Generator (Gemini)
+ใช้ Gemini API สำหรับสร้าง Script ภาษาไทย
 """
 
 import os
 import json
 import logging
 import random
+import re
+import requests
+import json
+import httpx
 from pathlib import Path
 from typing import Optional
 
 logger = logging.getLogger("tiktok-ugc.script_gen")
 
+# ─── Gemini Config ─────────────────────────────────────────────────────
+
+# Gemini — centralized config
+from shared_config import GEMINI_API_KEY as _get_gemini
+GEMINI_API_KEY = _get_gemini()
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+
+
+
+# ─── Prompt Studio Config ──────────────────────────────────────────────
+
+PROMPT_STUDIO_URL = os.environ.get("PROMPT_STUDIO_URL", "http://localhost:8108")
 PROMPTS_DIR = Path(__file__).parent / "prompts"
 
-# ─── LLM Config ────────────────────────────────────────────────────────────
-
-LLM_API_KEY = os.environ.get("LLM_API_KEY", "")
-LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "https://api.deepseek.com")
-LLM_MODEL = os.environ.get("LLM_MODEL", "deepseek-chat")
+_client = httpx.Client(timeout=10)
 
 
-def _call_llm(system_prompt: str, user_prompt: str) -> Optional[str]:
-    """Call LLM API (DeepSeek by default)"""
-    if not LLM_API_KEY:
-        logger.warning("No LLM_API_KEY configured — using template fallback")
-        return None
-
+def load_prompt_from_studio(module: str, name: str) -> Optional[str]:
     try:
-        import httpx
-        resp = httpx.post(
-            f"{LLM_BASE_URL}/chat/completions",
-            headers={"Authorization": f"Bearer {LLM_API_KEY}", "Content-Type": "application/json"},
-            json={
-                "model": LLM_MODEL,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                "temperature": 0.7,
-                "max_tokens": 2000,
-            },
-            timeout=30,
-        )
-        if resp.status_code != 200:
-            logger.warning(f"LLM API error: {resp.status_code} {resp.text[:200]}")
-            return None
-        return resp.json()["choices"][0]["message"]["content"]
-    except Exception as e:
-        logger.error(f"LLM call failed: {e}")
-        return None
+        resp = _client.get(f"{PROMPT_STUDIO_URL}/prompts/{module}/{name}")
+        if resp.status_code == 200:
+            return resp.json().get("content", "")
+    except Exception:
+        pass
+    return None
 
 
-# ─── Prompt Loader ─────────────────────────────────────────────────────────
-
-def load_prompt(path: str) -> str:
-    """Load a prompt file from the prompts directory"""
-    full_path = PROMPTS_DIR / path
-    if not full_path.exists():
-        logger.warning(f"Prompt not found: {path}")
-        return ""
-    return full_path.read_text(encoding="utf-8")
-
-
-def fill_template(template: str, data: dict) -> str:
-    """Replace {{key}} with data[key]"""
-    import re
+def _fill_template(template: str, data: dict) -> str:
     def replacer(m):
         key = m.group(1)
         v = data.get(key)
@@ -73,22 +51,57 @@ def fill_template(template: str, data: dict) -> str:
     return re.sub(r'\{\{(\w+)\}\}', replacer, template)
 
 
-# ─── Script Generators ─────────────────────────────────────────────────────
+# ─── Gemini LLM Call ──────────────────────────────────────────────────
+
+def _call_gemini(system_prompt: str, user_prompt: str) -> Optional[str]:
+    """Call Gemini API"""
+    if not GEMINI_API_KEY:
+        logger.warning("No GEMINI_API_KEY configured — using template fallback")
+        return None
+
+    try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
+        payload = {
+            "system_instruction": {"parts": [{"text": system_prompt}]},
+            "contents": [{"parts": [{"text": user_prompt}]}],
+            "generationConfig": {"temperature": 0.7, "maxOutputTokens": 2048},
+        }
+        resp = requests.post(url, json=payload, timeout=30)
+        if resp.status_code == 200:
+            data = resp.json()
+            text = data["candidates"][0]["content"]["parts"][0]["text"]
+            return text
+        else:
+            logger.error(f"Gemini API error ({resp.status_code}): {resp.text[:200]}")
+            return None
+    except Exception as e:
+        logger.error(f"Gemini call failed: {e}")
+        return None
+
+
+def _resolve_prompt(module: str, name: str, local_path: str) -> str:
+    content = load_prompt_from_studio(module, name)
+    if content:
+        return content
+    full_path = PROMPTS_DIR / local_path
+    if full_path.exists():
+        return full_path.read_text(encoding="utf-8")
+    logger.warning(f"Prompt not found: {module}/{name}, {local_path}")
+    return ""
+
 
 def truncate_script_text(text: str, max_chars: int = 350) -> str:
-    """Truncate text to max_chars while preserving sentence boundaries."""
     if len(text) <= max_chars:
         return text
-    # Truncate at the last sentence boundary before max_chars
     truncated = text[:max_chars]
-    last_period = truncated.rfind('.')
-    last_excl = truncated.rfind('!')
-    last_boundary = max(last_period, last_excl)
-    if last_boundary > max_chars * 0.7:  # Only use boundary if not too early
-        return text[:last_boundary + 1]
-    # No good boundary found; trim to fit '...' suffix
+    for sep in ('.', '!'):
+        pos = truncated.rfind(sep)
+        if pos > max_chars * 0.7:
+            return text[:pos + 1]
     return truncated[:max(max_chars - 3, 0)] + "..."
 
+
+# ─── Script Generators ────────────────────────────────────────────────
 
 def generate_tiktok_review_script(
     product_name: str,
@@ -101,18 +114,17 @@ def generate_tiktok_review_script(
     extra_rules: str = "",
     max_chars: int = 350,
 ) -> dict:
-    """Generate a TikTok UGC review script using AiBot prompts"""
-    # Load prompts
-    if duration == "16s":
-        system = load_prompt("system_16s.prompt.txt")
-        master = load_prompt("master_16s_3step.prompt.txt")
-        user_tpl = load_prompt("user_16s.prompt.txt")
-    else:
-        system = load_prompt("system.prompt.txt")
-        master = load_prompt("master.prompt.txt")
-        user_tpl = load_prompt("user.template.prompt.txt")
+    """Generate TikTok UGC review script using Gemini"""
 
-    # Build user data
+    if duration == "16s":
+        system = _resolve_prompt("tiktok", "system_16s.prompt.txt", "system_16s.prompt.txt")
+        master = _resolve_prompt("tiktok", "master_16s_3step.prompt.txt", "master_16s_3step.prompt.txt")
+        user_tpl = _resolve_prompt("tiktok", "user_16s.prompt.txt", "user_16s.prompt.txt")
+    else:
+        system = _resolve_prompt("tiktok", "system.prompt.txt", "system.prompt.txt")
+        master = _resolve_prompt("tiktok", "master.prompt.txt", "master.prompt.txt")
+        user_tpl = _resolve_prompt("tiktok", "user.template.prompt.txt", "user.template.prompt.txt")
+
     user_data = {
         "product_name": product_name,
         "customer_problem": customer_problem or "ปัญหาที่พบเจอบ่อย",
@@ -123,18 +135,17 @@ def generate_tiktok_review_script(
         "extra_rules": extra_rules or "-",
     }
 
-    user_prompt = fill_template(user_tpl, user_data)
+    user_prompt = _fill_template(user_tpl, user_data)
 
-    # Try LLM with structured output instruction + length constraint
     structured_instruction = (
         "\n\n"
         "🚨 IMPORTANT — Return as JSON ONLY with these keys:\n"
         '{"hook": "...", "body": "...", "cta": "...", '
         '"scene": "...", "voice": "...", "prompt": "...", '
         '"mood": "...", "hashtags": "..."}\n'
-        'hook = ช่วงเปิด 1-2 ประโยค\n'
-        'body = เนื้อหาคุณค่าสินค้า\n'
-        'cta = เชิญชวนซื้อ\n'
+        'hook = ช่วงเปิด 1-2 ประโยค (ภาษาไทย)\n'
+        'body = เนื้อหาคุณค่าสินค้า (ภาษาไทย)\n'
+        'cta = เชิญชวนซื้อ (ภาษาไทย)\n'
         'scene = บรรยายฉาก เช่น "สาวไทยถือสินค้าหน้าฉากเรียบ"\n'
         'voice = บรรยายเสียง เช่น "หญิงไทย อายุ 20-30 เป็นกันเอง"\n'
         'prompt = full AI prompt สำหรับสร้างวิดีโอ\n'
@@ -142,50 +153,33 @@ def generate_tiktok_review_script(
         'hashtags = คั่นด้วยช่องว่าง เช่น "#UGC #รีวิวสินค้า"\n'
         "Return ONLY valid JSON, no markdown, no extra text.\n"
         f"\n"
-        f"🚨 LENGTH CONSTRAINT: TOTAL hook + body + cta combined "
-        f"must be UNDER {max_chars} characters (including spaces).\n"
-        f"This is for TTS voiceover — shorter is better.\n"
-        f"Make every word count. Cut fluff. Use short punchy sentences.\n"
-        f"Priority: hook saved first, then CTA, then body gets shortened.\n"
-        f"If combined text would exceed {max_chars} chars, shorten body first, "
-        f"keep hook intact, keep CTA intact.\n"
+        f"🚨 LENGTH CONSTRAINT: TOTAL hook + body + cta "
+        f"must be UNDER {max_chars} characters.\n"
     )
-    raw = _call_llm(system, f"{master}\n\n{user_prompt}\n\n{structured_instruction}")
+
+    raw = _call_gemini(system, f"{master}\n\n{user_prompt}\n\n{structured_instruction}")
 
     if raw:
         try:
-            import json as _json
-            parsed = _json.loads(raw)
+            # Strip markdown fences if present
+            clean = raw.strip()
+            if clean.startswith("```"):
+                clean = clean.split("\n", 1)[1] if "\n" in clean else clean[3:]
+            if clean.endswith("```"):
+                clean = clean.rsplit("```", 1)[0]
+            clean = clean.strip()
+            parsed = json.loads(clean)
 
-            # Post-processing truncation to enforce max_chars on script parts
             hook = parsed.get("hook", "")
             body = parsed.get("body", "")
             cta = parsed.get("cta", "")
 
-            # Priority: preserve hook and CTA; shrink body if over limit
             combined = f"{hook} {body} {cta}"
             if len(combined) > max_chars:
-                # Try shortening body first
-                overhead = len(combined) - max_chars
-                body_shortened = body[:-overhead] if len(body) > overhead else ""
-                # Refine to sentence boundary
-                if body_shortened:
-                    bp = max(body_shortened.rfind('.'), body_shortened.rfind('!'))
-                    if bp > 0:
-                        body_shortened = body_shortened[:bp + 1]
-                body = body_shortened
-                combined = f"{hook} {body} {cta}"
-                # If still over limit, use general truncation
-                if len(combined) > max_chars:
-                    combined = truncate_script_text(combined, max_chars)
+                combined = truncate_script_text(combined, max_chars)
 
             return {
-                "script": {
-                    "hook": hook,
-                    "body": body,
-                    "value_proposition": body,
-                    "cta": cta,
-                },
+                "script": {"hook": hook, "body": body, "value_proposition": body, "cta": cta},
                 "hook": hook,
                 "value_proposition": body,
                 "value": body,
@@ -202,25 +196,20 @@ def generate_tiktok_review_script(
                 "uses_llm": True,
                 "duration": duration,
                 "product": product_name,
+                "_prompt_source": "gemini",
             }
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Gemini JSON parse failed: {e}")
 
     # Fallback
-    variations_d = json.loads(load_prompt('variation.json') or '{}')
+    variation_json = _resolve_prompt("tiktok", "variation.json", "variation.json")
+    variations_d = json.loads(variation_json) if variation_json else {}
     hook_text = f"{random.choice(variations_d.get('hooks', ['แนะนำสินค้าดี']))}! {product_name} ต้องดู!"
     body_text = f"{product_name} {main_benefit or 'คุณภาพดี'} ใช้งานง่าย ได้ผลจริง ลองใช้แล้วประทับใจมาก"
     cta_text = f"{random.choice(variations_d.get('ctas', ['กดตะกร้าเลย']))}! {product_name} ราคาพิเศษวันนี้เท่านั้น!"
-    
-    script = {
-        "hook": hook_text,
-        "body": body_text,
-        "value_proposition": body_text,
-        "cta": cta_text,
-    }
-    
+
     return {
-        "script": script,
+        "script": {"hook": hook_text, "body": body_text, "value_proposition": body_text, "cta": cta_text},
         "hook": hook_text,
         "value_proposition": body_text,
         "value": body_text,
@@ -237,37 +226,8 @@ def generate_tiktok_review_script(
         "uses_llm": raw is not None,
         "duration": duration,
         "product": product_name,
+        "_prompt_source": "local_fallback",
     }
-
-
-def _template_script(data: dict, duration: str) -> str:
-    """Template fallback for TikTok review script"""
-    pname = data.get("product_name", "สินค้านี้")
-    problem = data.get("customer_problem", "ปัญหาที่เจอ")
-    benefit = data.get("main_benefit", "คุณภาพดี")
-    tone = data.get("tone", "เป็นกันเอง")
-
-    variations = json.loads(load_prompt("variation.json") or "{}")
-    hooks = variations.get("hooks", ["แนะนำสินค้าดี"])
-    ctas = variations.get("ctas", ["กดตะกร้าเลย"])
-
-    hook = random.choice(hooks)
-    cta_phrase = random.choice(ctas)
-
-    if duration == "16s":
-        return (
-            f"[Hook] {hook}! {pname} {problem} ต้องดู!\n\n"
-            f"[Value] {pname} {benefit} ใช้งานง่าย ได้ผลจริง "
-            f"ลองใช้แล้วประทับใจมาก\n\n"
-            f"[CTA] {cta_phrase} {pname} ราคาพิเศษวันนี้เท่านั้น!"
-        )
-    else:
-        return (
-            f"[สคริปต์ 8 วินาที]\n"
-            f"{hook}! {pname} {problem} ต้องดู!\n"
-            f"{pname} {benefit} ลองใช้แล้วดีมาก\n"
-            f"{cta_phrase}!"
-        )
 
 
 def generate_ugc_script(
@@ -278,27 +238,22 @@ def generate_ugc_script(
     scene: str = "home",
     custom_negative_prompt: Optional[str] = None,
 ) -> dict:
-    """
-    Generate UGC video prompt by style:
-    - holding_product: โชว์สินค้าในมือ
-    - product_usage: สาธิตการใช้งาน
-    - ugc_review: คลิปรีวิวลูกค้าจริง
-    """
+    """Generate UGC video prompt by style using Gemini"""
     style_map = {
         "holding_product": "Holding_Product",
         "product_usage": "Product_Usage",
         "ugc_review": "UGC_Review",
     }
-
     folder = style_map.get(style)
     if not folder:
         return {"error": f"Unknown style: {style}"}
 
-    system = load_prompt(f"UGC_prompts/{folder}/system.prompt")
-    master = load_prompt(f"UGC_prompts/{folder}/master.prompt")
-    user_tpl = load_prompt(f"UGC_prompts/{folder}/user.template.prompt")
-    file_negative = load_prompt(f"UGC_prompts/{folder}/negative.prompt")
-    # Merge custom negative prompt on top of file-based one
+    module = "ugc"
+    system = _resolve_prompt(module, f"{folder}/system.prompt", f"UGC_prompts/{folder}/system.prompt")
+    master = _resolve_prompt(module, f"{folder}/master.prompt", f"UGC_prompts/{folder}/master.prompt")
+    user_tpl = _resolve_prompt(module, f"{folder}/user.template.prompt", f"UGC_prompts/{folder}/user.template.prompt")
+    file_negative = _resolve_prompt(module, f"{folder}/negative.prompt", f"UGC_prompts/{folder}/negative.prompt")
+
     if custom_negative_prompt:
         negative = custom_negative_prompt + ", " + file_negative if file_negative else custom_negative_prompt
     else:
@@ -312,29 +267,27 @@ def generate_ugc_script(
         "background": "clean",
     }
 
-    user_prompt = fill_template(user_tpl, user_data)
+    user_prompt = _fill_template(user_tpl, user_data)
     system_full = f"{system}\n\n{negative}" if negative else system
-    full_prompt = f"{system_full}\n\n{master}\n\n{user_prompt}"
 
-    # Try LLM
-    raw = _call_llm(system_full, f"{master}\n\n{user_prompt}")
+    raw = _call_gemini(system_full, f"{master}\n\n{user_prompt}")
 
     return {
         "style": style,
-        "prompt": raw or full_prompt,
+        "prompt": raw or f"{system_full}\n\n{master}\n\n{user_prompt}",
         "negative_prompt": negative,
         "merged_negative_prompt": negative,
         "product": product_name,
         "uses_llm": raw is not None,
+        "_prompt_source": "gemini",
     }
 
 
 def get_script_variations() -> dict:
-    """Get available script variations from AiBot config"""
-    var = load_prompt("variation.json")
+    content = _resolve_prompt("tiktok", "variation.json", "variation.json")
     try:
-        return json.loads(var) if var else {}
-    except json.JSONDecodeError:
+        return json.loads(content) if content else {}
+    except (json.JSONDecodeError, TypeError):
         return {
             "hooks": ["แนะนำสินค้าดี", "ของดีมาแล้ว"],
             "tones": ["เป็นกันเอง", "จริงใจ"],

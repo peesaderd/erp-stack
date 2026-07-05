@@ -39,7 +39,9 @@ if _env_path.exists():
             os.environ.setdefault(_k.strip(), _v.strip())
 
 # --- Config ---
-PRODIA_TOKEN = os.environ.get("PRODIA_TOKEN", "")
+# Prodia — centralized config
+from shared_config import PRODIA_TOKEN as _get_prodia
+PRODIA_TOKEN = _get_prodia()
 FAL_KEY = os.environ.get("FAL_KEY", "")
 
 STORAGE_DIR = Path(__file__).parent / "storage"

@@ -21,17 +21,9 @@ from PIL import Image
 
 logger = logging.getLogger("sam3.client")
 
-# Prodia
-PRODIA_TOKEN = os.environ.get("PRODIA_TOKEN", "") or os.environ.get("PRODIA_KEY", "")
-_env_path = Path(__file__).parent / ".env"
-if _env_path.exists():
-    for _line in open(_env_path):
-        _line = _line.strip()
-        if _line and not _line.startswith("#") and "=" in _line:
-            _k, _v = _line.split("=", 1)
-            os.environ.setdefault(_k.strip(), _v.strip())
-            if _k.strip() == "PRODIA_TOKEN":
-                PRODIA_TOKEN = _v.strip()
+# Prodia — centralized config
+from shared_config import PRODIA_TOKEN as _get_prodia
+PRODIA_TOKEN = _get_prodia()
 
 PRODIA_BASE = "https://inference.prodia.com/v2"
 

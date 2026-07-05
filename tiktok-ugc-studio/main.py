@@ -161,6 +161,7 @@ class VideoRequest(BaseModel):
     product_url: str = ""
     product_image: str = ""
     product_price: Optional[float] = None
+    product_description: Optional[str] = ""
     product_commission: Optional[float] = None
     tags: list[str] = []  # แยก Tag ออกจาก CTA
 
@@ -1030,22 +1031,33 @@ class FullPipelineRequest(BaseModel):
     value_proposition: Optional[str] = ""
     cta: Optional[str] = ""
     # Video
-    provider: str = "fal"
-    duration: int = 10
+    provider: str = "prodia"
+    duration: int = 8
     aspect_ratio: str = "9:16"
     negative_prompt: Optional[str] = ""
     # Audio
     tts_lang: str = "th"
     bg_music: Optional[str] = None  # URL or path to bg music
+    # Pipeline Preset
+    preset: Optional[str] = None  # "silent" | "voiceover" | "lipsync"
+    recipe: Optional[str] = None  # "skincare" | "gadget" | "fashion" | "food" | ...
     # Pipeline control
     run_tts: bool = True
     run_video_gen: bool = True
     run_compose: bool = True
+    # Colab-specific fields
+    platforms: Optional[list] = None
+    schedule_time: Optional[str] = "immediate"
 
 
 @app.post("/pipeline/run")
 async def run_full_pipeline(req: FullPipelineRequest):
     """Run the full UGC pipeline: script → TTS → video gen → compose.
+
+    Supports Preset Pipeline 3 ระดับ:
+    - silent: รูป + วิดีโอ ไม่มีเสียง
+    - voiceover: รูป + วิดีโอ + TTS เสียงพากย์
+    - lipsync: รูป + วิดีโอ + TTS + Wave2Lip (เร็วๆ นี้)
 
     Returns a pipeline job_id for status tracking.
     """
@@ -1053,8 +1065,26 @@ async def run_full_pipeline(req: FullPipelineRequest):
     from tts_gen import text_to_speech
     from composer import compose_video
 
-    # Check if Fal.ai is available
-    FAL_AVAILABLE = bool(os.environ.get("FAL_API_KEY") or os.environ.get("FAL_KEY"))
+    # ── Apply Preset ──
+    if req.preset:
+        preset_map = {
+            "silent": {"run_tts": False, "run_video_gen": True, "run_compose": False},
+            "voiceover": {"run_tts": True, "run_video_gen": True, "run_compose": True},
+            "lipsync": {"run_tts": True, "run_video_gen": True, "run_compose": True},
+        }
+        p = preset_map.get(req.preset)
+        if p:
+            req.run_tts = p["run_tts"]
+            req.run_video_gen = p["run_video_gen"]
+            req.run_compose = p["run_compose"]
+            if req.preset == "lipsync":
+                logger.warning("LipSync preset requested but Wav2Lip service not yet available")
+
+    # Apply recipe defaults if set
+    if req.recipe and req.recipe in RECIPE_TEMPLATES:
+        recipe = RECIPE_TEMPLATES[req.recipe]
+        req.ugc_style = recipe["ugc_style"]
+        req.duration = recipe["duration"]
 
     # Create pipeline job
     job_id = _create_pipeline_job(account_id="", product_url=req.product_url or "")
@@ -1080,62 +1110,48 @@ async def run_full_pipeline(req: FullPipelineRequest):
             else:
                 _update_pipeline_step(job_id, "tts", "skipped")
 
-        # Step 2: Video Gen — Fal.ai Wan I2V
+        # Step 2: Video Gen — Prodia Wan 2.7 img2vid (Fal.ai removed)
         if req.run_video_gen:
             _update_pipeline_step(job_id, "video_gen", "processing")
             video_path = None
-            if FAL_AVAILABLE and req.product_image:
-                try:
-                    from fal_client import generate_video_async
-                    # Determine if product_image is a URL or base64
-                    image_source = req.product_image
-                    if image_source.startswith("data:") or image_source.startswith("file://"):
-                        # Save base64 to temp file
-                        import base64
-                        if "," in image_source:
-                            img_data = base64.b64decode(image_source.split(",", 1)[1])
-                        else:
-                            img_data = base64.b64decode(image_source)
-                        tmp_img = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-                        tmp_img.write(img_data)
-                        tmp_img.close()
-                        image_source = tmp_img.name
 
-                    video_result = await generate_video_async(
-                        image_path=image_source,
+            PRODIA_AVAILABLE = bool(os.environ.get("PRODIA_TOKEN"))
+            if PRODIA_AVAILABLE and req.product_image:
+                try:
+                    # เรียก Prodia Wan 2.7 img2vid ผ่าน pipeline_affiliate.generate_video()
+                    from pipeline_affiliate import generate_video as prodia_gen_video
+
+                    vid_path = prodia_gen_video(
+                        image_path=req.product_image,
                         prompt=req.hook or req.product_title or "Product showcase",
-                        duration=req.duration,
-                        aspect_ratio=req.aspect_ratio,
-                        negative_prompt=req.negative_prompt or None,
+                        duration=min(req.duration or 8, 8),
+                        negative_prompt=req.negative_prompt or "low resolution, error, worst quality, deformed, blurry, disfigured face, wrong mouth, speaking, lips moving",
                     )
-                    if video_result.get("success"):
-                        video_path = video_result.get("video_url") or video_result.get("output")
+                    if vid_path:
+                        video_path = vid_path
                         _update_pipeline_step(job_id, "video_gen", "success", {
-                            "video_url": video_path,
-                            "duration": video_result.get("duration", req.duration),
+                            "video_url": vid_path,
+                            "duration": req.duration,
                         })
                     else:
                         _update_pipeline_step(job_id, "video_gen", "error", {
-                            "error": video_result.get("error", "Fal.ai API returned no video")
+                            "error": "Prodia Wan 2.7 returned no video"
                         })
-                except ImportError:
-                    _update_pipeline_step(job_id, "video_gen", "skipped", {
-                        "message": "fal_client module not available"
-                    })
                 except Exception as e:
-                    logger.exception(f"Video gen failed: {e}")
-                    _update_pipeline_step(job_id, "video_gen", "error", {"error": str(e)})
-            elif FAL_AVAILABLE and not req.product_image:
+                    logger.warning(f"Prodia Wan 2.7 video gen failed: {e}")
+                    _update_pipeline_step(job_id, "video_gen", "skipped", {
+                        "message": f"Prodia Wan 2.7 failed: {e}"
+                    })
+            elif PRODIA_AVAILABLE and not req.product_image:
                 _update_pipeline_step(job_id, "video_gen", "skipped", {
-                    "message": "No product image provided; skipping video gen"
+                    "message": "No product image provided"
                 })
             else:
                 _update_pipeline_step(job_id, "video_gen", "skipped", {
-                    "message": "Fal.ai not configured. Set FAL_API_KEY or FAL_KEY"
+                    "message": "No PRODIA_TOKEN configured"
                 })
 
             if not video_path and req.run_compose and req.run_tts:
-                # If video gen failed but we have TTS, still allow compose
                 video_path = None
 
         # Step 3: Compose (merge TTS audio + video + bgm)
@@ -1357,9 +1373,28 @@ def generate_video(req: VideoRequest):
 
     def _run():
         try:
-            # ใช้ scene prompts จาก AI ที่ Web UI gen มา (ไม่ hardcode)
-            # scene_prompts = [s.script for s in scenes] — มีอยู่แล้วข้างบน
-            img_prompt = scene_prompts[0] if scene_prompts else (req.product_title or "product")
+                    # ── เรียก image_prompt_builder วิเคราะห์สินค้า + สร้าง prompts ──
+            from image_prompt_builder import analyze_and_build_prompts
+            import asyncio
+            try:
+                pb_result = asyncio.run(analyze_and_build_prompts(
+                    product_name=req.product_title or "",
+                    description=req.product_description or "",
+                    keywords=req.tags or [],
+                    ugc_style=req.ugc_style or "holding",
+                    product_id=job_id,
+                    price=float(req.product_price) if req.product_price else 0.0,
+                ))
+                img_prompt = pb_result["image_prompt"]
+                video_prompts = [pb_result["video_prompt"]] * len(scene_prompts)
+                neg_prompt = pb_result.get("negative_prompt", req.negative_prompt)
+                logger.info(f"  Image prompt built ({len(img_prompt)}ch): {img_prompt[:80]}...")
+                logger.info(f"  Analysis: {json.dumps(pb_result.get('analysis', {}), ensure_ascii=False)}")
+            except Exception as e:
+                logger.warning(f"Image prompt builder failed: {e} — falling back to script as prompt")
+                img_prompt = scene_prompts[0] if scene_prompts else (req.product_title or "product")
+                video_prompts = scene_prompts[:] if scene_prompts else [req.product_title or "product"]
+                neg_prompt = req.negative_prompt
 
             # Select sound based on style
             selected_sound_style = scenes[0].sound_style if scenes else "upbeat_pop"
@@ -1371,9 +1406,16 @@ def generate_video(req: VideoRequest):
             logger.info(f"  Scenes: {len(scenes)}")
             logger.info(f"  Sound: {selected_sound_style}")
             logger.info(f"  Tags: {req.tags}")
+            logger.info(f"  Img prompt: {img_prompt[:60]}...")
+            logger.info(f"  Video prompt: {video_prompts[0][:60]}...")
+            # แปลง public URL → local URL สำหรับ SAM3 (ป้องกัน 403 PORT_BLOCKED)
+            product_img_local = None
+            if req.product_image:
+                if "89.167.82.205" in req.product_image and "8105" in req.product_image:
+                    product_img_local = req.product_image.replace("http://89.167.82.205:8105", "http://localhost:8105")
+                else:
+                    product_img_local = req.product_image
 
-            # ใช้ scene prompts เป็น video prompt ด้วย (dynamic จาก AI ไม่ hardcode)
-            video_prompts = scene_prompts[:] if scene_prompts else [req.product_title or "product"]
             result = affiliate_run(
                 script=full_script,
                 scene_prompts=scene_prompts,
@@ -1381,8 +1423,8 @@ def generate_video(req: VideoRequest):
                 voice_id="lovely_girl",
                 video_duration=duration_per_scene,
                 image_prompt=img_prompt,
-                product_image=req.product_image if req.product_image else None,
-                enable_sam3=bool(req.product_image),
+                product_image=product_img_local,
+                enable_sam3=bool(product_img_local),
                 bgm_style=selected_sound_style,
                 negative_prompt=req.negative_prompt,
             )
@@ -3781,6 +3823,365 @@ async def _compose_keyframes_to_video(keyframes: list, duration: int, fps: float
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
+# ─── Colab Pipeline Bridge ──────────────────────────────────────────────────
+COLAB_ENABLED = os.environ.get("COLAB_ENABLED", "false").lower() == "true"
+COLAB_DRIVE_MODE = os.environ.get("COLAB_DRIVE_MODE", "local")  # "local" or "drive"
+
+# Local fallback paths (used when Drive is not mounted locally)
+COLAB_LOCAL_READY = os.path.join(os.path.dirname(__file__), "storage", "colab_drive", "_ready")
+COLAB_LOCAL_DONE = os.path.join(os.path.dirname(__file__), "storage", "colab_drive", "_done")
+
+
+@app.post("/colab/submit")
+async def colab_submit_job(req: FullPipelineRequest):
+    """
+    Submit a pipeline job to be processed by Colab Pro.
+    TUS: Scrape → TTS → Write config + assets to Google Drive → Notify.
+    User: Opens Colab Notebook → Plays Cell → Colab runs Video Gen + Wav2Lip.
+    TUS: Detects _done/ job → Posts via PostForMe.
+    """
+    import json, shutil
+    from colab_pipeline import create_colab_job
+
+    # 1. Scrape product (reuse existing logic)
+    product_data = None
+    product_name = req.product_title or ""
+    product_image_path = None
+    tts_audio_path = None
+
+    # Scrape if URL provided
+    if req.product_url and not product_name:
+        try:
+            scrape_req = ScrapeAndGenerateRequest(url=req.product_url, use_vision=False)
+            scrape_result = await scrape_and_generate(scrape_req)
+            if scrape_result.get("success"):
+                product = scrape_result.get("product", {})
+                product_name = product.get("name", "")
+                images = product.get("images", [])
+                if images and not req.product_image:
+                    # Download first image
+                    import httpx
+                    async with httpx.AsyncClient(timeout=30) as client:
+                        img_resp = await client.get(images[0])
+                        if img_resp.status_code == 200:
+                            img_path = os.path.join(
+                                os.path.dirname(__file__), "storage", "images",
+                                f"colab_{int(time.time())}.jpg"
+                            )
+                            with open(img_path, "wb") as f:
+                                f.write(img_resp.content)
+                            product_image_path = img_path
+        except Exception as e:
+            logger.warning(f"Scrape failed for colab job: {e}")
+
+    # 2. Use provided product image or fallback
+    if not product_image_path and req.product_image:
+        if req.product_image.startswith("file://"):
+            # Local file path
+            local_path = req.product_image[7:]
+            if os.path.exists(local_path):
+                product_image_path = local_path
+            else:
+                logger.warning(f"Local image not found: {local_path}")
+        elif req.product_image.startswith("data:"):
+            import base64, tempfile
+            img_data = base64.b64decode(req.product_image.split(",", 1)[1])
+            tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+            tmp.write(img_data)
+            tmp.close()
+            product_image_path = tmp.name
+        elif req.product_image.startswith("http"):
+            import httpx
+            async with httpx.AsyncClient(timeout=30) as client:
+                img_resp = await client.get(req.product_image)
+                if img_resp.status_code == 200:
+                    img_path = os.path.join(os.path.dirname(__file__), "storage", "images", f"colab_{int(time.time())}.jpg")
+                    with open(img_path, "wb") as f:
+                        f.write(img_resp.content)
+                    product_image_path = img_path
+
+    # 3. Generate TTS
+    if req.run_tts:
+        from tts_gen import text_to_speech
+        full_text = " ".join(filter(None, [req.hook, req.value_proposition, req.cta]))
+        if not full_text.strip():
+            full_text = product_name or req.product_description or ""
+        if full_text.strip():
+            try:
+                tts_audio_path = text_to_speech(text=full_text.strip(), lang=req.tts_lang or "th")
+            except Exception as e:
+                logger.error(f"TTS failed for colab job: {e}")
+
+    if not tts_audio_path or not os.path.exists(tts_audio_path):
+        raise HTTPException(status_code=400, detail="TTS audio generation failed — need text to proceed")
+
+    if not product_image_path or not os.path.exists(product_image_path):
+        raise HTTPException(status_code=400, detail="Product image required for Colab video generation")
+
+    # 4. Generate job_id and write config to Colab ready directory
+    job_id = str(uuid.uuid4())[:8]
+
+    config = create_colab_job(
+        job_id=job_id,
+        product_url=req.product_url or "",
+        product_title=product_name,
+        product_image_path=product_image_path,
+        tts_audio_path=tts_audio_path,
+        hook=req.hook or "",
+        value_proposition=req.value_proposition or "",
+        cta=req.cta or "",
+        duration=req.duration or 10,
+        aspect_ratio=req.aspect_ratio or "9:16",
+        platforms=req.platforms or ["tiktok"],
+        schedule_time=req.schedule_time or "immediate",
+        lip_sync=False,
+    )
+
+    # 5. Upload job to Google Drive for Colab
+    local_job_dir = Path(COLAB_LOCAL_READY) / job_id
+    drive_job_path = f"TUS_Pipeline/_ready/{job_id}"
+    drive_uploaded = False
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            for f in local_job_dir.iterdir():
+                if f.is_file():
+                    up_resp = await client.post(f"{DRIVE_API}/drive/upload", json={
+                        "file_path": str(f),
+                        "folder_name": drive_job_path,
+                    })
+                    if up_resp.status_code == 200 and up_resp.json().get("success"):
+                        drive_uploaded = True
+        logger.info(f"📤 Colab job {job_id} uploaded to Drive: {drive_uploaded}")
+    except Exception as e:
+        logger.warning(f"Drive upload failed for colab job {job_id}: {e}")
+
+    # 6. Create pipeline DB entry
+    _create_pipeline_job(account_id="colab", product_url=req.product_url or "")
+    _update_pipeline_step(job_id, "tts", "success", {"filepath": tts_audio_path})
+    _update_pipeline_step(job_id, "video_gen", "pending", {
+        "message": "Awaiting Colab Pro processing"
+    })
+
+    return {
+        "success": True,
+        "job_id": job_id,
+        "product_url": req.product_url or "",
+        "product_title": product_name,
+        "drive_uploaded": drive_uploaded,
+        "message": f"✅ Job ready! Open Colab Notebook and click Play, or ask PeteAI for help.",
+        "colab_ready_dir": str(local_job_dir),
+        "drive_path": drive_job_path if drive_uploaded else "local_only",
+        "next_step": "Open TUS_Colab.ipynb → Cell 4 (Show Jobs) → Cell 5 (Run All)",
+    }
+
+
+@app.get("/colab/jobs/pending")
+async def colab_list_pending_jobs():
+    """List jobs waiting for Colab processing."""
+    ready_dir = Path(COLAB_LOCAL_READY)
+    if not ready_dir.exists():
+        return {"jobs": [], "count": 0}
+
+    jobs = []
+    for job_dir in sorted(ready_dir.iterdir()):
+        if not job_dir.is_dir():
+            continue
+        config_file = job_dir / "config.json"
+        if config_file.exists():
+            with open(config_file, "r", encoding="utf-8") as f:
+                config = json.load(f)
+            jobs.append({
+                "job_id": config.get("job_id"),
+                "product_title": config.get("product_title", "")[:60],
+                "duration": config.get("duration"),
+                "platforms": config.get("platforms"),
+                "created_at": config.get("created_at"),
+            })
+
+    return {"jobs": jobs, "count": len(jobs)}
+
+
+@app.post("/colab/jobs/{job_id}/archive")
+async def colab_archive_job(job_id: str):
+    """Archive a completed Colab job after posting."""
+    from colab_pipeline import archive_job
+    archive_job(job_id)
+    return {"success": True, "job_id": job_id, "status": "archived"}
+
+
+# ─── Colab Notebook Download ──────────────────────────────────────────────────
+
+@app.get("/colab/notebook")
+async def colab_download_notebook(mode: str = "pull"):
+    """ดาวน์โหลด TUS_Colab.ipynb สำหรับ Colab
+    
+    mode="pull" (default): Colab ดึง job โดยตรงจาก TUS (ไม่ต้อง Drive)
+    mode="drive": Colab เชื่อมต่อผ่าน Google Drive (ต้อง mount drive)
+    """
+    if mode == "drive":
+        notebook_path = Path(__file__).parent / "storage" / "TUS_Colab.ipynb"
+    else:
+        notebook_path = Path(__file__).parent / "storage" / "TUS_Colab_Pull.ipynb"
+    
+    if notebook_path.exists():
+        from fastapi.responses import FileResponse
+        return FileResponse(
+            str(notebook_path),
+            media_type="application/x-ipynb+json",
+            filename=f"TUS_Colab_{mode}.ipynb",
+        )
+    return {"error": "Notebook not found"}
+
+
+@app.get("/colab/instructions")
+async def colab_instructions():
+    """แสดงคำแนะนำการใช้ Colab Pipeline"""
+    return {
+        "title": "🎬 TUS Colab Pipeline — Setup Guide",
+        "steps": [
+            "1. ดาวน์โหลด Notebook: GET /colab/notebook",
+            "2. เปิด Google Colab → File → Upload Notebook",
+            "3. เปิด 'เชื่อมต่อ Google Drive' ใน Colac (mount /content/drive)",
+            "4. รัน Cell 1: Mount Drive",
+            "5. รัน Cell 2: Install Dependencies",
+            "6. รัน Cell 6: ▶️ RUN ALL PENDING JOBS",
+        ],
+        "notes": [
+            "- ครั้งแรก Wan 2.2 จะโหลด ~10GB ใช้เวลา 2-3 นาที",
+            "- หลังจากนั้น model จะ cached ใน Drive libs/ ไม่ต้องโหลดซ้ำ",
+            "- แต่ละ job ใช้เวลา gen ~30-60 วินาที",
+        ],
+    }
+
+
+# ─── Colab Job Pull (Direct Download — no Drive needed) ─────────────────────
+# Colab สั่ง curl มา pull job โดยตรง แทนการ mount Drive
+
+
+@app.get("/colab/jobs/{job_id}/download")
+async def colab_download_job_package(job_id: str):
+    """Colab เรียกเพื่อดาวน์โหลด job package (zip ของ config + image + audio)
+    
+    ใช้แทน Drive bridge — Colab สั่ง curl มา pull งานหนึ่ง job"""
+    import zipfile, io
+    
+    job_dir = Path(COLAB_LOCAL_READY) / job_id
+    if not job_dir.exists():
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+    
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for f in job_dir.iterdir():
+            if f.is_file():
+                zf.write(str(f), arcname=f.name)
+    buf.seek(0)
+    
+    from fastapi.responses import Response
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/zip",
+        headers={"Content-Disposition": f"attachment; filename={job_id}.zip"},
+    )
+
+
+@app.get("/colab/jobs/{job_id}/config")
+async def colab_get_job_config(job_id: str):
+    """Colab เรียกเพื่อดู config.json ของ job"""
+    config_path = Path(COLAB_LOCAL_READY) / job_id / "config.json"
+    if not config_path.exists():
+        raise HTTPException(status_code=404, detail=f"Job {job_id} config not found")
+    return json.loads(config_path.read_text(encoding="utf-8"))
+
+
+# ─── Colab Pipeline Scheduler (local mode) ───────────────────────────────────
+# ตรวจ _done/ ใน local storage — Colab เขียนผลกลับผ่าน HTTP
+
+
+@app.get("/colab/jobs/completed")
+async def colab_list_completed_jobs():
+    """List jobs completed by Colab, ready for posting."""
+    from colab_pipeline import check_completed_jobs
+    completed = check_completed_jobs()
+    return {"jobs": completed, "count": len(completed)}
+
+
+@app.post("/colab/jobs/{job_id}/complete")
+async def colab_mark_complete(job_id: str, video_base64: str = "", video_url: str = ""):
+    """Colab แจ้ง TUS ว่า job เสร็จแล้ว + ส่ง video กลับ
+    
+    ส่ง video ได้ 2 ทาง:
+    - video_base64: base64 encoded video
+    - video_url: URL ที่ Colab อัปโหลดไว้ (ถ้า Colab upload ขึ้นที่เก็บ) """
+    import base64, tempfile
+    from colab_pipeline import archive_job
+    
+    done_dir = Path(COLAB_LOCAL_DONE) / job_id
+    done_dir.mkdir(parents=True, exist_ok=True)
+    
+    video_path = None
+    if video_base64:
+        video_data = base64.b64decode(video_base64)
+        video_path = str(done_dir / "final_output.mp4")
+        with open(video_path, "wb") as f:
+            f.write(video_data)
+    elif video_url:
+        try:
+            async with httpx.AsyncClient(timeout=300) as client:
+                resp = await client.get(video_url)
+                if resp.status_code == 200:
+                    video_path = str(done_dir / "final_output.mp4")
+                    with open(video_path, "wb") as f:
+                        f.write(resp.content)
+        except Exception as e:
+            logger.error(f"Failed to download video from {video_url}: {e}")
+    
+    if not video_path or not os.path.exists(video_path):
+        raise HTTPException(status_code=400, detail="No video received")
+    
+    # Write result.json
+    result = {
+        "job_id": job_id,
+        "status": "completed",
+        "completed_at": datetime.now().isoformat(),
+        "video_file": "final_output.mp4",
+        "video_size_bytes": os.path.getsize(video_path),
+    }
+    with open(done_dir / "result.json", "w", encoding="utf-8") as f:
+        json.dump(result, f, indent=2, ensure_ascii=False)
+    
+    # Clean up _ready/
+    ready_dir = Path(COLAB_LOCAL_READY) / job_id
+    if ready_dir.exists():
+        import shutil
+        shutil.rmtree(str(ready_dir))
+    
+    logger.info(f"✅ Colab job {job_id} completed via direct upload")
+    return {"success": True, "job_id": job_id, "video_size": result["video_size_bytes"]}
+
+
+@app.post("/colab/jobs/{job_id}/failed")
+async def colab_mark_failed(job_id: str, error: str = ""):
+    """Colab แจ้ง TUS ว่า job ล้มเหลว"""
+    done_dir = Path(COLAB_LOCAL_DONE) / job_id
+    done_dir.mkdir(parents=True, exist_ok=True)
+    
+    result = {
+        "job_id": job_id,
+        "status": "failed",
+        "completed_at": datetime.now().isoformat(),
+        "error": error,
+    }
+    with open(done_dir / "result.json", "w", encoding="utf-8") as f:
+        json.dump(result, f, indent=2, ensure_ascii=False)
+    
+    ready_dir = Path(COLAB_LOCAL_READY) / job_id
+    if ready_dir.exists():
+        import shutil
+        shutil.rmtree(str(ready_dir))
+    
+    return {"success": True, "job_id": job_id, "status": "failed"}
+
+
 # ─── Drive Upload Helper (non-blocking) ────────────────────────────────────
 _media_drive_url = ""
 
@@ -3986,6 +4387,47 @@ RECIPE_TEMPLATES = {
         "mood": "energetic",
         "duration": 8,
         "bgm_style": "energetic_edm",
+    },
+    # ── Pipeline Presets ──
+    "preset_silent": {
+        "name": "preset_silent",
+        "label": "🔇 Silent (รูป + วิดีโอ)",
+        "description": "ภาพนิ่ง + Wan 2.7 วิดีโอ ไม่มีเสียง เน้น visual",
+        "pipeline_level": 1,
+        "steps": ["script", "image", "video"],
+        "preset": "silent",
+        "ugc_style": "holding_product",
+        "sound_style": "none",
+        "mood": "casual",
+        "duration": 8,
+        "bgm_style": "none",
+    },
+    "preset_voiceover": {
+        "name": "preset_voiceover",
+        "label": "🎙️ VoiceOver (มีเสียงพูด)",
+        "description": "วิดีโอ + เสียงพากย์ MiniMax TTS ภาษาไทย ไม่ขยับปาก",
+        "pipeline_level": 2,
+        "steps": ["script", "image", "voice", "video", "merge"],
+        "preset": "voiceover",
+        "ugc_style": "talking",
+        "sound_style": "upbeat_pop",
+        "mood": "energetic",
+        "duration": 8,
+        "bgm_style": "chill_loft",
+    },
+    "preset_lipsync": {
+        "name": "preset_lipsync",
+        "label": "👄 LipSync (เสียง + ปากขยับ) [เร็วๆ นี้]",
+        "description": "วิดีโอ + TTS + Wave2Lip ขยับปากตามเสียง — ต้องมี Wave2Lip service",
+        "pipeline_level": 3,
+        "steps": ["script", "image", "video", "voice", "wav2lip", "bgm"],
+        "preset": "lipsync",
+        "ugc_style": "talking",
+        "sound_style": "upbeat_pop",
+        "mood": "energetic",
+        "duration": 8,
+        "bgm_style": "chill_loft",
+        "requires": ["wav2lip_service"],
     },
 }
 

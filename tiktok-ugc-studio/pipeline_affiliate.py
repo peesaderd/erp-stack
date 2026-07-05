@@ -43,7 +43,9 @@ logger = logging.getLogger("tiktok-ugc.pipeline_affiliate")
 # ─── Config ────────────────────────────────────────────────────────────────
 
 FAL_KEY = os.environ.get("FAL_API_KEY", "") or os.environ.get("FAL_KEY", "")
-PRODIA_TOKEN = os.environ.get("PRODIA_TOKEN", "") or os.environ.get("PRODIA_KEY", "")
+# Prodia — centralized config
+from shared_config import PRODIA_TOKEN as _get_prodia
+PRODIA_TOKEN = _get_prodia()
 
 STORAGE_DIR = Path(__file__).parent / "storage"
 TMP_DIR = STORAGE_DIR / "tmp"
@@ -303,38 +305,31 @@ def generate_image(prompt: str, reference_analysis: dict = None,
     resp.raise_for_status()
     data = resp.json()
     
-    if not data.get("success") or not data.get("images"):
+    if not data.get("images"):
         raise RuntimeError(f"Image-gen service failed: {data}")
     
-    url = data["images"][0]["url"]
+    img_info = data["images"][0]
+    url = img_info.get("full_url") or img_info.get("url")
+    if not url:
+        raise RuntimeError(f"Image-gen service returned no URL: {data}")
     logger.info(f"  Image OK: {url}")
     return url
 
 
-# ─── Step 2: Voice (MiniMax Speech 2.8 HD @ Fal.ai ~$0.10/1K chars) ─────
+# ─── Step 2: Voice (Local gTTS — Fal.ai removed, Prodia only) ────────────
 
 def generate_voice(text: str, voice_id: str = "lovely_girl",
                    speed: float = 1.0) -> str:
-    """Generate Thai-supporting voice via MiniMax Speech 2.8 HD.
+    """Generate Thai voice via local gTTS (free, no API needed).
     
-    voice_id=lovely_girl (cute girl, best with Thai lang boost)
-    language_boost=Thai helps Thai pronunciation.
+    Fallback from MiniMax 2.8 HD (no FAL_KEY available).
     """
-    url = "https://fal.run/fal-ai/minimax/speech-2.8-hd"
-    headers = {"Authorization": f"Key {FAL_KEY}", "Content-Type": "application/json"}
-    payload = {
-        "text": text,
-        "voice_setting": {"voice_id": voice_id, "speed": speed, "vol": 1.0, "pitch": 0},
-        "language_boost": "Thai",
-        "output_format": "url"
-    }
-    resp = requests.post(url, headers=headers, json=payload, timeout=30)
-    resp.raise_for_status()
-    data = resp.json()
-    audio_url = data.get("audio", {}).get("url", "")
-    if not audio_url:
-        raise RuntimeError(f"MiniMax Speech failed: {data}")
-    return audio_url
+    from tts_gen import text_to_speech as local_tts
+    
+    logger.info(f"  TTS (gTTS local): chars={len(text)}")
+    tts_path = local_tts(text=text, lang="th")
+    logger.info(f"  TTS OK: {tts_path}")
+    return tts_path
 
 
 # ─── Step 3: Video (Wan 2.7 img2vid+audio = Lip Sync in one!) $0.03 ─────

@@ -23,6 +23,9 @@ class BuildRequest(BaseModel):
     ugc_style: str = "holding"
     product_id: str = ""
     price: float = 0.0
+    product_image: str = ""
+    category: str = ""
+    product_category: str = ""
 
 
 class ScriptRequestWithProfile(BuildRequest):
@@ -48,6 +51,9 @@ async def build(req: BuildRequest):
             ugc_style=req.ugc_style,
             product_id=req.product_id,
             price=req.price,
+            product_image=req.product_image,
+            category=req.category,
+            product_category=req.product_category,
         )
         return result
     except Exception as e:

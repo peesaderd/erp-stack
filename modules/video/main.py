@@ -432,8 +432,6 @@ async def run_full_pipeline(req: FullPipelineRequest):
     import tempfile
     from video.tts_gen import text_to_speech
     from video.composer import compose_video
-
-    FAL_AVAILABLE = bool(os.environ.get("FAL_API_KEY") or os.environ.get("FAL_KEY"))
     job_id = _create_job(account_id="", product_url=req.product_url or "")
 
     try:
@@ -453,40 +451,7 @@ async def run_full_pipeline(req: FullPipelineRequest):
                 _update_step(job_id, "tts", "skipped")
 
         if req.run_video_gen:
-            _update_step(job_id, "video_gen", "processing")
-            video_path = None
-            if FAL_AVAILABLE and req.product_image:
-                try:
-                    from video.fal_client import generate_video_async
-                    image_source = req.product_image
-                    if image_source.startswith("data:") or image_source.startswith("file://"):
-                        import base64
-                        if "," in image_source:
-                            img_data = base64.b64decode(image_source.split(",", 1)[1])
-                        else:
-                            img_data = base64.b64decode(image_source)
-                        tmp_img = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-                        tmp_img.write(img_data)
-                        tmp_img.close()
-                        image_source = tmp_img.name
-
-                    video_result = await generate_video_async(
-                        image_path=image_source,
-                        prompt=req.hook or req.product_title or "Product showcase",
-                        duration=req.duration,
-                        aspect_ratio=req.aspect_ratio,
-                        negative_prompt=req.negative_prompt or None,
-                    )
-                    if video_result.get("success"):
-                        video_path = video_result.get("video_url") or video_result.get("output")
-                        _update_step(job_id, "video_gen", "success", {"video_url": video_path})
-                    else:
-                        _update_step(job_id, "video_gen", "error", {"error": video_result.get("error", "Failed")})
-                except Exception as e:
-                    logger.exception(f"Video gen failed: {e}")
-                    _update_step(job_id, "video_gen", "error", {"error": str(e)})
-            else:
-                _update_step(job_id, "video_gen", "skipped")
+            _update_step(job_id, "video_gen", "skipped")
 
         if req.run_compose and req.run_tts and video_path:
             _update_step(job_id, "compose", "processing")

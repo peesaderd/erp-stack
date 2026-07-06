@@ -42,7 +42,7 @@ if _env_path.exists():
 # Prodia — centralized config
 from shared_config import PRODIA_TOKEN as _get_prodia
 PRODIA_TOKEN = _get_prodia()
-FAL_KEY = os.environ.get("FAL_KEY", "")
+
 
 STORAGE_DIR = Path(__file__).parent / "storage"
 TMP_DIR = STORAGE_DIR / "tmp"
@@ -55,7 +55,7 @@ VOICE_END_SEC = VOICE_START_SEC + VOICE_DURATION_SEC  # 6.5s
 
 # Prodia API
 PRODIA_BASE = "https://inference.prodia.com/v2"
-PRODIA_IMAGE_TYPE = "inference.flux-fast.schnell.txt2img.v2"
+PRODIA_IMAGE_TYPE = "inference.nano-banana.img2img.v1"
 PRODIA_VIDEO_TYPE = "inference.wan2-7.txt2vid.v1"
 PRODIA_IMG2VID_TYPE = "inference.wan2-7.img2vid.v1"  # Audio-driven lip sync!
 
@@ -242,14 +242,19 @@ def sam3_analyze_image(image_path: str, run_id: str = "") -> dict:
 
 
 # --- Step 1: Image (FLUX schnell @ Prodia $0.001) ---
-def generate_image(prompt: str, reference_analysis: dict = None) -> str:
+def generate_image(prompt: str, product_image: str = "", reference_analysis: dict = None) -> str:
     enhanced = prompt
     if reference_analysis and reference_analysis.get("prompt_insights"):
         enhanced = prompt + ", " + reference_analysis["prompt_insights"]
         logger.info(f"  Prompt enhanced with SAM3: {enhanced[:60]}...")
 
     logger.info(f"Image via Prodia FLUX: {enhanced[:40]}...")
-    payload = {"type": PRODIA_IMAGE_TYPE, "config": {"prompt": enhanced, "steps": 4}}
+    # Build payload: img2img ถ้ามี product_image, แก้ prompt ตาม product image editting
+    if product_image:
+        # ใช้ product image เป็น input — Nano Banana จะทำ image edit ตาม prompt
+        payload = {"type": PRODIA_IMAGE_TYPE, "config": {"prompt": enhanced, "steps": 4, "image_url": product_image}}
+    else:
+        payload = {"type": PRODIA_IMAGE_TYPE, "config": {"prompt": enhanced, "steps": 4}}
     resp = requests.post(f"{PRODIA_BASE}/job", headers=_prodia_headers(), json=payload, timeout=30)
     resp.raise_for_status()
     data = resp.json()
@@ -384,27 +389,13 @@ def generate_video_with_image_and_audio(image_path: str, audio_path: str, prompt
     return url
 
 
-# --- Step 3: Voice (MiniMax @ Fal.ai ~$0.003/5s) ---
-def generate_voice(text: str, voice_id: str = "English_Trustworth_Man", speed: float = 1.0) -> str:
-    if not FAL_KEY:
-        raise RuntimeError("FAL_KEY not set")
+# --- Step 3: Voice (Gemini TTS) ---
+def generate_voice(text: str, voice_id: str = "Aoede", speed: float = 1.0) -> str:
+    from modules.video.gemini_tts import gemini_text_to_speech
     logger.info(f"Voice ({len(text)} chars)")
-    url = "https://fal.run/fal-ai/minimax/speech-02-turbo"
-    headers = {"Authorization": f"Key {FAL_KEY}", "Content-Type": "application/json"}
-    payload = {
-        "text": text,
-        "voice_setting": {"voice_id": voice_id, "speed": speed, "vol": 1.0, "pitch": 0},
-        "language_boost": "Thai",
-        "output_format": "url"
-    }
-    resp = requests.post(url, headers=headers, json=payload, timeout=30)
-    resp.raise_for_status()
-    data = resp.json()
-    audio_url = data.get("audio", {}).get("url", "")
-    if not audio_url:
-        raise RuntimeError(f"MiniMax voice failed: {data}")
+    out = gemini_text_to_speech(text, voice=voice_id)
     logger.info(f"  Voice OK")
-    return audio_url
+    return out
 
 
 # --- Step 4: FFmpeg merge voice into video ---

@@ -19,8 +19,8 @@ logger = logging.getLogger("product-analyzer")
 # Gemini — centralized config
 from shared_config import GEMINI_API_KEY as _get_gemini
 GEMINI_API_KEY = _get_gemini()
-TEXT_MODEL = os.environ.get("GEMINI_TEXT_MODEL", "gemini-2.0-flash")
-VISION_MODEL = os.environ.get("GEMINI_VISION_MODEL", "gemini-2.0-flash")
+TEXT_MODEL = os.environ.get("GEMINI_TEXT_MODEL", "gemini-2.5-flash")
+VISION_MODEL = os.environ.get("GEMINI_VISION_MODEL", "gemini-2.5-flash")
 
 
 

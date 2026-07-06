@@ -1,19 +1,16 @@
-SURFACE_CRITICAL: Generate a beautiful clean surface — NO hands, NO people, NO person visible.
-SURFACE_CRITICAL: The surface should be visually appealing — marble, wood, stone, or ceramic tile.
-SURFACE_CRITICAL: NO product, NO bottle, NO container visible — the surface has NOTHING on it.
+มือที่สมจริงของ {model_gender}ไทย อายุ {model_age} ปี กำลังถือ {product_name} อย่างเป็นธรรมชาติ
+ในห้องที่มีแสงธรรมชาติสว่าง สินค้าเห็นชัดเจน ไม่มีกล่องบรรจุภัณฑ์บัง
+ฉากหลังเบลอแบบ soft bokeh บรรยากาศ cozy lifestyle
+ถ่ายภาพสินค้าระดับมืออาชีพ 4K รายละเอียดสูง แสงนุ่ม
 
 Scene:
-A beautiful clean flat surface ready for product photography. Empty surface with soft natural lighting.
+A realistic hand of a young Asian {model_gender} gently holding the {product_name} in a bright, natural-lit room.
+The product is clearly visible, no packaging box obstructing the view.
+Soft bokeh background, cozy lifestyle vibe.
+Professional product photography, 4K, high detail.
 
-Details:
-Surface type: {premium material like marble, wood, stone, or ceramic tile}
-Surface finish: {matte, glossy, textured, smooth}
-Colors: {warm neutrals, soft pastels, or clean white tones}
-Props: {small decorative elements like a towel, plant, or jewelry — but NO product}
-Background: {blurred lifestyle background, warm ambient}
-Lighting: soft natural light from a window, creating gentle shadows
-Mood: clean, aesthetic, minimalist
-Key: The surface is COMPLETELY EMPTY — no product, no bottle, no container visible.
-Key: Include subtle shadows from lighting to show the surface texture.
-Key: DO NOT generate any product, bottle, or container anywhere in the scene.
-Key: The empty surface should look like a ready product photography set.
+Key: PRODUCT must be clearly visible and in focus.
+Key: Hand should hold the product naturally, not covering the product face.
+Key: NO packaging box, NO cardboard, NO wrapping — just the product itself.
+Key: Warm, inviting lighting that highlights the product.
+Key: Lifestyle setting that matches the product category.

@@ -1,7 +1,7 @@
 """
 TikTok UGC Studio — AI Video Generation Pipeline
 Default: Prodia Wan 2.7 (img2vid, $0.03)
-Fallback: Fal.ai ($0.10+)
+
 """
 
 import os
@@ -20,7 +20,6 @@ logger = logging.getLogger("tiktok-ugc.video_gen")
 
 class VideoProvider(str, Enum):
     PRODIA = "prodia"
-    FAL = "fal"
 
 PROVIDER_CONFIG = {
     VideoProvider.PRODIA: {
@@ -32,23 +31,6 @@ PROVIDER_CONFIG = {
         "image_to_video": True,
         "rate_limit_rps": 5,
         "estimate_cost": 0.03,  # $0.03/gen
-    },
-
-    VideoProvider.FAL: {
-        "key": os.environ.get("FAL_API_KEY", "") or os.environ.get("FAL_KEY", ""),
-        "models": {
-            "standard": "fal-ai/veo2",
-            "fast-svd": "fal-ai/fast-svd",
-            "kling": "fal-ai/kling-video",
-            "minimax": "fal-ai/minimax-video",
-            "haiper": "fal-ai/haiper-video",
-            "luma": "fal-ai/luma-dream-machine",
-        },
-        "default_model": "fal-ai/veo2",
-        "base_url": "https://fal.run",
-        "image_to_video": True,
-        "rate_limit_rps": 10,
-        "estimate_cost": 0.10,
     },
 }
 
@@ -76,7 +58,6 @@ def _check_rate_limit(provider: VideoProvider):
         _time.sleep(wait)
         state["tokens"] = 1
     state["tokens"] -= 1
-
 
 # ─── Retry Logic ───────────────────────────────────────────────────────
 
@@ -111,22 +92,6 @@ def retryable(max_retries=3, base_delay=1.0, backoff=2.0, retry_statuses=(429, 5
             raise last_err or RuntimeError("Max retries exceeded")
         return wrapper
     return decorator
-
-
-# ─── Provider Fallback Chain ───────────────────────────────────────────
-
-PROVIDER_FALLBACK_CHAIN = [
-    # Primary — Prodia Wan 2.7 ($0.03)
-    (VideoProvider.PRODIA, "standard"),
-    # Fallback — Fal.ai ($0.10+)
-    (VideoProvider.FAL, "standard"),
-    (VideoProvider.FAL, "kling"),
-]
-
-def generate_video_with_fallback(prompt, duration=8, aspect_ratio="9:16", image_url=None, face_image_url=None, **kw):
-    """DISABLED: Video fallback ปิดอยู่ - ใช้ pipeline_affiliate.py แทน"""
-    logger.warning("generate_video_with_fallback DISABLED - ใช้ pipeline_affiliate.py แทน")
-    raise RuntimeError("Video fallback chain DISABLED - main pipeline (pipeline_affiliate.py) เท่านั้น")
 
 # ─── Common generation presets for UGC videos ──────────────────────────
 
@@ -179,7 +144,6 @@ def generate_video(
     if not handler:
         raise ValueError(f"No handler for {provider.value}")
 
-    # Delegate to handler (Fal.ai only — Prodia/WaveSpeed removed)
     result = handler(config, prompt, model, duration, aspect_ratio, image_url, face_image_url, timeout, negative_prompt)
     result.update({
         "provider": provider.value,
@@ -188,7 +152,6 @@ def generate_video(
         "estimate_cost": config.get("estimate_cost", 0),
     })
     return result
-
 
 def check_status(provider: VideoProvider, task_id: str) -> dict:
     """Check video generation status"""
@@ -200,72 +163,9 @@ def check_status(provider: VideoProvider, task_id: str) -> dict:
         raise ValueError(f"No status handler for {provider.value}")
     return handler(config, task_id)
 
-
 # ─── Provider-specific Implementations ─────────────────────────────────
 
-
-
-
 @retryable(max_retries=3)
-def _fal_generate(config, prompt, model, duration, aspect_ratio, image_url, face_image_url, timeout, negative_prompt=None):
-    """Generate via fal.ai unified API
-
-    fal.ai supports many backends: veo2, kling, minimax, haiper, luma, fast-svd
-    All go through the same endpoint at fal.run.
-    """
-    url = f"{config['base_url']}/{model}"
-    headers = {
-        "Authorization": f"Key {config['key']}",
-        "Content-Type": "application/json",
-    }
-    payload = {"prompt": prompt}
-    if image_url:
-        payload["image_url"] = image_url
-    if duration:
-        payload["duration"] = duration
-
-    resp = requests.post(url, headers=headers, json=payload, timeout=timeout)
-    if resp.status_code not in (200, 201):
-        raise RuntimeError(f"fal.ai error ({resp.status_code}): {resp.text[:500]}")
-    data = resp.json()
-    # fal.ai returns immediate sync with video_url or async with request_id
-    video_url = data.get("video", {}).get("url", "") or data.get("url", "")
-    task_id = data.get("request_id", "") or data.get("id", "")
-    return {
-        "task_id": task_id,
-        "status": "completed" if video_url else "pending",
-        "video_url": video_url,
-    }
-
-
-@retryable(max_retries=3)
-def _fal_status(config, task_id):
-    """Check fal.ai async task status"""
-    # fal.ai status endpoint — infer model from request ID lookup
-    url = f"https://fal.ai/requests/{task_id}/status"
-    headers = {"Authorization": f"Key {config['key']}"}
-    resp = requests.get(url, headers=headers, timeout=30)
-    data = resp.json()
-    video_url = data.get("video", {}).get("url", "") or data.get("url", "")
-    return {
-        "task_id": task_id,
-        "status": data.get("status", "unknown"),
-        "video_url": video_url,
-    }
-
-
-# ─── Provider Dispatch Tables ─────────────────────────────────────────
-
-# Provider dispatch — only Fal.ai remains (WaveSpeed removed, Prodia handled by pipeline_affiliate.py)
-_PROVIDER_HANDLERS = {
-    VideoProvider.FAL: _fal_generate,
-}
-
-_STATUS_HANDLERS = {
-    VideoProvider.FAL: _fal_status,
-}
-
-
 def get_available_providers() -> dict:
     """List configured providers with pricing"""
     providers = {}
@@ -281,12 +181,10 @@ def get_available_providers() -> dict:
             }
     return providers
 
-
 def build_video_prompt(script: str, ugc_style: str = "ugc_review", additional_context: str = "") -> str:
     """Build a video generation prompt from a UGC script + style"""
     preset = UGC_PRESETS.get(ugc_style, UGC_PRESETS["ugc_review"])
     return f"{script}\n\nStyle: {ugc_style}\n{additional_context}\n{preset['prompt_suffix']}".strip()
-
 
 # ─── Task Queue (Background Video Processing) ─────────────────────────
 
@@ -306,7 +204,7 @@ import threading
 class TaskQueue:
     """Simple in-process background task queue for video generation.
     In production, swap for Redis/Bull via the same interface."""
-    
+
     def __init__(self, max_workers=TASK_MAX_WORKERS):
         self._queue = []
         self._results = {}
@@ -316,7 +214,7 @@ class TaskQueue:
         self._running = False
         self._sqlite_path = os.environ.get("TASK_DB_PATH", "/tmp/tiktok_tasks.db")
         self._init_db()
-    
+
     def _init_db(self):
         """Initialize SQLite task store"""
         try:
@@ -343,7 +241,7 @@ class TaskQueue:
             conn.close()
         except Exception as e:
             logger.warning(f"SQLite task DB init failed: {e}")
-    
+
     def enqueue_dummy(self, prompt: str, provider: str = "prodia", model_tier: str = "standard",
                       duration: int = 8, aspect_ratio: str = "9:16",
                       image_url: str = None, face_image_url: str = None) -> str:
@@ -375,7 +273,7 @@ class TaskQueue:
             self._maybe_spawn_worker()
         logger.info(f"Task {task_id} queued ({len(self._queue)} pending)")
         return task_id
-    
+
     def get_status(self, task_id: str) -> dict:
         """Get task status from SQLite"""
         with self._lock:
@@ -392,7 +290,7 @@ class TaskQueue:
         except:
             pass
         return {"task_id": task_id, "status": "unknown"}
-    
+
     def _save_task(self, task):
         try:
             import sqlite3
@@ -407,7 +305,7 @@ class TaskQueue:
             conn.close()
         except Exception as e:
             logger.warning(f"Save task failed: {e}")
-    
+
     def _update_task(self, task_id, **kw):
         with self._lock:
             self._results[task_id] = kw
@@ -421,14 +319,14 @@ class TaskQueue:
             conn.close()
         except Exception as e:
             logger.warning(f"Update task failed: {e}")
-    
+
     def _maybe_spawn_worker(self):
         active = sum(1 for w in self._workers if w.is_alive())
         if active < self._max_workers and self._queue:
             t = threading.Thread(target=self._worker_loop, daemon=True)
             t.start()
             self._workers.append(t)
-    
+
     def _worker_loop(self):
         while True:
             task = None
@@ -441,8 +339,10 @@ class TaskQueue:
             try:
                 self._update_task(task["task_id"], status="processing")
                 provider_enum = VideoProvider(task["provider"])
-                result = generate_video_with_fallback(
+                result = generate_video(
                     prompt=task["prompt"],
+                    provider=provider_enum,
+                    model_tier=task.get("model", "standard"),
                     duration=task["duration"],
                     aspect_ratio=task["aspect_ratio"],
                     image_url=task.get("image_url"),
@@ -455,7 +355,6 @@ class TaskQueue:
                 self._update_task(task["task_id"], status="failed", error=error_msg)
                 logger.error(f"Task {task['task_id']} failed: {e}")
 
-
 # Global singleton
 task_queue = TaskQueue()
 
@@ -464,7 +363,6 @@ def enqueue_video_task(prompt, provider="prodia", model_tier="standard", duratio
     """DISABLED: Video queue ปิดอยู่ - ใช้ pipeline_affiliate.py แทน"""
     logger.warning("enqueue_video_task DISABLED - ใช้ pipeline_affiliate.py แทน")
     return task_queue.enqueue_dummy(prompt, provider, model_tier, duration, aspect_ratio, image_url, face_image_url)
-
 
 def get_task_status(task_id: str) -> dict:
     """Get task status from queue"""

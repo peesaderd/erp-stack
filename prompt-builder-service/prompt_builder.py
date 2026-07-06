@@ -215,6 +215,37 @@ def _extract_json(text: str) -> Optional[dict]:
 # ─── Gemini API Call ──────────────────────────────────────────────────
 # ═══════════════════════════════════════════════════════════════════════
 
+def _call_gemini_vision(system_prompt: str, user_text: str, image_url: str, temperature: float = 0.3) -> Optional[str]:
+    """Call Gemini API with image input (vision)."""
+    if not GEMINI_API_KEY:
+        logger.warning("No GEMINI_API_KEY set in environment")
+        return None
+    if not image_url:
+        return None
+    try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
+        payload = {
+            "system_instruction": {"parts": [{"text": system_prompt}]},
+            "contents": [{
+                "parts": [
+                    {"text": user_text},
+                    {"inline_data": {"mime_type": "image/jpeg", "data": image_url}}
+                ]
+            }],
+            "generationConfig": {"temperature": temperature, "maxOutputTokens": 2048},
+        }
+        resp = requests.post(url, json=payload, timeout=30)
+        if resp.status_code == 200:
+            data = resp.json()
+            return data["candidates"][0]["content"]["parts"][0]["text"]
+        else:
+            logger.error(f"Gemini Vision API error ({resp.status_code}): {resp.text[:200]}")
+            return None
+    except Exception as e:
+        logger.error(f"Gemini Vision call failed: {e}")
+        return None
+
+
 def _call_gemini(system_prompt: str, user_text: str, temperature: float = 0.3) -> Optional[str]:
     """Call Gemini API with system instruction."""
     if not GEMINI_API_KEY:
@@ -258,6 +289,40 @@ JSON ที่ต้องตอบ:
   "hashtags": ["hashtag1", "hashtag2", "hashtag3", "hashtag4", "hashtag5"],
   "image_description": "บรรยายภาพที่ควรสร้าง: เพศ, อายุ, ลักษณะ, ท่าทาง, ฉากหลัง, แสง, อารมณ์"
 }"""
+
+
+PRODUCT_VISION_SYSTEM = """You are a product image analyst for TikTok Shop.
+Analyze the product image and return JSON ONLY (no other text).
+
+JSON format:
+{
+  "category": "beauty/fashion/electronics/food/home/tools/health/other",
+  "product_type": "ลิปสติก/ครีม/หูฟัง/etc.",
+  "target_gender": "male/female/unisex",
+  "target_age": "age range like 18-30",
+  "target_audience": "primary target audience in Thai",
+  "setting": "suggested video setting",
+  "colors": ["dominant color 1", "dominant color 2", "dominant color 3"],
+  "packaging_style": "luxury/minimal/colorful/modern",
+  "estimated_product_size": "small/medium/large",
+  "customer_problem": "problem this product solves in Thai",
+  "main_benefit": "main benefit in Thai",
+  "image_description": "บรรยายภาพที่ควรสร้าง"
+}"""
+
+
+def analyze_product_image(product_image: str, product_name: str, description: str = "") -> Optional[dict]:
+    """Analyze product image via Gemini Vision API."""
+    if not product_image:
+        return None
+    user_text = f"Analyze this product image. Product name: {product_name}. Description: {description if description else 'N/A'}"
+    raw = _call_gemini_vision(PRODUCT_VISION_SYSTEM, user_text, product_image, temperature=0.3)
+    if raw:
+        result = _extract_json(raw)
+        if result:
+            logger.info(f"Vision analysis result: {result.get('category', 'unknown')} / {result.get('product_type', 'unknown')}")
+            return result
+    return None
 
 
 def analyze_product(product_name: str, description: str = "", keywords: Optional[List[str]] = None) -> dict:
@@ -554,15 +619,45 @@ async def analyze_and_build_prompts(
     ugc_style: str = "holding",
     product_id: str = "",
     price: float = 0.0,
+    product_image: str = "",
+    category: str = "",
+    product_category: str = "",
 ) -> dict:
     """
     Full pipeline:
       1. Analyze product via Gemini → product profile
-      2. Build image prompt, video prompt, negative prompt (from UGC_prompts)
-      3. Return everything in one dict
+      2. Optionally analyze product image via Gemini Vision for enrichment
+      3. Build image prompt, video prompt, negative prompt (from UGC_prompts)
+      4. Return everything in one dict
     """
     # Step 1: Analyze
     profile = analyze_product(product_name, description, keywords)
+
+    # Step 1b: If product_image provided, run vision analysis to enrich profile
+    vision_profile = None
+    if product_image:
+        try:
+            vision_profile = analyze_product_image(product_image, product_name, description)
+        except Exception as e:
+            logger.warning(f"Vision analysis failed (non-fatal): {e}")
+
+    if vision_profile:
+        for key in ["category", "target_gender", "target_age", "target_audience", "setting",
+                     "customer_problem", "main_benefit", "image_description"]:
+            if key in vision_profile and vision_profile[key]:
+                profile[key] = vision_profile[key]
+        if "product_type" in vision_profile and vision_profile["product_type"]:
+            profile["product_type"] = vision_profile["product_type"]
+        if "colors" in vision_profile and vision_profile["colors"]:
+            profile["colors"] = vision_profile["colors"]
+        if "packaging_style" in vision_profile and vision_profile["packaging_style"]:
+            profile["packaging_style"] = vision_profile["packaging_style"]
+
+    # Override with explicit params if provided
+    if category:
+        profile["category"] = category
+    if product_category:
+        profile["product_category"] = product_category
     
     # Step 2: Build prompts
     image_prompt, negative_prompt = build_image_prompt(profile, product_name, ugc_style)
@@ -589,7 +684,13 @@ async def analyze_and_build_prompts(
         "metadata": {
             "ugc_style": ugc_style,
             "used_gemini": True,
+            "image_analyzed": bool(vision_profile),
         },
+        "vision_enrichment": {
+            "product_type": profile.get("product_type", ""),
+            "colors": profile.get("colors", []),
+            "packaging_style": profile.get("packaging_style", ""),
+        } if vision_profile else None,
     }
     
     logger.info(f"Prompt built for [{product_name[:30]}]: img={len(image_prompt)}ch, vid={len(video_prompt)}ch")

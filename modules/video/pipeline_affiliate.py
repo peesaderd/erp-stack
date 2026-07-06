@@ -40,7 +40,6 @@ logger = logging.getLogger("tiktok-ugc.pipeline_affiliate")
 
 # ─── Config ────────────────────────────────────────────────────────────────
 
-FAL_KEY = os.environ.get("FAL_API_KEY", "") or os.environ.get("FAL_KEY", "")
 PRODIA_TOKEN = os.environ.get("PRODIA_TOKEN", "") or os.environ.get("PRODIA_KEY", "")
 
 STORAGE_DIR = Path(__file__).parent / "storage"
@@ -48,7 +47,7 @@ TMP_DIR = STORAGE_DIR / "tmp"
 TMP_DIR.mkdir(parents=True, exist_ok=True)
 
 PRODIA_BASE = "https://inference.prodia.com/v2"
-PRODIA_IMAGE_TYPE = "inference.flux-fast.schnell.txt2img.v2"
+PRODIA_IMAGE_TYPE = "inference.nano-banana.img2img.v1"
 PRODIA_IMG2VID_TYPE = "inference.wan2-7.img2vid.v1"
 
 # Voice timing defaults (built-in audio, no separate merge needed)
@@ -301,31 +300,17 @@ def generate_image(prompt: str, reference_analysis: dict = None,
     return url
 
 
-# ─── Step 2: Voice (MiniMax Speech @ Fal.ai ~$0.003) ─────────────────────
-
-def generate_voice(text: str, voice_id: str = "Wise_Woman",
-                   speed: float = 1.0) -> str:
-    """Generate Thai-supporting voice via MiniMax Speech-02 Turbo.
-    
-    Available voice IDs (tested): Wise_Woman, English_Trustworth_Man
-    language_boost=Thai helps Thai pronunciation regardless of voice.
-    """
-    url = "https://fal.run/fal-ai/minimax/speech-02-turbo"
-    headers = {"Authorization": f"Key {FAL_KEY}", "Content-Type": "application/json"}
-    payload = {
-        "text": text,
-        "voice_setting": {"voice_id": voice_id, "speed": speed, "vol": 1.0, "pitch": 0},
-        "language_boost": "Thai",
-        "output_format": "url"
-    }
-    resp = requests.post(url, headers=headers, json=payload, timeout=30)
-    resp.raise_for_status()
-    data = resp.json()
-    audio_url = data.get("audio", {}).get("url", "")
-    if not audio_url:
-        raise RuntimeError(f"MiniMax Speech failed: {data}")
-    return audio_url
-
+def generate_voice(text, tts_path, filenametag, gemini_key=None):
+    """Generate TTS audio using Gemini 3.1 Flash TTS Preview."""
+    from modules.video.gemini_tts import gemini_text_to_speech
+    try:
+        output = gemini_text_to_speech(text, str(tts_path / filenametag))
+        if output:
+            print(f"Gemini TTS: saved {output}")
+            return filenametag
+    except Exception as e:
+        print(f"Gemini TTS failed: {e}")
+    return 0
 
 # ─── Step 3: Video (Wan 2.7 img2vid+audio = Lip Sync in one!) $0.03 ─────
 

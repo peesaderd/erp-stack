@@ -77,6 +77,6 @@ def _lazy(name):
 
 PRODIA_TOKEN = _lazy("PRODIA_TOKEN")
 GEMINI_API_KEY = _lazy("GEMINI_API_KEY")
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", _env_dict.get("GEMINI_MODEL", "gemini-2.0-flash"))
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", _env_dict.get("GEMINI_MODEL", "gemini-2.5-flash"))
 PFM_API_KEY = _lazy("PFM_API_KEY")
 FACEBOOK_ACCESS_TOKEN = _lazy("FACEBOOK_ACCESS_TOKEN")

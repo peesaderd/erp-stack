@@ -1,7 +1,6 @@
 """
 TikTok UGC Studio — AI Video Generation Pipeline
 Default: Prodia Wan 2.7 (img2vid, $0.03)
-Fallback: Fal.ai ($0.10+)
 """
 
 import os
@@ -20,7 +19,6 @@ logger = logging.getLogger("tiktok-ugc.video_gen")
 
 class VideoProvider(str, Enum):
     PRODIA = "prodia"
-    FAL = "fal"
 
 PROVIDER_CONFIG = {
     VideoProvider.PRODIA: {
@@ -34,22 +32,7 @@ PROVIDER_CONFIG = {
         "estimate_cost": 0.03,  # $0.03/gen
     },
 
-    VideoProvider.FAL: {
-        "key": os.environ.get("FAL_API_KEY", "") or os.environ.get("FAL_KEY", ""),
-        "models": {
-            "standard": "fal-ai/veo2",
-            "fast-svd": "fal-ai/fast-svd",
-            "kling": "fal-ai/kling-video",
-            "minimax": "fal-ai/minimax-video",
-            "haiper": "fal-ai/haiper-video",
-            "luma": "fal-ai/luma-dream-machine",
-        },
-        "default_model": "fal-ai/veo2",
-        "base_url": "https://fal.run",
-        "image_to_video": True,
-        "rate_limit_rps": 10,
-        "estimate_cost": 0.10,
-    },
+
 }
 
 # ─── Rate Limiter ──────────────────────────────────────────────────────
@@ -118,9 +101,6 @@ def retryable(max_retries=3, base_delay=1.0, backoff=2.0, retry_statuses=(429, 5
 PROVIDER_FALLBACK_CHAIN = [
     # Primary — Prodia Wan 2.7 ($0.03)
     (VideoProvider.PRODIA, "standard"),
-    # Fallback — Fal.ai ($0.10+)
-    (VideoProvider.FAL, "standard"),
-    (VideoProvider.FAL, "kling"),
 ]
 
 def generate_video_with_fallback(prompt, duration=8, aspect_ratio="9:16", image_url=None, face_image_url=None, **kw):
@@ -179,7 +159,7 @@ def generate_video(
     if not handler:
         raise ValueError(f"No handler for {provider.value}")
 
-    # Delegate to handler (Fal.ai only — Prodia/WaveSpeed removed)
+    # Prodia handled by pipeline_affiliate.py
     result = handler(config, prompt, model, duration, aspect_ratio, image_url, face_image_url, timeout, negative_prompt)
     result.update({
         "provider": provider.value,
@@ -206,63 +186,14 @@ def check_status(provider: VideoProvider, task_id: str) -> dict:
 
 
 
-@retryable(max_retries=3)
-def _fal_generate(config, prompt, model, duration, aspect_ratio, image_url, face_image_url, timeout, negative_prompt=None):
-    """Generate via fal.ai unified API
-
-    fal.ai supports many backends: veo2, kling, minimax, haiper, luma, fast-svd
-    All go through the same endpoint at fal.run.
-    """
-    url = f"{config['base_url']}/{model}"
-    headers = {
-        "Authorization": f"Key {config['key']}",
-        "Content-Type": "application/json",
-    }
-    payload = {"prompt": prompt}
-    if image_url:
-        payload["image_url"] = image_url
-    if duration:
-        payload["duration"] = duration
-
-    resp = requests.post(url, headers=headers, json=payload, timeout=timeout)
-    if resp.status_code not in (200, 201):
-        raise RuntimeError(f"fal.ai error ({resp.status_code}): {resp.text[:500]}")
-    data = resp.json()
-    # fal.ai returns immediate sync with video_url or async with request_id
-    video_url = data.get("video", {}).get("url", "") or data.get("url", "")
-    task_id = data.get("request_id", "") or data.get("id", "")
-    return {
-        "task_id": task_id,
-        "status": "completed" if video_url else "pending",
-        "video_url": video_url,
-    }
-
-
-@retryable(max_retries=3)
-def _fal_status(config, task_id):
-    """Check fal.ai async task status"""
-    # fal.ai status endpoint — infer model from request ID lookup
-    url = f"https://fal.ai/requests/{task_id}/status"
-    headers = {"Authorization": f"Key {config['key']}"}
-    resp = requests.get(url, headers=headers, timeout=30)
-    data = resp.json()
-    video_url = data.get("video", {}).get("url", "") or data.get("url", "")
-    return {
-        "task_id": task_id,
-        "status": data.get("status", "unknown"),
-        "video_url": video_url,
-    }
-
 
 # ─── Provider Dispatch Tables ─────────────────────────────────────────
 
-# Provider dispatch — only Fal.ai remains (WaveSpeed removed, Prodia handled by pipeline_affiliate.py)
+# Prodia handled by pipeline_affiliate.py
 _PROVIDER_HANDLERS = {
-    VideoProvider.FAL: _fal_generate,
 }
 
 _STATUS_HANDLERS = {
-    VideoProvider.FAL: _fal_status,
 }
 
 

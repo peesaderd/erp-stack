@@ -21,7 +21,7 @@ logger = logging.getLogger("tiktok-ugc.script_gen")
 # Gemini — centralized config
 from shared_config import GEMINI_API_KEY as _get_gemini
 GEMINI_API_KEY = _get_gemini()
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 
 
 

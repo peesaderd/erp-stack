@@ -1,14 +1,29 @@
 {
-  "name": "tus",
-  "description": "TikTok UGC Studio recipe — สร้าง image/video/script prompt สำหรับ TikTok review",
-  "prompt_types": ["image", "video", "negative", "script"],
-  "ugc_styles": ["holding", "review", "usage", "talking"],
-  "uses_script": true,
-  "uses_image_prompt": true,
-  "uses_video_prompt": true,
-  "model": "gemini-2.5-flash",
-  "default_style": "holding",
-  "prompt_paths": {
-    "UGC_prompts": "UGC_prompts"
-  }
+    "name": "tus",
+    "description": "TikTok UGC Studio recipe — สำหรับสร้าง content TikTok review",
+    "components": {
+        "prompts": {
+            "provider": "prompt-builder-service",
+            "types": ["image", "video", "negative"]
+        },
+        "script": {
+            "provider": "modules/video/script_gen.py",
+            "description": "สร้างบทพูดสำหรับ TTS ใช้ Gemini API"
+        },
+        "tts": {
+            "provider": "gemini-3.1-flash-tts-preview",
+            "voice": "Aoede"
+        },
+        "image_gen": {
+            "provider": "prodia",
+            "model": "FLUX schnell"
+        },
+        "video_gen": {
+            "provider": "prodia",
+            "model": "Wan 2.7 img2vid"
+        }
+    },
+    "ugc_styles": ["holding", "review", "usage", "talking"],
+    "model": "gemini-2.5-flash",
+    "default_style": "holding"
 }

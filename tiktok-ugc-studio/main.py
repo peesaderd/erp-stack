@@ -66,7 +66,7 @@ logger = logging.getLogger("tiktok-ugc")
 app = FastAPI(
     title="TikTok UGC Studio",
     version="0.2.0",
-    description="AI UGC video pipeline + Scout + Monitor. Script gen, TTS, Fal.ai Wan I2V, FFmpeg compose, TikTok Scout (trends), Monitor Loop (optimization)",
+    description="AI UGC video pipeline + Scout + Monitor. Script gen, TTS, Wan 2.7 I2V, FFmpeg compose, TikTok Scout (trends), Monitor Loop (optimization)",
 )
 
 app.add_middleware(
@@ -1110,7 +1110,7 @@ async def run_full_pipeline(req: FullPipelineRequest):
             else:
                 _update_pipeline_step(job_id, "tts", "skipped")
 
-        # Step 2: Video Gen — Prodia Wan 2.7 img2vid (Fal.ai removed)
+        # Step 2: Video Gen — Prodia Wan 2.7 img2vid
         if req.run_video_gen:
             _update_pipeline_step(job_id, "video_gen", "processing")
             video_path = None
@@ -2364,7 +2364,7 @@ class PipelineJobStatusRequest(BaseModel):
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# UGC Studio v2 — TTS, Fal.ai, Composer Pipeline
+# UGC Studio v2 — TTS, Composer Pipeline
 # ═══════════════════════════════════════════════════════════════════════
 
 class BatchUploadRequest(BaseModel):
@@ -4611,7 +4611,7 @@ async def register_with_erp():
                 "version": "0.2.0",
                 "endpoint": "http://localhost:8105",
                 "description": "AI UGC video pipeline + Scout + Monitor. "
-                               "Script gen, TTS, Fal.ai Wan I2V, FFmpeg compose, "
+                                "Script gen, TTS, Wan 2.7 I2V, FFmpeg compose, "
                                "TikTok Scout (trends), Monitor Loop (optimization)",
             })
             if resp.status_code < 400:

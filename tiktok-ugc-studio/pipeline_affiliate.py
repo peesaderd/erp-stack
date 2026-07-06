@@ -42,7 +42,6 @@ logger = logging.getLogger("tiktok-ugc.pipeline_affiliate")
 
 # ─── Config ────────────────────────────────────────────────────────────────
 
-FAL_KEY = os.environ.get("FAL_API_KEY", "") or os.environ.get("FAL_KEY", "")
 # Prodia — centralized config
 from shared_config import PRODIA_TOKEN as _get_prodia
 PRODIA_TOKEN = _get_prodia()
@@ -318,16 +317,13 @@ def generate_image(prompt: str, reference_analysis: dict = None,
 
 # ─── Step 2: Voice (Local gTTS — Fal.ai removed, Prodia only) ────────────
 
-def generate_voice(text: str, voice_id: str = "lovely_girl",
+def generate_voice(text: str, voice_id: str = "Aoede",
                    speed: float = 1.0) -> str:
-    """Generate Thai voice via local gTTS (free, no API needed).
+    """Generate Thai voice via Gemini 3.1 Flash TTS Preview."""
+    from modules.video.gemini_tts import gemini_text_to_speech
     
-    Fallback from MiniMax 2.8 HD (no FAL_KEY available).
-    """
-    from tts_gen import text_to_speech as local_tts
-    
-    logger.info(f"  TTS (gTTS local): chars={len(text)}")
-    tts_path = local_tts(text=text, lang="th")
+    logger.info(f"  TTS (Gemini): chars={len(text)}")
+    tts_path = gemini_text_to_speech(text=text, voice=voice_id)
     logger.info(f"  TTS OK: {tts_path}")
     return tts_path
 
@@ -437,7 +433,7 @@ def generate_video(
 def run_pipeline(
     script: str,
     scene_prompts: list[str],
-    voice_id: str = "lovely_girl",
+    voice_id: str = "Aoede",
     video_duration: int = 8,
     image_prompt: Optional[str] = None,
     product_image: Optional[str] = None,

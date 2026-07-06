@@ -443,21 +443,24 @@ def _template_script(
     main_benefit: str = "",
     target_audience: str = "",
     tone: str = "",
+    hooks: Optional[str] = None,
+    cta: str = "",
+    duration: str = "8s",
 ) -> dict:
     """Generate script from template (fallback when Gemini fails)."""
     if not tone:
         tone = random.choice(VARIATIONS["tones"])
     if not customer_problem:
-        customer_problem = random.choice(VARIATIONS["hooks"])
+        customer_problem = hooks or random.choice(VARIATIONS["hooks"])
     if not main_benefit:
         main_benefit = random.choice(VARIATIONS["benefits"])
-    
-    cta = random.choice(VARIATIONS["ctas"])
-    
+    if not cta:
+        cta = random.choice(VARIATIONS["ctas"])
+
     hook = f"{customer_problem} ใช่ไหมคะ"
     body = f"วันนี้เรามี {product_name} มาบอกต่อ {main_benefit} ค่ะ"
     full_script = f"{hook} {body} {cta} ค่ะ"
-    
+
     return {
         "hook": hook,
         "script": full_script,
@@ -474,9 +477,12 @@ def generate_script(
     tone: str = "",
     extra_rules: str = "",
     profile: Optional[dict] = None,
+    hooks: Optional[str] = None,
+    cta: str = "",
+    duration: str = "8s",
 ) -> dict:
     """Generate TikTok review script using Gemini.
-    
+
     Args:
         product_name: ชื่อสินค้า
         customer_problem: ปัญหาที่ลูกค้าเจอ (optional)
@@ -485,7 +491,10 @@ def generate_script(
         tone: โทนเสียง (optional, random from variation.json)
         extra_rules: กฎเพิ่มเติม (optional)
         profile: profile dict จาก analyze_product() (optional)
-    
+        hooks: hook text override (optional)
+        cta: CTA text override (optional)
+        duration: ความยาวคลิป (optional, default "8s")
+
     Returns:
         dict: { hook, script, tone, cta }
     """
@@ -494,16 +503,22 @@ def generate_script(
         customer_problem = customer_problem or profile.get("customer_problem", "")
         main_benefit = main_benefit or profile.get("main_benefit", "")
         target_audience = target_audience or profile.get("target_audience", "")
-    
+
     if not tone:
         tone = random.choice(VARIATIONS["tones"])
-    
+
+    extra = extra_rules
+    if hooks:
+        extra += f"\nHook ที่ต้องการ: {hooks}"
+    if cta:
+        extra += f"\nCTA ที่ต้องการ: {cta}"
+
     user_text = f"""ชื่อสินค้า: {product_name}
 ปัญหาที่ลูกค้าเจอ: {customer_problem if customer_problem else 'ยังไม่ระบุ'}
 จุดเด่นหลัก: {main_benefit if main_benefit else 'ยังไม่ระบุ'}
 กลุ่มเป้าหมาย: {target_audience if target_audience else 'ยังไม่ระบุ'}
 โทนการพูด: {tone}
-{extra_rules if extra_rules else ''}"""
+{extra if extra else ''}"""
 
     raw = _call_gemini(SCRIPT_SYSTEM, user_text, temperature=0.7)
     script_data = _extract_json(raw) if raw else None
@@ -513,12 +528,14 @@ def generate_script(
             "hook": script_data.get("hook", ""),
             "script": script_data.get("script", ""),
             "tone": tone,
-            "cta": random.choice(VARIATIONS["ctas"]),
+            "cta": cta or script_data.get("cta", "") or random.choice(VARIATIONS["ctas"]),
         }
-    
+
     # Fallback to template
     logger.warning("Gemini script gen failed — using template fallback")
-    return _template_script(product_name, customer_problem, main_benefit, target_audience, tone)
+    return _template_script(
+        product_name, customer_problem, main_benefit, target_audience, tone, hooks, cta, duration,
+    )
 
 
 def get_script_variations() -> dict:

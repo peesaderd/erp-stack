@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
+import sys
+import os
 import logging
 from typing import Optional, List
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import uvicorn
-import prompt_builder
+
+sys.path.insert(0, os.path.dirname(__file__))
+from prompt_builder import analyze_and_build_prompts, analyze_product, build_image_prompt, build_video_prompt, get_script_variations
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("prompt-builder-service")
@@ -19,16 +23,6 @@ class BuildRequest(BaseModel):
     ugc_style: str = "holding"
     product_id: str = ""
     price: float = 0.0
-
-
-class ScriptRequest(BaseModel):
-    product_name: str
-    customer_problem: str = ""
-    main_benefit: str = ""
-    target_audience: str = ""
-    tone: str = ""
-    extra_rules: str = ""
-    profile: Optional[dict] = None
 
 
 class ScriptRequestWithProfile(BuildRequest):
@@ -47,7 +41,7 @@ async def health():
 @app.post("/api/v1/build")
 async def build(req: BuildRequest):
     try:
-        result = await prompt_builder.analyze_and_build_prompts(
+        result = await analyze_and_build_prompts(
             product_name=req.product_name,
             description=req.description,
             keywords=req.keywords,
@@ -61,27 +55,9 @@ async def build(req: BuildRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/api/v1/generate-script")
-async def generate_script(req: ScriptRequest):
-    try:
-        result = prompt_builder.generate_script(
-            product_name=req.product_name,
-            customer_problem=req.customer_problem,
-            main_benefit=req.main_benefit,
-            target_audience=req.target_audience,
-            tone=req.tone,
-            extra_rules=req.extra_rules,
-            profile=req.profile,
-        )
-        return result
-    except Exception as e:
-        logger.exception("generate-script failed")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @app.get("/api/v1/variations")
 async def variations():
-    return prompt_builder.get_script_variations()
+    return get_script_variations()
 
 
 if __name__ == "__main__":

@@ -13,6 +13,7 @@ from typing import Optional
 logger = logging.getLogger("tiktok-ugc.script_gen")
 
 PROMPTS_DIR = Path(__file__).parent / "prompts"
+PROMPT_BUILDER_URL = os.environ.get("PROMPT_BUILDER_URL", "http://localhost:8117")
 
 # ─── Gemini Config ─────────────────────────────────────────────────────────
 
@@ -101,9 +102,9 @@ def generate_tiktok_review_script(
 
     user_prompt = fill_template(user_tpl, user_data)
 
-    # Try LLM
-    raw = _call_gemini(system, f"{master}\n\n{user_prompt}")
-
+    # Try LLM via Gemini
+    system_full = f"{system}\n\n{master}" if master else system
+    raw = _call_gemini(system_full, user_prompt)
     if raw:
         return {
             "script": raw,

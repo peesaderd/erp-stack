@@ -1,8 +1,18 @@
+SURFACE_CRITICAL: Generate a beautiful lifestyle surface scene — NO hands, NO people, NO person visible.
+SURFACE_CRITICAL: The surface should feel like a natural lifestyle setting — bathroom vanity, kitchen counter, bedside table.
+SURFACE_CRITICAL: NO product, NO bottle, NO container visible — the scene has NOTHING on the surface.
+
 Scene:
-A person using a product.
+A beautiful lifestyle surface setting. Empty counter or table with lifestyle decorative elements.
 
 Details:
-Product: {product}
-Action: {using / applying}
-Location: {real environment}
-Mood: {natural}
+Surface setting: {bathroom vanity, kitchen counter, bedside table, or dressing table}
+Surface material: {marble, wood, ceramic, stone}
+Lifestyle elements: {soft towel, plant, candle, jewelry — but NO product}
+Background: {blurred lifestyle background, warm ambient room}
+Lighting: soft natural light creating gentle shadows
+Mood: clean, aesthetic, spa-like, lifestyle
+Key: The surface is COMPLETELY EMPTY — no product, no bottle, no container visible.
+Key: Include lifestyle decorative elements for atmosphere.
+Key: DO NOT generate any product, bottle, or container anywhere in the scene.
+Key: The scene should look ready for a product photoshoot.

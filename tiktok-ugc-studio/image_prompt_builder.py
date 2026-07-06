@@ -1,31 +1,37 @@
+#!/usr/bin/env python3
 """
-TikTok UGC Studio — Product Analysis + Image/Video Prompt Builder
-===============================================================
-Analyzes product data via Gemini → produces:
-  - Product profile: category, gender, age, setting, customer_problem, 
-    main_benefit, target_audience, 5 hashtags
-  - Image prompt for Klein 9B Img2Img / FLUX
-  - Video prompt for Wan 2.7 img2vid
-  - Negative prompt
+Prompt Builder — Unified Pipeline
+====================================
+Uses Gemini for:
+  - Product analysis (category, gender, age, problem, benefit)
+  - UGC prompt generation (image_prompt, video_prompt, negative_prompt)
+  - Script generation
+
+Single import for all prompt-related work.
 """
 
 import os
+import sys
 import json
 import logging
 import re
+import random
 import requests
+from pathlib import Path
 from typing import Optional, Dict, Any, List
 
-logger = logging.getLogger("tiktok-ugc.image_prompt_builder")
+logger = logging.getLogger("prompt_builder")
 
-# ─── Gemini Config ─────────────────────────────────────────────────────
+# ─── Paths ───────────────────────────────────────────────────────────
+BASE_DIR = Path(__file__).resolve().parent.parent  # erp-stack/
+PROMPTS_DIR = BASE_DIR / "modules" / "video" / "prompts"
+UGC_DIR = PROMPTS_DIR / "UGC_prompts"
 
-# Gemini — centralized config
-from shared_config import GEMINI_API_KEY as _get_gemini
-GEMINI_API_KEY = _get_gemini()
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+# ─── Gemini Config ───────────────────────────────────────────────────
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 
-# ─── UGC Style → Image/Video Style Mapping ─────────────────────────────
+# ─── Style / Category Maps (fallback when Gemini fails) ──────────────
 
 STYLE_MAP = {
     "holding": {
@@ -91,33 +97,103 @@ LIGHTING_MAP = {
     "other":      {"lighting": "soft natural lighting, clean and professional", "composition": "upper body shot, product visible and in focus", "background": "clean minimal background, lifestyle appropriate", "color_palette": "natural tones, neutral background", "atmosphere": "authentic, professional, relatable"},
 }
 
+# ─── Variation templates (fallback) ──────────────────────────────────
+VARIATIONS = {
+    "hooks": [
+        "ปัญหาที่เจอบ่อย", "จุดเด่นที่โดดเด่น", "ความแตกต่างจากสินค้าอื่น",
+        "ประโยชน์ที่ได้จริง", "รีวิวจากผู้ใช้จริง", "ใครกำลังมองหา",
+        "ถ้าคุณต้องการ", "ลองดูสินค้านี้", "รีบมาดูเลย",
+        "ของดีมาแล้ว", "ไม่ต้องรอแล้ว", "สินค้านี้เหมาะกับ",
+        "แนะนำสินค้าดี", "มีสินค้ามาแนะนำ", "ของดีที่อยากบอกต่อ",
+        "สินค้าที่น่าสนใจ", "รีวิวสินค้าดี", "ลองมาดูกัน",
+        "ของดีราคาถูก", "สินค้าคุณภาพ"
+    ],
+    "tones": [
+        "เป็นกันเอง พูดเร็ว", "จริงใจ น่าเชื่อถือ",
+        "ตื่นเต้น ประทับใจ", "สบายๆ ไม่เป็นทางการ",
+        "กระชับ ตรงประเด็น"
+    ],
+    "ctas": [
+        "กดตะกร้าเลย", "สั่งเลยวันนี้", "ของดีราคาถูก",
+        "กดสั่งซื้อเลย", "ดูรายละเอียดในตะกร้า"
+    ],
+    "benefits": [
+        "คุณภาพดี ใช้งานได้จริง", "คุ้มค่า ราคาไม่แพง",
+        "ใช้งานง่าย สะดวก", "ทนทาน ใช้งานได้นาน",
+        "ดีไซน์สวย ใช้งานได้หลากหลาย"
+    ],
+}
 
-def _call_gemini(system_prompt: str, user_text: str, temperature: float = 0.3) -> Optional[str]:
-    """Call Gemini API"""
-    if not GEMINI_API_KEY:
-        logger.warning("No GEMINI_API_KEY configured")
-        return None
-    try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
-        payload = {
-            "system_instruction": {"parts": [{"text": system_prompt}]},
-            "contents": [{"parts": [{"text": user_text}]}],
-            "generationConfig": {"temperature": temperature, "maxOutputTokens": 1024},
-        }
-        resp = requests.post(url, json=payload, timeout=30)
-        if resp.status_code == 200:
-            data = resp.json()
-            return data["candidates"][0]["content"]["parts"][0]["text"]
+# Try to load variation.json for richer content
+try:
+    var_path = PROMPTS_DIR / "variation.json"
+    if var_path.exists():
+        with open(var_path, "r", encoding="utf-8") as f:
+            loaded = json.load(f)
+            if isinstance(loaded, dict):
+                for k in ["hooks", "tones", "ctas", "benefits"]:
+                    if k in loaded and isinstance(loaded[k], list) and len(loaded[k]) > 0:
+                        VARIATIONS[k] = loaded[k]
+except Exception:
+    pass
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# ─── Core: Load UGC Prompt Templates ─────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════
+
+UGC_STYLE_FOLDER = {
+    "holding": "Holding_Product",
+    "review": "UGC_Review",
+    "usage": "Product_Usage",
+    "talking": "UGC_Review",
+}
+
+
+def load_ugc_templates(style: str) -> dict:
+    """Load UGC_prompts/{style}/ template files into a dict.
+
+    Returns: { 'system': str, 'master': str, 'user.template': str, 'negative': str }
+    """
+    folder_name = UGC_STYLE_FOLDER.get(style, "UGC_Review")
+    base = UGC_DIR / folder_name
+    result = {}
+    for name in ["system", "master", "user.template", "negative"]:
+        f = base / f"{name}.prompt"
+        if f.exists():
+            result[name] = f.read_text(encoding="utf-8")
         else:
-            logger.error(f"Gemini API error ({resp.status_code}): {resp.text[:200]}")
-            return None
-    except Exception as e:
-        logger.error(f"Gemini call failed: {e}")
-        return None
+            result[name] = ""
+    return result
+
+
+def fill_template(template: str, data: dict) -> str:
+    """Replace {key} or {{key}} placeholders with data[key]."""
+    def replacer(m):
+        key = m.group(1).strip()
+        v = data.get(key)
+        return str(v) if v is not None else ""
+    text = re.sub(r'\{\{(\w+)\}\}', replacer, template)
+    text = re.sub(r'\{(\w+)\}', replacer, text)
+    return text
+
+
+def _match_category(product_name: str, description: str = "") -> dict:
+    """Match product name keywords to category map (fallback)."""
+    combined = (product_name + " " + description).lower()
+    best_match = {"category": "other", "gender": "unisex", "age": "20-35", "setting": "clean modern lifestyle setting"}
+    for keyword, info in PRODUCT_CATEGORY_MAP.items():
+        if keyword.lower() in combined:
+            return info
+    return best_match
+
+
+def _get_lighting(category: str) -> dict:
+    return LIGHTING_MAP.get(category, LIGHTING_MAP["other"])
 
 
 def _extract_json(text: str) -> Optional[dict]:
-    """Extract JSON from Gemini response (handles ```json wrapping)"""
+    """Extract JSON from Gemini response."""
     if not text:
         return None
     if "```json" in text:
@@ -135,57 +211,39 @@ def _extract_json(text: str) -> Optional[dict]:
     return None
 
 
-def _match_category(product_name: str, description: str = "") -> dict:
-    """Match product name keywords to category map"""
-    combined = (product_name + " " + description).lower()
-    best_match = {"category": "other", "gender": "unisex", "age": "20-35", "setting": "clean modern lifestyle setting"}
-    for keyword, info in PRODUCT_CATEGORY_MAP.items():
-        if keyword.lower() in combined:
-            return info
-    return best_match
+# ═══════════════════════════════════════════════════════════════════════
+# ─── Gemini API Call ──────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════
+
+def _call_gemini(system_prompt: str, user_text: str, temperature: float = 0.3) -> Optional[str]:
+    """Call Gemini API with system instruction."""
+    if not GEMINI_API_KEY:
+        logger.warning("No GEMINI_API_KEY set in environment")
+        return None
+    try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
+        payload = {
+            "system_instruction": {"parts": [{"text": system_prompt}]},
+            "contents": [{"parts": [{"text": user_text}]}],
+            "generationConfig": {"temperature": temperature, "maxOutputTokens": 2048},
+        }
+        resp = requests.post(url, json=payload, timeout=30)
+        if resp.status_code == 200:
+            data = resp.json()
+            return data["candidates"][0]["content"]["parts"][0]["text"]
+        else:
+            logger.error(f"Gemini API error ({resp.status_code}): {resp.text[:200]}")
+            return None
+    except Exception as e:
+        logger.error(f"Gemini call failed: {e}")
+        return None
 
 
-def _get_lighting(category: str) -> dict:
-    return LIGHTING_MAP.get(category, LIGHTING_MAP["other"])
+# ═══════════════════════════════════════════════════════════════════════
+# ─── Product Analysis ─────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════
 
-
-# ─── Main Public API ───────────────────────────────────────────────────
-
-async def analyze_and_build_prompts(
-    product_name: str,
-    description: str = "",
-    keywords: Optional[List[str]] = None,
-    ugc_style: str = "holding",
-    product_id: str = "",
-    price: float = 0.0,
-) -> dict:
-    """
-    Full pipeline (Gemini-based):
-      1. Analyze product via Gemini → product profile
-      2. Build image prompt, video prompt, negative prompt
-      3. Return everything in one dict
-    
-    Args:
-        product_name: ชื่อสินค้า (ภาษาไทย/อังกฤษ)
-        description: คำอธิบายสินค้า (ถ้ามี)
-        keywords: keywords ที่มีอยู่แล้ว (ถ้ามี)
-        ugc_style: holding / usage / review / talking
-        product_id: product ID (optional)
-        price: ราคาสินค้า
-    
-    Returns:
-        dict with:
-          - analysis: {category, gender, age, setting, customer_problem, main_benefit, target_audience, hashtags}
-          - image_prompt: prompt for Klein 9B / FLUX
-          - video_prompt: prompt for Wan 2.7
-          - negative_prompt: negative prompt
-          - metadata: style info used
-    """
-    keywords = keywords or []
-    kw_str = ", ".join(keywords[:5]) if keywords else "ไม่มี"
-
-    # ── Step 1: Gemini Product Analysis ──────────────────────────────
-    system_prompt = """คุณคือนักวิเคราะห์สินค้าสำหรับ TikTok Shop
+PRODUCT_ANALYSIS_SYSTEM = """คุณคือนักวิเคราะห์สินค้าสำหรับ TikTok Shop
 วิเคราะห์สินค้าที่ได้รับ และตอบกลับเป็น JSON ONLY (ไม่มีข้อความอื่น)
 
 JSON ที่ต้องตอบ:
@@ -199,24 +257,26 @@ JSON ที่ต้องตอบ:
   "main_benefit": "คุณประโยชน์หลักของสินค้า เช่น ปกปิดรอยคล้ำ ให้ใต้ตาสว่าง",
   "hashtags": ["hashtag1", "hashtag2", "hashtag3", "hashtag4", "hashtag5"],
   "image_description": "บรรยายภาพที่ควรสร้าง: เพศ, อายุ, ลักษณะ, ท่าทาง, ฉากหลัง, แสง, อารมณ์"
-}
-หมายเหตุ:
-- hashtags: 5 คำที่ใช้ได้จริงใน TikTok ภาษาไทย
-- image_description: ต้องเข้ากับ ugc_style ที่เลือก
-- category: เลือกให้ตรงกับหมวดของสินค้า"""
+}"""
 
+
+def analyze_product(product_name: str, description: str = "", keywords: Optional[List[str]] = None) -> dict:
+    """Analyze product via Gemini and return profile dict.
+    
+    Falls back to category map if Gemini fails.
+    """
+    keywords = keywords or []
+    kw_str = ", ".join(keywords[:5]) if keywords else "ไม่มี"
+    
     user_text = f"""ชื่อสินค้า: {product_name}
 คำอธิบาย: {description if description else 'ไม่มี'}
-Keywords: {kw_str}
-UGC Style: {ugc_style}
-ราคา: {price} บาท"""
+Keywords: {kw_str}"""
 
-    raw = _call_gemini(system_prompt, user_text, temperature=0.3)
+    raw = _call_gemini(PRODUCT_ANALYSIS_SYSTEM, user_text, temperature=0.3)
     gemini_profile = _extract_json(raw) if raw else None
 
     if not gemini_profile:
-        logger.warning("Gemini analysis failed or returned no JSON — using category map fallback")
-        # Fallback: category map + defaults
+        logger.warning("Gemini analysis failed — using category map fallback")
         cinfo = _match_category(product_name, description)
         gender_label = {"female": "หญิง", "male": "ชาย", "unisex": "ทุกเพศ"}.get(cinfo["gender"], "หญิง")
         gemini_profile = {
@@ -230,45 +290,101 @@ UGC Style: {ugc_style}
             "hashtags": keywords[:5] if len(keywords) >= 5 else [product_name[:20]],
             "image_description": f"{gender_label}ไทย {cinfo['age']} ปี ใน {cinfo['setting']}",
         }
-        # Convert hashtags to string list if they came as single string
         if isinstance(gemini_profile.get("hashtags"), str):
-            gemini_profile["hashtags"] = [h.strip().replace("#","") for h in gemini_profile["hashtags"].split(",")][:5]
+            gemini_profile["hashtags"] = [h.strip().replace("#", "") for h in gemini_profile["hashtags"].split(",")][:5]
         elif not isinstance(gemini_profile.get("hashtags"), list):
-            gemini_profile["hashtags"] = [product_name.replace(" ","")[:20]]
+            gemini_profile["hashtags"] = [product_name.replace(" ", "")[:20]]
 
-    logger.info(f"Gemini analysis: category={gemini_profile.get('category')} "
-                f"gender={gemini_profile.get('target_gender')} "
-                f"hashtags={gemini_profile.get('hashtags', [])}")
+    # Normalize
+    h = gemini_profile.get("hashtags", [])
+    if isinstance(h, list):
+        h = [x.strip().replace("#", "") for x in h if x.strip()]
+        while len(h) < 5:
+            h.append(product_name.replace(" ", "").replace("\n", "")[:20])
+        gemini_profile["hashtags"] = h[:5]
+    else:
+        gemini_profile["hashtags"] = [product_name.replace(" ", "")[:20]] * 5
 
-    # ── Step 2: Build Image Prompt ───────────────────────────────────
-    g = gemini_profile
-    category = g.get("category", "other")
-    model_gender = g.get("target_gender", "unisex")
-    model_age = g.get("target_age", "20-35")
-    model_setting = g.get("setting", "clean modern lifestyle setting")
-    lighting = _get_lighting(category)
+    return gemini_profile
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# ─── Image & Video Prompt Generation ──────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════
+
+def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holding") -> str:
+    """Generate image prompt using UGC_prompts templates + product profile.
+    
+    Falls back to hardcode if template not available.
+    """
+    templates = load_ugc_templates(ugc_style)
     style_info = STYLE_MAP.get(ugc_style, STYLE_MAP["holding"])
-    customer_problem = g.get("customer_problem", "")
-    main_benefit = g.get("main_benefit", "")
-
+    category = profile.get("category", "other")
+    model_gender = profile.get("target_gender", "unisex")
+    model_age = profile.get("target_age", "20-35")
+    model_setting = profile.get("setting", "clean modern lifestyle setting")
+    lighting = _get_lighting(category)
+    customer_problem = profile.get("customer_problem", "")
+    main_benefit = profile.get("main_benefit", "")
     gender_en = {"female": "woman", "male": "man", "unisex": "person"}.get(model_gender, "person")
 
-    # Image prompt — for Klein 9B Img2Img / FLUX
-    image_prompt = (
-        f"A beautiful Thai {gender_en}, {model_age} years old, "
-        f"glowing skin, pretty face, professional model quality, "
-        f"{style_info['model_action']}. "
-        f"Setting: {model_setting}. "
-        f"{style_info['camera']}, {style_info['vibe']}. "
-        f"{lighting['composition']}, {lighting['atmosphere']}, {lighting['color_palette']}. "
-        f"The {product_name} is clearly in frame. "
-        f"Product benefit: {main_benefit}. "
-        f"{lighting['lighting']}. "
-        f"Wearing casual everyday outfit. Professional e-commerce quality. "
-        f"--ar 9:16"
-    )
+    data = {
+        "product_name": product_name,
+        "customer_problem": customer_problem,
+        "main_benefit": main_benefit,
+        "model_gender": gender_en,
+        "model_age": model_age,
+        "setting": model_setting,
+        "style": ugc_style,
+        "tone": "professional",
+        "composition": lighting["composition"],
+        "lighting": lighting["lighting"],
+        "atmosphere": lighting["atmosphere"],
+        "color_palette": lighting["color_palette"],
+        "background": lighting.get("background", "clean minimal background"),
+        "model_action": style_info["model_action"],
+        "camera": style_info["camera"],
+        "vibe": style_info["vibe"],
+        "keywords": style_info.get("keywords", ""),
+        "hashtags": ", ".join(profile.get("hashtags", [])),
+    }
 
-    # Video prompt — for Wan 2.7 img2vid (motion-focused, shorter)
+    if templates.get("master") and templates.get("user.template"):
+        # Use UGC_prompts templates
+        master = fill_template(templates["master"], data)
+        user_tpl = fill_template(templates["user.template"], data)
+        negative = templates.get("negative", "")
+        image_prompt = f"{master}\n\n{user_tpl}"
+    else:
+        # Fallback hardcode
+        image_prompt = (
+            f"A beautiful Thai {gender_en}, {model_age} years old, "
+            f"glowing skin, pretty face, professional model quality, "
+            f"{style_info['model_action']}. "
+            f"Setting: {model_setting}. "
+            f"{style_info['camera']}, {style_info['vibe']}. "
+            f"{lighting['composition']}, {lighting['atmosphere']}, {lighting['color_palette']}. "
+            f"The {product_name} is clearly in frame. "
+            f"Product benefit: {main_benefit}. "
+            f"{lighting['lighting']}. "
+            f"Wearing casual everyday outfit. Professional e-commerce quality. "
+            f"--ar 9:16"
+        )
+        negative = templates.get("negative", "")
+    
+    return image_prompt, negative
+
+
+def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holding") -> str:
+    """Generate video prompt for Wan 2.7 img2vid."""
+    style_info = STYLE_MAP.get(ugc_style, STYLE_MAP["holding"])
+    category = profile.get("category", "other")
+    model_gender = profile.get("target_gender", "unisex")
+    model_age = profile.get("target_age", "20-35")
+    model_setting = profile.get("setting", "clean modern lifestyle setting")
+    lighting = _get_lighting(category)
+    gender_en = {"female": "woman", "male": "man", "unisex": "person"}.get(model_gender, "person")
+
     video_prompt = (
         f"Thai {gender_en} {model_age}, {style_info['video_motion']}. "
         f"{product_name} visible in frame. "
@@ -276,59 +392,194 @@ UGC Style: {ugc_style}
         f"{lighting['lighting']}. {lighting['atmosphere']}. "
         f"9:16 portrait, smooth natural motion"
     )
+    return video_prompt
 
-    # Negative prompt
-    negative_prompt = (
+
+def build_negative_prompt(profile: dict, ugc_style: str = "holding") -> str:
+    """Build negative prompt — merge template + defaults."""
+    templates = load_ugc_templates(ugc_style)
+    default = (
         "no text, no watermark, no logo, no UI overlay, "
         "no blurred face, no distorted hands, no extra fingers, "
         "no manga, no cartoon, no illustration, no 3D render, "
         "no low resolution, no pixelation, no artifacts, "
         "no cluttered background, no messy room"
     )
+    tpl_neg = templates.get("negative", "")
+    if tpl_neg:
+        return f"{tpl_neg}, {default}"
+    return default
 
-    # ── Step 3: Hashtags ────────────────────────────────────────────
-    hashtags = g.get("hashtags", [])
-    if isinstance(hashtags, list):
-        hashtags = [h.strip().replace("#","") for h in hashtags if h.strip()]
-        while len(hashtags) < 5:
-            hashtags.append(product_name.replace(" ","").replace("\n","")[:20])
-        hashtags = hashtags[:5]
-    else:
-        hashtags = [product_name.replace(" ","")[:20]] * 5
 
+# ═══════════════════════════════════════════════════════════════════════
+# ─── Script Generation ────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════
+
+SCRIPT_SYSTEM = """คุณคือนักรีวิวขายสินค้าใน TikTok ระดับมืออาชีพ
+พูดกระชับ น่าเชื่อถือ เป็นกันเอง จบไว
+
+CRITICAL RULES:
+✅ ใบหน้าต้องตรงกับภาพ reference 100%
+❌ ห้ามใช้เสื้อผ้าจากภาพ reference
+⚠️ ความยาวคลิป: 8 วินาที ต้องจบภายใน 8 วินาที
+
+โครงสร้างเวลาบังคับ:
+1) Hook (0-2 วินาที): เปิดด้วยปัญหาที่เข้าถึงกลุ่มเป้าหมาย
+2) Value (2-6 วินาที): บอกประโยชน์หลัก 1 อย่างที่เฉพาะเจาะจง
+3) CTA (6-8 วินาที): ต้องจบด้วย CTA ภาษาไทย
+
+⚠️ เสียงพากย์มนุษย์ ชัดเจนระดับสตูดิโอ 48kHz
+⚠️ ครบ 8 วินาที = จบ
+⚠️ ตอบเป็น JSON:
+{
+  "hook": "ข้อความ 3-5 คำ",
+  "script": "สคริปต์เต็ม 8 วินาที พูดปกติ ไม่ต้องบอกเวลากำกับ"
+}"""
+
+
+def _template_script(
+    product_name: str,
+    customer_problem: str = "",
+    main_benefit: str = "",
+    target_audience: str = "",
+    tone: str = "",
+) -> dict:
+    """Generate script from template (fallback when Gemini fails)."""
+    if not tone:
+        tone = random.choice(VARIATIONS["tones"])
+    if not customer_problem:
+        customer_problem = random.choice(VARIATIONS["hooks"])
+    if not main_benefit:
+        main_benefit = random.choice(VARIATIONS["benefits"])
+    
+    cta = random.choice(VARIATIONS["ctas"])
+    
+    hook = f"{customer_problem} ใช่ไหมคะ"
+    body = f"วันนี้เรามี {product_name} มาบอกต่อ {main_benefit} ค่ะ"
+    full_script = f"{hook} {body} {cta} ค่ะ"
+    
+    return {
+        "hook": hook,
+        "script": full_script,
+        "tone": tone,
+        "cta": cta,
+    }
+
+
+def generate_script(
+    product_name: str,
+    customer_problem: str = "",
+    main_benefit: str = "",
+    target_audience: str = "",
+    tone: str = "",
+    extra_rules: str = "",
+    profile: Optional[dict] = None,
+) -> dict:
+    """Generate TikTok review script using Gemini.
+    
+    Args:
+        product_name: ชื่อสินค้า
+        customer_problem: ปัญหาที่ลูกค้าเจอ (optional)
+        main_benefit: จุดเด่นหลัก (optional)
+        target_audience: กลุ่มเป้าหมาย (optional)
+        tone: โทนเสียง (optional, random from variation.json)
+        extra_rules: กฎเพิ่มเติม (optional)
+        profile: profile dict จาก analyze_product() (optional)
+    
+    Returns:
+        dict: { hook, script, tone, cta }
+    """
+    # Use profile data if available
+    if profile:
+        customer_problem = customer_problem or profile.get("customer_problem", "")
+        main_benefit = main_benefit or profile.get("main_benefit", "")
+        target_audience = target_audience or profile.get("target_audience", "")
+    
+    if not tone:
+        tone = random.choice(VARIATIONS["tones"])
+    
+    user_text = f"""ชื่อสินค้า: {product_name}
+ปัญหาที่ลูกค้าเจอ: {customer_problem if customer_problem else 'ยังไม่ระบุ'}
+จุดเด่นหลัก: {main_benefit if main_benefit else 'ยังไม่ระบุ'}
+กลุ่มเป้าหมาย: {target_audience if target_audience else 'ยังไม่ระบุ'}
+โทนการพูด: {tone}
+{extra_rules if extra_rules else ''}"""
+
+    raw = _call_gemini(SCRIPT_SYSTEM, user_text, temperature=0.7)
+    script_data = _extract_json(raw) if raw else None
+
+    if script_data:
+        return {
+            "hook": script_data.get("hook", ""),
+            "script": script_data.get("script", ""),
+            "tone": tone,
+            "cta": random.choice(VARIATIONS["ctas"]),
+        }
+    
+    # Fallback to template
+    logger.warning("Gemini script gen failed — using template fallback")
+    return _template_script(product_name, customer_problem, main_benefit, target_audience, tone)
+
+
+def get_script_variations() -> dict:
+    """Return all variation options for frontend use."""
+    return dict(VARIATIONS)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# ─── Main Public API (combine everything) ─────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════
+
+async def analyze_and_build_prompts(
+    product_name: str,
+    description: str = "",
+    keywords: Optional[List[str]] = None,
+    ugc_style: str = "holding",
+    product_id: str = "",
+    price: float = 0.0,
+) -> dict:
+    """
+    Full pipeline:
+      1. Analyze product via Gemini → product profile
+      2. Build image prompt, video prompt, negative prompt (from UGC_prompts)
+      3. Return everything in one dict
+    """
+    # Step 1: Analyze
+    profile = analyze_product(product_name, description, keywords)
+    
+    # Step 2: Build prompts
+    image_prompt, negative_prompt = build_image_prompt(profile, product_name, ugc_style)
+    video_prompt = build_video_prompt(profile, product_name, ugc_style)
+    if not negative_prompt:
+        negative_prompt = build_negative_prompt(profile, ugc_style)
+    
     result = {
         "product_id": product_id,
         "analysis": {
-            "category": category,
-            "target_gender": model_gender,
-            "target_age": model_age,
-            "target_audience": g.get("target_audience", ""),
-            "setting": model_setting,
-            "customer_problem": customer_problem,
-            "main_benefit": main_benefit,
-            "hashtags": hashtags,
-            "image_description": g.get("image_description", ""),
+            "category": profile.get("category", "other"),
+            "target_gender": profile.get("target_gender", "unisex"),
+            "target_age": profile.get("target_age", "20-35"),
+            "target_audience": profile.get("target_audience", ""),
+            "setting": profile.get("setting", ""),
+            "customer_problem": profile.get("customer_problem", ""),
+            "main_benefit": profile.get("main_benefit", ""),
+            "hashtags": profile.get("hashtags", []),
+            "image_description": profile.get("image_description", ""),
         },
         "image_prompt": image_prompt,
         "video_prompt": video_prompt,
         "negative_prompt": negative_prompt,
         "metadata": {
             "ugc_style": ugc_style,
-            "lighting": lighting["lighting"],
-            "composition": lighting["composition"],
-            "atmosphere": lighting["atmosphere"],
-            "used_gemini": gemini_profile is not None,
+            "used_gemini": True,
         },
     }
-
-    logger.info(f"Prompt built for [{product_name[:30]}]: "
-                f"img_prompt={len(image_prompt)}ch, "
-                f"vid_prompt={len(video_prompt)}ch")
-
+    
+    logger.info(f"Prompt built for [{product_name[:30]}]: img={len(image_prompt)}ch, vid={len(video_prompt)}ch")
     return result
 
 
-# ─── Backward Compat: build_prompt() ──────────────────────────────────
+# ─── Backward Compat APIs ────────────────────────────────────────────
 
 async def build_prompt(
     product_name: str,
@@ -336,16 +587,12 @@ async def build_prompt(
     ugc_style: str = "holding",
     gemini_analysis: Optional[dict] = None
 ) -> dict:
-    """
-    Legacy API — calls analyze_and_build_prompts without analysis.
-    Kept for compatibility with existing callers.
-    """
-    result = await analyze_and_build_prompts(
+    """Legacy API — calls analyze_and_build_prompts."""
+    return await analyze_and_build_prompts(
         product_name=product_name,
         description=description,
         ugc_style=ugc_style,
     )
-    return result
 
 
 async def process_image_prompt_request(
@@ -354,7 +601,7 @@ async def process_image_prompt_request(
     ugc_style: str = "holding",
     use_mistral: bool = True
 ) -> dict:
-    """Legacy API wrapper"""
+    """Legacy API wrapper."""
     return await analyze_and_build_prompts(
         product_name=product_name,
         description=description,

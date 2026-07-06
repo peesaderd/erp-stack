@@ -742,8 +742,28 @@ select.input { cursor: pointer; }
   font-size: 12.5px; font-weight: 700; color: #fff; background: var(--brand-gradient); flex-shrink: 0;
 }
 .user-badge-name { font-size: 12.5px; font-weight: 600; color: var(--text-primary); max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.user-badge-logout { font-size: 15px; color: var(--text-secondary); cursor: pointer; padding: 2px; transition: color 0.15s; }
-.user-badge-logout:hover { color: var(--accent-magenta); }
+.user-badge-name { display: none !important; } /* Hide first/last name from header */
+.user-badge-balance { font-size: 13px; font-weight: 600; color: var(--text-primary); margin: 0 4px; }
+.user-badge-logout {
+  background: transparent; border: none; padding: 6px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+  color: var(--text-secondary); transition: all 0.2s ease; border-radius: 50%; width: 28px; height: 28px;
+}
+.user-badge-logout:hover {
+  color: #ef4444; background: rgba(239, 68, 68, 0.1); transform: scale(1.05);
+}
+.logout-icon { width: 15px; height: 15px; }
+
+/* Real Social Login Styles */
+.btn-google {
+  background: #ffffff !important; color: #1f2937 !important; border: 1px solid var(--border-primary) !important;
+  display: inline-flex !important; align-items: center !important; justify-content: center !important; font-weight: 600 !important;
+}
+.btn-google:hover { background: #f3f4f6 !important; }
+.btn-line {
+  background: #06C755 !important; color: #ffffff !important; border: none !important;
+  display: inline-flex !important; align-items: center !important; justify-content: center !important; font-weight: 600 !important;
+}
+.btn-line:hover { background: #05b04b !important; }
 
 /* Custom upload zones */
 .upload-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
@@ -796,19 +816,25 @@ select.input { cursor: pointer; }
     <button data-tab="content" onclick="switchTab('content')"><svg class="nav-icon" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/></svg><span>Studio</span></button>
     <button data-tab="pipeline" onclick="switchTab('pipeline')"><svg class="nav-icon" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span>Pipeline</span></button>
     <button data-tab="assets" onclick="switchTab('assets')"><svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span>Library</span></button>
-    <button data-tab="scheduled" onclick="switchTab('scheduled')"><svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Scheduled</span></button>
-    <button data-tab="social" onclick="switchTab('social')"><svg class="nav-icon" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg><span>Social</span></button>
-    <button data-tab="pfm" onclick="switchTab('pfm')"><svg class="nav-icon" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg><span>Post For Me</span></button>
+    <button data-tab="scheduled" onclick="switchTab('publisher'); switchPublisherSub('queue')"><svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Scheduled</span></button>
+    <button data-tab="social" onclick="switchTab('scout'); switchScoutSub('targets')"><svg class="nav-icon" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg><span>Social</span></button>
+    <button data-tab="pfm" onclick="switchTab('publisher'); switchPublisherSub('post')"><svg class="nav-icon" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg><span>Post For Me</span></button>
     <button data-tab="scout" onclick="switchTab('scout')"><svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg><span>Scout</span></button>
-    <button data-tab="accounts" onclick="switchTab('accounts')"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Accounts</span></button>
+    <button data-tab="accounts" onclick="switchTab('accounts')"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Connections</span></button>
     <button data-tab="history" onclick="switchTab('history')"><svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span>History</span></button>
     <button data-tab="settings" onclick="switchTab('settings')"><svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Settings</span></button>
   </nav>
   <div class="topbar-actions">
-    <div class="user-badge" id="userBadge" onclick="openAuthModal()" style="display:none">
-      <div class="user-badge-avatar" id="userBadgeAvatar">👤</div>
-      <span class="user-badge-name" id="userBadgeName">Login</span>
-      <span class="user-badge-logout" id="userBadgeLogout" onclick="event.stopPropagation();authLogout()" title="Logout">⏻</span>
+    <div class="user-badge" id="userBadge" onclick="switchTab('profile')" style="display:none">
+      <div class="user-badge-avatar" id="userBadgeAvatar">?</div>
+      <span class="user-badge-balance" id="userBadgeBalance">฿0.00</span>
+      <button class="user-badge-logout" id="userBadgeLogout" onclick="event.stopPropagation();authLogout()" title="Logout">
+        <svg class="logout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+          <polyline points="16 17 21 12 16 7"></polyline>
+          <line x1="21" y1="12" x2="9" y2="12"></line>
+        </svg>
+      </button>
     </div>
     <span class="status-dot online" id="connStatus" title="Connected"></span>
     <button class="btn btn-ghost btn-icon" onclick="refreshAll()" title="Refresh all">⟳</button>
@@ -830,9 +856,9 @@ select.input { cursor: pointer; }
     <div class="mobile-tab-icon"><svg class="nav-icon" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/></svg></div>
     <div>Studio</div>
   </button>
-  <button class="mobile-tab-item" onclick="switchTab('pfm')">
+  <button class="mobile-tab-item" onclick="switchTab('publisher')">
     <div class="mobile-tab-icon"><svg class="nav-icon" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div>
-    <div>Post</div>
+    <div>Publisher</div>
   </button>
   <button class="mobile-tab-item" onclick="switchTab('assets')">
     <div class="mobile-tab-icon"><svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>
@@ -852,12 +878,10 @@ select.input { cursor: pointer; }
     <button data-tab="content" onclick="switchTab('content');toggleSideNav()"><svg class="nav-icon" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/></svg><span>Studio</span></button>
     <button data-tab="pipeline" onclick="switchTab('pipeline');toggleSideNav()"><svg class="nav-icon" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span>Pipeline</span></button>
     <button data-tab="assets" onclick="switchTab('assets');toggleSideNav()"><svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span>Library</span></button>
-    <button data-tab="scheduled" onclick="switchTab('scheduled');toggleSideNav()"><svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Scheduled</span></button>
-    <button data-tab="social" onclick="switchTab('social');toggleSideNav()"><svg class="nav-icon" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg><span>Social</span></button>
-    <button data-tab="pfm" onclick="switchTab('pfm');toggleSideNav()"><svg class="nav-icon" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg><span>Post For Me</span></button>
-    <button data-tab="scout" onclick="switchTab('scout');toggleSideNav()"><svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg><span>Scout</span></button>
-    <button data-tab="accounts" onclick="switchTab('accounts');toggleSideNav()"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Accounts</span></button>
-    <button data-tab="history" onclick="switchTab('history');toggleSideNav()"><svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span>History</span></button>
+    <button data-tab="publisher" onclick="switchTab('publisher');toggleSideNav()"><svg class="nav-icon" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg><span>Publisher</span></button>
+    <button data-tab="scout" onclick="switchTab('scout');toggleSideNav()"><svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg><span>Social Growth</span></button>
+    <button data-tab="accounts" onclick="switchTab('accounts');toggleSideNav()"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Connections</span></button>
+    <button data-tab="profile" onclick="switchTab('profile');toggleSideNav()"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Profile</span></button>
     <button data-tab="settings" onclick="switchTab('settings');toggleSideNav()"><svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Settings</span></button>
   </div>
   <div class="side-nav-footer">
@@ -918,7 +942,7 @@ select.input { cursor: pointer; }
         <div style="font-size:28px;margin-bottom:6px">🚀</div>
         <div class="card-title" style="font-size:13px">Post to TikTok</div>
       </div>
-      <div class="card" style="cursor:pointer;padding:16px;text-align:center" onclick="switchTab('scheduled')">
+      <div class="card" style="cursor:pointer;padding:16px;text-align:center" onclick="switchTab('publisher'); switchPublisherSub('queue')">
         <div style="font-size:28px;margin-bottom:6px">📅</div>
         <div class="card-title" style="font-size:13px">Scheduled Posts</div>
       </div>
@@ -1297,37 +1321,46 @@ select.input { cursor: pointer; }
 </div>
 
 <!-- ═══ Scheduled ═══ -->
-<div id="page-scheduled" class="page" style="display:none">
-  <div class="page-header"><div><h2>Scheduled Posts</h2><p>Auto-post queue with affiliate links</p></div>
-    <button class="btn btn-secondary btn-sm" onclick="loadScheduledPosts()">⟳ Refresh</button>
-  </div>
-  <div id="scheduledPostsList">
-    <div class="text-sm text-secondary" style="text-align:center;padding:24px">Loading...</div>
-  </div>
-</div>
 
 <!-- ═══ Accounts ═══ -->
+<!-- === Accounts === -->
 <div id="page-accounts" class="page">
   <div class="page-header">
-    <div><h2>Accounts</h2><p>จัดการบัญชี TikTok</p></div>
-    <button class="btn btn-primary btn-sm" onclick="showAddAccount()">+ Add Account</button>
+    <div><h2>Connections</h2><p>Manage connection sessions for publishing platforms</p></div>
   </div>
 
-  <!-- Add Account Form -->
-  <div id="addAccountForm" class="card mb-4" style="display:none">
-    <div class="card-title mb-3">Add Account</div>
-    <div class="mb-3"><input class="input" id="accUsername" placeholder="Username"></div>
-    <div class="mb-3"><input class="input" id="accPassword" type="password" placeholder="Password"></div>
-    <div class="mb-3"><input class="input" id="accToken" type="text" placeholder="Session Token (จาก tiktok-upload auth)" style="font-family:mono;font-size:12px"></div>
-    <div class="text-xs text-secondary mb-3">💡 รัน <code>tiktok-upload auth</code> บนเครื่องตัวเองก่อน ได้ Token แล้วเอามาใส่</div>
-    <div class="flex gap-2">
-      <button class="btn btn-primary btn-sm" onclick="addAccount()">Save</button>
-      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('addAccountForm').style.display='none'">Cancel</button>
+  <!-- Connected Platforms Grid -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px">
+        <strong style="font-size:16px">🔗 Connected Platforms</strong>
+        <button class="btn btn-ghost btn-sm" onclick="pfmFetchAccounts()" title="Refresh" style="min-width:32px">🔄</button>
+      </div>
+      <div class="pfm-grid" id="pfm-platform-grid"><!-- rendered by JS --></div>
     </div>
   </div>
 
-  <div class="card" id="accountsListWrap">
-    <div id="accountsList"><div class="text-sm text-secondary">Loading...</div></div>
+  <!-- TikTok Local Accounts List Panel -->
+  <div class="card" id="tiktok-local-panel">
+    <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+      <span class="card-title">🔑 TikTok Local Upload Sessions</span>
+      <button class="btn btn-primary btn-sm" onclick="showAddAccount()">+ Add Session Account</button>
+    </div>
+    <div class="card-body">
+      <!-- Add Account Form -->
+      <div id="addAccountForm" class="card mb-3" style="display:none;background:var(--bg-tertiary)">
+        <div class="card-title mb-3">Add TikTok Session</div>
+        <div class="mb-3"><input class="input" id="accUsername" placeholder="Username"></div>
+        <div class="mb-3"><input class="input" id="accPassword" type="password" placeholder="Password"></div>
+        <div class="mb-3"><input class="input" id="accToken" type="text" placeholder="Session Token (จาก tiktok-upload auth)" style="font-family:mono;font-size:12px"></div>
+        <div class="text-xs text-secondary mb-3">💡 รัน <code>tiktok-upload auth</code> บนเครื่องตัวเองก่อน ได้ Token แล้วเอามาใส่</div>
+        <div class="flex gap-2">
+          <button class="btn btn-primary btn-sm" onclick="addAccount()">Save</button>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('addAccountForm').style.display='none'">Cancel</button>
+        </div>
+      </div>
+      <div id="accountsList"><div class="text-sm text-secondary">Loading local accounts...</div></div>
+    </div>
   </div>
 </div>
 
@@ -1349,29 +1382,131 @@ select.input { cursor: pointer; }
 </div>
 
 <!-- ═══ History ═══ -->
-<div id="page-history" class="page">
-  <div class="page-header">
-    <div><h2>History</h2><p>วิดีโอที่เผยแพร่แล้ว</p></div>
-    <div class="flex gap-2 items-center">
-      <label class="text-sm text-secondary">Filter:</label>
-      <select class="input" style="width:160px" id="historyFilter" onchange="loadHistory()"><option value="">All Accounts</option></select>
-    </div>
-  </div>
-  <div class="table-wrap">
-    <table>
-      <thead><tr>
-        <th style="min-width:160px">Time</th>
-        <th>Caption</th>
-        <th style="min-width:120px">Account</th>
-        <th style="min-width:80px">Status</th>
-        <th style="min-width:100px">Actions</th>
-      </tr></thead>
-      <tbody id="historyBody"><tr><td colspan="5" class="text-sm text-secondary" style="text-align:center;padding:32px">No published videos yet</td></tr></tbody>
-    </table>
-  </div>
-</div>
 
 <!-- ═══ Settings ═══ -->
+<!-- === Profile Page === -->
+<div id="page-profile" class="page">
+  <div class="page-header">
+    <div><h2>My Profile</h2><p>Manage your account settings, credits, and logins</p></div>
+  </div>
+
+  <div id="profile-logged-out" style="display:none">
+    <!-- Sleek Login / Registration cards -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:20px">
+      <!-- Local Login / Register Card -->
+      <div class="card">
+        <div class="card-body">
+          <div class="tab-bar mb-3" style="border-bottom:none;margin-bottom:12px" id="profileAuthTabs">
+            <button class="active" id="btn-login-tab" onclick="toggleLocalAuthTab('login')">Login</button>
+            <button id="btn-register-tab" onclick="toggleLocalAuthTab('register')">Register</button>
+          </div>
+          
+          <!-- Login Form -->
+          <div id="local-login-form">
+            <div class="mb-3"><label class="form-label">Email Address<br><input type="email" id="profile-login-email" class="input" placeholder="name@domain.com"></label></div>
+            <div class="mb-3"><label class="form-label">Password<br><input type="password" id="profile-login-password" class="input" placeholder="••••••••"></label></div>
+            <button class="btn btn-primary w-full" onclick="profileLocalLogin()">Sign In</button>
+            <div id="profile-login-res" class="mt-2 text-sm"></div>
+          </div>
+          
+          <!-- Register Form -->
+          <div id="local-register-form" style="display:none">
+            <div class="mb-3"><label class="form-label">Full Name<br><input type="text" id="profile-reg-name" class="input" placeholder="John Doe"></label></div>
+            <div class="mb-3"><label class="form-label">Email Address<br><input type="email" id="profile-reg-email" class="input" placeholder="name@domain.com"></label></div>
+            <div class="mb-3"><label class="form-label">Password<br><input type="password" id="profile-reg-password" class="input" placeholder="Min 6 characters"></label></div>
+            <button class="btn btn-primary w-full" onclick="profileLocalRegister()">Create Account</button>
+            <div id="profile-reg-res" class="mt-2 text-sm"></div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Social Login / OAuth Card -->
+      <div class="card">
+        <div class="card-body">
+          <div class="card-title mb-3">🔌 Quick Social Login</div>
+          <p class="text-xs text-secondary mb-3">Sign in instantly using your social media profiles</p>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <button class="btn btn-google" style="padding:10px;cursor:pointer;border-radius:6px" onclick="authOAuth('google')">
+              <svg viewBox="0 0 24 24" width="16" height="16" style="margin-right:8px;flex-shrink:0"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+              Login with Google
+            </button>
+            <button class="btn btn-line" style="padding:10px;cursor:pointer;border-radius:6px" onclick="authOAuth('line')">
+              <svg viewBox="0 0 24 24" width="16" height="16" style="margin-right:8px;flex-shrink:0"><path fill="#FFFFFF" d="M12 2C6.48 2 2 5.82 2 10.53c0 4.21 3.56 7.73 8.39 8.43.33.07.78.22.89.57.1.31.07.8.03 1.12l-.12.75c-.04.25-.19.97.83.53 1.02-.44 5.51-3.25 7.52-5.57 1.4-1.62 2.36-3.46 2.36-5.78C22 5.82 17.52 2 12 2zm-4.7 11.23h-1.3c-.22 0-.4-.18-.4-.4V7.5c0-.22.18-.4.4-.4h1.3c.22 0 .4.18.4.4v5.33c0 .22-.18.4-.4.4zm3.87 0H9.72c-.22 0-.4-.18-.4-.4V7.5c0-.22.18-.4.4-.4h1.3c.22 0 .4.18.4.4v.93c0 .22-.18.4-.4.4H10.6v.87h.57c.22 0 .4.18.4.4v.93c0 .22-.18.4-.4.4h-.57v.88h1.12c.22 0 .4.18.4.4v.93c0 .22-.18.4-.4.4zm2.84 0h-1.3c-.22 0-.4-.18-.4-.4V7.5c0-.22.18-.4.4-.4h1.3c.22 0 .4.18.4.4v5.33c0 .22-.18.4-.4.4zm4.84 0h-1.12c-.08 0-.15-.03-.21-.08L16.2 9.56v3.27c0 .22-.18.4-.4.4h-1.3c-.22 0-.4-.18-.4-.4V7.5c0-.22.18-.4.4-.4h1.12c.08 0 .15.03.21.08l1.43 1.95V7.5c0-.22.18-.4.4-.4h1.3c.22 0 .4.18.4.4v5.33c0 .22-.18.4-.4.4z"/></svg>
+              Login with LINE
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="profile-logged-in" style="display:none">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:20px">
+      <!-- User Info & Social Logins Card -->
+      <div class="card">
+        <div class="card-body">
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px">
+            <div id="profile-avatar-big" style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--brand),var(--accent-magenta));color:white;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:bold">U</div>
+            <div>
+              <h3 id="profile-user-name" style="margin:0;font-size:18px">User Name</h3>
+              <p id="profile-user-email" style="margin:0;font-size:13px;color:var(--text-secondary)">user@email.com</p>
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <span class="badge" id="profile-user-tier" style="background:var(--bg-tertiary);color:var(--brand);padding:6px 12px;border-radius:20px;font-weight:600;font-size:12px">Free Member</span>
+          </div>
+
+          <hr style="border:none;border-top:1px solid var(--border-primary);margin:16px 0">
+
+          <div class="card-title mb-2">👤 Connected Login Methods</div>
+          <div style="display:flex;flex-direction:column;gap:10px" id="profile-auth-providers">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Balance & Credits Card -->
+      <div class="card" style="background:linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary))">
+        <div class="card-body">
+          <div class="card-title">💰 Credits & Balance</div>
+          
+          <!-- Balance -->
+          <div class="mb-4 mt-3">
+            <span style="font-size:13px;color:var(--text-secondary)">Account Balance</span>
+            <div style="font-size:32px;font-weight:bold;color:var(--text-primary)" id="profile-balance">฿0.00</div>
+          </div>
+          
+          <!-- Credits -->
+          <div class="mb-4">
+            <span style="font-size:13px;color:var(--text-secondary)">AI Render Credits</span>
+            <div style="font-size:24px;font-weight:bold;color:var(--brand)" id="profile-credits">0 / 200 Credits</div>
+            <!-- Progress bar -->
+            <div style="width:100%;height:8px;background:var(--border-primary);border-radius:4px;overflow:hidden;margin-top:6px">
+              <div id="profile-credits-bar" style="width:0%;height:100%;background:var(--brand);border-radius:4px;transition:width 0.5s"></div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:10px">
+            <button class="btn btn-primary" onclick="showToast('Topup feature coming soon', 'info')" style="flex:1">➕ Top-up</button>
+            <button class="btn btn-secondary" onclick="showToast('Subscribing feature coming soon', 'info')" style="flex:1">💳 Upgrade</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Logout Action Card -->
+    <div class="card mt-4" style="border:1px solid rgba(220,53,69,0.2)">
+      <div class="card-body" style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <span style="font-weight:600;color:var(--text-primary)">Sign out of TUS App</span>
+          <p style="margin:0;font-size:12px;color:var(--text-secondary)">Securely log out of this account session</p>
+        </div>
+        <button class="btn" style="background:var(--color-red-600);color:white;border:none;padding:8px 16px;cursor:pointer;border-radius:var(--radius)" onclick="authLogout()">Sign Out</button>
+      </div>
+    </div>
+  </div>
+</div>
 <div id="page-settings" class="page">
   <div class="page-header"><div><h2>Settings</h2><p>API endpoints and providers</p></div></div>
 
@@ -1434,146 +1569,21 @@ select.input { cursor: pointer; }
 </div>
 
 <!-- ═══ Post For Me ═══ -->
-<div id="page-pfm" class="page">
-  <div class="page-header"><div><h2>Post For Me</h2><p>Cross-platform social media posting — TikTok, Facebook, Instagram, YouTube, X, LinkedIn, Pinterest, Bluesky, Threads</p></div></div>
-  <div class="flex gap-2 mb-3" style="flex-wrap:wrap">
-    <button class="pfm-tab-btn active" data-tab="accounts" onclick="pfmSwitchTab('accounts')">📱 Accounts</button>
-    <button class="pfm-tab-btn" data-tab="post" onclick="pfmSwitchTab('post')">✏️ Post</button>
-    <button class="pfm-tab-btn" data-tab="schedule" onclick="pfmSwitchTab('schedule')">📅 Schedule</button>
-    <button class="pfm-tab-btn" data-tab="history" onclick="pfmSwitchTab('history')">📋 History</button>
+<!-- === Publisher === -->
+<div id="page-publisher" class="page">
+  <div class="page-header">
+    <div><h2>Publisher</h2><p>Cross-platform automated social media posting and scheduled jobs</p></div>
   </div>
 
-  <!-- Accounts -->
-  <div id="pfm-accounts" class="pfm-pane active">
-
-    <!-- Auth Hero Section -->
-    <div class="hero-section" id="authHero">
-      <h2>👋 Welcome to TikTok Studio</h2>
-      <p>Login to manage cross-platform accounts and content</p>
-      <button class="btn" onclick="openAuthModal()">🔐 Login / Register</button>
-    </div>
-    <div class="hero-section" id="authHeroLoggedIn" style="display:none;background:linear-gradient(135deg,var(--accent-green),var(--color-brand-700))">
-      <h2>👋 Welcome back, <span id="heroUserName">User</span>!</h2>
-      <p>You are logged in. Manage your posts and accounts below.</p>
-    </div>
-
-    <div class="flex gap-2 mb-3" style="flex-wrap:wrap;align-items:center">
-      <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px">
-        <strong style="font-size:15px">📱 Connected Platforms</strong>
-        <button class="btn btn-ghost btn-sm" onclick="pfmFetchAccounts()" title="Refresh" style="min-width:32px">🔄</button>
-      </div>
-      <div class="pfm-grid" id="pfm-platform-grid"><!-- rendered by JS --></div>
-      <div id="pfm-accounts-list"></div>
+  <!-- Publisher Sub-tabs -->
+  <div class="tab-bar mb-3" id="publisherSubTabs">
+    <button class="active" data-subtab="post" onclick="switchPublisherSub('post')">📝 Post Wizard</button>
+    <button data-subtab="queue" onclick="switchPublisherSub('queue')">📅 Scheduler Queue</button>
+    <button data-subtab="history" onclick="switchPublisherSub('history')">📜 Post History</button>
   </div>
 
-  <!-- Connect Modal -->
-  <!-- Connect Modal (for not-connected platforms) -->
-  <div class="modal-overlay" id="pfm-connect-modal" style="z-index:200">
-    <div class="modal" style="max-width:400px">
-      <div class="modal-header" style="border:none;padding:16px 0 8px;display:flex;justify-content:space-between;align-items:center">
-        <div class="font-medium" id="pfm-connect-title">🔗 Connect Platform</div>
-        <button class="btn btn-ghost btn-sm" onclick="pfmCloseConnectModal()" style="font-size:18px">✕</button>
-      </div>
-      <div id="pfm-connect-body" style="padding:8px 0 16px">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
-          <span id="pfm-connect-icon" style="font-size:40px">🎵</span>
-          <div><div class="font-medium" style="font-size:16px" id="pfm-connect-name">TikTok</div>
-          <div class="text-xs text-secondary">via Post For Me</div></div>
-        </div>
-        <div style="padding:12px;background:var(--bg-tertiary);border-radius:var(--radius)">
-          <div class="text-xs text-secondary mb-2" style="font-weight:600">Permissions</div>
-          <label style="display:block;margin-bottom:6px;cursor:pointer"><input type="checkbox" id="pfm-perm-posts" checked> Posts & Publish</label>
-          <label style="display:block;cursor:pointer"><input type="checkbox" id="pfm-perm-feeds" checked> Read Feeds</label>
-        </div>
-      </div>
-      <div class="flex gap-2" style="justify-content:flex-end">
-        <button class="btn btn-ghost" onclick="pfmCloseConnectModal()">Cancel</button>
-        <button class="btn btn-primary" id="pfm-connect-btn" onclick="pfmDoConnect()">🔗 Connect</button>
-      </div>
-      <div id="pfm-connect-result" class="mt-2"></div>
-    </div>
-  </div>
-
-  <!-- Account Detail Modal (for connected platforms) -->
-  <div class="modal-overlay" id="pfm-account-detail-modal" style="z-index:200">
-    <div class="modal" style="max-width:400px">
-      <div class="modal-header" style="border:none;padding:16px 0 8px;display:flex;justify-content:space-between;align-items:center">
-        <div class="font-medium" id="pfm-detail-title">📘 Account Details</div>
-        <button class="btn btn-ghost btn-sm" onclick="pfmCloseDetailModal()" style="font-size:18px">✕</button>
-      </div>
-      <div id="pfm-detail-body" style="padding:8px 0 16px">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
-          <span id="pfm-detail-icon" style="font-size:40px">📘</span>
-          <div><div class="font-medium" style="font-size:16px" id="pfm-detail-name">Username</div>
-          <div class="text-xs" style="color:var(--color-green-400)">✅ Connected</div></div>
-        </div>
-        <div id="pfm-detail-info"></div>
-      </div>
-      <div class="flex gap-2" style="justify-content:flex-end">
-        <button class="btn btn-ghost" onclick="pfmCloseDetailModal()">Close</button>
-        <button class="btn btn-danger" id="pfm-disconnect-btn" onclick="pfmDisconnectAccount()">🗑 Disconnect</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ═══ Auth Modal ═══ -->
-  <div class="modal-overlay" id="authModal" style="z-index:200">
-    <div class="modal auth-modal">
-      <div class="modal-header" style="border:none;padding:0 0 8px;display:flex;justify-content:space-between;align-items:center">
-        <div class="font-medium" style="font-size:16px">🔐 Account</div>
-        <button class="btn btn-ghost btn-sm" onclick="closeAuthModal()" style="font-size:18px">✕</button>
-      </div>
-      <div class="auth-tabs">
-        <button class="auth-tab active" id="authTabLogin" onclick="switchAuthTab('login')">Login</button>
-        <button class="auth-tab" id="authTabRegister" onclick="switchAuthTab('register')">Register</button>
-      </div>
-
-      <!-- Login Form -->
-      <div id="authLoginForm">
-        <div class="mb-3">
-          <label class="text-sm text-secondary mb-2" style="display:block">Email</label>
-          <input class="input" id="authLoginEmail" type="email" placeholder="you@example.com">
-        </div>
-        <div class="mb-3">
-          <label class="text-sm text-secondary mb-2" style="display:block">Password</label>
-          <input class="input" id="authLoginPassword" type="password" placeholder="••••••••">
-        </div>
-        <button class="btn btn-primary w-full" onclick="authLogin()" style="justify-content:center">Sign In</button>
-        <div id="authLoginResult" class="text-xs mt-2" style="text-align:center"></div>
-      </div>
-
-      <!-- Register Form -->
-      <div id="authRegisterForm" style="display:none">
-        <div class="mb-3">
-          <label class="text-sm text-secondary mb-2" style="display:block">Name</label>
-          <input class="input" id="authRegisterName" placeholder="Your name">
-        </div>
-        <div class="mb-3">
-          <label class="text-sm text-secondary mb-2" style="display:block">Email</label>
-          <input class="input" id="authRegisterEmail" type="email" placeholder="you@example.com">
-        </div>
-        <div class="mb-3">
-          <label class="text-sm text-secondary mb-2" style="display:block">Password</label>
-          <input class="input" id="authRegisterPassword" type="password" placeholder="••••••••">
-        </div>
-        <button class="btn btn-primary w-full" onclick="authRegister()" style="justify-content:center">Create Account</button>
-        <div id="authRegisterResult" class="text-xs mt-2" style="text-align:center"></div>
-      </div>
-
-      <div class="oauth-divider">OR</div>
-
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <button class="oauth-btn google" onclick="authOAuth('google')"><svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.54 28.59A14.5 14.5 0 0 1 9.5 24c0-1.59.28-3.14.76-4.59l-7.98-6.19A23.99 23.99 0 0 0 0 24c0 3.77.87 7.35 2.56 10.56l7.98-5.97z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 5.97C6.51 42.62 14.62 48 24 48z"/></svg> Login with Google</button>
-        <button class="oauth-btn facebook" onclick="authOAuth('facebook')">📘 Login with Facebook</button>
-        <button class="oauth-btn line" onclick="authOAuth('line')">💬 Login with LINE</button>
-      </div>
-
-      <div id="authResult" class="text-xs mt-3" style="text-align:center;color:var(--text-secondary)"></div>
-    </div>
-  </div>
-
-  <!-- Post -->
-  <div id="pfm-post" class="pfm-pane" style="display:none">
+  <!-- Subpage 1: Post Wizard -->
+  <div id="publisher-post" class="publisher-pane active">
     <div class="card"><div class="card-body">
       <div class="mb-2"><label class="form-label">Platform<br><select id="pfm-post-platform" class="input" onchange="pfmShowOpts()">
         <option value="tiktok">TikTok</option><option value="tiktok_business">TikTok Business</option>
@@ -1584,7 +1594,7 @@ select.input { cursor: pointer; }
       </select></label></div>
       <div class="mb-2"><label class="form-label">Account(s)<br><select id="pfm-post-accounts" class="input" multiple size="3"></select></label></div>
       <div class="mb-2"><label class="form-label">Caption<br><textarea id="pfm-post-caption" class="input" rows="4" placeholder="Write your caption..." oninput="document.getElementById('pfm-cc').textContent=this.value.length"></textarea>
-        <span class="text-xs text-secondary"><span id="pfm-cc">0</span> chars</span></label></div>
+      <span class="text-xs text-secondary"><span id="pfm-cc">0</span> chars</span></label></div>
       <div class="mb-2"><label class="form-label">Media URL (optional)<br><input type="text" id="pfm-post-media" class="input" placeholder="https://..."></label></div>
       <div id="pfm-opts" class="mb-2" style="padding:12px;background:var(--bg-tertiary);border-radius:var(--radius)"></div>
       <button class="btn btn-primary" onclick="pfmPostNow()">🚀 Post Now</button>
@@ -1592,157 +1602,58 @@ select.input { cursor: pointer; }
     </div></div>
   </div>
 
-  <!-- Schedule -->
-  <div id="pfm-schedule" class="pfm-pane" style="display:none">
-    <div class="card"><div class="card-body">
-      <div class="mb-2"><label class="form-label">Platform<br><select id="pfm-sched-platform" class="input">
-        <option value="tiktok">TikTok</option><option value="tiktok_business">TikTok Business</option>
-        <option value="facebook">Facebook</option><option value="instagram">Instagram</option>
-        <option value="x">X (Twitter)</option><option value="linkedin">LinkedIn</option>
-        <option value="youtube">YouTube</option><option value="pinterest">Pinterest</option>
-        <option value="bluesky">Bluesky</option><option value="threads">Threads</option>
-      </select></label></div>
-      <div class="mb-2"><label class="form-label">Account(s)<br><select id="pfm-sched-accounts" class="input" multiple size="3"></select></label></div>
-      <div class="mb-2"><label class="form-label">Caption<br><textarea id="pfm-sched-caption" class="input" rows="4"></textarea></label></div>
-      <div class="mb-2"><label class="form-label">Media URL<br><input type="text" id="pfm-sched-media" class="input" placeholder="https://..."></label></div>
-      <div class="mb-2"><label class="form-label">Schedule Time<br><input type="datetime-local" id="pfm-sched-time" class="input"></label></div>
-      <button class="btn btn-primary" onclick="pfmSchedule()">📅 Schedule</button>
-      <div id="pfm-sched-res" class="mt-2"></div>
-    </div></div>
-  </div>
-
-  <!-- History -->
-  <div id="pfm-history" class="pfm-pane" style="display:none">
-    <div class="card"><div class="card-body">
-      <div class="flex gap-2 mb-3"><button class="btn btn-secondary" onclick="pfmFetchHistory()">🔄 Refresh</button></div>
-      <div id="pfm-history-list"><div class="text-sm text-secondary">Loading history...</div></div>
-    </div></div>
-  </div>
-</div>
-
-<!-- ═══ Scout ═══ -->
-<div id="page-scout" class="page">
-  <div class="page-header"><div><h2>Facebook/IG Scout</h2><p>ค้นหา Viral Clips จาก Facebook → Clone → Pipeline</p></div></div>
-
-  <div class="flex gap-2 mb-3" style="flex-wrap:wrap;align-items:center">
-    <select id="scout-niche" class="input" style="min-width:160px">
-      <option value="">All Niches</option>
-    </select>
-    <input type="number" id="scout-min-eng" class="input" style="width:100px" value="500" placeholder="Min eng">
-    <button class="btn btn-primary" onclick="scoutSearch()">🔍 Search</button>
-    <button class="btn btn-secondary" onclick="scoutRefreshNiches()">🔄 Niches</button>
-  </div>
-
-  <div id="scout-results">
-    <div class="text-sm text-secondary">Select niche and search</div>
-  </div>
-
-  <!-- Template Quick Clone -->
-  <div class="card mt-3">
-    <div class="card-header"><span class="card-title">🎬 Quick Clone</span></div>
-    <div class="card-body">
-      <div class="flex gap-2" style="flex-wrap:wrap">
-        <input type="text" id="scout-clone-product" class="input" style="flex:1" placeholder="Product name">
-        <select id="scout-clone-template" class="input" style="min-width:140px">
-          <option value="quick_review">Quick Review</option>
-          <option value="problem_solution">Problem → Solution</option>
-          <option value="before_after">Before → After</option>
-          <option value="comparison">Side-by-Side</option>
-          <option value="testimonial">Testimonial</option>
-        </select>
-        <button class="btn btn-primary" onclick="scoutQuickClone()">📝 Generate Clone</button>
-      </div>
-      <div id="scout-clone-result" class="mt-2"></div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ Social ═══ -->
-<div id="page-social" class="page">
-  <div class="page-header">
-    <div><h2>Social</h2><p>Scout Targets + Clip Schedule</p></div>
-    <div class="flex gap-2" id="socialStatus"></div>
-  </div>
-
-  <!-- Sub-tabs -->
-  <div class="tab-bar" id="socialTabs">
-    <button class="active" data-subtab="targets" onclick="switchSocialSub('targets')">🎯 Scout Targets</button>
-    <button data-subtab="schedule" onclick="switchSocialSub('schedule')">📅 Clip Schedule</button>
-  </div>
-
-  <!-- Targets -->
-  <div id="social-targets" class="sub-page active">
-    <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
-      <button class="btn btn-primary btn-sm" onclick="showSocialAddTarget()">+ เพิ่มเป้าหมาย</button>
-      <button class="btn btn-sm" onclick="socialAnalyzeAll()">📊 วิเคราะห์ทั้งหมด</button>
-      <button class="btn btn-sm" onclick="renderSocialTargets()">🔄</button>
-    </div>
-    <div id="socialTargetsList" class="social-targets-grid"></div>
-    <div id="socialTargetForm" style="display:none;margin-top:12px"></div>
-    <div id="socialAnalyzeResult" style="display:none;margin-top:12px"></div>
-  </div>
-
-  <!-- Schedule -->
-  <div id="social-schedule" class="sub-page" style="display:none">
-    <div class="card">
-      <div class="card-title mb-2">📅 จำนวนคลิปต่อวัน</div>
-      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px">กำหนดจำนวนคลิปที่ต้องการให้ระบบ Auto Post จัดการในแต่ละวัน</p>
-      <div id="scheduleTargets" class="social-targets-grid"></div>
-      <div style="margin-top:16px;padding:16px;background:var(--bg-secondary);border-radius:var(--radius-xl)" id="scheduleSummary">
-        <div class="skeleton skeleton-line"></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ Post to TikTok Modal ═══ -->
-<div class="modal-overlay" id="postModal">
-  <div class="modal" style="max-width:480px">
-    <div class="modal-header" style="border:none;padding:16px 0 8px">
-      <div class="font-medium">🚀 Post to TikTok</div>
-      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('postModal').classList.remove('open')" style="font-size:18px">✕</button>
-    </div>
-    <div id="postModalBody">
-      <div class="mb-3">
-        <label class="text-sm text-secondary mb-2" style="display:block">🎬 วิดีโอ</label>
-        <video id="postVideoPreview" controls style="width:100%;max-height:240px;border-radius:var(--radius-lg);background:#000"></video>
-      </div>
-      <div class="mb-3">
-        <label class="text-sm text-secondary mb-2" style="display:block">📱 TikTok Account</label>
-        <select class="input" id="postAccountSelect"><option value="">— เลือกบัญชี —</option></select>
-      </div>
-      <div class="mb-3">
-        <label class="text-sm text-secondary mb-2" style="display:block">🔗 Affiliate Link <span class="text-xs text-tertiary">(optional)</span></label>
-        <input class="input" id="postAffiliateLink" placeholder="https://shopee.co.th/..." value="">
-        <div class="text-xs text-secondary mt-1">ถ้าใส่ — จะแนบใน Caption อัตโนมัติ สำหรับปักตะกร้า</div>
-      </div>
-      <div class="mb-3">
-        <label class="text-sm text-secondary mb-2" style="display:block">📝 Caption <span class="text-xs text-tertiary">(optional)</span></label>
-        <textarea class="input" id="postCaption" rows="2" placeholder="ข้อความเพิ่มเติม..."></textarea>
-      </div>
-      <div class="mb-3">
-        <label class="text-sm text-secondary mb-2" style="display:block">⏰ Schedule</label>
-        <div style="display:flex;gap:8px;align-items:center">
-          <input type="datetime-local" class="input" id="postScheduleTime" style="flex:1">
-          <button class="btn btn-sm" onclick="document.getElementById('postScheduleTime').value=''">📅 Now</button>
+  <!-- Subpage 2: Scheduler Queue -->
+  <div id="publisher-queue" class="publisher-pane" style="display:none">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:16px">
+      <!-- Quick Schedule Post Form -->
+      <div class="card"><div class="card-body">
+        <div class="card-title">📅 Quick Schedule Post</div>
+        <div class="mb-2"><label class="form-label">Platform<br><select id="pfm-sched-platform" class="input">
+          <option value="tiktok">TikTok</option><option value="tiktok_business">TikTok Business</option>
+          <option value="facebook">Facebook</option><option value="instagram">Instagram</option>
+          <option value="x">X (Twitter)</option><option value="linkedin">LinkedIn</option>
+          <option value="youtube">YouTube</option><option value="pinterest">Pinterest</option>
+          <option value="bluesky">Bluesky</option><option value="threads">Threads</option>
+        </select></label></div>
+        <div class="mb-2"><label class="form-label">Account(s)<br><select id="pfm-sched-accounts" class="input" multiple size="3"></select></label></div>
+        <div class="mb-2"><label class="form-label">Caption<br><textarea id="pfm-sched-caption" class="input" rows="4"></textarea></label></div>
+        <div class="mb-2"><label class="form-label">Media URL<br><input type="text" id="pfm-sched-media" class="input" placeholder="https://..."></label></div>
+        <div class="mb-2"><label class="form-label">Schedule Time<br><input type="datetime-local" id="pfm-sched-time" class="input"></label></div>
+        <button class="btn btn-primary" onclick="pfmSchedule()">📅 Schedule</button>
+        <div id="pfm-sched-res" class="mt-2"></div>
+      </div></div>
+      
+      <!-- Video Generation Queue -->
+      <div class="card"><div class="card-body">
+        <div class="card-title">⏳ Video Production Queue</div>
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">งานสร้างวิดีโอแบบตั้งเวลาผ่านระบบอัตโนมัติ</p>
+        <div class="flex gap-2 mb-3">
+          <button class="btn btn-secondary btn-sm" onclick="loadScheduledPosts()">🔄 Refresh</button>
         </div>
-        <div class="text-xs text-secondary mt-1">ถ้าไม่เลือกเวลา = Post ทันที</div>
-      </div>
-      <div style="display:flex;gap:8px;margin-top:16px">
-        <button class="btn btn-secondary" onclick="document.getElementById('postModal').classList.remove('open')" style="flex:1">ยกเลิก</button>
-        <button class="btn btn-primary" id="postBtn" onclick="postToTikTok()" style="flex:1">🚀 Post Now</button>
-      </div>
-      <div id="postProgress" style="display:none;margin-top:12px">
-        <div class="text-sm text-secondary mb-2" id="postProgressText">กำลัง Post...</div>
-        <div style="height:4px;background:var(--bg-tertiary);border-radius:999px;overflow:hidden">
-          <div id="postProgressBar" style="height:100%;width:30%;background:var(--brand);border-radius:999px;transition:width .5s"></div>
-        </div>
-      </div>
+        <div id="scheduledPostsList"><div class="text-sm text-secondary">Loading...</div></div>
+      </div></div>
+    </div>
+  </div>
+
+  <!-- Subpage 3: Post History -->
+  <div id="publisher-history" class="publisher-pane" style="display:none">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:16px">
+      <!-- Social Posting Logs -->
+      <div class="card"><div class="card-body">
+        <div class="card-title">🔗 Social Posting Logs</div>
+        <div class="flex gap-2 mb-3"><button class="btn btn-secondary btn-sm" onclick="pfmFetchHistory()">🔄 Refresh</button></div>
+        <div id="pfm-history-list"><div class="text-sm text-secondary">Loading history...</div></div>
+      </div></div>
+      
+      <!-- Video Generation History -->
+      <div class="card"><div class="card-body">
+        <div class="card-title">🎬 Video Production Logs</div>
+        <div class="flex gap-2 mb-3"><button class="btn btn-secondary btn-sm" onclick="loadHistory()">🔄 Refresh</button></div>
+        <div id="historyList"><div class="text-sm text-secondary">Loading history...</div></div>
+      </div></div>
     </div>
   </div>
 </div>
-
-</div><!-- /main -->
 </div><!-- /app -->
 
 <script>
@@ -1753,6 +1664,16 @@ let currentStep = 1;
 
 /* ═══ Tab switching ═══ */
 function switchTab(name) {
+  // Automatically close mobile side drawer if open
+  const nav = document.getElementById('sideNav');
+  const overlay = document.getElementById('sideOverlay');
+  if (nav && nav.classList.contains('open')) {
+    nav.classList.remove('open');
+  }
+  if (overlay && overlay.classList.contains('open')) {
+    overlay.classList.remove('open');
+  }
+
   // Highlight mobile bottom tab item
   document.querySelectorAll('.mobile-tab-item').forEach(item => {
     item.classList.remove('active');
@@ -1762,22 +1683,175 @@ function switchTab(name) {
     }
   });
 
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.topbar-nav button, .side-nav-body button').forEach(b => b.classList.remove('active'));
-  document.getElementById('page-'+name)?.classList.add('active');
-  document.querySelectorAll(`[data-tab="${name}"]`).forEach(b => b.classList.add('active'));
+  // Highlight side-nav and topbar-nav buttons
+  document.querySelectorAll('[data-tab]').forEach(btn => {
+    btn.classList.remove('active');
+    if (btn.getAttribute('data-tab') === name) {
+      btn.classList.add('active');
+    }
+  });
+
+  // Switch display of page panels
+  document.querySelectorAll('.page').forEach(page => {
+    page.classList.remove('active');
+    page.style.display = 'none';
+  });
+
+  const activePage = document.getElementById('page-' + name);
+  if (activePage) {
+    activePage.classList.add('active');
+    activePage.style.display = 'block';
+  }
+
+  // Load specific tab data
   if (name === 'dashboard') loadDashboard();
   if (name === 'pipeline') loadPipelineJobs();
   if (name === 'assets') loadAssets();
-  if (name === 'accounts') loadAccounts();
-  if (name === 'history') loadHistory();
-  if (name === 'scheduled') loadScheduledPosts();
-  if (name === 'social') renderSocial();
-  if (name === 'pfm') pfmFetchAccounts();
-  if (name === 'scout') scoutRefreshNiches();
-  if (name === 'settings') loadProviders();
-  if (name === 'products') loadAnalyzedProducts();
-  if (name === 'content') setTimeout(loadRecipes, 100);
+  if (name === 'publisher') pfmFetchAccounts();
+  if (name === 'scout') {
+    switchScoutSub('niche');
+  }
+  if (name === 'accounts') {
+    switchAccountsSub('tiktok');
+  }
+  if (name === 'profile') {
+    updateAuthUI();
+  }
+}
+
+// --- Consolidated Sub-tab Switchers ---
+function switchAccountsSub(sub) {
+  document.querySelectorAll('#accountsSubTabs button').forEach(btn => {
+    btn.classList.remove('active');
+    if (btn.getAttribute('data-subtab') === sub) btn.classList.add('active');
+  });
+  document.querySelectorAll('.accounts-pane').forEach(p => p.style.display = 'none');
+  document.getElementById('accounts-' + sub).style.display = 'block';
+  if (sub === 'tiktok') loadAccounts();
+  if (sub === 'social') pfmFetchAccounts();
+}
+
+function switchPublisherSub(sub) {
+  document.querySelectorAll('#publisherSubTabs button').forEach(btn => {
+    btn.classList.remove('active');
+    if (btn.getAttribute('data-subtab') === sub) btn.classList.add('active');
+  });
+  document.querySelectorAll('.publisher-pane').forEach(p => p.style.display = 'none');
+  document.getElementById('publisher-' + sub).style.display = 'block';
+  if (sub === 'post') pfmFetchAccounts();
+  if (sub === 'queue') {
+    loadScheduledPosts();
+    pfmFetchAccounts();
+  }
+  if (sub === 'history') {
+    pfmFetchHistory();
+    loadHistory();
+  }
+}
+
+function switchScoutSub(sub) {
+  document.querySelectorAll('#scoutSubTabs button').forEach(btn => {
+    btn.classList.remove('active');
+    if (btn.getAttribute('data-subtab') === sub) btn.classList.add('active');
+  });
+  document.querySelectorAll('.scout-pane').forEach(p => p.style.display = 'none');
+  if (sub === 'niche') {
+    document.getElementById('scout-niche-pane').style.display = 'block';
+    scoutRefreshNiches();
+  } else if (sub === 'targets') {
+    document.getElementById('scout-targets').style.display = 'block';
+    renderSocialTargets();
+  } else if (sub === 'schedule') {
+    document.getElementById('scout-schedule').style.display = 'block';
+    renderSchedule();
+  }
+}
+
+// --- Profile Local Auth Tab Switcher ---
+function toggleLocalAuthTab(tab) {
+  document.querySelectorAll('#profileAuthTabs button').forEach(btn => btn.classList.remove('active'));
+  document.getElementById('local-login-form').style.display = tab === 'login' ? 'block' : 'none';
+  document.getElementById('local-register-form').style.display = tab === 'register' ? 'block' : 'none';
+  
+  if (tab === 'login') {
+    document.getElementById('btn-login-tab').classList.add('active');
+  } else {
+    document.getElementById('btn-register-tab').classList.add('active');
+  }
+}
+
+// --- Profile Auth Actions ---
+async function profileLocalLogin() {
+  const email = document.getElementById('profile-login-email').value.trim();
+  const password = document.getElementById('profile-login-password').value;
+  const result = document.getElementById('profile-login-res');
+  
+  if (!email || !password) {
+    result.textContent = 'Please fill in all fields';
+    result.style.color = 'var(--color-red-400)';
+    return;
+  }
+  
+  result.textContent = '⚡ Signing in...';
+  result.style.color = 'var(--text-secondary)';
+  
+  try {
+    const r = await fetch(window.location.origin + '/api/auth/login', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({email, password})
+    });
+    const d = await r.json();
+    if (d.ok && d.token) {
+      localStorage.setItem('tus_token', d.token);
+      localStorage.setItem('tus_user', JSON.stringify(d.user || {email: email, name: (d.user?.name || email.split('@')[0])}));
+      updateAuthUI();
+      showToast('Logged in successfully', 'success');
+    } else {
+      result.textContent = d.message || d.error || 'Login failed';
+      result.style.color = 'var(--color-red-400)';
+    }
+  } catch(e) {
+    result.textContent = 'Error: ' + e.message;
+    result.style.color = 'var(--color-red-400)';
+  }
+}
+
+async function profileLocalRegister() {
+  const name = document.getElementById('profile-reg-name').value.trim();
+  const email = document.getElementById('profile-reg-email').value.trim();
+  const password = document.getElementById('profile-reg-password').value;
+  const result = document.getElementById('profile-reg-res');
+  
+  if (!name || !email || !password) {
+    result.textContent = 'Please fill in all fields';
+    result.style.color = 'var(--color-red-400)';
+    return;
+  }
+  
+  result.textContent = '⚡ Creating account...';
+  result.style.color = 'var(--text-secondary)';
+  
+  try {
+    const r = await fetch(window.location.origin + '/api/auth/register', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({name, email, password})
+    });
+    const d = await r.json();
+    if (d.ok && d.token) {
+      localStorage.setItem('tus_token', d.token);
+      localStorage.setItem('tus_user', JSON.stringify(d.user || {name: name, email: email}));
+      updateAuthUI();
+      showToast('Account created successfully', 'success');
+    } else {
+      result.textContent = d.message || d.error || 'Registration failed';
+      result.style.color = 'var(--color-red-400)';
+    }
+  } catch(e) {
+    result.textContent = 'Error: ' + e.message;
+    result.style.color = 'var(--color-red-400)';
+  }
 }
 
 /* ═══ Toast ═══ */
@@ -3518,15 +3592,14 @@ const PFM_API = window.location.origin + '/ugc';
 
 // Platform SVG logos (loaded from external file)
 const PFM_PLATFORMS = {
-  tiktok: { icon:'🎵', name:'TikTok' },
+  tiktok_local: { icon:'🔑', name:'TikTok (Local)' },
   tiktok_business: { icon:'💼', name:'TikTok Business' },
-  facebook: { icon:'📘', name:'Facebook' },
+  facebook: { icon:'🔵', name:'Facebook' },
   instagram: { icon:'📸', name:'Instagram' },
-  x: { icon:'𝕏', name:'X (Twitter)' },
-  linkedin: { icon:'🔗', name:'LinkedIn' },
-  youtube: { icon:'▶️', name:'YouTube' },
+  x: { icon:'🐦', name:'X (Twitter)' },
+  linkedin: { icon:'👔', name:'LinkedIn' },
+  youtube: { icon:'🎥', name:'YouTube' },
   pinterest: { icon:'📌', name:'Pinterest' },
-  bluesky: { icon:'☁️', name:'Bluesky' },
   threads: { icon:'🧵', name:'Threads' }
 };
 
@@ -3653,8 +3726,10 @@ async function pfmFetchAccounts() {
   var grid = document.getElementById('pfm-platform-grid');
   if (grid) {
     grid.innerHTML = '';
-    var platforms = ['tiktok','tiktok_business','facebook','instagram','x','linkedin','youtube','pinterest','bluesky','threads'];
+    var platforms = ['tiktok_local', 'tiktok_business', 'facebook', 'instagram', 'youtube', 'x', 'linkedin', 'pinterest', 'threads'];
     var svgs = window.PLATFORM_SVGS || {};
+    
+    var localAcctsCount = document.querySelectorAll('#accountsList .account-item').length || 0;
     
     platforms.forEach(function(plat){
       var pf = PFM_PLATFORMS[plat] || { icon:'?', name:plat };
@@ -3664,28 +3739,46 @@ async function pfmFetchAccounts() {
       var svgHtml = svgs[plat] || pf.icon;
       
       var card = document.createElement('div');
-      card.className = 'pfm-card' + (connected ? ' connected' : '');
-      card.innerHTML =
-        '<div class="status-dot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div>' +
-        '<div>' + svgHtml + '</div>' +
-        '<div class="card-label">' + pf.name + '</div>' +
-        (connected ? '<div class="card-sub">' + (info.username||'Connected') + '</div>' : '<div class="card-sub" style="color:var(--color-red-400)">Not connected</div>');
       
-      // Mark unsupported platforms (PFM limitations as of June 2026)
-      var unsupported = ['instagram', 'bluesky'];
-      if (unsupported.includes(plat) && !connected) {
-        card.style.opacity = '0.45';
-        card.style.cursor = 'not-allowed';
-        card.querySelector('.card-sub').textContent = 'Coming Soon';
-        card.onclick = function(){};  // disabled click
-      } else {
-        card.onclick = function(){
-          if (connected) {
-            pfmOpenDetail(plat, accts);
-          } else {
-            pfmOpenConnectModal(plat);
-          }
+      if (plat === 'tiktok_local') {
+        var hasLocal = localAcctsCount > 0;
+        card.className = 'pfm-card' + (hasLocal ? ' connected' : '');
+        card.innerHTML = 
+          '<div class="status-dot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div>' +
+          '<div style="font-size:32px;margin-bottom:8px">🔑</div>' +
+          '<div class="card-label">' + pf.name + '</div>' +
+          (hasLocal ? '<div class="card-sub">' + localAcctsCount + ' Session(s)</div>' : '<div class="card-sub" style="color:var(--color-red-400)">Not connected</div>');
+          
+        card.onclick = function() {
+          document.getElementById('tiktok-local-panel').scrollIntoView({ behavior: 'smooth' });
+          var panel = document.getElementById('tiktok-local-panel');
+          panel.style.boxShadow = '0 0 20px var(--brand)';
+          setTimeout(function() { panel.style.boxShadow = ''; }, 1500);
         };
+      } 
+      else {
+        card.className = 'pfm-card' + (connected ? ' connected' : '');
+        card.innerHTML =
+          '<div class="status-dot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div>' +
+          '<div>' + svgHtml + '</div>' +
+          '<div class="card-label">' + pf.name + '</div>' +
+          (connected ? '<div class="card-sub">' + (info.username||'Connected') + '</div>' : '<div class="card-sub" style="color:var(--color-red-400)">Connect</div>');
+          
+        var unsupported = ['instagram', 'bluesky'];
+        if (unsupported.includes(plat) && !connected) {
+          card.style.opacity = '0.45';
+          card.style.cursor = 'not-allowed';
+          card.querySelector('.card-sub').textContent = 'Coming Soon';
+          card.onclick = function(){};
+        } else {
+          card.onclick = function() {
+            if (connected) {
+              pfmOpenDetail(plat, accts);
+            } else {
+              pfmOpenConnectModal(plat);
+            }
+          };
+        }
       }
       grid.appendChild(card);
     });
@@ -3696,12 +3789,12 @@ async function pfmFetchAccounts() {
     var sel = document.getElementById(id); if(!sel) return;
     sel.innerHTML = '';
     accounts.forEach(function(a){
-      var o=document.createElement('option'); o.value=a.id; o.textContent=a.platform+' - '+(a.username||a.id); sel.appendChild(o);
+      var opt = document.createElement('option');
+      opt.value = a.id;
+      opt.textContent = '[' + a.platform.toUpperCase() + '] ' + a.username;
+      sel.appendChild(opt);
     });
   });
-  
-  var d = document.getElementById('pfm-accounts-list');
-  if (d) d.innerHTML = '';
 }
 
 function pfmOpenDetail(platform, accounts) {
@@ -3837,22 +3930,71 @@ function updateAuthUI() {
   const badge = document.getElementById('userBadge');
   const badgeName = document.getElementById('userBadgeName');
   const badgeAvatar = document.getElementById('userBadgeAvatar');
-  const hero = document.getElementById('authHero');
-  const heroLoggedIn = document.getElementById('authHeroLoggedIn');
-  const heroName = document.getElementById('heroUserName');
-
+  
+  const loggedOutPanel = document.getElementById('profile-logged-out');
+  const loggedInPanel = document.getElementById('profile-logged-in');
+  
   if (token && user) {
     if (badge) { badge.style.display = 'flex'; }
     if (badgeName) { badgeName.textContent = user.name || user.email || 'User'; }
     if (badgeAvatar) { badgeAvatar.textContent = (user.name || user.email || 'U')[0].toUpperCase(); }
-    if (hero) { hero.style.display = 'none'; }
-    if (heroLoggedIn) { heroLoggedIn.style.display = 'block'; }
-    if (heroName) { heroName.textContent = user.name || user.email || 'User'; }
-    document.getElementById('userBadgeLogout').style.display = 'inline';
+    document.getElementById('userBadgeLogout').style.display = 'inline-flex';
+    
+    // Update top header balance display
+    const balanceVal = user.balance !== undefined ? parseFloat(user.balance).toFixed(2) : '0.00';
+    const badgeBalance = document.getElementById('userBadgeBalance');
+    if (badgeBalance) { badgeBalance.textContent = '฿' + balanceVal; }
+    
+    if (loggedOutPanel) loggedOutPanel.style.display = 'none';
+    if (loggedInPanel) {
+      loggedInPanel.style.display = 'block';
+      
+      document.getElementById('profile-user-name').textContent = user.name || user.email || 'User';
+      document.getElementById('profile-user-email').textContent = user.email || '';
+      document.getElementById('profile-avatar-big').textContent = (user.name || user.email || 'U')[0].toUpperCase();
+      document.getElementById('profile-user-tier').textContent = user.member_tier || 'Free Member';
+      
+      const balanceVal = user.balance !== undefined ? parseFloat(user.balance).toFixed(2) : '0.00';
+      document.getElementById('profile-balance').textContent = '฿' + balanceVal;
+      
+      const creditsVal = user.credits || 0;
+      const maxCreditsVal = user.max_credits || 200;
+      document.getElementById('profile-credits').textContent = creditsVal + ' / ' + maxCreditsVal + ' Credits';
+      
+      const percent = Math.min(100, Math.round((creditsVal / maxCreditsVal) * 100));
+      document.getElementById('profile-credits-bar').style.width = percent + '%';
+      
+      const providersDiv = document.getElementById('profile-auth-providers');
+      if (providersDiv) {
+        let email = user.email || '';
+        let isLine = email.includes('@line.me');
+        let isGoogle = !isLine && email.includes('@gmail.com');
+        
+        providersDiv.innerHTML = `
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:var(--bg-tertiary);border-radius:var(--radius)">
+            <div style="display:flex;align-items:center;gap:10px">
+              <svg viewBox="0 0 24 24" width="16" height="16" style="flex-shrink:0"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+              <strong>Google Account</strong>
+            </div>
+            <span style="font-size:12.5px;font-weight:600;color:${isGoogle ? 'var(--accent-green)' : 'var(--text-secondary)'}">${isGoogle ? 'Connected' : 'Not Linked'}</span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:var(--bg-tertiary);border-radius:var(--radius);margin-top:10px">
+            <div style="display:flex;align-items:center;gap:10px">
+              <svg viewBox="0 0 24 24" width="16" height="16" style="flex-shrink:0"><path fill="#06C755" d="M12 2C6.48 2 2 5.82 2 10.53c0 4.21 3.56 7.73 8.39 8.43.33.07.78.22.89.57.1.31.07.8.03 1.12l-.12.75c-.04.25-.19.97.83.53 1.02-.44 5.51-3.25 7.52-5.57 1.4-1.62 2.36-3.46 2.36-5.78C22 5.82 17.52 2 12 2zm-4.7 11.23h-1.3c-.22 0-.4-.18-.4-.4V7.5c0-.22.18-.4.4-.4h1.3c.22 0 .4.18.4.4v5.33c0 .22-.18.4-.4.4zm3.87 0H9.72c-.22 0-.4-.18-.4-.4V7.5c0-.22.18-.4.4-.4h1.3c.22 0 .4.18.4.4v.93c0 .22-.18.4-.4.4H10.6v.87h.57c.22 0 .4.18.4.4v.93c0 .22-.18.4-.4.4h-.57v.88h1.12c.22 0 .4.18.4.4v.93c0 .22-.18.4-.4.4zm2.84 0h-1.3c-.22 0-.4-.18-.4-.4V7.5c0-.22.18-.4.4-.4h1.3c.22 0 .4.18.4.4v5.33c0 .22-.18.4-.4.4zm4.84 0h-1.12c-.08 0-.15-.03-.21-.08L16.2 9.56v3.27c0 .22-.18.4-.4.4h-1.3c-.22 0-.4-.18-.4-.4V7.5c0-.22.18-.4.4-.4h1.12c.08 0 .15.03.21.08l1.43 1.95V7.5c0-.22.18-.4.4-.4h1.3c.22 0 .4.18.4.4v5.33c0 .22-.18.4-.4.4z"/></svg>
+              <strong>LINE Account</strong>
+            </div>
+            <span style="font-size:12.5px;font-weight:600;color:${isLine ? 'var(--accent-green)' : 'var(--text-secondary)'}">${isLine ? 'Connected' : 'Not Linked'}</span>
+          </div>
+        `;
+      }
+    }
   } else {
     if (badge) { badge.style.display = 'none'; }
-    if (hero) { hero.style.display = 'block'; }
-    if (heroLoggedIn) { heroLoggedIn.style.display = 'none'; }
+    if (loggedOutPanel) {
+      loggedOutPanel.style.display = 'block';
+      toggleLocalAuthTab('login');
+    }
+    if (loggedInPanel) loggedInPanel.style.display = 'none';
   }
 }
 

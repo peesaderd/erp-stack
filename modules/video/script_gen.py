@@ -14,41 +14,33 @@ logger = logging.getLogger("tiktok-ugc.script_gen")
 
 PROMPTS_DIR = Path(__file__).parent / "prompts"
 
-# ─── LLM Config ────────────────────────────────────────────────────────────
+# ─── Gemini Config ─────────────────────────────────────────────────────────
 
-LLM_API_KEY = os.environ.get("LLM_API_KEY", "")
-LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "https://api.deepseek.com")
-LLM_MODEL = os.environ.get("LLM_MODEL", "deepseek-chat")
-
-
-def _call_llm(system_prompt: str, user_prompt: str) -> Optional[str]:
-    """Call LLM API (DeepSeek by default)"""
-    if not LLM_API_KEY:
-        logger.warning("No LLM_API_KEY configured — using template fallback")
+def _call_gemini(system_prompt: str, user_prompt: str) -> Optional[str]:
+    """Call Gemini API for script generation."""
+    api_key = os.environ.get("GEMINI_API_KEY", "")
+    if not api_key:
+        logger.warning("No GEMINI_API_KEY configured — using template fallback")
         return None
 
     try:
         import httpx
-        resp = httpx.post(
-            f"{LLM_BASE_URL}/chat/completions",
-            headers={"Authorization": f"Bearer {LLM_API_KEY}", "Content-Type": "application/json"},
-            json={
-                "model": LLM_MODEL,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                "temperature": 0.7,
-                "max_tokens": 2000,
-            },
-            timeout=30,
-        )
-        if resp.status_code != 200:
-            logger.warning(f"LLM API error: {resp.status_code} {resp.text[:200]}")
+        gemini_model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{gemini_model}:generateContent?key={api_key}"
+        payload = {
+            "system_instruction": {"parts": [{"text": system_prompt}]},
+            "contents": [{"parts": [{"text": user_prompt}]}],
+            "generationConfig": {"temperature": 0.7, "maxOutputTokens": 2000},
+        }
+        resp = httpx.post(url, json=payload, timeout=30)
+        if resp.status_code == 200:
+            data = resp.json()
+            return data["candidates"][0]["content"]["parts"][0]["text"]
+        else:
+            logger.warning(f"Gemini API error ({resp.status_code}): {resp.text[:200]}")
             return None
-        return resp.json()["choices"][0]["message"]["content"]
     except Exception as e:
-        logger.error(f"LLM call failed: {e}")
+        logger.error(f"Gemini call failed: {e}")
         return None
 
 
@@ -110,7 +102,7 @@ def generate_tiktok_review_script(
     user_prompt = fill_template(user_tpl, user_data)
 
     # Try LLM
-    raw = _call_llm(system, f"{master}\n\n{user_prompt}")
+    raw = _call_gemini(system, f"{master}\n\n{user_prompt}")
 
     if raw:
         return {
@@ -207,7 +199,7 @@ def generate_ugc_script(
     full_prompt = f"{system_full}\n\n{master}\n\n{user_prompt}"
 
     # Try LLM
-    raw = _call_llm(system_full, f"{master}\n\n{user_prompt}")
+    raw = _call_gemini(system_full, f"{master}\n\n{user_prompt}")
 
     return {
         "style": style,

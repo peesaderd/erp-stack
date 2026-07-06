@@ -260,6 +260,93 @@ async def call_payment(
 
 
 # ═══════════════════════════════════════════════════════════════
+# Prompt Studio Tools — Centralized Prompt Registry
+# ═══════════════════════════════════════════════════════════════
+
+PROMPT_STUDIO_URL = os.environ.get("PROMPT_STUDIO_URL", "http://localhost:8108")
+
+
+@mcp.tool()
+async def prompts_list() -> str:
+    """List all prompt modules available from Prompt Studio.
+
+    Returns a structured list of prompt modules (tiktok, ugc, image)
+    with submodules and file counts.
+    """
+    result = await _http_call("GET", f"{PROMPT_STUDIO_URL}/modules")
+    if result["ok"]:
+        data = result["data"]
+        return json.dumps({
+            "ok": True,
+            "total": data.get("total", 0),
+            "mode": data.get("mode", "unknown"),
+            "modules": data.get("modules", []),
+        }, indent=2, ensure_ascii=False)
+    return json.dumps({"ok": False, "error": "Prompt Studio unreachable"}, indent=2)
+
+
+@mcp.tool()
+async def resources_list() -> str:
+    """List all available prompt files from Prompt Studio.
+
+    Returns a flat list of all prompt files across all modules
+    with their paths, sizes, and module names.
+    """
+    modules_result = await _http_call("GET", f"{PROMPT_STUDIO_URL}/modules")
+    if not modules_result["ok"]:
+        return json.dumps({"ok": False, "error": "Prompt Studio unreachable"}, indent=2)
+
+    modules = modules_result["data"].get("modules", [])
+    resources = []
+
+    for mod in modules:
+        mod_name = mod["name"]
+        prompts_result = await _http_call("GET", f"{PROMPT_STUDIO_URL}/prompts/{mod_name}")
+        if prompts_result["ok"]:
+            for f in prompts_result["data"].get("files", []):
+                resource = {
+                    "name": f"prompts/{mod_name}/{f['name']}",
+                    "module": mod_name,
+                    "path": f["path"],
+                    "size": f["size"],
+                    "uri": f"prompt-studio://{mod_name}/{f['name']}",
+                }
+                if mod.get("submodules"):
+                    resource["submodule"] = mod["submodules"]
+                resources.append(resource)
+
+    return json.dumps({
+        "ok": True,
+        "total": len(resources),
+        "resources": resources,
+    }, indent=2, ensure_ascii=False)
+
+
+@mcp.tool()
+async def get_prompt(module: str = "", name: str = "") -> str:
+    """Get the content of a specific prompt from Prompt Studio.
+
+    Args:
+        module: Module name (e.g., tiktok, ugc, image)
+        name: Prompt file name (e.g., system.prompt.txt, master.prompt.txt)
+    """
+    if not module or not name:
+        return json.dumps({"ok": False, "error": "module and name required"}, indent=2)
+    result = await _http_call("GET", f"{PROMPT_STUDIO_URL}/prompts/{module}/{name}")
+    if result["ok"]:
+        data = result["data"]
+        return json.dumps({
+            "ok": True,
+            "module": data.get("module", module),
+            "name": data.get("name", name),
+            "content": data.get("content", ""),
+            "size": data.get("size", 0),
+            "mode": data.get("mode", "unknown"),
+        }, indent=2, ensure_ascii=False)
+    return json.dumps({"ok": False, "error": f"Prompt not found: {module}/{name}"}, indent=2)
+
+
+# ═══════════════════════════════════════════════════════════════
 # Convenience Tools — Profile
 # ═══════════════════════════════════════════════════════════════
 

@@ -505,17 +505,11 @@ def run_pipeline(
     for i, prompt in enumerate(scene_prompts):
         logger.info(f"Step {2 + num_scenes + i}/{3 + num_scenes}: Video {i+1} (img2vid+audio)")
 
-        # First image (FLUX gen)
-        img_url = generate_image(prompt, reference_analysis=sam3_analysis)
-        img_path = TMP_DIR / f"vid_img_{run_id}_{i}.png"
-        download_file(img_url, img_path)
-
-        # Then img2vid with audio
+        # Reuse image from Step 1 instead of generating again
         if product_image and os.path.exists(product_image):
-            # Use real product image for first scene!
             ref_img = product_image
         else:
-            ref_img = img_path
+            ref_img = image_paths[i]
 
         vid_url = generate_video_with_image_and_audio(
             image_path=ref_img,

@@ -1,5 +1,8 @@
 """Auth Module — user registration, login, OAuth (Google, Facebook, Line), biometric"""
 import os
+from dotenv import load_dotenv
+load_dotenv(os.path.join(os.path.dirname(__file__), '.env'), override=True)
+
 import uuid
 import hashlib
 import secrets
@@ -245,6 +248,7 @@ async def oauth_login(req: OAuthRequest, db: AsyncSession = Depends(get_db)):
                 user_id=user.id,
                 provider=req.provider,
                 provider_email=req.email,
+                provider_user_id=req.email,
             )
             db.add(link)
         else:
@@ -263,6 +267,7 @@ async def oauth_login(req: OAuthRequest, db: AsyncSession = Depends(get_db)):
                 user_id=user.id,
                 provider=req.provider,
                 provider_email=req.email,
+                provider_user_id=req.email,
             )
             db.add(link)
         
@@ -389,6 +394,7 @@ async def google_callback(code: str, state: Optional[str] = None, db: AsyncSessi
                     user_id=user.id,
                     provider="google",
                     provider_email=email,
+                    provider_user_id=user_info.get("sub") or email,
                 )
                 db.add(link)
             else:
@@ -406,6 +412,7 @@ async def google_callback(code: str, state: Optional[str] = None, db: AsyncSessi
                     user_id=user.id,
                     provider="google",
                     provider_email=email,
+                    provider_user_id=user_info.get("sub") or email,
                 )
                 db.add(link)
             
@@ -499,6 +506,7 @@ async def facebook_callback(code: str, state: Optional[str] = None, db: AsyncSes
                     user_id=user.id,
                     provider="facebook",
                     provider_email=email,
+                    provider_user_id=user_info.get("id") or email,
                 )
                 db.add(link)
             else:
@@ -516,6 +524,7 @@ async def facebook_callback(code: str, state: Optional[str] = None, db: AsyncSes
                     user_id=user.id,
                     provider="facebook",
                     provider_email=email,
+                    provider_user_id=user_info.get("id") or email,
                 )
                 db.add(link)
             
@@ -609,6 +618,7 @@ async def line_callback(code: str, state: Optional[str] = None, db: AsyncSession
                     user_id=user.id,
                     provider="line",
                     provider_email=email,
+                    provider_user_id=line_user_id or email,
                 )
                 db.add(link)
             else:
@@ -626,6 +636,7 @@ async def line_callback(code: str, state: Optional[str] = None, db: AsyncSession
                     user_id=user.id,
                     provider="line",
                     provider_email=email,
+                    provider_user_id=line_user_id or email,
                 )
                 db.add(link)
             

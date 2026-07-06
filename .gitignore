@@ -54,3 +54,21 @@ erp_shared.egg-info/
 
 # Google Sheets / Drive credentials
 modules/product/sheets_credentials.json
+litellm_config.yaml
+opencode_proxy.py
+.browser_profiles/
+tiktok-ugc-studio/.env_token
+tiktok-ugc-studio/browser_profiles/
+ecosystem-modules.config.js
+*.bak
+*.bak_env
+modules/auth/main.py.bak_env
+tiktok-ugc-studio/TUS_Colab.ipynb
+tiktok-ugc-studio/colab_notebook/TUS_Colab.ipynb
+tiktok-ugc-studio/colab_notebook/TUS_Colab_Pull.ipynb
+tiktok-ugc-studio/colab_pipeline.py
+tiktok-ugc-studio/bgm/bg_upbeat_01.mp3
+tiktok-ugc-studio/bgm/bg_upbeat_02.mp3
+tiktok-ugc-studio/refresh_images.py
+modules/video/storage/
+

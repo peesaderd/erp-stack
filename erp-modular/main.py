@@ -5,6 +5,7 @@ API Gateway + Auth + Rate Limiting + CRUD + Agent Logging + Micro-frontend Shell
 
 import os
 import logging
+import requests
 from datetime import datetime
 from pathlib import Path
 from fastapi import FastAPI, Request
@@ -164,3 +165,79 @@ def clear_agent_logs():
     global agent_log
     agent_log = []
     return {"ok": True, "cleared": True}
+
+
+# ─── Prompt Studio Bridge ────────────────────────────────────────────────────
+
+PROMPT_STUDIO_URL = os.environ.get("PROMPT_STUDIO_URL", "http://localhost:8108")
+
+
+@app.get("/prompts")
+def list_all_prompts():
+    """List all available prompt modules from Prompt Studio (MCP bridge)"""
+    try:
+        resp = requests.get(f"{PROMPT_STUDIO_URL}/modules", timeout=5)
+        if resp.status_code == 200:
+            return resp.json()
+    except Exception as e:
+        logger.warning(f"Prompt Studio unreachable: {e}")
+    return {"modules": [], "total": 0, "mode": "unavailable"}
+
+
+@app.get("/prompts/{module}")
+def list_module_prompts(module: str):
+    """List prompts in a module from Prompt Studio"""
+    try:
+        resp = requests.get(f"{PROMPT_STUDIO_URL}/prompts/{module}", timeout=5)
+        if resp.status_code == 200:
+            return resp.json()
+    except Exception as e:
+        logger.warning(f"Prompt Studio unreachable: {e}")
+    return {"module": module, "files": [], "total": 0, "mode": "unavailable"}
+
+
+@app.get("/prompts/{module}/{name:path}")
+def get_prompt(module: str, name: str):
+    """Get a specific prompt content from Prompt Studio"""
+    try:
+        resp = requests.get(f"{PROMPT_STUDIO_URL}/prompts/{module}/{name}", timeout=5)
+        if resp.status_code == 200:
+            return resp.json()
+    except:
+        pass
+    return {"error": "prompt not found"}
+
+
+@app.get("/mcp/prompts")
+def mcp_prompts_list():
+    """MCP prompts_list() compatible — returns prompt catalog for agents"""
+    try:
+        resp = requests.get(f"{PROMPT_STUDIO_URL}/modules", timeout=5)
+        if resp.status_code != 200:
+            return []
+        return resp.json().get("modules", [])
+    except:
+        return []
+
+
+@app.get("/mcp/resources")
+def mcp_resources_list():
+    """MCP resources_list() compatible — returns available prompt files"""
+    resources = []
+    try:
+        modules_resp = requests.get(f"{PROMPT_STUDIO_URL}/modules", timeout=5)
+        if modules_resp.status_code == 200:
+            for mod in modules_resp.json().get("modules", []):
+                mod_name = mod["name"]
+                prompts_resp = requests.get(f"{PROMPT_STUDIO_URL}/prompts/{mod_name}", timeout=5)
+                if prompts_resp.status_code == 200:
+                    for f in prompts_resp.json().get("files", []):
+                        resources.append({
+                            "name": f"prompts/{mod_name}/{f['name']}",
+                            "module": mod_name,
+                            "path": f["path"],
+                            "size": f["size"],
+                        })
+    except:
+        pass
+    return resources

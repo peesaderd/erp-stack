@@ -6,7 +6,7 @@ module.exports = {
       cwd: "/home/openhands/erp-stack/modules/video",
       interpreter: "python3",
       env: {
-        PORT: "8111",
+        PORT: "8116",
         PYTHONPATH: "/home/openhands/erp-stack/modules"
       },
       exec_mode: "fork",

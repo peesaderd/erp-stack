@@ -1,6 +1,6 @@
 """
-Product Analyzer — uses Mistral API for AI product analysis + prompt generation
-Supports text-only (mistral-small) and vision (pixtral via base64 images)
+Product Analyzer — uses Google Gemini 2.5 Flash API for high-fidelity product analysis + prompt generation
+Supports text-only and vision (with base64 images)
 """
 
 import os
@@ -11,25 +11,12 @@ from typing import Optional, Any
 
 logger = logging.getLogger("product-analyzer")
 
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+TEXT_MODEL = "gemini-2.5-flash"
+VISION_MODEL = "gemini-2.5-flash"
+
+# Fallback Mistral config just in case
 MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY", "")
-TEXT_MODEL = "mistral-small-latest"
-VISION_MODEL = "pixtral-12b-2409"
-MISTRAL_URL = "https://api.mistral.ai/v1/chat/completions"
-RESEARCH_SYSTEM_PROMPT = '''You are a product research expert. Analyze the product image and information carefully.
-Output ONLY valid JSON:
-{
-  "product_type": "what kind of product (e.g. wireless microphone, skincare cream, kitchen tool)",
-  "material": "visible materials and finish",
-  "category": "marketing category",
-  "target_audience": "who would buy this, be specific",
-  "key_features": ["feature 1", "feature 2"],
-  "visual_style_recommendation": "recommended visual style",
-  "age_group": "target age range",
-  "gender": "male/female/neutral based on typical user",
-  "environment": "recommended setting/background",
-  "pain_points": ["problem 1", "problem 2"],
-  "hooking_angle": "best marketing hook angle in Thai"
-}'''
 
 PRESET_IMAGE_STYLES = [
     {
@@ -64,222 +51,174 @@ PRESET_IMAGE_STYLES = [
     },
 ]
 
+RESEARCH_SYSTEM_PROMPT = """You are a professional product research and marketing expert. Analyze the product details and image carefully.
+Provide a highly thorough, detailed analysis of the product's marketing characteristics.
+Output ONLY valid JSON matching this schema:
+{
+  "product_type": "very specific product type (e.g. professional wireless lavalier microphone, organic hydrating face serum)",
+  "material": "detailed description of visible materials, finishes, cap type, bottle texture, and overall premium feel",
+  "category": "marketing category / niche (e.g. Premium Skincare, Content Creator Gear)",
+  "target_audience": "in-depth target audience profile including specific demographics, pain points, behaviors, and buying motivations",
+  "key_features": ["highly detailed feature 1 with benefits", "highly detailed feature 2 with benefits", "highly detailed feature 3 with benefits"],
+  "visual_style_recommendation": "aesthetic visual direction (e.g. minimal warm tone lifestyle flat-lay with natural sunlight shadows)",
+  "age_group": "specific target age group (e.g. 18-35 young professionals)",
+  "gender": "target gender or neutral",
+  "environment": "ideal shooting setting (e.g. modern aesthetic bathroom vanity, clean studio wooden desk)",
+  "pain_points": ["explicit customer struggle 1 this product solves", "explicit customer struggle 2 this product solves"],
+  "hooking_angle": "best attention-grabbing marketing angle in Thai focusing on transformation, result, or convenience"
+}"""
 
-def _call_mistral(
+
+def _call_gemini(
     system_prompt: str,
     user_text: str,
     image_base64: Optional[str] = None,
-    model: Optional[str] = None,
+    response_json: bool = False,
 ) -> str:
-    """Call Mistral API — text-only or vision (Pixtral with base64 image)
+    """Call Google Gemini 2.5 Flash API with vision support and optional JSON mode."""
+    # Proactively load API key from remote .env if not present in env
+    global GEMINI_API_KEY
+    if not GEMINI_API_KEY:
+        env_path = os.path.join(os.path.dirname(__file__), ".env")
+        if os.path.exists(env_path):
+            with open(env_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    if line.strip().startswith("GEMINI_API_KEY="):
+                        GEMINI_API_KEY = line.split("=", 1)[1].strip()
+                        os.environ["GEMINI_API_KEY"] = GEMINI_API_KEY
+                        break
+    
+    key = GEMINI_API_KEY or os.environ.get("GEMINI_API_KEY", "")
+    if not key:
+        raise ValueError("GEMINI_API_KEY not configured")
+        
+    key = key.strip("'\"")
 
-    Args:
-        system_prompt: System instruction
-        user_text: User message text
-        image_base64: Optional base64-encoded image (triggers Pixtral)
-        model: Model override (default: TEXT_MODEL, VISION_MODEL if image)
-    """
-    if not MISTRAL_API_KEY:
-        raise ValueError("MISTRAL_API_KEY not configured")
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={key}"
 
-    use_model = model or (VISION_MODEL if image_base64 else TEXT_MODEL)
+    # Combine system prompt and user text for Gemini
+    combined_prompt = f"{system_prompt}\n\n[Input Context]:\n{user_text}"
 
-    # Build messages
-    user_content: list[dict[str, Any]] = [{"type": "text", "text": user_text}]
+    parts = [{"text": combined_prompt}]
+
     if image_base64:
-        # Ensure proper padding
-        img = image_base64.strip()
-        if ";" in img:  # data URI format
-            # Already has mime prefix — pass as-is
-            user_content.append({"type": "image_url", "image_url": {"url": img}})
+        img_data = image_base64.strip()
+        # Handle data URL prefix
+        if "base64," in img_data:
+            mime_type = img_data.split(";")[0].split(":")[1]
+            img_data = img_data.split("base64,")[1]
         else:
-            user_content.append({
-                "type": "image_url",
-                "image_url": {"url": f"data:image/jpeg;base64,{img}"},
-            })
+            mime_type = "image/jpeg"
+            
+        parts.append({
+            "inlineData": {
+                "mimeType": mime_type,
+                "data": img_data
+            }
+        })
 
-    payload: dict[str, Any] = {
-        "model": use_model,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_content},
+    payload = {
+        "contents": [
+            {
+                "role": "user",
+                "parts": parts
+            }
         ],
-        "temperature": 0.1,
-        "max_tokens": 4096,
+        "generationConfig": {
+            "temperature": 0.2,
+        }
     }
 
+    if response_json:
+        payload["generationConfig"]["responseMimeType"] = "application/json"
+
     resp = requests.post(
-        MISTRAL_URL,
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {MISTRAL_API_KEY}",
-        },
+        url,
+        headers={"Content-Type": "application/json"},
         json=payload,
-        timeout=90,
+        timeout=120,
     )
 
     if resp.status_code != 200:
-        raise RuntimeError(f"Mistral error ({resp.status_code}): {resp.text[:300]}")
+        raise RuntimeError(f"Gemini API error ({resp.status_code}): {resp.text}")
 
     data = resp.json()
-    return data["choices"][0]["message"]["content"]
+    try:
+        return data["candidates"][0]["content"]["parts"][0]["text"]
+    except (KeyError, IndexError) as e:
+        raise RuntimeError(f"Unexpected Gemini API response structure: {data}") from e
 
 
 def _parse_json(text: str) -> dict:
     """Parse JSON from AI response, handling markdown fences and common formatting issues"""
     import re
     raw = text.strip()
-    # Strip markdown fences
     if raw.startswith("```"):
         raw = raw.split("\n", 1)[1] if "\n" in raw else raw[3:]
     if raw.endswith("```"):
         raw = raw.rsplit("```", 1)[0]
     raw = raw.strip()
-    # Replace literal newlines in JSON strings with spaces (Mistral/Pixtral often includes them)
-    raw = raw.replace(chr(10), " ").replace(chr(13), " ")
-    # Remove control characters (except \n, \r, \t)
-    raw = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', '', raw)
-    # Fix unescaped newlines inside JSON strings: replace \n inside quotes with \\n
-    # This is a common issue with Mistral/Pixtral
-    in_string = False
-    escaped = False
-    result = []
-    for ch in raw:
-        if ch == '"' and not escaped:
-            in_string = not in_string
-            result.append(ch)
-        elif ch == '\\' and not escaped:
-            escaped = True
-            result.append(ch)
-        elif ch == '\n' and in_string:
-            result.append('\\n')
-            escaped = False
-        elif ch == '\r' and in_string:
-            result.append('\\r')
-            escaped = False
-        elif ch == '\t' and in_string:
-            result.append('\\t')
-            escaped = False
-        else:
-            if escaped:
-                escaped = False
-            result.append(ch)
-    raw = ''.join(result)
-    # Try parsing directly first
+    
+    # Simple direct load first
     try:
         return json.loads(raw)
     except json.JSONDecodeError:
         pass
-    # Try fixing common issues: trailing commas
+        
+    # Clean control characters
+    raw = raw.replace(chr(10), " ").replace(chr(13), " ")
+    raw = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', '', raw)
+    
+    # Try parsing again
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        pass
+        
+    # Standard cleanup of trailing commas
     raw = re.sub(r',\s*}', '}', raw)
     raw = re.sub(r',\s*]', ']', raw)
     try:
         return json.loads(raw)
     except json.JSONDecodeError:
         pass
-    # Truncate after last balanced JSON structure (handle trailing hashtags/text)
+        
+    # Find balanced braces
     depth = 0
-    last_valid_end = -1
-    for i, ch in enumerate(raw):
-        if ch == '{' or ch == '[':
-            depth += 1
-        elif ch == '}' or ch == ']':
-            depth -= 1
-            if depth == 0:
-                last_valid_end = i
-    if last_valid_end > 0:
-        truncated = raw[:last_valid_end+1]
-        try:
-            return json.loads(truncated)
-        except json.JSONDecodeError:
-            pass
-
-    # Try removing single-line comments (// style)
-    raw = re.sub(r'//[^\n]*', '', raw)
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        pass
-    # If still fails, try extracting JSON-like content with regex
-    match = re.search(r'\{[^{}]*"image_prompts"[^{}]*\}', raw, re.DOTALL)
-    if match:
-        try:
-            return json.loads(match.group(0))
-        except json.JSONDecodeError:
-            pass
-    # Final attempt: find outermost balanced braces
-    stack = []
     start = -1
     for i, ch in enumerate(raw):
         if ch == '{':
-            if not stack:
+            if depth == 0:
                 start = i
-            stack.append(ch)
+            depth += 1
         elif ch == '}':
-            if stack:
-                stack.pop()
-                if not stack and start >= 0:
-                    try:
-                        return json.loads(raw[start:i+1])
-                    except json.JSONDecodeError:
-                        pass
-    # Show what we're trying to parse (just the first/last bits)
-    # Try to fix the JSON by removing extra closing brackets
-    import re as _re
-    
-    # Try 1: If brackets are unbalanced, remove extra closing brackets from end
-    _open_arr = raw.count('[')
-    _close_arr = raw.count(']')
-    if _close_arr > _open_arr and _open_arr > 0:
-        # Find all positions of ] and only keep the rightmost ones
-        _parts = list(raw)
-        _to_remove = _close_arr - _open_arr
-        _removed = 0
-        _i = len(_parts) - 1
-        while _removed < _to_remove and _i >= 0:
-            if _parts[_i] == ']':
-                _parts[_i] = ''
-                _removed += 1
-            _i -= 1
-        raw = ''.join(_parts)
-        try:
-            return json.loads(raw)
-        except json.JSONDecodeError:
-            pass
-    
-    # Try 2: Try fixing trailing commas after removing newlines
-    raw = raw.replace(chr(10), " ").replace(chr(13), " ")
-    raw = _re.sub(r',\s*}', '}', raw)
-    raw = _re.sub(r',\s*]', ']', raw)
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        pass
-    
-    raise ValueError("Cannot parse JSON from response")
+            depth -= 1
+            if depth == 0 and start >= 0:
+                try:
+                    return json.loads(raw[start:i+1])
+                except json.JSONDecodeError:
+                    pass
+                    
+    raise ValueError("Failed to parse valid JSON from Gemini response")
 
 
 def extract_brand_protocol(image_base64: str) -> dict:
-    """Extract Brand Identity Protocol from product image using Pixtral vision.
+    """Extract Brand Identity Protocol from product image using Gemini 2.5 vision.
 
-    Returns structured JSON with:
-    - product_name: exact name on packaging
-    - bottle: {shape, material, cap_type, color}
-    - label: {colors: [...], text: [mandatory text strings]}
-    - brand_colors: [...]
-    - logo: description of logo
+    Returns structured JSON with exact product details.
     """
-    prompt_text = """Analyze this product image and extract the following Brand Identity Protocol as valid JSON. This is CRITICAL — the output will be used as STRICT LOCK for image generation.
+    prompt_text = """Analyze this product image and extract the following Brand Identity Protocol as valid JSON.
+This is CRITICAL — the output will be used as a STRICT LOCK for generating new photos of this product.
 
 Extract EXACTLY:
-1. product_name: the brand + product name as it appears on the packaging
-2. bottle: shape, material (glass/plastic/matte/glossy), cap_type (dropper/pump/screw), primary_color
-3. label: list of colors on label, list of ALL text strings visible (brand name, product name, size, ingredients, etc. — be complete)
-4. brand_colors: the dominant brand colors (2-4 colors)
-5. logo: brief description of any logo/graphic on the packaging
-6. packaging_type: bottle/box/tube/jar
+1. product_name: the brand name + product name as it appears on the packaging
+2. bottle: shape (cylindrical/oval/square), material (glass/matte plastic/glossy/metallic), cap_type (dropper/pump/screw cap/spray), primary_color
+3. label: list of colors on label, list of ALL text strings visible (brand name, product name, size, volume, ingredients, etc. — be complete)
+4. brand_colors: the dominant brand colors (2-4 colors in HEX format or descriptive names)
+5. logo: detailed description of any logo, emblem, or graphic on the packaging
+6. packaging_type: bottle/box/tube/jar/sachet
 
-Output ONLY valid JSON. No markdown fences. No extra text.
+Output ONLY valid JSON.
 {
   "product_name": "",
   "bottle": {"shape": "", "material": "", "cap_type": "", "primary_color": ""},
@@ -289,8 +228,46 @@ Output ONLY valid JSON. No markdown fences. No extra text.
   "packaging_type": ""
 }
 """
-    response = _call_mistral(system_prompt=prompt_text, user_text="Analyze the product image.", image_base64=image_base64)
+    response = _call_gemini(
+        system_prompt=prompt_text,
+        user_text="Analyze the product image and return JSON.",
+        image_base64=image_base64,
+        response_json=True
+    )
     return _parse_json(response)
+
+
+def research_product(product_name, description='', category='', image_base64=None):
+    """Step 1: Research product via AI vision/text analysis — returns structured dict"""
+    has_vision = bool(image_base64)
+    user_prompt = f'Analyze this product:\nProduct Name: {product_name}\nDescription: {description or "N/A"}\nCategory: {category or "N/A"}'
+    if has_vision:
+        user_prompt += '\n\n(Product image attached)'
+    try:
+        raw = _call_gemini(
+            system_prompt=RESEARCH_SYSTEM_PROMPT,
+            user_text=user_prompt,
+            image_base64=image_base64,
+            response_json=True
+        )
+        result = _parse_json(raw)
+        logger.info(f'Product research successful for "{product_name}" via Gemini')
+        return result
+    except Exception as e:
+        logger.warning(f'Product research failed, using default dict: {e}')
+        return {
+            'product_type': category or 'general',
+            'material': 'premium packaging',
+            'category': category or 'general',
+            'target_audience': 'General consumers',
+            'key_features': [f'High quality {product_name}'],
+            'visual_style_recommendation': 'lifestyle',
+            'age_group': '20-35',
+            'gender': 'neutral',
+            'environment': 'modern lifestyle setting',
+            'pain_points': ['Finding a reliable product'],
+            'hooking_angle': f'Highlight benefits of {product_name}'
+        }
 
 
 def analyze_product(
@@ -301,92 +278,85 @@ def analyze_product(
     image_url: Optional[str] = None,
     image_base64: Optional[str] = None,
 ) -> dict:
-    """Analyze product via AI — returns image_prompts, video_prompt, hooks, copy
-
-    Step 1: Research product
-    Step 2: Generate prompts based on research
-
-    Uses Pixtral vision if image_base64 provided, else text-only Mistral.
-    Falls back to template analysis on any error.
-    """
+    """Analyze product via Gemini — returns image_prompts, video_prompt, hooks, copy"""
     research = research_product(product_name, description, category, image_base64)
 
-    # Step 1.5: Extract Brand Protocol from image for strict lock
+    # Extract Brand Protocol from image for strict lock
     brand_protocol = {}
     if image_base64:
         try:
             brand_protocol = extract_brand_protocol(image_base64)
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Brand protocol extraction failed: {e}")
             brand_protocol = {}
 
     system_prompt = f"""# ROLE
-You are an expert AI Product Photographer and Creative Director. Your goal is to produce high-fidelity product imagery that strictly adheres to the Brand Identity Protocol.
+You are an expert AI Product Photographer and Creative Director. Your goal is to produce high-fidelity product imagery and UGC video scripts that strictly adhere to the Brand Identity Protocol.
 
 # BRAND IDENTITY PROTOCOL (STRICT LOCK)
 These elements are IMMUTABLE - never alter or hallucinate these details:
-{json.dumps(brand_protocol, ensure_ascii=False, indent=2) if brand_protocol else 'Analyze the product image to determine brand details.'}
+{json.dumps(brand_protocol, ensure_ascii=False, indent=2) if brand_protocol else 'Analyze the product to determine brand details.'}
 
 # OPERATIONAL GUIDELINES
 1. ANALYZE the requested scene context from the product info
 2. COMPOSITE the product as the HERO - sharp, well-lit, physically consistent
-3. CONTEXTUALIZE into the scene (in hand, on table, etc.) using soft natural lighting
+3. CONTEXTUALIZE into the scene (on table, countertop, shelf, etc.) using soft natural lighting
 4. QUALITY CONTROL: never violate the Brand Protocol
 
 # REQUIREMENTS FOR IMAGE PROMPTS (5 images):
 - styles: holding_product, product_usage, lifestyle, close_up, review_style
-- CRITICAL: The product is a BLANK PLACEHOLDER {_placeholder_term_for_category(category)} — NO text, NO labels, NO brand markings, NO packaging descriptions
-- Do NOT describe the actual product's appearance (color, shape, material, texture, packaging)
-- CRITICAL: The final product image will be COMPOSITED in post-processing — describe ONLY the blank placeholder
-- CRITICAL: NO hands, NO people, NO person visible in any image — empty surface / flat-lay only
-- Describe a beautiful CLEAN SURFACE (marble countertop, wood table, ceramic tile, stone) as the setting
-- The product sits on the surface — it is NOT being held
-- After analyzing the image, estimate the BOUNDING BOX of where the product should be placed (JSON: x, y, width, height, angle)
-- Use warm Thai-style setting, natural lighting, pastel or soft tones
- - HIGH: For beauty products, describe a vanity or bathroom counter setting
- - HIGH: For food/consumables, describe a kitchen counter or dining table
- - HIGH: For electronics, describe a desk or table surface with lifestyle elements
+- CRITICAL: The product is a BLANK PLACEHOLDER {_placeholder_term_for_category(category)} — NO text, NO labels, NO brand markings, NO packaging descriptions.
+- Do NOT describe the actual product's label text, logo or branding in the image prompt (it is a blank container of correct color and material for compositing).
+- CRITICAL: NO hands, NO people, NO person visible in any image — empty surface / flat-lay only.
+- Describe a beautiful CLEAN SURFACE (marble countertop, wood table, ceramic tile, stone) as the setting.
+- The product sits on the surface — it is NOT being held.
+- Bounding Box (bbox): After analyzing the scene, estimate the exact relative bounding box coordinates where the product placeholder should be composited. JSON format: {{"x": float, "y": float, "width": float, "height": float, "angle": float}} (values between 0.0 and 1.0).
+- Use warm Thai-style setting, natural lighting, pastel or soft tones.
+ - For beauty/skincare products, describe a luxury vanity or bathroom counter setting.
+ - For food/consumables, describe a clean kitchen counter or dining table.
+ - For electronics, describe a desk or table surface with lifestyle elements.
 
 # REQUIREMENTS FOR VIDEO PROMPT:
-- Focus on camera movement (pan/zoom/tilt/dolly) and subject action
-- Duration: 15-25 seconds, 9:16 vertical format
-- Include specific actions: reaching, applying, holding
- - HIGH: Include transition suggestions between scenes
- - HIGH: Specify product interaction details (how it's picked up, used, put down)
- - HIGH: Include lighting changes for dramatic effect
+- Provide a highly detailed, comprehensive video prompt.
+- description: Overview of the vertical video concept.
+- movement: Detailed array of camera movements for each scene transition (e.g. ["Slow dolly zoom into product", "Smooth pan across countertop", "Close-up tilt showing bottle cap"]).
+- lighting: Detailed description of lighting and mood (e.g., warm afternoon sun, diffused side-lighting with soft shadows).
+- storytelling: Complete step-by-step scene-by-scene script breakdown, explaining what happens in each second of the video.
+- transitions: Detailed creative video transitions (e.g., ["Whip pan transition to lifestyle setting", "Seamless overlay cut"]).
+- product_interaction: Detailed actions involving the product (e.g., ["Unscrewing the dropper cap", "Dispensing product texture onto a flat surface", "Placing the bottle back down"]).
 
 # REQUIREMENTS FOR HOOKS (3 hooks):
-- THAI language, product-specific (NOT generic), attention-grabbing
-- Use female-friendly pronouns (คุณ) - never use male pronouns like ผม
-- Reference specific product benefits and pain points
- - HIGH: Include emotional triggers specific to the target audience
- - HIGH: For beauty products, focus on transformation/results
- - HIGH: For electronics, focus on convenience/time-saving
+- THAI language, product-specific (NOT generic), attention-grabbing.
+- Use female-friendly pronouns (คุณ) - never use male pronouns like ผม.
+- Reference specific product benefits and pain points identified in research.
+ - Include emotional triggers specific to the target audience.
+ - For beauty products, focus on transformation/results.
+ - For electronics, focus on convenience/time-saving.
 
 Research Context:
 {json.dumps(research, ensure_ascii=False, indent=2)}
 
-Output ONLY valid JSON. No markdown fences. No trailing commas. No newlines inside JSON strings. Escape all double quotes inside strings with backslash. No control characters in strings:
+Output ONLY valid JSON.
+- CRITICAL BBOX DYNAMIC CALCULATION:
+  - Do NOT copy the static numbers from examples. You must calculate dynamic coordinates (floats between 0.0 and 1.0) and dimensions based on the scene composition of each specific style:
+    - "close_up": The product should dominate the frame. Use a large width/height (e.g., width: 0.7 to 0.85, height: 0.7 to 0.85) centered.
+    - "lifestyle": The product should sit naturally on the surface. Use a smaller, realistic size (e.g., width: 0.2 to 0.35, height: 0.3 to 0.5) placed realistically.
+    - "holding_product" / "product_usage": Position it naturally on the clean surface (e.g., centered or offset slightly).
 {{
   "image_prompts": [
-    {{"id": "holding_product", "name": "ถือสินค้า", "prompt": "...", "bbox": {{"x": 0, "y": 0, "width": 0, "height": 0, "angle": 0}}}},
-    {{"id": "product_usage", "name": "ใช้งานสินค้า", "prompt": "...", "bbox": {{"x": 0, "y": 0, "width": 0, "height": 0, "angle": 0}}}},
-    {{"id": "lifestyle", "name": "ไลฟ์สไตล์", "prompt": "...", "bbox": {{"x": 0, "y": 0, "width": 0, "height": 0, "angle": 0}}}},
-    {{"id": "close_up", "name": "ซูมระยะใกล้", "prompt": "...", "bbox": {{"x": 0, "y": 0, "width": 0, "height": 0, "angle": 0}}}},
-    {{"id": "review_style", "name": "รีวิว", "prompt": "...", "bbox": {{"x": 0, "y": 0, "width": 0, "height": 0, "angle": 0}}}}
-    {{"id": "holding_product", "name": "ถือสินค้า", "prompt": "..."}},
-    {{"id": "product_usage", "name": "ใช้งานสินค้า", "prompt": "..."}},
-    {{"id": "lifestyle", "name": "ไลฟ์สไตล์", "prompt": "..."}},
-    {{"id": "close_up", "name": "ซูมระยะใกล้", "prompt": "..."}},
-    {{"id": "review_style", "name": "รีวิว", "prompt": "..."}}
+    {{"id": "holding_product", "name": "ถือสินค้า", "prompt": "very detailed prompt describing a blank container on a beautiful surface...", "bbox": {{"x": 0.35, "y": 0.3, "width": 0.28, "height": 0.45, "angle": 0.0}}}},
+    {{"id": "product_usage", "name": "ใช้งานสินค้า", "prompt": "very detailed prompt...", "bbox": {{"x": 0.3, "y": 0.35, "width": 0.3, "height": 0.48, "angle": 0.0}}}},
+    {{"id": "lifestyle", "name": "ไลฟ์สไตล์", "prompt": "very detailed prompt...", "bbox": {{"x": 0.4, "y": 0.4, "width": 0.2, "height": 0.35, "angle": 0.0}}}},
+    {{"id": "close_up", "name": "ซูมระยะใกล้", "prompt": "very detailed prompt...", "bbox": {{"x": 0.15, "y": 0.15, "width": 0.7, "height": 0.7, "angle": 0.0}}}},
+    {{"id": "review_style", "name": "รีวิว", "prompt": "very detailed prompt...", "bbox": {{"x": 0.35, "y": 0.25, "width": 0.3, "height": 0.5, "angle": 0.0}}}}
   ],
   "video_prompt": {{
-    "description": "...",
-    "movement": [...],
+    "description": "detailed overview...",
+    "movement": ["...", "..."],
     "lighting": "...",
-    "storytelling": "...",
-    "transitions": [...],
-    "product_interaction": [...]
-    "storytelling": "..."
+    "storytelling": "detailed step-by-step storyboard description...",
+    "transitions": ["...", "..."],
+    "product_interaction": ["...", "..."]
   }},
   "hook_suggestions": ["...", "...", "..."],
   "marketing_copy": "...",
@@ -402,8 +372,6 @@ Description: {description}
 Category: {category or 'N/A'}
 Target Audience: {target_audience or 'General TikTok users'}{model_hint}
 
-{'สินค้าในภาพมีสี [ระบุสี] รูปร่าง [ระบุรูปร่าง] วัสดุ [ระบุวัสดุ] และรายละเอียดอื่นๆ ที่เห็น' if has_vision else ''}
-
 **Research Results:**
 {json.dumps(research, ensure_ascii=False, indent=2)}
 """
@@ -412,23 +380,21 @@ Target Audience: {target_audience or 'General TikTok users'}{model_hint}
         user_prompt += f"\nProduct Image URL: {image_url}"
 
     try:
-        raw = _call_mistral(
+        raw = _call_gemini(
             system_prompt=system_prompt,
             user_text=user_prompt,
             image_base64=image_base64,
+            response_json=True
         )
 
         result = _parse_json(raw)
         logger.info(
-            f"AI analysis successful ({'Pixtral vision' if has_vision else 'Mistral text'})"
+            f"Gemini analysis successful ({'vision' if has_vision else 'text'})"
         )
         return result
     except Exception as e:
-        logger.warning(f"AI failed, using fallback: {e}")
+        logger.warning(f"Gemini failed, using fallback: {e}")
         return _fallback_analysis(product_name, description, category)
-
-
-
 
 
 def _placeholder_term_for_category(category: str = "") -> str:
@@ -483,9 +449,8 @@ def _placeholder_term_for_category(category: str = "") -> str:
         return "a blank minimal handheld tool (no branding)"
 
     # Electronics / gadgets (vacuum, phone, power bank, charger, earphone)
-    # HIGH: Added missing electronics categories and improved specificity
     if any(kw in cat for kw in ["vacuum", "cleaner", "vacuum cleaner", "robot",
-                                "phone", "smartphone", "mobile", "tablet", "iPad",
+                                "phone", "smartphone", "mobile", "tablet", "ipad",
                                 "power bank", "charger", "charging", "cable",
                                 "earphone", "headphone", "earbuds", "speaker",
                                 "bluetooth", "fan", "purifier", "air purifier",
@@ -496,8 +461,7 @@ def _placeholder_term_for_category(category: str = "") -> str:
                                 "laptop", "notebook", "ultrabook", "gaming laptop",
                                 "monitor", "display", "keyboard", "mouse",
                                 "router", "modem", "nas", "hard drive", "ssd"]):
-        # HIGH: More specific descriptions for different electronics types
-        if any(kw in cat for kw in ["phone", "smartphone", "mobile", "tablet", "iPad"]):
+        if any(kw in cat for kw in ["phone", "smartphone", "mobile", "tablet", "ipad"]):
             return "a hand holding a blank minimal smartphone (rectangular, no screen content, no labels)"
         if any(kw in cat for kw in ["power bank", "charger", "battery"]):
             return "a hand holding a blank minimal power bank (rectangular, no labels)"
@@ -515,19 +479,19 @@ def _placeholder_term_for_category(category: str = "") -> str:
                                 "oil bottle", "vinegar", "honey", "jam"]):
         return "a blank minimal bottle or pouch (no labels)"
 
-    # HIGH: Added missing jewelry category
+    # Jewelry
     if any(kw in cat for kw in ["jewelry", "necklace", "ring", "bracelet", "earring",
                                 "brooch", "pendant", "chain", "bangle", "anklet",
                                 "watch", "cufflink", "tie clip", "hair accessory"]):
         return "a hand holding a blank minimal piece of jewelry (no branding, no text)"
 
-    # HIGH: Added missing fashion accessories category
+    # Fashion accessories
     if any(kw in cat for kw in ["bag", "handbag", "purse", "tote", "backpack",
                                 "wallet", "clutch", "belt", "scarf", "hat",
                                 "cap", "gloves", "sunglasses", "umbrella"]):
         return "a hand holding a blank minimal fashion accessory (no branding, no text)"
 
-    # HIGH: Added missing home decor category
+    # Home decor
     if any(kw in cat for kw in ["candle", "vase", "frame", "mirror", "clock",
                                 "lamp", "pillow", "blanket", "rug", "curtain",
                                 "plant", "pot", "decor", "ornament"]):
@@ -536,8 +500,9 @@ def _placeholder_term_for_category(category: str = "") -> str:
     # Default: generic container
     return "a blank minimal container (no text, no labels, no branding)"
 
+
 def generate_image_prompt(brand_protocol: dict, creative_brief: dict, product_name: str, description: str) -> dict:
-    """Generate ONLY image prompts (5 styles) using Mistral."""
+    """Generate ONLY image prompts (5 styles) using Gemini."""
     prompt_text = f"""Based on this Brand Protocol and Creative Brief, generate 5 detailed image prompts.
 
 Brand Protocol: {json.dumps(brand_protocol, ensure_ascii=False, indent=2)}
@@ -564,16 +529,16 @@ Output:
   ]
 }}
 """
-    return _parse_json(_call_mistral(system_prompt="You are an expert AI image prompt engineer.", user_text=prompt_text))
+    response = _call_gemini(
+        system_prompt="You are an expert AI image prompt engineer.",
+        user_text=prompt_text,
+        response_json=True
+    )
+    return _parse_json(response)
 
 
 def generate_video_prompt(brand_protocol: dict, creative_brief: dict, product_name: str) -> str:
-    """Generate ONLY video prompt with camera movements and actions using Mistral.
-
-    Focus on: camera movement (pan/zoom/tilt), subject action, duration cues.
-    NOT static like image prompts - dynamic, action-oriented.
-    Returns a single string prompt, not JSON.
-    """
+    """Generate ONLY video prompt with camera movements and actions using Gemini."""
     prompt_text = f"""Generate a video prompt for this product. Focus on camera movement and action.
 
 Brand Protocol: {json.dumps(brand_protocol, ensure_ascii=False, indent=2)}
@@ -589,7 +554,10 @@ Requirements:
 \u2022 MUST keep the product appearance consistent with Brand Protocol
 
 Output ONLY the video prompt as a single paragraph (no JSON, no markdown):"""
-    return _call_mistral(system_prompt="You are an expert video director. Generate video prompts.", user_text=prompt_text)
+    return _call_gemini(
+        system_prompt="You are an expert video director. Generate video prompts.",
+        user_text=prompt_text
+    )
 
 
 def _fallback_analysis(product_name: str, description: str, category: str) -> dict:
@@ -599,29 +567,24 @@ def _fallback_analysis(product_name: str, description: str, category: str) -> di
         image_prompts.append({
             "id": style["id"],
             "name": style["name"],
-            "bbox": {"x": 0, "y": 0, "width": 0, "height": 0, "angle": 0},
-            "prompt": f"ภาพถ่ายสินค้า {product_name} ในสไตล์ {style['name']} "
-                      f"วางบนพื้นผิวเรียบสวยงาม (เคาน์เตอร์หินอ่อน โต๊ะไม้ หรือพื้นผิวพรีเมียม) "
-                      f"แสดงรายละเอียดสี รูปร่าง วัสดุ และบรรจุภัณฑ์อย่างชัดเจน "
-                      f"ไม่มีมือ ไม่มีคน ถ่ายแบบ flat-lay "
-                      f"แสงสว่างธรรมชาติ โทนสีอบอุ่น สไตล์ไทย",
+            "bbox": {"x": 0.35, "y": 0.25, "width": 0.3, "height": 0.5, "angle": 0.0},
             "prompt": f"ภาพถ่ายสินค้า {product_name} ในสไตล์ {style['name']} "
                       f"วางบนพื้นผิวเรียบสวยงาม แสงธรรมชาติ โทนอบอุ่น สไตล์ไทย",
         })
 
     return {
         "image_prompts": image_prompts,
-        "video_prompt": (
-            f"วิดีโอรีวิวสินค้า {product_name} แสดงการใช้งานจริงในสถานที่แบบไทย "
-            f"โดยคนไทยผิวสีอ่อน ถือและสาธิตการใช้งานสินค้า "
-            f"ด้วยการเคลื่อนไหวกล้องที่น่าสนใจ เช่น ซูมเข้า ซูมออก แพน "
-            f"และการเปลี่ยนแปลงแสงสว่างเพื่อสร้างบรรยากาศ "
-            f"ด้วยแสงสว่างธรรมชาติและโทนสีอบอุ่น"
-        ),
+        "video_prompt": {
+            "description": f"วิดีโอรีวิวสินค้า {product_name} แสดงการใช้งานจริงในสถานที่แบบไทย",
+            "movement": ["Slow pan", "Close-up zoom"],
+            "lighting": "แสงสว่างธรรมชาติ โทนสีอบอุ่น",
+            "storytelling": f"แสดงรายละเอียดสินค้า {product_name} ในชีวิตประจำวัน",
+            "transitions": ["Cross dissolve"],
+            "product_interaction": ["Picking up the product", "Showing features"]
+        },
         "hook_suggestions": [
             f"กำลังมองหาสินค้าแบบนี้อยู่เหรอ?",
             f"สินค้า {product_name} แบบนี้หายากเลย!",
-            f"อยากได้{product_name}ที่ใช้ง่ายและมีคุณภาพ ต้องลองสิ!",
             f"อยากได้ของดีๆ แบบนี้ต้องรีบจัดไปเลย",
         ],
         "marketing_copy": f"รีวิวสินค้า {product_name} ที่คุณต้องรู้! {description[:100]}",
@@ -629,38 +592,6 @@ def _fallback_analysis(product_name: str, description: str, category: str) -> di
             "#" + product_name.replace(" ", ""),
             "#รีวิวสินค้า",
             "#TikTokUGC",
-            "#รีวิว",
-            "#แนะนำสินค้า",
             "#" + category.replace(" ", "") if category else "#สินค้า",
         ],
     }
-def research_product(product_name, description='', category='', image_base64=None):
-    """Step 1: Research product via AI vision analysis — returns structured dict"""
-    has_vision = bool(image_base64)
-    user_prompt = f'Analyze this product:\nProduct Name: {product_name}\nDescription: {description or "N/A"}\nCategory: {category or "N/A"}'
-    if has_vision:
-        user_prompt += '\n\n(Product image attached)'
-    try:
-        raw = _call_mistral(
-            system_prompt=RESEARCH_SYSTEM_PROMPT,
-            user_text=user_prompt,
-            image_base64=image_base64,
-        )
-        result = _parse_json(raw)
-        logger.info(f'Product research successful for "{product_name}"')
-        return result
-    except Exception as e:
-        logger.warning(f'Product research failed: {e}')
-        return {
-            'product_type': category or 'unknown',
-            'material': '',
-            'category': category or 'general',
-            'target_audience': 'General consumers',
-            'key_features': [],
-            'visual_style_recommendation': 'lifestyle',
-            'age_group': '20-35',
-            'gender': 'neutral',
-            'environment': 'modern lifestyle setting',
-            'pain_points': [],
-            'hooking_angle': f'Highlight benefits of {product_name}'
-        }

@@ -16,6 +16,12 @@ from urllib.parse import quote_plus
 
 logger = logging.getLogger("scout.facebook")
 
+# ─── Proxy Helper ────────────────────────────────────────────────────────────
+
+def _get_proxy_url() -> str:
+    """Get proxy URL from environment (Data Impulse)."""
+    return os.environ.get("HTTP_PROXY", "") or os.environ.get("http_proxy", "")
+
 # ─── Internal Config (dataclass — not exposed in API responses) ──────────────
 
 @dataclass
@@ -128,7 +134,7 @@ POST_CATEGORIES = {
 
 # ─── Core: Facebook API client ───────────────────────────────────────────────
 
-async def _get_session() -> "aiohttp.ClientSession":
+async def _get_session(use_proxy: bool = True) -> "aiohttp.ClientSession":
     import aiohttp
     return aiohttp.ClientSession(
         headers={"User-Agent": _get_config().user_agent},

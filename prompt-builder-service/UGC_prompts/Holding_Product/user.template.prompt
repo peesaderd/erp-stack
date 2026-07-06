@@ -1,0 +1,19 @@
+SURFACE_CRITICAL: Generate a beautiful clean surface — NO hands, NO people, NO person visible.
+SURFACE_CRITICAL: The surface should be visually appealing — marble, wood, stone, or ceramic tile.
+SURFACE_CRITICAL: NO product, NO bottle, NO container visible — the surface has NOTHING on it.
+
+Scene:
+A beautiful clean flat surface ready for product photography. Empty surface with soft natural lighting.
+
+Details:
+Surface type: {premium material like marble, wood, stone, or ceramic tile}
+Surface finish: {matte, glossy, textured, smooth}
+Colors: {warm neutrals, soft pastels, or clean white tones}
+Props: {small decorative elements like a towel, plant, or jewelry — but NO product}
+Background: {blurred lifestyle background, warm ambient}
+Lighting: soft natural light from a window, creating gentle shadows
+Mood: clean, aesthetic, minimalist
+Key: The surface is COMPLETELY EMPTY — no product, no bottle, no container visible.
+Key: Include subtle shadows from lighting to show the surface texture.
+Key: DO NOT generate any product, bottle, or container anywhere in the scene.
+Key: The empty surface should look like a ready product photography set.

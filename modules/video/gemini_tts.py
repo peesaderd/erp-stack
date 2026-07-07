@@ -1,14 +1,21 @@
 """Gemini 3.1 Flash TTS Preview — unified TTS for all pipelines."""
 import os, json, base64, requests, tempfile
+from pathlib import Path
 from typing import Optional
+
+import sys
+_erp_stack = Path(__file__).parent.parent.parent
+if str(_erp_stack) not in sys.path:
+    sys.path.insert(0, str(_erp_stack))
+from shared_config import GEMINI_API_KEY
 
 MODEL = "gemini-3.1-flash-tts-preview"
 VOICE = "Aoede"
 
 def gemini_text_to_speech(text, output_path=None, voice=VOICE):
-    api_key = os.environ.get("GEMINI_API_KEY") or ""
+    api_key = GEMINI_API_KEY()
     if not api_key:
-        raise ValueError("GEMINI_API_KEY not set")
+        raise ValueError("GEMINI_API_KEY not configured (via shared_config)")
     url = "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s" % (MODEL, api_key)
     payload = {
         "contents": [{"role": "user", "parts": [{"text": text}]}],

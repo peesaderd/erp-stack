@@ -13,32 +13,26 @@ import os
 import io
 import json
 import time
+import sys
 import logging
 import requests
 from pathlib import Path
 from typing import Optional, List
 from PIL import Image
 
-logger = logging.getLogger("sam3.client")
+_erp_stack = Path(__file__).parent.parent.parent
+if str(_erp_stack) not in sys.path:
+    sys.path.insert(0, str(_erp_stack))
+from shared_config import PRODIA_TOKEN
 
-# Prodia
-PRODIA_TOKEN = os.environ.get("PRODIA_TOKEN", "") or os.environ.get("PRODIA_KEY", "")
-_env_path = Path(__file__).parent / ".env"
-if _env_path.exists():
-    for _line in open(_env_path):
-        _line = _line.strip()
-        if _line and not _line.startswith("#") and "=" in _line:
-            _k, _v = _line.split("=", 1)
-            os.environ.setdefault(_k.strip(), _v.strip())
-            if _k.strip() == "PRODIA_TOKEN":
-                PRODIA_TOKEN = _v.strip()
+logger = logging.getLogger("sam3.client")
 
 PRODIA_BASE = "https://inference.prodia.com/v2"
 
 # ─── Helpers ───────────────────────────────────────────────────────────────
 
 def _headers():
-    return {"Authorization": f"Bearer {PRODIA_TOKEN}"}
+    return {"Authorization": f"Bearer {PRODIA_TOKEN()}"}
 
 
 def _poll_generic(url: str, headers: dict, max_polls: int = 60, sleep_s: int = 2) -> dict:

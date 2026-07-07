@@ -249,6 +249,43 @@ class UserProfileRequest(BaseModel):
 
 SCRAPER_API_URL = "http://localhost:8106"
 
+
+# ─── Auth Proxy Routes ───
+@app.post("/api/auth/register")
+async def auth_register(req: dict):
+    """Proxy to auth module register."""
+    return await _proxy("POST", "auth", "/api/v1/auth/register", req)
+
+@app.post("/api/auth/login")
+async def auth_login(req: dict):
+    """Proxy to auth module login."""
+    return await _proxy("POST", "auth", "/api/v1/auth/login", req)
+
+@app.get("/api/auth/me")
+async def auth_me(request: Request):
+    """Proxy to auth module me."""
+    import httpx
+    base = MODULE_URLS["auth"]
+    url = f"{base}/api/v1/auth/me"
+    headers = {"Authorization": request.headers.get("authorization", "")}
+    if not headers["Authorization"]:
+        pass
+    async with httpx.AsyncClient(timeout=90, verify=False) as client:
+        resp = await client.get(url, headers=headers)
+        if resp.status_code >= 400:
+            return {"ok": False, "status": resp.status_code, "error": resp.text[:300], "data": None}
+        return {"ok": True, "status": resp.status_code, "data": resp.json()}
+
+@app.get("/api/auth/{provider}/login")
+async def auth_oauth_login(provider: str):
+    """Proxy to auth module OAuth login."""
+    return await _proxy("GET", "auth", f"/api/v1/auth/{provider}/login")
+
+@app.get("/api/auth/{provider}/callback")
+async def auth_oauth_callback(provider: str, code: str = "", state: str = "", error: str = ""):
+    """Proxy to auth module OAuth callback."""
+    return await _proxy("GET", "auth", f"/api/v1/auth/{provider}/callback?code={code}&state={state}&error={error}")
+
 @app.post("/product/scrape-and-generate")
 async def scrape_and_generate(req: ScrapeAndGenerateRequest):
     """Scrape product URL via Product Scraper :8106, then auto-generate script."""
@@ -1971,9 +2008,9 @@ async def _proxy(method: str, module: str, path: str, body: dict = None, timeout
     try:
         async with httpx.AsyncClient(timeout=timeout, verify=False) as client:
             if method == "GET":
-                resp = await client.get(url)
+                resp = await client.get(url, headers=headers)
             else:
-                resp = await client.post(url, json=body or {})
+                resp = await client.post(url, json=body or {}, headers=headers)
             if resp.status_code >= 400:
                 return {"ok": False, "status": resp.status_code, "error": resp.text[:300], "data": None}
             try:

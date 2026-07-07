@@ -1,28 +1,33 @@
 """
-TikTok UGC Studio — Affiliate Video Pipeline v4 (Prodia Only)
-===============================================================
-Pipeline: SAM3 Analyze → FLUX Image → MiniMax TTS → Wan 2.7 img2vid+audio (Lip Sync in video!) → FFmpeg Concat
+TikTok UGC Studio — Affiliate Video Pipeline v5 (Module-based)
+=================================================================
+Pipeline: Nano Banana Img2Img → Gemini TTS → Wan 2.7 img2vid → FFmpeg Voice Merge + BGM
 
 Flow:
-  1. SAM3 Analyze — วิเคราะห์ภาพสินค้า (object, safe zones, prompt insights)
-  2. Image — FLUX schnell ($0.001) สร้างรูปจาก prompt
-  3. Voice — MiniMax Speech ($0.003) สร้างเสียงพากย์
-  4. Video — Wan 2.7 img2vid+audio ($0.03) สร้างคลิป Lip Sync ในตัว!
+  1. Image — Nano Banana Img2Img ($0.005) สร้างรูปอ้างอิงจากสินค้า
+  2. Voice — Gemini TTS สร้างเสียงพากย์
+  3. Video — Wan 2.7 img2vid ($0.03) สร้างคลิป silent
+  4. Voice Merge — FFmpeg ใส่เสียงพากย์ + BGM
   5. Concat — FFmpeg ต่อหลาย scene (ถ้ามี)
-  6. BGM — เลือกใส่เพิ่มได้
 
 ข้อดี:
-  - ไม่ต้อง VEED/Wav2Lip ($0.054 ประหยัด!)
-  - ไม่ต้อง FFmpeg merge voice (audio อยู่ใน video แล้ว)
-  - Lip Sync native — ไม่มี overlay artifact
-  - SAM3 ช่วย improve prompt + layout
+  - Nano Banana: img2img คุณภาพสูง เก่งคนไทย
+  - Gemini TTS: เสียงธรรมชาติ รองรับภาษาไทย
+  - Wan 2.7: สร้าง video จากภาพ + prompt
+  - FFmpeg merge เสียงแยก — mix level ควบคุมได้
 
 ต้นทุนต่อคลิป:
-  - 8 วิ (SAM3 + FLUX + TTS + Wan 2.7):  ~$0.034
-  - 16 วิ (2 scenes + concat):            ~$0.064
+  - 8 วิ (Nano Banana + Gemini TTS + Wan 2.7):   ~$0.038
+  - 16 วิ (2 scenes + concat):                    ~$0.068
+
+Bug fix v5:
+  - ส่ง input_image ไปยัง Nano Banana ถูกต้อง (fix สินค้าไม่ตรง)
+  - ใช้ shared_config.py สำหรับ API keys
+  - ใช้ Gemini TTS จาก gemini_tts.py
 """
 
 import os
+import sys
 import json
 import time
 import uuid
@@ -33,77 +38,33 @@ from typing import Optional
 
 import requests
 
-# SAM3 client (optional)
-from sam3_client import segment_image, mask_to_rgba, track_object_in_video
+# Add erp-stack to path for shared_config
+_erp_stack = Path(__file__).parent.parent.parent
+if str(_erp_stack) not in sys.path:
+    sys.path.insert(0, str(_erp_stack))
+
+from shared_config import PRODIA_TOKEN, GEMINI_API_KEY
 
 logger = logging.getLogger("tiktok-ugc.pipeline_affiliate")
 
 # ─── Config ────────────────────────────────────────────────────────────────
-
-PRODIA_TOKEN = os.environ.get("PRODIA_TOKEN", "") or os.environ.get("PRODIA_KEY", "")
 
 STORAGE_DIR = Path(__file__).parent / "storage"
 TMP_DIR = STORAGE_DIR / "tmp"
 TMP_DIR.mkdir(parents=True, exist_ok=True)
 
 PRODIA_BASE = "https://inference.prodia.com/v2"
-PRODIA_IMAGE_TYPE = "inference.nano-banana.img2img.v1"
+PRODIA_IMG2IMG_TYPE = "inference.nano-banana.img2img.v1"
 PRODIA_IMG2VID_TYPE = "inference.wan2-7.img2vid.v1"
 
-# Voice timing defaults (built-in audio, no separate merge needed)
-VOICE_START_SEC = 1.5
-VOICE_DURATION_SEC = 5.0
+# Image Gen Service URL (localhost:8110)
+IMAGE_GEN_URL = "http://localhost:8110/api/image/v1/generate"
 
 
 # ─── Helpers ───────────────────────────────────────────────────────────────
 
 def _prodia_headers():
-    return {"Authorization": f"Bearer {PRODIA_TOKEN}"}
-
-
-def _poll_job(job_url: str, max_polls: int = 120, sleep_s: int = 2) -> dict:
-    """Poll Prodia job until complete."""
-    headers = _prodia_headers()
-    for _ in range(max_polls):
-        time.sleep(sleep_s)
-        resp = requests.get(job_url, headers=headers, timeout=15)
-        # Binary response (multipart/video)
-        ct = resp.headers.get("content-type", "")
-        if "multipart" in ct or "video" in ct:
-            return {"_raw_video": True, "_response": resp}
-        try:
-            data = resp.json()
-        except:
-            return {"_raw_video": True, "_response": resp}
-        status = data.get("status", "")
-        if status == "completed":
-            return data
-        elif status in ("failed", "error"):
-            raise RuntimeError(f"Prodia failed: {data}")
-    raise TimeoutError("Prodia job timed out")
-
-
-def _extract_url(result: dict, key: str = "url") -> str:
-    """Extract URL from Prodia response (handles multiple response shapes)."""
-    raw = result.get("_raw_video")
-    if raw:
-        # Binary response — save to temp and return
-        resp = result["_response"]
-        tmp_path = TMP_DIR / f"raw_{uuid.uuid4().hex[:8]}.mp4"
-        with open(tmp_path, "wb") as f:
-            f.write(resp.content)
-        return str(tmp_path)
-
-    output = result.get("output", {}) or result.get("result", {})
-    if isinstance(output, dict):
-        url = output.get(key, "") or output.get("video", {}).get("url", "")
-    else:
-        url = str(output) if output else ""
-    if not url:
-        url = result.get("video", {}).get("url", "") or result.get("output_url", "")
-    if not url:
-        raise RuntimeError(f"No URL in Prodia response: {result}")
-    return url
+    return {"Authorization": f"Bearer {PRODIA_TOKEN()}"}
 
 
 def download_file(url: str, output_path: Path) -> Path:
@@ -133,215 +94,130 @@ def concat_videos(video_paths: list[Path], output_path: Path) -> Path:
     return output_path
 
 
-# ─── Step 0: SAM3 Analyze — วิเคราะห์ภาพสินค้าก่อนสร้างอะไรทั้งสิ้น ────────
+# ─── Step 1: Image (Nano Banana Img2Img via Image-Gen Service) ─────────────
 
-def sam3_analyze_image(image_path: str, run_id: str = "") -> dict:
-    """
-    SAM3 Analyze — Scan รูปสินค้าเพื่อ:
-    1. หาตำแหน่ง object หลัก (product, person, bag, text)
-    2. หาพื้นที่ว่างสำหรับวาง artwork (CTA, Logo, Price)
-    3. สร้าง prompt insights ปรับปรุง FLUX / Wan 2.7 prompt
-
-    Returns:
-        dict {
-            "objects": [...],
-            "safe_zones": [...],
-            "layout": {"cta": [x,y], "logo": [x,y], "price": [x,y]},
-            "prompt_insights": "str",
-        }
-
-    Cost: ~$0.0011/call
-    """
-    from PIL import Image as PILImage
-    import io
-    import tempfile
-
-    logger.info(f"[SAM3] Analyzing: {image_path}")
-
-    # Download if URL
-    if image_path.startswith("http://") or image_path.startswith("https://"):
-        resp = requests.get(image_path, timeout=30)
-        resp.raise_for_status()
-        buf = io.BytesIO(resp.content)
-        img = PILImage.open(buf)
-        # Save to temp for segment_image
-        tmp_img = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-        img.save(tmp_img, format="PNG")
-        local_path = tmp_img.name
-        tmp_img.close()
-    else:
-        img = PILImage.open(image_path)
-        local_path = image_path
-
-    objects = []
-    masks = {}
-    w, h = img.size
-
-    for label in ["product", "person", "bag", "box", "bottle", "text", "logo"]:
-        try:
-            result_masks = segment_image(local_path, prompt=label, confidence=0.4)
-            if result_masks:
-                best_mask = None
-                best_area = 0
-                for m in result_masks:
-                    mask_img = PILImage.open(io.BytesIO(m)).convert("L")
-                    bbox = mask_img.getbbox()
-                    if bbox:
-                        area = (bbox[2] - bbox[0]) * (bbox[3] - bbox[1])
-                        if area > best_area:
-                            best_area = area
-                            best_mask = m
-                if best_mask and best_area > (w * h * 0.01):
-                    mask_img = PILImage.open(io.BytesIO(best_mask)).convert("L")
-                    bbox = mask_img.getbbox()
-                    objects.append({
-                        "label": label,
-                        "bbox": list(bbox),
-                        "center": [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2],
-                        "area_pct": round(best_area / (w * h) * 100, 1),
-                    })
-                    masks[label] = best_mask
-        except Exception as e:
-            logger.debug(f"[SAM3] {label} not found: {e}")
-
-    # Safe zones (4x4 grid)
-    occupied = [[False] * 4 for _ in range(4)]
-    for obj in objects:
-        cx, cy = obj["center"]
-        gx, gy = min(3, int(cx / w * 4)), min(3, int(cy / h * 4))
-        occupied[gy][gx] = True
-        for dx in [-1, 0, 1]:
-            for dy in [-1, 0, 1]:
-                nx, ny = gx + dx, gy + dy
-                if 0 <= nx < 4 and 0 <= ny < 4:
-                    occupied[ny][nx] = True
-
-    safe_cells = []
-    for row in range(4):
-        for col in range(4):
-            if not occupied[row][col]:
-                cx = (col + 0.5) * (w / 4)
-                cy = (row + 0.5) * (h / 4)
-                weight = 1.0 - (abs(row - 1.5) + abs(col - 1.5)) / 6
-                safe_cells.append({
-                    "center": [int(cx), int(cy)],
-                    "weight": round(weight, 2),
-                })
-
-    layout = {}
-    if safe_cells:
-        cta_cell = max(safe_cells, key=lambda c: c["weight"] * (c["center"][0] / w) * (c["center"][1] / h))
-        layout["cta"] = cta_cell["center"]
-        logo_cell = min(safe_cells, key=lambda c: c["center"][1])
-        layout["logo"] = logo_cell["center"]
-        for obj in objects:
-            if obj["label"] == "product":
-                layout["price"] = [obj["center"][0], obj["bbox"][3] + 20]
-                break
-        else:
-            layout["price"] = safe_cells[0]["center"]
-
-    # Prompt insights
-    prompt_insights = ""
-    for obj in objects:
-        if obj["label"] in ("person", "product"):
-            prompt_insights += f"{obj['label']} at center, "
-    prompt_insights += "clean composition, space for text overlay"
-
-    logger.info(f"[SAM3] {len(objects)} objects, {len(safe_cells)} safe zones")
-    return {
-        "objects": objects,
-        "safe_zones": safe_cells,
-        "layout": layout,
-        "prompt_insights": prompt_insights,
-        "image_width": w,
-        "image_height": h,
-    }
-
-
-# ─── Step 1: Image (via Image-Gen Service) ──────────────────────────────
-
-IMAGE_GEN_URL = "http://localhost:8110/api/image/v1/generate"
-
-def generate_image(prompt: str, reference_analysis: dict = None,
-                   aspect_ratio: str = "9:16",
-                   input_image: str = None) -> str:
-    """Generate image via image-gen service (Prodia FLUX on localhost:8110).
+def generate_image(
+    prompt: str,
+    aspect_ratio: str = "9:16",
+    input_image: str = None,
+    product_image: str = None,
+) -> str:
+    """Generate image via image-gen service (Nano Banana on localhost:8110).
+    
+    ใช้ Nano Banana Img2Img เพื่อสร้างรูป UGC จากสินค้า
     
     aspect_ratio: 9:16 (TikTok portrait), 1:1 (square), 16:9 (landscape)
-    input_image: optional URL to reference product image for img2img
-                 (makes FLUX use the actual product instead of guessing)
+    input_image: URL ของรูปสินค้าสำหรับ img2img (สำคัญมาก!)
+    product_image: fallback ถ้าไม่มี input_image
+    
+    Returns:
+        URL ของรูปที่สร้าง
     """
-    enhanced = prompt
-    if reference_analysis and reference_analysis.get("prompt_insights"):
-        enhanced = prompt + ", " + reference_analysis["prompt_insights"]
-
-    logger.info(f"FLUX Image: {enhanced[:40]}...")
+    # ใช้ product_image เป็น fallback
+    ref_image = input_image or product_image
+    
+    logger.info(f"Nano Banana Img2Img: {prompt[:40]}...")
+    if ref_image:
+        logger.info(f"  Reference image: {ref_image[:60]}...")
+    else:
+        logger.warning("  No reference image! Will generate generic product image")
     
     payload = {
-        "prompt": enhanced,
+        "prompt": prompt,
         "count": 1,
         "upscale": False,
         "aspectRatio": aspect_ratio,
     }
-    if input_image:
-        payload["inputImage"] = input_image
-        logger.info(f"  Using reference image: {input_image[:60]}...")
     
-    resp = requests.post(IMAGE_GEN_URL, json=payload, timeout=120)
-    resp.raise_for_status()
-    data = resp.json()
+    # ส่ง input_image สำหรับ Nano Banana Img2Img
+    if ref_image:
+        payload["inputImage"] = ref_image
+        payload["modelTier"] = "nano.banana"  # ใช้ Nano Banana
+        payload["provider"] = "prodia"
+        payload["thaiModel"] = True
     
-    if not data.get("success") or not data.get("images"):
-        raise RuntimeError(f"Image-gen service failed: {data}")
-    
-    url = data["images"][0]["url"]
-    logger.info(f"  Image OK: {url}")
-    return url
-
-
-def generate_voice(text, tts_path, filenametag, gemini_key=None):
-    """Generate TTS audio using Gemini 3.1 Flash TTS Preview."""
-    from modules.video.gemini_tts import gemini_text_to_speech
     try:
-        output = gemini_text_to_speech(text, str(tts_path / filenametag))
-        if output:
-            print(f"Gemini TTS: saved {output}")
-            return filenametag
-    except Exception as e:
-        print(f"Gemini TTS failed: {e}")
-    return 0
+        resp = requests.post(IMAGE_GEN_URL, json=payload, timeout=120)
+        resp.raise_for_status()
+        data = resp.json()
+        
+        if not (data.get("success") or data.get("ok")) or not data.get("images"):
+            raise RuntimeError(f"Image-gen service failed: {data}")
+        
+        img_info = data["images"][0]
+        url = img_info.get("full_url") or img_info.get("url")
+        if not url:
+            raise RuntimeError(f"Image-gen service returned no URL: {data}")
+        
+        logger.info(f"  Image OK: {url[:60]}...")
+        return url
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Image-gen service error: {e}")
+        raise
 
-# ─── Step 3: Video (Wan 2.7 img2vid+audio = Lip Sync in one!) $0.03 ─────
+
+# ─── Step 2: Voice (Gemini TTS) ────────────────────────────────────────────
+
+def generate_voice(
+    text: str,
+    voice: str = "Aoede",
+    run_id: str = "",
+) -> str:
+    """Generate Thai voice via Gemini 3.1 Flash TTS Preview.
+    
+    Args:
+        text: ข้อความสำหรับ TTS (ภาษาไทย)
+        voice: ชื่อเสียง (Aoede, Wise_Woman, etc.)
+        run_id: สำหรับสร้าง filename
+    
+    Returns:
+        Path ของไฟล์เสียงที่สร้าง
+    """
+    logger.info(f"  TTS (Gemini): chars={len(text)}, voice={voice}")
+    
+    try:
+        # Import จาก gemini_tts.py ใน modules/video
+        from video.gemini_tts import gemini_text_to_speech
+        
+        output_path = str(TMP_DIR / f"voice_{run_id}.mp3")
+        tts_path = gemini_text_to_speech(text, output_path=output_path, voice=voice)
+        
+        if tts_path and Path(tts_path).exists():
+            logger.info(f"  TTS OK: {tts_path}")
+            return tts_path
+        else:
+            raise RuntimeError(f"Gemini TTS returned invalid path: {tts_path}")
+            
+    except ImportError as e:
+        logger.error(f"Cannot import gemini_tts: {e}")
+        raise
+    except Exception as e:
+        logger.error(f"Gemini TTS failed: {e}")
+        raise
+
+
+# ─── Step 3: Video (Wan 2.7 img2vid) ───────────────────────────────────────
 
 def generate_video(
     image_path: str,
     prompt: str,
     duration: int = 8,
-    reference_analysis: dict = None,
 ) -> str:
     """
-    Wan 2.7 img2vid — ไม่มี Audio (no lip sync)
-
-    ส่งแค่รูป → Wan 2.7 สร้าง motion video ตาม prompt.
-    No audio = no weird lip movement. Voice + BGM merged later via FFmpeg.
-
+    Wan 2.7 img2vid — สร้าง video จากภาพ
+    
     Args:
-        image_path: Path to image (product/FLUX gen) or URL
-        prompt: Scene description (describe natural behavior: smile, nod, etc)
-        duration: Clip duration (2-15s)
-        reference_analysis: SAM3 analysis result (optional)
-
+        image_path: Path หรือ URL ของรูป
+        prompt: คำบรรยาย scene
+        duration: ความยาวคลิป (2-15s)
+    
     Returns:
-        URL or local path of generated video (silent, no lip sync)
-
+        Path ของไฟล์ video ที่สร้าง (silent)
+    
     Cost: $0.03/gen
     """
-    enhanced = prompt
-    if reference_analysis and reference_analysis.get("prompt_insights"):
-        enhanced = prompt + ", " + reference_analysis["prompt_insights"]
-
-    logger.info(f"Wan 2.7 img2vid ({duration}s): {enhanced[:40]}...")
+    logger.info(f"Wan 2.7 img2vid ({duration}s): {prompt[:40]}...")
 
     # Read image bytes (support URL or local path)
     if image_path.startswith("http://") or image_path.startswith("https://"):
@@ -355,7 +231,7 @@ def generate_video(
     config_payload = {
         "type": PRODIA_IMG2VID_TYPE,
         "config": {
-            "prompt": enhanced,
+            "prompt": prompt,
             "duration": duration,
             "negative_prompt": "low resolution, error, worst quality, deformed, blurry, disfigured face, wrong mouth, speaking, lips moving",
         }
@@ -366,7 +242,12 @@ def generate_video(
         ("input", ("image.png", image_data, "image/png")),
     ]
 
-    resp = requests.post(f"{PRODIA_BASE}/job", headers=_prodia_headers(), files=files, timeout=300)
+    resp = requests.post(
+        f"{PRODIA_BASE}/job",
+        headers=_prodia_headers(),
+        files=files,
+        timeout=300
+    )
     resp.raise_for_status()
 
     ct = resp.headers.get("content-type", "")
@@ -403,38 +284,34 @@ def generate_video(
         result_path = TMP_DIR / f"img2vid_{uuid.uuid4().hex[:8]}.mp4"
         with open(result_path, "wb") as f:
             f.write(resp.content)
-        logger.info(f"  Video OK (binary MP4, {len(resp.content)} bytes) — no lip sync")
+        logger.info(f"  Video OK (binary MP4, {len(resp.content)} bytes)")
         return str(result_path)
 
-    url = _extract_url(result, "url")
-    logger.info(f"  Video OK (audio-driven lip sync!)")
-    return url
 
-
-# ─── Full Pipeline v4 ─────────────────────────────────────────────────────
+# ─── Full Pipeline v5 ──────────────────────────────────────────────────────
 
 def run_pipeline(
     script: str,
     scene_prompts: list[str],
-    voice_id: str = "Wise_Woman",
+    voice: str = "Aoede",
     video_duration: int = 8,
     image_prompt: Optional[str] = None,
     product_image: Optional[str] = None,
-    enable_sam3: bool = True,
     bgm_style: str = "chill_loft",
     video_prompts: list[str] = None,
 ) -> dict:
     """
-    Run full Affiliate Pipeline v4 — SAM3 → Voice → Wan 2.7 img2vid+audio
+    Run full Affiliate Pipeline v5 — Nano Banana → Gemini TTS → Wan 2.7 → FFmpeg
 
     Args:
         script: Voice over text (Thai)
         scene_prompts: List of scene prompts
-        voice_id: MiniMax voice ID
+        voice: Gemini TTS voice name
         video_duration: Seconds per scene
-        image_prompt: If set, generate FLUX image as video input
-        product_image: If set, use real product image for SAM3 + video
-        enable_sam3: Toggle SAM3 analysis
+        image_prompt: คำบรรยายสำหรับสร้างรูป (ถ้าไม่มีจะใช้ scene_prompts[0])
+        product_image: URL หรือ path ของรูปสินค้า (สำคัญมากสำหรับ Nano Banana!)
+        bgm_style: สไตล์เพลงพื้นหลัง
+        video_prompts: คำบรรยายสำหรับ video (ถ้าต่างจาก scene_prompts)
 
     Returns:
         dict { final_path, cost_estimate, ... }
@@ -442,87 +319,59 @@ def run_pipeline(
     run_id = uuid.uuid4().hex[:8]
     num_scenes = len(scene_prompts)
 
-    logger.info(f"=== Pipeline v4 run {run_id} ===")
+    logger.info(f"=== Pipeline v5 run {run_id} ===")
     logger.info(f"Script: {script[:50]}...")
     logger.info(f"Scenes: {num_scenes} x {video_duration}s")
-    logger.info(f"Product image: {product_image or 'None (FLUX gen only)'}")
-    logger.info(f"SAM3: {'ON' if enable_sam3 else 'OFF'}")
+    logger.info(f"Product image: {product_image or 'None (will generate generic)'}")
 
-    cost_sam3 = 0.0
     cost_image = 0.0
     cost_voice = 0.0
     cost_video = 0.0
 
-    # ── Step 0: SAM3 Analyze ──
-    sam3_analysis = None
-    ref_image_for_video = None
+    # ── Step 1: Image (Nano Banana Img2Img) ──
+    logger.info("Step 1/4: Nano Banana Image")
+    
+    if not product_image:
+        logger.warning("No product_image! Image might not match actual product")
+    
+    # ใช้ scene_prompts[0] หรือ image_prompt เป็น base prompt
+    base_prompt = image_prompt or scene_prompts[0] if scene_prompts else "product showcase, clean background"
+    
+    img_url = generate_image(
+        prompt=base_prompt,
+        input_image=product_image,
+        product_image=product_image,
+    )
+    img_path = TMP_DIR / f"image_{run_id}.png"
+    download_file(img_url, img_path)
+    ref_image_for_video = str(img_path)
+    cost_image = 0.005  # Nano Banana cost
 
-    if enable_sam3 and product_image:
-        logger.info("Step 0/4: SAM3 Analyze")
-        sam3_analysis = sam3_analyze_image(product_image, run_id)
-        cost_sam3 = 0.0011
-
-        # Export layout
-        layout_path = TMP_DIR / f"layout_{run_id}.json"
-        with open(layout_path, "w") as f:
-            json.dump({
-                "objects": sam3_analysis["objects"],
-                "safe_zones": sam3_analysis["safe_zones"],
-                "layout": sam3_analysis["layout"],
-                "prompt_insights": sam3_analysis["prompt_insights"],
-            }, f, indent=2)
-        logger.info(f"  Layout -> {layout_path}")
-
-        # Use real product image ONLY for SAM3 analysis
-        # Image gen (FLUX with model) will run separately below
-
-    # ── Step 1: Image (FLUX) ──
-    # Need a base image for img2vid — either product_image or FLUX gen
-    if not ref_image_for_video and image_prompt:
-        logger.info("Step 1/4: FLUX Image")
-        img_url = generate_image(image_prompt, reference_analysis=sam3_analysis,
-                                 input_image=product_image)
-        img_path = TMP_DIR / f"image_{run_id}.png"
-        download_file(img_url, img_path)
-        ref_image_for_video = str(img_path)
-        cost_image = 0.001
-    elif not ref_image_for_video:
-        # Fallback: generate generic product image
-        generic_prompt = scene_prompts[0] if scene_prompts else "product showcase, clean background"
-        img_url = generate_image(generic_prompt, reference_analysis=sam3_analysis)
-        img_path = TMP_DIR / f"image_{run_id}.png"
-        download_file(img_url, img_path)
-        ref_image_for_video = str(img_path)
-        cost_image = 0.001
-
-    # ── Step 2: Voice (สร้างก่อน video เพราะต้องใช้เป็น audio input!) ──
-    logger.info(f"Step 2/4: Voice [ID: {voice_id}]")
-    voice_url = generate_voice(script, voice_id=voice_id)
-    voice_path = TMP_DIR / f"voice_{run_id}.mp3"
-    download_file(voice_url, voice_path)
+    # ── Step 2: Voice (Gemini TTS) ──
+    logger.info(f"Step 2/4: Voice [voice: {voice}]")
+    voice_path = generate_voice(script, voice=voice, run_id=run_id)
     voice_char_count = len(script)
-    cost_voice = (voice_char_count / 1000) * 0.06
+    cost_voice = (voice_char_count / 1000) * 0.0001  # Gemini TTS cost estimate
 
-    # ── Step 3: Video — Wan 2.7 img2vid (ไม่มี audio = no lip sync!) ──
+    # ── Step 3: Video — Wan 2.7 img2vid ──
     logger.info("Step 3/4: Video (img2vid)")
     video_paths = []
     vid_prompts = video_prompts if video_prompts else scene_prompts
+    
     for i in range(num_scenes):
         vprompt = vid_prompts[i] if i < len(vid_prompts) else scene_prompts[i]
         logger.info(f"  Scene {i+1}/{num_scenes}: {vprompt[:60]}...")
-        vid_url = generate_video(
+        
+        vid_path = generate_video(
             image_path=ref_image_for_video,
             prompt=vprompt,
             duration=video_duration,
-            reference_analysis=sam3_analysis,
         )
-        vpath = TMP_DIR / f"scene_{run_id}_{i}.mp4"
-        download_file(vid_url, vpath)
-        video_paths.append(vpath)
+        video_paths.append(Path(vid_path))
 
     cost_video = num_scenes * 0.03
 
-    # ── Voice Merge: FFmpeg เอา voice audio ใส่ video (no lip sync)
+    # ── Voice Merge: FFmpeg เอา voice audio ใส่ video ──
     logger.info("Voice Merge: mixing voice audio into video")
     merged_paths = []
     for i, vpath in enumerate(video_paths):
@@ -592,9 +441,8 @@ def run_pipeline(
                 logger.warning(f"  BGM failed: {bgm_err}")
 
     # Cost summary
-    cost_total = cost_sam3 + cost_image + cost_voice + cost_video
+    cost_total = cost_image + cost_voice + cost_video
     cost_breakdown = {
-        "sam3": round(cost_sam3, 4),
         "image": round(cost_image, 4),
         "voice": round(cost_voice, 4),
         "video": round(cost_video, 4),
@@ -613,11 +461,6 @@ def run_pipeline(
         "cost_estimate": cost_total,
         "cost_breakdown": cost_breakdown,
         "files": {"final": str(final_path)},
-        "sam3": {
-            "enabled": sam3_analysis is not None,
-            "objects": [o["label"] for o in (sam3_analysis["objects"] if sam3_analysis else [])],
-            "layout": sam3_analysis.get("layout", {}) if sam3_analysis else {},
-        } if sam3_analysis else None,
     }
 
 
@@ -625,14 +468,13 @@ def run_pipeline(
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description="Affiliate Video Pipeline v4 (Prodia)")
+    parser = argparse.ArgumentParser(description="Affiliate Video Pipeline v5")
     parser.add_argument("--script", required=True, help="Voice over text (Thai)")
     parser.add_argument("--prompts", nargs="+", required=True, help="Scene prompts")
-    parser.add_argument("--voice", default="English_Trustworth_Man", help="Voice ID")
+    parser.add_argument("--voice", default="Aoede", help="Gemini TTS voice")
     parser.add_argument("--duration", type=int, default=8, help="Seconds per scene")
-    parser.add_argument("--image", default="", help="FLUX image prompt (optional)")
-    parser.add_argument("--product-image", default="", help="Product image path for SAM3")
-    parser.add_argument("--no-sam3", action="store_true", help="Disable SAM3 analysis")
+    parser.add_argument("--image", default="", help="Image prompt (optional)")
+    parser.add_argument("--product-image", required=True, help="Product image URL/path")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO)
@@ -640,16 +482,13 @@ if __name__ == "__main__":
     result = run_pipeline(
         script=args.script,
         scene_prompts=args.prompts,
-        voice_id=args.voice,
+        voice=args.voice,
         video_duration=args.duration,
         image_prompt=args.image or None,
-        product_image=args.product_image or None,
-        enable_sam3=not args.no_sam3,
+        product_image=args.product_image,
     )
 
     print("\n✅ Done!")
     print(f"  Final: {result['final_path']}")
     print(f"  Cost:  ${result['cost_estimate']}")
     print(f"  Breakdown: {result['cost_breakdown']}")
-    if result.get("sam3"):
-        print(f"  SAM3: {result['sam3']['objects']}")

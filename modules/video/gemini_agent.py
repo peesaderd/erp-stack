@@ -9,9 +9,14 @@ import logging
 import requests
 from typing import Optional, Any
 
-logger = logging.getLogger("product-analyzer")
+import sys
+from pathlib import Path
+_erp_stack = Path(__file__).parent.parent.parent
+if str(_erp_stack) not in sys.path:
+    sys.path.insert(0, str(_erp_stack))
+from shared_config import GEMINI_API_KEY
 
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+logger = logging.getLogger("product-analyzer")
 TEXT_MODEL = "gemini-2.5-flash"
 VISION_MODEL = "gemini-2.5-flash"
 
@@ -76,23 +81,9 @@ def _call_gemini(
     response_json: bool = False,
 ) -> str:
     """Call Google Gemini 2.5 Flash API with vision support and optional JSON mode."""
-    # Proactively load API key from remote .env if not present in env
-    global GEMINI_API_KEY
-    if not GEMINI_API_KEY:
-        env_path = os.path.join(os.path.dirname(__file__), ".env")
-        if os.path.exists(env_path):
-            with open(env_path, "r", encoding="utf-8") as f:
-                for line in f:
-                    if line.strip().startswith("GEMINI_API_KEY="):
-                        GEMINI_API_KEY = line.split("=", 1)[1].strip()
-                        os.environ["GEMINI_API_KEY"] = GEMINI_API_KEY
-                        break
-    
-    key = GEMINI_API_KEY or os.environ.get("GEMINI_API_KEY", "")
+    key = GEMINI_API_KEY()
     if not key:
         raise ValueError("GEMINI_API_KEY not configured")
-        
-    key = key.strip("'\"")
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={key}"
 

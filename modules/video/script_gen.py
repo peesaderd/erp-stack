@@ -7,8 +7,14 @@ import os
 import json
 import logging
 import random
+import sys
 from pathlib import Path
 from typing import Optional
+
+_erp_stack = Path(__file__).parent.parent.parent
+if str(_erp_stack) not in sys.path:
+    sys.path.insert(0, str(_erp_stack))
+from shared_config import GEMINI_API_KEY
 
 logger = logging.getLogger("tiktok-ugc.script_gen")
 
@@ -18,7 +24,7 @@ PROMPTS_DIR = Path(__file__).parent / "prompts"
 
 def _call_gemini(system_prompt: str, user_prompt: str) -> Optional[str]:
     """Call Gemini API for script generation."""
-    api_key = os.environ.get("GEMINI_API_KEY", "")
+    api_key = GEMINI_API_KEY()
     if not api_key:
         logger.warning("No GEMINI_API_KEY configured — using template fallback")
         return None

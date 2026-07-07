@@ -136,38 +136,8 @@ class FullPipelineRequest(BaseModel):
     run_video_gen: bool = True
     run_compose: bool = True
 
-class VideoTaskRequest(BaseModel):
-    provider: str
-    task_id: str
-
-class QueueVideoRequest(BaseModel):
-    prompt: str
-    provider: str = "prodia"
-    model_tier: str = "standard"
-    duration: int = 8
-    aspect_ratio: str = "9:16"
-    image_url: Optional[str] = None
-    face_image_url: Optional[str] = None
-    webhook_url: Optional[str] = None
-
-class TaskStatusRequest(BaseModel):
-    task_id: str
-
 class AffiliateScriptRequest(ScriptRequest):
     platforms: list[str] = []
-
-class VideoQueueRequest(BaseModel):
-    prompt: str
-    provider: str = "prodia"
-    duration: int = 8
-    aspect_ratio: str = "9:16"
-    image_url: Optional[str] = None
-
-class GenerateWithFallbackRequest(BaseModel):
-    prompt: str
-    image_url: Optional[str] = None
-    duration: int = 8
-    aspect_ratio: str = "9:16"
 
 # ─── Pipeline Job Store (in-memory) ────────────────────────────────────
 _pipeline_jobs: dict = {}
@@ -263,143 +233,78 @@ async def generate_affiliate_script(req: AffiliateScriptRequest):
 async def get_affiliate_config():
     return {"success": True, "config": {}}
 
-# ─── TTS ──────────────────────────────────────────────────────────────
+# ─── TTS (Gemini) ──────────────────────────────────────────────────────
 
 @app.post("/api/v1/tts/generate")
 async def generate_tts(req: dict):
-    """Generate TTS audio from text."""
-    from video.tts_gen import text_to_speech
+    """Generate TTS audio from text using Gemini."""
+    from video.gemini_tts import gemini_text_to_speech
     text = req.get("text", "")
-    lang = req.get("lang", "th")
+    voice = req.get("voice", "Aoede")
     if not text:
         return {"success": False, "error": "No text provided"}
-    filepath = text_to_speech(text=text, lang=lang)
+    output_path = str(TTS_DIR / f"tts_{uuid.uuid4().hex[:8]}.mp3")
+    filepath = gemini_text_to_speech(text, output_path=output_path, voice=voice)
     return {"success": True, "filepath": filepath}
 
 @app.post("/api/v1/tts/script")
 async def generate_script_tts(req: dict):
-    """Generate TTS from a full script."""
-    from video.tts_gen import script_to_speech
-    result = script_to_speech(req.get("script", {}))
-    return result
+    """Generate TTS from a full script using Gemini."""
+    from video.gemini_tts import gemini_text_to_speech
+    script = req.get("script", {})
+    hook = script.get("hook", "")
+    body = script.get("body", "") or script.get("value_proposition", "")
+    cta = script.get("cta", "")
+    full_text = " ".join(filter(None, [hook, body, cta]))
+    if not full_text.strip():
+        return {"success": False, "error": "No text in script"}
+    voice = req.get("voice", "Aoede")
+    output_path = str(TTS_DIR / f"script_{uuid.uuid4().hex[:8]}.mp3")
+    filepath = gemini_text_to_speech(full_text, output_path=output_path, voice=voice)
+    return {"success": True, "filepath": filepath}
 
 # ─── Video Generation ────────────────────────────────────────────────
 
 @app.post("/api/v1/video/generate")
 async def generate_video(req: VideoRequest):
-    """Generate AI video. Routes to the appropriate pipeline provider."""
-    if req.provider == "prodia" or req.content_type == "standard":
-        from video.pipeline_default import run_pipeline
-        result = await run_pipeline(
-            product_title=req.product_title,
-            product_image=req.product_image or req.image_url or "",
-            hook=req.hook,
-            value=req.value,
-            cta=req.cta,
-            duration=req.duration,
-            aspect_ratio=req.aspect_ratio,
+    """Generate AI video via Affiliate Pipeline (unified).
+    
+    All content types now route through pipeline_affiliate.
+    The pipeline handles: Gemini Vision → SAM3 → Script Gen → TTS → Nano Banana → Wan 2.7 → FFmpeg
+    """
+    from video.pipeline_affiliate import run_pipeline
+    
+    # Build script from hook + value + cta if no explicit script provided
+    script = req.script or ""
+    if not script:
+        parts = [p for p in [req.hook, req.value, req.cta] if p]
+        script = " ".join(parts) if parts else req.product_title or "รีวิวสินค้า"
+    
+    # Build scene prompts from request
+    scene_prompts = []
+    if req.scenes:
+        scene_prompts = [s.script or s.mood for s in req.scenes]
+    if not scene_prompts:
+        # Default: single scene from product title
+        scene_prompts = [req.product_title or "สินค้าน่าสนใจ วางบนพื้นผิวสวยงาม แสงธรรมชาติ"]
+    
+    product_image = req.product_image or req.image_url or ""
+    
+    try:
+        result = run_pipeline(
+            script=script,
+            scene_prompts=scene_prompts,
+            voice="Aoede",
+            video_duration=req.duration,
+            product_image=product_image if product_image else None,
+            bgm_style="chill_loft",
         )
-    elif req.content_type == "affiliate":
-        from video.pipeline_affiliate import run_pipeline as affiliate_run
-        result = await affiliate_run(
-            product_title=req.product_title,
-            product_image=req.product_image or req.image_url or "",
-            hook=req.hook,
-            value=req.value,
-            cta=req.cta,
-            duration=req.duration,
-        )
-    elif req.content_type == "cartoon":
-        from video.pipeline_cartoon import run_pipeline as cartoon_run
-        result = await cartoon_run(
-            product_title=req.product_title,
-            product_image=req.product_image or req.image_url or "",
-            hook=req.hook,
-            value=req.value,
-            cta=req.cta,
-            duration=req.duration,
-        )
-    else:
-        from video.video_gen import generate_video as gen_video
-        result = await gen_video(
-            prompt=req.prompt or req.product_title,
-            image_url=req.image_url or req.product_image,
-            duration=req.duration,
-            aspect_ratio=req.aspect_ratio,
-            provider=req.provider,
-        )
-    return {"success": True, "result": result}
+        return {"success": True, "result": result}
+    except Exception as e:
+        logger.error(f"Pipeline error: {e}")
+        return {"success": False, "error": str(e)}
 
-@app.get("/api/v1/video/status/{job_id}")
-async def video_status(job_id: str):
-    """Check video generation status."""
-    from video.video_gen import check_status
-    status = check_status(job_id)
-    job = _get_job(job_id)
-    return {"success": True, "job_id": job_id, "status": status, "pipeline": job}
 
-@app.post("/api/v1/video/status")
-async def video_status_bulk(req: VideoTaskRequest):
-    """Check status for a specific provider task."""
-    from video.video_gen import check_status
-    status = check_status(req.task_id)
-    return {"success": True, "provider": req.provider, "task_id": req.task_id, "status": status}
-
-@app.get("/api/v1/video/providers")
-async def list_video_providers():
-    """List available video generation providers."""
-    from video.video_gen import get_available_providers, UGC_PRESETS
-    return {
-        "success": True,
-        "providers": get_available_providers(),
-        "presets": UGC_PRESETS,
-    }
-
-@app.post("/api/v1/video/queue")
-async def enqueue_video(req: QueueVideoRequest):
-    """Enqueue a video generation task."""
-    from video.video_gen import enqueue_video_task
-    task_id = enqueue_video_task(
-        prompt=req.prompt,
-        provider=req.provider,
-        model_tier=req.model_tier,
-        duration=req.duration,
-        aspect_ratio=req.aspect_ratio,
-        image_url=req.image_url,
-        face_image_url=req.face_image_url,
-    )
-    return {"success": True, "task_id": task_id}
-
-@app.post("/api/v1/video/queue-status")
-async def queue_status(req: VideoTaskRequest):
-    """Check queue task status."""
-    from video.video_gen import get_task_status
-    status = get_task_status(req.task_id)
-    return {"success": True, "task_id": req.task_id, "status": status}
-
-@app.post("/api/v1/video/concat")
-async def concat_videos(req: ConcatRequest):
-    """Concatenate multiple video clips."""
-    from video.composer import compose_video
-    results = []
-    for i, url in enumerate(req.video_urls):
-        output = str(COMPOSED_DIR / f"concat_{i}_{uuid.uuid4().hex[:4]}.mp4")
-        result = compose_video(video_path=url, audio_path="", output_path=output)
-        results.append(result)
-    return {"success": True, "results": results}
-
-@app.post("/api/v1/video/generate-with-fallback")
-async def generate_with_fallback(req: GenerateWithFallbackRequest):
-    """Generate video with automatic provider fallback: Prodia→Fal."""
-    from video.video_gen import generate_video_with_fallback, build_video_prompt
-    prompt = build_video_prompt(req.prompt) if not req.prompt else req.prompt
-    result = await generate_video_with_fallback(
-        prompt=prompt,
-        image_url=req.image_url or "",
-        duration=req.duration,
-        aspect_ratio=req.aspect_ratio,
-    )
-    return {"success": True, "result": result}
 
 @app.get("/api/v1/videos/gallery")
 async def video_gallery():
@@ -430,11 +335,12 @@ async def pipeline_list(limit: int = 20):
 async def run_full_pipeline(req: FullPipelineRequest):
     """Run full UGC pipeline: TTS → Video Gen → Compose."""
     import tempfile
-    from video.tts_gen import text_to_speech
+    from video.gemini_tts import gemini_text_to_speech
     from video.composer import compose_video
     job_id = _create_job(account_id="", product_url=req.product_url or "")
 
     try:
+        video_path = None
         if req.run_tts:
             _update_step(job_id, "tts", "processing")
             full_text = " ".join(filter(None, [req.hook, req.value_proposition, req.cta]))
@@ -442,7 +348,8 @@ async def run_full_pipeline(req: FullPipelineRequest):
                 full_text = req.product_title or req.product_description or ""
             if full_text.strip():
                 try:
-                    tts_file = text_to_speech(text=full_text.strip(), lang=req.tts_lang or "th")
+                    output_path = str(TTS_DIR / f"pipeline_{job_id}.mp3")
+                    tts_file = gemini_text_to_speech(full_text.strip(), output_path=output_path)
                     _update_step(job_id, "tts", "success", {"filepath": tts_file})
                 except Exception as e:
                     _update_step(job_id, "tts", "error", {"error": str(e)})

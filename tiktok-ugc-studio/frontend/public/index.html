@@ -825,6 +825,7 @@ select.input { cursor: pointer; }
     <button data-tab="settings" onclick="switchTab('settings')"><svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Settings</span></button>
   </nav>
   <div class="topbar-actions">
+    <button class="btn btn-primary" id="btn-topbar-login" onclick="switchTab('profile')" style="padding: 6px 12px; font-size: 13.5px; font-weight: 600; display: none;">Login</button>
     <div class="user-badge" id="userBadge" onclick="switchTab('profile')" style="display:none">
       <div class="user-badge-avatar" id="userBadgeAvatar">?</div>
       <span class="user-badge-balance" id="userBadgeBalance">฿0.00</span>
@@ -1453,8 +1454,12 @@ select.input { cursor: pointer; }
             </div>
           </div>
           
-          <div class="mb-3">
+          <div class="mb-3" style="display:flex;align-items:center;gap:10px">
             <span class="badge" id="profile-user-tier" style="background:var(--bg-tertiary);color:var(--brand);padding:6px 12px;border-radius:20px;font-weight:600;font-size:12px">Free Member</span>
+            <button class="btn btn-secondary" style="padding:4px 12px;font-size:12px;font-weight:600;border-radius:20px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;border:1px solid var(--border-primary)" onclick="authLogout()">
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+              Logout
+            </button>
           </div>
 
           <hr style="border:none;border-top:1px solid var(--border-primary);margin:16px 0">
@@ -1495,16 +1500,7 @@ select.input { cursor: pointer; }
       </div>
     </div>
 
-    <!-- Logout Action Card -->
-    <div class="card mt-4" style="border:1px solid rgba(220,53,69,0.2)">
-      <div class="card-body" style="display:flex;justify-content:space-between;align-items:center">
-        <div>
-          <span style="font-weight:600;color:var(--text-primary)">Sign out of TUS App</span>
-          <p style="margin:0;font-size:12px;color:var(--text-secondary)">Securely log out of this account session</p>
-        </div>
-        <button class="btn" style="background:var(--color-red-600);color:white;border:none;padding:8px 16px;cursor:pointer;border-radius:var(--radius)" onclick="authLogout()">Sign Out</button>
-      </div>
-    </div>
+
   </div>
 </div>
 <div id="page-settings" class="page">
@@ -1664,15 +1660,11 @@ let currentStep = 1;
 
 /* ═══ Tab switching ═══ */
 function switchTab(name) {
-  // Automatically close mobile side drawer if open
+  // Always close mobile side drawer
   const nav = document.getElementById('sideNav');
   const overlay = document.getElementById('sideOverlay');
-  if (nav && nav.classList.contains('open')) {
-    nav.classList.remove('open');
-  }
-  if (overlay && overlay.classList.contains('open')) {
-    overlay.classList.remove('open');
-  }
+  if (nav) nav.classList.remove('open');
+  if (overlay) overlay.classList.remove('open');
 
   // Highlight mobile bottom tab item
   document.querySelectorAll('.mobile-tab-item').forEach(item => {
@@ -3930,12 +3922,14 @@ function updateAuthUI() {
   const badge = document.getElementById('userBadge');
   const badgeName = document.getElementById('userBadgeName');
   const badgeAvatar = document.getElementById('userBadgeAvatar');
+  const loginBtn = document.getElementById('btn-topbar-login');
   
   const loggedOutPanel = document.getElementById('profile-logged-out');
   const loggedInPanel = document.getElementById('profile-logged-in');
   
   if (token && user) {
     if (badge) { badge.style.display = 'flex'; }
+    if (loginBtn) { loginBtn.style.display = 'none'; }
     if (badgeName) { badgeName.textContent = user.name || user.email || 'User'; }
     if (badgeAvatar) { badgeAvatar.textContent = (user.name || user.email || 'U')[0].toUpperCase(); }
     document.getElementById('userBadgeLogout').style.display = 'inline-flex';
@@ -3990,6 +3984,7 @@ function updateAuthUI() {
     }
   } else {
     if (badge) { badge.style.display = 'none'; }
+    if (loginBtn) { loginBtn.style.display = 'inline-block'; }
     if (loggedOutPanel) {
       loggedOutPanel.style.display = 'block';
       toggleLocalAuthTab('login');

@@ -54,15 +54,19 @@ _env_dict = _load_env_files()
 
 
 def _get_key(name: str) -> str:
-    """Get key: os.environ → .env files → ValueError"""
-    val = os.environ.get(name)
-    if val:
-        return val
+    """Get key: .env files → os.environ → ValueError
+    
+    NOTE: .env files take priority over os.environ because OpenClaw
+    may inject stale keys via env vars (e.g. GEMINI_API_KEY from openclaw.json)
+    """
     val = _env_dict.get(name)
     if val:
         return val
+    val = os.environ.get(name)
+    if val:
+        return val
     raise ValueError(
-        f"{name} not found in os.environ or any .env file. "
+        f"{name} not found in .env files or os.environ. "
         f"Checked paths: {[p for p in ENV_FILE_PATHS if os.path.isfile(p)]}"
     )
 

@@ -1426,7 +1426,7 @@ def generate_video(req: VideoRequest):
     scene_prompts = [s.script for s in scenes]
     duration_per_scene = min(scenes[0].duration, 8) if scenes else 8
 
-    def _run():
+    async def _run():
         try:
             # Call Prompt Builder Module via HTTP proxy
             pb_result = await _proxy("POST", "prompt-builder", "/api/v1/build", {
@@ -1540,8 +1540,7 @@ def generate_video(req: VideoRequest):
                 "job_id": job_id,
             }
 
-    thread = threading.Thread(target=_run, daemon=True)
-    thread.start()
+    asyncio.create_task(_run())
 
     _pipeline_results[job_id] = {
         "status": "processing",
@@ -2126,13 +2125,16 @@ async def build_image_prompt(req: BuildPromptRequest):
         ugc_style: holding / usage / review / talking
         use_mistral: ถ้า True จะเรียก Mistral เพื่อวิเคราะห์เพิ่ม
     """
-    from image_prompt_builder import process_image_prompt_request
-    result = await process_image_prompt_request(
-        product_name=req.product_name,
-        description=req.description,
-        ugc_style=req.ugc_style,
-        use_mistral=req.use_mistral,
-    )
+    # Call Image Module /api/v1/analyze via HTTP proxy
+    analyze_result = await _proxy("POST", "image-gen", "/api/v1/analyze", {
+        "product_name": req.product_name,
+        "description": req.description,
+        "ugc_style": req.ugc_style,
+        "use_mistral": req.use_mistral,
+    })
+    if not analyze_result.get("ok"):
+        raise HTTPException(status_code=502, detail=f"Image Module analyze failed: {analyze_result.get('error')}")
+    result = analyze_result.get("data", {})
     return {"ok": True, **result}
 
 
@@ -2153,13 +2155,16 @@ async def generate_enhanced_image(req: GenerateEnhancedRequest):
     2. สร้าง prompt ที่ dynamic + negative prompt
     3. ส่งไป Prodia/Fal พร้อม aspect ratio และ thaiModel
     """
-    from image_prompt_builder import process_image_prompt_request
-    prompt_info = await process_image_prompt_request(
-        product_name=req.product_name,
-        description=req.description,
-        ugc_style=req.ugc_style,
-        use_mistral=req.use_mistral,
-    )
+    # Call Image Module /api/v1/analyze via HTTP proxy
+    analyze_result = await _proxy("POST", "image-gen", "/api/v1/analyze", {
+        "product_name": req.product_name,
+        "description": req.description,
+        "ugc_style": req.ugc_style,
+        "use_mistral": req.use_mistral,
+    })
+    if not analyze_result.get("ok"):
+        raise HTTPException(status_code=502, detail=f"Image Module analyze failed: {analyze_result.get('error')}")
+    prompt_info = analyze_result.get("data", {})
     
     gen_result = await _proxy("POST", "image-gen", "/api/image/v1/generate", {
         "prompt": prompt_info["prompt"],
@@ -2194,8 +2199,7 @@ async def image_gallery():
 
 @app.get("/videos/gallery")
 async def video_gallery():
-    """List generated videos from task queue + Video Gen module."""
-    from video_gen import task_queue
+    """List generated videos from local storage + Video Gen module."""
     import glob
     storage = os.environ.get("STORAGE_DIR", "/home/openhands/erp-stack/tiktok-ugc-studio/storage/videos")
     files = []
@@ -3914,15 +3918,21 @@ async def colab_submit_job(req: FullPipelineRequest):
                         f.write(img_resp.content)
                     product_image_path = img_path
 
-    # 3. Generate TTS
+    # 3. Generate TTS via Video Module HTTP proxy
     if req.run_tts:
-        from tts_gen import text_to_speech
         full_text = " ".join(filter(None, [req.hook, req.value_proposition, req.cta]))
         if not full_text.strip():
             full_text = product_name or req.product_description or ""
         if full_text.strip():
             try:
-                tts_audio_path = text_to_speech(text=full_text.strip(), lang=req.tts_lang or "th")
+                tts_result = await _proxy("POST", "video", "/api/v1/tts/generate", {
+                    "text": full_text.strip(),
+                    "lang": req.tts_lang or "th",
+                })
+                if tts_result.get("ok"):
+                    tts_audio_path = tts_result["data"].get("filepath") or tts_result["data"].get("audio_path", "")
+                else:
+                    logger.error(f"TTS proxy call failed for colab job: {tts_result.get('error')}")
             except Exception as e:
                 logger.error(f"TTS failed for colab job: {e}")
 

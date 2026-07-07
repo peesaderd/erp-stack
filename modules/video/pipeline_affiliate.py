@@ -58,7 +58,7 @@ PRODIA_IMG2IMG_TYPE = "inference.nano-banana.img2img.v1"
 PRODIA_IMG2VID_TYPE = "inference.wan2-7.img2vid.v1"
 
 # Image Gen Service URL (localhost:8110)
-IMAGE_GEN_URL = "http://localhost:8110/api/image/v1/generate"
+IMAGE_GEN_URL = "http://localhost:8110/api/v1/image/generate"
 
 
 # ─── Helpers ───────────────────────────────────────────────────────────────

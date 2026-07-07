@@ -887,6 +887,180 @@ async def analyze_product(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# ─── Dashboard Summary ──────────────────────────────────────────────────
+
+@app.get("/dashboard/summary")
+def dashboard_summary():
+    """Dashboard summary: credits, counts, recent jobs, quick actions."""
+    total_videos = 0
+    total_products = 0
+    recent_jobs = []
+
+    # Read pipeline.db -> total_videos + recent_jobs
+    if os.path.exists(PIPELINE_DB_PATH):
+        try:
+            conn = sqlite3.connect(PIPELINE_DB_PATH)
+            # Total jobs count
+            row = conn.execute("SELECT COUNT(*) FROM pipeline_jobs").fetchone()
+            total_videos = row[0] if row else 0
+
+            # Recent jobs (last 10)
+            rows = conn.execute(
+                "SELECT job_id, account_id, status, product_url, created_at, updated_at "
+                "FROM pipeline_jobs ORDER BY created_at DESC LIMIT 10"
+            ).fetchall()
+            conn.close()
+            for r in rows:
+                recent_jobs.append({
+                    "id": r[0],
+                    "account_id": r[1],
+                    "status": r[2],
+                    "product_url": r[3],
+                    "created_at": r[4],
+                    "updated_at": r[5],
+                })
+        except Exception as e:
+            logger.warning(f"Dashboard pipeline.db read error: {e}")
+
+    # Read tus_products.db -> total_products
+    products_db_path = os.path.join(os.path.dirname(__file__), "tus_products.db")
+    if os.path.exists(products_db_path):
+        try:
+            conn = sqlite3.connect(products_db_path)
+            row = conn.execute("SELECT COUNT(*) FROM tus_products").fetchone()
+            total_products = row[0] if row else 0
+            conn.close()
+        except Exception as e:
+            logger.warning(f"Dashboard products.db read error: {e}")
+
+    # Credit balance (placeholder / from file)
+    credit_balance = 0.0
+    credit_file = os.path.join(os.path.dirname(__file__), "credit_balance.txt")
+    if os.path.exists(credit_file):
+        try:
+            with open(credit_file) as f:
+                credit_balance = float(f.read().strip() or "0")
+        except Exception:
+            pass
+
+    return {
+        "success": True,
+        "credit_balance": credit_balance,
+        "total_videos": total_videos,
+        "total_products": total_products,
+        "recent_jobs": recent_jobs,
+        "quick_actions": ["generate_video", "import_products", "post_tiktok", "scheduled_posts"],
+    }
+
+# ─── Google Sheets Status ───────────────────────────────────────────────
+
+@app.get("/products/sheets/status")
+async def sheets_status():
+    """Check Google Sheets credentials configuration."""
+    try:
+        # Try to import sheets export_service
+        try:
+            from export_service import is_ready as sheets_is_ready
+            from export_service import get_setup_instructions as sheets_instructions
+            configured = sheets_is_ready()
+            instructions = sheets_instructions() if not configured else None
+        except ImportError:
+            configured = False
+            instructions = {"steps": ["pip install gspread google-auth"]}
+        
+        creds_path = os.path.join(os.path.dirname(__file__), '..', 'modules', 'product', 'sheets_credentials.json')
+        sheet_id = os.environ.get("MEDIA_SHEET_ID", "")
+        return {
+            "success": True,
+            "configured": configured,
+            "credentials_file_exists": os.path.exists(creds_path),
+            "credentials_path": creds_path,
+            "spreadsheet_id": sheet_id,
+            "spreadsheet_url": f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit" if sheet_id else "",
+            "instructions": instructions,
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)[:300]}
+
+# ─── Pipeline Recipes ────────────────────────────────────────────────────
+
+@app.get("/pipeline/recipes")
+def get_pipeline_recipes():
+    """Get pipeline recipe templates."""
+    recipes = [
+        {
+            "name": "skincare",
+            "label": "🧴 Skincare Glow",
+            "description": "Soft luxury vibes, calm music, slow transitions",
+            "ugc_style": "product_usage",
+            "sound_style": "luxury_jazz",
+            "mood": "calm",
+            "duration": 10,
+            "bgm_style": "luxury_jazz",
+        },
+        {
+            "name": "gadget",
+            "label": "📱 Gadget Unboxing",
+            "description": "Fast-paced, energetic, quick cuts",
+            "ugc_style": "holding_product",
+            "sound_style": "upbeat_pop",
+            "mood": "energetic",
+            "duration": 8,
+            "bgm_style": "upbeat_pop",
+        },
+        {
+            "name": "fashion",
+            "label": "👗 Fashion Lookbook",
+            "description": "Elegant slow-mo, chic aesthetic",
+            "ugc_style": "talking_head",
+            "sound_style": "chill_loft",
+            "mood": "luxurious",
+            "duration": 8,
+            "bgm_style": "chill_loft",
+        },
+        {
+            "name": "food",
+            "label": "🍜 Food Review",
+            "description": "Warm ASMR-style close-up shots",
+            "ugc_style": "ugc_review",
+            "sound_style": "asmr",
+            "mood": "fun",
+            "duration": 10,
+            "bgm_style": "asmr",
+        },
+        {
+            "name": "asmr",
+            "label": "🎧 ASMR Unboxing",
+            "description": "Quiet ambient, gentle sounds, relaxing",
+            "ugc_style": "product_usage",
+            "sound_style": "asmr",
+            "mood": "calm",
+            "duration": 12,
+            "bgm_style": "asmr",
+        },
+        {
+            "name": "makeup",
+            "label": "💄 Makeup Tutorial",
+            "description": "Soft upbeat, beauty close-ups, trendy",
+            "ugc_style": "talking_head",
+            "sound_style": "upbeat_pop",
+            "mood": "energetic",
+            "duration": 10,
+            "bgm_style": "upbeat_pop",
+        },
+        {
+            "name": "fitness",
+            "label": "💪 Fitness/Supplement",
+            "description": "High energy, motivating, fast tempo",
+            "ugc_style": "holding_product",
+            "sound_style": "energetic_edm",
+            "mood": "energetic",
+            "duration": 8,
+            "bgm_style": "energetic_edm",
+        },
+    ]
+    return {"recipes": recipes}
+
 # ─── Startup Event ────────────────────────────────────────────────────────
 
 @app.on_event("startup")

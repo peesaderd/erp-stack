@@ -368,8 +368,6 @@ async def scrape_and_generate(req: ScrapeAndGenerateRequest):
 
     # 2. Generate script from scraped product data
     try:
-        from script_gen import generate_tiktok_review_script
-
         # Build context from scraped data
         extra_context = f"""
 Product: {product_name}
@@ -379,17 +377,17 @@ Source: {source_site}
 Description: {description[:300]}
 """
 
-        script_result = generate_tiktok_review_script(
-            product_name=product_name,
-            customer_problem=req.tone or f"Finding the right {product_name}",
-            main_benefit=description[:200] if description else "",
-            target_audience="",
-            tone=req.tone,
-            cta=req.cta,
-            duration=req.duration,
-            extra_rules=extra_context,
-            max_chars=350,
-        )
+        script_result = await _proxy("POST", "video", "/api/v1/scripts/generate", {
+            "product_name": product_name,
+            "customer_problem": req.tone or f"Finding the right {product_name}",
+            "main_benefit": description[:200] if description else "",
+            "target_audience": "",
+            "tone": req.tone,
+            "cta": req.cta,
+            "duration": req.duration,
+            "extra_rules": extra_context,
+            "max_chars": 350,
+        })
 
         # 3. Return combined result
         return {
@@ -1319,20 +1317,13 @@ async def script_variations():
 
 
 @app.get("/scripts/templates")
-def script_templates():
+async def script_templates():
     """List available script templates and UGC styles"""
-    from script_gen import SCRIPT_TEMPLATES
+    result = await _proxy("GET", "video", "/api/v1/scripts/templates")
     return {
         "durations": ["8s", "16s"],
         "ugc_styles": ["holding_product", "product_usage", "ugc_review"],
-        "templates": {
-            k: {
-                "hook": v["hook"],
-                "value": v["value"],
-                "cta": v["cta"],
-            }
-            for k, v in SCRIPT_TEMPLATES.items()
-        },
+        "templates": result.get("templates", {}),
     }
 
 
@@ -1794,21 +1785,21 @@ AFFILIATE_CONFIG = {
 
 
 @app.post("/scripts/generate-with-affiliate")
-def generate_script_with_affiliate(req: AffiliateScriptRequest):
+async def generate_script_with_affiliate(req: AffiliateScriptRequest):
     """Generate TikTok script + affiliate links"""
-    from script_gen import generate_tiktok_review_script
     try:
-        script = generate_tiktok_review_script(
-            product_name=req.product_name,
-            customer_problem=req.customer_problem,
-            main_benefit=req.main_benefit,
-            target_audience=req.target_audience,
-            tone=req.tone,
-            cta=req.cta or "กดลิงก์ด้านล่าง",
-            duration=req.duration,
-            extra_rules=req.extra_rules,
-            max_chars=350,
-        )
+        # Call Video Module for script generation
+        script = await _proxy("POST", "video", "/api/v1/scripts/generate", {
+            "product_name": req.product_name,
+            "customer_problem": req.customer_problem,
+            "main_benefit": req.main_benefit,
+            "target_audience": req.target_audience,
+            "tone": req.tone,
+            "cta": req.cta or "กดลิงก์ด้านล่าง",
+            "duration": req.duration,
+            "extra_rules": req.extra_rules,
+            "max_chars": 350,
+        })
         # Build affiliate links for requested platforms
         affiliate_links = {}
         for p in req.platforms:
@@ -3003,12 +2994,11 @@ async def tiktok_full_pipeline(req: TikTokUploadRequest):
     _update_pipeline_step(job_id, "script_gen", "running")
     try:
         product_name = scraped_data.get("name", req.caption or "สินค้า")
-        from script_gen import generate_tiktok_review_script
-        script_result = generate_tiktok_review_script(
-            product_name=product_name,
-            duration="8s",
-            max_chars=350,
-        )
+        script_result = await _proxy("POST", "video", "/api/v1/scripts/generate", {
+            "product_name": product_name,
+            "duration": "8s",
+            "max_chars": 350,
+        })
         script_text = script_result.get("script", "")
         pipeline_steps["script_gen"] = {"success": True, "length": len(script_text)}
         _update_pipeline_step(job_id, "script_gen", "success", {"length": len(script_text)})

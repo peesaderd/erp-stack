@@ -551,7 +551,7 @@ async def script_templates():
 # ─── Video Generation ──────────────────────────────────────────────────────
 
 @app.post("/video/generate")
-def generate_video(req: VideoRequest):
+async def generate_video(req: VideoRequest):
     """Full UGC pipeline with scenes and metadata."""
     job_id = f"vid_{uuid.uuid4().hex[:8]}"
 
@@ -626,16 +626,20 @@ def generate_video(req: VideoRequest):
                 else:
                     product_img_local = req.product_image
 
-            affiliate_result = await _proxy("POST", "video", "/api/v1/pipeline/affiliate/run", {
-                "script": full_script,
-                "scene_prompts": [s.script for s in scenes],
-                "video_prompts": video_prompts,
-                "voice_id": "lovely_girl",
-                "video_duration": min(scenes[0].duration, 8) if scenes else 8,
-                "image_prompt": img_prompt,
-                "product_image": product_img_local,
-                "enable_sam3": bool(product_img_local),
-                "bgm_style": selected_sound_style,
+            affiliate_result = await _proxy("POST", "video", "/api/v1/video/generate", {
+                "product_title": req.product_title or "",
+                "product_image": product_img_local or "",
+                "product_price": req.product_price,
+                "product_commission": req.product_commission,
+                "hook": req.hook or "",
+                "value": req.value or "",
+                "cta": req.cta or "",
+                "duration": min(scenes[0].duration, 8) if scenes else 8,
+                "scenes": [s.dict() for s in scenes] if scenes else [],
+                "tags": req.tags or [],
+                "content_type": req.content_type or "affiliate",
+                "ugc_style": req.ugc_style or "product_usage",
+                "aspect_ratio": req.aspect_ratio or "9:16",
                 "negative_prompt": req.negative_prompt,
             })
 
@@ -887,6 +891,40 @@ def list_products(limit: int = 50, preset: str = "all"):
         products.append(row_dict)
     
     return {"products": products}
+
+# ─── UGC Frontend API Compatibility ───────────────────────────────────────
+
+@app.post("/ugc/scripts/generate")
+async def ugc_scripts_generate(req: dict):
+    """Frontend compatibility endpoint for script generation."""
+    result = await _proxy("POST", "prompt-builder", "/api/v1/build", req)
+    if result.get("ok"):
+        return result.get("data", {})
+    raise HTTPException(status_code=500, detail=result.get("error", "Script generation failed"))
+
+@app.post("/ugc/images/build-prompt")
+async def ugc_images_build_prompt(req: dict):
+    """Frontend compatibility endpoint for image prompt generation."""
+    result = await _proxy("POST", "prompt-builder", "/api/v1/build", req)
+    if result.get("ok"):
+        data = result.get("data", {})
+        return {"prompt": data.get("image_prompt", "")}
+    raise HTTPException(status_code=500, detail=result.get("error", "Prompt generation failed"))
+
+@app.post("/ugc/images/generate")
+async def ugc_images_generate(req: dict):
+    """Frontend compatibility endpoint for image generation."""
+    result = await _proxy("POST", "image-gen", "/api/v1/image/generate", req)
+    if result.get("ok"):
+        return result.get("data", {})
+    raise HTTPException(status_code=500, detail=result.get("error", "Image generation failed"))
+
+from fastapi.staticfiles import StaticFiles
+
+# Mount static file serving for product images
+product_images_dir = os.path.join(os.path.dirname(__file__), "storage", "product_images")
+os.makedirs(product_images_dir, exist_ok=True)
+app.mount("/ugc/static/product_images", StaticFiles(directory=product_images_dir), name="product_images")
 
 # ─── Product Analysis ─────────────────────────────────────────────────────
 

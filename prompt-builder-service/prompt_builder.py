@@ -2,7 +2,7 @@
 """
 Prompt Builder — Unified Pipeline
 ====================================
-Uses Gemini for:
+Uses Mistral for:
   - Product analysis (category, gender, age, problem, benefit)
   - UGC prompt generation (image_prompt, video_prompt, negative_prompt)
   - Script generation
@@ -27,11 +27,10 @@ BASE_DIR = Path(__file__).resolve().parent  # prompt-builder-service/
 PROMPTS_DIR = BASE_DIR
 UGC_DIR = BASE_DIR / "UGC_prompts"
 
-# ─── Gemini Config ───────────────────────────────────────────────────
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+# ─── Mistral Config ──────────────────────────────────────────────────
+from shared_config import MISTRAL_API_KEY as _MISTRAL_API_KEY_LAZY
 
-# ─── Style / Category Maps (fallback when Gemini fails) ──────────────
+# ─── Style / Category Maps (fallback when Mistral fails) ─────────────
 
 STYLE_MAP = {
     "holding": {
@@ -193,7 +192,7 @@ def _get_lighting(category: str) -> dict:
 
 
 def _extract_json(text: str) -> Optional[dict]:
-    """Extract JSON from Gemini response."""
+    """Extract JSON from Mistral response."""
     if not text:
         return None
     if "```json" in text:
@@ -212,61 +211,97 @@ def _extract_json(text: str) -> Optional[dict]:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# ─── Gemini API Call ──────────────────────────────────────────────────
+# ─── Mistral API Calls ────────────────────────────────────────────────
 # ═══════════════════════════════════════════════════════════════════════
 
-def _call_gemini_vision(system_prompt: str, user_text: str, image_url: str, temperature: float = 0.3) -> Optional[str]:
-    """Call Gemini API with image input (vision)."""
-    if not GEMINI_API_KEY:
-        logger.warning("No GEMINI_API_KEY set in environment")
+MISTRAL_TEXT_MODEL = "mistral-large-latest"
+MISTRAL_VISION_MODEL = "pixtral-large-latest"
+MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions"
+
+
+def _get_mistral_key() -> str:
+    # Get key directly from os.environ (most reliable)
+    key = os.environ.get("MISTRAL_API_KEY", "")
+    if key:
+        return key
+    # Fallback to shared_config
+    try:
+        key = _MISTRAL_API_KEY_LAZY() if callable(_MISTRAL_API_KEY_LAZY) else _MISTRAL_API_KEY_LAZY
+        if key:
+            return key
+    except Exception:
+        pass
+    return ""
+
+
+def _call_mistral_vision(system_prompt: str, user_text: str, image_url: str, temperature: float = 0.3) -> Optional[str]:
+    """Call Mistral API with image input (vision via Pixtral)."""
+    api_key = _get_mistral_key()
+    if not api_key:
+        logger.warning("No MISTRAL_API_KEY set in environment")
         return None
     if not image_url:
         return None
     try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
         payload = {
-            "system_instruction": {"parts": [{"text": system_prompt}]},
-            "contents": [{
-                "parts": [
-                    {"text": user_text},
-                    {"inline_data": {"mime_type": "image/jpeg", "data": image_url}}
-                ]
-            }],
-            "generationConfig": {"temperature": temperature, "maxOutputTokens": 2048},
+            "model": MISTRAL_VISION_MODEL,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": [
+                    {"type": "text", "text": user_text},
+                    {"type": "image_url", "image_url": image_url}
+                ]},
+            ],
+            "temperature": temperature,
+            "max_tokens": 2048,
         }
-        resp = requests.post(url, json=payload, timeout=30)
+        resp = requests.post(
+            MISTRAL_API_URL,
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json=payload,
+            timeout=30,
+        )
         if resp.status_code == 200:
             data = resp.json()
-            return data["candidates"][0]["content"]["parts"][0]["text"]
+            return data["choices"][0]["message"]["content"]
         else:
-            logger.error(f"Gemini Vision API error ({resp.status_code}): {resp.text[:200]}")
+            logger.error(f"Mistral Vision API error ({resp.status_code}): {resp.text[:200]}")
             return None
     except Exception as e:
-        logger.error(f"Gemini Vision call failed: {e}")
+        logger.error(f"Mistral Vision call failed: {e}")
         return None
 
 
-def _call_gemini(system_prompt: str, user_text: str, temperature: float = 0.3) -> Optional[str]:
-    """Call Gemini API with system instruction."""
-    if not GEMINI_API_KEY:
-        logger.warning("No GEMINI_API_KEY set in environment")
+def _call_mistral_text(system_prompt: str, user_text: str, temperature: float = 0.3) -> Optional[str]:
+    """Call Mistral API with system instruction."""
+    api_key = _get_mistral_key()
+    if not api_key:
+        logger.warning("No MISTRAL_API_KEY set in environment")
         return None
     try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
         payload = {
-            "system_instruction": {"parts": [{"text": system_prompt}]},
-            "contents": [{"parts": [{"text": user_text}]}],
-            "generationConfig": {"temperature": temperature, "maxOutputTokens": 2048},
+            "model": MISTRAL_TEXT_MODEL,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_text},
+            ],
+            "temperature": temperature,
+            "max_tokens": 2048,
         }
-        resp = requests.post(url, json=payload, timeout=30)
+        resp = requests.post(
+            MISTRAL_API_URL,
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json=payload,
+            timeout=30,
+        )
         if resp.status_code == 200:
             data = resp.json()
-            return data["candidates"][0]["content"]["parts"][0]["text"]
+            return data["choices"][0]["message"]["content"]
         else:
-            logger.error(f"Gemini API error ({resp.status_code}): {resp.text[:200]}")
+            logger.error(f"Mistral API error ({resp.status_code}): {resp.text[:200]}")
             return None
     except Exception as e:
-        logger.error(f"Gemini call failed: {e}")
+        logger.error(f"Mistral call failed: {e}")
         return None
 
 
@@ -312,11 +347,11 @@ JSON format:
 
 
 def analyze_product_image(product_image: str, product_name: str, description: str = "") -> Optional[dict]:
-    """Analyze product image via Gemini Vision API."""
+    """Analyze product image via Mistral Pixtral Vision API."""
     if not product_image:
         return None
     user_text = f"Analyze this product image. Product name: {product_name}. Description: {description if description else 'N/A'}"
-    raw = _call_gemini_vision(PRODUCT_VISION_SYSTEM, user_text, product_image, temperature=0.3)
+    raw = _call_mistral_vision(PRODUCT_VISION_SYSTEM, user_text, product_image, temperature=0.3)
     if raw:
         result = _extract_json(raw)
         if result:
@@ -326,9 +361,9 @@ def analyze_product_image(product_image: str, product_name: str, description: st
 
 
 def analyze_product(product_name: str, description: str = "", keywords: Optional[List[str]] = None) -> dict:
-    """Analyze product via Gemini and return profile dict.
+    """Analyze product via Mistral and return profile dict.
     
-    Falls back to category map if Gemini fails.
+    Falls back to category map if Mistral fails.
     """
     keywords = keywords or []
     kw_str = ", ".join(keywords[:5]) if keywords else "ไม่มี"
@@ -337,14 +372,14 @@ def analyze_product(product_name: str, description: str = "", keywords: Optional
 คำอธิบาย: {description if description else 'ไม่มี'}
 Keywords: {kw_str}"""
 
-    raw = _call_gemini(PRODUCT_ANALYSIS_SYSTEM, user_text, temperature=0.3)
-    gemini_profile = _extract_json(raw) if raw else None
+    raw = _call_mistral_text(PRODUCT_ANALYSIS_SYSTEM, user_text, temperature=0.3)
+    mistral_profile = _extract_json(raw) if raw else None
 
-    if not gemini_profile:
-        logger.warning("Gemini analysis failed — using category map fallback")
+    if not mistral_profile:
+        logger.warning("Mistral analysis failed — using category map fallback")
         cinfo = _match_category(product_name, description)
         gender_label = {"female": "หญิง", "male": "ชาย", "unisex": "ทุกเพศ"}.get(cinfo["gender"], "หญิง")
-        gemini_profile = {
+        mistral_profile = {
             "category": cinfo["category"],
             "target_gender": cinfo["gender"],
             "target_age": cinfo["age"],
@@ -355,22 +390,22 @@ Keywords: {kw_str}"""
             "hashtags": keywords[:5] if len(keywords) >= 5 else [product_name[:20]],
             "image_description": f"{gender_label}ไทย {cinfo['age']} ปี ใน {cinfo['setting']}",
         }
-        if isinstance(gemini_profile.get("hashtags"), str):
-            gemini_profile["hashtags"] = [h.strip().replace("#", "") for h in gemini_profile["hashtags"].split(",")][:5]
-        elif not isinstance(gemini_profile.get("hashtags"), list):
-            gemini_profile["hashtags"] = [product_name.replace(" ", "")[:20]]
+        if isinstance(mistral_profile.get("hashtags"), str):
+            mistral_profile["hashtags"] = [h.strip().replace("#", "") for h in mistral_profile["hashtags"].split(",")][:5]
+        elif not isinstance(mistral_profile.get("hashtags"), list):
+            mistral_profile["hashtags"] = [product_name.replace(" ", "")[:20]]
 
     # Normalize
-    h = gemini_profile.get("hashtags", [])
+    h = mistral_profile.get("hashtags", [])
     if isinstance(h, list):
         h = [x.strip().replace("#", "") for x in h if x.strip()]
         while len(h) < 5:
             h.append(product_name.replace(" ", "").replace("\n", "")[:20])
-        gemini_profile["hashtags"] = h[:5]
+        mistral_profile["hashtags"] = h[:5]
     else:
-        gemini_profile["hashtags"] = [product_name.replace(" ", "")[:20]] * 5
+        mistral_profile["hashtags"] = [product_name.replace(" ", "")[:20]] * 5
 
-    return gemini_profile
+    return mistral_profile
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -546,7 +581,7 @@ def generate_script(
     cta: str = "",
     duration: str = "8s",
 ) -> dict:
-    """Generate TikTok review script using Gemini.
+    """Generate TikTok review script using Mistral.
 
     Args:
         product_name: ชื่อสินค้า
@@ -585,7 +620,7 @@ def generate_script(
 โทนการพูด: {tone}
 {extra if extra else ''}"""
 
-    raw = _call_gemini(SCRIPT_SYSTEM, user_text, temperature=0.7)
+    raw = _call_mistral_text(SCRIPT_SYSTEM, user_text, temperature=0.7)
     script_data = _extract_json(raw) if raw else None
 
     if script_data:
@@ -597,7 +632,7 @@ def generate_script(
         }
 
     # Fallback to template
-    logger.warning("Gemini script gen failed — using template fallback")
+    logger.warning("Mistral script gen failed — using template fallback")
     return _template_script(
         product_name, customer_problem, main_benefit, target_audience, tone, hooks, cta, duration,
     )
@@ -625,8 +660,8 @@ async def analyze_and_build_prompts(
 ) -> dict:
     """
     Full pipeline:
-      1. Analyze product via Gemini → product profile
-      2. Optionally analyze product image via Gemini Vision for enrichment
+      1. Analyze product via Mistral → product profile
+      2. Optionally analyze product image via Mistral Pixtral Vision for enrichment
       3. Build image prompt, video prompt, negative prompt (from UGC_prompts)
       4. Return everything in one dict
     """
@@ -683,7 +718,7 @@ async def analyze_and_build_prompts(
         "negative_prompt": negative_prompt,
         "metadata": {
             "ugc_style": ugc_style,
-            "used_gemini": True,
+            "used_mistral": True,
             "image_analyzed": bool(vision_profile),
         },
         "vision_enrichment": {
@@ -717,7 +752,6 @@ async def process_image_prompt_request(
     product_name: str,
     description: str = "",
     ugc_style: str = "holding",
-    use_mistral: bool = True
 ) -> dict:
     """Legacy API wrapper."""
     return await analyze_and_build_prompts(

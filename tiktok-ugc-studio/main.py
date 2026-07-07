@@ -1,6 +1,6 @@
 """
-TikTok UGC Studio — API Gateway
-Reduced to ~800 lines. Proxies to module services for business logic.
+TikTok UGC Studio — Micro Service
+AI UGC Video Script Generator + AI Video Generation
 """
 
 import os
@@ -9,7 +9,7 @@ import time
 import asyncio
 import logging
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 # ─── Storage paths ────────────────────────────────────────────────────────
@@ -22,26 +22,33 @@ for d in [STORAGE_DIR, TTS_DIR, IMAGES_DIR, VIDEOS_DIR]:
 
 TIKTOK_ACCOUNTS_FILE = STORAGE_DIR / "tiktok_accounts.json"
 
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, HTTPException, Query, Request, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
-import httpx
+import base64
+import uuid
 import sqlite3
+import requests
+import httpx
 
-# ─── Module service URLs ──────────────────────────────────────────────────
+import sys
+sys.path.insert(0, os.path.dirname(__file__))
+
+# Module service URLs
 MODULE_URLS = {
     "image-gen": "http://localhost:8110",
+    "video-gen": "http://localhost:8111",
     "video": "http://localhost:8111",
     "prompt-builder": "http://localhost:8117",
     "payment": "http://localhost:8122",
     "profile": "http://localhost:8107",
     "auth": "http://localhost:8101",
-    "product": "http://localhost:8106",
 }
 
 async def _proxy(method: str, module: str, path: str, body: dict = None, timeout: float = 90.0) -> dict:
-    """Proxy request to a module service."""
+    """Proxy request to a module, return normalized response."""
     base = MODULE_URLS.get(module)
     if not base:
         raise HTTPException(status_code=400, detail=f"Unknown module: {module}")
@@ -49,19 +56,19 @@ async def _proxy(method: str, module: str, path: str, body: dict = None, timeout
     try:
         async with httpx.AsyncClient(timeout=timeout, verify=False) as client:
             if method == "GET":
-                resp = await client.get(url, params=body)
+                resp = await client.get(url)
             else:
                 resp = await client.post(url, json=body or {})
             if resp.status_code >= 400:
-                return {"ok": False, "status": resp.status_code, "error": resp.text[:300]}
+                return {"ok": False, "status": resp.status_code, "error": resp.text[:300], "data": None}
             try:
                 return {"ok": True, "status": resp.status_code, "data": resp.json()}
             except Exception:
                 return {"ok": True, "status": resp.status_code, "data": {"text": resp.text}}
     except Exception as e:
-        return {"ok": False, "status": 0, "error": str(e)}
+        return {"ok": False, "status": 0, "error": str(e), "data": None}
 
-# ─── Load .env ────────────────────────────────────────────────────────────
+# Load .env file for API keys
 _env_file = os.path.join(os.path.dirname(__file__), '.env')
 if os.path.exists(_env_file):
     with open(_env_file) as _f:
@@ -75,8 +82,11 @@ if os.path.exists(_env_file):
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("tiktok-ugc")
 
-# ─── FastAPI app ──────────────────────────────────────────────────────────
-app = FastAPI(title="TikTok UGC Studio", version="0.3.0", description="API Gateway for UGC video pipeline")
+app = FastAPI(
+    title="TikTok UGC Studio",
+    version="0.2.0",
+    description="AI UGC video pipeline - Script gen, TTS, Wan 2.7 I2V, FFmpeg compose, TikTok integration",
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -86,7 +96,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Static files
+# Static file serving
 (STORAGE_DIR / "tts").mkdir(parents=True, exist_ok=True)
 (STORAGE_DIR / "composed").mkdir(parents=True, exist_ok=True)
 (STORAGE_DIR / "videos").mkdir(parents=True, exist_ok=True)
@@ -97,39 +107,638 @@ except Exception as e:
 
 PRODUCT_IMAGE_DIR = STORAGE_DIR / "product_images"
 PRODUCT_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
-try:
-    app.mount("/static/product_images", StaticFiles(directory=PRODUCT_IMAGE_DIR), name="product_images")
-except Exception as e:
-    logger.warning(f"Product images mount: {e}")
 
-# ─── Pydantic Models ──────────────────────────────────────────────────────
-class TikTokAccountConfig(BaseModel):
-    account_id: str = ""
-    username: str = ""
-    session_token: Optional[str] = None
-    use_qr: bool = False
+# In-memory pipeline results
+_pipeline_results = {}
 
-class TikTokUploadRequest(BaseModel):
-    account_id: str
-    video_path: str
-    caption: str = ""
-    hashtags: list[str] = []
+# ─── Pydantic Models ───────────────────────────────────────────────────────
 
-class TikTokSessionRequest(BaseModel):
-    account_id: str
-
-class PipelineRequest(BaseModel):
+class ScriptRequest(BaseModel):
+    product_name: str = ""
+    customer_problem: str = ""
+    main_benefit: str = ""
+    target_audience: str = ""
+    tone: str = ""
+    cta: str = ""
+    duration: str = "8s"
+    extra_rules: str = ""
     product_url: str = ""
     product_title: str = ""
-    ugc_style: str = "product_usage"
+    product_details: str = ""
+    ugc_style: str = ""
+
+class UGCRequest(BaseModel):
+    style: str = "ugc_review"
+    product_name: str
+    product_desc: str = ""
+    gender: str = "female"
+    age: str = "25-35"
+    scene: str = "home"
+    negative_prompt: Optional[str] = None
+
+class TTSRequest(BaseModel):
+    text: str
+    lang: str = "th"
+    slow: bool = False
+
+class ScriptTTSRequest(BaseModel):
+    hook: str
+    value_proposition: str = ""
+    cta: str = ""
+    lang: str = "th"
+
+class SceneBlock(BaseModel):
+    script: str
+    duration: int = 8
+    mood: str = "energetic"
+    sound_style: str = "upbeat_pop"
+    style: str = "product_usage"
+
+class VideoRequest(BaseModel):
+    product_title: str = ""
+    product_url: str = ""
+    product_image: str = ""
+    product_price: Optional[float] = None
+    product_description: Optional[str] = ""
+    product_commission: Optional[float] = None
+    tags: list[str] = []
     hook: str = ""
     value: str = ""
     cta: str = ""
+    content_type: str = "affiliate"
+    ugc_style: str = "product_usage"
+    aspect_ratio: str = "9:16"
+    duration: int = 8
+    scenes: list[SceneBlock] = []
+    prompt: str = ""
+    provider: str = "prodia"
+    model_tier: str = "standard"
+    image_url: Optional[str] = None
+    script: Optional[str] = None
+    negative_prompt: Optional[str] = None
+
+class VideoPostRequest(BaseModel):
+    job_id: str
+    account_id: str
+    affiliate_link: str = ""
+    caption: str = ""
+    schedule_at: Optional[str] = None
+
+class FullPipelineRequest(BaseModel):
+    product_url: Optional[str] = ""
+    product_title: Optional[str] = ""
+    product_description: Optional[str] = ""
+    product_image: Optional[str] = None
+    model_image: Optional[str] = None
+    ugc_style: str = "holding"
+    hook: Optional[str] = ""
+    value_proposition: Optional[str] = ""
+    cta: Optional[str] = ""
+    provider: str = "prodia"
     duration: int = 8
     aspect_ratio: str = "9:16"
+    negative_prompt: Optional[str] = ""
+    tts_lang: str = "th"
+    bg_music: Optional[str] = None
     preset: Optional[str] = None
+    recipe: Optional[str] = None
+    run_tts: bool = True
+    run_video_gen: bool = True
+    run_compose: bool = True
+    platforms: Optional[list] = None
+    schedule_time: Optional[str] = "immediate"
 
-# ─── TikTok accounts storage ──────────────────────────────────────────────
+class ScrapeAndGenerateRequest(BaseModel):
+    url: str
+    duration: str = "8s"
+    tone: str = ""
+    cta: str = ""
+    ugc_style: str = "ugc_review"
+    use_vision: bool = False
+
+# ─── Auth Proxy Routes ─────────────────────────────────────────────────────
+
+@app.post("/api/auth/register")
+async def auth_register(req: dict):
+    return await _proxy("POST", "auth", "/api/v1/auth/register", req)
+
+@app.post("/api/auth/login")
+async def auth_login(req: dict):
+    return await _proxy("POST", "auth", "/api/v1/auth/login", req)
+
+@app.get("/api/auth/me")
+async def auth_me(request: Request):
+    base = MODULE_URLS["auth"]
+    url = f"{base}/api/v1/auth/me"
+    headers = {"Authorization": request.headers.get("authorization", "")}
+    async with httpx.AsyncClient(timeout=90, verify=False) as client:
+        resp = await client.get(url, headers=headers)
+        if resp.status_code >= 400:
+            return {"ok": False, "status": resp.status_code, "error": resp.text[:300], "data": None}
+        return {"ok": True, "status": resp.status_code, "data": resp.json()}
+
+@app.get("/api/auth/{provider}/login")
+async def auth_oauth_login(provider: str):
+    return await _proxy("GET", "auth", f"/api/v1/auth/{provider}/login")
+
+@app.get("/api/auth/{provider}/callback")
+async def auth_oauth_callback(provider: str, code: str = "", state: str = "", error: str = ""):
+    return await _proxy("GET", "auth", f"/api/v1/auth/{provider}/callback?code={code}&state={state}&error={error}")
+
+# ─── Health ────────────────────────────────────────────────────────────────
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "service": "tiktok-ugc-studio", "version": "0.2.0"}
+
+# ─── Product Scraper ───────────────────────────────────────────────────────
+
+SCRAPER_API_URL = "http://localhost:8106"
+
+@app.post("/product/scrape-and-generate")
+async def scrape_and_generate(req: ScrapeAndGenerateRequest):
+    """Scrape product URL, then auto-generate script."""
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        key_resp = await client.post(
+            f"{SCRAPER_API_URL}/api/v1/keys/create",
+            json={"name": "tiktok-ugc-studio"},
+            headers={"x-user-id": "tiktok-ugc"}
+        )
+        key_data = key_resp.json()
+        api_key = key_data.get("key", "")
+
+        scrape_resp = await client.post(
+            f"{SCRAPER_API_URL}/api/v1/scrape",
+            json={"url": req.url, "use_vision": req.use_vision},
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "x-user-id": "tiktok-ugc",
+                "Content-Type": "application/json"
+            }
+        )
+        scrape_data = scrape_resp.json()
+
+    if not scrape_data.get("success"):
+        raise HTTPException(status_code=502, detail=f"Product scraper failed: {scrape_data.get('error', 'unknown')}")
+
+    product = scrape_data.get("product", {}) or {}
+    product_name = product.get("name", "") or ""
+    description = product.get("description", "") or ""
+    price = product.get("price")
+    brand = product.get("brand", "") or ""
+    images = product.get("images", []) or []
+    source_site = product.get("source_site", "") or ""
+
+    if not product_name:
+        raise HTTPException(status_code=400, detail="Could not extract product name from URL")
+
+    try:
+        extra_context = f"Product: {product_name}\nBrand: {brand}\nPrice: {price}\nSource: {source_site}\nDescription: {description[:300]}"
+
+        script_result = await _proxy("POST", "video", "/api/v1/scripts/generate", {
+            "product_name": product_name,
+            "customer_problem": req.tone or f"Finding the right {product_name}",
+            "main_benefit": description[:200] if description else "",
+            "target_audience": "",
+            "tone": req.tone,
+            "cta": req.cta,
+            "duration": req.duration,
+            "extra_rules": extra_context,
+            "max_chars": 350,
+        })
+
+        return {
+            "success": True,
+            "product": {
+                "name": product_name,
+                "price": price,
+                "brand": brand,
+                "description": description[:500],
+                "images": images[:6],
+                "source_site": source_site,
+                "source_url": req.url,
+            },
+            "script": script_result,
+        }
+    except Exception as e:
+        logger.error(f"Script generation failed: {e}")
+        return {
+            "success": True,
+            "product": {
+                "name": product_name,
+                "price": price,
+                "brand": brand,
+                "description": description[:500],
+                "images": images[:6],
+                "source_site": source_site,
+                "source_url": req.url,
+            },
+            "script": None,
+            "script_error": str(e),
+        }
+
+# ─── TTS ───────────────────────────────────────────────────────────────────
+
+@app.post("/tts/generate")
+async def generate_tts(req: TTSRequest):
+    """Generate TTS audio from text using Gemini via video module."""
+    if not req.text or not req.text.strip():
+        raise HTTPException(status_code=400, detail="Text cannot be empty")
+    result = await _proxy("POST", "video", "/api/v1/tts/generate", {
+        "text": req.text.strip(),
+        "voice": "Aoede"
+    })
+    if result.get("ok"):
+        data = result.get("data", {})
+        filepath = data.get("filepath", "")
+        filename = os.path.basename(filepath)
+        return {
+            "success": True,
+            "audio_url": f"/static/tts/{filename}",
+            "filepath": filepath,
+            "filename": filename,
+            "duration_estimate": len(req.text.strip()) / 12,
+        }
+    else:
+        raise HTTPException(status_code=502, detail=result.get("error", "TTS generation failed"))
+
+@app.post("/tts/script")
+async def generate_script_tts(req: ScriptTTSRequest):
+    """Generate TTS for full UGC script (hook + value + CTA) as segments."""
+    result = await _proxy("POST", "video", "/api/v1/tts/script", {
+        "script": {
+            "hook": req.hook,
+            "body": req.value_proposition,
+            "cta": req.cta
+        },
+        "voice": "Aoede"
+    })
+    if result.get("ok"):
+        data = result.get("data", {})
+        data["success"] = True
+        return data
+    else:
+        raise HTTPException(status_code=502, detail=result.get("error", "Script TTS failed"))
+
+# ─── Pipeline Database ─────────────────────────────────────────────────────
+
+PIPELINE_DB_PATH = os.path.join(os.path.dirname(__file__), "pipeline.db")
+
+def _init_pipeline_db():
+    conn = sqlite3.connect(PIPELINE_DB_PATH)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS pipeline_jobs (
+            job_id TEXT PRIMARY KEY,
+            account_id TEXT,
+            product_url TEXT,
+            status TEXT DEFAULT 'pending',
+            created_at TEXT,
+            updated_at TEXT,
+            steps_data TEXT DEFAULT '{}'
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+_init_pipeline_db()
+
+def _create_pipeline_job(account_id: str = "", product_url: str = "") -> str:
+    job_id = str(uuid.uuid4())[:8]
+    now = datetime.utcnow().isoformat()
+    conn = sqlite3.connect(PIPELINE_DB_PATH)
+    conn.execute(
+        "INSERT INTO pipeline_jobs (job_id, account_id, product_url, status, created_at, updated_at, steps_data) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (job_id, account_id, product_url, "pending", now, now, "{}")
+    )
+    conn.commit()
+    conn.close()
+    return job_id
+
+def _update_pipeline_step(job_id: str, step_name: str, status: str, result: dict = None):
+    conn = sqlite3.connect(PIPELINE_DB_PATH)
+    row = conn.execute("SELECT steps_data FROM pipeline_jobs WHERE job_id = ?", (job_id,)).fetchone()
+    if not row:
+        conn.close()
+        return
+    steps = json.loads(row[0])
+    steps[step_name] = {"status": status, **(result or {})}
+    now = datetime.utcnow().isoformat()
+    all_done = all(s.get("status") in ("success", "error") for s in steps.values()) if steps else False
+    overall = "completed" if all_done else "running"
+    conn.execute(
+        "UPDATE pipeline_jobs SET steps_data = ?, status = ?, updated_at = ? WHERE job_id = ?",
+        (json.dumps(steps), overall, now, job_id)
+    )
+    conn.commit()
+    conn.close()
+
+def _get_pipeline_job(job_id: str) -> dict:
+    conn = sqlite3.connect(PIPELINE_DB_PATH)
+    row = conn.execute("SELECT * FROM pipeline_jobs WHERE job_id = ?", (job_id,)).fetchone()
+    conn.close()
+    if not row:
+        return None
+    return {
+        "job_id": row[0],
+        "account_id": row[1],
+        "product_url": row[2],
+        "status": row[3],
+        "created_at": row[4],
+        "updated_at": row[5],
+        "steps": json.loads(row[6]),
+    }
+
+@app.get("/pipeline/{job_id}/status")
+def pipeline_status(job_id: str):
+    job = _get_pipeline_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+    return {"success": True, "job": job}
+
+@app.get("/pipeline/list")
+def pipeline_list(limit: int = 20):
+    conn = sqlite3.connect(PIPELINE_DB_PATH)
+    rows = conn.execute(
+        "SELECT job_id, account_id, status, product_url, created_at, updated_at FROM pipeline_jobs ORDER BY created_at DESC LIMIT ?",
+        (limit,)
+    ).fetchall()
+    conn.close()
+    return {"success": True, "jobs": [{"job_id": r[0], "account_id": r[1], "status": r[2], "product_url": r[3], "created_at": r[4], "updated_at": r[5]} for r in rows]}
+
+@app.post("/pipeline/run")
+async def run_full_pipeline(req: FullPipelineRequest):
+    """Run the full UGC pipeline: script → TTS → video gen → compose."""
+    job_id = _create_pipeline_job(account_id="", product_url=req.product_url or "")
+
+    try:
+        if req.run_tts:
+            _update_pipeline_step(job_id, "tts", "processing")
+            full_text = " ".join(filter(None, [req.hook, req.value_proposition, req.cta]))
+            if not full_text.strip():
+                full_text = req.product_title or req.product_description or ""
+
+            if full_text.strip():
+                tts_result = await _proxy("POST", "video", "/api/v1/tts/generate", {
+                    "text": full_text.strip(),
+                    "lang": req.tts_lang or "th",
+                })
+                if tts_result.get("ok"):
+                    tts_file = tts_result["data"].get("filepath") or tts_result["data"].get("audio_path", "")
+                    _update_pipeline_step(job_id, "tts", "success", {"filepath": tts_file})
+                else:
+                    raise Exception(tts_result.get("error", "TTS proxy call failed"))
+            else:
+                _update_pipeline_step(job_id, "tts", "skipped")
+
+        if req.run_video_gen:
+            _update_pipeline_step(job_id, "video_gen", "processing")
+            if req.product_image:
+                img_result = await _proxy("POST", "video", "/api/v1/image/generate", {
+                    "image_path": req.product_image,
+                    "prompt": req.hook or req.product_title or "Product showcase",
+                    "duration": min(req.duration or 8, 8),
+                    "negative_prompt": req.negative_prompt or "low resolution, error, worst quality",
+                })
+                vid_path = (img_result.get("data") or {}).get("video_path") or (img_result.get("data") or {}).get("filepath")
+                if vid_path:
+                    _update_pipeline_step(job_id, "video_gen", "success", {"video_url": vid_path, "duration": req.duration})
+                else:
+                    _update_pipeline_step(job_id, "video_gen", "error", {"error": "No video returned"})
+            else:
+                _update_pipeline_step(job_id, "video_gen", "skipped", {"message": "No product image"})
+
+        _update_pipeline_step(job_id, "pipeline", "success")
+        return {"success": True, "job_id": job_id, "status": "completed"}
+    except Exception as e:
+        logger.error(f"Pipeline {job_id} failed: {e}")
+        _update_pipeline_step(job_id, "pipeline", "error", {"error": str(e)})
+        return {"success": False, "job_id": job_id, "status": "error", "error": str(e)}
+
+# ─── Script Generation ─────────────────────────────────────────────────────
+
+@app.post("/scripts/generate")
+async def generate_script(req: ScriptRequest):
+    """Generate TikTok review script via Prompt Builder service"""
+    try:
+        result = await _proxy("POST", "prompt-builder", "/api/v1/build", req.model_dump())
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/scripts/ugc")
+async def generate_ugc_script(req: UGCRequest):
+    """Generate UGC video prompt via Video Module"""
+    try:
+        result = await _proxy("POST", "video", "/api/v1/scripts/ugc", req.model_dump())
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/scripts/variations")
+async def script_variations():
+    result = await _proxy("GET", "video", "/api/v1/scripts/variations")
+    return result
+
+@app.get("/scripts/templates")
+async def script_templates():
+    result = await _proxy("GET", "video", "/api/v1/scripts/templates")
+    return {
+        "durations": ["8s", "16s"],
+        "ugc_styles": ["holding_product", "product_usage", "ugc_review"],
+        "templates": result.get("templates", {}),
+    }
+
+# ─── Video Generation ──────────────────────────────────────────────────────
+
+@app.post("/video/generate")
+def generate_video(req: VideoRequest):
+    """Full UGC pipeline with scenes and metadata."""
+    job_id = f"vid_{uuid.uuid4().hex[:8]}"
+
+    if req.hook and req.value and req.cta:
+        script_parts = [req.hook, req.value, req.cta]
+        full_script = " ".join(script_parts)
+    elif req.script:
+        full_script = req.script
+    elif req.prompt:
+        full_script = req.prompt
+    elif req.product_title:
+        full_script = f"Check out this {req.product_title}! Amazing quality, great value! Link in bio! 🛍️"
+    else:
+        full_script = "Check out this amazing product!"
+
+    scenes = []
+    if req.scenes:
+        scenes = req.scenes
+    elif req.duration <= 8:
+        scenes = [SceneBlock(
+            script=full_script,
+            duration=min(req.duration, 8),
+            mood="energetic",
+            sound_style="upbeat_pop",
+            style=req.ugc_style,
+        )]
+    else:
+        scenes = [
+            SceneBlock(
+                script=f"{req.hook or ''} Let me show you this!" if req.hook else f"Check out {req.product_title}!",
+                duration=8,
+                mood="energetic",
+                sound_style="upbeat_pop",
+                style="holding_product",
+            ),
+            SceneBlock(
+                script=f"{req.value or ''} {req.cta or 'Link in bio!'}" if req.value else f"Amazing right? {req.cta or 'Link in bio! 🛍️'}",
+                duration=8,
+                mood="calm",
+                sound_style="chill_loft",
+                style="product_usage",
+            ),
+        ]
+
+    async def _run():
+        try:
+            pb_result = await _proxy("POST", "prompt-builder", "/api/v1/build", {
+                "product_name": req.product_title or "",
+                "description": req.product_description or "",
+                "keywords": req.tags or [],
+                "ugc_style": req.ugc_style or "holding",
+                "product_id": job_id,
+                "price": float(req.product_price) if req.product_price else 0.0,
+            })
+
+            if pb_result.get("ok") and pb_result.get("data"):
+                pb_data = pb_result["data"]
+                img_prompt = pb_data.get("image_prompt", "")
+                video_prompts = [pb_data.get("video_prompt", "")] * len(scenes)
+                neg_prompt = pb_data.get("negative_prompt", req.negative_prompt)
+            else:
+                img_prompt = scenes[0].script if scenes else (req.product_title or "product")
+                video_prompts = [s.script for s in scenes] if scenes else [req.product_title or "product"]
+                neg_prompt = req.negative_prompt
+
+            selected_sound_style = scenes[0].sound_style if scenes else "upbeat_pop"
+
+            product_img_local = None
+            if req.product_image:
+                if "89.167.82.205" in req.product_image and "8105" in req.product_image:
+                    product_img_local = req.product_image.replace("http://89.167.82.205:8105", "http://localhost:8105")
+                else:
+                    product_img_local = req.product_image
+
+            affiliate_result = await _proxy("POST", "video", "/api/v1/pipeline/affiliate/run", {
+                "script": full_script,
+                "scene_prompts": [s.script for s in scenes],
+                "video_prompts": video_prompts,
+                "voice_id": "lovely_girl",
+                "video_duration": min(scenes[0].duration, 8) if scenes else 8,
+                "image_prompt": img_prompt,
+                "product_image": product_img_local,
+                "enable_sam3": bool(product_img_local),
+                "bgm_style": selected_sound_style,
+                "negative_prompt": req.negative_prompt,
+            })
+
+            if not affiliate_result.get("ok"):
+                raise Exception(affiliate_result.get("error", "Pipeline affiliate run failed"))
+
+            result = affiliate_result.get("data", {})
+            VIDEOS_DIR.mkdir(parents=True, exist_ok=True)
+            final_path = result.get("final_path", "")
+
+            import shutil
+            final_video_path = VIDEOS_DIR / f"final_{job_id}.mp4"
+            shutil.copy2(final_path, final_video_path)
+
+            _pipeline_results[job_id] = {
+                "status": "completed",
+                "video_url": f"/static/videos/final_{job_id}.mp4",
+                "cost": result.get("cost_estimate", 0),
+                "metadata": {
+                    "product_name": req.product_title or "",
+                    "product_url": req.product_url or "",
+                    "product_image": req.product_image or "",
+                    "product_price": req.product_price,
+                    "product_commission": req.product_commission,
+                    "tags": req.tags,
+                    "hook": req.hook,
+                    "value": req.value,
+                    "cta": req.cta,
+                    "content_type": req.content_type,
+                    "ugc_style": req.ugc_style,
+                    "duration": req.duration,
+                    "aspect_ratio": req.aspect_ratio or "9:16",
+                },
+                "job_id": job_id,
+            }
+        except Exception as e:
+            logger.exception(f"Pipeline {job_id} failed")
+            _pipeline_results[job_id] = {"status": "failed", "error": str(e), "job_id": job_id}
+
+    asyncio.create_task(_run())
+
+    _pipeline_results[job_id] = {
+        "status": "processing",
+        "job_id": job_id,
+        "message": f"Pipeline running... Style: {req.ugc_style}, Content: {req.content_type}",
+    }
+
+    return {
+        "status": "queued",
+        "job_id": job_id,
+        "duration": req.duration,
+        "metadata_preview": {
+            "product": req.product_title,
+            "style": req.ugc_style,
+            "content_type": req.content_type,
+            "scenes": len(scenes),
+            "tags": req.tags,
+        },
+    }
+
+@app.get("/video/status/{job_id}")
+def video_pipeline_status(job_id: str):
+    result = _pipeline_results.get(job_id)
+    if not result:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+    return result
+
+@app.post("/video/status/{task_id}")
+async def video_status(task_id: str):
+    result = await _proxy("GET", "video", f"/api/v1/video/status/{task_id}")
+    return result
+
+@app.get("/video/completed")
+def list_completed_videos():
+    jobs = []
+    for job_id, result in _pipeline_results.items():
+        if result.get("status") == "completed":
+            meta = result.get("metadata", {})
+            jobs.append({
+                "job_id": job_id,
+                "video_url": result.get("video_url", ""),
+                "cost": result.get("cost", 0),
+                "product_name": meta.get("product_name", ""),
+                "duration": meta.get("duration", 8),
+                "style": meta.get("ugc_style", ""),
+            })
+    jobs.reverse()
+    return {"jobs": jobs, "total": len(jobs)}
+
+@app.get("/video/providers")
+async def video_providers():
+    return {
+        "ok": True,
+        "providers": ["prodia", "nanobanana"],
+        "models": {
+            "nanobanana": "Nano Banana Pro (Img2Img)",
+            "flux-2-klein": "FLUX.2 Klein (Txt2Img)",
+            "wan-2-7": "Wan 2.7 (Img2Vid)"
+        },
+    }
+
+# ─── TikTok Accounts & Upload ──────────────────────────────────────────────
+
 def _load_tiktok_accounts() -> dict:
     if TIKTOK_ACCOUNTS_FILE.exists():
         try:
@@ -141,552 +750,158 @@ def _load_tiktok_accounts() -> dict:
 def _save_tiktok_accounts(accounts: dict):
     TIKTOK_ACCOUNTS_FILE.write_text(json.dumps(accounts, indent=2))
 
-# ─── Pipeline DB (SQLite) ─────────────────────────────────────────────────
-PIPELINE_DB = STORAGE_DIR / "pipeline.db"
-
-def _init_pipeline_db():
-    conn = sqlite3.connect(str(PIPELINE_DB))
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS pipeline_jobs (
-            job_id TEXT PRIMARY KEY,
-            created_at TEXT,
-            status TEXT DEFAULT 'pending',
-            account_id TEXT,
-            product_url TEXT,
-            current_step TEXT,
-            result_json TEXT
-        )
-    """)
-    conn.commit()
-    conn.close()
-
-_init_pipeline_db()
-
-def _create_pipeline_job(account_id: str = "", product_url: str = "") -> str:
-    job_id = f"pipe_{int(time.time())}_{os.urandom(4).hex()}"
-    conn = sqlite3.connect(str(PIPELINE_DB))
-    conn.execute(
-        "INSERT INTO pipeline_jobs (job_id, created_at, account_id, product_url, current_step) VALUES (?, ?, ?, ?, ?)",
-        (job_id, datetime.utcnow().isoformat(), account_id, product_url, "init")
-    )
-    conn.commit()
-    conn.close()
-    return job_id
-
-def _update_pipeline_step(job_id: str, step: str, status: str, result: dict = None):
-    conn = sqlite3.connect(str(PIPELINE_DB))
-    conn.execute(
-        "UPDATE pipeline_jobs SET current_step=?, status=?, result_json=? WHERE job_id=?",
-        (step, status, json.dumps(result or {}), job_id)
-    )
-    conn.commit()
-    conn.close()
-
-def _get_pipeline_job(job_id: str) -> dict:
-    conn = sqlite3.connect(str(PIPELINE_DB))
-    cur = conn.execute("SELECT * FROM pipeline_jobs WHERE job_id=?", (job_id,))
-    row = cur.fetchone()
-    conn.close()
-    if not row:
-        return None
-    cols = [c[0] for c in cur.description]
-    return dict(zip(cols, row))
-
-# ─── Health ───────────────────────────────────────────────────────────────
-@app.get("/health")
-def health():
-    return {"status": "ok", "service": "tiktok-ugc-studio", "version": "0.3.0"}
-
-@app.get("/api/auth/{provider}/login")
-async def auth_oauth_login(provider: str):
-    """OAuth login redirect."""
-    return await _proxy("GET", "auth", f"/api/v1/auth/{provider}/login")
-
-@app.get("/api/auth/{provider}/callback")
-async def auth_oauth_callback(provider: str, code: str = "", state: str = "", error: str = ""):
-    """OAuth callback."""
-    return await _proxy("GET", "auth", f"/api/v1/auth/{provider}/callback", {"code": code, "state": state, "error": error})
-
-# ─── Auth catch-all ───────────────────────────────────────────────────────
-@app.api_route("/api/v1/auth/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"])
-async def auth_proxy(request: Request, path: str):
-    """Proxy all /api/v1/auth/* to auth module."""
-    body = await request.json() if request.method in ("POST", "PUT", "PATCH") else None
-    return await _proxy(request.method, "auth", f"/api/v1/auth/{path}", body)
-
-# ─── Pipeline orchestration ───────────────────────────────────────────────
-@app.post("/pipeline/run")
-async def run_pipeline(req: PipelineRequest):
-    """Orchestrate full pipeline via module services."""
-    job_id = _create_pipeline_job(product_url=req.product_url)
-    
-    async def run():
-        try:
-            # Step 1: Generate script
-            _update_pipeline_step(job_id, "script", "running")
-            script_result = await _proxy("POST", "prompt-builder", "/api/v1/build", {
-                "product_url": req.product_url,
-                "product_title": req.product_title,
-                "ugc_style": req.ugc_style,
-                "hook": req.hook,
-                "value": req.value,
-                "cta": req.cta,
-            })
-            if not script_result.get("ok"):
-                _update_pipeline_step(job_id, "script", "failed", script_result)
-                return
-            script = script_result["data"].get("script", "")
-            _update_pipeline_step(job_id, "script", "done", {"script": script})
-            
-            # Step 2: TTS
-            _update_pipeline_step(job_id, "tts", "running")
-            tts_result = await _proxy("POST", "video", "/api/v1/tts/generate", {
-                "script": script,
-                "lang": "th",
-            })
-            if not tts_result.get("ok"):
-                _update_pipeline_step(job_id, "tts", "failed", tts_result)
-                return
-            tts_url = tts_result["data"].get("audio_url", "")
-            _update_pipeline_step(job_id, "tts", "done", {"audio_url": tts_url})
-            
-            # Step 3: Video generation
-            _update_pipeline_step(job_id, "video", "running")
-            video_result = await _proxy("POST", "video", "/api/v1/generate", {
-                "script": script,
-                "duration": req.duration,
-                "aspect_ratio": req.aspect_ratio,
-                "audio_url": tts_url,
-            })
-            if not video_result.get("ok"):
-                _update_pipeline_step(job_id, "video", "failed", video_result)
-                return
-            video_url = video_result["data"].get("video_url", "")
-            _update_pipeline_step(job_id, "video", "done", {"video_url": video_url})
-            
-            # Done
-            _update_pipeline_step(job_id, "complete", "done", {"video_url": video_url})
-        except Exception as e:
-            logger.error(f"Pipeline error: {e}")
-            _update_pipeline_step(job_id, "error", "failed", {"error": str(e)})
-    
-    asyncio.create_task(run())
-    return {"success": True, "job_id": job_id}
-
-@app.get("/pipeline/{job_id}/status")
-def pipeline_status(job_id: str):
-    job = _get_pipeline_job(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    return job
-
-@app.get("/pipeline/list")
-def pipeline_list(limit: int = 20):
-    conn = sqlite3.connect(str(PIPELINE_DB))
-    cur = conn.execute("SELECT * FROM pipeline_jobs ORDER BY created_at DESC LIMIT ?", (limit,))
-    rows = cur.fetchall()
-    cols = [c[0] for c in cur.description]
-    conn.close()
-    return {"jobs": [dict(zip(cols, r)) for r in rows]}
-
-# ─── TikTok account management ────────────────────────────────────────────
 @app.get("/tiktok/accounts")
-def tiktok_list_accounts():
+async def list_tiktok_accounts():
     accounts = _load_tiktok_accounts()
-    session_dir = Path(__file__).parent / "sessions" / "tiktok"
-    account_list = []
-    for aid, cfg in accounts.items():
-        session_file = session_dir / f"{aid}.json"
-        has_token = bool(cfg.get("session_token", ""))
-        account_list.append({
-            "id": aid,
-            "username": cfg.get("username", aid),
-            "use_qr": cfg.get("use_qr", False),
-            "session_token": has_token,
-            "is_logged_in": session_file.exists() or has_token,
-        })
-    return {"accounts": account_list, "total": len(account_list)}
+    return {"success": True, "accounts": [{"id": k, **v} for k, v in accounts.items()]}
 
 @app.post("/tiktok/accounts")
-async def tiktok_add_account(req: TikTokAccountConfig):
-    accounts = _load_tiktok_accounts()
-    account_id = req.account_id or req.username
+async def save_tiktok_account(req: dict):
+    account_id = req.get("account_id", "")
     if not account_id:
-        return {"success": False, "error": "Username required"}
-    
-    acct_data = req.model_dump(exclude_none=True, exclude={"session_token"})
-    account_id = account_id.lstrip("@")
-    acct_data["account_id"] = account_id
-    acct_data["is_logged_in"] = bool(req.session_token)
-    if req.session_token:
-        acct_data["session_token"] = req.session_token
-    accounts[account_id] = acct_data
+        raise HTTPException(status_code=400, detail="account_id required")
+    accounts = _load_tiktok_accounts()
+    accounts[account_id] = req
     _save_tiktok_accounts(accounts)
     return {"success": True, "account_id": account_id}
 
 @app.delete("/tiktok/accounts/{account_id}")
-async def tiktok_remove_account(account_id: str):
+async def delete_tiktok_account(account_id: str):
     accounts = _load_tiktok_accounts()
-    accounts.pop(account_id, None)
-    _save_tiktok_accounts(accounts)
-    
-    session_file = Path(__file__).parent / "sessions" / "tiktok" / f"{account_id}.json"
-    if session_file.exists():
-        session_file.unlink()
-    qr_file = Path(__file__).parent / "sessions" / "tiktok" / f"{account_id}_qr.png"
-    if qr_file.exists():
-        qr_file.unlink()
-    
+    if account_id in accounts:
+        del accounts[account_id]
+        _save_tiktok_accounts(accounts)
     return {"success": True}
 
-# ─── TikTok QR login ──────────────────────────────────────────────────────
-_qr_login_tokens = {}
-
-@app.post("/tiktok/qr-login")
-async def tiktok_qr_login(req: TikTokAccountConfig):
-    """Start TikTok QR login flow using Playwright."""
-    try:
-        from playwright.async_api import async_playwright
-        
-        account_id = req.account_id or req.username
-        if not account_id:
-            return {"success": False, "error": "Username required"}
-        account_id = account_id.lstrip("@")
-        
-        session_dir = Path(__file__).parent / "sessions" / "tiktok"
-        session_dir.mkdir(parents=True, exist_ok=True)
-        
-        p = await async_playwright().start()
-        browser = await p.chromium.launch(
-            headless=True,
-            args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage", "--disable-gpu", "--window-size=1280,720"],
-        )
-        context = await browser.new_context(
-            viewport={"width": 1280, "height": 720},
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            locale="en-US",
-        )
-        page = await context.new_page()
-        
-        await page.add_init_script("Object.defineProperty(navigator, 'webdriver', { get: () => undefined });")
-        
-        logger.info("Navigating to TikTok login...")
-        await page.goto("https://www.tiktok.com/login", wait_until="domcontentloaded", timeout=30000)
-        await page.wait_for_timeout(2000)
-        
-        qr_btn = page.locator('text="Use QR code"').first
-        await qr_btn.wait_for(timeout=10000)
-        await qr_btn.click()
-        await page.wait_for_timeout(3000)
-        
-        await page.wait_for_selector('canvas, img[src*="qr"], [class*="qr"]', timeout=15000)
-        await page.wait_for_timeout(1000)
-        
-        qr_path = str(session_dir / f"{account_id}_qr.png")
-        await page.screenshot(path=qr_path, full_page=False)
-        logger.info(f"QR code captured: {qr_path}")
-        
-        import base64
-        with open(qr_path, "rb") as f:
-            qr_b64 = base64.b64encode(f.read()).decode()
-        
-        token_id = f"qr_{int(time.time())}_{os.urandom(4).hex()}"
-        _qr_login_tokens[token_id] = {
-            "account_id": account_id,
-            "status": "pending",
-            "created_at": time.time(),
-        }
-        
-        asyncio.create_task(_poll_tiktok_qr_login(token_id, account_id, p, context, browser, page))
-        
-        return {
-            "success": True,
-            "qr_code": f"data:image/png;base64,{qr_b64}",
-            "account_id": account_id,
-            "token_id": token_id,
-            "method": "qr",
-        }
-    except Exception as e:
-        logger.error(f"QR login error: {e}")
-        return {"success": False, "error": f"QR login failed: {str(e)[:300]}"}
-
-async def _poll_tiktok_qr_login(token_id: str, account_id: str, playwright_inst, context, browser, page):
-    """Poll TikTok QR login until scan completes."""
-    try:
-        logger.info(f"QR poll started for {account_id}")
-        start = time.time()
-        timeout_seconds = 180
-        logged_in = False
-        
-        while time.time() - start < timeout_seconds:
-            await asyncio.sleep(3)
-            try:
-                current_url = page.url
-                if "login" not in current_url.lower():
-                    logged_in = True
-                    break
-                
-                scan_ok = await page.evaluate("""
-                    () => {
-                        const text = document.body?.innerText || '';
-                        return text.includes('Confirm') || text.includes('success');
-                    }
-                """)
-                if scan_ok:
-                    logged_in = True
-                    break
-            except Exception:
-                pass
-        
-        if logged_in:
-            logger.info(f"QR login success for {account_id}")
-            cookies = await context.cookies()
-            session_data = {"cookies": cookies, "logged_in_at": datetime.utcnow().isoformat()}
-            session_file = Path(__file__).parent / "sessions" / "tiktok" / f"{account_id}.json"
-            session_file.write_text(json.dumps(session_data, indent=2))
-            
-            accounts = _load_tiktok_accounts()
-            if account_id not in accounts:
-                accounts[account_id] = {"account_id": account_id, "username": account_id}
-            accounts[account_id]["is_logged_in"] = True
-            _save_tiktok_accounts(accounts)
-            
-            _qr_login_tokens[token_id] = {
-                "account_id": account_id,
-                "status": "completed",
-                "session_file": str(session_file),
-            }
-        else:
-            _qr_login_tokens[token_id] = {"account_id": account_id, "status": "expired"}
-    except Exception as e:
-        logger.error(f"QR poll error: {e}")
-        _qr_login_tokens[token_id] = {"account_id": account_id, "status": "failed", "error": str(e)}
-    finally:
-        try:
-            await browser.close()
-            await playwright_inst.stop()
-        except Exception:
-            pass
-
-@app.get("/tiktok/qr-status/{token_id}")
-def tiktok_qr_status(token_id: str):
-    entry = _qr_login_tokens.get(token_id)
-    if not entry:
-        return {"status": "not_found"}
-    
-    result = {"status": entry.get("status", "pending")}
-    if entry.get("account_id"):
-        result["account_id"] = entry["account_id"]
-    
-    if entry.get("status") in ("completed", "expired", "failed"):
-        if time.time() - entry.get("created_at", 0) > 3600:
-            _qr_login_tokens.pop(token_id, None)
-    
-    return result
-
-# ─── TikTok upload ────────────────────────────────────────────────────────
 @app.post("/tiktok/upload")
-async def tiktok_upload_video(req: TikTokUploadRequest):
-    """Upload video to TikTok using session token."""
+async def upload_to_tiktok(req: dict):
+    """Upload video to TikTok with session token."""
+    video_path = req.get("video_path", "")
+    caption = req.get("caption", "")
+    session_token = req.get("session_token", "")
+
+    if not video_path or not session_token:
+        raise HTTPException(status_code=400, detail="video_path and session_token required")
+
+    os.environ["TIKTOK_SESSION"] = session_token
     try:
-        accounts = _load_tiktok_accounts()
-        acct = accounts.get(req.account_id.lstrip("@"))
-        if not acct:
-            return {"success": False, "error": "Account not found"}
-        
-        token = acct.get("session_token", "")
-        if not token:
-            return {"success": False, "error": "No session token"}
-        
-        video_path = Path(req.video_path)
-        if not video_path.exists():
-            return {"success": False, "error": f"Video not found: {req.video_path}"}
-        
         from simple_tiktok_uploader import upload
-        os.environ["TIKTOK_SESSION"] = token
-        
-        caption = req.caption
-        if req.hashtags:
-            caption += " " + " ".join(f"#{h}" for h in req.hashtags)
-        
-        result = upload(str(video_path), caption)
-        return {
-            "success": True,
-            "video_id": getattr(result, "id", "") or getattr(result, "video_id", ""),
-            "url": getattr(result, "url", "") or getattr(result, "share_url", ""),
-            "account_id": req.account_id,
-        }
+        result = upload(video_path, caption)
+        post_id = getattr(result, "id", "") or getattr(result, "video_id", "")
+        return {"success": True, "video_id": post_id}
     except Exception as e:
-        return {"success": False, "error": str(e)[:200]}
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
-@app.post("/tiktok/check-session")
-async def tiktok_check_session(req: TikTokSessionRequest):
-    """Check if TikTok session is valid."""
+@app.post("/video/post")
+async def post_video_to_tiktok(req: VideoPostRequest):
+    """Post a completed video to TikTok."""
+    result = _pipeline_results.get(req.job_id)
+    if not result or result.get("status") != "completed":
+        raise HTTPException(status_code=400, detail="Job not completed")
+
+    video_url = result.get("video_url", "")
+    video_filename = video_url.replace("/static/videos/", "")
+    video_path = VIDEOS_DIR / video_filename
+    if not video_path.exists():
+        raise HTTPException(status_code=404, detail="Video file not found")
+
+    meta = result.get("metadata", {})
+    hook = meta.get("hook", "") or meta.get("product_name", "Check this out!")
+    caption = req.caption or hook
+    if req.affiliate_link:
+        caption += f"\n\n🔗 {req.affiliate_link}"
+
+    accounts = _load_tiktok_accounts()
+    acct = accounts.get(req.account_id.lstrip("@"))
+    if not acct or not acct.get("session_token"):
+        raise HTTPException(status_code=400, detail="No session token for account")
+
+    os.environ["TIKTOK_SESSION"] = acct["session_token"]
     try:
-        from tiktok_browser import check_session
-        result = await check_session(req.account_id)
-        
-        accounts = _load_tiktok_accounts()
-        if req.account_id in accounts:
-            accounts[req.account_id]["is_logged_in"] = result.get("valid", False)
-            _save_tiktok_accounts(accounts)
-        
-        return result
+        from simple_tiktok_uploader import upload
+        upl_result = upload(str(video_path), caption)
+        post_id = getattr(upl_result, "id", "") or getattr(upl_result, "video_id", "")
+        return {"success": True, "video_id": post_id, "account_id": req.account_id}
     except Exception as e:
-        return {"valid": False, "error": str(e)[:200]}
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
-@app.get("/tiktok/published")
-def tiktok_published(limit: int = 20):
-    """List published TikTok videos (from local storage)."""
-    published_file = STORAGE_DIR / "tiktok_published.json"
-    if not published_file.exists():
-        return {"videos": []}
-    try:
-        data = json.loads(published_file.read_text())
-        return {"videos": data[:limit]}
-    except Exception:
-        return {"videos": []}
+# ─── Payment & Profile Proxies ────────────────────────────────────────────
 
-@app.post("/tiktok/batch-upload")
-async def tiktok_batch_upload(account_ids: list[str], video_path: str, caption: str = ""):
-    """Upload video to multiple TikTok accounts."""
-    results = []
-    for account_id in account_ids:
-        req = TikTokUploadRequest(account_id=account_id, video_path=video_path, caption=caption)
-        result = await tiktok_upload_video(req)
-        results.append({"account_id": account_id, **result})
-    return {"results": results}
-
-# ─── Affiliate config ─────────────────────────────────────────────────────
-@app.get("/affiliate/config")
-def get_affiliate_config():
-    """Get affiliate platform URLs."""
-    config_file = STORAGE_DIR / "affiliate_config.json"
-    if not config_file.exists():
-        return {"platforms": {}}
-    try:
-        return json.loads(config_file.read_text())
-    except Exception:
-        return {"platforms": {}}
-
-# ─── UGC Creator Management ─────────────────────────────────────────────
-@app.get("/ugc/accounts")
-async def ugc_accounts():
-    return await _proxy("GET", "product", "/api/v1/ugc/accounts")
-
-@app.post("/ugc/post")
-async def ugc_post(req: dict):
-    return await _proxy("POST", "product", "/api/v1/ugc/post", req)
-
-@app.post("/ugc/schedule")
-async def ugc_schedule(req: dict):
-    return await _proxy("POST", "product", "/api/v1/ugc/schedule", req)
-
-@app.post("/ugc/webhook/pfm")
-async def ugc_webhook_pfm(req: dict):
-    return await _proxy("POST", "product", "/api/v1/ugc/webhook/pfm", req)
-
-@app.post("/ugc/media/upload-url")
-async def ugc_media_upload_url(req: dict):
-    return await _proxy("POST", "product", "/api/v1/ugc/media/upload-url", req)
-
-# ─── Products ─────────────────────────────────────────────────────────────
-@app.get("/products/sheets/status")
-async def products_sheets_status():
-    return await _proxy("GET", "product", "/api/v1/products/sheets/status")
-
-@app.post("/products/sheets/connect")
-async def products_sheets_connect(req: dict):
-    return await _proxy("POST", "product", "/api/v1/products/sheets/connect", req)
-
-@app.post("/products/sheets/import")
-async def products_sheets_import(req: dict):
-    return await _proxy("POST", "product", "/api/v1/products/sheets/import", req)
-
-@app.get("/products/list")
-async def products_list(limit: int = 50):
-    return await _proxy("GET", "product", "/api/v1/products/list", {"limit": limit})
-
-# ─── Posts ────────────────────────────────────────────────────────────────
-@app.get("/posts/scheduled")
-async def posts_scheduled():
-    return await _proxy("GET", "product", "/api/v1/posts/scheduled")
-
-@app.delete("/posts/scheduled/{post_id}")
-async def posts_scheduled_delete(post_id: str):
-    return await _proxy("DELETE", "product", f"/api/v1/posts/scheduled/{post_id}")
-
-# ─── Drive ────────────────────────────────────────────────────────────────
-@app.get("/drive/connect")
-async def drive_connect():
-    return await _proxy("GET", "product", "/api/v1/drive/connect")
-
-@app.post("/drive/config")
-async def drive_config(req: dict):
-    return await _proxy("POST", "product", "/api/v1/drive/config", req)
-
-# ─── Payment ──────────────────────────────────────────────────────────────
 @app.post("/payment/create-checkout")
 async def payment_create_checkout(req: dict):
-    return await _proxy("POST", "payment", "/api/v1/payment/create-checkout", req)
+    return await _proxy("POST", "payment", "/api/v1/checkout", req)
 
 @app.post("/payment/create-qr")
 async def payment_create_qr(req: dict):
-    return await _proxy("POST", "payment", "/api/v1/payment/create-qr", req)
+    return await _proxy("POST", "payment", "/api/v1/qr", req)
 
 @app.get("/payment/plans")
 async def payment_plans():
-    return await _proxy("GET", "payment", "/api/v1/payment/plans")
+    return await _proxy("GET", "payment", "/api/v1/plans")
 
 @app.get("/payment/health")
 async def payment_health():
-    return await _proxy("GET", "payment", "/api/v1/payment/health")
+    return await _proxy("GET", "payment", "/health")
 
-# ─── Profile ──────────────────────────────────────────────────────────────
 @app.get("/profile/health")
 async def profile_health():
-    return await _proxy("GET", "profile", "/api/v1/profile/health")
+    return await _proxy("GET", "profile", "/health")
 
 @app.post("/profile/register")
 async def profile_register(req: dict):
-    return await _proxy("POST", "profile", "/api/v1/profile/register", req)
+    return await _proxy("POST", "profile", "/api/v1/profiles", req)
 
 @app.get("/profile/tier/{user_id}")
 async def profile_tier(user_id: str):
-    return await _proxy("GET", "profile", f"/api/v1/profile/tier/{user_id}")
+    return await _proxy("GET", "profile", f"/api/v1/profiles/{user_id}/tier")
 
-# ─── Gallery ──────────────────────────────────────────────────────────────
-@app.get("/images/gallery")
-def images_gallery(limit: int = 50):
-    """List generated images."""
-    files = sorted(IMAGES_DIR.glob("*.png"), key=lambda f: f.stat().st_mtime, reverse=True)[:limit]
-    return {"images": [{"filename": f.name, "url": f"/static/images/{f.name}"} for f in files]}
+# ─── Product Analysis ─────────────────────────────────────────────────────
 
-@app.get("/videos/gallery")
-def videos_gallery(limit: int = 50):
-    """List generated videos."""
-    files = sorted(VIDEOS_DIR.glob("*.mp4"), key=lambda f: f.stat().st_mtime, reverse=True)[:limit]
-    return {"videos": [{"filename": f.name, "url": f"/static/videos/{f.name}"} for f in files]}
-
-# ─── Stats ────────────────────────────────────────────────────────────────
-@app.get("/stats")
-def stats():
-    """Get basic stats."""
-    accounts = _load_tiktok_accounts()
-    conn = sqlite3.connect(str(PIPELINE_DB))
-    cur = conn.execute("SELECT COUNT(*) FROM pipeline_jobs")
-    pipeline_count = cur.fetchone()[0]
-    conn.close()
+@app.post("/product/analyze")
+async def analyze_product(
+    product_name: str = Form(...),
+    description: str = Form(""),
+    file: UploadFile = File(None),
+):
+    """Analyze product via Gemini vision."""
+    from gemini_agent import analyze_product as gemini_analyze
     
-    return {
-        "tiktok_accounts": len(accounts),
-        "pipeline_jobs": pipeline_count,
-        "images_count": len(list(IMAGES_DIR.glob("*.png"))),
-        "videos_count": len(list(VIDEOS_DIR.glob("*.mp4"))),
-    }
+    image_base64 = None
+    if file and file.filename:
+        contents = await file.read()
+        if contents:
+            image_base64 = base64.b64encode(contents).decode("utf-8")
+    
+    try:
+        result = gemini_analyze(
+            product_name=product_name,
+            description=description,
+            category="",
+            target_audience="",
+            image_base64=image_base64,
+        )
+        return {
+            "success": True,
+            "analysis": result,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-# ─── Startup ──────────────────────────────────────────────────────────────
+# ─── Startup Event ────────────────────────────────────────────────────────
+
 @app.on_event("startup")
 async def startup():
-    logger.info("TikTok UGC Studio API Gateway started")
+    logger.info("TikTok UGC Studio starting up...")
+    logger.info(f"Storage: {STORAGE_DIR}")
     logger.info(f"Module URLs: {MODULE_URLS}")
+
+# ─── Root ─────────────────────────────────────────────────────────────────
+
+@app.get("/")
+async def root():
+    return {
+        "service": "TikTok UGC Studio",
+        "version": "0.2.0",
+        "status": "running",
+        "docs": "/docs",
+    }

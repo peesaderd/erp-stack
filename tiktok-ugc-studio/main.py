@@ -1135,7 +1135,7 @@ async def run_full_pipeline(req: FullPipelineRequest):
     Returns a pipeline job_id for status tracking.
     """
     import asyncio, os, tempfile
-    from tts_gen import text_to_speech
+    # Local import removed — TTS now via Video Module HTTP proxy
     from composer import compose_video
 
     # ── Apply Preset ──
@@ -1172,11 +1172,15 @@ async def run_full_pipeline(req: FullPipelineRequest):
 
             if full_text.strip():
                 try:
-                    tts_file = text_to_speech(
-                        text=full_text.strip(),
-                        lang=req.tts_lang or "th",
-                    )
-                    _update_pipeline_step(job_id, "tts", "success", {"filepath": tts_file})
+                    tts_result = await _proxy("POST", "video", "/api/v1/tts/generate", {
+                        "text": full_text.strip(),
+                        "lang": req.tts_lang or "th",
+                    })
+                    if tts_result.get("ok"):
+                        tts_file = tts_result["data"].get("filepath") or tts_result["data"].get("audio_path", "")
+                        _update_pipeline_step(job_id, "tts", "success", {"filepath": tts_file})
+                    else:
+                        raise Exception(tts_result.get("error", "TTS proxy call failed"))
                 except Exception as e:
                     _update_pipeline_step(job_id, "tts", "error", {"error": str(e)})
                     raise
@@ -1191,15 +1195,14 @@ async def run_full_pipeline(req: FullPipelineRequest):
             PRODIA_AVAILABLE = bool(os.environ.get("PRODIA_TOKEN"))
             if PRODIA_AVAILABLE and req.product_image:
                 try:
-                    # เรียก Prodia Wan 2.7 img2vid ผ่าน pipeline_affiliate.generate_video()
-                    from pipeline_affiliate import generate_video as prodia_gen_video
-
-                    vid_path = prodia_gen_video(
-                        image_path=req.product_image,
-                        prompt=req.hook or req.product_title or "Product showcase",
-                        duration=min(req.duration or 8, 8),
-                        negative_prompt=req.negative_prompt or "low resolution, error, worst quality, deformed, blurry, disfigured face, wrong mouth, speaking, lips moving",
-                    )
+                    # Call Video Module Prodia Wan 2.7 img2vid via HTTP proxy
+                    img_result = await _proxy("POST", "video", "/api/v1/image/generate", {
+                        "image_path": req.product_image,
+                        "prompt": req.hook or req.product_title or "Product showcase",
+                        "duration": min(req.duration or 8, 8),
+                        "negative_prompt": req.negative_prompt or "low resolution, error, worst quality, deformed, blurry, disfigured face, wrong mouth, speaking, lips moving",
+                    })
+                    vid_path = (img_result.get("data") or {}).get("video_path") or (img_result.get("data") or {}).get("filepath")
                     if vid_path:
                         video_path = vid_path
                         _update_pipeline_step(job_id, "video_gen", "success", {
@@ -1354,7 +1357,6 @@ def generate_video(req: VideoRequest):
     Response:
       - video_url, metadata (product_name, tags[], link, price, commission)
     """
-    from pipeline_affiliate import run_pipeline as affiliate_run
     import uuid, json, threading, subprocess
 
     job_id = f"vid_{uuid.uuid4().hex[:8]}"
@@ -1426,25 +1428,27 @@ def generate_video(req: VideoRequest):
 
     def _run():
         try:
-                    # ── เรียก image_prompt_builder วิเคราะห์สินค้า + สร้าง prompts ──
-            from image_prompt_builder import analyze_and_build_prompts
-            import asyncio
+            # Call Prompt Builder Module via HTTP proxy
+            pb_result = await _proxy("POST", "prompt-builder", "/api/v1/build", {
+                "product_name": req.product_title or "",
+                "description": req.product_description or "",
+                "keywords": req.tags or [],
+                "ugc_style": req.ugc_style or "holding",
+                "product_id": job_id,
+                "price": float(req.product_price) if req.product_price else 0.0,
+            })
             try:
-                pb_result = asyncio.run(analyze_and_build_prompts(
-                    product_name=req.product_title or "",
-                    description=req.product_description or "",
-                    keywords=req.tags or [],
-                    ugc_style=req.ugc_style or "holding",
-                    product_id=job_id,
-                    price=float(req.product_price) if req.product_price else 0.0,
-                ))
-                img_prompt = pb_result["image_prompt"]
-                video_prompts = [pb_result["video_prompt"]] * len(scene_prompts)
-                neg_prompt = pb_result.get("negative_prompt", req.negative_prompt)
-                logger.info(f"  Image prompt built ({len(img_prompt)}ch): {img_prompt[:80]}...")
-                logger.info(f"  Analysis: {json.dumps(pb_result.get('analysis', {}), ensure_ascii=False)}")
+                if pb_result.get("ok") and pb_result.get("data"):
+                    pb_data = pb_result["data"]
+                    img_prompt = pb_data.get("image_prompt", "")
+                    video_prompts = [pb_data.get("video_prompt", "")] * len(scene_prompts)
+                    neg_prompt = pb_data.get("negative_prompt", req.negative_prompt)
+                    logger.info(f"  Image prompt built ({len(img_prompt)}ch): {img_prompt[:80]}...")
+                    logger.info(f"  Analysis: {json.dumps(pb_data.get('analysis', {}), ensure_ascii=False)}")
+                else:
+                    raise Exception(pb_result.get("error", "Prompt builder returned error"))
             except Exception as e:
-                logger.warning(f"Image prompt builder failed: {e} — falling back to script as prompt")
+                logger.warning(f"Prompt builder failed: {e} — falling back to script as prompt")
                 img_prompt = scene_prompts[0] if scene_prompts else (req.product_title or "product")
                 video_prompts = scene_prompts[:] if scene_prompts else [req.product_title or "product"]
                 neg_prompt = req.negative_prompt
@@ -1469,20 +1473,24 @@ def generate_video(req: VideoRequest):
                 else:
                     product_img_local = req.product_image
 
-            result = affiliate_run(
-                script=full_script,
-                scene_prompts=scene_prompts,
-                video_prompts=video_prompts,
-                voice_id="lovely_girl",
-                video_duration=duration_per_scene,
-                image_prompt=img_prompt,
-                product_image=product_img_local,
-                enable_sam3=bool(product_img_local),
-                bgm_style=selected_sound_style,
-                negative_prompt=req.negative_prompt,
-            )
+            # Call Video Module pipeline/affiliate/run via HTTP proxy
+            affiliate_result = await _proxy("POST", "video", "/api/v1/pipeline/affiliate/run", {
+                "script": full_script,
+                "scene_prompts": scene_prompts,
+                "video_prompts": video_prompts,
+                "voice_id": "lovely_girl",
+                "video_duration": duration_per_scene,
+                "image_prompt": img_prompt,
+                "product_image": product_img_local,
+                "enable_sam3": bool(product_img_local),
+                "bgm_style": selected_sound_style,
+                "negative_prompt": req.negative_prompt,
+            })
+            if not affiliate_result.get("ok"):
+                raise Exception(affiliate_result.get("error", "Pipeline affiliate run failed"))
+            result = affiliate_result.get("data", {})
             VIDEOS_DIR.mkdir(parents=True, exist_ok=True)
-            final_path = result["final_path"]
+            final_path = result.get("final_path", "")
 
             # pipeline จัดการ BGM + Voice Merge ไปแล้ว (Step 3-5)
             # แค่ copy ผลลัพธ์ (ที่มี BGM แล้ว) มาไว้ videos/

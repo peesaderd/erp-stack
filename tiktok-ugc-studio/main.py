@@ -48,6 +48,40 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'modules', 'pro
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'modules'))
 
 import os
+import httpx
+
+# Module service URLs
+MODULE_URLS = {
+    "image-gen": "http://localhost:8110",
+    "video-gen": "http://localhost:8111",
+    "video":     "http://localhost:8111",
+    "prompt-builder": "http://localhost:8117",
+    "payment":   "http://localhost:8122",
+    "profile":   "http://localhost:8107",
+    "auth":      "http://localhost:8101",
+}
+
+async def _proxy(method: str, module: str, path: str, body: dict = None, timeout: float = 90.0) -> dict:
+    """Proxy request to a module, return normalized response."""
+    base = MODULE_URLS.get(module)
+    if not base:
+        raise HTTPException(status_code=400, detail=f"Unknown module: {module}")
+    url = f"{base}{path}"
+    try:
+        async with httpx.AsyncClient(timeout=timeout, verify=False) as client:
+            if method == "GET":
+                resp = await client.get(url)
+            else:
+                resp = await client.post(url, json=body or {})
+            if resp.status_code >= 400:
+                return {"ok": False, "status": resp.status_code, "error": resp.text[:300], "data": None}
+            try:
+                return {"ok": True, "status": resp.status_code, "data": resp.json()}
+            except Exception:
+                return {"ok": True, "status": resp.status_code, "data": {"text": resp.text}}
+    except Exception as e:
+        return {"ok": False, "status": 0, "error": str(e), "data": None}
+
 # Load .env file for API keys (avoids OpenClaw redaction issues in PM2)
 _env_file = os.path.join(os.path.dirname(__file__), '.env')
 if os.path.exists(_env_file):
@@ -409,17 +443,17 @@ class TTSRequest(BaseModel):
 
 
 @app.post("/tts/generate")
-def generate_tts(req: TTSRequest):
-    """Generate TTS audio from text using gTTS."""
-    from tts_gen import text_to_speech
+async def generate_tts(req: TTSRequest):
+    """Generate TTS audio from text using Gemini via video module."""
     if not req.text or not req.text.strip():
         raise HTTPException(status_code=400, detail="Text cannot be empty")
-    try:
-        filepath = text_to_speech(
-            text=req.text.strip(),
-            lang=req.lang or "th",
-            slow=req.slow,
-        )
+    result = await _proxy("POST", "video", "/api/v1/tts/generate", {
+        "text": req.text.strip(),
+        "voice": "Aoede"
+    })
+    if result.get("ok"):
+        data = result.get("data", {})
+        filepath = data.get("filepath", "")
         filename = os.path.basename(filepath)
         return {
             "success": True,
@@ -428,8 +462,8 @@ def generate_tts(req: TTSRequest):
             "filename": filename,
             "duration_estimate": len(req.text.strip()) / 12,
         }
-    except RuntimeError as e:
-        raise HTTPException(status_code=502, detail=str(e))
+    else:
+        raise HTTPException(status_code=502, detail=result.get("error", "TTS generation failed"))
 
 
 class ScriptTTSRequest(BaseModel):
@@ -440,20 +474,22 @@ class ScriptTTSRequest(BaseModel):
 
 
 @app.post("/tts/script")
-def generate_script_tts(req: ScriptTTSRequest):
+async def generate_script_tts(req: ScriptTTSRequest):
     """Generate TTS for full UGC script (hook + value + CTA) as segments."""
-    from tts_gen import script_to_speech
-    try:
-        result = script_to_speech(
-            hook=req.hook,
-            value_proposition=req.value_proposition,
-            cta=req.cta,
-            lang=req.lang or "th",
-        )
-        result["success"] = True
-        return result
-    except RuntimeError as e:
-        raise HTTPException(status_code=502, detail=str(e))
+    result = await _proxy("POST", "video", "/api/v1/tts/script", {
+        "script": {
+            "hook": req.hook,
+            "body": req.value_proposition,
+            "cta": req.cta
+        },
+        "voice": "Aoede"
+    })
+    if result.get("ok"):
+        data = result.get("data", {})
+        data["success"] = True
+        return data
+    else:
+        raise HTTPException(status_code=502, detail=result.get("error", "Script TTS failed"))
 
 
 # ─── Pipeline Database ─────────────────────────────────────────────────────
@@ -1253,50 +1289,30 @@ async def run_full_pipeline(req: FullPipelineRequest):
 # ─── Script Generation Endpoints ──────────────────────────────────────────
 
 @app.post("/scripts/generate")
-def generate_script(req: ScriptRequest):
-    """Generate TikTok review script using AiBot prompt system"""
-    from script_gen import generate_tiktok_review_script
+async def generate_script(req: ScriptRequest):
+    """Generate TikTok review script via Prompt Builder service"""
     try:
-        # Fallback product_name from product_title or product_url if not provided
-        pname = req.product_name or req.product_title or req.product_url.split('/')[-1].replace('_',' ').replace('-',' ').strip() or 'สินค้า'
-        result = generate_tiktok_review_script(
-            product_name=pname,
-            customer_problem=req.customer_problem,
-            main_benefit=req.main_benefit,
-            target_audience=req.target_audience,
-            tone=req.tone,
-            cta=req.cta,
-            duration=req.duration,
-            extra_rules=req.extra_rules,
-            max_chars=350,
-        )
+        result = await _proxy("POST", "prompt-builder", "/api/v1/build", req.model_dump())
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/scripts/ugc")
-def generate_ugc_script(req: UGCRequest):
-    """Generate UGC video prompt by style"""
-    from script_gen import generate_ugc_script
+async def generate_ugc_script(req: UGCRequest):
+    """Generate UGC video prompt via Video Module"""
     try:
-        result = generate_ugc_script(
-            style=req.style,
-            product_name=req.product_name,
-            gender=req.gender,
-            age=req.age,
-            scene=req.scene,
-        )
+        result = await _proxy("POST", "video", "/api/v1/scripts/ugc", req.model_dump())
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/scripts/variations")
-def script_variations():
-    """Get available hook/tone/CTA variations"""
-    from script_gen import get_script_variations
-    return get_script_variations()
+async def script_variations():
+    """Get available hook/tone/CTA variations via Video Module"""
+    result = await _proxy("GET", "video", "/api/v1/scripts/variations")
+    return result
 
 
 @app.get("/scripts/templates")
@@ -1549,21 +1565,11 @@ def video_pipeline_status(job_id: str):
     return result
 
 
-@app.post("/video/status")
-def video_status(req: VideoTaskRequest):
+@app.post("/video/status/{task_id}")
+async def video_status(task_id: str):
     """Check video generation status"""
-    from video_gen import check_status, VideoProvider
-
-    try:
-        provider = VideoProvider(req.provider)
-    except ValueError:
-        raise HTTPException(status_code=400, detail=f"Unknown provider: {req.provider}")
-
-    try:
-        result = check_status(provider, req.task_id)
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=str(e))
+    result = await _proxy("GET", "video", f"/api/v1/video/status/{task_id}")
+    return result
 
 
 # ─── Completed Jobs + Post to TikTok ──────────────────────────────────────
@@ -1712,23 +1718,20 @@ async def do_post_video(req: VideoPostRequest):
 
 
 @app.get("/video/providers")
-def video_providers():
-    """List available and configured video providers"""
-    from video_gen import get_available_providers, UGC_PRESETS
-
+async def video_providers():
+    """List available video generation providers from Video Module"""
+    # Video Module (port 8111) is the single source of truth for video generation
     return {
-        "providers": get_available_providers(),
-        "ugc_styles": list(UGC_PRESETS.keys()),
-        "aspect_ratios": ["9:16", "16:9", "1:1"],
-        "durations": [8, 16],
-        "duration_options": [
-            {"value": 8, "label": "8 วิ ~$0.034", "description": "Prodia FLUX > MiniMax TTS > Wan 2.7 img2vid+audio (Lip Sync built-in)"},
-            {"value": 16, "label": "16 วิ ~$0.064 (2 scenes)", "description": "2 scenes concat + Wan 2.7 audio-driven"}
-        ],
-        "pipeline": {
-            "steps": ["SAM3 Analyze", "FLUX Image", "MiniMax TTS", "Wan 2.7 img2vid+audio", "FFmpeg Concat"],
-            "engine": "pipeline_default",
+        "ok": True,
+        "providers": ["prodia", "nanobanana"],
+        "models": {
+            "nanobanana": "Nano Banana Pro (Img2Img)",
+            "flux-2-klein": "FLUX.2 Klein (Txt2Img)",
+            "wan-2-7": "Wan 2.7 (Img2Vid)"
         },
+        "pipelines": {
+            "affiliate": "Product Image → Nano Banana → Wan 2.7 → FFmpeg (voice merge + BGM)",
+        }
     }
 
 
@@ -1987,40 +1990,6 @@ def export_asset(req: ExportRequest):
 # ═══════════════════════════════════════════════════════════════════════
 # Module Integrations — Image Gen, Video Gallery, Payment
 # ═══════════════════════════════════════════════════════════════════════
-
-import httpx
-
-MODULE_URLS = {
-    "image-gen": "http://localhost:8110",
-    "video-gen": "http://localhost:8116",
-    "payment":   "http://localhost:8122",
-    "profile":   "http://localhost:8107",
-    "auth":      "http://localhost:8101",
-}
-
-
-async def _proxy(method: str, module: str, path: str, body: dict = None, timeout: float = 90.0) -> dict:
-    """Proxy request to a module, return normalized response."""
-    base = MODULE_URLS.get(module)
-    if not base:
-        raise HTTPException(status_code=400, detail=f"Unknown module: {module}")
-    url = f"{base}{path}"
-    try:
-        async with httpx.AsyncClient(timeout=timeout, verify=False) as client:
-            if method == "GET":
-                resp = await client.get(url, headers=headers)
-            else:
-                resp = await client.post(url, json=body or {}, headers=headers)
-            if resp.status_code >= 400:
-                return {"ok": False, "status": resp.status_code, "error": resp.text[:300], "data": None}
-            try:
-                return {"ok": True, "status": resp.status_code, "data": resp.json()}
-            except Exception:
-                return {"ok": True, "status": resp.status_code, "data": {"text": resp.text}}
-    except httpx.ConnectError:
-        return {"ok": False, "status": 0, "error": f"Cannot reach {module} at {base}", "data": None}
-    except Exception as e:
-        return {"ok": False, "status": 0, "error": str(e), "data": None}
 
 
 # ─── Image Storage (direct proxy to image-gen) ──────────────────────────

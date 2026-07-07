@@ -855,6 +855,39 @@ async def profile_register(req: dict):
 async def profile_tier(user_id: str):
     return await _proxy("GET", "profile", f"/api/v1/profiles/{user_id}/tier")
 
+# ─── Products List ───────────────────────────────────────────────────────
+
+@app.get("/products/list")
+def list_products(limit: int = 50, preset: str = "all"):
+    """List products from tus_products.db for the frontend product grid."""
+    db_path = os.path.join(os.path.dirname(__file__), "tus_products.db")
+    if not os.path.exists(db_path):
+        return {"products": []}
+    
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        "SELECT * FROM tus_products ORDER BY viral_score DESC LIMIT ?", (limit,)
+    ).fetchall()
+    conn.close()
+    
+    products = []
+    for row in rows:
+        row_dict = dict(row)
+        # Parse JSON fields
+        try:
+            row_dict["images"] = json.loads(row_dict["images"] or "[]")
+        except (json.JSONDecodeError, TypeError):
+            row_dict["images"] = []
+        try:
+            row_dict["keywords"] = json.loads(row_dict["keywords"] or "[]")
+        except (json.JSONDecodeError, TypeError):
+            row_dict["keywords"] = []
+        row_dict["image_count"] = len(row_dict["images"])
+        products.append(row_dict)
+    
+    return {"products": products}
+
 # ─── Product Analysis ─────────────────────────────────────────────────────
 
 @app.post("/product/analyze")

@@ -1,16 +1,5 @@
-มือที่สมจริงของ {model_gender}ไทย อายุ {model_age} ปี กำลังถือ {product_name} อย่างเป็นธรรมชาติ
-ในห้องที่มีแสงธรรมชาติสว่าง สินค้าเห็นชัดเจน ไม่มีกล่องบรรจุภัณฑ์บัง
-ฉากหลังเบลอแบบ soft bokeh บรรยากาศ cozy lifestyle
-ถ่ายภาพสินค้าระดับมืออาชีพ 4K รายละเอียดสูง แสงนุ่ม
+A beautiful {model_age}-year-old Thai {model_gender} with glowing skin and confident smile, {model_action}.
 
-Scene:
-A realistic hand of a young Asian {model_gender} gently holding the {product_name} in a bright, natural-lit room.
-The product is clearly visible, no packaging box obstructing the view.
-Soft bokeh background, cozy lifestyle vibe.
-Professional product photography, 4K, high detail.
+{scene_description}
 
-Key: PRODUCT must be clearly visible and in focus.
-Key: Hand should hold the product naturally, not covering the product face.
-Key: NO packaging box, NO cardboard, NO wrapping — just the product itself.
-Key: Warm, inviting lighting that highlights the product.
-Key: Lifestyle setting that matches the product category.
+Casual smartphone photo, authentic UGC style. Soft natural window lighting with soft bokeh background. The product must be clearly visible and in sharp focus. No packaging box or wrapping — just the product itself.

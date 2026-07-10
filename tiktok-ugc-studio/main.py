@@ -621,7 +621,12 @@ async def generate_video(req: VideoRequest):
 
             product_img_local = None
             if req.product_image:
-                if "89.167.82.205" in req.product_image and "8105" in req.product_image:
+                # แปลง /ugc/static/product_images/xxx → local file path
+                if req.product_image.startswith("/ugc/static/product_images/"):
+                    filename = req.product_image.replace("/ugc/static/product_images/", "")
+                    product_img_local = str(STORAGE_DIR / "product_images" / filename)
+                # แปลง external IP → localhost
+                elif "89.167.82.205" in req.product_image and "8105" in req.product_image:
                     product_img_local = req.product_image.replace("http://89.167.82.205:8105", "http://localhost:8105")
                 else:
                     product_img_local = req.product_image
@@ -641,12 +646,17 @@ async def generate_video(req: VideoRequest):
                 "ugc_style": req.ugc_style or "product_usage",
                 "aspect_ratio": req.aspect_ratio or "9:16",
                 "negative_prompt": req.negative_prompt,
-            })
+            }, timeout=300.0)  # Video pipeline takes 90-180s
 
             if not affiliate_result.get("ok"):
                 raise Exception(affiliate_result.get("error", "Pipeline affiliate run failed"))
-
-            result = affiliate_result.get("data", {})
+            
+            # Video module returns {"success": bool, "result": {...}}
+            api_data = affiliate_result.get("data", {})
+            if not api_data.get("success"):
+                raise Exception(api_data.get("error", "Video generation failed"))
+            
+            result = api_data.get("result", {})
             VIDEOS_DIR.mkdir(parents=True, exist_ok=True)
             final_path = result.get("final_path", "")
 
@@ -728,6 +738,52 @@ def list_completed_videos():
             })
     jobs.reverse()
     return {"jobs": jobs, "total": len(jobs)}
+
+@app.get("/active-model")
+async def get_active_model():
+    import httpx
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get("http://127.0.0.1:8777/v1/active-model")
+            if resp.status_code == 200:
+                return resp.json()
+    except Exception:
+        pass
+    return {"model": "opencode-go/deepseek-v4-flash"}
+
+@app.post("/active-model")
+async def set_active_model(req: dict):
+    import httpx
+    model = req.get("model")
+    if not model:
+        raise HTTPException(status_code=400, detail="model required")
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post("http://127.0.0.1:8777/v1/active-model", json={"model": model})
+            if resp.status_code == 200:
+                return resp.json()
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Proxy error: {e}")
+    return {"success": False}
+
+@app.get("/opencode-models")
+async def get_opencode_models():
+    import httpx
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get("http://127.0.0.1:8777/v1/models")
+            if resp.status_code == 200:
+                return resp.json()
+    except Exception:
+        pass
+    # Fallback list of models
+    fallback = [
+        {"id": "opencode-go/deepseek-v4-flash", "object": "model"},
+        {"id": "opencode-go/deepseek-v4-pro", "object": "model"},
+        {"id": "opencode-go/qwen3.7-max", "object": "model"},
+        {"id": "opencode-go/glm-5.2", "object": "model"}
+    ]
+    return {"object": "list", "data": fallback}
 
 @app.get("/video/providers")
 async def video_providers():
@@ -1131,6 +1187,41 @@ def get_pipeline_recipes():
         },
     ]
     return {"recipes": recipes}
+
+# ─── Missing Endpoints (Frontend Compatibility) ──────────────────────
+
+@app.get("/pipeline/detail/{job_id}")
+async def pipeline_detail(job_id: str):
+    """Get pipeline job details (frontend expects /pipeline/detail/{id})."""
+    result = _pipeline_results.get(job_id)
+    if not result:
+        return {"error": "Job not found"}
+    return {"job": result}
+
+@app.post("/dashboard/track-event")
+async def track_event():
+    """Track dashboard events (no-op for now)."""
+    return {"ok": True}
+
+@app.get("/pipeline/assets")
+async def pipeline_assets():
+    """Get pipeline assets list."""
+    return {"assets": [], "count": 0}
+
+@app.get("/posts/scheduled")
+async def posts_scheduled():
+    """Get scheduled posts list."""
+    return {"posts": [], "count": 0}
+
+@app.post("/pipeline/{job_id}/retry")
+async def pipeline_retry(job_id: str):
+    """Retry a failed pipeline job."""
+    return {"success": False, "error": "Not implemented yet"}
+
+@app.post("/pipeline/{job_id}/cancel")
+async def pipeline_cancel(job_id: str):
+    """Cancel a running pipeline job."""
+    return {"success": False, "error": "Not implemented yet"}
 
 # ─── Startup Event ────────────────────────────────────────────────────────
 

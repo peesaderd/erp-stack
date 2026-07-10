@@ -802,6 +802,13 @@ function renderAutomation() {
         </div>
         <button class="btn btn-primary" onclick="saveAutomation()">💾 บันทึก</button>
         <div id="autoStatus" style="margin-top:8px;font-size:13px;color:var(--g600)"></div>
+        <div class="form-group" style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px">
+          <label>🤖 OpenCode AI Model (ประมวลผลสคริปต์)</label>
+          <select id="autoOpencodeModel" onchange="saveOpencodeModel(this.value)" style="width:100%">
+            <option>Loading models...</option>
+          </select>
+          <div id="opencodeModelStatus" style="margin-top:4px;font-size:12px;color:var(--g600)"></div>
+        </div>
       </div>
       <div class="card">
         <div class="card-header"><h3>🎯 Optimization</h3></div>
@@ -829,6 +836,7 @@ function renderAutomation() {
       </div>
     </div>
   `;
+  setTimeout(loadOpencodeModels, 50);
 }
 
 function saveAutomation() {
@@ -852,6 +860,45 @@ async function runOptimizerNow() {
     alert(`✅ Optimizer Complete!\nChanges: ${JSON.stringify(r.changes)}\nInsights:\n${r.insights?.join('\n')}`);
   } catch(e) { alert('❌ '+e.message); }
   btn.disabled = false; btn.textContent = '▶️ Run Optimizer Now';
+}
+
+async function loadOpencodeModels() {
+  const select = document.getElementById('autoOpencodeModel');
+  const status = document.getElementById('opencodeModelStatus');
+  if (!select) return;
+  try {
+    const [modelsData, activeData] = await Promise.all([
+      rawGet('/opencode-models'),
+      rawGet('/active-model')
+    ]);
+    if (modelsData.data) {
+      select.innerHTML = modelsData.data.map(m => {
+        const selected = m.id === activeData.model ? 'selected' : '';
+        const shortName = m.id.replace('opencode-go/', '');
+        const displayName = shortName.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        return `<option value="${m.id}" ${selected}>${displayName}</option>`;
+      }).join('');
+      if (status) status.textContent = `โมเดลปัจจุบัน: ${activeData.model.replace('opencode-go/', '')}`;
+    }
+  } catch (e) {
+    console.error("Failed to load opencode models:", e);
+    select.innerHTML = '<option value="opencode-go/deepseek-v4-flash">DeepSeek V4 Flash</option>';
+  }
+}
+
+async function saveOpencodeModel(model) {
+  const status = document.getElementById('opencodeModelStatus');
+  if (status) status.textContent = '⏳ กำลังบันทึกโมเดล...';
+  try {
+    const r = await rawPost('/active-model', { model });
+    if (r.success) {
+      if (status) status.textContent = `✅ บันทึกแล้ว: ${model.replace('opencode-go/', '')}`;
+    } else {
+      if (status) status.textContent = '❌ บันทึกล้มเหลว';
+    }
+  } catch(e) {
+    if (status) status.textContent = '❌ ข้อผิดพลาด: ' + e.message;
+  }
 }
 
 // ═══════════════════════════════════════════════

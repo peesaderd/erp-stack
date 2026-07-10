@@ -8,7 +8,7 @@ from pydantic import BaseModel
 import uvicorn
 
 sys.path.insert(0, os.path.dirname(__file__))
-from prompt_builder import analyze_and_build_prompts, analyze_product, build_image_prompt, build_video_prompt, get_script_variations
+from prompt_builder import analyze_and_build_prompts
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("prompt-builder-service")
@@ -26,14 +26,6 @@ class BuildRequest(BaseModel):
     product_image: str = ""
     category: str = ""
     product_category: str = ""
-
-
-class ScriptRequestWithProfile(BuildRequest):
-    customer_problem: str = ""
-    main_benefit: str = ""
-    target_audience: str = ""
-    tone: str = ""
-    extra_rules: str = ""
 
 
 @app.get("/health")
@@ -59,11 +51,6 @@ async def build(req: BuildRequest):
     except Exception as e:
         logger.exception("build failed")
         raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/api/v1/variations")
-async def variations():
-    return get_script_variations()
 
 
 if __name__ == "__main__":

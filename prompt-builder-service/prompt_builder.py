@@ -5,7 +5,6 @@ Prompt Builder — Unified Pipeline
 Uses Mistral for:
   - Product analysis (category, gender, age, problem, benefit)
   - UGC prompt generation (image_prompt, video_prompt, negative_prompt)
-  - Script generation
 
 Single import for all prompt-related work.
 """
@@ -15,7 +14,6 @@ import sys
 import json
 import logging
 import re
-import random
 import requests
 from pathlib import Path
 from typing import Optional, Dict, Any, List
@@ -64,26 +62,26 @@ STYLE_MAP = {
 }
 
 PRODUCT_CATEGORY_MAP = {
-    "ลิปสติก":    {"category": "beauty",  "gender": "female", "age": "18-30", "setting": "vanity room or bedroom with mirror"},
-    "ลิป":        {"category": "beauty",  "gender": "female", "age": "18-30", "setting": "vanity room or bedroom with mirror"},
-    "คอนซีลเลอร์": {"category": "beauty",  "gender": "female", "age": "18-30", "setting": "vanity room with mirror, good lighting"},
-    "บลัช":       {"category": "beauty",  "gender": "female", "age": "18-30", "setting": "vanity or bedroom, soft natural lighting"},
-    "มาส์ก":      {"category": "beauty",  "gender": "female", "age": "20-35", "setting": "bathroom or bedroom, clean modern background"},
-    "สบู่":        {"category": "beauty",  "gender": "unisex", "age": "20-40", "setting": "bathroom, clean tiled wall, modern"},
-    "ครีม":       {"category": "beauty",  "gender": "female", "age": "25-40", "setting": "bathroom or bedroom vanity"},
-    "เซรั่ม":      {"category": "beauty",  "gender": "female", "age": "25-40", "setting": "bathroom vanity, clean white background"},
-    "กันแดด":     {"category": "beauty",  "gender": "unisex", "age": "18-40", "setting": "outdoor or near window, natural light"},
-    "สกินแคร์":    {"category": "beauty",  "gender": "female", "age": "20-35", "setting": "bedroom vanity, soft natural lighting"},
-    "หูฟัง":      {"category": "electronics", "gender": "unisex", "age": "18-30", "setting": "modern room, desk with tech accessories"},
-    "ลำโพง":     {"category": "electronics", "gender": "unisex", "age": "20-40", "setting": "living room or desk, modern decor"},
-    "ขนม":        {"category": "food",    "gender": "unisex", "age": "18-35", "setting": "kitchen table or cafe, natural lighting"},
-    "เครื่องดื่ม": {"category": "food",    "gender": "unisex", "age": "18-40", "setting": "cafe corner or modern kitchen"},
-    "เสื้อผ้า":    {"category": "fashion", "gender": "unisex", "age": "18-35", "setting": "modern wardrobe, clean background"},
-    "รองเท้า":    {"category": "fashion", "gender": "unisex", "age": "18-35", "setting": "streetwear style, urban background"},
-    "ไขควง":      {"category": "tools",   "gender": "male",   "age": "25-50", "setting": "workshop or garage, tool bench background"},
-    "เครื่องมือ":  {"category": "tools",   "gender": "male",   "age": "25-50", "setting": "workshop background with tool rack"},
-    "ของใช้ในบ้าน": {"category": "home",  "gender": "unisex", "age": "25-50", "setting": "bright living room or kitchen"},
-    "เฟอร์นิเจอร์": {"category": "home",  "gender": "unisex", "age": "25-50", "setting": "bright modern room display"},
+    "ลิปสติก":    {"category": "beauty",  "gender": "female", "age": "25", "setting": "vanity room หรือ outdoor เช่น ร้านกาแฟ"},
+    "ลิป":        {"category": "beauty",  "gender": "female", "age": "25", "setting": "vanity room หรือ outdoor เช่น ร้านกาแฟ"},
+    "คอนซีลเลอร์": {"category": "beauty",  "gender": "female", "age": "25", "setting": "vanity room with mirror, good lighting"},
+    "บลัช":       {"category": "beauty",  "gender": "female", "age": "25", "setting": "vanity or bedroom, soft natural lighting"},
+    "มาส์ก":      {"category": "beauty",  "gender": "female", "age": "25", "setting": "bathroom or bedroom, clean modern background"},
+    "สบู่":        {"category": "beauty",  "gender": "unisex", "age": "25", "setting": "bathroom, clean tiled wall, modern"},
+    "ครีม":       {"category": "beauty",  "gender": "female", "age": "25", "setting": "bathroom หรือ bedroom vanity"},
+    "เซรั่ม":     {"category": "beauty",  "gender": "female", "age": "25", "setting": "bathroom vanity, clean white background"},
+    "กันแดด":     {"category": "beauty",  "gender": "unisex", "age": "25", "setting": "outdoor หรือ near window, natural light"},
+    "สกินแคร์":    {"category": "beauty",  "gender": "female", "age": "25", "setting": "bedroom vanity, soft natural lighting"},
+    "หูฟัง":      {"category": "electronics", "gender": "unisex", "age": "25", "setting": "modern room, desk with tech accessories"},
+    "ลำโพง":     {"category": "electronics", "gender": "unisex", "age": "25", "setting": "living room หรือ desk, modern decor"},
+    "ขนม":        {"category": "food",    "gender": "unisex", "age": "25", "setting": "kitchen table หรือ cafe, natural lighting"},
+    "เครื่องดื่ม": {"category": "food",    "gender": "unisex", "age": "25", "setting": "cafe corner หรือ modern kitchen"},
+    "เสื้อผ้า":    {"category": "fashion", "gender": "unisex", "age": "25", "setting": "modern wardrobe, clean background"},
+    "รองเท้า":    {"category": "fashion", "gender": "unisex", "age": "25", "setting": "streetwear style, urban background"},
+    "ไขควง":      {"category": "tools",   "gender": "male",   "age": "25", "setting": "workshop หรือ garage, tool bench background"},
+    "เครื่องมือ":  {"category": "tools",   "gender": "male",   "age": "25", "setting": "workshop background with tool rack"},
+    "ของใช้ในบ้าน": {"category": "home",  "gender": "unisex", "age": "25", "setting": "bright living room หรือ kitchen"},
+    "เฟอร์นิเจอร์": {"category": "home",  "gender": "unisex", "age": "25", "setting": "bright modern room display"},
 }
 
 LIGHTING_MAP = {
@@ -95,46 +93,6 @@ LIGHTING_MAP = {
     "home":       {"lighting": "bright natural daylight, clean and fresh", "composition": "medium shot showing product in home context", "background": "bright clean living space, lifestyle setting", "color_palette": "clean whites, wood tones, natural greens", "atmosphere": "clean, organized, practical"},
     "other":      {"lighting": "soft natural lighting, clean and professional", "composition": "upper body shot, product visible and in focus", "background": "clean minimal background, lifestyle appropriate", "color_palette": "natural tones, neutral background", "atmosphere": "authentic, professional, relatable"},
 }
-
-# ─── Variation templates (fallback) ──────────────────────────────────
-VARIATIONS = {
-    "hooks": [
-        "ปัญหาที่เจอบ่อย", "จุดเด่นที่โดดเด่น", "ความแตกต่างจากสินค้าอื่น",
-        "ประโยชน์ที่ได้จริง", "รีวิวจากผู้ใช้จริง", "ใครกำลังมองหา",
-        "ถ้าคุณต้องการ", "ลองดูสินค้านี้", "รีบมาดูเลย",
-        "ของดีมาแล้ว", "ไม่ต้องรอแล้ว", "สินค้านี้เหมาะกับ",
-        "แนะนำสินค้าดี", "มีสินค้ามาแนะนำ", "ของดีที่อยากบอกต่อ",
-        "สินค้าที่น่าสนใจ", "รีวิวสินค้าดี", "ลองมาดูกัน",
-        "ของดีราคาถูก", "สินค้าคุณภาพ"
-    ],
-    "tones": [
-        "เป็นกันเอง พูดเร็ว", "จริงใจ น่าเชื่อถือ",
-        "ตื่นเต้น ประทับใจ", "สบายๆ ไม่เป็นทางการ",
-        "กระชับ ตรงประเด็น"
-    ],
-    "ctas": [
-        "กดตะกร้าเลย", "สั่งเลยวันนี้", "ของดีราคาถูก",
-        "กดสั่งซื้อเลย", "ดูรายละเอียดในตะกร้า"
-    ],
-    "benefits": [
-        "คุณภาพดี ใช้งานได้จริง", "คุ้มค่า ราคาไม่แพง",
-        "ใช้งานง่าย สะดวก", "ทนทาน ใช้งานได้นาน",
-        "ดีไซน์สวย ใช้งานได้หลากหลาย"
-    ],
-}
-
-# Try to load variation.json for richer content
-try:
-    var_path = PROMPTS_DIR / "variation.json"
-    if var_path.exists():
-        with open(var_path, "r", encoding="utf-8") as f:
-            loaded = json.load(f)
-            if isinstance(loaded, dict):
-                for k in ["hooks", "tones", "ctas", "benefits"]:
-                    if k in loaded and isinstance(loaded[k], list) and len(loaded[k]) > 0:
-                        VARIATIONS[k] = loaded[k]
-except Exception:
-    pass
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -316,13 +274,13 @@ JSON ที่ต้องตอบ:
 {
   "category": "beauty/fashion/electronics/food/home/tools/health/other",
   "target_gender": "male/female/unisex",
-  "target_age": "ช่วงอายุ เช่น 18-30",
+  "target_age": "25",
   "target_audience": "กลุ่มเป้าหมายหลัก เช่น สาววัยทำงานที่มีปัญหาตาคล้ำ",
   "setting": "สถานที่ถ่ายวิดีโอ เช่น vanity room หรือ bathroom",
   "customer_problem": "ปัญหาที่สินค้านี้แก้ เช่น ใต้ตาคล้ำ หน้าหมองคล้ำ",
   "main_benefit": "คุณประโยชน์หลักของสินค้า เช่น ปกปิดรอยคล้ำ ให้ใต้ตาสว่าง",
   "hashtags": ["hashtag1", "hashtag2", "hashtag3", "hashtag4", "hashtag5"],
-  "image_description": "บรรยายภาพที่ควรสร้าง: เพศ, อายุ, ลักษณะ, ท่าทาง, ฉากหลัง, แสง, อารมณ์"
+  "image_description": "ENGLISH ONLY: Describe the scene for AI image generation. Include: model appearance (Thai woman/man, age 25, style), pose (holding product naturally), expression (confident smile), setting (vanity room, cafe), lighting (soft natural window light), mood (warm, inviting). Do NOT mention product name - the AI will see the product image. Example: 'A beautiful Thai woman, 25 years old, glowing skin, confident smile, holding the product naturally at chest level, vanity room background with soft natural lighting, warm and inviting atmosphere'"
 }"""
 
 
@@ -332,17 +290,17 @@ Analyze the product image and return JSON ONLY (no other text).
 JSON format:
 {
   "category": "beauty/fashion/electronics/food/home/tools/health/other",
-  "product_type": "ลิปสติก/ครีม/หูฟัง/etc.",
+  "product_type": "lipstick/cream/headphones/etc.",
   "target_gender": "male/female/unisex",
-  "target_age": "age range like 18-30",
-  "target_audience": "primary target audience in Thai",
-  "setting": "suggested video setting",
+  "target_age": "25",
+  "target_audience": "primary target audience (in Thai for script generation)",
+  "setting": "suggested video setting (English, e.g. vanity room, bathroom, cafe)",
   "colors": ["dominant color 1", "dominant color 2", "dominant color 3"],
   "packaging_style": "luxury/minimal/colorful/modern",
   "estimated_product_size": "small/medium/large",
-  "customer_problem": "problem this product solves in Thai",
-  "main_benefit": "main benefit in Thai",
-  "image_description": "บรรยายภาพที่ควรสร้าง"
+  "customer_problem": "problem this product solves (in Thai for script generation)",
+  "main_benefit": "main benefit (in Thai for script generation)",
+  "image_description": "ENGLISH ONLY: Detailed scene description for AI image generation. Describe the ideal model (appearance, age 25, expression), pose (how they hold/use product), setting, lighting, and mood. Do NOT include the product name as text. Example: 'A beautiful Thai woman, 25 years old, glowing skin, confident smile, holding the product naturally, vanity room background, soft natural window lighting, warm atmosphere'"
 }"""
 
 
@@ -413,65 +371,83 @@ Keywords: {kw_str}"""
 # ═══════════════════════════════════════════════════════════════════════
 
 def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holding") -> str:
-    """Generate image prompt using UGC_prompts templates + product profile.
+    """Generate image prompt using Mistral's image_description + UGC templates.
     
-    Falls back to hardcode if template not available.
+    The image_description from Mistral Vision analysis describes the ideal scene
+    (model appearance, expression, pose, setting, lighting). We combine it with
+    UGC style templates that handle composition/camera/quality instructions.
+    
+    Product name is NOT injected into the prompt — Nano Banana sees the product
+    via the reference image (img2img), so text descriptions of the product name
+    only cause text rendering artifacts.
     """
     templates = load_ugc_templates(ugc_style)
     style_info = STYLE_MAP.get(ugc_style, STYLE_MAP["holding"])
     category = profile.get("category", "other")
     model_gender = profile.get("target_gender", "unisex")
     model_age = profile.get("target_age", "20-35")
-    model_setting = profile.get("setting", "clean modern lifestyle setting")
     lighting = _get_lighting(category)
-    customer_problem = profile.get("customer_problem", "")
-    main_benefit = profile.get("main_benefit", "")
-    gender_en = {"female": "woman", "male": "man", "unisex": "person"}.get(model_gender, "person")
+    image_description = profile.get("image_description", "")
+    # Support both "female/male/unisex" and "woman/man/person" formats
+    gender_en = {
+        "female": "woman", "woman": "woman",
+        "male": "man", "man": "man",
+        "unisex": "person", "person": "person"
+    }.get(model_gender, "woman")  # default to woman for beauty products
+
+    # Build scene description from Mistral's image_description (preferred)
+    # or fallback to generated description
+    if image_description:
+        scene_desc = image_description
+    else:
+        scene_desc = f"Thai {gender_en}, {model_age} years old, pretty face, professional model quality"
 
     data = {
-        "product_name": product_name,
-        "customer_problem": customer_problem,
-        "main_benefit": main_benefit,
+        "scene_description": scene_desc,
         "model_gender": gender_en,
-        "model_age": model_age,
-        "setting": model_setting,
+        "model_age": model_age,  # Use from profile (Mistral suggests "25")
         "style": ugc_style,
-        "tone": "professional",
+        "tone": "casual",
         "composition": lighting["composition"],
         "lighting": lighting["lighting"],
         "atmosphere": lighting["atmosphere"],
         "color_palette": lighting["color_palette"],
         "background": lighting.get("background", "clean minimal background"),
-        "model_action": style_info["model_action"],
+        "model_action": "",  # Removed - use scene_description only
         "camera": style_info["camera"],
         "vibe": style_info["vibe"],
         "keywords": style_info.get("keywords", ""),
         "hashtags": ", ".join(profile.get("hashtags", [])),
     }
 
-    if templates.get("master") and templates.get("user.template"):
-        # Use UGC_prompts templates
-        master = fill_template(templates["master"], data)
-        user_tpl = fill_template(templates["user.template"], data)
+    # Build image prompt: use master template only (no user.template to avoid duplication)
+    if templates.get("master"):
+        image_prompt = fill_template(templates["master"], data)
         negative = templates.get("negative", "")
-        image_prompt = f"{master}\n\n{user_tpl}"
     else:
-        # Fallback hardcode
+        # Fallback hardcode - UGC style
         image_prompt = (
-            f"A beautiful Thai {gender_en}, {model_age} years old, "
-            f"glowing skin, pretty face, professional model quality, "
+            f"{scene_desc}. "
             f"{style_info['model_action']}. "
-            f"Setting: {model_setting}. "
             f"{style_info['camera']}, {style_info['vibe']}. "
             f"{lighting['composition']}, {lighting['atmosphere']}, {lighting['color_palette']}. "
-            f"The {product_name} is clearly in frame. "
-            f"Product benefit: {main_benefit}. "
+            f"The product is clearly in frame. "
             f"{lighting['lighting']}. "
-            f"Wearing casual everyday outfit. Professional e-commerce quality. "
+            f"Wearing casual everyday outfit. Authentic UGC style. "
             f"--ar 9:16"
         )
         negative = templates.get("negative", "")
     
+    # Clean up section markers if present (for documentation only, not for AI)
+    image_prompt = re.sub(r'\[Style & Mood\]\s*', '', image_prompt)
+    image_prompt = re.sub(r'\[Subject & Scene\]\s*', '', image_prompt)
+    image_prompt = re.sub(r'\[Product Rules\]\s*', '', image_prompt)
+    # Clean up double dots and extra spaces
+    image_prompt = re.sub(r'\.\.+', '.', image_prompt)
+    image_prompt = re.sub(r',\s*,', ',', image_prompt)
+    image_prompt = re.sub(r'\s+', ' ', image_prompt)
+    image_prompt = image_prompt.strip()
+
     return image_prompt, negative
 
 
@@ -480,14 +456,13 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     style_info = STYLE_MAP.get(ugc_style, STYLE_MAP["holding"])
     category = profile.get("category", "other")
     model_gender = profile.get("target_gender", "unisex")
-    model_age = profile.get("target_age", "20-35")
     model_setting = profile.get("setting", "clean modern lifestyle setting")
     lighting = _get_lighting(category)
-    gender_en = {"female": "woman", "male": "man", "unisex": "person"}.get(model_gender, "person")
+    gender_en = {"female": "woman", "male": "man", "unisex": "person", "woman": "woman", "man": "man"}.get(model_gender, "person")
 
     video_prompt = (
-        f"Thai {gender_en} {model_age}, {style_info['video_motion']}. "
-        f"{product_name} visible in frame. "
+        f"Thai {gender_en} 25, {style_info['video_motion']}. "
+        f"The product is visible in frame. "
         f"Setting: {model_setting}. "
         f"{lighting['lighting']}. {lighting['atmosphere']}. "
         f"9:16 portrait, smooth natural motion"
@@ -509,138 +484,6 @@ def build_negative_prompt(profile: dict, ugc_style: str = "holding") -> str:
     if tpl_neg:
         return f"{tpl_neg}, {default}"
     return default
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# ─── Script Generation ────────────────────────────────────────────────
-# ═══════════════════════════════════════════════════════════════════════
-
-SCRIPT_SYSTEM = """คุณคือนักรีวิวขายสินค้าใน TikTok ระดับมืออาชีพ
-พูดกระชับ น่าเชื่อถือ เป็นกันเอง จบไว
-
-CRITICAL RULES:
-✅ ใบหน้าต้องตรงกับภาพ reference 100%
-❌ ห้ามใช้เสื้อผ้าจากภาพ reference
-⚠️ ความยาวคลิป: 8 วินาที ต้องจบภายใน 8 วินาที
-
-โครงสร้างเวลาบังคับ:
-1) Hook (0-2 วินาที): เปิดด้วยปัญหาที่เข้าถึงกลุ่มเป้าหมาย
-2) Value (2-6 วินาที): บอกประโยชน์หลัก 1 อย่างที่เฉพาะเจาะจง
-3) CTA (6-8 วินาที): ต้องจบด้วย CTA ภาษาไทย
-
-⚠️ เสียงพากย์มนุษย์ ชัดเจนระดับสตูดิโอ 48kHz
-⚠️ ครบ 8 วินาที = จบ
-⚠️ ตอบเป็น JSON:
-{
-  "hook": "ข้อความ 3-5 คำ",
-  "script": "สคริปต์เต็ม 8 วินาที พูดปกติ ไม่ต้องบอกเวลากำกับ"
-}"""
-
-
-def _template_script(
-    product_name: str,
-    customer_problem: str = "",
-    main_benefit: str = "",
-    target_audience: str = "",
-    tone: str = "",
-    hooks: Optional[str] = None,
-    cta: str = "",
-    duration: str = "8s",
-) -> dict:
-    """Generate script from template (fallback when Gemini fails)."""
-    if not tone:
-        tone = random.choice(VARIATIONS["tones"])
-    if not customer_problem:
-        customer_problem = hooks or random.choice(VARIATIONS["hooks"])
-    if not main_benefit:
-        main_benefit = random.choice(VARIATIONS["benefits"])
-    if not cta:
-        cta = random.choice(VARIATIONS["ctas"])
-
-    hook = f"{customer_problem} ใช่ไหมคะ"
-    body = f"วันนี้เรามี {product_name} มาบอกต่อ {main_benefit} ค่ะ"
-    full_script = f"{hook} {body} {cta} ค่ะ"
-
-    return {
-        "hook": hook,
-        "script": full_script,
-        "tone": tone,
-        "cta": cta,
-    }
-
-
-def generate_script(
-    product_name: str,
-    customer_problem: str = "",
-    main_benefit: str = "",
-    target_audience: str = "",
-    tone: str = "",
-    extra_rules: str = "",
-    profile: Optional[dict] = None,
-    hooks: Optional[str] = None,
-    cta: str = "",
-    duration: str = "8s",
-) -> dict:
-    """Generate TikTok review script using Mistral.
-
-    Args:
-        product_name: ชื่อสินค้า
-        customer_problem: ปัญหาที่ลูกค้าเจอ (optional)
-        main_benefit: จุดเด่นหลัก (optional)
-        target_audience: กลุ่มเป้าหมาย (optional)
-        tone: โทนเสียง (optional, random from variation.json)
-        extra_rules: กฎเพิ่มเติม (optional)
-        profile: profile dict จาก analyze_product() (optional)
-        hooks: hook text override (optional)
-        cta: CTA text override (optional)
-        duration: ความยาวคลิป (optional, default "8s")
-
-    Returns:
-        dict: { hook, script, tone, cta }
-    """
-    # Use profile data if available
-    if profile:
-        customer_problem = customer_problem or profile.get("customer_problem", "")
-        main_benefit = main_benefit or profile.get("main_benefit", "")
-        target_audience = target_audience or profile.get("target_audience", "")
-
-    if not tone:
-        tone = random.choice(VARIATIONS["tones"])
-
-    extra = extra_rules
-    if hooks:
-        extra += f"\nHook ที่ต้องการ: {hooks}"
-    if cta:
-        extra += f"\nCTA ที่ต้องการ: {cta}"
-
-    user_text = f"""ชื่อสินค้า: {product_name}
-ปัญหาที่ลูกค้าเจอ: {customer_problem if customer_problem else 'ยังไม่ระบุ'}
-จุดเด่นหลัก: {main_benefit if main_benefit else 'ยังไม่ระบุ'}
-กลุ่มเป้าหมาย: {target_audience if target_audience else 'ยังไม่ระบุ'}
-โทนการพูด: {tone}
-{extra if extra else ''}"""
-
-    raw = _call_mistral_text(SCRIPT_SYSTEM, user_text, temperature=0.7)
-    script_data = _extract_json(raw) if raw else None
-
-    if script_data:
-        return {
-            "hook": script_data.get("hook", ""),
-            "script": script_data.get("script", ""),
-            "tone": tone,
-            "cta": cta or script_data.get("cta", "") or random.choice(VARIATIONS["ctas"]),
-        }
-
-    # Fallback to template
-    logger.warning("Mistral script gen failed — using template fallback")
-    return _template_script(
-        product_name, customer_problem, main_benefit, target_audience, tone, hooks, cta, duration,
-    )
-
-
-def get_script_variations() -> dict:
-    """Return all variation options for frontend use."""
-    return dict(VARIATIONS)
 
 
 # ═══════════════════════════════════════════════════════════════════════

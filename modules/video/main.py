@@ -333,54 +333,61 @@ async def pipeline_list(limit: int = 20):
 
 @app.post("/api/v1/pipeline/run")
 async def run_full_pipeline(req: FullPipelineRequest):
-    """Run full UGC pipeline: TTS → Video Gen → Compose."""
-    import tempfile
-    from video.gemini_tts import gemini_text_to_speech
-    from video.composer import compose_video
-    job_id = _create_job(account_id="", product_url=req.product_url or "")
-
+    """Run full UGC pipeline v6: Analyze → Recipe → Script → Image → Video → Compose."""
+    from video.pipeline_affiliate import run_pipeline
+    
+    # Map old fields to v6 format
+    product_name = req.product_title or "Product"
+    product_image = req.product_image or ""
+    recipe_name = "tus"  # Default
+    
+    if req.duration == 16:
+        recipe_name = "etsy"
+    
     try:
-        video_path = None
-        if req.run_tts:
-            _update_step(job_id, "tts", "processing")
-            full_text = " ".join(filter(None, [req.hook, req.value_proposition, req.cta]))
-            if not full_text.strip():
-                full_text = req.product_title or req.product_description or ""
-            if full_text.strip():
-                try:
-                    output_path = str(TTS_DIR / f"pipeline_{job_id}.mp3")
-                    tts_file = gemini_text_to_speech(full_text.strip(), output_path=output_path)
-                    _update_step(job_id, "tts", "success", {"filepath": tts_file})
-                except Exception as e:
-                    _update_step(job_id, "tts", "error", {"error": str(e)})
-                    raise
-            else:
-                _update_step(job_id, "tts", "skipped")
-
-        if req.run_video_gen:
-            _update_step(job_id, "video_gen", "skipped")
-
-        if req.run_compose and req.run_tts and video_path:
-            _update_step(job_id, "compose", "processing")
-            try:
-                tts_step = _get_job(job_id).get("steps", {}).get("tts", {})
-                tts_path = tts_step.get("result", {}).get("filepath", "")
-                if tts_path and os.path.exists(tts_path):
-                    output_path = str(COMPOSED_DIR / f"composed_{job_id}.mp4")
-                    composed = compose_video(video_path=video_path, audio_path=tts_path, output_path=output_path)
-                    _update_step(job_id, "compose", "success", {"output_path": output_path})
-                else:
-                    _update_step(job_id, "compose", "skipped")
-            except Exception as e:
-                logger.exception(f"Compose failed: {e}")
-                _update_step(job_id, "compose", "error", {"error": str(e)})
-
-        _update_step(job_id, "pipeline", "success")
-        return {"success": True, "job_id": job_id, "status": "completed"}
+        result = run_pipeline(
+            product_name=product_name,
+            product_image=product_image,
+            recipe_name=recipe_name,
+            description=req.product_description or "",
+        )
+        
+        return {
+            "success": True,
+            "job_id": result["run_id"],
+            "final_video": result["final_path"],
+            "duration_seconds": result["duration"],
+            "cost_estimate": result["cost_estimate"],
+            "script": result["script"],
+            "scenes": len(result["video_paths"]),
+        }
     except Exception as e:
-        logger.error(f"Pipeline {job_id} failed: {e}")
-        _update_step(job_id, "pipeline", "error", {"error": str(e)})
-        return {"success": False, "job_id": job_id, "status": "error", "error": str(e)}
+        raise HTTPException(status_code=500, detail=f"Pipeline failed: {str(e)}")
+
+# ─── Pipeline Logs ────────────────────────────────────────────────────
+
+@app.get("/api/v1/logs")
+async def list_pipeline_logs(limit: int = 100, status: Optional[str] = None, days: Optional[int] = None):
+    """List recent pipeline jobs with full details."""
+    from video.pipeline_logger import list_jobs
+    jobs = list_jobs(limit=limit, status=status, days=days)
+    return {"success": True, "jobs": jobs, "total": len(jobs)}
+
+@app.get("/api/v1/logs/{job_id}")
+async def get_pipeline_log(job_id: str):
+    """Get full details of a specific pipeline job."""
+    from video.pipeline_logger import get_job
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return {"success": True, "job": job}
+
+@app.get("/api/v1/logs/stats/summary")
+async def pipeline_stats_summary(days: int = 7):
+    """Get aggregate statistics for pipeline jobs."""
+    from video.pipeline_logger import get_stats
+    stats = get_stats(days=days)
+    return {"success": True, "stats": stats}
 
 # ─── Product Analysis ─────────────────────────────────────────────────
 

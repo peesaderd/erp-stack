@@ -156,6 +156,7 @@ def prodia_generate_img2img(
     negative_prompt: str = "",
     width: int = 512,
     height: int = 896,
+    thai_model: bool = True,
 ) -> dict:
     """
     Generate image via Nano Banana img2img (Prodia v2 API).
@@ -163,7 +164,12 @@ def prodia_generate_img2img(
     
     Note: img2img ใช้เวลานานกว่า txt2img (3-5 นาที)
     """
-    job_type = "inference.nano-banana.img2img.v1"
+    job_type = "inference.nano-banana.img2img.v2"
+
+    if thai_model:
+        # Check if "thai" is in prompt, if not, append Thai-style beauty optimization to prompt
+        if "thai" not in prompt.lower():
+            prompt = prompt.rstrip(",. ") + ", beautiful Thai person style, realistic skin texture, highly detailed face, soft warm lighting"
 
     # ดาวน์โหลดรูปสินค้า
     image_data = _download_image(input_image)
@@ -252,7 +258,7 @@ def prodia_generate_img2img(
         "images": results,
         "job_id": job_id,
         "provider": "prodia",
-        "model": "nano.banana",
+        "model": "nano.banana.v2",
     }
 
 
@@ -434,7 +440,7 @@ async def health():
         "service": "image-module",
         "version": "3.0.0",
         "provider": "prodia",
-        "models": ["nano.banana (img2img)", "flux-2.dev (txt2img)"],
+        "models": ["nano.banana.v2 (img2img)", "flux-2.dev (txt2img)"],
         "mistral_vision": True,
     }
 
@@ -464,6 +470,7 @@ async def generate_image(req: GenerateRequest):
                 negative_prompt=neg,
                 width=w,
                 height=h,
+                thai_model=req.thaiModel if req.thaiModel is not None else True,
             )
             return result
         except Exception as e:

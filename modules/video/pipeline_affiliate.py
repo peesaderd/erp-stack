@@ -72,6 +72,33 @@ def _prodia_headers():
     return {"Authorization": f"Bearer {PRODIA_TOKEN()}"}
 
 
+def _poll_prodia_job(job_url: str, max_polls: int = 90, sleep_s: int = 2) -> dict:
+    """Poll a Prodia v2 job URL until completed."""
+    import time as _time
+    for attempt in range(max_polls):
+        _time.sleep(sleep_s)
+        try:
+            resp = requests.get(job_url, headers=_prodia_headers(), timeout=30)
+            if resp.status_code != 200:
+                continue
+            data = resp.json()
+        except Exception as e:
+            logger.debug(f"Prodia poll attempt {attempt}: {e}")
+            continue
+
+        state = data.get("state", {})
+        status = state.get("current", "") or data.get("status", "")
+        
+        if status in ("completed", "success"):
+            return data
+        elif status in ("failed", "error"):
+            error_msg = data.get("error", "") or data.get("state", {}).get("history", [{}])[-1].get("message", "")
+            raise RuntimeError(f"Prodia job failed: {error_msg}")
+
+    raise TimeoutError(f"Prodia job timed out after {max_polls * sleep_s}s")
+
+
+
 def download_file(url: str, output_path: Path) -> Path:
     """Download from URL to local path."""
     if os.path.exists(url):
@@ -495,8 +522,6 @@ def generate_video(
         "type": PRODIA_IMG2VID_TYPE,
         "config": {
             "prompt": prompt,
-            "duration": duration,
-            "negative_prompt": "low resolution, error, worst quality, deformed, blurry, disfigured face",
         }
     }
 
@@ -510,53 +535,72 @@ def generate_video(
             f"{PRODIA_BASE}/job",
             headers=_prodia_headers(),
             files=files,
-            timeout=300
+            timeout=120
         )
-        resp.raise_for_status()
-
-        ct = resp.headers.get("content-type", "")
-
-        if "json" in ct:
+        
+        # Prodia v2 API returns 400 with JSON body for queued jobs (not 200!)
+        if resp.status_code == 400:
+            try:
+                data = resp.json()
+            except:
+                raise RuntimeError(f"Prodia 400 non-JSON: {resp.text[:200]}")
+        elif resp.status_code == 200:
+            ct = resp.headers.get("content-type", "")
+            if "json" not in ct:
+                # Direct binary video response
+                result_path = TMP_DIR / f"img2vid_{uuid.uuid4().hex[:8]}.mp4"
+                with open(result_path, "wb") as f:
+                    f.write(resp.content)
+                logger.info(f"  Video OK (direct)")
+                return str(result_path)
             data = resp.json()
-            state = data.get("state", {}).get("current", "")
-            if state == "failed":
-                raise RuntimeError(f"Wan 2.7 failed: {data.get('error')}")
-
-            url = ""
-            url_info = data.get("config", {}).get("url_info", [])
-            if url_info and len(url_info) > 0:
-                url = url_info[0].get("url", "")
-            if not url:
-                output = data.get("output", {})
-                url = output.get("url", "") or output.get("video", {}).get("url", "")
-
-            if not url:
-                raise RuntimeError(f"No URL in response: {data}")
-
-            vid_resp = requests.get(url, timeout=60)
-            vid_resp.raise_for_status()
-            result_path = TMP_DIR / f"img2vid_{uuid.uuid4().hex[:8]}.mp4"
-            with open(result_path, "wb") as f:
-                f.write(vid_resp.content)
-            
-            logger.info(f"  Video OK (downloaded)")
-            return str(result_path)
         else:
-            result_path = TMP_DIR / f"img2vid_{uuid.uuid4().hex[:8]}.mp4"
-            with open(result_path, "wb") as f:
-                f.write(resp.content)
-            logger.info(f"  Video OK (binary MP4)")
-            return str(result_path)
-
+            raise RuntimeError(f"Prodia submit error {resp.status_code}: {resp.text[:200]}")
+        
+        job_id = data.get("id") or data.get("job")
+        if not job_id:
+            raise RuntimeError(f"No job_id in response: {data}")
+        
+        init_state = data.get("state", {}).get("current", "")
+        if init_state == "failed":
+            raise RuntimeError(f"Wan 2.7 immediate failure: {data.get('error')}")
+        
+        # Poll for completion
+        logger.info(f"  Job submitted: {job_id}, polling...")
+        status_url = f"{PRODIA_BASE}/job/{job_id}"
+        try:
+            result_data = _poll_prodia_job(status_url, max_polls=150, sleep_s=2)
+        except RuntimeError as e:
+            raise RuntimeError(f"Wan 2.7 failed: {e}")
+        except TimeoutError as e:
+            raise RuntimeError(f"Wan 2.7 timed out after 5 min")
+        
+        # Extract video URL from completed job
+        url = ""
+        url_info = result_data.get("config", {}).get("url_info", [])
+        if url_info and len(url_info) > 0:
+            url = url_info[0].get("url", "")
+        if not url:
+            output = result_data.get("output", {})
+            url = output.get("url", "") or output.get("video", {}).get("url", "")
+        if not url:
+            url = result_data.get("url", "")
+        if not url:
+            raise RuntimeError(f"No URL in completed job")
+        
+        # Download the video
+        vid_resp = requests.get(url, timeout=60)
+        vid_resp.raise_for_status()
+        result_path = TMP_DIR / f"img2vid_{uuid.uuid4().hex[:8]}.mp4"
+        with open(result_path, "wb") as f:
+            f.write(vid_resp.content)
+        
+        logger.info(f"  Video OK (downloaded)")
+        return str(result_path)
+        
     except Exception as e:
-        logger.error(f"Video generation failed: {e}")
-        raise
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# STEP 9: Compose (FFmpeg)
-# ═══════════════════════════════════════════════════════════════════════════
-
+        logger.error(f"Video generation failed (skipping): {e}")
+        return None
 def compose_video(
     video_paths: list,
     voice_path: str,

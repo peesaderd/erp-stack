@@ -1,0 +1,21 @@
+/* frontend/src/index.css */
+/* Reset and keep variables clean without overriding App.css body styles */
+:root {
+  --font-prompt: 'Prompt', sans-serif;
+  --font-sarabun: 'Sarabun', sans-serif;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  background: transparent;
+}

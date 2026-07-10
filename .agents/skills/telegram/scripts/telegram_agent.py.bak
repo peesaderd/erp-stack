@@ -1,0 +1,220 @@
+import os
+import sys
+import time
+import urllib.request
+import urllib.parse
+import json
+import ssl
+
+# Global chat sessions mapping (to keep conversation history)
+chat_histories = {}
+
+def safe_print(*args, **kwargs):
+    new_args = []
+    for arg in args:
+        try:
+            encoding = sys.stdout.encoding or 'utf-8'
+            enc = str(arg).encode(encoding, errors='replace')
+            new_args.append(enc.decode(encoding, errors='replace'))
+        except Exception:
+            new_args.append(str(arg))
+    print(*new_args, **kwargs)
+
+def get_env_credentials():
+    token = os.environ.get("TELEGRAM_NOTIFY_TOKEN")
+    chat_id = os.environ.get("TELEGRAM_NOTIFY_CHAT_ID")
+    gemini_key = os.environ.get("GEMINI_API_KEY")
+    
+    # Try reading from workspace .env file
+    try:
+        curr_dir = os.path.dirname(os.path.abspath(__file__))
+        env_path = None
+        for _ in range(6):
+            check_path = os.path.join(curr_dir, ".env")
+            if os.path.exists(check_path):
+                env_path = check_path
+                break
+            parent = os.path.dirname(curr_dir)
+            if parent == curr_dir:
+                break
+            curr_dir = parent
+            
+        if env_path and os.path.exists(env_path):
+            with open(env_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    if line.strip() and not line.strip().startswith("#"):
+                        parts = line.strip().split("=", 1)
+                        if len(parts) == 2:
+                            key, val = parts[0].strip(), parts[1].strip()
+                            val = val.strip("'\"")
+                            if key == "TELEGRAM_NOTIFY_TOKEN" and not token:
+                                token = val
+                            elif key == "TELEGRAM_NOTIFY_CHAT_ID" and not chat_id:
+                                chat_id = val
+                            elif key == "GEMINI_API_KEY" and not gemini_key:
+                                gemini_key = val
+    except Exception:
+        pass
+        
+    return token, chat_id, gemini_key
+
+def send_telegram_reply(token, chat_id, text):
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    data = {
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "HTML"
+    }
+    req_data = json.dumps(data).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=req_data,
+        headers={"Content-Type": "application/json"},
+        method="POST"
+    )
+    context = ssl._create_unverified_context()
+    try:
+        with urllib.request.urlopen(req, timeout=15, context=context) as response:
+            return True
+    except Exception as e:
+        safe_print(f"Error sending reply: {e}")
+        return False
+
+def generate_ai_response(gemini_key, user_id, message_text):
+    if not gemini_key:
+        return "สวัสดีครับ! ยินดีต้อนรับสู่บอท Antigravity บน Telegram\n\n⚠️ <b>ยังไม่ได้ตั้งค่า API Key:</b> กรุณาเพิ่ม <code>GEMINI_API_KEY=\"your-api-key\"</code> ในไฟล์ <code>.env</code> ก่อน เพื่อให้ผมสามารถประมวลผลข้อความและตอบกลับพี่ได้ครับ!"
+        
+    # REST API Endpoint using gemini-2.5-flash
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_key}"
+    
+    # Initialize history for the user session
+    if user_id not in chat_histories:
+        chat_histories[user_id] = []
+        
+    history = chat_histories[user_id]
+    
+    # Append the new user message
+    history.append({
+        "role": "user",
+        "parts": [{"text": message_text}]
+    })
+    
+    # Limit history to prevent payload overflow
+    if len(history) > 30:
+        history = history[-30:]
+        chat_histories[user_id] = history
+        
+    data = {
+        "contents": history
+    }
+    
+    req_data = json.dumps(data).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=req_data,
+        headers={"Content-Type": "application/json"},
+        method="POST"
+    )
+    
+    context = ssl._create_unverified_context()
+    
+    try:
+        with urllib.request.urlopen(req, timeout=20, context=context) as response:
+            resp_data = json.loads(response.read().decode("utf-8"))
+            candidates = resp_data.get("candidates", [])
+            if candidates:
+                content = candidates[0].get("content", {})
+                parts = content.get("parts", [])
+                if parts:
+                    reply_text = parts[0].get("text", "")
+                    
+                    # Append model response to history
+                    history.append({
+                        "role": "model",
+                        "parts": [{"text": reply_text}]
+                    })
+                    return reply_text
+            
+            return "ขออภัยครับ ไม่สามารถดึงคำตอบจาก AI ได้ (Response format mismatch)"
+    except Exception as e:
+        # Rollback history on error
+        if history:
+            history.pop()
+        return f"เกิดข้อผิดพลาดในการดึงข้อมูลจาก Gemini API: {e}"
+
+def poll_updates(token, allowed_chat_id, gemini_key):
+    offset = 0
+    url = f"https://api.telegram.org/bot{token}/getUpdates"
+    context = ssl._create_unverified_context()
+    
+    safe_print(f"INFO: Antigravity Telegram Agent is running and listening on Bot Token... (Polling updates)")
+    safe_print(f"INFO: Locked to Chat ID / User ID: {allowed_chat_id}")
+    
+    while True:
+        try:
+            req_url = f"{url}?offset={offset}&timeout=10"
+            req = urllib.request.Request(req_url, method="GET")
+            with urllib.request.urlopen(req, timeout=15, context=context) as response:
+                resp_data = json.loads(response.read().decode("utf-8"))
+                if not resp_data.get("ok"):
+                    time.sleep(2)
+                    continue
+                    
+                updates = resp_data.get("result", [])
+                for update in updates:
+                    update_id = update.get("update_id")
+                    offset = update_id + 1
+                    
+                    message = update.get("message")
+                    if not message:
+                        continue
+                        
+                    chat = message.get("chat", {})
+                    chat_id = str(chat.get("id"))
+                    text = message.get("text", "").strip()
+                    
+                    if not text:
+                        continue
+                        
+                    # Access security check (restrict to allowed chat_id)
+                    if allowed_chat_id and chat_id != str(allowed_chat_id):
+                        safe_print(f"Ignored message from unauthorized chat_id: {chat_id}")
+                        # Reply with unauthorized message if they try to chat
+                        send_telegram_reply(token, chat_id, "🔒 ขออภัยครับ บอทนี้ได้รับการกำหนดสิทธิ์ให้ใช้งานแบบส่วนตัวเท่านั้น")
+                        continue
+                    
+                    safe_print(f"Received message: '{text}' from {chat_id}")
+                    
+                    # Generate AI response
+                    reply_text = generate_ai_response(gemini_key, chat_id, text)
+                    
+                    # Send response back
+                    send_telegram_reply(token, chat_id, reply_text)
+                    
+        except KeyboardInterrupt:
+            safe_print("\nShutting down listener...")
+            break
+        except Exception as e:
+            safe_print(f"Error in polling loop: {e}")
+            time.sleep(3)
+
+def main():
+    import socket
+    # Socket bind lock to prevent multiple instances from running concurrently
+    lock_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        lock_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        lock_socket.bind(('127.0.0.1', 47285))
+    except socket.error:
+        # Silent exit if another instance is already running
+        sys.exit(0)
+        
+    token, chat_id, gemini_key = get_env_credentials()
+    if not token or not chat_id:
+        safe_print("ERROR: Telegram Token and Chat ID must be configured in .env file.")
+        sys.exit(1)
+        
+    poll_updates(token, chat_id, gemini_key)
+
+if __name__ == "__main__":
+    main()

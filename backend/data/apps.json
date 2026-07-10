@@ -1,0 +1,38 @@
+[
+  {
+    "id": "lineman",
+    "name": "ไลน์แมน",
+    "description": "สั่งอาหาร ส่งของ แท็กซี่ และบริการอื่น ๆ ตอบโจทย์ทุกความต้องการ",
+    "price": 0,
+    "currency": "THB",
+    "script": "scripts/lineman.sh",
+    "iconColor": "#00C274"
+  },
+  {
+    "id": "shopee",
+    "name": "ช้อปปี้",
+    "description": "ช้อปปิ้งออนไลน์ที่คุ้มค่า สินค้าหลากหลาย โปรโมชันจัดเต็ม",
+    "price": 199,
+    "currency": "THB",
+    "script": "scripts/shopee.sh",
+    "iconColor": "#EE4D2D"
+  },
+  {
+    "id": "grab",
+    "name": "Grab",
+    "description": "บริการรับส่งและสั่งอาหาร สะดวก รวดเร็ว ปลอดภัย ทุกการเดินทาง",
+    "price": 0,
+    "currency": "THB",
+    "script": "scripts/grab.sh",
+    "iconColor": "#00B159"
+  },
+  {
+    "id": "trueid",
+    "name": "ทรูไอดี",
+    "description": "ดูหนัง ซีรีส์ และทีวีออนไลน์ ความบันเทิงครบวงจรในแอปเดียว",
+    "price": 0,
+    "currency": "THB",
+    "script": "scripts/trueid.sh",
+    "iconColor": "#EC1C24"
+  }
+]

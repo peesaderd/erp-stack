@@ -47,7 +47,7 @@ MODULE_URLS = {
     "auth": "http://localhost:8101",
 }
 
-async def _proxy(method: str, module: str, path: str, body: dict = None, timeout: float = 90.0) -> dict:
+async def _proxy(method: str, module: str, path: str, body: dict = None, timeout: float = 300.0) -> dict:
     """Proxy request to a module, return normalized response."""
     base = MODULE_URLS.get(module)
     if not base:
@@ -493,17 +493,30 @@ async def run_full_pipeline(req: FullPipelineRequest):
         if req.run_video_gen:
             _update_pipeline_step(job_id, "video_gen", "processing")
             if req.product_image:
-                img_result = await _proxy("POST", "video", "/api/v1/image/generate", {
-                    "image_path": req.product_image,
-                    "prompt": req.hook or req.product_title or "Product showcase",
-                    "duration": min(req.duration or 8, 8),
-                    "negative_prompt": req.negative_prompt or "low resolution, error, worst quality",
+                vid_result = await _proxy("POST", "video-gen", "/api/v1/video/generate", {
+                    "product_title": req.product_title or "",
+                    "product_image": req.product_image,
+                    "hook": req.hook or "",
+                    "value": req.value_proposition or "",
+                    "cta": req.cta or "",
+                    "duration": req.duration or 8,
+                    "ugc_style": req.ugc_style or "product_usage",
+                    "negative_prompt": req.negative_prompt or "",
                 })
-                vid_path = (img_result.get("data") or {}).get("video_path") or (img_result.get("data") or {}).get("filepath")
-                if vid_path:
-                    _update_pipeline_step(job_id, "video_gen", "success", {"video_url": vid_path, "duration": req.duration})
+                if vid_result.get("ok"):
+                    inner = vid_result["data"]
+                    if inner.get("success"):
+                        result_data = inner.get("result", {})
+                        final_path = result_data.get("final_path", "")
+                        _update_pipeline_step(job_id, "video_gen", "success", {
+                            "video_url": final_path,
+                            "duration": req.duration,
+                            "run_id": result_data.get("run_id", ""),
+                        })
+                    else:
+                        _update_pipeline_step(job_id, "video_gen", "error", {"error": inner.get("error", "Unknown")})
                 else:
-                    _update_pipeline_step(job_id, "video_gen", "error", {"error": "No video returned"})
+                    _update_pipeline_step(job_id, "video_gen", "error", {"error": vid_result.get("error", "Proxy failed")})
             else:
                 _update_pipeline_step(job_id, "video_gen", "skipped", {"message": "No product image"})
 

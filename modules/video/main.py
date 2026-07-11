@@ -117,6 +117,7 @@ class VideoRequest(BaseModel):
     image_url: Optional[str] = None
     script: Optional[str] = None
     negative_prompt: Optional[str] = None
+    product_description: Optional[str] = None
 
 class FullPipelineRequest(BaseModel):
     product_title: str = ""
@@ -292,12 +293,11 @@ async def generate_video(req: VideoRequest):
     
     try:
         result = run_pipeline(
-            script=script,
-            scene_prompts=scene_prompts,
-            voice="Aoede",
-            video_duration=req.duration,
+            product_name=req.product_title or script[:60] if script else "สินค้า",
             product_image=product_image if product_image else None,
+            voice="Aoede",
             bgm_style="chill_loft",
+            description=req.product_description or "",
         )
         return {"success": True, "result": result}
     except Exception as e:

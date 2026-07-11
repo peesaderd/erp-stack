@@ -17,21 +17,54 @@ def _ensure_storage():
     STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 
-async def get_published_videos(account_id: str = "", limit: int = 50) -> List[Dict]:
-    """Fetch published videos from the local tracker log."""
-    _ensure_storage()
-    if not PUBLISHED_LOG.exists():
-        return []
+def _scan_generated_videos() -> List[Dict]:
+    """Scan videos directory for generated files not yet in published log."""
+    generated = []
+    videos_dir = STORAGE_DIR / "videos"
+    if not videos_dir.exists():
+        return generated
+    for vf in sorted(videos_dir.glob("*.mp4")):
+        generated.append({
+            "id": f"gen_{vf.stem}",
+            "caption": vf.stem,
+            "category": "",
+            "hook_type": "",
+            "views": 0,
+            "likes": 0,
+            "shares": 0,
+            "comments": 0,
+            "post_hour": None,
+            "posted_at": "",
+            "account_id": "",
+            "status": "pending",
+            "file": f"videos/{vf.name}",
+        })
+    return generated
 
-    try:
-        with open(PUBLISHED_LOG) as f:
-            entries = json.load(f)
-        if account_id:
-            entries = [e for e in entries if e.get("account_id") == account_id]
-        return entries[-limit:]
-    except Exception as e:
-        logger.error(f"Failed to read published log: {e}")
-        return []
+
+async def get_published_videos(account_id: str = "", limit: int = 50) -> List[Dict]:
+    """Fetch published and generated videos."""
+    _ensure_storage()
+
+    entries = []
+    if PUBLISHED_LOG.exists():
+        try:
+            with open(PUBLISHED_LOG) as f:
+                entries = json.load(f)
+        except Exception as e:
+            logger.error(f"Failed to read published log: {e}")
+
+    # Merge with generated videos from filesystem
+    seen = {e.get("caption", "") for e in entries}
+    generated = _scan_generated_videos()
+    for g in generated:
+        if g["caption"] not in seen:
+            entries.append(g)
+
+    if account_id:
+        entries = [e for e in entries if e.get("account_id") == account_id]
+
+    return entries[-limit:]
 
 
 async def record_analytics(entry: dict):

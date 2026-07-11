@@ -51,6 +51,14 @@ if os.path.exists(_env_file):
             _k, _v = _line.split('=', 1)
             if 'MISTRAL_API_KEY' not in os.environ:
                 os.environ['MISTRAL_API_KEY'] = _v
+        elif _line.startswith('GEMINI_API_KEY='):
+            _k, _v = _line.split('=', 1)
+            if 'GEMINI_API_KEY' not in os.environ:
+                os.environ['GEMINI_API_KEY'] = _v
+        elif _line.startswith('GEMINI_MODEL='):
+            _k, _v = _line.split('=', 1)
+            if 'GEMINI_MODEL' not in os.environ:
+                os.environ['GEMINI_MODEL'] = _v
 
 # Add tiktok-ugc-studio to sys.path so we can import gemini_agent
 _ugc_path = os.path.join(os.path.dirname(__file__), '..', 'tiktok-ugc-studio')

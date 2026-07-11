@@ -621,38 +621,35 @@ def compose_video(
     """
     logger.info(f"Step 9/9: Compose (FFmpeg)")
     
-    # Step 9a: Merge voice into each video
-    logger.info(f"  9a: Merge voice")
-    merged_paths = []
-    for i, vpath in enumerate(video_paths):
-        merged = TMP_DIR / f"merged_{run_id}_{i}.mp4"
-        cmd = [
-            "ffmpeg", "-y",
-            "-i", str(vpath),
-            "-i", str(voice_path),
-            "-c:v", "copy",
-            "-c:a", "aac",
-            "-map", "0:v:0",
-            "-map", "1:a:0",
-            "-shortest",
-            str(merged),
-        ]
-        try:
-            subprocess.run(cmd, check=True, capture_output=True, timeout=30)
-            merged_paths.append(merged)
-            logger.info(f"    Scene {i}: merged")
-        except Exception as e:
-            logger.warning(f"    Scene {i}: merge failed ({e}), using original")
-            merged_paths.append(Path(vpath))
-    
-    # Step 9b: Concat scenes (ถ้ามีหลาย scene)
-    logger.info(f"  9b: Concat {len(merged_paths)} scenes")
-    if len(merged_paths) > 1:
-        final_path = STORAGE_DIR / f"affiliate_{run_id}.mp4"
-        concat_videos(merged_paths, final_path)
+    # Step 9a: Concat scenes first (no audio merge per-scene)
+    logger.info(f"  9a: Concat {len(video_paths)} scenes")
+    concat_path = TMP_DIR / f"concat_{run_id}.mp4"
+    if len(video_paths) > 1:
+        concat_videos(video_paths, concat_path)
     else:
-        final_path = STORAGE_DIR / f"affiliate_{run_id}.mp4"
-        shutil.copy2(merged_paths[0], final_path)
+        shutil.copy2(video_paths[0], concat_path)
+    
+    # Step 9b: Merge voiceover with the concatenated video
+    logger.info(f"  9b: Merge voiceover")
+    voiced_path = STORAGE_DIR / f"affiliate_{run_id}.mp4"
+    cmd = [
+        "ffmpeg", "-y",
+        "-i", str(concat_path),
+        "-i", str(voice_path),
+        "-c:v", "copy",
+        "-c:a", "aac",
+        "-map", "0:v:0",
+        "-map", "1:a:0",
+        "-shortest",
+        str(voiced_path),
+    ]
+    try:
+        subprocess.run(cmd, check=True, capture_output=True, timeout=60)
+        logger.info(f"    Voiceover merged")
+        final_path = voiced_path
+    except Exception as e:
+        logger.warning(f"    Voiceover merge failed ({e}), using silent video")
+        final_path = concat_path
     
     # Step 9c: Add BGM
     if bgm_style:
@@ -705,6 +702,7 @@ def run_pipeline(
     voice: str = "Aoede",
     bgm_style: str = "chill_loft",
     description: str = "",
+    ugc_style: str = "holding",
 ) -> dict:
     """
     Run full Affiliate Pipeline v6 (9 Steps ตาม PIPELINE_STRUCTURE.md)
@@ -739,8 +737,10 @@ def run_pipeline(
         start_job(job_id, {
             'product_title': product_name,
             'product_image': product_image,
+            'product_description': description,
             'recipe_name': recipe_name,
             'voice': voice,
+            'ugc_style': ugc_style,
         })
     except Exception as e:
         logger.warning(f"Pipeline logger start failed: {e}")
@@ -816,6 +816,18 @@ def run_pipeline(
             update_step(job_id, 'video_prompts', {'duration_ms': vid_prompt_duration, 'count': len(video_prompts)})
         except Exception:
             pass
+
+        # Save all prompts + script to logger
+        try:
+            update_prompts(job_id, {
+                'image_prompt': image_prompt,
+                'video_prompts': video_prompts,
+                'script': script,
+                'negative_prompt': '',
+                'hashtags': [],
+            })
+        except Exception as e:
+            logger.warning(f"Logger update_prompts failed: {e}")
 
         # ── STEP 7: TTS ──
         step_start = time.time()

@@ -495,12 +495,14 @@ async def run_full_pipeline(req: FullPipelineRequest):
             if req.product_image:
                 vid_result = await _proxy("POST", "video-gen", "/api/v1/video/generate", {
                     "product_title": req.product_title or "",
+                    "product_description": req.product_description or "",
                     "product_image": req.product_image,
                     "hook": req.hook or "",
                     "value": req.value_proposition or "",
                     "cta": req.cta or "",
                     "duration": req.duration or 8,
                     "ugc_style": req.ugc_style or "product_usage",
+                    "recipe": req.recipe or "tus",
                     "negative_prompt": req.negative_prompt or "",
                 })
                 if vid_result.get("ok"):

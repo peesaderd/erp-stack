@@ -7,12 +7,14 @@ import json
 import logging
 import re
 import base64
+import google.generativeai as genai
 import httpx
 from typing import Optional, Any
 import requests
 import json
 
 logger = logging.getLogger("product-analyzer")
+import sys; sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 # ─── Gemini Config ─────────────────────────────────────────────────────
 
@@ -72,7 +74,7 @@ def _call_gemini(
             },
         )
 
-        contents = [user_text]
+        contents = [{"role": "user", "parts": [user_text]}]
         if image_base64:
             img_data = image_base64.strip()
             if ";" in img_data:
@@ -80,13 +82,12 @@ def _call_gemini(
                 m = _re.match(r'data:image/(\w+);base64,(.+)', img_data)
                 if m:
                     img_data = m.group(2)
-            contents.append(
-                genai.upload_file_from_bytes(
-                    base64.b64decode(img_data),
-                    mime_type="image/jpeg",
-                    display_name="product_image"
-                )
-            )
+            contents[0]["parts"].append({
+                "inline_data": {
+                    "mime_type": "image/jpeg",
+                    "data": base64.b64decode(img_data)
+                }
+            })
 
         response = gen_model.generate_content(contents)
         return response.text

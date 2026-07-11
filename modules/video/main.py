@@ -118,6 +118,7 @@ class VideoRequest(BaseModel):
     script: Optional[str] = None
     negative_prompt: Optional[str] = None
     product_description: Optional[str] = None
+    recipe: Optional[str] = None
 
 class FullPipelineRequest(BaseModel):
     product_title: str = ""
@@ -133,6 +134,8 @@ class FullPipelineRequest(BaseModel):
     tts_lang: str = "th"
     bg_music: Optional[str] = None
     negative_prompt: Optional[str] = None
+    ugc_style: str = "product_usage"
+    recipe: Optional[str] = None
     run_tts: bool = True
     run_video_gen: bool = True
     run_compose: bool = True
@@ -295,9 +298,11 @@ async def generate_video(req: VideoRequest):
         result = run_pipeline(
             product_name=req.product_title or script[:60] if script else "สินค้า",
             product_image=product_image if product_image else None,
+            recipe_name=req.recipe or "tus",
             voice="Aoede",
             bgm_style="chill_loft",
             description=req.product_description or "",
+            ugc_style=req.ugc_style or "holding",
         )
         return {"success": True, "result": result}
     except Exception as e:
@@ -336,13 +341,9 @@ async def run_full_pipeline(req: FullPipelineRequest):
     """Run full UGC pipeline v6: Analyze → Recipe → Script → Image → Video → Compose."""
     from video.pipeline_affiliate import run_pipeline
     
-    # Map old fields to v6 format
     product_name = req.product_title or "Product"
     product_image = req.product_image or ""
-    recipe_name = "tus"  # Default
-    
-    if req.duration == 16:
-        recipe_name = "etsy"
+    recipe_name = req.recipe or ("etsy" if req.duration == 16 else "tus")
     
     try:
         result = run_pipeline(
@@ -350,6 +351,7 @@ async def run_full_pipeline(req: FullPipelineRequest):
             product_image=product_image,
             recipe_name=recipe_name,
             description=req.product_description or "",
+            ugc_style=req.ugc_style or "holding",
         )
         
         return {

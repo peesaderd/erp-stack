@@ -52,6 +52,7 @@ class PipelineLogger:
                     product_price REAL,
                     recipe_name TEXT DEFAULT 'tus',
                     ugc_style TEXT,
+                    voice TEXT DEFAULT 'Aoede',
                     
                     -- Analysis
                     product_analysis TEXT,  -- JSON: features, colors, style, category
@@ -118,8 +119,8 @@ class PipelineLogger:
                     job_id, status, started_at,
                     product_id, product_title, product_image_path, 
                     product_description, product_price,
-                    recipe_name, ugc_style
-                ) VALUES (?, 'running', ?, ?, ?, ?, ?, ?, ?, ?)
+                    recipe_name, ugc_style, voice
+                ) VALUES (?, 'running', ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 job_id,
                 datetime.now().isoformat(),
@@ -130,6 +131,7 @@ class PipelineLogger:
                 product_info.get('product_price', 0.0),
                 product_info.get('recipe_name', 'tus'),
                 product_info.get('ugc_style', 'holding'),
+                product_info.get('voice', 'Aoede'),
             ))
             logger.info(f"Pipeline job started: {job_id}")
     

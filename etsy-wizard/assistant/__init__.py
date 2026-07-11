@@ -1,7 +1,7 @@
 """
 Etsy AI Assistant — AI-driven listing gen + fix + optimize
-ใช้ LLM (DeepSeek) ผ่าน API endpoint
-Fallback: Template-based suggestions เมื่อไม่มี API key
+ใช้ LLM (Gemini) ผ่าน API endpoint
+Fallback: DeepSeek → Template-based suggestions เมื่อไม่มี API key
 """
 
 import os
@@ -12,13 +12,55 @@ from typing import Optional
 logger = logging.getLogger("etsy.assistant")
 
 # ─── LLM Config ────────────────────────────────────────────────────────────
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 LLM_API_KEY = os.environ.get("LLM_API_KEY", "")
-LLM_PROVIDER = "deepseek"
-LLM_MODEL = "deepseek-chat"
+MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY", "")
 
 
-def _call_llm(system_prompt: str, user_prompt: str) -> Optional[str]:
-    """เรียก LLM (DeepSeek) — return None ถ้าไม่ได้"""
+def _call_gemini(system_prompt: str, user_prompt: str) -> Optional[str]:
+    """เรียก Gemini API (primary provider) — return None ถ้าไม่ได้"""
+    if not GEMINI_API_KEY:
+        logger.debug("Gemini: no API key, skipping")
+        return None
+
+    try:
+        import httpx
+        # Gemini API endpoint
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
+        resp = httpx.post(
+            url,
+            params={"key": GEMINI_API_KEY},
+            headers={"Content-Type": "application/json"},
+            json={
+                "contents": [
+                    {"role": "user", "parts": [{"text": system_prompt + "\n\n---\n\n" + user_prompt}]}
+                ],
+                "generationConfig": {
+                    "temperature": 0.7,
+                    "maxOutputTokens": 2048,
+                    "topP": 0.95,
+                },
+            },
+            timeout=45,
+        )
+        if resp.status_code != 200:
+            logger.warning(f"Gemini API error: {resp.status_code} {resp.text[:150]}")
+            return None
+        data = resp.json()
+        candidates = data.get("candidates", [])
+        if not candidates:
+            logger.warning("Gemini: no candidates in response")
+            return None
+        text = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+        return text
+    except Exception as e:
+        logger.error(f"Gemini call failed: {e}")
+        return None
+
+
+def _call_deepseek(system_prompt: str, user_prompt: str) -> Optional[str]:
+    """เรียก DeepSeek API (fallback) — return None ถ้าไม่ได้"""
     if not LLM_API_KEY:
         return None
 
@@ -28,7 +70,7 @@ def _call_llm(system_prompt: str, user_prompt: str) -> Optional[str]:
             "https://api.deepseek.com/chat/completions",
             headers={"Authorization": f"Bearer {LLM_API_KEY}", "Content-Type": "application/json"},
             json={
-                "model": LLM_MODEL,
+                "model": "deepseek-chat",
                 "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
@@ -39,13 +81,36 @@ def _call_llm(system_prompt: str, user_prompt: str) -> Optional[str]:
             timeout=30,
         )
         if resp.status_code != 200:
-            logger.warning(f"LLM API error: {resp.status_code} {resp.text[:100]}")
+            logger.warning(f"DeepSeek API error: {resp.status_code} {resp.text[:100]}")
             return None
         data = resp.json()
         return data["choices"][0]["message"]["content"]
     except Exception as e:
-        logger.error(f"LLM call failed: {e}")
+        logger.error(f"DeepSeek call failed: {e}")
         return None
+
+
+def _call_llm(system_prompt: str, user_prompt: str) -> Optional[str]:
+    """
+    เรียก LLM โดยพยายาม providers ตามลำดับ:
+    1. Gemini (primary — มี key พร้อม)
+    2. DeepSeek (fallback)
+    3. None → ใช้ template fallback
+    """
+    # Primary: Gemini
+    result = _call_gemini(system_prompt, user_prompt)
+    if result:
+        logger.debug("LLM: used Gemini")
+        return result
+
+    # Fallback: DeepSeek
+    result = _call_deepseek(system_prompt, user_prompt)
+    if result:
+        logger.debug("LLM: used DeepSeek")
+        return result
+
+    logger.info("LLM: no provider available, using template fallback")
+    return None
 
 
 def _parse_json(text: str) -> Optional[dict]:

@@ -1146,3 +1146,138 @@ def pod_ai_review(req: AIArtworkReviewRequest):
         "source": "template",
     }
 
+
+# ─── POD Create Product Wizard ──────────────────────────────────────────────
+
+class WizardStartRequest(BaseModel):
+    """เริ่ม Wizard session ใหม่"""
+    pass
+
+
+class WizardStepRequest(BaseModel):
+    """ร้องขอข้อมูลในแต่ละ step"""
+    session_id: str
+    action: str  # "next" | "back" | "set"
+    data: dict = {}
+
+
+from pod_wizard import get_manager, WizardSession, handle_step_provider, handle_step_category
+from pod_wizard import handle_step_product, handle_step_variant, handle_step_artwork
+from pod_wizard import handle_step_mockup, handle_step_content, handle_step_pricing, handle_step_summary
+from pod_data import get_providers
+
+STEP_HANDLERS = {
+    "provider": handle_step_provider,
+    "category": handle_step_category,
+    "product": handle_step_product,
+    "variant": handle_step_variant,
+    "artwork": handle_step_artwork,
+    "mockup": handle_step_mockup,
+    "content": handle_step_content,
+    "pricing": handle_step_pricing,
+    "summary": handle_step_summary,
+}
+
+
+@app.get("/pod/wizard/steps")
+def pod_wizard_steps():
+    """
+    แสดงขั้นตอนทั้งหมดของ POD Create Product Wizard
+    """
+    from pod_wizard import WIZARD_STEPS
+    return {
+        "ok": True,
+        "steps": WIZARD_STEPS,
+        "total": len(WIZARD_STEPS),
+    }
+
+
+@app.post("/pod/wizard/start")
+def pod_wizard_start():
+    """
+    เริ่ม Wizard session ใหม่ — สร้าง session + return step แรก
+    """
+    mgr = get_manager()
+    session = mgr.create_session()
+
+    return {
+        "ok": True,
+        "session": session.to_dict(),
+        "current_step": session.get_current_step(),
+        "providers": get_providers(),
+    }
+
+
+@app.get("/pod/wizard/{session_id}")
+def pod_wizard_status(session_id: str):
+    """
+    ดูสถานะปัจจุบันของ wizard session
+    """
+    mgr = get_manager()
+    session = mgr.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session not found: {session_id}")
+
+    return {
+        "ok": True,
+        "session": session.to_dict(),
+        "current_step": session.get_current_step(),
+    }
+
+
+@app.post("/pod/wizard/step")
+def pod_wizard_step(req: WizardStepRequest):
+    """
+    ดำเนินการใน Wizard step
+
+    action: "next" → ข้าม step | "back" → ย้อนกลับ | "set" → ตั้งค่าใน step ปัจจุบัน
+    data: dict ของข้อมูลที่แต่ละ step ต้องการ
+    """
+    mgr = get_manager()
+    session = mgr.get_session(req.session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session not found: {req.session_id}")
+
+    if req.action == "back":
+        result = session.go_back()
+        return {"ok": True, **result}
+
+    # Handle current step
+    current_step = session.get_current_step()
+    step_id = current_step["id"]
+
+    if step_id == "completed":
+        return {"ok": True, "message": "Wizard เสร็จสิ้นแล้ว", "session": session.to_dict()}
+
+    handler = STEP_HANDLERS.get(step_id)
+    if handler:
+        result = handler(session, **req.data)
+        if not result.get("ok"):
+            return {"ok": False, "error": result.get("error"), "step": step_id, "available": result.get("available")}
+
+    # Advance step
+    if req.action == "next":
+        advance = session.advance_step()
+        return {
+            "ok": True,
+            "step_result": result,
+            "advance": advance,
+            "session": session.to_dict(),
+        }
+
+    return {
+        "ok": True,
+        "step_result": result,
+        "session": session.to_dict(),
+    }
+
+
+@app.post("/pod/wizard/{session_id}/cancel")
+def pod_wizard_cancel(session_id: str):
+    """ยกเลิก session"""
+    mgr = get_manager()
+    session = mgr.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session not found: {session_id}")
+    session.status = "cancelled"
+    return {"ok": True, "message": "Session cancelled", "session_id": session_id}

@@ -36,7 +36,7 @@ STYLE_MAP = {
         "camera": "mid shot, waist up, product visible at chest level",
         "vibe": "friendly, approachable, product-focused",
         "keywords": "both hands holding product, product clearly visible and in focus",
-        "video_motion": "model holding product, gentle hand movement showing packaging, natural breathing motion, slight head tilt",
+        "video_motion": "model holding product, gentle hand movement showing product tube, natural breathing motion, slight head tilt",
     },
     "usage": {
         "model_action": "actively using the product in a natural daily setting, candid moment, product in use",
@@ -270,37 +270,46 @@ def _call_mistral_text(system_prompt: str, user_text: str, temperature: float = 
 PRODUCT_ANALYSIS_SYSTEM = """คุณคือนักวิเคราะห์สินค้าสำหรับ TikTok Shop
 วิเคราะห์สินค้าที่ได้รับ และตอบกลับเป็น JSON ONLY (ไม่มีข้อความอื่น)
 
+กฎสำคัญ:
+- target_gender ต้องเลือกเพียง 1 เพศเท่านั้น: "male" หรือ "female" ห้ามใช้ "unisex"
+- customer_problem: ระบุปัญหาเฉพาะที่เจาะจง ไม่กว้างเกินไป
+- image_description: ภาษาอังกฤษล้วน 100% ห้ามมีภาษาไทยเด็ดขาด
+
 JSON ที่ต้องตอบ:
 {
   "category": "beauty/fashion/electronics/food/home/tools/health/other",
-  "target_gender": "male/female/unisex",
+  "target_gender": "male/female",
   "target_age": "25",
-  "target_audience": "กลุ่มเป้าหมายหลัก เช่น สาววัยทำงานที่มีปัญหาตาคล้ำ",
+  "target_audience": "กลุ่มเป้าหมายหลัก เช่น สาววัยทำงานที่มีปัญหาริมฝีปากแห้ง",
   "setting": "สถานที่ถ่ายวิดีโอ เช่น vanity room หรือ bathroom",
-  "customer_problem": "ปัญหาที่สินค้านี้แก้ เช่น ใต้ตาคล้ำ หน้าหมองคล้ำ",
-  "main_benefit": "คุณประโยชน์หลักของสินค้า เช่น ปกปิดรอยคล้ำ ให้ใต้ตาสว่าง",
+  "customer_problem": "ปัญหาที่สินค้านี้แก้ (เจาะจง) เช่น ริมฝีปากแห้งแตก ไม่ฉ่ำ ใต้ตาคล้ำจากนอนดึก",
+  "main_benefit": "คุณประโยชน์หลักของสินค้า เช่น ให้ริมฝีปากชุ่มชื้น ฉ่ำวาว ตลอดวัน",
   "hashtags": ["hashtag1", "hashtag2", "hashtag3", "hashtag4", "hashtag5"],
-  "image_description": "ENGLISH ONLY: Describe the scene for AI image generation. Include: model appearance (Thai woman/man, age 25, style), pose (holding product naturally), expression (confident smile), setting (vanity room, cafe), lighting (soft natural window light), mood (warm, inviting). Do NOT mention product name - the AI will see the product image. Example: 'A beautiful Thai woman, 25 years old, glowing skin, confident smile, holding the product naturally at chest level, vanity room background with soft natural lighting, warm and inviting atmosphere'"
+  "image_description": "ENGLISH ONLY — absolutely NO Thai language. Describe the scene for AI image generation. Include: model appearance (Thai woman/man, age 25, glowing skin), pose (holding product naturally / applying on skin), expression (confident smile / happy), setting (vanity room, cafe), lighting (soft natural window light), mood (warm, inviting). Focus on product texture and usage — e.g. for lip products mention 'showing glossy texture on lips' or 'applying on lips showing melted texture'. Do NOT mention product brand name. Example: 'A beautiful Thai woman, 25 years old, glowing skin, happy smile, applying lip product in vanity room, soft natural window lighting, glossy lip texture visible, warm and inviting atmosphere'"
 }"""
 
 
 PRODUCT_VISION_SYSTEM = """You are a product image analyst for TikTok Shop.
 Analyze the product image and return JSON ONLY (no other text).
 
+CRITICAL RULES:
+- target_gender MUST be "male" or "female" — NEVER "unisex"
+- image_description must be 100% English with NO Thai language
+
 JSON format:
 {
   "category": "beauty/fashion/electronics/food/home/tools/health/other",
   "product_type": "lipstick/cream/headphones/etc.",
-  "target_gender": "male/female/unisex",
+  "target_gender": "male/female",
   "target_age": "25",
-  "target_audience": "primary target audience (in Thai for script generation)",
+  "target_audience": "primary target audience (specific, in Thai for script)",
   "setting": "suggested video setting (English, e.g. vanity room, bathroom, cafe)",
   "colors": ["dominant color 1", "dominant color 2", "dominant color 3"],
   "packaging_style": "luxury/minimal/colorful/modern",
   "estimated_product_size": "small/medium/large",
-  "customer_problem": "problem this product solves (in Thai for script generation)",
-  "main_benefit": "main benefit (in Thai for script generation)",
-  "image_description": "ENGLISH ONLY: Detailed scene description for AI image generation. Describe the ideal model (appearance, age 25, expression), pose (how they hold/use product), setting, lighting, and mood. Do NOT include the product name as text. Example: 'A beautiful Thai woman, 25 years old, glowing skin, confident smile, holding the product naturally, vanity room background, soft natural window lighting, warm atmosphere'"
+  "customer_problem": "specific problem this product solves (in Thai for script)",
+  "main_benefit": "specific main benefit (in Thai for script)",
+  "image_description": "ENGLISH ONLY — absolutely NO Thai. Describe the ideal scene for AI image gen. Include: model appearance (Thai woman/man, age 25, glowing skin), pose (how they hold/use product, e.g. applying on lips showing glossy texture), expression, setting, lighting, mood. Focus on product texture/usage. Example: 'A beautiful Thai woman, 25 years old, glowing skin, happy smile, applying product on lips, vanity room, soft natural window lighting, glossy texture visible, warm atmosphere'
 }"""
 
 
@@ -336,17 +345,23 @@ Keywords: {kw_str}"""
     if not mistral_profile:
         logger.warning("Mistral analysis failed — using category map fallback")
         cinfo = _match_category(product_name, description)
-        gender_label = {"female": "หญิง", "male": "ชาย", "unisex": "ทุกเพศ"}.get(cinfo["gender"], "หญิง")
+        # Never use "unisex" — pick one specific gender per execution
+        raw_gender = cinfo.get("gender", "female")
+        if raw_gender == "unisex":
+            import random as _rng
+            raw_gender = _rng.choice(["female", "male"])
+        gender_en = {"female": "woman", "male": "man"}.get(raw_gender, "woman")
+        gender_label = {"female": "หญิง", "male": "ชาย"}.get(raw_gender, "หญิง")
         mistral_profile = {
             "category": cinfo["category"],
-            "target_gender": cinfo["gender"],
+            "target_gender": raw_gender,
             "target_age": cinfo["age"],
-            "target_audience": f"ผู้{gender_label}วัย {cinfo['age']} ปี",
+            "target_audience": f"ผู้{gender_label}วัย {cinfo['age']} ปี ที่มีปัญหาเกี่ยวกับ{product_name[:20]}",
             "setting": cinfo["setting"],
-            "customer_problem": "ปรับปรุงรูปลักษณ์/ฟังก์ชันการใช้งาน",
-            "main_benefit": "คุณภาพดี คุ้มค่า",
+            "customer_problem": f"ปัญหาที่{product_name[:30]}นี้ช่วยแก้",
+            "main_benefit": f"คุณประโยชน์ของ{product_name[:20]}",
             "hashtags": keywords[:5] if len(keywords) >= 5 else [product_name[:20]],
-            "image_description": f"{gender_label}ไทย {cinfo['age']} ปี ใน {cinfo['setting']}",
+            "image_description": f"A beautiful Thai {gender_en}, {cinfo['age']} years old, glowing skin, confident smile, in {cinfo['setting']}",
         }
         if isinstance(mistral_profile.get("hashtags"), str):
             mistral_profile["hashtags"] = [h.strip().replace("#", "") for h in mistral_profile["hashtags"].split(",")][:5]

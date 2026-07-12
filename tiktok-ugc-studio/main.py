@@ -990,6 +990,21 @@ async def ugc_images_generate(req: dict):
         return result.get("data", {})
     raise HTTPException(status_code=500, detail=result.get("error", "Image generation failed"))
 
+@app.post("/ugc/videos/build-prompt")
+async def ugc_videos_build_prompt(req: dict):
+    """Build video prompt from product data (Step 3→4 bridge).
+    Calls Prompt Builder then returns video_prompt + negative_prompt.
+    """
+    result = await _proxy("POST", "prompt-builder", "/api/v1/build", req)
+    if result.get("ok"):
+        data = result.get("data", {})
+        return {
+            "video_prompt": data.get("video_prompt", ""),
+            "negative_prompt": data.get("negative_prompt", ""),
+            "script": data.get("analysis", {}),
+        }
+    raise HTTPException(status_code=500, detail=result.get("error", "Prompt generation failed"))
+
 from fastapi.staticfiles import StaticFiles
 
 # Mount static file serving for product images

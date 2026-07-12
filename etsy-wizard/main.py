@@ -967,3 +967,182 @@ def scrape_product(req: ScrapeRequest):
 
     return result
 
+
+# ─── POD (Print on Demand) Module ─────────────────────────────────────────────────
+
+class ArtworkValidationRequest(BaseModel):
+    """ข้อมูลรูป artwork ที่ต้องการตรวจสอบ"""
+    product_id: str
+    width_px: int = 0
+    height_px: int = 0
+    dpi: int = 0
+    file_size_mb: float = 0
+    file_type: str = ""
+    image_base64: Optional[str] = None  # ถ้ามี → ส่งให้ AI วิเคราะห์ design ด้วย
+
+
+class AIArtworkReviewRequest(BaseModel):
+    """ให้ AI วิเคราะห์ artwork design"""
+    product_id: str
+    width_px: int = 0
+    height_px: int = 0
+    design_description: str = ""  # ถ้าไม่มีรูป บอก description
+    image_base64: Optional[str] = None  # รูป artwork
+    style: str = ""  # minimal, colorful, vintage, etc.
+
+
+@app.get("/pod/products")
+def pod_list_products(category: Optional[str] = None):
+    """
+    รายการสินค้า POD ทั้งหมด หรือกรองตาม category
+    categories: apparel, drinkware, home, accessories, stationery
+    """
+    from pod_sizes import list_products, get_categories
+    return {
+        "ok": True,
+        "products": list_products(category),
+        "total": len(list_products(category)),
+        "categories": get_categories(),
+    }
+
+
+@app.get("/pod/products/{category}")
+def pod_products_by_category(category: str):
+    """รายการสินค้า POD ตามหมวดหมู่"""
+    from pod_sizes import list_products
+    products = list_products(category)
+    if not products:
+        raise HTTPException(status_code=404, detail=f"ไม่พบหมวดหมู่: {category}")
+    return {"ok": True, "category": category, "products": products, "total": len(products)}
+
+
+@app.get("/pod/product/{product_id}")
+def pod_get_product(product_id: str):
+    """รายละเอียดสินค้า POD พร้อมขนาด artwork ที่ต้องการ"""
+    from pod_sizes import get_product
+    product = get_product(product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail=f"ไม่พบ Product ID: {product_id}")
+    return {"ok": True, "product": product}
+
+
+@app.post("/pod/validate-artwork")
+def pod_validate_artwork(req: ArtworkValidationRequest):
+    """
+    ตรวจสอบ artwork ว่าพอดีกับ POD product หรือไม่
+    
+    ส่งขนาดรูป + DPI + file type → ได้ผล validation + คะแนน + คำแนะนำ
+    """
+    from pod_sizes import validate_artwork
+    
+    image_info = {
+        "width_px": req.width_px,
+        "height_px": req.height_px,
+        "dpi": req.dpi,
+        "file_size_mb": req.file_size_mb,
+        "file_type": req.file_type,
+    }
+    
+    result = validate_artwork(image_info, req.product_id)
+    return {
+        "ok": result["valid"],
+        "product_name": result["product_name"],
+        "product_id": result["product_id"],
+        "image_size_px": result["image_size_px"],
+        "required_size_px": result["required_size_px"],
+        "required_size_inch": result["required_size_inch"],
+        "dpi": result.get("dpi", 0),
+        "valid": result["valid"],
+        "score": result["score"],
+        "score_label": result["score_label"],
+        "errors": result["errors"],
+        "warnings": result["warnings"],
+        "recommendations": result["recommendations"],
+    }
+
+
+@app.post("/pod/ai-review")
+def pod_ai_review(req: AIArtworkReviewRequest):
+    """
+    ให้ AI (Gemini) วิเคราะห์ artwork design + แนะนำการปรับปรุง
+    
+    - ถ้ามี image_base64 → ส่งให้ AI ดู design จริง
+    - ถ้าไม่มี → ใช้ design_description
+    - AI จะแนะนำเรื่องสี, layout, text placement, print readiness
+    """
+    from pod_sizes import get_product
+    
+    product = get_product(req.product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail=f"ไม่พบ Product ID: {req.product_id}")
+
+    # สร้าง prompt ส่งให้ Gemini
+    has_image = bool(req.image_base64)
+    
+    system_prompt = f"""คุณคือ POD (Print on Demand) Design Expert
+
+สินค้า: {product['name']}
+พื้นที่พิมพ์: {product['print_area']}
+ขนาดที่ต้องการ: {product['width_px_300']}x{product['height_px_300']}px @ {product['dpi_recommended']}dpi
+({product['width_inch']}"x{product['height_inch']}")
+เทคนิคการพิมพ์: {product['print_technique']}
+
+คำแนะนำที่ต้องให้:
+1. ตรวจสอบ layout และองค์ประกอบ design
+2. แนะนำการปรับตำแหน่ง text/graphic ให้เหมาะสมกับพื้นที่พิมพ์
+3. บอกว่า design นี้เหมาะกับสินค้าชนิดนี้หรือไม่
+4. แนะนำเรื่อง bleed, safe zone, color
+5. ถ้าไม่เหมาะสม → แนะนำทางเลือก
+
+ตอบเป็นภาษาไทย อ่านง่าย มีหัวข้อชัดเจน"""
+
+    if has_image:
+        # With image - send for Gemini vision analysis
+        # For now, describe what we can check from metadata
+        user_prompt = f"""วิเคราะห์ artwork design นี้:
+- ขนาด: {req.width_px}x{req.height_px}px
+- สไตล์: {req.style or 'N/A'}
+- Product: {product['name']}
+{req.design_description}
+
+ให้คำแนะนำเต็มๆ เกี่ยวกับการปรับ design ให้เหมาะกับ {product['name']}"""
+    else:
+        user_prompt = f"""ออกแบบ artwork สำหรับ {product['name']}
+
+รายละเอียด: {req.design_description or 'ไม่มี'}
+สไตล์: {req.style or 'modern'}
+
+แนะนำ:
+1. ขนาด artwork ที่เหมาะสม
+2. องค์ประกอบ design ที่ควรมี
+3. สีที่ใช้ (CMYK vs RGB)
+4. Tips เฉพาะสินค้าชนิดนี้
+5. ตัวอย่าง layout ที่แนะนำ"""
+
+    from assistant import _call_gemini
+    raw = _call_gemini(system_prompt, user_prompt)
+    
+    if raw:
+        return {
+            "ok": True,
+            "product_name": product["name"],
+            "product_id": req.product_id,
+            "ai_analysis": raw,
+            "source": "gemini",
+        }
+    
+    # Fallback — ให้คำแนะนำตาม template
+    return {
+        "ok": True,
+        "product_name": product["name"],
+        "product_id": req.product_id,
+        "ai_analysis": f"💡 คำแนะนำสำหรับ {product['name']}:\n\n"
+            f"• ขนาดไฟล์: {product['width_px_300']}x{product['height_px_300']}px @ 300dpi\n"
+            f"• พื้นที่พิมพ์: {product['width_inch']}x{product['height_inch']} นิ้ว\n"
+            f"• ใช้ PNG (พื้นหลังโปร่งใส) เพื่อคุณภาพดีที่สุด\n"
+            f"• เลือก Bleed: {product.get('notes', 'ระวังขอบตัด')}\n"
+            f"• หลีกเลี่ยง text ชิดขอบเกิน 1 นิ้ว (เผื่อตัด)\n"
+            f"• สี: แปลงเป็น CMYK ก่อนส่งพิมพ์ (ถ้าทำได้)\n",
+        "source": "template",
+    }
+

@@ -475,7 +475,6 @@ def generate_video(
     prompt: str,
     duration: int = 8,
     resolution: str = "720P",
-    ratio: str = "9:16",
 ) -> tuple:
     """
     Step 8: Generate video via Wan 2.7 Sync API (POST /v2/job)
@@ -483,7 +482,6 @@ def generate_video(
     Format (per Prodia docs):
       - type: inference.wan2-7.img2vid.v1
       - config.resolution: 720P
-      - config.ratio: 9:16 (TikTok portrait)
       - config.duration: 8
       - config.negative_prompt: improves quality
       - config.prompt_extend: enabled (default) for short prompts
@@ -554,7 +552,6 @@ def generate_video(
         "config": {
             "prompt": prompt,
             "resolution": resolution,
-            "ratio": ratio,
             "duration": duration,
             "negative_prompt": "low resolution, error, worst quality, deformed",
         },

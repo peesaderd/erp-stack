@@ -423,7 +423,7 @@ async def google_callback(code: str, state: Optional[str] = None, db: AsyncSessi
             raise HTTPException(status_code=403, detail="Account is disabled")
         
         jwt_token = _create_token(user.id)
-        return RedirectResponse(f"https://openhands.m2igen.com/tiktok/?token={jwt_token}")
+        return RedirectResponse(f"https://m2igen.com/?token={jwt_token}")
 
 
 @app.get("/api/v1/auth/facebook/login")
@@ -535,7 +535,7 @@ async def facebook_callback(code: str, state: Optional[str] = None, db: AsyncSes
             raise HTTPException(status_code=403, detail="Account is disabled")
         
         jwt_token = _create_token(user.id)
-        return RedirectResponse(f"https://openhands.m2igen.com/tiktok/?token={jwt_token}")
+        return RedirectResponse(f"https://m2igen.com/?token={jwt_token}")
 
 
 @app.get("/api/v1/auth/line/login")
@@ -647,7 +647,7 @@ async def line_callback(code: str, state: Optional[str] = None, db: AsyncSession
             raise HTTPException(status_code=403, detail="Account is disabled")
         
         jwt_token = _create_token(user.id)
-        return RedirectResponse(f"https://openhands.m2igen.com/tiktok/?token={jwt_token}")
+        return RedirectResponse(f"https://m2igen.com/?token={jwt_token}")
 
 
 

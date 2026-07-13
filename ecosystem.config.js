@@ -39,5 +39,14 @@ module.exports = {
       max_restarts: 10,
       restart_delay: 5000,
     },
+    {
+      name: 'auth',
+      cwd: '/home/openhands/erp-stack/modules/auth',
+      script: '/usr/bin/python3',
+      args: '-m uvicorn main:app --host 0.0.0.0 --port 8101',
+      autorestart: true,
+      max_restarts: 10,
+      restart_delay: 5000,
+    },
   ],
 };

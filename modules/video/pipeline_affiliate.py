@@ -642,6 +642,7 @@ def compose_video(
         "-i", str(voice_path),
         "-c:v", "copy",
         "-c:a", "aac",
+        "-af", "atempo=1.3",
         "-map", "0:v:0",
         "-map", "1:a:0",
         "-shortest",

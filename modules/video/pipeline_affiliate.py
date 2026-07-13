@@ -343,9 +343,9 @@ def generate_image(
         if not url:
             raise RuntimeError(f"No URL in response: {data}")
 
-        # Extract cost from image service response
+        # Extract cost from image service response (real pricing from prodia_pricing)
         cost_data = data.get("cost", {}) or img_info.get("cost", {})
-        cost_usd = float(cost_data.get("dollars", 0.005) if isinstance(cost_data, dict) else 0.005)
+        cost_usd = float(cost_data.get("dollars", 0.039) if isinstance(cost_data, dict) else 0.039)
 
         logger.info(f"  Image OK: {url[:60]}... | cost=${cost_usd:.4f}")
         return url, cost_usd
@@ -583,9 +583,10 @@ def generate_video(
                 f.write(resp.content)
             file_size = result_path.stat().st_size
 
-            # Fallback cost if probe failed
+            # Fallback cost if probe failed — use pricing module
             if cost_video <= 0:
-                cost_video = 0.03  # default estimate
+                from prodia_pricing import get_price
+                cost_video = get_price("wan2-7.img2vid.v1")
 
             logger.info(f"  Video OK ({file_size} bytes, {resolution} {ratio}): {result_path}")
             logger.info(f"  Cost: ${cost_video:.4f}")

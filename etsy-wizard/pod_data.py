@@ -111,6 +111,22 @@ class PrintfulAPI:
         }
         path.write_text(json.dumps(payload, ensure_ascii=False))
     
+    def _load_printful_key(self) -> str:
+        """Load Printful API key from env or .env file"""
+        key = os.environ.get('PRINTFUL_API_KEY', '')
+        if key:
+            return key
+        # Try reading from our .env file
+        env_path = Path(__file__).parent / '.env'
+        if env_path.exists():
+            for line in env_path.read_text().split('\n'):
+                line = line.strip()
+                if line.startswith('PRINTFUL_API_KEY='):
+                    key = line.split('=', 1)[1]
+                    os.environ['PRINTFUL_API_KEY'] = key
+                    return key
+        return ''
+    
     def fetch_product(self, pf_id: int) -> Optional[dict]:
         """Fetch product detail + variants from Printful API"""
         cache_key = f"product_{pf_id}"
@@ -119,8 +135,14 @@ class PrintfulAPI:
             logger.info(f"  [PF API] Cache hit: product {pf_id}")
             return cached
         
+        api_key = self._load_printful_key()
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "User-Agent": "EtsyWizard/1.0",
+        }
+        
         try:
-            req = Request(f"{PRINTFUL_API}/products/{pf_id}")
+            req = Request(f"{PRINTFUL_API}/products/{pf_id}", headers=headers)
             with urlopen(req, timeout=10) as resp:
                 data = json.loads(resp.read().decode())
             

@@ -28,7 +28,7 @@ if str(_erp_stack) not in sys.path:
     sys.path.insert(0, str(_erp_stack))
 
 from shared_config import PRODIA_TOKEN, MISTRAL_API_KEY
-
+from prodia_pricing import get_price_for_sync_image
 from prodia_client import ProdiaV2Client, ProdiaV2Error, ProdiaValidationError, ProdiaJobFailedError, ProdiaTimeoutError
 
 # ─── Logging ─────────────────────────────────────────────────────────
@@ -114,7 +114,7 @@ def health():
         "service": "image-module",
         "version": "3.0.0",
         "provider": "prodia",
-        "models": ["nano.banana.v2 (img2img)", "flux-2.dev (txt2img)"],
+        "models": ["nano.banana.v2 (img2img)"],
         "mistral_vision": True,
     }
 
@@ -132,9 +132,7 @@ def prodia_generate_img2img(
 ) -> dict:
     """
     Generate image via Nano Banana img2img (Sync API)
-    
-    Nano Banana does NOT support async API — uses sync /v2/job (multipart, direct response)
-    Cost: $0.005 per image (fixed)
+    Cost: $0.039 per image (Prodia pricing, Nano Banana Gemini 2.5 Flash 1K)
     """
     if thai_model:
         if "thai" not in prompt.lower():
@@ -171,14 +169,14 @@ def prodia_generate_img2img(
         if resp.status_code == 200 and ("image" in ct or "png" in ct or "jpeg" in ct):
             path = _save_image(resp.content, prefix="nano")
             full_url = f"http://localhost:{PORT}{path}"
-            cost_dollars = 0.005
-            logger.info(f"  Image OK ({len(resp.content)}B) | cost=${cost_dollars}")
+            cost = get_price_for_sync_image("nano-banana.img2img.v2")
+            logger.info(f"  Image OK ({len(resp.content)}B) | cost=${cost['dollars']}")
             return {
                 "ok": True,
                 "images": [{"url": path, "full_url": full_url}],
                 "provider": "prodia",
                 "model": "nano-banana.img2img.v2",
-                "cost": {"dollars": cost_dollars, "product": "nano-banana"},
+                "cost": cost,
             }
 
         err_data = {}
@@ -193,66 +191,6 @@ def prodia_generate_img2img(
         raise
     except Exception as e:
         logger.error(f"Image generation failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-def prodia_generate_txt2img(
-    prompt: str,
-    negative_prompt: str = "",
-    width: int = 512,
-    height: int = 896,
-) -> dict:
-    """
-    Generate image via FLUX txt2img (Sync API)
-    """
-    token = PRODIA_TOKEN()
-    config = {
-        "type": "inference.flux-2.dev.txt2img.v1",
-        "config": {
-            "prompt": prompt,
-            "width": width,
-            "height": height,
-        },
-    }
-    if negative_prompt:
-        config["config"]["negative_prompt"] = negative_prompt[:500]
-
-    logger.info(f"FLUX txt2img (sync) | {prompt[:60]}... | {width}x{height}")
-
-    try:
-        resp = requests.post(
-            "https://inference.prodia.com/v2/job",
-            headers={"Authorization": f"Bearer {token}"},
-            files=[("job", ("job.json", json.dumps(config), "application/json"))],
-            timeout=120,
-        )
-
-        ct = resp.headers.get("content-type", "")
-        if resp.status_code == 200 and ("image" in ct or "png" in ct or "jpeg" in ct):
-            path = _save_image(resp.content, prefix="flux")
-            full_url = f"http://localhost:{PORT}{path}"
-            cost_dollars = 0.01
-            logger.info(f"  FLUX OK ({len(resp.content)}B) | cost=${cost_dollars}")
-            return {
-                "ok": True,
-                "images": [{"url": path, "full_url": full_url}],
-                "provider": "prodia",
-                "model": "flux-2.dev.txt2img.v1",
-                "cost": {"dollars": cost_dollars, "product": "flux-2"},
-            }
-
-        err_data = {}
-        try:
-            err_data = resp.json()
-        except Exception:
-            pass
-        err_msg = err_data.get("error", resp.text[:200])
-        raise HTTPException(status_code=502, detail=f"Prodia error: {err_msg}")
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"FLUX txt2img failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -307,28 +245,23 @@ def get_active_model():
 
 @app.post("/api/v1/image/generate")
 async def generate_image(req: ImageGenRequest):
-    """Generate image via Nano Banana img2img or FLUX txt2img"""
+    """Generate image via Nano Banana img2img (Prodia sync API)"""
     logger.info(f"Image gen request: {req.model} | prompt={req.prompt[:50]}...")
 
     w, h = req.width, req.height
     if req.aspectRatio and req.aspectRatio in ASPECT_MAP:
         w, h = ASPECT_MAP.get(req.aspectRatio, (512, 896))
 
-    if req.inputImage:
-        return prodia_generate_img2img(
-            prompt=req.prompt,
-            input_image=req.inputImage,
-            negative_prompt=req.negative_prompt or "",
-            width=w,
-            height=h,
-        )
-    else:
-        return prodia_generate_txt2img(
-            prompt=req.prompt,
-            negative_prompt=req.negative_prompt or "",
-            width=w,
-            height=h,
-        )
+    if not req.inputImage:
+        raise HTTPException(status_code=400, detail="inputImage is required for Nano Banana img2img")
+
+    return prodia_generate_img2img(
+        prompt=req.prompt,
+        input_image=req.inputImage,
+        negative_prompt=req.negative_prompt or "",
+        width=w,
+        height=h,
+    )
 
 
 @app.post("/api/v1/image/analyze")

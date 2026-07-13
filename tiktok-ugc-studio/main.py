@@ -984,8 +984,26 @@ async def ugc_images_build_prompt(req: dict):
 
 @app.post("/ugc/images/generate")
 async def ugc_images_generate(req: dict):
-    """Frontend compatibility endpoint for image generation."""
-    result = await _proxy("POST", "image-gen", "/api/v1/image/generate", req)
+    """Frontend compatibility endpoint for image generation.
+    Frontend calls build-prompt first, then sends {prompt, count, image_url} here."""
+    prompt = req.get("prompt", "")
+    if not prompt:
+        # Fallback: build prompt from product data if frontend didn't pre-build
+        prompt_result = await _proxy("POST", "prompt-builder", "/api/v1/build", req)
+        if prompt_result.get("ok"):
+            prompt = prompt_result.get("data", {}).get("image_prompt", "")
+    if not prompt:
+        raise HTTPException(status_code=500, detail="No image prompt provided or generated")
+
+    gen_req = {
+        "prompt": prompt,
+        "aspectRatio": req.get("aspect_ratio", "9:16"),
+        "model": "nano-banana",
+    }
+    # Pass image_url as inputImage for img2img (Nano Banana)
+    if req.get("image_url"):
+        gen_req["inputImage"] = req["image_url"]
+    result = await _proxy("POST", "image-gen", "/api/v1/image/generate", gen_req)
     if result.get("ok"):
         return result.get("data", {})
     raise HTTPException(status_code=500, detail=result.get("error", "Image generation failed"))

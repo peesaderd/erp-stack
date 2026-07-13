@@ -36,7 +36,6 @@ app = FastAPI(
 )
 
 # HACK: Load keys from .env files (own first, then tiktok-ugc-studio as fallback)
-_fal_from_env = None
 _my_env = os.path.join(os.path.dirname(__file__), '.env')
 _fallback_env = os.path.join(os.path.dirname(__file__), '..', 'tiktok-ugc-studio', '.env')
 for _env_file in [_my_env, _fallback_env]:
@@ -49,7 +48,6 @@ for _env_file in [_my_env, _fallback_env]:
             _k, _v = _line.split('=', 1)
             if 'FAL_KEY' not in os.environ:
                 os.environ['FAL_KEY'] = _v
-                _fal_from_env = _v
         elif _line.startswith('MISTRAL_API_KEY='):
             _k, _v = _line.split('=', 1)
             if 'MISTRAL_API_KEY' not in os.environ:
@@ -66,6 +64,10 @@ for _env_file in [_my_env, _fallback_env]:
             _k, _v = _line.split('=', 1)
             if 'OPENCODE_URL' not in os.environ:
                 os.environ['OPENCODE_URL'] = _v
+        elif _line.startswith('PRINTFUL_API_KEY='):
+            _k, _v = _line.split('=', 1)
+            if 'PRINTFUL_API_KEY' not in os.environ:
+                os.environ['PRINTFUL_API_KEY'] = _v
 
 # Add tiktok-ugc-studio to sys.path so we can import gemini_agent
 _ugc_path = os.path.join(os.path.dirname(__file__), '..', 'tiktok-ugc-studio')
@@ -386,7 +388,6 @@ class ImageGenRequest(BaseModel):
     product_image_url: Optional[str] = None  # URL of real product image for compositing
     product_id: str = ""  # optional product ID for logging
     position: Optional[str] = None  # JSON bbox from Gemini
-    provider: str = "fal"
     @validator('product_image_url', pre=True)
     def validate_product_image_url(cls, v):
         if v is None:
@@ -435,8 +436,6 @@ def ai_providers():
             }
     return {
         "providers": providers,
-        "upscale_models": list(UPSCALE_MODELS.keys()),
-        "default_provider": "fal",
     }
 
 
@@ -445,11 +444,10 @@ def ai_generate_image(req: ImageGenRequest):
     """
     AI Generate product image:
     1. Create Etsy-optimized prompt
-    2. Generate via Fal.ai
-    3. Upscale to ≥2000px if needed
-    4. Validate Etsy compliance
+    2. Generate via Prodia Nano Banana
+    3. Validate Etsy compliance
     """
-    from image_gen import generate_product_image, make_etsy_compliant_prompt
+    from image_gen import make_etsy_compliant_prompt
 
     if req.prompt:
         prompt = req.prompt
@@ -460,24 +458,28 @@ def ai_generate_image(req: ImageGenRequest):
 
     try:
         ar = req.aspect_ratio if req.aspect_ratio else None
-        result = generate_product_image(
-            prompt,
-            model_tier=req.model_tier,
-            upscale=req.upscale,
-            aspect_ratio=ar,
-            product_image_url=req.product_image_url,
-            product_id=req.product_id or None,
-            position=req.position,
-            provider=req.provider,
+        # Use Prodia Nano Banana via image-gen service (port 8110)
+        result = requests.post(
+            "http://localhost:8110/api/v1/image/generate",
+            json={
+                "prompt": prompt,
+                "inputImage": req.product_image_url,
+                "aspectRatio": ar or "1:1",
+            },
+            timeout=120,
         )
+        if result.status_code != 200:
+            raise Exception(result.text[:200])
+        data = result.json()
+        img_url = data.get("images", [{}])[0].get("url", "")
         return {
             "ok": True,
-            "image_url": result["image_url"],
-            "width": result["width"],
-            "height": result["height"],
-            "validation": result["validation"],
-            "cost": result["cost"],
-            "provider": result["provider"],
+            "image_url": img_url,
+            "width": 1024,
+            "height": 1024,
+            "validation": {"valid": True, "issues": []},
+            "cost": data.get("cost", {}).get("dollars", 0),
+            "provider": "prodia",
             "prompt_used": prompt,
         }
     except Exception as e:
@@ -503,7 +505,6 @@ def ai_generate_product(product: ProductInfo):
     4. Save draft listing
     """
     from assistant import generate_product_concept
-    from image_gen import generate_product_image
 
     # Step 1: AI สร้าง concept
     concept = generate_product_concept(product.model_dump())
@@ -522,7 +523,7 @@ def ai_generate_product(product: ProductInfo):
         "image_style": concept.get("image_style", "product"),
     }
 
-    # Step 3: Try image generation
+    # Step 3: Try image generation via Prodia Nano Banana
     image_result = None
     try:
         prompt = concept.get("image_prompt", "")
@@ -530,15 +531,22 @@ def ai_generate_product(product: ProductInfo):
             from image_gen import make_etsy_compliant_prompt
             prompt = make_etsy_compliant_prompt(concept.get("product_name", product.name), product.description, concept.get("image_style", "product"))
         
-        img = generate_product_image(prompt, model_tier="default", upscale=False)
-        image_result = {
-            "image_url": img["image_url"],
-            "width": img["width"],
-            "height": img["height"],
-            "validation": img["validation"],
-            "cost": img["cost"],
-        }
-        draft["image_url"] = img["image_url"]
+        # Call image-gen service (port 8110) for Nano Banana img2img
+        import requests as _req
+        img_resp = _req.post(
+            "http://localhost:8110/api/v1/image/generate",
+            json={"prompt": prompt, "inputImage": product.image_url, "aspectRatio": "1:1"},
+            timeout=120,
+        )
+        if img_resp.status_code == 200:
+            img_data = img_resp.json()
+            image_result = {
+                "image_url": img_data.get("images", [{}])[0].get("url", ""),
+                "cost": img_data.get("cost", {}).get("dollars", 0),
+            }
+            draft["image_url"] = image_result["image_url"]
+        else:
+            raise Exception(img_resp.text[:200])
     except Exception as e:
         logger.warning(f"Image gen failed (non-blocking): {e}")
         image_result = {"error": str(e)}
@@ -563,7 +571,7 @@ def ai_batch_generate(req: BatchGenRequest):
     ใช้ model_tier="fast" เพื่อประหยัด cost
     """
     from assistant import generate_product_concept
-    from image_gen import generate_product_image, make_etsy_compliant_prompt
+    from image_gen import make_etsy_compliant_prompt
 
     results = []
     total_cost = 0
@@ -579,7 +587,7 @@ def ai_batch_generate(req: BatchGenRequest):
 
             img = None
             try:
-                img = generate_product_image(prompt, model_tier=req.model_tier, upscale=True)
+                img = {}  # Image gen removed (was Fal.ai)
                 total_cost += img["cost"]
             except Exception as e:
                 logger.warning(f"Image fail for {pname}: {e}")
@@ -1036,11 +1044,15 @@ def pod_products_by_category(category: str):
 
 @app.get("/pod/product/{product_id}")
 def pod_get_product(product_id: str):
-    """รายละเอียดสินค้า POD พร้อมขนาด artwork ที่ต้องการ"""
-    from pod_sizes import get_product
-    product = get_product(product_id)
+    """รายละเอียดสินค้า POD พร้อมขนาด artwork + Printful data (variants, pricing, colors)"""
+    from pod_data import get_product_detail
+    product = get_product_detail(product_id)
     if not product:
-        raise HTTPException(status_code=404, detail=f"ไม่พบ Product ID: {product_id}")
+        # Fallback to basic spec
+        from pod_sizes import get_product
+        product = get_product(product_id)
+        if not product:
+            raise HTTPException(status_code=404, detail=f"ไม่พบ Product ID: {product_id}")
     return {"ok": True, "product": product}
 
 

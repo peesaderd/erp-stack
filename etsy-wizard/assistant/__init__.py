@@ -16,6 +16,36 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 LLM_API_KEY = os.environ.get("LLM_API_KEY", "")
 MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY", "")
+OPENCODE_URL = os.environ.get("OPENCODE_URL", "http://127.0.0.1:8777/v1/chat/completions")
+OPENCODE_MODEL = os.environ.get("OPENCODE_MODEL", "opencode-go/deepseek-v4-flash")
+
+
+def _call_opencode(system_prompt: str, user_prompt: str) -> Optional[str]:
+    """เรียก OpenCode proxy (local, always available)"""
+    try:
+        import httpx
+        resp = httpx.post(
+            OPENCODE_URL,
+            headers={"Content-Type": "application/json"},
+            json={
+                "model": OPENCODE_MODEL,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                "temperature": 0.7,
+                "max_tokens": 2000,
+            },
+            timeout=60,
+        )
+        if resp.status_code != 200:
+            logger.warning(f"OpenCode error: {resp.status_code} {resp.text[:150]}")
+            return None
+        data = resp.json()
+        return data["choices"][0]["message"]["content"]
+    except Exception as e:
+        logger.error(f"OpenCode call failed: {e}")
+        return None
 
 
 def _call_gemini(system_prompt: str, user_prompt: str) -> Optional[str]:
@@ -59,6 +89,37 @@ def _call_gemini(system_prompt: str, user_prompt: str) -> Optional[str]:
         return None
 
 
+def _call_mistral(system_prompt: str, user_prompt: str) -> Optional[str]:
+    """เรียก Mistral API (primary — has working key)"""
+    if not MISTRAL_API_KEY:
+        return None
+
+    try:
+        import httpx
+        resp = httpx.post(
+            "https://api.mistral.ai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {MISTRAL_API_KEY}", "Content-Type": "application/json"},
+            json={
+                "model": "mistral-large-latest",
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                "temperature": 0.7,
+                "max_tokens": 2000,
+            },
+            timeout=30,
+        )
+        if resp.status_code != 200:
+            logger.warning(f"Mistral API error: {resp.status_code} {resp.text[:150]}")
+            return None
+        data = resp.json()
+        return data["choices"][0]["message"]["content"]
+    except Exception as e:
+        logger.error(f"Mistral call failed: {e}")
+        return None
+
+
 def _call_deepseek(system_prompt: str, user_prompt: str) -> Optional[str]:
     """เรียก DeepSeek API (fallback) — return None ถ้าไม่ได้"""
     if not LLM_API_KEY:
@@ -93,17 +154,31 @@ def _call_deepseek(system_prompt: str, user_prompt: str) -> Optional[str]:
 def _call_llm(system_prompt: str, user_prompt: str) -> Optional[str]:
     """
     เรียก LLM โดยพยายาม providers ตามลำดับ:
-    1. Gemini (primary — มี key พร้อม)
-    2. DeepSeek (fallback)
-    3. None → ใช้ template fallback
+    1. OpenCode (local proxy — always available)
+    2. Mistral (fallback)
+    3. Gemini (fallback)
+    4. DeepSeek (fallback)
+    5. None → ใช้ template fallback
     """
-    # Primary: Gemini
+    # Primary: OpenCode proxy (local, no key needed)
+    result = _call_opencode(system_prompt, user_prompt)
+    if result:
+        logger.debug("LLM: used OpenCode")
+        return result
+
+    # Fallback: Mistral
+    result = _call_mistral(system_prompt, user_prompt)
+    if result:
+        logger.debug("LLM: used Mistral")
+        return result
+
+    # Fallback: Gemini
     result = _call_gemini(system_prompt, user_prompt)
     if result:
         logger.debug("LLM: used Gemini")
         return result
 
-    # Fallback: DeepSeek
+    # Last fallback: DeepSeek
     result = _call_deepseek(system_prompt, user_prompt)
     if result:
         logger.debug("LLM: used DeepSeek")

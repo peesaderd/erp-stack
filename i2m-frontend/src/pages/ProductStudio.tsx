@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import api from '../lib/api'
+import MockProductPicker from '../components/MockProductPicker'
 
 interface AnalysisResult {
   image_prompts: Record<string, string>
@@ -91,6 +92,7 @@ export default function ProductStudio() {
   const location = useLocation()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [initialized, setInitialized] = useState(false)
+  const [showMockPicker, setShowMockPicker] = useState(false)
 
   // Restore saved state on mount
   const saved = loadState()
@@ -344,6 +346,14 @@ const [provider, setProvider] = useState<string>("fal")
                       <span className="px-3 py-1 rounded-full bg-surface-container-low text-label-sm text-on-surface-variant">PNG</span>
                       <span className="px-3 py-1 rounded-full bg-surface-container-low text-label-sm text-on-surface-variant">WEBP</span>
                     </div>
+                    {/* Demo Button */}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setShowMockPicker(true) }}
+                      className="mt-2 px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-sm font-medium flex items-center gap-2 shadow-md hover:shadow-lg transition-all active:scale-95"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">auto_awesome</span>
+                      ลองใช้ Demo Product
+                    </button>
                   </div>
                 )}
               </div>
@@ -643,6 +653,41 @@ const [provider, setProvider] = useState<string>("fal")
           )}
         </div>
       </main>
+
+      {/* Mock Product Picker Modal */}
+      {showMockPicker && (
+        <MockProductPicker
+          onSelect={(product) => {
+            setImage(product.imageUrl)
+            setProductName(product.name)
+            setProductDesc(product.description)
+            // Auto-generate mock analysis so detail view works immediately
+            const mockAnalysis: AnalysisResult = {
+              product_name: product.name,
+              product_desc: product.description,
+              product_image_url: product.imageUrl,
+              image_prompts: {
+                holding_product: `A Thai content creator holding the ${product.name} naturally, ${product.description}, soft studio lighting, lifestyle photography, 4K quality`,
+                product_usage: `Someone demonstrating ${product.name} in use, ${product.features.join(', ')}, bright natural lighting, authentic feel`,
+                lifestyle: `${product.name} placed in a beautiful lifestyle setting, aesthetic composition, soft bokeh background, aspirational mood`,
+                close_up: `Extreme close-up of ${product.name} showing fine details, macro photography, studio lighting, premium product shot`,
+                review_style: `Product review style photo of ${product.name}, flat lay with accessories, clean white background, e-commerce style`,
+              },
+              video_prompt: `Create a dynamic 5-second video showcasing ${product.name}. Show the product from multiple angles with smooth camera movement. Highlight key features: ${product.features.join(', ')}. Modern, energetic style with upbeat music.`,
+              hooks: [
+                `${product.name} ตัวนี้ ดีจนต้องบอกต่อ! 🔥`,
+                `รีวิว ${product.name} หลังใช้จริง 2 สัปดาห์`,
+                `ของดีราคาโดน ต้อง ${product.name} เท่านั้น!`,
+              ],
+              copy: `${product.name} - ${product.description} ราคาเพียง ${product.price} เหมาะสำหรับ${product.targetAudience} สั่งซื้อได้เลย!`,
+              seo_keywords: [product.name, product.category, ...product.features.slice(0, 2)],
+            }
+            setAnalysis(mockAnalysis)
+            setShowMockPicker(false)
+          }}
+          onClose={() => setShowMockPicker(false)}
+        />
+      )}
 
       {/* Mobile Bottom Tab Bar - Aether style */}
       <nav className="md:hidden bg-surface/80 backdrop-blur-2xl fixed bottom-0 w-full z-50 border-t border-outline-variant/10 shadow-[0_-4px_20px_rgba(79,70,229,0.08)] flex justify-around items-center h-20 px-4">

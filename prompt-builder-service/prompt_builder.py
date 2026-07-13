@@ -275,6 +275,22 @@ PRODUCT_ANALYSIS_SYSTEM = """คุณคือนักวิเคราะห
 - customer_problem: ระบุปัญหาเฉพาะที่เจาะจง ไม่กว้างเกินไป
 - image_description: ภาษาอังกฤษล้วน 100% ห้ามมีภาษาไทยเด็ดขาด
 
+🔴 กฎการวิเคราะห์ Packaging Action (บังคับ):
+- อ่านชื่อสินค้า + คำอธิบาย แล้วค้นหาคำที่บ่งบอกกลไกการใช้งานของแพ็กเกจจิ้ง
+- คำสำคัญที่ต้องระบุให้เจอ:
+  • "Click", "คลิก", "กด", "กดกิ๊ก" → packaging_action: "click_to_release" + action_desc: "กดที่ตูดลิปเพื่อให้เนื้อลิปไหลขึ้นมา"
+  • "Pump", "ปั๊ม", "กดปั๊ม" → packaging_action: "pump" + action_desc: "กดปั๊มเพื่อป้อนเนื้อผลิตภัณฑ์"
+  • "Spray", "สเปรย์", "ฉีด" → packaging_action: "spray" + action_desc: "ฉีดพ่นลงบนผิว/ใบหน้า"
+  • "Roll", "กลิ้ง", "โรลออน" → packaging_action: "roll" + action_desc: "กลิ้งลูกกลิ้งบนผิว"
+  • "Matte", "แมทท์" → packaging_action: "smooth_application" + action_desc: "เกลี่ยเนื้อแมทท์ให้เนียน"
+  • "Glossy", "ฉ่ำ", "วาว", "ชุ่มชื้น" → packaging_action: "glossy_shine" + action_desc: "อวดเนื้อลิปแวววาวฉ่ำ เม้มปากให้เห็นความฉ่ำ"
+  • "Cream", "ครีม", "เนื้อครีม" → packaging_action: "blend" + action_desc: "เกลี่ยครีมซึมซาบสู่ผิว"
+  • "Cushion", "คุชชั่น", "แพด" → packaging_action: "dab_press" + action_desc: "แตะคุมชั่นบนใบหน้าเบาๆ"
+  • "Pen", "ปากกา", "คลิก Pen" → packaging_action: "click_pen" + action_desc: "คลิกปากกาแล้วเขียน/วาด"
+
+- ถ้าไม่มีคำเหล่านี้เลย → packaging_action: "generic_hold" + action_desc: "ถือสินค้าและใช้งานทั่วไป"
+- action_desc ให้เขียนภาษาไทย สั้น กระชับ
+
 JSON ที่ต้องตอบ:
 {
   "category": "beauty/fashion/electronics/food/home/tools/health/other",
@@ -284,8 +300,24 @@ JSON ที่ต้องตอบ:
   "setting": "สถานที่ถ่ายวิดีโอ เช่น vanity room หรือ bathroom",
   "customer_problem": "ปัญหาที่สินค้านี้แก้ (เจาะจง) เช่น ริมฝีปากแห้งแตก ไม่ฉ่ำ ใต้ตาคล้ำจากนอนดึก",
   "main_benefit": "คุณประโยชน์หลักของสินค้า เช่น ให้ริมฝีปากชุ่มชื้น ฉ่ำวาว ตลอดวัน",
+  "packaging_action": "click_to_release/pump/spray/roll/smooth_application/glossy_shine/blend/dab_press/click_pen/generic_hold",
+  "action_desc": "คำอธิบายภาษาไทยสั้นๆ ว่าแพ็กเกจจิ้งทำงานยังไง",
   "hashtags": ["hashtag1", "hashtag2", "hashtag3", "hashtag4", "hashtag5"],
-  "image_description": "ENGLISH ONLY — absolutely NO Thai language. Describe the scene for AI image generation. Include: model appearance (Thai woman/man, age 25, glowing skin), pose (holding product naturally / applying on skin), expression (confident smile / happy), setting (vanity room, cafe), lighting (soft natural window light), mood (warm, inviting). Focus on product texture and usage — e.g. for lip products mention 'showing glossy texture on lips' or 'applying on lips showing melted texture'. Do NOT mention product brand name. Example: 'A beautiful Thai woman, 25 years old, glowing skin, happy smile, applying lip product in vanity room, soft natural window lighting, glossy lip texture visible, warm and inviting atmosphere'"
+  "image_description": "ENGLISH ONLY — absolutely NO Thai language. Describe the scene for AI image generation.
+
+🔴 CRITICAL — First Frame Rule (บังคับ):
+- image_description = FIRST FRAME ของวิดีโอ (Wan 2.7 ใช้เป็น reference image)
+- ต้องตรงกับท่าเริ่มต้นของ Video Prompt Scene แรกเป๊ะๆ
+- สำหรับ Holding/UGC Style: นางแบบต้อง "ถือสินค้าที่ระดับอก" (holding at chest level) — ยังไม่เริ่มใช้
+- ห้ามระบุว่านางแบบกำลังใช้สินค้า (กำลังทา, กำลังปั๊ม, กำลังฉีด) ใน image_description
+- การทำงานที่ถูกต้อง:
+  • Image (First Frame): ถือสินค้าที่ระดับอกเฉยๆ
+  • Video Scene 1: เริ่มขยับจากท่าถือ → เริ่มใช้สินค้า
+  • Video Scene 2+: ใช้สินค้าจริง
+
+Include: model appearance (Thai woman/man, age 25, glowing skin), pose (HOLDING product at chest level — NOT applying yet), expression (confident smile / happy), setting (vanity room, cafe), lighting (soft natural window light), mood (warm, inviting). Focus on product being clearly visible and in focus. Do NOT describe the product being used/applied — that happens in the video.
+
+Example (correct for Holding style): 'A beautiful Thai woman, 25 years old, glowing skin, happy smile, holding a lip product at chest level, product visible and in focus, in a vanity room with soft natural window lighting, warm and inviting atmosphere'",
 }"""
 
 
@@ -360,6 +392,8 @@ Keywords: {kw_str}"""
             "setting": cinfo["setting"],
             "customer_problem": f"ปัญหาที่{product_name[:30]}นี้ช่วยแก้",
             "main_benefit": f"คุณประโยชน์ของ{product_name[:20]}",
+            "packaging_action": "generic_hold",
+            "action_desc": "ถือสินค้าและใช้งานทั่วไป",
             "hashtags": keywords[:5] if len(keywords) >= 5 else [product_name[:20]],
             "image_description": f"A beautiful Thai {gender_en}, {cinfo['age']} years old, glowing skin, confident smile, in {cinfo['setting']}",
         }
@@ -466,21 +500,215 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     return image_prompt, negative
 
 
+# ─── Audio Timing & Script Length Validation ──────────────────────────
+
+def _estimate_speech_duration(text: str) -> float:
+    """
+    Estimate speaking duration for Thai + mixed Thai/English text.
+    
+    Thai: ~15 chars/sec at normal conversational pace
+    English: ~8 chars/sec in Thai context (shorter words, brand names)
+    Mixed: weighted average
+    
+    These are calibrated for Google TTS Thai female voice at 1.0x speed.
+    """
+    if not text or not text.strip():
+        return 0
+    text_clean = text.replace(' ', '')
+    if not text_clean:
+        return 0
+    # Separate Thai and non-Thai characters
+    thai_chars = sum(1 for c in text if '\u0E00' <= c <= '\u0E7F')
+    non_thai_chars = len(text_clean) - thai_chars
+    if non_thai_chars < 0:
+        non_thai_chars = 0
+    
+    # Thai at natural conversational pace
+    thai_sec = thai_chars / 18.0  # ~18 chars/sec (native Thai speakers are fast)
+    non_thai_sec = non_thai_chars / 9.0  # ~9 chars/sec for English brand names in Thai context
+    
+    # Add a small buffer for pauses/gaps between language switches
+    switches = 0
+    if thai_chars > 0 and non_thai_chars > 0:
+        switches = 1  # one natural pause between language change
+    
+    return thai_sec + non_thai_sec + (switches * 0.1)
+
+
+def _build_timing_validated_script(product_name: str, category: str = "beauty") -> dict:
+    """
+    Build script segments with timing validation.
+    Auto-abbreviates product name if it would cause TTS to rush.
+    
+    Returns {
+        "hook": {"text": ..., "timing": "0-2", "duration_sec": 2, "ok": bool},
+        "value": {"text": ..., "timing": "2-6", "duration_sec": 4, "ok": bool},
+        "cta": {"text": ..., "timing": "6-8", "duration_sec": 2, "ok": bool},
+        "tts_speed": 1.0,  # suggested speed multiplier
+        "full_script": ...,
+        "tts_script": ...,  # abbreviated version for TTS
+    }
+    """
+    # Full product name — check if it fits
+    product_short = product_name
+    full_name_chars = len(product_name)
+    
+    # If product name is long, create abbreviated version for TTS
+    # Strategy: keep brand name + key category word, drop descriptive adjectives
+    if full_name_chars > 25:
+        parts = product_name.split()
+        # Words that are brand/essential keywords worth keeping
+        keep_keywords = {"la", "glace", "lip", "click", "pen", "pump", "spray", "cream", "mask", "serum"}
+        # Words that are fluff/description — drop for TTS brevity
+        drop_keywords = {"melted", "sundae", "matte", "glossy", "shine", "moisture", "hydra", "glow", 
+                       "smooth", "natural", "fresh", "clear", "bright", "perfect", "daily", "extra",
+                       "ultra", "pro", "max", "new", "premium", "luxury", "blink", "blush"}
+        kept = []
+        for p in parts:
+            p_lower = p.lower().strip("(),.!")
+            if p_lower in keep_keywords:
+                kept.append(p)
+            elif p_lower not in drop_keywords and len(p) > 3:
+                # Keep unknown words that are short brand-like (e.g. SADOER, OUKEYA)
+                if p.isupper() and len(p) <= 8:
+                    kept.append(p)
+                elif not p.isupper():
+                    kept.append(p)  # Keep Thai text
+        candidate = ' '.join(kept) if kept else product_name[:30]
+        if len(candidate) <= 35:
+            product_short = candidate
+        else:
+            # If still too long, just take first 3 relevant parts
+            product_short = ' '.join(kept[:3]) if len(kept) >= 3 else product_name[:30]
+    
+    # Ensure we never use empty or too-short name
+    if len(product_short) < 5:
+        product_short = product_name[:30]
+    
+    # Build script segments — category-aware
+    if "blush" in category.lower() or "cheek" in category.lower():
+        hook_text = f"หน้าแบน ไม่มีมิติ แต่งหน้ายังไงก็ไม่ปัง?"
+        value_text = f"{product_short} บลัชออน 2 เฉดในเดียว เพิ่มความสดใส วิ้งเบาๆ เป็นธรรมชาติ"
+    elif "lip" in category.lower() or "lipstick" in category.lower() or "lip gloss" in category.lower():
+        hook_text = f"ใครปากแห้ง ปากหมองคล้ำบ้าง?"
+        value_text = f"{product_short} ให้ปากฉ่ำวาว ไม่เหนอะ ติดทนตลอดวัน"
+    elif "mask" in category.lower() or "facial" in category.lower():
+        hook_text = f"ผิวแห้ง หมองคล้ำ ไม่สดใส ต้องลอง!"
+        value_text = f"{product_short} บำรุงล้ำลึก ให้ผิวชุ่มชื้น กระจ่างใส"
+    elif "serum" in category.lower() or "moisturizer" in category.lower():
+        hook_text = f"ผิวพังจากมลภาวะ อายุที่เพิ่มขึ้น หมดกังวล!"
+        value_text = f"{product_short} บำรุงเข้มข้น ซึมไว ไม่เหนอะหนะ"
+    elif "concealer" in category.lower() or "corrector" in category.lower():
+        hook_text = f"ใต้ตาดำคล้ำ นอนดึกทุกวัน หมดปัญหา!"
+        value_text = f"{product_short} ปกปิดเนียนกริบ ไม่ตกร่อง ไม่เป็นคราบ"
+    else:
+        hook_text = f"ต้องลอง! สินค้าดีบอกต่อ"
+        value_text = f"{product_short} คุณภาพเยี่ยม ใช้งานง่าย เห็นผลจริง"
+    cta_text = f"กดลิงก์หน้าโปรไฟล์เลย รับส่วนลดทันที"
+    
+    segments = [
+        {"key": "hook", "text": hook_text, "duration_sec": 2, "timing": "0-2"},
+        {"key": "value", "text": value_text, "duration_sec": 4, "timing": "2-6"},
+        {"key": "cta", "text": cta_text, "duration_sec": 2, "timing": "6-8"},
+    ]
+    
+    total_ok = True
+    max_speed_needed = 1.0
+    for seg in segments:
+        estimated = _estimate_speech_duration(seg["text"])
+        seg["estimated_sec"] = round(estimated, 1)
+        seg["ok"] = estimated <= seg["duration_sec"]
+        if not seg["ok"]:
+            total_ok = False
+            # Calculate needed speedup
+            needed = estimated / seg["duration_sec"]
+            if needed > max_speed_needed:
+                max_speed_needed = needed
+    
+    tts_speed = min(max_speed_needed, 1.3)  # Max 1.3x speed
+    if tts_speed < 1.0:
+        tts_speed = 1.0
+    
+    full = " ".join(s["text"] for s in segments)
+    
+    return {
+        "hook": segments[0],
+        "value": segments[1],
+        "cta": segments[2],
+        "tts_speed": tts_speed,
+        "full_script": full,
+        "tts_script": full,
+        "product_short_for_tts": product_short,
+        "all_segments_fit": total_ok,
+    }
+
+
 def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holding") -> str:
-    """Generate video prompt for Wan 2.7 img2vid."""
+    """Generate video prompt for Wan 2.7 img2vid.
+    
+    Uses product packaging action from Mistral analysis to create specific,
+    product-appropriate video motions instead of generic ones.
+    """
     style_info = STYLE_MAP.get(ugc_style, STYLE_MAP["holding"])
     category = profile.get("category", "other")
     model_gender = profile.get("target_gender", "unisex")
     model_setting = profile.get("setting", "clean modern lifestyle setting")
+    # Detect packaging action from product name if Mistral didn't return it or returned generic
+    packaging_action = profile.get("packaging_action", "")
+    name_lower = product_name.lower()
+    # Check if Mistral returned a genuine specific action or just generic_hold
+    mistral_was_generic = packaging_action in ("", "generic_hold")
+    # Run fallback if Mistral was generic AND we detect a specific keyword in product name
+    if mistral_was_generic:
+        # Check if name has specific keywords that suggest a non-generic action
+        if any(w in name_lower for w in ["click", "คลิก", "กดกิ๊ก"]):
+            packaging_action = "click_to_release"
+        elif any(w in name_lower for w in ["pump", "ปั๊ม"]):
+            packaging_action = "pump"
+        elif any(w in name_lower for w in ["spray", "สเปรย์", "ฉีด"]):
+            packaging_action = "spray"
+        elif any(w in name_lower for w in ["roll", "โรล"]):
+            packaging_action = "roll"
+        elif any(w in name_lower for w in ["glossy", "ฉ่ำ", "วาว", "ชุ่มชื้น"]):
+            packaging_action = "glossy_shine"
+        elif any(w in name_lower for w in ["blush", "บลัช", "บลัชออน"]):
+            packaging_action = "blush_swirl"
+        elif any(w in name_lower for w in ["cushion", "คุชชั่น"]):
+            packaging_action = "dab_press"
+        elif any(w in name_lower for w in ["pen", "ปากกา"]):
+            packaging_action = "click_pen"
+        elif any(w in name_lower for w in ["cream", "ครีม"]):
+            packaging_action = "blend"
+        elif any(w in name_lower for w in ["matte", "แมทท์"]):
+            packaging_action = "smooth_application"
+        else:
+            packaging_action = "generic_hold"
     lighting = _get_lighting(category)
     gender_en = {"female": "woman", "male": "man", "unisex": "person", "woman": "woman", "man": "man"}.get(model_gender, "person")
 
+    # Build packaging-specific video motions
+    PACKAGING_VIDEO_MOTIONS = {
+        "click_to_release": "CLICKING the pen mechanism at bottom to release product, holding product up to show the mechanism working, then applying product on lips",
+        "click_pen": "CLICKING the pen to extend product, showing the twisting/clicking mechanism, then applying",
+        "pump": "PUMPING the bottle top, showing product dispensing, then applying on skin",
+        "spray": "SPRAYING the product onto skin/face, fine mist visible, gentle patting motion after",
+        "roll": "ROLLING the ball applicator on skin, circular motion, product gliding smoothly",
+        "smooth_application": "applying product with smooth even strokes, blending motion, showing matte finish",
+        "glossy_shine": "applying product on lips, pressing lips together to show glossy shine, tilting lips to catch light and reveal wet-looking gloss texture",
+        "blend": "pumping/squeezing product onto fingers, blending into skin with circular motion, product absorbing",
+        "dab_press": "dabbing cushion puff on face with gentle pressing motion, even coverage",
+        "blush_swirl": "swirling brush in blush compact, then gently dusting on cheeks in circular motion, building up color naturally, looking in mirror to check",
+        "generic_hold": style_info['video_motion'],
+    }
+    
+    video_motion = PACKAGING_VIDEO_MOTIONS.get(packaging_action, style_info['video_motion'])
+    
     video_prompt = (
-        f"Thai {gender_en} 25, {style_info['video_motion']}. "
-        f"The product is visible in frame. "
+        f"Thai {gender_en} 25, {video_motion}. "
+        f"The product is visible in frame throughout. "
         f"Setting: {model_setting}. "
         f"{lighting['lighting']}. {lighting['atmosphere']}. "
-        f"9:16 portrait, smooth natural motion"
+        f"9:16 portrait, smooth natural motion, no text, no watermark"
     )
     return video_prompt
 
@@ -558,6 +786,10 @@ async def analyze_and_build_prompts(
     if not negative_prompt:
         negative_prompt = build_negative_prompt(profile, ugc_style)
     
+    # Step 3: Validate script timing
+    category_key = profile.get("category", category or "beauty")
+    timing_validation = _build_timing_validated_script(product_name, category_key)
+    
     result = {
         "product_id": product_id,
         "analysis": {
@@ -570,6 +802,26 @@ async def analyze_and_build_prompts(
             "main_benefit": profile.get("main_benefit", ""),
             "hashtags": profile.get("hashtags", []),
             "image_description": profile.get("image_description", ""),
+        },
+        "timing_validation": {
+            "segments": {
+                "hook": timing_validation["hook"],
+                "value": timing_validation["value"],
+                "cta": timing_validation["cta"],
+            },
+            "tts_speed": timing_validation["tts_speed"],
+            "product_short_for_tts": timing_validation["product_short_for_tts"],
+            "all_segments_fit": timing_validation["all_segments_fit"],
+            "total_duration": 8,
+        },
+        "scripts": {
+            "full_script": timing_validation["full_script"],
+            "tts_script": timing_validation["tts_script"],
+            "breakdown": {
+                "hook": timing_validation["hook"]["text"],
+                "value": timing_validation["value"]["text"],
+                "cta": timing_validation["cta"]["text"],
+            }
         },
         "image_prompt": image_prompt,
         "video_prompt": video_prompt,

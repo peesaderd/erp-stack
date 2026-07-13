@@ -1,5 +1,5 @@
 """
-TikTok UGC Studio — Affiliate Video Pipeline v6 (Structure-based)
+TikTok UGC Studio - Affiliate Video Pipeline v6 (Structure-based)
 ================================================================
 Pipeline: Analyze → Recipe → Script → Image Prompt → Image → Video Prompts → TTS → Video → Compose
 
@@ -48,7 +48,7 @@ if str(_erp_stack) not in sys.path:
 from shared_config import PRODIA_TOKEN, GEMINI_API_KEY
 
 # Import pipeline logger (same directory)
-from pipeline_logger import start_job, update_step, update_cost, complete_job, fail_job
+from pipeline_logger import start_job, update_step, update_cost, complete_job, fail_job, update_prompts
 
 logger = logging.getLogger("tiktok-ugc.pipeline_affiliate")
 
@@ -58,44 +58,9 @@ STORAGE_DIR = Path(__file__).parent / "storage"
 TMP_DIR = STORAGE_DIR / "tmp"
 TMP_DIR.mkdir(parents=True, exist_ok=True)
 
-PRODIA_BASE = "https://inference.prodia.com/v2"
-PRODIA_IMG2IMG_TYPE = "inference.nano-banana.img2img.v1"
-PRODIA_IMG2VID_TYPE = "inference.wan2-7.img2vid.v1"
-
 # Service URLs
 IMAGE_GEN_URL = "http://localhost:8110/api/v1/image/generate"
 PROMPT_BUILDER_URL = "http://localhost:8117"
-
-# ─── Helpers ───────────────────────────────────────────────────────────────
-
-def _prodia_headers():
-    return {"Authorization": f"Bearer {PRODIA_TOKEN()}"}
-
-
-def _poll_prodia_job(job_url: str, max_polls: int = 90, sleep_s: int = 2) -> dict:
-    """Poll a Prodia v2 job URL until completed."""
-    import time as _time
-    for attempt in range(max_polls):
-        _time.sleep(sleep_s)
-        try:
-            resp = requests.get(job_url, headers=_prodia_headers(), timeout=30)
-            if resp.status_code != 200:
-                continue
-            data = resp.json()
-        except Exception as e:
-            logger.debug(f"Prodia poll attempt {attempt}: {e}")
-            continue
-
-        state = data.get("state", {})
-        status = state.get("current", "") or data.get("status", "")
-        
-        if status in ("completed", "success"):
-            return data
-        elif status in ("failed", "error"):
-            error_msg = data.get("error", "") or data.get("state", {}).get("history", [{}])[-1].get("message", "")
-            raise RuntimeError(f"Prodia job failed: {error_msg}")
-
-    raise TimeoutError(f"Prodia job timed out after {max_polls * sleep_s}s")
 
 
 
@@ -113,10 +78,19 @@ def download_file(url: str, output_path: Path) -> Path:
 
 
 def concat_videos(video_paths: list, output_path: Path) -> Path:
-    """Concat multiple videos with FFmpeg."""
+    """Concat multiple videos with FFmpeg. Skip None entries."""
+    valid_paths = [vp for vp in video_paths if vp is not None]
+
+    if not valid_paths:
+        raise RuntimeError("No valid videos to concat (all None)")
+
+    if len(valid_paths) == 1:
+        shutil.copy2(valid_paths[0], output_path)
+        return output_path
+
     list_file = TMP_DIR / f"concat_{uuid.uuid4().hex}.txt"
     with open(list_file, "w") as f:
-        for vp in video_paths:
+        for vp in valid_paths:
             f.write(f"file '{Path(vp).absolute()}'\n")
     cmd = ["ffmpeg", "-y", "-f", "concat", "-safe", "0",
            "-i", str(list_file), "-c", "copy", str(output_path)]
@@ -132,12 +106,12 @@ def concat_videos(video_paths: list, output_path: Path) -> Path:
 def analyze_product(product_name: str, product_image: str = None, description: str = "") -> dict:
     """
     Step 1: Analyze product via Mistral → product_profile
-    
+
     Args:
         product_name: ชื่อสินค้า
         product_image: URL ของรูปสินค้า (optional)
-        description: คำอธิบายสินค้า (optional)
-    
+        description: คําอธิบายสินค้า (optional)
+
     Returns:
         dict: product_profile {
             category, target_gender, target_age, target_audience,
@@ -148,7 +122,7 @@ def analyze_product(product_name: str, product_image: str = None, description: s
     logger.info(f"Step 1/9: Analyze product (Mistral)")
     logger.info(f"  Product: {product_name}")
     logger.info(f"  Image: {product_image or 'None'}")
-    
+
     try:
         # Call Prompt Builder API
         url = f"{PROMPT_BUILDER_URL}/api/v1/build"
@@ -158,21 +132,21 @@ def analyze_product(product_name: str, product_image: str = None, description: s
             "product_image": product_image or "",
             "ugc_style": "holding",  # default
         }
-        
+
         resp = requests.post(url, json=payload, timeout=60)
         resp.raise_for_status()
         data = resp.json()
-        
+
         profile = data.get("analysis", {})
         logger.info(f"  Analyzed: {profile.get('category')} / {profile.get('target_gender')}")
-        
+
         # เก็บ image_prompt + video_prompt + negative_prompt ที่ได้จาก API
         profile["_image_prompt"] = data.get("image_prompt", "")
         profile["_video_prompt"] = data.get("video_prompt", "")
         profile["_negative_prompt"] = data.get("negative_prompt", "")
-        
+
         return profile
-        
+
     except Exception as e:
         logger.error(f"Analyze failed: {e}")
         # Fallback: basic profile
@@ -198,28 +172,28 @@ def analyze_product(product_name: str, product_image: str = None, description: s
 def load_recipe(recipe_name: str = "tus") -> dict:
     """
     Step 2: Load recipe → scenes structure
-    
+
     Args:
         recipe_name: ชื่อ recipe (tus, etsy)
-    
+
     Returns:
         dict: recipe {
             name, total_duration, scenes: [...]
         }
     """
     logger.info(f"Step 2/9: Load recipe ({recipe_name})")
-    
+
     recipe_path = Path(__file__).parent.parent.parent / "prompt-builder-service" / "recipes" / f"{recipe_name}.json"
-    
+
     try:
         with open(recipe_path, "r", encoding="utf-8") as f:
             recipe = json.load(f)
-        
+
         scenes = recipe.get("scenes", [])
         logger.info(f"  Recipe: {recipe_name}, {len(scenes)} scenes, {recipe.get('total_duration')}s")
-        
+
         return recipe
-        
+
     except Exception as e:
         logger.error(f"Recipe load failed: {e}, using default tus")
         # Fallback: basic 8s recipe
@@ -248,22 +222,22 @@ def generate_script(
 ) -> str:
     """
     Step 3: Generate script via Gemini
-    
+
     Args:
         product_name: ชื่อสินค้า
         product_profile: ผลจาก analyze_product()
         recipe: ผลจาก load_recipe()
-    
+
     Returns:
         str: full_script
     """
     logger.info(f"Step 3/9: Generate script (Gemini)")
-    
+
     try:
         # Import script_gen จาก modules/video
         sys.path.insert(0, str(Path(__file__).parent))
         from script_gen import generate_tiktok_review_script
-        
+
         result = generate_tiktok_review_script(
             product_name=product_name,
             customer_problem=product_profile.get("customer_problem", ""),
@@ -272,12 +246,12 @@ def generate_script(
             tone="เป็นกันเอง พูดเร็ว",
             duration=f"{recipe.get('total_duration', 8)}s",
         )
-        
+
         script = result.get("script", "")
         logger.info(f"  Script: {script[:50]}... (uses_llm={result.get('uses_llm')})")
-        
+
         return script
-        
+
     except Exception as e:
         logger.error(f"Script generation failed: {e}")
         # Fallback: template script
@@ -295,24 +269,24 @@ def build_image_prompt(
 ) -> str:
     """
     Step 4: Build image prompt via Mistral
-    
+
     Args:
         product_name: ชื่อสินค้า
         product_profile: ผลจาก analyze_product()
         recipe: ผลจาก load_recipe()
-    
+
     Returns:
         str: image_prompt
     """
     logger.info(f"Step 4/9: Build image prompt (Mistral)")
-    
+
     # ใช้ image_prompt ที่ได้จาก analyze_product() (Step 1)
     image_prompt = product_profile.get("_image_prompt", "")
-    
+
     if image_prompt:
         logger.info(f"  Image prompt: {image_prompt[:60]}...")
         return image_prompt
-    
+
     # Fallback: basic prompt
     logger.warning("  No image prompt from analyze, using fallback")
     return f"{product_name}, product showcase, clean background, professional photography"
@@ -326,52 +300,56 @@ def generate_image(
     prompt: str,
     product_image: str = None,
     aspect_ratio: str = "9:16",
-) -> str:
+) -> tuple:
     """
     Step 5: Generate image via Prodia Nano Banana Img2Img
-    
+
     Args:
         prompt: image_prompt จาก Step 4
         product_image: URL ของรูปสินค้า (reference)
         aspect_ratio: 9:16 (TikTok portrait)
-    
+
     Returns:
-        str: URL ของรูปที่สร้าง
+        tuple: (image_url, cost_usd)
     """
-    logger.info(f"Step 5/9: Generate image (Nano Banana)")
+    logger.info(f"Step 5/9: Generate image (Nano Banana, {aspect_ratio})")
     logger.info(f"  Prompt: {prompt[:40]}...")
     logger.info(f"  Reference: {product_image or 'None'}")
-    
+
     payload = {
         "prompt": prompt,
         "count": 1,
         "upscale": False,
         "aspectRatio": aspect_ratio,
     }
-    
+
     if product_image:
         payload["inputImage"] = product_image
         payload["modelTier"] = "nano.banana"
         payload["provider"] = "prodia"
         payload["thaiModel"] = True
-    
+
     try:
         resp = requests.post(IMAGE_GEN_URL, json=payload, timeout=300)
         resp.raise_for_status()
         data = resp.json()
-        
+
         if not (data.get("success") or data.get("ok")) or not data.get("images"):
             raise RuntimeError(f"Image-gen service failed: {data}")
-        
+
         img_info = data["images"][0]
         url = img_info.get("full_url") or img_info.get("url")
-        
+
         if not url:
             raise RuntimeError(f"No URL in response: {data}")
-        
-        logger.info(f"  Image OK: {url[:60]}...")
-        return url
-        
+
+        # Extract cost from image service response
+        cost_data = data.get("cost", {}) or img_info.get("cost", {})
+        cost_usd = float(cost_data.get("dollars", 0.005) if isinstance(cost_data, dict) else 0.005)
+
+        logger.info(f"  Image OK: {url[:60]}... | cost=${cost_usd:.4f}")
+        return url, cost_usd
+
     except Exception as e:
         logger.error(f"Image generation failed: {e}")
         raise
@@ -388,23 +366,23 @@ def build_video_prompts(
 ) -> list:
     """
     Step 6: Build video prompts from recipe + image context
-    
+
     Args:
         product_profile: ผลจาก analyze_product()
         recipe: ผลจาก load_recipe()
         image_path: path ของ image ที่สร้างแล้ว (Step 5)
-    
+
     Returns:
         list: video_prompts (1 prompt per scene)
     """
     logger.info(f"Step 6/9: Build video prompts (from recipe + image)")
-    
+
     scenes = recipe.get("scenes", [])
     video_prompts = []
-    
+
     setting = product_profile.get("setting", "clean modern lifestyle")
     category = product_profile.get("category", "other")
-    
+
     # Lighting map (simple version)
     lighting_map = {
         "beauty": "soft diffused natural window lighting",
@@ -416,14 +394,14 @@ def build_video_prompts(
         "other": "soft natural lighting",
     }
     lighting = lighting_map.get(category, "soft natural lighting")
-    
+
     for scene in scenes:
         scene_name = scene.get("name", "Scene")
         scene_prompt = scene.get("prompt", "")
-        
+
         # Enhance prompt with image context + recipe
         enhanced = f"{scene_prompt}. Setting: {setting}. {lighting}. 9:16 portrait, smooth natural motion."
-        
+
         # Add scene-specific details
         if scene_name == "Hook":
             enhanced += " Beautiful opening shot, product clearly visible"
@@ -437,11 +415,11 @@ def build_video_prompts(
             enhanced += " Before-after comparison, clear improvement"
         elif scene_name == "CTA":
             enhanced += " Final product shot, encouraging purchase"
-        
+
         video_prompts.append(enhanced)
-    
+
     logger.info(f"  Generated {len(video_prompts)} video prompts")
-    
+
     return video_prompts
 
 
@@ -456,58 +434,74 @@ def generate_voice(
 ) -> str:
     """
     Step 7: Generate voice via Gemini TTS
-    
+
     Args:
         text: script จาก Step 3
         voice: ชื่อเสียง (Aoede, Wise_Woman, etc.)
-        run_id: สำหรับสร้าง filename
-    
+        run_id: สําหรับสร้าง filename
+
     Returns:
         str: path ของไฟล์เสียง
     """
     logger.info(f"Step 7/9: TTS (Gemini)")
     logger.info(f"  Text: {text[:50]}...")
-    
+
     try:
         from gemini_tts import gemini_text_to_speech
-        
+
         output_path = str(TMP_DIR / f"voice_{run_id}.mp3")
         tts_path = gemini_text_to_speech(text, output_path=output_path, voice=voice)
-        
+
         if tts_path and Path(tts_path).exists():
             logger.info(f"  TTS OK: {tts_path}")
             return tts_path
         else:
             raise RuntimeError(f"TTS returned invalid path: {tts_path}")
-            
+
     except Exception as e:
         logger.error(f"TTS failed: {e}")
         raise
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# STEP 8: Generate Video (Prodia Wan 2.7)
+# STEP 8: Generate Video (Prodia Wan 2.7 Sync API)
 # ═══════════════════════════════════════════════════════════════════════════
+
+PRODIA_BASE = "https://inference.prodia.com/v2"
+
 
 def generate_video(
     image_path: str,
     prompt: str,
     duration: int = 8,
-) -> str:
+    resolution: str = "720P",
+    ratio: str = "9:16",
+) -> tuple:
     """
-    Step 8: Generate video via Wan 2.7 img2vid
-    
+    Step 8: Generate video via Wan 2.7 Sync API (POST /v2/job)
+
+    Format (per Prodia docs):
+      - type: inference.wan2-7.img2vid.v1
+      - config.resolution: 720P
+      - config.ratio: 9:16 (TikTok portrait)
+      - config.duration: 8
+      - config.negative_prompt: improves quality
+      - config.prompt_extend: enabled (default) for short prompts
+
+    Cost tracking via ?price=true on async probe request.
+
     Args:
         image_path: path ของ image จาก Step 5
         prompt: video_prompt จาก Step 6
-        duration: ความยาวคลิป (วินาที)
-    
+        duration: ความยาวคลิป (default 8s)
+        resolution: 720P (per user spec)
+        ratio: 9:16 สำหรับ TikTok
+
     Returns:
-        str: path ของไฟล์ video
+        tuple: (video_path, cost_usd)
     """
-    logger.info(f"Step 8/9: Generate video (Wan 2.7)")
-    logger.info(f"  Prompt: {prompt[:40]}...")
-    logger.info(f"  Duration: {duration}s")
+    logger.info(f"Step 8/9: Generate video (Wan 2.7, {resolution} {ratio})")
+    logger.info(f"  Prompt: {prompt[:80]}...")
 
     # Read image bytes
     if image_path.startswith("http://") or image_path.startswith("https://"):
@@ -518,89 +512,97 @@ def generate_video(
         with open(image_path, "rb") as f:
             image_data = f.read()
 
-    config_payload = {
-        "type": PRODIA_IMG2VID_TYPE,
+    # ── Cost probe via async API ──
+    token = PRODIA_TOKEN()
+    cost_video = 0.0
+    try:
+        probe_config = {
+            "type": "inference.wan2-7.img2vid.v1",
+            "config": {
+                "prompt": prompt[:100],
+                "resolution": resolution,
+                "ratio": ratio,
+                "duration": duration,
+                "negative_prompt": "low resolution, error, worst quality, deformed",
+            },
+        }
+        probe_resp = requests.post(
+            f"{PRODIA_BASE}/job?price=true",
+            headers={"Authorization": f"Bearer {token}"},
+            files=[("job", ("job.json", json.dumps(probe_config), "application/json"))],
+            timeout=15,
+        )
+        if probe_resp.status_code == 200:
+            ct = probe_resp.headers.get("content-type", "")
+            if "multipart" in ct:
+                # Price returned in job metadata (async), extract cost
+                try:
+                    body = probe_resp.json()
+                    cost_video = float(body.get("cost", 0) or body.get("price", 0))
+                except Exception:
+                    pass
+            else:
+                # Sync response (video returned) means ?price not supported this way
+                pass
+        logger.info(f"  Cost probe: ${cost_video:.4f}")
+    except Exception as e:
+        logger.warning(f"  Cost probe failed: {e}")
+
+    # ── Actual generation via sync API ──
+    config = {
+        "type": "inference.wan2-7.img2vid.v1",
         "config": {
             "prompt": prompt,
-        }
+            "resolution": resolution,
+            "ratio": ratio,
+            "duration": duration,
+            "negative_prompt": "low resolution, error, worst quality, deformed",
+        },
     }
 
     files = [
-        ("job", ("job.json", json.dumps(config_payload), "application/json")),
+        ("job", ("job.json", json.dumps(config), "application/json")),
         ("input", ("image.png", image_data, "image/png")),
     ]
+
+    headers = {"Authorization": f"Bearer {token}"}
 
     try:
         resp = requests.post(
             f"{PRODIA_BASE}/job",
-            headers=_prodia_headers(),
+            headers=headers,
             files=files,
-            timeout=120
+            timeout=180,
         )
-        
-        # Prodia v2 API returns 400 with JSON body for queued jobs (not 200!)
-        if resp.status_code == 400:
-            try:
-                data = resp.json()
-            except:
-                raise RuntimeError(f"Prodia 400 non-JSON: {resp.text[:200]}")
-        elif resp.status_code == 200:
-            ct = resp.headers.get("content-type", "")
-            if "json" not in ct:
-                # Direct binary video response
-                result_path = TMP_DIR / f"img2vid_{uuid.uuid4().hex[:8]}.mp4"
-                with open(result_path, "wb") as f:
-                    f.write(resp.content)
-                logger.info(f"  Video OK (direct)")
-                return str(result_path)
-            data = resp.json()
-        else:
-            raise RuntimeError(f"Prodia submit error {resp.status_code}: {resp.text[:200]}")
-        
-        job_id = data.get("id") or data.get("job")
-        if not job_id:
-            raise RuntimeError(f"No job_id in response: {data}")
-        
-        init_state = data.get("state", {}).get("current", "")
-        if init_state == "failed":
-            raise RuntimeError(f"Wan 2.7 immediate failure: {data.get('error')}")
-        
-        # Poll for completion
-        logger.info(f"  Job submitted: {job_id}, polling...")
-        status_url = f"{PRODIA_BASE}/job/{job_id}"
+
+        # Sync API returns 200 + video/mp4 directly
+        ct = resp.headers.get("content-type", "")
+        if resp.status_code == 200 and ("video" in ct or "mp4" in ct):
+            result_path = TMP_DIR / f"img2vid_{uuid.uuid4().hex[:8]}.mp4"
+            with open(result_path, "wb") as f:
+                f.write(resp.content)
+            file_size = result_path.stat().st_size
+
+            # Fallback cost if probe failed
+            if cost_video <= 0:
+                cost_video = 0.03  # default estimate
+
+            logger.info(f"  Video OK ({file_size} bytes, {resolution} {ratio}): {result_path}")
+            logger.info(f"  Cost: ${cost_video:.4f}")
+
+            return str(result_path), cost_video
+
+        # Error handling
+        err_detail = f"{resp.status_code}"
         try:
-            result_data = _poll_prodia_job(status_url, max_polls=150, sleep_s=2)
-        except RuntimeError as e:
-            raise RuntimeError(f"Wan 2.7 failed: {e}")
-        except TimeoutError as e:
-            raise RuntimeError(f"Wan 2.7 timed out after 5 min")
-        
-        # Extract video URL from completed job
-        url = ""
-        url_info = result_data.get("config", {}).get("url_info", [])
-        if url_info and len(url_info) > 0:
-            url = url_info[0].get("url", "")
-        if not url:
-            output = result_data.get("output", {})
-            url = output.get("url", "") or output.get("video", {}).get("url", "")
-        if not url:
-            url = result_data.get("url", "")
-        if not url:
-            raise RuntimeError(f"No URL in completed job")
-        
-        # Download the video
-        vid_resp = requests.get(url, timeout=60)
-        vid_resp.raise_for_status()
-        result_path = TMP_DIR / f"img2vid_{uuid.uuid4().hex[:8]}.mp4"
-        with open(result_path, "wb") as f:
-            f.write(vid_resp.content)
-        
-        logger.info(f"  Video OK (downloaded)")
-        return str(result_path)
-        
-    except Exception as e:
-        logger.error(f"Video generation failed (skipping): {e}")
-        return None
+            err_body = resp.json()
+            err_detail += f": {err_body.get('error', resp.text[:200])}"
+        except Exception:
+            err_detail += f": {resp.text[:200]}"
+        raise RuntimeError(f"Wan 2.7 sync failed: {err_detail}")
+
+    except requests.exceptions.Timeout:
+        raise RuntimeError(f"Wan 2.7 sync timeout (180s)")
 def compose_video(
     video_paths: list,
     voice_path: str,
@@ -609,26 +611,31 @@ def compose_video(
 ) -> str:
     """
     Step 9: Compose final video (merge voice + BGM + concat scenes)
-    
+
     Args:
         video_paths: list ของ video paths จาก Step 8
         voice_path: path ของ voice จาก Step 7
-        run_id: สำหรับสร้าง filename
+        run_id: สําหรับสร้าง filename
         bgm_style: สไตล์เพลงพื้นหลัง
-    
+
     Returns:
         str: path ของ final video
     """
     logger.info(f"Step 9/9: Compose (FFmpeg)")
-    
-    # Step 9a: Concat scenes first (no audio merge per-scene)
-    logger.info(f"  9a: Concat {len(video_paths)} scenes")
+
+    # Step 9a: Concat scenes (filter None, fallback gracefully)
+    valid_paths = [vp for vp in video_paths if vp is not None]
+    logger.info(f"  9a: {len(valid_paths)}/{len(video_paths)} valid scenes")
+
+    if not valid_paths:
+        raise RuntimeError("No valid videos to compose (all None)")
+
     concat_path = TMP_DIR / f"concat_{run_id}.mp4"
-    if len(video_paths) > 1:
-        concat_videos(video_paths, concat_path)
+    if len(valid_paths) > 1:
+        concat_videos(valid_paths, concat_path)
     else:
-        shutil.copy2(video_paths[0], concat_path)
-    
+        shutil.copy2(valid_paths[0], concat_path)
+
     # Step 9b: Merge voiceover with the concatenated video
     logger.info(f"  9b: Merge voiceover")
     voiced_path = STORAGE_DIR / f"affiliate_{run_id}.mp4"
@@ -645,12 +652,18 @@ def compose_video(
     ]
     try:
         subprocess.run(cmd, check=True, capture_output=True, timeout=60)
-        logger.info(f"    Voiceover merged")
-        final_path = voiced_path
+        # Verify output has video stream (Gemini TTS raw audio can break merge)
+        vf_size = voiced_path.stat().st_size
+        if vf_size < 5000:  # < 5KB = broken
+            logger.warning(f"    Voiceover merge produced tiny file ({vf_size}B), using concat")
+            final_path = concat_path
+        else:
+            logger.info(f"    Voiceover merged")
+            final_path = voiced_path
     except Exception as e:
         logger.warning(f"    Voiceover merge failed ({e}), using silent video")
         final_path = concat_path
-    
+
     # Step 9c: Add BGM
     if bgm_style:
         logger.info(f"  9c: Add BGM ({bgm_style})")
@@ -664,29 +677,48 @@ def compose_video(
         }
         bgm_filename = bgm_map.get(bgm_style, "bg_chill.mp3")
         bgm_path = STORAGE_DIR / "sounds" / bgm_filename
-        
+
         if bgm_path.exists():
             bgm_output = STORAGE_DIR / f"affiliate_{run_id}_bgm.mp4"
-            cmd = [
-                "ffmpeg", "-y",
-                "-i", str(final_path),
-                "-i", str(bgm_path),
-                "-filter_complex",
-                "[1:a]volume=0.15[bg];[0:a][bg]amix=inputs=2:duration=first[out]",
-                "-map", "0:v",
-                "-map", "[out]",
-                "-c:v", "copy",
-                "-c:a", "aac",
-                "-shortest",
-                str(bgm_output),
-            ]
+            # Strategy: mix BGM with video audio. If video has no usable audio, just copy BGM
             try:
-                subprocess.run(cmd, check=True, capture_output=True, timeout=60)
-                logger.info(f"    BGM added")
+                cmd_mix = [
+                    "ffmpeg", "-y",
+                    "-i", str(final_path),
+                    "-i", str(bgm_path),
+                    "-filter_complex",
+                    "[1:a]volume=0.15[bg];[0:a][bg]amix=inputs=2:duration=first[out]",
+                    "-map", "0:v",
+                    "-map", "[out]",
+                    "-c:v", "copy",
+                    "-c:a", "aac",
+                    "-shortest",
+                    str(bgm_output),
+                ]
+                subprocess.run(cmd_mix, check=True, capture_output=True, timeout=60)
+                logger.info(f"    BGM mixed")
                 final_path = bgm_output
             except Exception as e:
-                logger.warning(f"    BGM failed: {e}")
-    
+                logger.warning(f"    BGM mix failed ({e}), trying BGM-only")
+                # Fallback: just copy video + BGM as sole audio
+                try:
+                    cmd_bgm = [
+                        "ffmpeg", "-y",
+                        "-i", str(concat_path),  # use original video with audio
+                        "-i", str(bgm_path),
+                        "-c:v", "copy",
+                        "-c:a", "aac",
+                        "-map", "0:v:0",
+                        "-map", "1:a:0",
+                        "-shortest",
+                        str(bgm_output),
+                    ]
+                    subprocess.run(cmd_bgm, check=True, capture_output=True, timeout=60)
+                    logger.info(f"    BGM-only added")
+                    final_path = bgm_output
+                except Exception as e2:
+                    logger.warning(f"    BGM-only also failed: {e2}")
+
     logger.info(f"  Final: {final_path}")
     return str(final_path)
 
@@ -706,15 +738,15 @@ def run_pipeline(
 ) -> dict:
     """
     Run full Affiliate Pipeline v6 (9 Steps ตาม PIPELINE_STRUCTURE.md)
-    
+
     Args:
         product_name: ชื่อสินค้า
         product_image: URL ของรูปสินค้า (required!)
         recipe_name: ชื่อ recipe (tus, etsy)
         voice: ชื่อเสียง TTS
         bgm_style: สไตล์เพลงพื้นหลัง
-        description: คำอธิบายสินค้า (optional)
-    
+        description: คําอธิบายสินค้า (optional)
+
     Returns:
         dict: {
             run_id, final_path, duration, cost_estimate, cost_breakdown,
@@ -723,9 +755,9 @@ def run_pipeline(
     """
     run_id = uuid.uuid4().hex[:8]
     job_id = f"vid_{run_id}"
-    
+
     logger.info(f"{'='*60}")
-    logger.info(f"Pipeline v6 — Run {run_id}")
+    logger.info(f"Pipeline v6 - Run {run_id}")
     logger.info(f"{'='*60}")
     logger.info(f"Product: {product_name}")
     logger.info(f"Image: {product_image}")
@@ -755,7 +787,7 @@ def run_pipeline(
         step_start = time.time()
         product_profile = analyze_product(product_name, product_image, description)
         analyze_duration = int((time.time() - step_start) * 1000)
-        
+
         try:
             update_step(job_id, 'analyze', {'duration_ms': analyze_duration})
         except Exception:
@@ -767,7 +799,7 @@ def run_pipeline(
         recipe_duration = int((time.time() - step_start) * 1000)
         num_scenes = len(recipe.get("scenes", []))
         total_duration = recipe.get("total_duration", 8)
-        
+
         try:
             update_step(job_id, 'recipe', {'duration_ms': recipe_duration, 'scenes': num_scenes})
         except Exception:
@@ -777,7 +809,7 @@ def run_pipeline(
         step_start = time.time()
         script = generate_script(product_name, product_profile, recipe)
         script_duration = int((time.time() - step_start) * 1000)
-        
+
         try:
             update_step(job_id, 'script', {'duration_ms': script_duration, 'script': script[:100]})
         except Exception:
@@ -787,7 +819,7 @@ def run_pipeline(
         step_start = time.time()
         image_prompt = build_image_prompt(product_name, product_profile, recipe)
         img_prompt_duration = int((time.time() - step_start) * 1000)
-        
+
         try:
             update_step(job_id, 'image_prompt', {'duration_ms': img_prompt_duration})
         except Exception:
@@ -795,12 +827,11 @@ def run_pipeline(
 
         # ── STEP 5: Generate Image ──
         step_start = time.time()
-        img_url = generate_image(image_prompt, product_image)
+        img_url, cost_image = generate_image(image_prompt, product_image)
         img_path = TMP_DIR / f"image_{run_id}.png"
         download_file(img_url, img_path)
         image_duration = int((time.time() - step_start) * 1000)
-        cost_image = 0.005
-        
+
         try:
             update_step(job_id, 'image_gen', {'duration_ms': image_duration, 'output_path': str(img_path)})
             update_cost(job_id, 'image', cost_image)
@@ -811,7 +842,7 @@ def run_pipeline(
         step_start = time.time()
         video_prompts = build_video_prompts(product_profile, recipe, str(img_path))
         vid_prompt_duration = int((time.time() - step_start) * 1000)
-        
+
         try:
             update_step(job_id, 'video_prompts', {'duration_ms': vid_prompt_duration, 'count': len(video_prompts)})
         except Exception:
@@ -834,32 +865,30 @@ def run_pipeline(
         voice_path = generate_voice(script, voice=voice, run_id=run_id)
         tts_duration = int((time.time() - step_start) * 1000)
         cost_voice = (len(script) / 1000) * 0.0001
-        
+
         try:
             update_step(job_id, 'tts', {'duration_ms': tts_duration, 'output_path': voice_path})
             update_cost(job_id, 'voice', cost_voice)
         except Exception:
             pass
 
-        # ── STEP 8: Generate Videos (per scene) ──
+        # ── STEP 8: Generate 1 Video (Wan 2.7 Sync, 1 scene) ──
         step_start = time.time()
         video_paths = []
-        video_duration = total_duration // num_scenes if num_scenes > 0 else 8
         
-        for i in range(num_scenes):
-            vprompt = video_prompts[i] if i < len(video_prompts) else "Product showcase, smooth motion"
-            logger.info(f"  Scene {i+1}/{num_scenes}: {vprompt[:60]}...")
-            
-            vid_path = generate_video(
-                image_path=str(img_path),
-                prompt=vprompt,
-                duration=video_duration,
-            )
-            video_paths.append(vid_path)
-
-        cost_video = num_scenes * 0.03
+        # 1 scene only — ใช้ prompt แรก (Hook) + duration เต็ม
+        vprompt = video_prompts[0] if video_prompts else "Product showcase, smooth motion"
+        logger.info(f"  Generating 1 video ({total_duration}s): {vprompt[:60]}...")
+        
+        vid_path, cost_video = generate_video(
+            image_path=str(img_path),
+            prompt=vprompt,
+            duration=total_duration,
+        )
+        video_paths.append(vid_path)
+        
         video_gen_duration = int((time.time() - step_start) * 1000)
-        
+
         try:
             update_step(job_id, 'video_gen', {
                 'duration_ms': video_gen_duration,
@@ -875,7 +904,7 @@ def run_pipeline(
         # Cost summary
         cost_total = cost_image + cost_voice + cost_video
         total_duration_ms = int((time.time() - pipeline_start) * 1000)
-        
+
         logger.info(f"{'='*60}")
         logger.info(f"Pipeline v6 complete: {final_path}")
         logger.info(f"Cost: ${cost_total:.4f}")
@@ -911,7 +940,7 @@ def run_pipeline(
             "image_path": str(img_path),
             "video_paths": video_paths,
         }
-    
+
     except Exception as e:
         try:
             fail_job(job_id, str(e), 'unknown')
@@ -930,7 +959,7 @@ if __name__ == "__main__":
     parser.add_argument("--recipe", default="tus", help="Recipe name")
     parser.add_argument("--voice", default="Aoede", help="TTS voice")
     parser.add_argument("--bgm", default="chill_loft", help="BGM style")
-    parser.add_argument("--description", default="", help="คำอธิบายสินค้า")
+    parser.add_argument("--description", default="", help="คําอธิบายสินค้า")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO)

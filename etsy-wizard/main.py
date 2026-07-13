@@ -198,6 +198,17 @@ def health():
 
 # ─── Validator Endpoints ───────────────────────────────────────────────────
 
+
+@app.get("/pod-wizard")
+def pod_wizard_page():
+    """POD Create Product Wizard UI"""
+    from fastapi.responses import HTMLResponse
+    import os
+    html_path = os.path.join(os.path.dirname(__file__), "static", "pod-wizard.html")
+    with open(html_path, "r", encoding="utf-8") as f:
+        content = f.read()
+    return HTMLResponse(content=content)
+
 @app.post("/validate/listing")
 def check_listing(listing: Listing):
     """ตรวจสอบ Listing ว่าผ่าน Etsy Rules หรือไม่"""
@@ -512,7 +523,7 @@ def ai_generate_product(product: ProductInfo):
             from image_gen import make_etsy_compliant_prompt
             prompt = make_etsy_compliant_prompt(concept.get("product_name", product.name), product.description, concept.get("image_style", "product"))
         
-        img = generate_product_image(prompt, model_tier="quality", upscale=True)
+        img = generate_product_image(prompt, model_tier="default", upscale=False)
         image_result = {
             "image_url": img["image_url"],
             "width": img["width"],
@@ -1281,3 +1292,30 @@ def pod_wizard_cancel(session_id: str):
         raise HTTPException(status_code=404, detail=f"Session not found: {session_id}")
     session.status = "cancelled"
     return {"ok": True, "message": "Session cancelled", "session_id": session_id}
+
+
+@app.post("/ai/generate-concept")
+def ai_generate_concept(product: ProductInfo):
+    """
+    AI Generate เฉพาะ Concept — ไม่รวม Image gen
+    เร็วกว่า /ai/generate-product เพราะไม่ต้องสร้างภาพ
+    """
+    from assistant import generate_product_concept
+    import time
+    t0 = time.time()
+    
+    concept = generate_product_concept(product.model_dump())
+    elapsed = time.time() - t0
+    
+    return {
+        "ok": True,
+        "product_name": concept.get("product_name", product.name),
+        "title": concept.get("title", ""),
+        "tags": concept.get("tags", []),
+        "description": concept.get("description", ""),
+        "price": concept.get("price", 19.99),
+        "materials": concept.get("materials", []),
+        "image_prompt": concept.get("image_prompt", ""),
+        "image_style": concept.get("image_style", "product"),
+        "elapsed_seconds": round(elapsed, 1),
+    }

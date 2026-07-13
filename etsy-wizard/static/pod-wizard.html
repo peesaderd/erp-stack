@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>📦 POD Create Product Wizard</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: system-ui, -apple-system, 'Inter', sans-serif; background: #f2f2f7; color: #1c1c1e; min-height: 100vh; -webkit-tap-highlight-color: transparent; }
+
+/* Progress */
+.progress-wrap { padding: 12px 16px 0; max-width: 720px; margin: auto; }
+.progress-bar { display: flex; gap: 3px; }
+.progress-step { flex: 1; height: 4px; border-radius: 3px; background: #e5e5ea; transition: background .3s; }
+.progress-step.done { background: #34c759; }
+.progress-step.active { background: #7c3aed; }
+
+/* Header */
+.header { display: flex; align-items: center; max-width: 720px; margin: auto; padding: 14px 16px 6px; gap: 10px; }
+.header h1 { font-size: 17px; font-weight: 600; flex: 1; }
+.step-label { font-size: 12px; color: #8e8e93; background: #e5e5ea; padding: 2px 10px; border-radius: 20px; }
+.back-btn { display: none; background: none; border: none; font-size: 22px; cursor: pointer; padding: 0 4px; color: #7c3aed; line-height: 1; }
+.back-btn.show { display: block; }
+
+/* Card */
+.card { max-width: 720px; margin: 10px auto 20px; background: #fff; border-radius: 14px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+.card h2 { font-size: 19px; font-weight: 600; margin-bottom: 2px; }
+.card .desc { color: #8e8e93; font-size: 13px; margin-bottom: 16px; }
+
+/* Loading */
+.loading { display: none; text-align: center; padding: 80px 20px; }
+.loading.on { display: block; }
+.spinner { width: 32px; height: 32px; border: 3px solid #e5e5ea; border-top-color: #7c3aed; border-radius: 50%; animation: spin .7s linear infinite; margin: 0 auto 12px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading p { color: #8e8e93; font-size: 14px; line-height: 1.5; }
+
+/* Error state inside loading */
+.loading .error-box { display: none; margin-top: 20px; padding: 16px; background: #fbe9e7; border-radius: 12px; border-left: 3px solid #d32f2f; text-align: left; }
+.loading .error-box.on { display: block; }
+.loading .error-box .err-title { color: #d32f2f; font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+.loading .error-box .err-msg { color: #5f6368; font-size: 12px; margin-bottom: 12px; font-family: monospace; word-break: break-all; }
+.retry-btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; background: #7c3aed; color: #fff; border: none; border-radius: 10px; font-size: 14px; font-weight: 500; cursor: pointer; }
+
+/* Form */
+label { display: block; font-size: 13px; font-weight: 500; color: #3a3a3c; margin: 14px 0 5px; }
+label:first-of-type { margin-top: 0; }
+select, input, textarea {
+  width: 100%; padding: 10px 12px; font-size: 15px; border: 1.5px solid #e5e5ea; border-radius: 10px;
+  background: #fafafa; font-family: inherit; transition: .2s;
+}
+select:focus, input:focus, textarea:focus { border-color: #7c3aed; background: #fff; box-shadow: 0 0 0 3px rgba(124,58,237,.12); outline: none; }
+textarea { min-height: 56px; resize: vertical; }
+
+/* Chips */
+.chip-grid { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0; }
+.chip {
+  padding: 8px 14px; border-radius: 10px; border: 1.5px solid #e5e5ea; cursor: pointer;
+  font-size: 13px; font-weight: 500; background: #fff; transition: .15s; user-select: none; -webkit-touch-callout: none;
+}
+.chip:hover { border-color: #7c3aed; }
+.chip.sel { border-color: #7c3aed; background: #ede9fe; box-shadow: 0 0 0 2px rgba(124,58,237,.2); }
+.chip-provider { flex: 1; min-width: 160px; text-align: center; padding: 14px 12px; }
+.chip-provider .icon { font-size: 24px; display: block; margin-bottom: 4px; }
+.chip-provider .name { font-weight: 600; }
+
+/* Buttons */
+.btn-row { display: flex; gap: 10px; margin-top: 20px; }
+.btn-row.right { justify-content: flex-end; }
+.btn {
+  padding: 12px 24px; font-size: 15px; font-weight: 500; border: none; border-radius: 10px;
+  cursor: pointer; transition: .15s; min-height: 44px;
+}
+.btn:active { transform: scale(.97); }
+.btn-primary { background: #7c3aed; color: #fff; flex: 1; }
+.btn-primary:disabled { background: #c4b5fd; cursor: not-allowed; transform: none; }
+.btn-secondary { background: #f2f2f7; color: #3a3a3c; }
+.btn-success { background: #34c759; color: #fff; flex: 1; }
+
+/* Result */
+.result { display: none; margin-top: 14px; padding: 14px; border-radius: 10px; font-size: 14px; line-height: 1.6; }
+.result.on { display: block; }
+.result.good { background: #e8f5e9; border-left: 3px solid #34c759; }
+.result.bad { background: #fbe9e7; border-left: 3px solid #d32f2f; }
+.result.info { background: #e3f2fd; border-left: 3px solid #1976d2; }
+.result pre { white-space: pre-wrap; font-family: inherit; margin-top: 6px; font-size: 13px; }
+
+/* Table */
+.stable { width: 100%; border-collapse: collapse; margin-top: 8px; }
+.stable td { padding: 9px 10px; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+.stable td:first-child { color: #8e8e93; width: 120px; }
+.stable .green { color: #34c759; font-weight: 600; }
+.stable .red { color: #d32f2f; font-weight: 600; }
+
+/* Touch improvements */
+.chip, .btn, .retry-btn { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+
+/* AI Section */
+.ai-section { margin: 12px 0; }
+.ai-section textarea { min-height: 100px; font-size: 15px; }
+.btn-ai { background: #7c3aed; color: #fff; border: none; padding: 12px 24px; border-radius: 12px; font-size: 16px; font-weight: 600; width: 100%; margin-top: 12px; cursor: pointer; touch-action: manipulation; }
+.btn-ai:disabled { opacity: .5; }
+.btn-ai:not(:disabled):active { transform: scale(.97); }
+.ai-card { background: #f0f0f5; border-radius: 12px; padding: 12px; margin-bottom: 12px; }
+.ai-result-grid { display: grid; gap: 12px; }
+.ai-result-item { background: #f8f9fa; border-radius: 10px; padding: 12px; border: 1px solid #e8e8ed; }
+.ai-result-item strong { font-size: 14px; color: #3c3c43; }
+.tag-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.tag-pills .chip { background: #e8e0f7; color: #5b21b6; padding: 4px 10px; border-radius: 12px; font-size: 12px; }
+
+</style>
+</head>
+<body>
+
+<div class="progress-wrap"><div class="progress-bar" id="progressBar"></div></div>
+
+<div class="header">
+  <button class="back-btn" id="backBtn" onclick="goBack()">‹</button>
+  <h1 id="title">📦 POD Create Product</h1>
+  <span class="step-label" id="stepLabel">0/9</span>
+</div>
+
+<!-- Loading state -->
+<div class="loading on" id="loading">
+  <div class="spinner" id="spinner"></div>
+  <p id="loadMsg">กำลังเริ่ม session...</p>
+  <div class="error-box" id="loadError">
+    <div class="err-title">❌ ไม่สามารถเชื่อมต่อได้</div>
+    <div class="err-msg" id="loadErrorMsg">ไม่ทราบสาเหตุ</div>
+    <button class="retry-btn" onclick="init()">🔄 ลองอีกครั้ง</button>
+  </div>
+</div>
+
+<div class="card" id="card">
+  <div id="stepContent"></div>
+  <div class="result" id="result"></div>
+</div>
+
+<script>
+// ─── Helper: fetch with timeout ────────────────────────────────────────
+async function api(url, opts = {}) {
+  const timeout = opts.timeout || 15000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+  // Auto-add Content-Type for JSON body when not explicitly set
+  if (opts.body && typeof opts.body === 'string') {
+    var h = opts.headers || {};
+    if (!h['Content-Type'] && !h['content-type']) {
+      h['Content-Type'] = 'application/json';
+      opts.headers = h;
+    }
+  }
+  try {
+    const res = await fetch(url, { ...opts, signal: controller.signal });
+    return res;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// ─── Config ─────────────────────────────────────────────────────────────
+var API = window.location.pathname.startsWith('/etsy/') ? '/etsy' : '';
+var S = null;    // session
+var SI = 0;      // step index
+var TOTAL = 10;
+var STEPS = ['brief','provider','category','product','variant','artwork','mockup','content','pricing','summary'];
+var META = [
+  { title:'ออกแบบด้วย AI', icon:'🤖', desc:'พิมพ์สิ่งที่คุณต้องการ แล้วให้ AI สร้างทุกอย่างให้อัตโนมัติ' },
+  { title:'เลือก Provider', icon:'🏪', desc:'เลือก POD fulfillment partner' },
+  { title:'เลือกหมวดหมู่', icon:'📁', desc:'เลือกประเภทสินค้า' },
+  { title:'เลือกสินค้า', icon:'🎯', desc:'เลือกรูปแบบสินค้า + ดู spec' },
+  { title:'สีและขนาด', icon:'🎨', desc:'เลือกสีและขนาด' },
+  { title:'ตรวจสอบ Artwork', icon:'🖼️', desc:'ตรวจสอบขนาด artwork' },
+  { title:'สร้าง Mockup', icon:'✨', desc:'สร้าง prompt สำหรับ AI' },
+  { title:'สร้างคำอธิบาย', icon:'✍️', desc:'Content สำหรับ listing' },
+  { title:'ตั้งราคา', icon:'💰', desc:'คำนวณต้นทุน + กำไร' },
+  { title:'สรุป', icon:'✅', desc:'สรุปก่อน publish' },
+];
+
+// State
+var selProvider = null;
+var selCategory = null;
+var selColor = null;
+var selSize = null;
+var aiData = null;  // AI-generated results {title, desc, tags, price, image_url, image_prompt}
+
+// ─── Init ────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', function() { init(); });
+
+async function init() {
+  // Reset error state
+  var errBox = document.getElementById('loadError');
+  errBox.classList.remove('on');
+  showLoading(true, 'กำลังเริ่ม session...');
+
+  try {
+    console.log('[POD] API prefix: "' + API + '"');
+
+    var res = await api(API + '/pod/wizard/start', { method: 'POST' });
+    if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + res.statusText);
+
+    var data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'server rejected request');
+
+    S = data.session;
+    SI = S.current_step_idx;
+    showLoading(false);
+    render();
+    console.log('[POD] Session ' + S.session_id + ' started, step=' + SI);
+  } catch (e) {
+    console.error('[POD] init error:', e);
+    // DON'T hide loading — show error INSIDE the loading container
+    document.getElementById('loadErrorMsg').textContent = e.name === 'AbortError'
+      ? 'การเชื่อมต่อหมดเวลา (15 วินาที) — กรุณาลองอีกครั้ง'
+      : e.message || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้';
+    errBox.classList.add('on');
+    document.getElementById('spinner').style.display = 'none';
+    document.getElementById('loadMsg').textContent = '⚠️ การเชื่อมต่อมีปัญหา';
+  }
+}
+
+// ─── Loading helper ─────────────────────────────────────────────────────
+function showLoading(on, msg) {
+  var el = document.getElementById('loading');
+  if (on) {
+    el.classList.add('on');
+    var sp = document.getElementById('spinner');
+    if (sp) sp.style.display = '';
+    document.getElementById('card').style.display = 'none';
+    if (msg) document.getElementById('loadMsg').textContent = msg;
+  } else {
+    el.classList.remove('on');
+    document.getElementById('card').style.display = 'block';
+  }
+}
+
+
+
+// ─── Render ──────────────────────────────────────────────────────────────
+function render() {
+  drawProgress();
+  drawStep();
+  var bb = document.getElementById('backBtn');
+  if (SI > 0) bb.classList.add('show'); else bb.classList.remove('show');
+  document.getElementById('result').classList.remove('on');
+}
+
+function drawProgress() {
+  var bar = document.getElementById('progressBar');
+  bar.innerHTML = '';
+  for (var i = 0; i < TOTAL; i++) {
+    var d = document.createElement('div');
+    d.className = 'progress-step';
+    if (i < SI) d.classList.add('done');
+    else if (i === SI) d.classList.add('active');
+    bar.appendChild(d);
+  }
+  document.getElementById('stepLabel').textContent = Math.min(SI+1, TOTAL) + '/' + TOTAL;
+  var m = META[SI] || META[TOTAL-1];
+  document.getElementById('title').textContent = m.icon + ' ' + m.title;
+}
+
+function drawStep() {
+  var el = document.getElementById('stepContent');
+  var m = META[SI] || META[TOTAL-1];
+  var sid = STEPS[SI] || 'summary';
+  el.innerHTML = stepHTML(sid, m);
+  afterRender(sid);
+}
+
+// ─── Step HTML ──────────────────────────────────────────────────────────
+function stepHTML(sid, m) {
+  var base = '<h2>' + m.icon + ' ' + m.title + '</h2><p class="desc">' + m.desc + '</p>';
+  var btns = '<div class="btn-row right"><button class="btn btn-primary" id="bNext" onclick="goNext()">ถัดไป →</button></div>';
+  var maps = {
+    provider:  base + '<div class="chip-grid" id="providerList"></div>' + btns,
+    category:  base + '<div class="chip-grid" id="catList"></div>' + btns,
+    product:   base + '<label>สินค้า</label><select id="selProduct" onchange="onProduct()"><option value="">— กรุณาเลือก —</option></select><div id="prodSpec"></div>' + btns,
+    variant:   base + '<label>สี</label><div class="chip-grid" id="colorGrid"></div><label>ขนาด</label><div class="chip-grid" id="sizeGrid"></div>' + btns,
+    artwork:   base + (aiData && aiData.image_url ? '<div class="ai-card"><img src="'+aiData.image_url+'" style="max-width:100%;border-radius:12px;margin-bottom:10px"><p style="font-size:13px;color:#5f6368">✨ AI สร้างจาก Fal.ai</p></div>' : '') + '<label>ความกว้าง (px)</label><input type="number" id="artW" value="3600" oninput="valArt()"><label>ความสูง (px)</label><input type="number" id="artH" value="4800" oninput="valArt()"><label>DPI</label><input type="number" id="artDPI" value="300" oninput="valArt()"><label>ขนาดไฟล์ (MB)</label><input type="number" id="artMB" value="5" step=".1" oninput="valArt()"><label>ประเภท</label><select id="artType" onchange="valArt()"><option>PNG</option><option>JPEG</option><option>SVG</option></select><div id="artResult"></div>' + btns,
+    mockup:    base + (aiData && aiData.image_url ? '<div class="ai-card"><img src="'+aiData.image_url+'" style="max-width:100%;border-radius:12px;margin-bottom:10px"><p style="font-size:13px;color:#5f6368">✨ AI Artwork — พร้อมนำไปสร้าง mockup</p></div>' : '') + '<label>รายละเอียด design</label><textarea id="designDesc" placeholder="อธิบาย design เช่น minimalist cat, black & white">'+(aiData?aiData.image_prompt:'')+'</textarea><div id="mockupResult"></div>' + btns,
+    content:   base + '<label>ชื่อสินค้า</label><input type="text" id="prodName" placeholder="Cool Cat Tee" value="'+(aiData?aiData.title:'')+'"><label>คำอธิบาย</label><textarea id="prodDesc" placeholder="อธิบายสินค้า">'+(aiData?aiData.description:'')+'</textarea><div id="tagsDisplay" style="margin-top:10px"></div><div id="aiTagsHint" style="margin-top:8px;font-size:12px;color:#7c3aed"></div>' + btns,
+    pricing:   base + '<label>ราคาขาย (USD)</label><input type="number" id="sellPrice" value="'+(aiData?aiData.price:'29.99')+'" step=".01" oninput="calcProfit()"><label>ภูมิภาค</label><select id="region" onchange="calcProfit()"><option>US</option><option>EU</option><option>UK</option><option>CA</option></select><div id="priceResult"></div>' + btns,
+    brief:     base + '<div class="ai-section"><label style="font-size:15px;font-weight:600;">📝 บอกว่าอยากได้อะไร</label><textarea id="designBrief" rows="4" placeholder="เช่น เสื้อยืดลายแมวขาวดำ minimalist, เสื้อ Hoodie สีดำพิมพ์ลายเรขาคณิต, แก้ว mugg สีขาวพิมพ์รูปน้องหมา"></textarea><button class="btn btn-ai" id="btnGenerate" onclick="generateWithAI()">🤖 ให้ AI สร้างให้</button><div id="aiProgress" class="loading" style="display:none"><div class="spinner"></div><div class="msg" id="aiMsg">🤖 AI กำลังสร้าง concept...</div></div></div><div id="aiPreview" style="display:none"><h3>✨ ผลลัพธ์จาก AI</h3><div id="aiResults"></div></div>' + '<div class="btn-row right"><button class="btn btn-primary" id="bNext" onclick="goNext()">เริ่มสร้าง →</button></div>',
+    summary:   base + '<div id="summaryContent"></div><div class="btn-row"><button class="btn btn-secondary" onclick="location.reload()">🔄 เริ่มใหม่</button><button class="btn btn-success" onclick="showResult(\'✅ เสร็จสมบูรณ์! พร้อมไป Printful เพื่อ publish\',\'good\')">✅ เสร็จสิ้น</button></div>'
+  };
+  return maps[sid] || maps.summary;
+}
+
+function afterRender(sid) {
+  if (sid === 'provider') fillProviders();
+  else if (sid === 'category') fillCategories();
+  else if (sid === 'product') fillProducts();
+  else if (sid === 'variant') fillVariant();
+  else if (sid === 'pricing') setTimeout(calcProfit, 100);
+  else if (sid === 'brief') afterAI();
+  else if (sid === 'artwork') setTimeout(valArt, 200);
+  else if (sid === 'content') afterContent();
+  else if (sid === 'summary') fillSummary();
+
+  var btn = document.getElementById('bNext');
+  if (btn) {
+    if (['provider','category','product','variant','artwork'].indexOf(sid) >= 0) btn.disabled = true;
+    if (['mockup','content','pricing','summary'].indexOf(sid) >= 0) btn.disabled = false;
+  }
+}
+
+// ─── Provider ────────────────────────────────────────────────────────────
+function fillProviders() {
+  var list = [
+    {id:'printful', icon:'🔵', name:'Printful', desc:'POD หลัก DTG/Embroidery'},
+    {id:'printify', icon:'🟢', name:'Printify', desc:'Marketplace หลาย provider'},
+    {id:'gelato',  icon:'🟣', name:'Gelato',  desc:'Print ใกล้ลูกค้า'},
+  ];
+  var el = document.getElementById('providerList');
+  el.innerHTML = list.map(function(p) {
+    return '<div class="chip chip-provider" data-id="' + p.id + '" onclick="pickProvider(\'' + p.id + '\')">' +
+      '<span class="icon">' + p.icon + '</span><span class="name">' + p.name + '</span><br><small>' + p.desc + '</small></div>';
+  }).join('');
+}
+
+function pickProvider(id) {
+  selProvider = id;
+  var chips = document.querySelectorAll('#providerList .chip');
+  for (var i = 0; i < chips.length; i++) {
+    var c = chips[i];
+    if (c.dataset.id === id) c.classList.add('sel'); else c.classList.remove('sel');
+  }
+  document.getElementById('bNext').disabled = false;
+}
+
+// ─── Category ────────────────────────────────────────────────────────────
+function fillCategories() {
+  var labels = {apparel:'👕 เสื้อผ้า', drinkware:'☕ แก้วน้ำ', home:'🏠 ของตกแต่งบ้าน', accessories:'👜 เครื่องประดับ', stationery:'📓 เครื่องเขียน'};
+  var cats = ['apparel','drinkware','home','accessories','stationery'];
+  var el = document.getElementById('catList');
+  el.innerHTML = cats.map(function(c) {
+    return '<div class="chip" data-cat="' + c + '" onclick="pickCat(\'' + c + '\')">' + (labels[c] || c) + '</div>';
+  }).join('');
+}
+
+function pickCat(c) {
+  selCategory = c;
+  var chips = document.querySelectorAll('#catList .chip');
+  for (var i = 0; i < chips.length; i++) {
+    var ch = chips[i];
+    if (ch.dataset.cat === c) ch.classList.add('sel'); else ch.classList.remove('sel');
+  }
+  document.getElementById('bNext').disabled = false;
+}
+
+// ─── Product ─────────────────────────────────────────────────────────────
+async function fillProducts() {
+  try {
+    var r = await api(API + '/pod/products?category=' + selCategory);
+    var d = await r.json();
+    var sel = document.getElementById('selProduct');
+    var html = '<option value="">— กรุณาเลือก —</option>';
+    if (d.products) {
+      for (var i = 0; i < d.products.length; i++) {
+        html += '<option value="' + d.products[i].id + '">' + d.products[i].name + '</option>';
+      }
+    }
+    sel.innerHTML = html;
+  } catch(e) { console.error('[POD] fillProducts', e); }
+}
+
+async function onProduct() {
+  var pid = document.getElementById('selProduct').value;
+  var el = document.getElementById('prodSpec');
+  if (!pid) { el.innerHTML = ''; document.getElementById('bNext').disabled = true; return; }
+  try {
+    var r = await api(API + '/pod/product/' + pid);
+    var d = await r.json();
+    var p = d.product;
+    el.innerHTML = '<div class="result on info"><strong>🎯 Spec</strong><pre>' +
+      p.width_inch + '×' + p.height_inch + '"  |  ' + p.width_px_300 + '×' + p.height_px_300 + 'px  |  ' + p.dpi_recommended + 'dpi' +
+      '\nการพิมพ์: ' + p.print_technique + '\n📍 ' + (p.notes || '') + '</pre></div>';
+    document.getElementById('bNext').disabled = false;
+  } catch(e) { console.error('[POD] onProduct', e); }
+}
+
+// ─── Variant ─────────────────────────────────────────────────────────────
+function fillVariant() {
+  var colors = ['White','Black','Navy','Gray','Red','Royal','Dark Heather','Army','Pink','Mint'];
+  var sizes = ['XS','S','M','L','XL','2XL','3XL'];
+  var cg = document.getElementById('colorGrid');
+  cg.innerHTML = colors.map(function(c) { return '<div class="chip" onclick="pickColor(\'' + c + '\')">' + c + '</div>'; }).join('');
+  var sg = document.getElementById('sizeGrid');
+  sg.innerHTML = sizes.map(function(s) { return '<div class="chip" onclick="pickSize(\'' + s + '\')">' + s + '</div>'; }).join('');
+  checkVar();
+}
+
+function pickColor(c) { selColor = c; toggleChips('colorGrid', c); checkVar(); }
+function pickSize(s) { selSize = s; toggleChips('sizeGrid', s); checkVar(); }
+function checkVar() { var b = document.getElementById('bNext'); if (b) b.disabled = !(selColor && selSize); }
+
+function toggleChips(gridId, value) {
+  var chips = document.querySelectorAll('#' + gridId + ' .chip');
+  for (var i = 0; i < chips.length; i++) {
+    if (chips[i].textContent.trim() === value) chips[i].classList.add('sel');
+    else chips[i].classList.remove('sel');
+  }
+}
+
+// ─── Artwork ─────────────────────────────────────────────────────────────
+function valArt() {
+  var w = +document.getElementById('artW').value || 0;
+  var h = +document.getElementById('artH').value || 0;
+  var dpi = +document.getElementById('artDPI').value || 0;
+  var mb = +document.getElementById('artMB').value || 0;
+  var t = document.getElementById('artType').value;
+  var pid = (S && S.product_id) || 'tshirt_standard';
+
+  api(API + '/pod/validate-artwork', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({product_id:pid, width_px:w, height_px:h, dpi:dpi, file_size_mb:mb, file_type:t})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    var el = document.getElementById('artResult');
+    if (d.valid) {
+      el.innerHTML = '<div class="result on good"><strong>✅ Artwork ผ่าน!</strong> คะแนน ' + d.score + '/100 (' + d.score_label + ')</div>';
+      document.getElementById('bNext').disabled = false;
+    } else {
+      el.innerHTML = '<div class="result on bad"><strong>❌ ' + d.score_label + '</strong><br>' + ((d.errors||[]).join('<br>')) + '</div>';
+      document.getElementById('bNext').disabled = true;
+    }
+  }).catch(function() { document.getElementById('bNext').disabled = false; });
+}
+
+// ─── Pricing ─────────────────────────────────────────────────────────────
+function calcProfit() {
+  var price = +document.getElementById('sellPrice').value || 0;
+  var region = document.getElementById('region').value;
+  if (!S) return;
+
+  api(API + '/pod/wizard/step', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({session_id: S.session_id, action: 'set', data: {selling_price: price, region: region}})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    var p = d.step_result && d.step_result.pricing;
+    if (!p) return;
+    document.getElementById('priceResult').innerHTML =
+      '<table class="stable">' +
+      '<tr><td>ราคาขาย</td><td><strong>$' + p.selling_price.toFixed(2) + '</strong></td></tr>' +
+      '<tr><td>ต้นทุนสินค้า</td><td>$' + p.base_cost.toFixed(2) + '</td></tr>' +
+      '<tr><td>ค่าส่ง</td><td>$' + p.shipping.toFixed(2) + '</td></tr>' +
+      '<tr><td>Platform fee</td><td>$' + p.platform_fee.toFixed(2) + '</td></tr>' +
+      '<tr><td>Transaction fee</td><td>$' + p.transaction_fee.toFixed(2) + '</td></tr>' +
+      '<tr><td><strong>รวมต้นทุน</strong></td><td><strong>$' + p.total_cost.toFixed(2) + '</strong></td></tr>' +
+      '<tr><td><strong>💰 กำไร</strong></td><td class="' + (p.profit >= 0 ? 'green' : 'red') + '"><strong>$' + p.profit.toFixed(2) + ' (' + p.margin_percent + '%)</strong></td></tr>' +
+      '</table>';
+  }).catch(console.error);
+}
+
+// ─── Summary ─────────────────────────────────────────────────────────────
+async function fillSummary() {
+  try {
+    var r = await api(API + '/pod/wizard/' + S.session_id);
+    var d = await r.json();
+    var s = d.session;
+    var aiTags = '';
+    if (aiData && aiData.tags) {
+      aiTags = '<div class="tag-pills">' + aiData.tags.slice(0, 13).map(function(t){ return '<span class="chip">'+escHtml(t)+'</span>'}).join('') + '</div>';
+    }
+    var aiSection = aiData ? 
+      '<div class="ai-card">' +
+        '<strong>🤖 AI-Generated</strong>' +
+        (aiData.image_url ? '<br><img src="'+aiData.image_url+'" style="max-width:100%;border-radius:8px;margin-top:6px">' : '') +
+        '<p><strong>🏷️ ชื่อ:</strong> ' + escHtml(aiData.title || '') + '</p>' +
+        '<p><strong>📝 เนื้อหา:</strong> ' + escHtml((aiData.description||'').substring(0,200)) + '...</p>' +
+        '<p><strong>🏷️ Tags:</strong></p>' + aiTags +
+      '</div>' : '';
+    document.getElementById('summaryContent').innerHTML =
+      aiSection +
+      '<table class="stable">' +
+      '<tr><td>🏪 Provider</td><td>' + (s.provider||'—') + '</td></tr>' +
+      '<tr><td>📁 หมวดหมู่</td><td>' + (s.category||'—') + '</td></tr>' +
+      '<tr><td>🎯 สินค้า</td><td>' + (s.product_id||'—') + '</td></tr>' +
+      '<tr><td>🎨 สี</td><td>' + (s.variant_color||'—') + '</td></tr>' +
+      '<tr><td>📏 ขนาด</td><td>' + (s.variant_size||'—') + '</td></tr>' +
+      '<tr><td>🖼️ Artwork</td><td>' + (s.artwork_valid ? '✅ ผ่าน' : '—') + '</td></tr>' +
+      '<tr><td>💰 ราคา</td><td>' + (s.selling_price ? '$' + s.selling_price : '—') + '</td></tr>' +
+      '</table>' +
+      '<div class="result on info" style="margin-top:12px"><strong>📋 ขั้นตอนถัดไป</strong><br>' +
+      'ไปที่ Printful → เลือกสินค้า → อัปโหลด artwork → สร้าง mockup → publish</div>';
+  } catch(e) { console.error('[POD] fillSummary', e); }
+}
+
+// ─── Navigation ──────────────────────────────────────────────────────────
+async function goNext() {
+  var sid = STEPS[SI];
+  // Brief step: local only — AI data already stored in frontend
+  if (sid === 'brief') {
+    SI = 1;
+    render();
+    return;
+  }
+  var data = collectData(sid);
+  showLoading(true, 'กำลังดำเนินการ...');
+  try {
+    var r = await api(API + '/pod/wizard/step', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({session_id: S.session_id, action:'next', data: data})
+    });
+    var d = await r.json();
+    if (d.ok === false) {
+      showResult('❌ ' + d.error, 'bad');
+      showLoading(false);
+      return;
+    }
+    S = d.session;
+    // Frontend has virtual 'brief' step (idx 0) — backend starts at provider (idx 0)
+    // So backend index needs +1 to map to frontend STEPS array
+    SI = Math.min(S.current_step_idx + 1, STEPS.length - 1);
+    showLoading(false);
+    render();
+  } catch(e) {
+    showResult('❌ ' + e.message, 'bad');
+    showLoading(false);
+  }
+}
+
+function collectData(sid) {
+  switch(sid) {
+    case 'provider': return {provider_id: selProvider};
+    case 'category': return {category: selCategory};
+    case 'product':  return {product_id: document.getElementById('selProduct') ? document.getElementById('selProduct').value : null};
+    case 'variant':  return {color: selColor, size: selSize};
+    case 'artwork':  return {
+      width_px: +document.getElementById('artW').value || 0,
+      height_px: +document.getElementById('artH').value || 0,
+      dpi: +document.getElementById('artDPI').value || 0,
+      file_size_mb: +document.getElementById('artMB').value || 0,
+      file_type: document.getElementById('artType') ? document.getElementById('artType').value : 'PNG'
+    };
+    case 'mockup':  return {};
+    case 'content': return {
+      product_name: document.getElementById('prodName') ? document.getElementById('prodName').value : '',
+      product_desc: document.getElementById('prodDesc') ? document.getElementById('prodDesc').value : ''
+    };
+    case 'pricing': return {
+      selling_price: +document.getElementById('sellPrice').value || 29.99,
+      region: document.getElementById('region') ? document.getElementById('region').value : 'US'
+    };
+    default: return {};
+  }
+}
+
+function goBack() {
+  if (SI <= 0) return;
+  showLoading(true, 'กำลังย้อนกลับ...');
+  api(API + '/pod/wizard/step', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({session_id: S.session_id, action:'back', data:{}})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    // Backend decremented current_step_idx; map back to frontend SI
+    if (d.session) {
+      S = d.session;
+      SI = Math.max(0, Math.min(S.current_step_idx + 1, STEPS.length - 1));
+    } else {
+      SI = Math.max(0, SI - 1);
+    }
+    showLoading(false);
+    render();
+  }).catch(function(e) {
+    showResult('❌ ' + e.message, 'bad');
+    showLoading(false);
+  });
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────
+function showResult(html, type) {
+  if (!type) type = 'info';
+  var el = document.getElementById('result');
+  el.innerHTML = html;
+  el.className = 'result on ' + type;
+}
+
+// ─── AI Generation ─────────────────────────────────────────────────────────
+async function generateWithAI() {
+  var brief = document.getElementById('designBrief').value.trim();
+  if (!brief) { alert('⚠️ กรุณาใส่สิ่งที่คุณต้องการ'); return; }
+  
+  document.getElementById('btnGenerate').disabled = true;
+  document.getElementById('btnGenerate').textContent = '⏳ กำลังสร้าง...';
+  document.getElementById('aiProgress').style.display = 'flex';
+  document.getElementById('aiPreview').style.display = 'none';
+  
+  try {
+    // ===== Step 1: Generate concept (text only, ~10-15s) =====
+    setAIMsg('🤖 AI กำลังคิด concept สินค้า...');
+    var r1 = await api(API + '/ai/generate-concept', {
+      method: 'POST',
+      body: JSON.stringify({name: brief, description: brief}),
+      timeout: 120000
+    });
+    var concept = await r1.json();
+    if (!concept.ok) throw new Error(concept.error || 'AI concept failed');
+    
+    // ===== Step 2: Generate image from prompt (~10-15s) =====
+    setAIMsg('🎨 AI กำลังสร้างภาพ... (ใช้เวลา ~10-15 วินาที)');
+    var r2 = await api(API + '/ai/generate-image', {
+      method: 'POST',
+      body: JSON.stringify({
+        prompt: concept.image_prompt || '',
+        product_name: concept.product_name || brief,
+        description: concept.description || '',
+        style: concept.image_style || 'product',
+        upscale: false
+      }),
+      timeout: 180000
+    });
+    var imgData = await r2.json();
+    if (!imgData.ok) throw new Error(imgData.error || 'AI image failed');
+    
+    // ===== Step 3: Store all results =====
+    setAIMsg('✨ AI สร้างสำเร็จแล้ว! กำลังแสดงผลลัพธ์...');
+    await sleep(300);
+    
+    aiData = {
+      name: concept.product_name || brief,
+      title: concept.title || '',
+      description: concept.description || '',
+      tags: concept.tags || [],
+      price: concept.price || 19.99,
+      materials: concept.materials || [],
+      image_url: imgData.image_url || '',
+      image_prompt: concept.image_prompt || '',
+      image_style: concept.image_style || 'product'
+    };
+    
+    // Re-enable Next button now that aiData is populated
+    afterAI();
+    showAIResults();
+    document.getElementById('aiProgress').style.display = 'none';
+    document.getElementById('aiPreview').style.display = 'block';
+    document.getElementById('btnGenerate').disabled = false;
+    document.getElementById('btnGenerate').textContent = '🤖 สร้างใหม่';
+    
+  } catch(e) {
+    document.getElementById('btnGenerate').disabled = false;
+    document.getElementById('btnGenerate').textContent = '🤖 ให้ AI สร้างให้';
+    document.getElementById('aiProgress').style.display = 'none';
+    var msg = e.name === 'AbortError' 
+      ? '⏱️ หมดเวลา — เซิร์ฟเวอร์ใช้เวลานานเกินไป กรุณาลองอีกครั้ง' 
+      : (e.message || e);
+    document.getElementById('aiPreview').innerHTML = '<div class="error-box on" style="margin:12px"><div class="err-title">❌ AI ล้มเหลว</div><div class="err-msg">' + msg + '</div><button class="retry-btn" onclick="generateWithAI()">🔄 ลองอีกครั้ง</button></div>';
+    document.getElementById('aiPreview').style.display = 'block';
+  }
+}
+function setAIMsg(msg) {
+  var el = document.getElementById('aiMsg');
+  if (el) el.textContent = msg;
+}
+
+function showAIResults() {
+  var el = document.getElementById('aiResults');
+  if (!el || !aiData) return;
+  
+  var tags = (aiData.tags || []).slice(0, 13);
+  
+  el.innerHTML = '<div class="ai-result-grid">' +
+    '<div class="ai-result-item"><strong>🏷️ ชื่อสินค้า</strong><br>' + escHtml(aiData.title || aiData.name) + '</div>' +
+    (aiData.image_url ? '<div class="ai-result-item"><strong>🖼️ ภาพที่สร้าง</strong><br><img src="' + aiData.image_url + '" style="max-width:100%;border-radius:8px;margin-top:6px"></div>' : '') +
+    '<div class="ai-result-item"><strong>📝 คำอธิบาย</strong><br><div style="font-size:13px;line-height:1.5">' + escHtml((aiData.description || '').substring(0, 300)) + '</div></div>' +
+    '<div class="ai-result-item"><strong>🏷️ Tags</strong><br><div class="tag-pills">' + tags.map(function(t){ return '<span class="chip">'+escHtml(t)+'</span>'}).join('') + '</div></div>' +
+    '<div class="ai-result-item"><strong>💰 ราคาแนะนำ</strong><br>$' + (aiData.price || '19.99') + ' USD</div>' +
+    '<div class="ai-result-item"><strong>🧵 วัสดุ</strong><br>' + (aiData.materials || []).join(', ') + '</div>' +
+  '</div>';
+}
+
+function retryGenerate() {
+  generateWithAI();
+}
+
+function sleep(ms) { return new Promise(function(r){setTimeout(r, ms)}); }
+
+function escHtml(s) {
+  if (!s) return '';
+  var d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function afterAI() {
+  var el = document.getElementById('designBrief');
+  if (el) el.focus();
+  // Enable Next button if AI already generated
+  var btn = document.getElementById('bNext');
+  if (btn) btn.disabled = !aiData;
+}
+
+// Override artwork step to show AI art
+function fillArtwork() {
+  // If we have AI image, show it
+  if (aiData && aiData.image_url) {
+    var result = document.getElementById('artResult');
+    if (result) {
+      result.innerHTML = '<div class="ai-card"><img src="'+aiData.image_url+'" style="max-width:100%;border-radius:8px"><p style="font-size:12px;color:#5f6368;margin-top:6px">🎨 AI-generated artwork via Fal.ai</p></div>';
+    }
+  }
+}
+
+</script>
+</body>
+</html>

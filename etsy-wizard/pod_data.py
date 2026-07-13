@@ -35,12 +35,16 @@ PRINTFUL_PRODUCT_IDS = {
     "mug_11oz": None,             # TODO: find ID
     "mug_15oz": None,             # TODO: find ID
     "water_bottle": None,         # TODO: find ID
-    "canvas_print": None,         # TODO: find ID
-    "poster_18x24": None,         # TODO: find ID
-    "pillow_square": None,        # TODO: find ID (all-over = 83)
+    "canvas_print": 3,            # Canvas (in) — แคนวาส 8x10
+    "framed_canvas": 614,         # Framed Canvas (in)
+    "poster_18x24": 1,            # Enhanced Matte Paper Poster (in)
+    "framed_poster": 2,           # Enhanced Matte Paper Framed Poster (in)
+    "metal_print": 588,           # Glossy Metal Print (in)
+    "wall_tapestry": 973,         # Indoor Wall Tapestry
+    "pillow_square": 83,          # All-Over Print Basic Pillow
     "tote_bag": 84,               # All-Over Tote
     "phone_case_iphone": None,    # TODO: find ID
-    "notebook": None,             # TODO: find ID (calendar = 803)
+    "notebook": None,             # TODO: find ID
 }
 
 # Providers

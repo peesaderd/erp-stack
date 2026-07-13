@@ -35,10 +35,13 @@ app = FastAPI(
     description="AI Shop Setup Wizard + Rules Validator — Mini MVP",
 )
 
-# HACK: Load keys from tiktok-ugc-studio .env since etsy-wizard doesn't have its own
-_env_file = os.path.join(os.path.dirname(__file__), '..', 'tiktok-ugc-studio', '.env')
+# HACK: Load keys from .env files (own first, then tiktok-ugc-studio as fallback)
 _fal_from_env = None
-if os.path.exists(_env_file):
+_my_env = os.path.join(os.path.dirname(__file__), '.env')
+_fallback_env = os.path.join(os.path.dirname(__file__), '..', 'tiktok-ugc-studio', '.env')
+for _env_file in [_my_env, _fallback_env]:
+    if not os.path.exists(_env_file):
+        continue
     _env_content = open(_env_file).read()
     for _line in _env_content.split('\n'):
         _line = _line.strip()
@@ -59,6 +62,10 @@ if os.path.exists(_env_file):
             _k, _v = _line.split('=', 1)
             if 'GEMINI_MODEL' not in os.environ:
                 os.environ['GEMINI_MODEL'] = _v
+        elif _line.startswith('OPENCODE_URL='):
+            _k, _v = _line.split('=', 1)
+            if 'OPENCODE_URL' not in os.environ:
+                os.environ['OPENCODE_URL'] = _v
 
 # Add tiktok-ugc-studio to sys.path so we can import gemini_agent
 _ugc_path = os.path.join(os.path.dirname(__file__), '..', 'tiktok-ugc-studio')

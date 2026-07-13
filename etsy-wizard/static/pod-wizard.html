@@ -181,6 +181,8 @@ var selProvider = null;
 var selCategory = null;
 var selColor = null;
 var selSize = null;
+var selColors = [];   // multi-select: array of selected colors
+var selSizes = [];    // multi-select: array of selected sizes
 var aiData = null;  // AI-generated results {title, desc, tags, price, image_url, image_prompt}
 
 // ─── Init ────────────────────────────────────────────────────────────────
@@ -390,15 +392,22 @@ function fillVariant() {
   checkVar();
 }
 
-function pickColor(c) { selColor = c; toggleChips('colorGrid', c); checkVar(); }
-function pickSize(s) { selSize = s; toggleChips('sizeGrid', s); checkVar(); }
-function checkVar() { var b = document.getElementById('bNext'); if (b) b.disabled = !(selColor && selSize); }
+function pickColor(c) { 
+  var idx = selColors.indexOf(c);
+  if (idx >= 0) { selColors.splice(idx, 1); } else { selColors.push(c); }
+  toggleChips2('colorGrid', c); checkVar();
+}
+function pickSize(s) { 
+  var idx = selSizes.indexOf(s);
+  if (idx >= 0) { selSizes.splice(idx, 1); } else { selSizes.push(s); }
+  toggleChips2('sizeGrid', s); checkVar();
+}
+function checkVar() { var b = document.getElementById('bNext'); if (b) b.disabled = !(selColors.length > 0 && selSizes.length > 0); }
 
-function toggleChips(gridId, value) {
+function toggleChips2(gridId, value) {
   var chips = document.querySelectorAll('#' + gridId + ' .chip');
   for (var i = 0; i < chips.length; i++) {
-    if (chips[i].textContent.trim() === value) chips[i].classList.add('sel');
-    else chips[i].classList.remove('sel');
+    if (chips[i].textContent.trim() === value) chips[i].classList.toggle('sel');
   }
 }
 
@@ -527,7 +536,7 @@ function collectData(sid) {
     case 'provider': return {provider_id: selProvider};
     case 'category': return {category: selCategory};
     case 'product':  return {product_id: document.getElementById('selProduct') ? document.getElementById('selProduct').value : null};
-    case 'variant':  return {color: selColor, size: selSize};
+    case 'variant':  return {colors: selColors, sizes: selSizes};
     case 'artwork':  return {
       width_px: +document.getElementById('artW').value || 0,
       height_px: +document.getElementById('artH').value || 0,
@@ -631,6 +640,9 @@ async function generateWithAI() {
       image_prompt: concept.image_prompt || '',
       image_style: concept.image_style || 'product'
     };
+    
+    // Auto-detect category & product from brief + AI concept
+    autoDetectProduct(brief, concept);
     
     // Re-enable Next button now that aiData is populated
     afterAI();

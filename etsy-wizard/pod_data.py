@@ -337,6 +337,8 @@ def get_mockup_prompt(product_id: str, product_image_desc: str = "") -> str:
 SHIPPING_ESTIMATES = {
     "tshirt_standard": {"US": 3.99, "EU": 4.99, "UK": 4.99, "CA": 5.99},
     "hoodie_standard": {"US": 4.99, "EU": 5.99, "UK": 5.99, "CA": 6.99},
+    "tank_top":       {"US": 3.99, "EU": 4.99, "UK": 4.99, "CA": 5.99},
+    "leggings":       {"US": 5.99, "EU": 6.99, "UK": 6.99, "CA": 7.99},
     "mug_11oz":       {"US": 4.99, "EU": 5.99, "UK": 5.99, "CA": 6.99},
     "mug_15oz":       {"US": 5.49, "EU": 6.49, "UK": 6.49, "CA": 7.49},
     "poster_18x24":   {"US": 3.99, "EU": 4.99, "UK": 4.99, "CA": 5.99},
@@ -369,6 +371,8 @@ def get_profit_calculation(product_id: str, selling_price: float, region: str = 
         cost_estimates = {
             "tshirt_standard": 11.95,
             "hoodie_standard": 24.95,
+            "tank_top": 9.95,
+            "leggings": 19.95,
             "mug_11oz": 8.95,
             "mug_15oz": 10.95,
             "poster_18x24": 14.95,

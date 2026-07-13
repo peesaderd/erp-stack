@@ -54,6 +54,8 @@ class WizardSession:
         self.product_id = None
         self.variant_color = None
         self.variant_size = None
+        self.variant_colors = []
+        self.variant_sizes = []
         self.artwork_info = None          # upload result
         self.artwork_validation = None    # validate result
         self.mockup_image_url = None
@@ -84,6 +86,8 @@ class WizardSession:
             "product_id": self.product_id,
             "variant_color": self.variant_color,
             "variant_size": self.variant_size,
+            "variant_colors": getattr(self, 'variant_colors', []),
+            "variant_sizes": getattr(self, 'variant_sizes', []),
             "has_artwork": self.artwork_info is not None,
             "artwork_valid": self.artwork_validation.get("valid") if self.artwork_validation else None,
             "has_mockup": self.mockup_image_url is not None,
@@ -228,8 +232,9 @@ def handle_step_product(session: WizardSession, product_id: str) -> dict:
     }
 
 
-def handle_step_variant(session: WizardSession, color: str = None, size: str = None) -> dict:
-    """Step 4: เลือกสีและขนาด"""
+def handle_step_variant(session: WizardSession, colors: list = None, sizes: list = None,
+                         color: str = None, size: str = None) -> dict:
+    """Step 4: เลือกสีและขนาด (multi-select)"""
     if not session.product_id:
         return {"ok": False, "error": "ยังไม่ได้เลือกสินค้า"}
     
@@ -237,16 +242,21 @@ def handle_step_variant(session: WizardSession, color: str = None, size: str = N
     if not product:
         return {"ok": False, "error": "ไม่พบข้อมูลสินค้า"}
     
-    if color:
-        session.variant_color = color
-    if size:
-        session.variant_size = size
+    # Accept both multi-select (colors/sizes arrays) and legacy single-select
+    if colors:
+        session.variant_colors = colors
+    elif color:
+        session.variant_colors = [color]
+    if sizes:
+        session.variant_sizes = sizes
+    elif size:
+        session.variant_sizes = [size]
     
     return {
         "ok": True,
         "product_id": session.product_id,
-        "selected_color": session.variant_color,
-        "selected_size": session.variant_size,
+        "selected_colors": getattr(session, 'variant_colors', []),
+        "selected_sizes": getattr(session, 'variant_sizes', []),
         "colors": product.get("pf_colors", []),
         "sizes": product.get("pf_sizes", []),
         "pricing": product.get("pf_pricing", {}),
@@ -383,6 +393,8 @@ def handle_step_summary(session: WizardSession) -> dict:
             "variant": {
                 "color": session.variant_color,
                 "size": session.variant_size,
+                "colors": getattr(session, 'variant_colors', []),
+                "sizes": getattr(session, 'variant_sizes', []),
             },
             "artwork_valid": session.artwork_validation.get("valid") if session.artwork_validation else None,
             "artwork_score": session.artwork_validation.get("score") if session.artwork_validation else None,

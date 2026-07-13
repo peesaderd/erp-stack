@@ -565,7 +565,10 @@ def generate_video(
     if audio_path:
         with open(audio_path, "rb") as f:
             audio_data = f.read()
-        files.append(("audio", ("audio.wav", audio_data, "audio/wav")))
+        # Prodia: config.audio = multipart field name; filename must also match
+        config["config"]["audio"] = "audio"
+        files[0] = ("job", ("job.json", json.dumps(config), "application/json"))
+        files.append(("audio", ("audio", audio_data, "audio/wav")))
 
     headers = {"Authorization": f"Bearer {token}"}
 

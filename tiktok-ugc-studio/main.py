@@ -533,9 +533,11 @@ async def run_full_pipeline(req: FullPipelineRequest):
 
 @app.post("/scripts/generate")
 async def generate_script(req: ScriptRequest):
-    """Generate TikTok review script via Prompt Builder service"""
+    """Generate TikTok review script via Video Module"""
     try:
-        result = await _proxy("POST", "prompt-builder", "/api/v1/build", req.model_dump())
+        result = await _proxy("POST", "video", "/api/v1/scripts/generate", req.model_dump())
+        if result.get("ok"):
+            return result.get("data", {})
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -967,11 +969,72 @@ def list_products(limit: int = 50, preset: str = "all"):
 
 @app.post("/ugc/scripts/generate")
 async def ugc_scripts_generate(req: dict):
-    """Frontend compatibility endpoint for script generation."""
-    result = await _proxy("POST", "prompt-builder", "/api/v1/build", req)
-    if result.get("ok"):
-        return result.get("data", {})
-    raise HTTPException(status_code=500, detail=result.get("error", "Script generation failed"))
+    """Frontend compatibility endpoint for script generation.
+    Maps frontend fields to script generator fields, proxies to video module.
+    Parses the returned raw script into hook/value/cta for frontend fields.
+    """
+    import re
+
+    # Map frontend fields → ScriptRequest fields for script_gen
+    script_body = {
+        "product_name": req.get("product_title", req.get("product_name", "")),
+        "customer_problem": req.get("customer_problem", ""),
+        "main_benefit": req.get("product_details", req.get("description", "")),
+        "target_audience": req.get("target_audience", ""),
+        "tone": req.get("tone", ""),
+        "cta": req.get("cta", ""),
+        "duration": req.get("duration", "8s"),
+        "extra_rules": req.get("extra_rules", ""),
+    }
+    result = await _proxy("POST", "video", "/api/v1/scripts/generate", script_body)
+    if not result.get("ok"):
+        raise HTTPException(status_code=500, detail=result.get("error", "Script generation failed"))
+    
+    data = result.get("data", {})
+    script_obj = data.get("script", {}) if isinstance(data.get("script"), dict) else {}
+    raw_script = script_obj.get("script", "") if isinstance(script_obj, dict) else str(script_obj)
+    
+    # Parse raw script into hook/value/cta
+    hook = ""
+    value_proposition = ""
+    cta = ""
+    
+    if raw_script:
+        # Try [Hook]/[Value]/[CTA] marker format
+        hook_match = re.search(r'\[Hook\]\s*(.*?)(?=\[Value\]|\[CTA\]|$)', raw_script, re.DOTALL)
+        value_match = re.search(r'\[Value\]\s*(.*?)(?=\[CTA\]|$)', raw_script, re.DOTALL)
+        cta_match = re.search(r'\[CTA\]\s*(.*)', raw_script, re.DOTALL)
+        
+        if hook_match:
+            hook = hook_match.group(1).strip()
+        if value_match:
+            value_proposition = value_match.group(1).strip()
+        if cta_match:
+            cta = cta_match.group(1).strip()
+        
+        # Fallback for [สคริปต์ X วินาที] format or plain text
+        if not hook and not value_proposition and not cta:
+            lines = [l.strip() for l in raw_script.split('\n') if l.strip() and not l.startswith('[')]
+            if len(lines) >= 3:
+                hook = lines[0]
+                value_proposition = lines[1]
+                cta = lines[-1]
+            elif len(lines) == 2:
+                hook = lines[0]
+                cta = lines[-1]
+            elif len(lines) == 1:
+                hook = lines[0]
+    
+    return {
+        "success": True,
+        "script": raw_script,
+        "hook": hook,
+        "value_proposition": value_proposition,
+        "cta": cta,
+        "uses_llm": script_obj.get("uses_llm", False),
+        "duration": script_obj.get("duration", "8s"),
+        "product": script_obj.get("product", ""),
+    }
 
 @app.post("/ugc/images/build-prompt")
 async def ugc_images_build_prompt(req: dict):

@@ -498,7 +498,7 @@ def generate_video(
     Returns:
         tuple: (video_path, cost_usd)
     """
-    logger.info(f"Step 8/9: Generate video (Wan 2.7, {resolution} {ratio})")
+    logger.info(f"Step 8/9: Generate video (Wan 2.7, {resolution})")
     logger.info(f"  Prompt: {prompt[:80]}...")
 
     # Read image bytes
@@ -519,7 +519,6 @@ def generate_video(
             "config": {
                 "prompt": prompt[:100],
                 "resolution": resolution,
-                "ratio": ratio,
                 "duration": duration,
                 "negative_prompt": "low resolution, error, worst quality, deformed",
             },
@@ -585,7 +584,7 @@ def generate_video(
                 from prodia_pricing import get_price
                 cost_video = get_price("wan2-7.img2vid.v1")
 
-            logger.info(f"  Video OK ({file_size} bytes, {resolution} {ratio}): {result_path}")
+            logger.info(f"  Video OK ({file_size} bytes, {resolution}): {result_path}")
             logger.info(f"  Cost: ${cost_video:.4f}")
 
             return str(result_path), cost_video

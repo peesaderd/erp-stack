@@ -287,77 +287,6 @@ def get_categories() -> list:
     return sorted(cats)
 
 
-def get_mockup_prompt(product_id: str, product_image_desc: str = "") -> str:
-    """
-    สร้าง prompt สำหรับ Prodia generate mockup
-    ขึ้นอยู่กับประเภทสินค้า
-    """
-    prompts = {
-        "tshirt_standard": (
-            "A realistic product photo showing a high-quality printed t-shirt on a person, "
-            "front view, the print design visible on the chest, well-lit studio lighting, "
-            "clean background, professional e-commerce photograph"
-        ),
-        "hoodie_standard": (
-            "A realistic product photo showing a printed hoodie on a person, "
-            "front view, print design visible, studio lighting, clean background"
-        ),
-        "mug_11oz": (
-            "A realistic product photo showing a printed ceramic mug, "
-            "front view with the design visible, professional product photography, "
-            "white background, studio lighting, high quality"
-        ),
-        "mug_15oz": (
-            "A realistic product photo showing a large printed ceramic mug, "
-            "front view with design visible, professional product photography, "
-            "white background"
-        ),
-        "poster_18x24": (
-            "A realistic mockup of a poster in a simple frame on a wall, "
-            "clean interior, natural lighting, professional presentation"
-        ),
-        "canvas_print": (
-            "A realistic mockup of a canvas print on a wall, "
-            "gallery-style presentation, natural lighting"
-        ),
-        "pillow_square": (
-            "A realistic product photo of a printed throw pillow on a sofa, "
-            "cozy interior setting, professional photography"
-        ),
-        "tote_bag": (
-            "A realistic product photo of a printed tote bag, "
-            "front view, design visible, studio lighting, white background"
-        ),
-        "phone_case_iphone": (
-            "A realistic product photo of a printed phone case, "
-            "front view, design visible, professional photography, white background"
-        ),
-        "notebook": (
-            "A realistic product photo of a printed notebook, "
-            "front cover visible, flat lay, professional photography"
-        ),
-        "water_bottle": (
-            "A realistic product photo of a printed water bottle, "
-            "front view with wrap design visible, studio lighting, white background"
-        ),
-        "leggings": (
-            "A realistic product photo of printed leggings on a person, "
-            "full body view, all-over print visible, studio lighting"
-        ),
-        "tank_top": (
-            "A realistic product photo of a printed tank top on a person, "
-            "front view, print design visible, studio lighting"
-        ),
-    }
-    
-    base = prompts.get(product_id, "A realistic product photo of a printed item, professional e-commerce photography, white background")
-    
-    if product_image_desc:
-        base += f", design: {product_image_desc}"
-    
-    return base
-
-
 # ─── Shipping Cost Estimates (Static) ────────────────────────────────────────
 # Based on Printful public pricing (approximate)
 SHIPPING_ESTIMATES = {
@@ -435,6 +364,165 @@ def get_profit_calculation(product_id: str, selling_price: float, region: str = 
         "region": region,
         "note": "ค่าส่งเป็นประมาณการ ขึ้นอยู่กับ provider และ destination จริง",
     }
+
+
+# ─── Printful Mockup Generator API ──────────────────────────────────────────
+
+def get_printful_printfiles(product_id: int) -> Optional[dict]:
+    """
+    ดึง print file specs จาก Printful Mockup Generator API
+    
+    GET /mockup-generator/printfiles/{product_id}
+    
+    คืนค่าข้อมูล placement (front/back/sleeve), printfile dimensions, variant mapping
+    """
+    api = get_printful_api()
+    api_key = api._load_printful_key()
+    if not api_key:
+        logger.warning("Printful API key not configured")
+        return None
+    
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "User-Agent": "EtsyWizard/1.0",
+    }
+    
+    try:
+        req = Request(f"{PRINTFUL_API}/mockup-generator/printfiles/{product_id}", headers=headers)
+        with urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read().decode())
+        if data.get("code") != 200:
+            logger.warning(f"Printful printfiles error: {data.get('code')}")
+            return None
+        return data.get("result")
+    except Exception as e:
+        logger.warning(f"Failed to fetch printfiles for product {product_id}: {e}")
+        return None
+
+
+def get_printful_mockup_templates(product_id: int) -> Optional[dict]:
+    """
+    ดึง mockup templates สำหรับ product
+    
+    GET /mockup-generator/templates?id={product_id}
+    
+    คืนค่า variant_mapping + templates (print_area coords, image_url, background_url)
+    """
+    api = get_printful_api()
+    api_key = api._load_printful_key()
+    if not api_key:
+        logger.warning("Printful API key not configured")
+        return None
+    
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "User-Agent": "EtsyWizard/1.0",
+    }
+    
+    try:
+        req = Request(f"{PRINTFUL_API}/mockup-generator/templates?id={product_id}", headers=headers)
+        with urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read().decode())
+        if data.get("code") != 200:
+            logger.warning(f"Printful templates error: {data.get('code')}")
+            return None
+        return data.get("result")
+    except Exception as e:
+        logger.warning(f"Failed to fetch templates for product {product_id}: {e}")
+        return None
+
+
+def create_printful_mockup(
+    product_id: int,
+    variant_ids: list,
+    files: list,
+    format: str = "png",
+) -> Optional[dict]:
+    """
+    สร้าง mockup task ผ่าน Printful Mockup Generator API
+    
+    POST /mockup-generator/create-task/{product_id}
+    
+    files = [
+        {
+            "placement": "front",          # placement จาก printfiles
+            "image_url": "https://...",    # URL ของ artwork ที่ gen แล้ว
+            "position": {"x": 0, "y": 0, "width": 1800, "height": 2400},
+            "printfile_id": 1,             # printfile_id จาก printfiles
+        }
+    ]
+    """
+    api = get_printful_api()
+    api_key = api._load_printful_key()
+    if not api_key:
+        logger.warning("Printful API key not configured")
+        return None
+    
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "User-Agent": "EtsyWizard/1.0",
+    }
+    
+    payload = {
+        "variant_ids": variant_ids,
+        "format": format,
+        "files": files,
+    }
+    
+    try:
+        import http.client
+        body = json.dumps(payload).encode()
+        req = Request(
+            f"{PRINTFUL_API}/mockup-generator/create-task/{product_id}",
+            data=body,
+            headers=headers,
+        )
+        with urlopen(req, timeout=60) as resp:
+            data = json.loads(resp.read().decode())
+        if data.get("code") not in (200, 201):
+            logger.warning(f"Printful create-task error: {data.get('code')}: {data.get('result','')[:200]}")
+            return None
+        return data.get("result")
+    except Exception as e:
+        logger.warning(f"Failed to create mockup for product {product_id}: {e}")
+        return None
+
+
+def check_mockup_task(task_key: str) -> Optional[dict]:
+    """
+    ตรวจสอบสถานะ mockup task
+    
+    GET /mockup-generator/task?task_key={task_key}
+    
+    Returns {
+        "status": "completed" | "failed" | "pending",
+        "mockups": [{ "placement": "front", "variant_id": 9575, "url": "..." }],
+        ...
+    }
+    """
+    api = get_printful_api()
+    api_key = api._load_printful_key()
+    if not api_key:
+        logger.warning("Printful API key not configured")
+        return None
+    
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "User-Agent": "EtsyWizard/1.0",
+    }
+    
+    try:
+        req = Request(f"{PRINTFUL_API}/mockup-generator/task?task_key={task_key}", headers=headers)
+        with urlopen(req, timeout=30) as resp:
+            data = json.loads(resp.read().decode())
+        if data.get("code") != 200:
+            logger.warning(f"Printful task status error: {data.get('code')}")
+            return None
+        return data.get("result")
+    except Exception as e:
+        logger.warning(f"Failed to check mockup task {task_key}: {e}")
+        return None
 
 
 if __name__ == "__main__":

@@ -10,6 +10,7 @@ Mini MVP: Shop Setup Wizard + Rules Validator + AI Assistant
 import os
 import json
 import sqlite3
+import requests
 import logging
 from pathlib import Path
 from datetime import datetime
@@ -419,23 +420,9 @@ class BatchGenRequest(BaseModel):
 def ai_providers():
     """List available AI image providers"""
     import os as _os
-    from image_gen import PROVIDER_CONFIG, UPSCALE_MODELS, ImageProvider
-    providers = {}
-    for provider in ImageProvider:
-        config = PROVIDER_CONFIG.get(provider)
-        if not config:
-            continue
-        # Check both config key (compile-time) and env (runtime, loaded via env hack)
-        key = config.get("key") or ""
-        if key:
-            providers[provider.value] = {
-                "models": list(config["models"].keys()),
-                "default_model": config["default_model"],
-                "cost_per_image": config["models"][config["default_model"]]["cost_per_image"],
-                "key_loaded": bool(key),
-            }
+    from image_gen import PROVIDER_CONFIG, UPSCALE_MODELS
     return {
-        "providers": providers,
+        "providers": PROVIDER_CONFIG,
     }
 
 
@@ -458,12 +445,24 @@ def ai_generate_image(req: ImageGenRequest):
 
     try:
         ar = req.aspect_ratio if req.aspect_ratio else None
+        # Nano Banana เปçน img2img — ถ้าไม่มี inputImage ให้ใช้ blank white canvas
+        input_image = req.product_image_url
+        if not input_image:
+            # Nano Banana เป็น img2img — ใช้ blank white image เป็น canvas
+            # Create a minimal white 1x1 PNG served locally to avoid data URL issues
+            _blank = Path(__file__).parent / "static" / "product_images" / "_blank.png"
+            if _blank.exists():
+                input_image = f"http://localhost:8104/static/product_images/_blank.png"
+            # If we can't serve locally, try public placeholder
+            else:
+                input_image = "https://placehold.co/1x1/white/white.png"
+
         # Use Prodia Nano Banana via image-gen service (port 8110)
         result = requests.post(
             "http://localhost:8110/api/v1/image/generate",
             json={
                 "prompt": prompt,
-                "inputImage": req.product_image_url,
+                "inputImage": input_image,
                 "aspectRatio": ar or "1:1",
             },
             timeout=120,
@@ -472,6 +471,10 @@ def ai_generate_image(req: ImageGenRequest):
             raise Exception(result.text[:200])
         data = result.json()
         img_url = data.get("images", [{}])[0].get("url", "")
+        # Fix relative URL — make it accessible through nginx
+        if img_url.startswith("/storage/"):
+            # Prepend /etsy/ so nginx can proxy it
+            img_url = "/etsy" + img_url
         return {
             "ok": True,
             "image_url": img_url,
@@ -621,6 +624,93 @@ def ai_batch_generate(req: BatchGenRequest):
         "failed": sum(1 for r in results if "error" in r),
         "total_cost": total_cost,
         "results": results,
+    }
+
+
+@app.post("/ai/detect-product")
+def ai_detect_product(data: dict):
+    """
+    Auto-detect product category + product_id จาก brief/concept
+    ใช้ keyword matching + product catalog
+    """
+    from pod_data import get_product_catalog
+    
+    brief = (data.get("brief", "") or "").lower()
+    name = (data.get("name", "") or "").lower()
+    desc = (data.get("description", "") or "").lower()
+    tags = data.get("tags", []) or []
+    tags = [t.lower() for t in tags if t]
+    
+    combined = brief + " " + name + " " + desc + " " + " ".join(tags)
+    
+    # Keyword -> category mapping
+    keywords = {
+        "apparel": ["shirt", "t-shirt", "tshirt", "tee", "hoodie", "sweatshirt", "jacket", "clothing", "wear", "top", "dress", "fashion"],
+        "home": ["poster", "canvas", "print", "wall", "art", "photo", "decoration", "home", "room", "decor", "frame", "tapestry", "metal"],
+        "accessories": ["bag", "tote", "hat", "cap", "phone case", "case", "backpack", "wallet", "pin", "sticker", "keychain"],
+        "drinkware": ["mug", "cup", "bottle", "water bottle", "glass", "thermos", "flask"],
+        "stationery": ["notebook", "journal", "book", "pen", "stationery", "sticker", "card"],
+    }
+    
+    # Score each category
+    scores = {}
+    for cat, cat_kws in keywords.items():
+        score = 0
+        for kw in cat_kws:
+            if kw in combined:
+                # Weight by keyword length and position
+                score += len(kw) * (combined.count(kw))
+        if score > 0:
+            scores[cat] = score
+    
+    # Get product catalog for available products
+    catalog = get_product_catalog()
+    available_products = {}
+    for item in catalog:
+        cat = item.get("category", "")
+        pid = item.get("product_id", "")
+        if not pid:
+            continue
+        if cat not in available_products:
+            available_products[cat] = []
+        available_products[cat].append(pid)
+    
+    # Fallback product per category
+    FALLBACK_PRODUCT = {
+        "apparel": "tshirt_standard",
+        "home": "poster_18x24",
+        "accessories": "tote_bag",
+        "drinkware": "mug_11oz",
+        "stationery": "notebook",
+    }
+    
+    # Pick best category
+    best_cat = max(scores, key=scores.get) if scores else "apparel"
+    # Ensure category exists in catalog
+    if best_cat not in available_products:
+        existing_cats = list(available_products.keys())
+        best_cat = existing_cats[0] if existing_cats else "apparel"
+    
+    # If we have category products, pick best product match
+    cat_products = available_products.get(best_cat, [])
+    product_scores = {}
+    for pid in cat_products:
+        pid_lower = pid.replace("_", " ").lower()
+        for word in pid_lower.split():
+            if word in combined:
+                product_scores[pid] = product_scores.get(pid, 0) + len(word) * 2
+        for word in combined.split():
+            if len(word) > 3 and word in pid_lower:
+                product_scores[pid] = product_scores.get(pid, 0) + len(word)
+    
+    best_product = max(product_scores, key=product_scores.get) if product_scores else (cat_products[0] if cat_products else FALLBACK_PRODUCT.get(best_cat, "tshirt_standard"))
+    
+    return {
+        "ok": True,
+        "category": best_cat,
+        "product_id": best_product,
+        "confidence": scores.get(best_cat, 0),
+        "all_scores": scores,
     }
 
 
@@ -1042,6 +1132,97 @@ def pod_products_by_category(category: str):
     return {"ok": True, "category": category, "products": products, "total": len(products)}
 
 
+@app.get("/pod/print-info/{product_id}")
+def pod_print_info(product_id: str, variant_id: Optional[int] = None):
+    """
+    ดึง Printful mockup template data: print area dimensions, placements, variant mapping
+    
+    - product_id: POD product id (จาก pod_sizes.py)
+    - variant_id: (optional) ถ้าระบุ จะ filter เฉพาะ variants ที่เกี่ยวข้อง
+    
+    Returns:
+      - printfiles: placements + printfile dimensions
+      - templates: variant_mapping + templates พร้อม print_area coords
+      - recommended_size: ขนาด artwork ที่แนะนำ (px)
+    """
+    from pod_data import get_product_detail, get_printful_printfiles, get_printful_mockup_templates
+    
+    # 1. หา Printful product ID
+    product = get_product_detail(product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail=f"ไม่พบ Product ID: {product_id}")
+    
+    pf_id = product.get("pf_product_id")
+    if not pf_id:
+        return {"ok": False, "error": f"สินค้า {product_id} ไม่มี Printful product ID", "product": product}
+    
+    # 2. Fetch Printful data
+    pf_data = get_printful_printfiles(pf_id)
+    templates_data = get_printful_mockup_templates(pf_id)
+    
+    if not pf_data:
+        raise HTTPException(status_code=502, detail=f"ไม่สามารถดึงข้อมูล print area จาก Printful สำหรับ product {pf_id}")
+    
+    # 3. Extract print area dimensions
+    printfiles = pf_data.get("printfiles", [])
+    placements = pf_data.get("available_placements", {})
+    
+    # 4. Find largest printfile for recommended size
+    recommended_size = None
+    for pf in printfiles:
+        w = pf.get("width", 0)
+        h = pf.get("height", 0)
+        dpi = pf.get("dpi", 150)
+        if w and h:
+            if not recommended_size or (w * h) > (recommended_size["width"] * recommended_size["height"]):
+                recommended_size = {
+                    "width": w,
+                    "height": h,
+                    "dpi": dpi,
+                    "label": pf.get("title", f"{w}x{h}"),
+                }
+    
+    # 5. Filter variant mapping by variant_id if specified
+    variant_mapping = []
+    if templates_data:
+        all_vm = templates_data.get("variant_mapping", [])
+        if variant_id:
+            variant_mapping = [vm for vm in all_vm if vm.get("variant_id") == variant_id]
+        else:
+            variant_mapping = all_vm[:3]  # limit to first 3 to keep response small
+    
+    # 6. Get placement-specific templates (sample)
+    placement_templates = {}
+    for vm in variant_mapping[:1]:  # first variant only for overview
+        for t in vm.get("templates", []):
+            placement = t.get("placement", "front")
+            if placement not in placement_templates:
+                placement_templates[placement] = {
+                    "print_area": {
+                        "x": t.get("print_area", {}).get("x", 0),
+                        "y": t.get("print_area", {}).get("y", 0),
+                        "width": t.get("print_area", {}).get("width", 0),
+                        "height": t.get("print_area", {}).get("height", 0),
+                    },
+                    "template_id": t.get("template_id"),
+                    "image_url": t.get("image_url", ""),
+                }
+    
+    return {
+        "ok": True,
+        "product_id": product_id,
+        "pf_product_id": pf_id,
+        "pf_title": product.get("pf_title", ""),
+        "placements": placements,
+        "printfiles": printfiles,
+        "recommended_size": recommended_size,
+        "placement_templates": placement_templates,
+        "variant_mapping_count": len(templates_data.get("variant_mapping", [])) if templates_data else 0,
+        "artwork_spec": product.get("artwork_spec", {}),
+        "note": "ใช้ recommended_size สำหรับ AI generate artwork",
+    }
+
+
 @app.get("/pod/product/{product_id}")
 def pod_get_product(product_id: str):
     """รายละเอียดสินค้า POD พร้อมขนาด artwork + Printful data (variants, pricing, colors)"""
@@ -1192,8 +1373,9 @@ class WizardStepRequest(BaseModel):
 
 
 from pod_wizard import get_manager, WizardSession, handle_step_provider, handle_step_category
-from pod_wizard import handle_step_product, handle_step_variant, handle_step_artwork
-from pod_wizard import handle_step_mockup, handle_step_content, handle_step_pricing, handle_step_summary
+from pod_wizard import handle_step_product, handle_step_variant, handle_step_print_info
+from pod_wizard import handle_step_artwork, handle_step_mockup, handle_step_mockup_status
+from pod_wizard import handle_step_content, handle_step_pricing, handle_step_summary
 from pod_data import get_providers
 
 STEP_HANDLERS = {
@@ -1201,6 +1383,7 @@ STEP_HANDLERS = {
     "category": handle_step_category,
     "product": handle_step_product,
     "variant": handle_step_variant,
+    "print_info": handle_step_print_info,
     "artwork": handle_step_artwork,
     "mockup": handle_step_mockup,
     "content": handle_step_content,

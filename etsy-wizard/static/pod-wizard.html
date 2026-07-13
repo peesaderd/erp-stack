@@ -161,16 +161,17 @@ async function api(url, opts = {}) {
 var API = window.location.pathname.startsWith('/etsy/') ? '/etsy' : '';
 var S = null;    // session
 var SI = 0;      // step index
-var TOTAL = 10;
-var STEPS = ['brief','provider','category','product','variant','artwork','mockup','content','pricing','summary'];
+var TOTAL = 11;
+var STEPS = ['brief','provider','category','product','variant','print_info','artwork','mockup','content','pricing','summary'];
 var META = [
   { title:'ออกแบบด้วย AI', icon:'🤖', desc:'พิมพ์สิ่งที่คุณต้องการ แล้วให้ AI สร้างทุกอย่างให้อัตโนมัติ' },
   { title:'เลือก Provider', icon:'🏪', desc:'เลือก POD fulfillment partner' },
   { title:'เลือกหมวดหมู่', icon:'📁', desc:'เลือกประเภทสินค้า' },
   { title:'เลือกสินค้า', icon:'🎯', desc:'เลือกรูปแบบสินค้า + ดู spec' },
   { title:'สีและขนาด', icon:'🎨', desc:'เลือกสีและขนาด' },
-  { title:'ตรวจสอบ Artwork', icon:'🖼️', desc:'ตรวจสอบขนาด artwork' },
-  { title:'สร้าง Mockup', icon:'✨', desc:'สร้าง prompt สำหรับ AI' },
+  { title:'พื้นที่พิมพ์', icon:'📐', desc:'ดึง print area dimensions + placements จาก Printful' },
+  { title:'สร้าง Artwork', icon:'🖼️', desc:'AI gen artwork ตามขนาด print area จริง' },
+  { title:'สร้าง Mockup', icon:'✨', desc:'Printful Mockup API — สร้างรูปสินค้าจริง' },
   { title:'สร้างคำอธิบาย', icon:'✍️', desc:'Content สำหรับ listing' },
   { title:'ตั้งราคา', icon:'💰', desc:'คำนวณต้นทุน + กำไร' },
   { title:'สรุป', icon:'✅', desc:'สรุปก่อน publish' },
@@ -276,6 +277,7 @@ function stepHTML(sid, m) {
   var maps = {
     provider:  base + '<div class="chip-grid" id="providerList"></div>' + btns,
     category:  base + '<div class="chip-grid" id="catList"></div>' + btns,
+    print_info: base + '<div id="piLoading" class="loading on"><div class="spinner"></div><p>⏳ กำลังดึงข้อมูล print area จาก Printful...</p></div><div id="piContent" style="display:none"></div>' + btns,
     product:   base + '<label>สินค้า</label><select id="selProduct" onchange="onProduct()"><option value="">— กรุณาเลือก —</option></select><div id="prodSpec"></div>' + btns,
     variant:   base + '<label>สี</label><div class="chip-grid" id="colorGrid"></div><label>ขนาด</label><div class="chip-grid" id="sizeGrid"></div>' + btns,
     artwork:   base + (aiData && aiData.image_url ? '<div class="ai-card"><img src="'+aiData.image_url+'" style="max-width:100%;border-radius:12px;margin-bottom:10px"><p style="font-size:13px;color:#5f6368">✨ AI สร้างจาก Fal.ai</p></div>' : '') + '<label>ความกว้าง (px)</label><input type="number" id="artW" value="3600" oninput="valArt()"><label>ความสูง (px)</label><input type="number" id="artH" value="4800" oninput="valArt()"><label>DPI</label><input type="number" id="artDPI" value="300" oninput="valArt()"><label>ขนาดไฟล์ (MB)</label><input type="number" id="artMB" value="5" step=".1" oninput="valArt()"><label>ประเภท</label><select id="artType" onchange="valArt()"><option>PNG</option><option>JPEG</option><option>SVG</option></select><div id="artResult"></div>' + btns,
@@ -293,6 +295,7 @@ function afterRender(sid) {
   else if (sid === 'category') fillCategories();
   else if (sid === 'product') fillProducts();
   else if (sid === 'variant') fillVariant();
+  else if (sid === 'print_info') fillPrintInfo();
   else if (sid === 'pricing') setTimeout(calcProfit, 100);
   else if (sid === 'brief') afterAI();
   else if (sid === 'artwork') setTimeout(valArt, 200);
@@ -301,7 +304,7 @@ function afterRender(sid) {
 
   var btn = document.getElementById('bNext');
   if (btn) {
-    if (['provider','category','product','variant','artwork'].indexOf(sid) >= 0) btn.disabled = true;
+    if (['provider','category','product','variant','print_info','artwork'].indexOf(sid) >= 0) btn.disabled = true;
     if (['mockup','content','pricing','summary'].indexOf(sid) >= 0) btn.disabled = false;
   }
 }
@@ -411,6 +414,71 @@ function toggleChips2(gridId, value) {
   }
 }
 
+// ─── Print Info (Printful Templates) ───────────────────────────────────────
+// Helper: safely read session property
+var _s = function(k) { return window.S && window.S[k] !== undefined ? window.S[k] : null; };
+
+async function fillPrintInfo() {
+  var pid = (S && S.product_id) || (document.getElementById('selProduct') ? document.getElementById('selProduct').value : null);
+  if (!pid) {
+    document.getElementById('piContent').style.display = 'block';
+    document.getElementById('piContent').innerHTML = '<div class="result on bad">❌ ยังไม่ได้เลือกสินค้า</div>';
+    return;
+  }
+  try {
+    var r = await api(API + '/pod/print-info/' + pid);
+    var d = await r.json();
+    document.getElementById('piLoading').classList.remove('on');
+    document.getElementById('piContent').style.display = 'block';
+    
+    if (!d.ok) {
+      document.getElementById('piContent').innerHTML = '<div class="result on bad"><strong>❌ ' + (d.error||'ไม่สามารถดึงข้อมูล') + '</strong></div>';
+      document.getElementById('bNext').disabled = true;
+      return;
+    }
+    
+    var rs = d.recommended_size || {};
+    var pts = d.placement_templates || {};
+    var placements = Object.keys(pts);
+    
+    var placementRows = placements.map(function(p) {
+      var pt = pts[p];
+      var pa = pt.print_area || {};
+      return '<div style="background:#f8f9fa;border-radius:10px;padding:12px;margin:8px 0;border:1px solid #e8e8ed">' +
+        '<strong style="font-size:15px">📍 Placement: ' + p + '</strong><br>' +
+        '<table class="stable"><tr><td>Print Area</td><td>x=' + pa.x + ', y=' + pa.y + ', ' + pa.width + 'x' + pa.height + 'px</td></tr>' +
+        (pt.image_url ? '<tr><td>ตัวอย่าง</td><td><img src="' + pt.image_url + '" style="max-width:200px;border-radius:6px"></td></tr>' : '') +
+        '</table></div>';
+    }).join('');
+    
+    var html = '';
+    if (rs.width) {
+      html += '<div class="result on info" style="margin-bottom:12px"><strong>📐 ขนาด artwork ที่แนะนำ</strong><br>' +
+        rs.width + 'x' + rs.height + 'px @ ' + rs.dpi + 'dpi' +
+        (rs.label ? ' (' + rs.label + ')' : '') +
+        '</div>';
+    }
+    html += '<label style="margin-top:0">🖨️ Placements ที่มี</label>';
+    html += '<div style="font-size:13px;color:#5f6368;margin-bottom:8px">' + Object.keys(d.placements||{}).join(', ') + '</div>';
+    html += '<label>📐 Print Area Templates</label>';
+    if (placementRows) {
+      html += placementRows;
+    } else {
+      html += '<div class="result on info">ดึง template data ได้ ' + d.variant_mapping_count + ' variants</div>';
+    }
+    html += '<div class="result on good" style="margin-top:12px"><strong>✅ พร้อมสร้าง artwork!</strong> ไป step ถัดไปเพื่อ AI gen artwork ตามขนาด print area จริง</div>';
+    
+    document.getElementById('piContent').innerHTML = html;
+    document.getElementById('bNext').disabled = false;
+    
+  } catch(e) {
+    document.getElementById('piLoading').classList.remove('on');
+    document.getElementById('piContent').style.display = 'block';
+    document.getElementById('piContent').innerHTML = '<div class="result on bad"><strong>❌ ' + (e.message||'error') + '</strong></div>';
+    document.getElementById('bNext').disabled = true;
+  }
+}
+
 // ─── Artwork ─────────────────────────────────────────────────────────────
 function valArt() {
   var w = +document.getElementById('artW').value || 0;
@@ -501,6 +569,14 @@ async function goNext() {
   var sid = STEPS[SI];
   // Brief step: local only — AI data already stored in frontend
   if (sid === 'brief') {
+    // Turbo mode: if wizard already auto-advanced, skip to backend's current step
+    var wsid = window._wizardSessionId;
+    if (wsid && window.S && window.S.current_step_idx !== undefined) {
+      // Turbo: skip to backend's current step (+1 for virtual brief)
+      SI = Math.min(window.S.current_step_idx + 1, STEPS.length - 1);
+      render();
+      return;
+    }
     SI = 1;
     render();
     return;
@@ -508,10 +584,16 @@ async function goNext() {
   var data = collectData(sid);
   showLoading(true, 'กำลังดำเนินการ...');
   try {
+    var sessionId = window._wizardSessionId || _s('session_id');
+    if (!sessionId) {
+      showResult('❌ ไม่มี session กรุณาเริ่มใหม่', 'bad');
+      showLoading(false);
+      return;
+    }
     var r = await api(API + '/pod/wizard/step', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({session_id: S.session_id, action:'next', data: data})
+      body: JSON.stringify({session_id: sessionId, action:'next', data: data})
     });
     var d = await r.json();
     if (d.ok === false) {
@@ -519,10 +601,15 @@ async function goNext() {
       showLoading(false);
       return;
     }
-    S = d.session;
+    // Store ONLY session object (S.product_id, S.session_id, S.current_step_idx)
+    window.S = d.session || d;
     // Frontend has virtual 'brief' step (idx 0) — backend starts at provider (idx 0)
     // So backend index needs +1 to map to frontend STEPS array
-    SI = Math.min(S.current_step_idx + 1, STEPS.length - 1);
+    var backIdx = (window.S && window.S.current_step_idx);
+    if (backIdx === undefined) {
+      backIdx = d.advance && d.advance.current_step && d.advance.current_step.idx;
+    }
+    SI = Math.min((backIdx !== undefined ? backIdx : 0) + 1, STEPS.length - 1);
     showLoading(false);
     render();
   } catch(e) {
@@ -537,6 +624,7 @@ function collectData(sid) {
     case 'category': return {category: selCategory};
     case 'product':  return {product_id: document.getElementById('selProduct') ? document.getElementById('selProduct').value : null};
     case 'variant':  return {colors: selColors, sizes: selSizes};
+    case 'print_info': return {};
     case 'artwork':  return {
       width_px: +document.getElementById('artW').value || 0,
       height_px: +document.getElementById('artH').value || 0,
@@ -586,6 +674,86 @@ function showResult(html, type) {
   var el = document.getElementById('result');
   el.innerHTML = html;
   el.className = 'result on ' + type;
+}
+
+// ─── Auto-Start Wizard (Turbo Mode) ──────────────────────────────────────────
+// After AI generates concept + image, auto-create session and advance through
+// provider → category → product using detected values
+window._wizardSessionId = null;
+
+async function autoStartWizard(detected) {
+  if (!detected || !detected.category || !detected.product_id) return;
+  
+  // 1. Start session
+  var r = await api(API + '/pod/wizard/start', {method: 'POST'});
+  var ses = await r.json();
+  if (!ses.ok || !ses.session) return;
+  window._wizardSessionId = ses.session.session_id;
+  
+  var sid = window._wizardSessionId;
+  var lastResp = null;
+  
+  // 2. Set provider = printful
+  r = await api(API + '/pod/wizard/step', {
+    method: 'POST',
+    body: JSON.stringify({session_id: sid, action: 'next', data: {provider_id: 'printful'}})
+  });
+  lastResp = await r.json();
+  
+  // 3. Set category
+  r = await api(API + '/pod/wizard/step', {
+    method: 'POST',
+    body: JSON.stringify({session_id: sid, action: 'next', data: {category: detected.category}})
+  });
+  lastResp = await r.json();
+  
+  // 4. Set product
+  r = await api(API + '/pod/wizard/step', {
+    method: 'POST',
+    body: JSON.stringify({session_id: sid, action: 'next', data: {product_id: detected.product_id}})
+  });
+  lastResp = await r.json();
+  
+  // 5. Fetch final session state to sync frontend
+  r = await api(API + '/pod/wizard/' + sid);
+  var finalState = await r.json();
+  if (finalState.ok && finalState.session) {
+    window.S = finalState.session;
+    window._wizardStep = finalState.session.current_step_idx || 3;
+  } else {
+    window.S = lastResp.session || lastResp;
+  }
+  
+  console.log('📦 Turbo: wizard advanced to step', window._wizardStep);
+}
+
+// ─── Auto-Detect Product ────────────────────────────────────────────────────
+async function autoDetectProduct(brief, concept) {
+  try {
+    var r = await fetch(API + '/ai/detect-product', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        brief: brief || '',
+        name: (concept && concept.product_name) || '',
+        description: (concept && concept.description) || '',
+        tags: (concept && concept.tags) || []
+      })
+    });
+    var d = await r.json();
+    if (d.ok) {
+      console.log('autoDetectProduct:', d.category, d.product_id);
+      window._detectedCategory = d.category;
+      window._detectedProductId = d.product_id;
+      window._detectConfidence = d.confidence;
+      return {category: d.category, product_id: d.product_id};
+    }
+  } catch(e) {
+    console.warn('autoDetectProduct failed:', e);
+  }
+  window._detectedCategory = window._detectedCategory || 'apparel';
+  window._detectedProductId = window._detectedProductId || 'tshirt_standard';
+  return {category: window._detectedCategory, product_id: window._detectedProductId};
 }
 
 // ─── AI Generation ─────────────────────────────────────────────────────────
@@ -642,10 +810,18 @@ async function generateWithAI() {
     };
     
     // Auto-detect category & product from brief + AI concept
-    autoDetectProduct(brief, concept);
+    var detected = await autoDetectProduct(brief, concept);
     
     // Re-enable Next button now that aiData is populated
     afterAI();
+    
+    // Auto-start wizard session with detected values (turbo mode)
+    try {
+      await autoStartWizard(detected);
+    } catch(e) {
+      console.warn('autoStartWizard failed:', e);
+      // Non-fatal — user can continue manually
+    }
     showAIResults();
     document.getElementById('aiProgress').style.display = 'none';
     document.getElementById('aiPreview').style.display = 'block';

@@ -4,16 +4,12 @@ const http = require('http');
 const app = express();
 const PORT = 8120;
 
-// Proxy helper — no express.json() so raw body passes through
-function proxyTo(host, port) {
+// Proxy helper — strips /api/tiktok prefix, sends to target
+function proxyTo(host, port, stripPrefix) {
+  stripPrefix = stripPrefix || '/api/tiktok';
   return (req, res) => {
     const queryStr = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
-    const targetPath = (req.path
-      .replace('/api/tiktok/ugc', '')
-      .replace('/api/tiktok/scraper', '')
-      .replace('/api/tiktok/analyze', '')
-      .replace('/api/tiktok/static', '')
-      .replace('/api/tiktok/image-storage', '') || '/') + queryStr;
+    const targetPath = (req.path.replace(stripPrefix, '') || '/') + queryStr;
     
     const options = {
       hostname: host,
@@ -38,12 +34,19 @@ function proxyTo(host, port) {
 }
 
 // Proxy routes BEFORE express.json() to preserve raw body
-app.all('/api/tiktok/ugc/*', proxyTo('localhost', 8105));
-app.all('/api/tiktok/scraper/*', proxyTo('localhost', 8106));
-app.all('/api/tiktok/analyze/*', proxyTo('localhost', 8106));
-app.all('/api/tiktok/static/*', proxyTo('localhost', 8105));
-app.all('/api/tiktok/image-storage/*', proxyTo('localhost', 8105));
-app.all('/api/tiktok/image-proxy/*', proxyTo('localhost', 8105));
+// Image-storage → image-gen (port 8110) directly
+app.all('/api/tiktok/image-storage/*', (req, res) => {
+  const filename = req.path.replace('/api/tiktok/image-storage/', '');
+  http.get('http://localhost:8110/storage/images/' + filename, (proxyRes) => {
+    res.writeHead(proxyRes.statusCode, { 'Content-Type': proxyRes.headers['content-type'] || 'image/jpeg', 'Content-Length': proxyRes.headers['content-length'] });
+    proxyRes.pipe(res);
+  }).on('error', () => res.status(404).json({ error: 'not found' }));
+});
+// Scraper & analyze go to port 8106 (scraper service)
+app.all('/api/tiktok/scraper/*', proxyTo('localhost', 8106, '/api/tiktok'));
+app.all('/api/tiktok/analyze/*', proxyTo('localhost', 8106, '/api/tiktok'));
+// Everything else /api/tiktok/* goes to 8105 (TikTok UGC backend)
+app.all('/api/tiktok/*', proxyTo('localhost', 8105, '/api/tiktok'));
 
 // Direct video proxy (no /api/tiktok prefix — nginx sends /tiktok/ as /)
 app.get('/static/videos/:filename', (req, res) => {
@@ -66,15 +69,6 @@ app.get('/storage/images/:filename', (req, res) => {
     });
     proxyRes.pipe(res);
   }).on('error', () => res.status(404).json({ error: 'image not found' }));
-});
-
-// Legacy image-storage fallback (direct to image-gen)
-app.all('/api/tiktok/image-storage/*', (req, res) => {
-  const filename = req.path.replace('/api/tiktok/image-storage/', '');
-  http.get('http://localhost:8110/storage/images/' + filename, (proxyRes) => {
-    res.writeHead(proxyRes.statusCode, { 'Content-Type': proxyRes.headers['content-type'] || 'image/jpeg', 'Content-Length': proxyRes.headers['content-length'] });
-    proxyRes.pipe(res);
-  }).on('error', () => res.status(404).json({ error: 'not found' }));
 });
 
 // Health — before json middleware

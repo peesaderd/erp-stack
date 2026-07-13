@@ -15,9 +15,13 @@ from pod_data import (
     get_product_detail,
     get_categories,
     get_providers,
-    get_mockup_prompt,
     get_profit_calculation,
     get_shipping_estimate,
+    get_printful_api,
+    get_printful_printfiles,
+    get_printful_mockup_templates,
+    create_printful_mockup,
+    check_mockup_task,
 )
 from pod_sizes import validate_artwork
 
@@ -30,8 +34,9 @@ WIZARD_STEPS = [
     {"id": "category",     "title": "เลือกหมวดหมู่",          "icon": "📁", "description": "เสื้อผ้า / แก้วน้ำ / ของตกแต่งบ้าน"},
     {"id": "product",      "title": "เลือกสินค้า",            "icon": "🎯", "description": "เลือกประเภทสินค้า + ดู spec"},
     {"id": "variant",      "title": "สีและขนาด",             "icon": "🎨", "description": "เลือกสี/ขนาด/วัสดุ"},
-    {"id": "artwork",      "title": "อัปโหลด Artwork",       "icon": "🖼️", "description": "อัปโหลด + ตรวจสอบขนาด"},
-    {"id": "mockup",       "title": "สร้าง Mockup",           "icon": "✨", "description": "AI generate ตัวอย่างสินค้า"},
+    {"id": "print_info",   "title": "พื้นที่พิมพ์",           "icon": "📐", "description": "ดู print area + placements จาก Printful"},
+    {"id": "artwork",      "title": "สร้าง Artwork",          "icon": "🎨", "description": "AI gen design ตามขนาด print area"},
+    {"id": "mockup",       "title": "สร้าง Mockup",           "icon": "✨", "description": "Printful Mockup API — สร้างรูปสินค้าจริง"},
     {"id": "content",      "title": "สร้างคำอธิบาย",          "icon": "✍️", "description": "AI gen title + description + tags"},
     {"id": "pricing",      "title": "ตั้งราคา",              "icon": "💰", "description": "คำนวณต้นทุน + กำไร"},
     {"id": "summary",      "title": "สรุป + Checklist",       "icon": "✅", "description": "สรุปก่อนส่ง publish"},
@@ -56,9 +61,22 @@ class WizardSession:
         self.variant_size = None
         self.variant_colors = []
         self.variant_sizes = []
-        self.artwork_info = None          # upload result
+        
+        # Print area from Printful templates
+        self.print_info = None            # printful templates + printfiles data
+        self.selected_placements = []     # placements ที่ user เลือก (front, back...)
+        
+        # Artwork
+        self.artwork_info = None          # generated/uploaded artwork info
         self.artwork_validation = None    # validate result
+        self.artwork_image_url = None     # URL ของ artwork ที่ gen/upload
+        
+        # Mockup
         self.mockup_image_url = None
+        self.mockup_task_key = None       # Printful task key สำหรับ polling
+        self.mockup_task_status = None    # pending | completed | failed
+        self.mockup_results = []          # list of mockup image URLs
+        
         self.generated_content = None     # AI generated title/desc/tags
         self.pricing = None               # profit calculation
         self.selling_price = None
@@ -88,9 +106,12 @@ class WizardSession:
             "variant_size": self.variant_size,
             "variant_colors": getattr(self, 'variant_colors', []),
             "variant_sizes": getattr(self, 'variant_sizes', []),
-            "has_artwork": self.artwork_info is not None,
+            "has_print_info": self.print_info is not None,
+            "selected_placements": getattr(self, 'selected_placements', []),
+            "has_artwork": self.artwork_image_url is not None,
             "artwork_valid": self.artwork_validation.get("valid") if self.artwork_validation else None,
             "has_mockup": self.mockup_image_url is not None,
+            "mockup_task_status": self.mockup_task_status,
             "has_content": self.generated_content is not None,
             "has_pricing": self.pricing is not None,
             "selling_price": self.selling_price,
@@ -260,65 +281,203 @@ def handle_step_variant(session: WizardSession, colors: list = None, sizes: list
         "colors": product.get("pf_colors", []),
         "sizes": product.get("pf_sizes", []),
         "pricing": product.get("pf_pricing", {}),
-        "next_step": "artwork",
+        "next_step": "print_info",
     }
 
 
-def handle_step_artwork(session: WizardSession, width_px: int = 0, height_px: int = 0,
-                         dpi: int = 0, file_size_mb: float = 0, file_type: str = "",
-                         image_url: str = None) -> dict:
-    """Step 5: ตรวจสอบ artwork"""
+def handle_step_print_info(session: WizardSession, **kwargs) -> dict:
+    """Step 5: ดึง print area + placements จาก Printful"""
     if not session.product_id:
         return {"ok": False, "error": "ยังไม่ได้เลือกสินค้า"}
     
-    # Store artwork info
-    session.artwork_info = {
-        "width_px": width_px,
-        "height_px": height_px,
-        "dpi": dpi,
-        "file_size_mb": file_size_mb,
-        "file_type": file_type,
-        "image_url": image_url,
-    }
-    
-    # Validate using pod_sizes
-    image_info = {
-        "width_px": width_px,
-        "height_px": height_px,
-        "dpi": dpi,
-        "file_size_mb": file_size_mb,
-        "file_type": file_type,
-    }
-    
-    result = validate_artwork(image_info, session.product_id)
-    session.artwork_validation = result
-    
-    # Also get artwork spec
+    # Get product detail to find Printful product ID
     product = get_product_detail(session.product_id)
-    artwork_spec = product.get("artwork_spec", {}) if product else {}
+    pf_id = product.get("pf_product_id") if product else None
+    if not pf_id:
+        return {"ok": False, "error": "Printful product ID ไม่พร้อมใช้งาน"}
     
-    return {
-        "ok": result["valid"],
-        "artwork_info": session.artwork_info,
-        "validation": result,
-        "artwork_spec": artwork_spec,
-        "next_step": "mockup",
+    # Fetch Printful templates
+    pf = get_printful_printfiles(pf_id)
+    templates = get_printful_mockup_templates(pf_id)
+    
+    if not pf:
+        return {"ok": False, "error": "ไม่สามารถดึงข้อมูล print area จาก Printful"}
+    
+    placements = pf.get("available_placements", {})
+    printfiles = pf.get("printfiles", [])
+    
+    session.print_info = {
+        "pf_product_id": pf_id,
+        "placements": placements,
+        "printfiles": printfiles,
+        "variant_printfiles": pf.get("variant_printfiles", {}),
+        "templates_count": len(templates.get("templates", [])) if templates else 0,
+        "min_dpi": templates.get("min_dpi") if templates else 150,
     }
-
-
-def handle_step_mockup(session: WizardSession, product_image_desc: str = "") -> dict:
-    """Step 6: สร้าง prompt สำหรับ mockup"""
-    if not session.product_id:
-        return {"ok": False, "error": "ยังไม่ได้เลือกสินค้า"}
-    
-    prompt = get_mockup_prompt(session.product_id, product_image_desc)
     
     return {
         "ok": True,
         "product_id": session.product_id,
-        "mockup_prompt": prompt,
-        "note": "ใช้ prompt นี้กับ Prodia / AI image generator เพื่อสร้าง mockup",
+        "print_info": {
+            "pf_product_id": pf_id,
+            "placements": placements,
+            "printfiles": printfiles,
+        },
+        "note": f"เลือก placements ที่ต้องการ แล้วไป Step ถัดไปเพื่อสร้าง artwork",
+        "next_step": "artwork",
+    }
+
+
+def handle_step_artwork(session: WizardSession, prompt: str = "",
+                         image_url: str = None, width_px: int = 0, height_px: int = 0) -> dict:
+    """
+    Step 6: สร้าง artwork / อัปโหลด
+    
+    ถ้ามี prompt → ส่งไป AI gen artwork ตามขนาด print area
+    ถ้ามี image_url → ใช้อัปโหลดที่ upload แล้ว
+    """
+    if not session.product_id:
+        return {"ok": False, "error": "ยังไม่ได้เลือกสินค้า"}
+    
+    artwork_spec = {}
+    product = get_product_detail(session.product_id)
+    if product:
+        artwork_spec = product.get("artwork_spec", {})
+    
+    session.artwork_info = {
+        "prompt": prompt,
+        "image_url": image_url,
+        "width_px": width_px,
+        "height_px": height_px,
+        "artwork_spec": artwork_spec,
+    }
+    
+    if image_url:
+        session.artwork_image_url = image_url
+    
+    return {
+        "ok": True,
+        "artwork_info": session.artwork_info,
+        "artwork_spec": artwork_spec,
+        "print_info": session.print_info,
+        "ai_generate_hint": prompt or "ใช้ prompt นี้กับ /ai/generate-image",
+        "next_step": "mockup",
+    }
+
+
+def handle_step_mockup(session: WizardSession, placements: list = None) -> dict:
+    """
+    Step 7: สร้าง mockup ผ่าน Printful Mockup API
+    
+    placements = ["front", "back"] — placements ที่ user เลือก
+    ต้องมี artwork_image_url ก่อน
+    """
+    if not session.product_id:
+        return {"ok": False, "error": "ยังไม่ได้เลือกสินค้า"}
+    if not session.artwork_image_url and not session.artwork_info.get("image_url"):
+        return {"ok": False, "error": "ยังไม่มี artwork — ไปสร้าง artwork ก่อน"}
+    
+    artwork_url = session.artwork_image_url or session.artwork_info.get("image_url", "")
+    if not artwork_url:
+        return {"ok": False, "error": "ไม่พบ artwork URL"}
+    
+    # หา Printful product ID
+    product = get_product_detail(session.product_id)
+    pf_id = product.get("pf_product_id") if product else None
+    if not pf_id:
+        return {"ok": False, "error": "Printful product ID ไม่พร้อมใช้งาน"}
+    
+    # ใช้ placements ที่เลือก หรือทั้งหมด
+    session.selected_placements = placements or ["front"]
+    
+    # ดึง variant IDs ที่ตรงกับสี/ขนาดที่เลือก
+    variant_ids = []
+    pf_data = product.get("pf_data") if product else None
+    if product and product.get("pf_data_available"):
+        api = get_printful_api()
+        pf_data = api.fetch_product(pf_id)
+        if pf_data:
+            variants = pf_data.get("variants", [])
+            for v in variants:
+                color = v.get("color", "")
+                size = v.get("size", "")
+                # Match variant โดยใช้สี/ขนาดที่ user เลือก
+                if session.variant_colors and color in session.variant_colors:
+                    if not session.variant_sizes or size in session.variant_sizes:
+                        variant_ids.append(v["id"])
+    
+    if not variant_ids:
+        variant_ids = [9575]  # fallback: first variant
+    
+    # Build files payload
+    files = []
+    # ดึง printfile_id จาก templates
+    templates_data = get_printful_mockup_templates(pf_id)
+    template_map = {}
+    if templates_data:
+        for vm in templates_data.get("variant_mapping", []):
+            v_id = vm.get("variant_id")
+            if v_id in variant_ids:
+                for t in vm.get("templates", []):
+                    placement = t.get("placement")
+                    if placement in session.selected_placements:
+                        template_map[placement] = t.get("template_id")
+    
+    for placement in session.selected_placements:
+        files.append({
+            "placement": placement,
+            "image_url": artwork_url,
+            "printfile_id": 1,  # default printfile for front
+        })
+    
+    # Create mockup task
+    result = create_printful_mockup(
+        product_id=pf_id,
+        variant_ids=variant_ids[:5],  # limit เพื่อป้องกัน timeout
+        files=files,
+    )
+    
+    if not result:
+        return {"ok": False, "error": "Printful Mockup API ล้มเหลว"}
+    
+    task_key = result.get("task_key", "")
+    session.mockup_task_key = task_key
+    session.mockup_task_status = "pending"
+    
+    return {
+        "ok": True,
+        "task_key": task_key,
+        "variant_ids": variant_ids[:5],
+        "placements": session.selected_placements,
+        "note": f"Mockup task กำลังสร้าง — ใช้ task_key={task_key} เพื่อตรวจสอบสถานะ",
         "next_step": "content",
+    }
+
+
+def handle_step_mockup_status(session: WizardSession) -> dict:
+    """ตรวจสอบสถานะ mockup task"""
+    if not session.mockup_task_key:
+        return {"ok": False, "error": "ไม่มี mockup task"}
+    
+    result = check_mockup_task(session.mockup_task_key)
+    if not result:
+        return {"ok": False, "error": "ตรวจสอบสถานะไม่ได้"}
+    
+    status = result.get("status", "unknown")
+    session.mockup_task_status = status
+    
+    if status == "completed":
+        mockups = result.get("mockups", [])
+        session.mockup_results = mockups
+        if mockups:
+            session.mockup_image_url = mockups[0].get("url", "")
+    
+    return {
+        "ok": True,
+        "task_key": session.mockup_task_key,
+        "status": status,
+        "mockups": result.get("mockups", [])[:3] if status == "completed" else [],
+        "has_mockup": session.mockup_image_url is not None,
     }
 
 
@@ -397,15 +556,19 @@ def handle_step_summary(session: WizardSession) -> dict:
                 "sizes": getattr(session, 'variant_sizes', []),
             },
             "artwork_valid": session.artwork_validation.get("valid") if session.artwork_validation else None,
-            "artwork_score": session.artwork_validation.get("score") if session.artwork_validation else None,
-            "has_mockup": session.mockup_image_url is not None,
+            "has_artwork": session.artwork_image_url is not None,
+            "print_info": session.print_info is not None,
+            "selected_placements": session.selected_placements,
+            "mockup_task": session.mockup_task_key is not None,
+            "mockup_status": session.mockup_task_status,
+            "mockup_images": len(session.mockup_results),
             "has_content": session.generated_content is not None,
             "pricing": session.pricing,
             "selling_price": session.selling_price,
         },
         "next_steps": [
-            "1. ✅ ใช้ Computer Use: login Printful → เลือก product + upload artwork",
-            "2. ✅ หรือใช้ prompt mockup ข้างต้นกับ AI image generator",
+            "1. ✅ Artwork พร้อม ขนาดตรง print area",
+            "2. ✅ Mockup จาก Printful วัสดุและตำแหน่งถูกต้อง",
             "3. ✅ publish ไป Etsy / Shopify โดยตรง",
         ],
     }

@@ -475,6 +475,7 @@ def generate_video(
     prompt: str,
     duration: int = 8,
     resolution: str = "720P",
+    audio_path: Optional[str] = None,
 ) -> tuple:
     """
     Step 8: Generate video via Wan 2.7 Sync API (POST /v2/job)
@@ -493,7 +494,7 @@ def generate_video(
         prompt: video_prompt จาก Step 6
         duration: ความยาวคลิป (default 8s)
         resolution: 720P (per user spec)
-        ratio: 9:16 สำหรับ TikTok
+        audio_path: path ของ TTS audio สำหรับ lip-sync (optional)
 
     Returns:
         tuple: (video_path, cost_usd)
@@ -560,6 +561,11 @@ def generate_video(
         ("job", ("job.json", json.dumps(config), "application/json")),
         ("input", ("image.png", image_data, "image/png")),
     ]
+
+    if audio_path:
+        with open(audio_path, "rb") as f:
+            audio_data = f.read()
+        files.append(("audio", ("audio.wav", audio_data, "audio/wav")))
 
     headers = {"Authorization": f"Bearer {token}"}
 
@@ -882,6 +888,7 @@ def run_pipeline(
             image_path=str(img_path),
             prompt=vprompt,
             duration=total_duration,
+            audio_path=voice_path,
         )
         video_paths.append(vid_path)
         

@@ -95,6 +95,7 @@ class ProdiaV2Client:
         config: dict,
         inputs: Optional[List[bytes]] = None,
         accept: Optional[str] = None,
+        audio: Optional[bytes] = None,
     ) -> str:
         """
         สร้าง Job ผ่าน Async API
@@ -108,6 +109,7 @@ class ProdiaV2Client:
             config: dict ของ config parameters
             inputs: list ของ bytes สำหรับ input images (optional)
             accept: output format hint (optional)
+            audio: bytes ของ audio file สำหรับ lip-sync (optional)
         
         Returns:
             str: jobId สำหรับ polling
@@ -120,35 +122,47 @@ class ProdiaV2Client:
         endpoint = f"{self.base_url}/job/async?price=true"
 
         has_inputs = inputs and len(inputs) > 0
+        has_audio = audio is not None and len(audio) > 0
 
         # Build job payload
         job_payload: Dict[str, Any] = {
             "type": job_type,
             "config": config,
         }
+        # NOTE: Don't set config["audio"] — async API auto-detects audio from multipart field name "audio"
+        # config.audio is for advanced routing (not needed for standard lip-sync)
         if accept:
             job_payload["accept"] = accept
 
+        # ── Multipart form-data ──
+        files = [
+            ("job", ("job.json", json.dumps(job_payload), "application/json")),
+        ]
         if has_inputs:
-            # ── Multipart form-data ──
-            files = [
-                ("job", ("job.json", json.dumps(job_payload), "application/json")),
-            ]
             for i, img_bytes in enumerate(inputs):
                 files.append(("input", (f"input_{i}.png", img_bytes, "image/png")))
+        if has_audio:
+            # Audio field name = "audio" (แยกจาก "input" ที่ใช้สำหรับ image)
+            # Prodia async API auto-detects audio from "audio" multipart field
+            # DO NOT set config["audio"] — it's not needed for basic lip-sync
+            files.append(("audio", ("audio.wav", audio, "audio/wav")))
 
+        if has_inputs or has_audio:
+            # ── Multipart (image ± audio) ──
             logger.info(f"[Prodia] Creating job (multipart): {job_type}")
             logger.debug(f"  Config: {json.dumps(config)[:200]}")
-            logger.debug(f"  Inputs: {len(inputs)} file(s)")
+            logger.debug(f"  Inputs: {len(inputs) if has_inputs else 0} image(s)")
+            if has_audio:
+                logger.debug(f"  Audio: {len(audio)} bytes")
 
             try:
-                resp = self._session.post(endpoint, files=files, timeout=60)
+                resp = self._session.post(endpoint, files=files, timeout=120)
             except requests.exceptions.Timeout:
                 raise ProdiaV2Error("Prodia API timeout (create_job multipart)")
             except requests.exceptions.ConnectionError as e:
                 raise ProdiaV2Error(f"Prodia connection failed: {e}")
         else:
-            # ── JSON ──
+            # ── JSON (txt2vid, txt2img — no inputs) ──
             logger.info(f"[Prodia] Creating job (JSON): {job_type}")
             logger.debug(f"  Config: {json.dumps(config)[:200]}")
 
@@ -303,6 +317,44 @@ class ProdiaV2Client:
 
     # ────────────────────────────────────────────────────────────────────────
 
+    def _fetch_output_url(self, job_id: str) -> Optional[str]:
+        """
+        Fetch output filename from /output endpoint, then construct download URL.
+        
+        GET /v2/job/async/:id/output → ["video.mp4"]
+        
+        Returns:
+            str: full download URL (self.base_url + /output/<filename>)
+        """
+        url = f"{self.base_url}/job/async/{job_id}/output"
+        try:
+            resp = self._session.get(url, timeout=30)
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"  Failed to fetch output listing: {e}")
+            return None
+
+        if resp.status_code != 200:
+            logger.warning(f"  Output listing failed ({resp.status_code})")
+            return None
+
+        try:
+            filenames = resp.json()
+        except Exception:
+            logger.warning(f"  Output listing not JSON: {resp.text[:100]}")
+            return None
+
+        if not isinstance(filenames, list) or not filenames:
+            return None
+
+        filename = filenames[0]
+        if isinstance(filename, str) and not filename.startswith("http"):
+            download_url = f"{self.base_url}/job/async/{job_id}/output/{filename}"
+        else:
+            download_url = str(filename)
+
+        logger.info(f"  Output file: {download_url}")
+        return download_url
+
     def generate_video(
         self,
         prompt: str,
@@ -310,12 +362,23 @@ class ProdiaV2Client:
         duration: int = 8,
         resolution: str = "720P",
         ratio: str = "9:16",
+        audio_bytes: Optional[bytes] = None,
         job_type: Optional[str] = None,
         **extra_config,
     ) -> dict:
         """
         Full video gen: create → wait → extract output + price
         
+        Args:
+            prompt: video prompt
+            input_image: bytes ของ input image (optional — omit for txt2vid)
+            duration: วินาที
+            resolution: 720P / 1080P
+            ratio: aspect ratio (txt2vid only)
+            audio_bytes: bytes ของ audio file สำหรับ lip-sync (optional)
+            job_type: override job type (auto-detect by default)
+            **extra_config: ส่งผ่านไปยัง config
+
         Returns:
             dict: {
                 "job_id": str,
@@ -336,8 +399,10 @@ class ProdiaV2Client:
             "prompt": prompt,
             "duration": duration,
             "resolution": resolution,
-            "ratio": ratio,
         }
+        # ratio เฉพาะ txt2vid เท่านั้น
+        if not input_image and not audio_bytes:
+            config["ratio"] = ratio
         config.update(extra_config)
 
         inputs = [input_image] if input_image else None
@@ -347,10 +412,11 @@ class ProdiaV2Client:
             config=config,
             inputs=inputs,
             accept="video/mp4",
+            audio=audio_bytes,
         )
 
         result = self.wait_for_result(job_id)
-        output_url = self._extract_output_url(result, "video")
+        output_url = self._fetch_output_url(job_id)
 
         return {
             "job_id": job_id,

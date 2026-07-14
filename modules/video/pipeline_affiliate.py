@@ -467,7 +467,8 @@ def generate_voice(
 # STEP 8: Generate Video (Prodia Wan 2.7 Sync API)
 # ═══════════════════════════════════════════════════════════════════════════
 
-PRODIA_BASE = "https://inference.prodia.com/v2"
+# ── Shared Prodia v2 Async Client ──
+from prodia_client import ProdiaV2Client, ProdiaV2Error, ProdiaValidationError
 
 
 def generate_video(
@@ -478,19 +479,13 @@ def generate_video(
     audio_path: Optional[str] = None,
 ) -> tuple:
     """
-    Step 8: Generate video via Wan 2.7 Sync API (POST /v2/job)
+    Step 8: Generate video via Wan 2.7 Async API (shared ProdiaV2Client)
 
-    Format (per Prodia docs):
-      - type: inference.wan2-7.img2vid.v1
-      - config.resolution: 720P
-      - config.duration: 8
-      - config.negative_prompt: improves quality
-      - config.prompt_extend: enabled (default) for short prompts
-
-    Cost tracking via ?price=true on async probe request.
+    Uses the shared prodia_client.ProdiaV2Client for job creation, polling,
+    and price tracking through /v2/job/async.
 
     Args:
-        image_path: path ของ image จาก Step 5
+        image_path: path หรือ URL ของ image จาก Step 5
         prompt: video_prompt จาก Step 6
         duration: ความยาวคลิป (default 8s)
         resolution: 720P (per user spec)
@@ -511,104 +506,55 @@ def generate_video(
         with open(image_path, "rb") as f:
             image_data = f.read()
 
-    # ── Cost probe via async API ──
-    token = PRODIA_TOKEN()
-    cost_video = 0.0
-    try:
-        probe_config = {
-            "type": "inference.wan2-7.img2vid.v1",
-            "config": {
-                "prompt": prompt[:100],
-                "resolution": resolution,
-                "duration": duration,
-                "negative_prompt": "low resolution, error, worst quality, deformed",
-            },
-        }
-        probe_resp = requests.post(
-            f"{PRODIA_BASE}/job?price=true",
-            headers={"Authorization": f"Bearer {token}"},
-            files=[("job", ("job.json", json.dumps(probe_config), "application/json"))],
-            timeout=15,
-        )
-        if probe_resp.status_code == 200:
-            ct = probe_resp.headers.get("content-type", "")
-            if "multipart" in ct:
-                # Price returned in job metadata (async), extract cost
-                try:
-                    body = probe_resp.json()
-                    cost_video = float(body.get("cost", 0) or body.get("price", 0))
-                except Exception:
-                    pass
-            else:
-                # Sync response (video returned) means ?price not supported this way
-                pass
-        logger.info(f"  Cost probe: ${cost_video:.4f}")
-    except Exception as e:
-        logger.warning(f"  Cost probe failed: {e}")
-
-    # ── Actual generation via sync API ──
-    config = {
-        "type": "inference.wan2-7.img2vid.v1",
-        "config": {
-            "prompt": prompt,
-            "resolution": resolution,
-            "duration": duration,
-            "negative_prompt": "low resolution, error, worst quality, deformed",
-        },
-    }
-
-    files = [
-        ("job", ("job.json", json.dumps(config), "application/json")),
-        ("input", ("image.png", image_data, "image/png")),
-    ]
-
+    # Read audio bytes if provided
+    audio_bytes = None
     if audio_path:
         with open(audio_path, "rb") as f:
-            audio_data = f.read()
-        # Prodia: config.audio = multipart field name; filename must also match
-        config["config"]["audio"] = "audio"
-        files[0] = ("job", ("job.json", json.dumps(config), "application/json"))
-        files.append(("audio", ("audio", audio_data, "audio/wav")))
+            audio_bytes = f.read()
+        logger.info(f"  Audio: {len(audio_bytes)} bytes")
 
-    headers = {"Authorization": f"Bearer {token}"}
+    # ── Generate via shared client ──
+    client = ProdiaV2Client(token=PRODIA_TOKEN())
 
     try:
-        resp = requests.post(
-            f"{PRODIA_BASE}/job",
-            headers=headers,
-            files=files,
-            timeout=180,
+        result = client.generate_video(
+            prompt=prompt,
+            input_image=image_data,
+            duration=duration,
+            resolution=resolution,
+            audio_bytes=audio_bytes,
+            job_type="inference.wan2-7.img2vid.v1",
+            negative_prompt="low resolution, error, worst quality, deformed",
         )
 
-        # Sync API returns 200 + video/mp4 directly
-        ct = resp.headers.get("content-type", "")
-        if resp.status_code == 200 and ("video" in ct or "mp4" in ct):
-            result_path = TMP_DIR / f"img2vid_{uuid.uuid4().hex[:8]}.mp4"
-            with open(result_path, "wb") as f:
-                f.write(resp.content)
-            file_size = result_path.stat().st_size
+        output_url = result.get("output_url", "")
+        price = result.get("price", {})
+        cost_video = float(price.get("dollars", 0))
 
-            # Fallback cost if probe failed — use pricing module
-            if cost_video <= 0:
-                from prodia_pricing import get_price
-                cost_video = get_price("wan2-7.img2vid.v1")
+        if not output_url:
+            raise RuntimeError(f"No output URL in result: {result.get('result_raw', {})}")
 
-            logger.info(f"  Video OK ({file_size} bytes, {resolution}): {result_path}")
-            logger.info(f"  Cost: ${cost_video:.4f}")
+        # Download the video (Prodia output needs auth)
+        auth_headers = {"Authorization": f"Bearer {PRODIA_TOKEN()}"} if "prodia.com" in (output_url or "") else {}
+        video_resp = requests.get(output_url, headers=auth_headers, timeout=60)
+        video_resp.raise_for_status()
 
-            return str(result_path), cost_video
+        result_path = TMP_DIR / f"img2vid_{uuid.uuid4().hex[:8]}.mp4"
+        with open(result_path, "wb") as f:
+            f.write(video_resp.content)
 
-        # Error handling
-        err_detail = f"{resp.status_code}"
-        try:
-            err_body = resp.json()
-            err_detail += f": {err_body.get('error', resp.text[:200])}"
-        except Exception:
-            err_detail += f": {resp.text[:200]}"
-        raise RuntimeError(f"Wan 2.7 sync failed: {err_detail}")
+        file_size = result_path.stat().st_size
+        logger.info(f"  Video OK ({file_size} bytes, {resolution}): {result_path}")
+        logger.info(f"  Cost: ${cost_video:.4f}")
 
-    except requests.exceptions.Timeout:
-        raise RuntimeError(f"Wan 2.7 sync timeout (180s)")
+        return str(result_path), cost_video
+
+    except ProdiaValidationError as e:
+        raise RuntimeError(f"Wan 2.7 config rejected: {e}")
+    except ProdiaV2Error as e:
+        raise RuntimeError(f"Wan 2.7 failed: {e}")
+    except Exception as e:
+        raise RuntimeError(f"Wan 2.7 error: {e}")
 def compose_video(
     video_paths: list,
     voice_path: str,

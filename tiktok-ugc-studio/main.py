@@ -402,12 +402,13 @@ def _init_pipeline_db():
 
 _init_pipeline_db()
 
-def _create_pipeline_job(account_id: str = "", product_url: str = "") -> str:
-    job_id = str(uuid.uuid4())[:8]
+def _create_pipeline_job(account_id: str = "", product_url: str = "", job_id: str = None) -> str:
+    if not job_id:
+        job_id = str(uuid.uuid4())[:8]
     now = datetime.utcnow().isoformat()
     conn = sqlite3.connect(PIPELINE_DB_PATH)
     conn.execute(
-        "INSERT INTO pipeline_jobs (job_id, account_id, product_url, status, created_at, updated_at, steps_data) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        "INSERT OR IGNORE INTO pipeline_jobs (job_id, account_id, product_url, status, created_at, updated_at, steps_data) VALUES (?, ?, ?, ?, ?, ?, ?)",
         (job_id, account_id, product_url, "pending", now, now, "{}")
     )
     conn.commit()
@@ -571,6 +572,8 @@ async def script_templates():
 async def generate_video(req: VideoRequest):
     """Full UGC pipeline with scenes and metadata."""
     job_id = f"vid_{uuid.uuid4().hex[:8]}"
+    # Register in Pipeline Monitor DB
+    _create_pipeline_job(account_id="", product_url=req.product_url or req.product_title or "", job_id=job_id)
 
     if req.hook and req.value and req.cta:
         script_parts = [req.hook, req.value, req.cta]
@@ -615,6 +618,7 @@ async def generate_video(req: VideoRequest):
 
     async def _run():
         try:
+            _update_pipeline_step(job_id, "prompt_builder", "processing")
             pb_result = await _proxy("POST", "prompt-builder", "/api/v1/build", {
                 "product_name": req.product_title or "",
                 "description": req.product_description or "",
@@ -629,10 +633,12 @@ async def generate_video(req: VideoRequest):
                 img_prompt = pb_data.get("image_prompt", "")
                 video_prompts = [pb_data.get("video_prompt", "")] * len(scenes)
                 neg_prompt = pb_data.get("negative_prompt", req.negative_prompt)
+                _update_pipeline_step(job_id, "prompt_builder", "success")
             else:
                 img_prompt = scenes[0].script if scenes else (req.product_title or "product")
                 video_prompts = [s.script for s in scenes] if scenes else [req.product_title or "product"]
                 neg_prompt = req.negative_prompt
+                _update_pipeline_step(job_id, "prompt_builder", "error", {"error": "Prompt builder returned no data"})
 
             selected_sound_style = scenes[0].sound_style if scenes else "upbeat_pop"
 
@@ -648,6 +654,7 @@ async def generate_video(req: VideoRequest):
                 else:
                     product_img_local = req.product_image
 
+            _update_pipeline_step(job_id, "video_generation", "processing")
             affiliate_result = await _proxy("POST", "video", "/api/v1/video/generate", {
                 "product_title": req.product_title or "",
                 "product_image": product_img_local or "",
@@ -666,7 +673,9 @@ async def generate_video(req: VideoRequest):
             }, timeout=300.0)  # Video pipeline takes 90-180s
 
             if not affiliate_result.get("ok"):
+                _update_pipeline_step(job_id, "video_generation", "error", {"error": affiliate_result.get("error", "Pipeline affiliate run failed")})
                 raise Exception(affiliate_result.get("error", "Pipeline affiliate run failed"))
+            _update_pipeline_step(job_id, "video_generation", "success", {"output": str(affiliate_result.get("data", {}).get("video_path", ""))[:100]})
             
             # Video module returns {"success": bool, "result": {...}}
             api_data = affiliate_result.get("data", {})
@@ -704,6 +713,7 @@ async def generate_video(req: VideoRequest):
             }
         except Exception as e:
             logger.exception(f"Pipeline {job_id} failed")
+            _update_pipeline_step(job_id, "video_generation", "error", {"error": str(e)})
             _pipeline_results[job_id] = {"status": "failed", "error": str(e), "job_id": job_id}
 
     asyncio.create_task(_run())

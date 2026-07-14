@@ -542,6 +542,23 @@ def _enrich_job_from_logs_db(job_data: dict) -> dict:
                 log["tts_web_url"] = ""
     except Exception as e:
         logger.warning(f"Failed to enrich from logs DB: {e}")
+    # Fallback: ถ้าไม่เจอใน pipeline_logs.db ให้ดึงจาก steps_data.result.hashtags แทน
+    if 'logs' not in job_data:
+        job_data['logs'] = {}
+    if not job_data.get('logs', {}).get('hashtags'):
+        steps_data = job_data.get('steps_data', {})
+        try:
+            if isinstance(steps_data, str):
+                steps_data = json.loads(steps_data)
+        except Exception:
+            steps_data = {}
+        result = steps_data.get('result', {}) if isinstance(steps_data, dict) else {}
+        raw = result.get('hashtags', '')
+        if raw:
+            try:
+                job_data['logs']['hashtags'] = json.loads(raw) if isinstance(raw, str) else raw
+            except Exception:
+                job_data['logs']['hashtags'] = [raw]
     return job_data
 
 @app.get("/pipeline/{job_id}/status")
@@ -769,6 +786,7 @@ async def generate_video(req: VideoRequest):
                 "ugc_style": req.ugc_style or "product_usage",
                 "aspect_ratio": req.aspect_ratio or "9:16",
                 "negative_prompt": req.negative_prompt,
+                "job_id": job_id,
             }, timeout=300.0)  # Video pipeline takes 90-180s
 
             if not affiliate_result.get("ok"):
@@ -803,6 +821,7 @@ async def generate_video(req: VideoRequest):
                 "video_prompt": ((video_prompts or [""])[0] or "")[:300],
                 "negative_prompt": (neg_prompt or "")[:200],
                 "tags": (", ".join(req.tags or []))[:200],
+                "hashtags": json.dumps(result.get("hashtags", [])),
                 "video_url": video_web_url,
                 "video_path": str(final_path),
                 "cost_estimate": result.get("cost_estimate", 0),
@@ -822,6 +841,7 @@ async def generate_video(req: VideoRequest):
                     "product_price": req.product_price,
                     "product_commission": req.product_commission,
                     "tags": req.tags,
+                    "hashtags": result.get("hashtags", []),
                     "hook": req.hook,
                     "value": req.value,
                     "cta": req.cta,

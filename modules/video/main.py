@@ -119,6 +119,7 @@ class VideoRequest(BaseModel):
     negative_prompt: Optional[str] = None
     product_description: Optional[str] = None
     recipe: Optional[str] = None
+    job_id: Optional[str] = None  # external job_id from caller — used to keep pipeline_logs.db in sync
 
 class FullPipelineRequest(BaseModel):
     product_title: str = ""
@@ -303,6 +304,7 @@ async def generate_video(req: VideoRequest):
             bgm_style="chill_loft",
             description=req.product_description or "",
             ugc_style=req.ugc_style or "holding",
+            external_job_id=req.job_id,
         )
         return {"success": True, "result": result}
     except Exception as e:

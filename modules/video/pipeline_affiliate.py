@@ -688,6 +688,7 @@ def run_pipeline(
     bgm_style: str = "chill_loft",
     description: str = "",
     ugc_style: str = "holding",
+    external_job_id: Optional[str] = None,
 ) -> dict:
     """
     Run full Affiliate Pipeline v6 (9 Steps ตาม PIPELINE_STRUCTURE.md)
@@ -699,6 +700,8 @@ def run_pipeline(
         voice: ชื่อเสียง TTS
         bgm_style: สไตล์เพลงพื้นหลัง
         description: คําอธิบายสินค้า (optional)
+        external_job_id: job_id จาก caller (ถ้ามี) — ใช้แทนการ gen เอง เพื่อให้ pipeline_logs.db
+                         ตรงกับ pipeline.db ใน tiktok-ugc-studio
 
     Returns:
         dict: {
@@ -707,7 +710,7 @@ def run_pipeline(
         }
     """
     run_id = uuid.uuid4().hex[:8]
-    job_id = f"vid_{run_id}"
+    job_id = external_job_id or f"vid_{run_id}"
 
     logger.info(f"{'='*60}")
     logger.info(f"Pipeline v6 - Run {run_id}")
@@ -889,10 +892,12 @@ def run_pipeline(
                 "total": round(cost_total, 4),
             },
             "product_profile": {k: v for k, v in product_profile.items() if not k.startswith("_")},
+            "hashtags": product_profile.get('hashtags', []),
             "recipe": recipe_name,
             "script": script,
             "image_path": str(img_path),
             "video_paths": video_paths,
+            "job_id": job_id,
         }
 
     except Exception as e:

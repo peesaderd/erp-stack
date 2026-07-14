@@ -2465,6 +2465,8 @@ async function loadPipelineDetail(jobId) {
     // Merge step data into logs for easier access
     for (const [sname, sdata] of Object.entries(steps)) {
       if (sdata.product_name) logs.product_title = logs.product_title || sdata.product_name;
+      if (sdata.product_image) logs.product_img_web_url = logs.product_img_web_url || toWebUrl(sdata.product_image);
+      if (sdata.generated_image_path || sdata.image_path) logs.image_web_url = logs.image_web_url || toWebUrl(sdata.generated_image_path || sdata.image_path);
       if (sdata.image_prompt) logs.image_prompt = logs.image_prompt || sdata.image_prompt;
       if (sdata.video_prompt) logs.video_prompts = logs.video_prompts || sdata.video_prompt;
       if (sdata.script) logs.script = logs.script || sdata.script;

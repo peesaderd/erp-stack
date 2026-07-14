@@ -542,23 +542,40 @@ def _enrich_job_from_logs_db(job_data: dict) -> dict:
                 log["tts_web_url"] = ""
     except Exception as e:
         logger.warning(f"Failed to enrich from logs DB: {e}")
-    # Fallback: ถ้าไม่เจอใน pipeline_logs.db ให้ดึงจาก steps_data.result.hashtags แทน
+    # Fallback: ถ้าไม่เจอใน pipeline_logs.db ให้ดึงจาก steps.result แทน
     if 'logs' not in job_data:
         job_data['logs'] = {}
-    if not job_data.get('logs', {}).get('hashtags'):
-        steps_data = job_data.get('steps_data', {})
-        try:
-            if isinstance(steps_data, str):
-                steps_data = json.loads(steps_data)
-        except Exception:
-            steps_data = {}
-        result = steps_data.get('result', {}) if isinstance(steps_data, dict) else {}
-        raw = result.get('hashtags', '')
+    logs = job_data['logs']
+    steps_dict = job_data.get('steps', {})
+    try:
+        if isinstance(steps_dict, str):
+            steps_dict = json.loads(steps_dict)
+    except Exception:
+        steps_dict = {}
+    result_data = steps_dict.get('result', {}) if isinstance(steps_dict, dict) else {}
+    # Hashtags fallback
+    if not logs.get('hashtags'):
+        raw = result_data.get('hashtags', '')
         if raw:
             try:
-                job_data['logs']['hashtags'] = json.loads(raw) if isinstance(raw, str) else raw
+                logs['hashtags'] = json.loads(raw) if isinstance(raw, str) else raw
             except Exception:
-                job_data['logs']['hashtags'] = [raw]
+                logs['hashtags'] = [raw]
+    # Product image fallback
+    if not logs.get('product_img_web_url'):
+        pi = result_data.get('product_image', '')
+        if pi:
+            logs['product_img_web_url'] = _path_to_web_url(pi)
+    # Generated image fallback
+    if not logs.get('image_web_url'):
+        gi = result_data.get('generated_image_path', result_data.get('image_path', ''))
+        if gi:
+            logs['image_web_url'] = _path_to_web_url(gi)
+    # Video URL fallback
+    if not logs.get('video_web_url'):
+        vu = result_data.get('video_url', '')
+        if vu:
+            logs['video_web_url'] = _path_to_web_url(vu)
     return job_data
 
 @app.get("/pipeline/{job_id}/status")

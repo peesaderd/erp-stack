@@ -1314,10 +1314,15 @@ def get_pipeline_recipes():
 @app.get("/pipeline/detail/{job_id}")
 async def pipeline_detail(job_id: str):
     """Get pipeline job details (frontend expects /pipeline/detail/{id})."""
+    # Check in-memory results first
     result = _pipeline_results.get(job_id)
-    if not result:
+    if result:
+        return {"job": result}
+    # Fall back to pipeline.db
+    job = _get_pipeline_job(job_id)
+    if not job:
         return {"error": "Job not found"}
-    return {"job": result}
+    return {"job": job}
 
 @app.post("/dashboard/track-event")
 async def track_event():

@@ -281,7 +281,7 @@ function stepHTML(sid, m) {
     product:   base + '<label>สินค้า</label><select id="selProduct" onchange="onProduct()"><option value="">— กรุณาเลือก —</option></select><div id="prodSpec"></div>' + btns,
     variant:   base + '<label>สี</label><div class="chip-grid" id="colorGrid"></div><label>ขนาด</label><div class="chip-grid" id="sizeGrid"></div>' + btns,
     artwork:   base + (aiData && aiData.image_url ? '<div class="ai-card"><img src="'+aiData.image_url+'" style="max-width:100%;border-radius:12px;margin-bottom:10px"><p style="font-size:13px;color:#5f6368">✨ AI สร้างจาก Fal.ai</p></div>' : '') + '<label>ความกว้าง (px)</label><input type="number" id="artW" value="3600" oninput="valArt()"><label>ความสูง (px)</label><input type="number" id="artH" value="4800" oninput="valArt()"><label>DPI</label><input type="number" id="artDPI" value="300" oninput="valArt()"><label>ขนาดไฟล์ (MB)</label><input type="number" id="artMB" value="5" step=".1" oninput="valArt()"><label>ประเภท</label><select id="artType" onchange="valArt()"><option>PNG</option><option>JPEG</option><option>SVG</option></select><div id="artResult"></div>' + btns,
-    mockup:    base + (aiData && aiData.image_url ? '<div class="ai-card"><img src="'+aiData.image_url+'" style="max-width:100%;border-radius:12px;margin-bottom:10px"><p style="font-size:13px;color:#5f6368">✨ AI Artwork — พร้อมนำไปสร้าง mockup</p></div>' : '') + '<label>รายละเอียด design</label><textarea id="designDesc" placeholder="อธิบาย design เช่น minimalist cat, black & white">'+(aiData?aiData.image_prompt:'')+'</textarea><div id="mockupResult"></div>' + btns,
+    mockup:    base + (aiData && aiData.image_url ? '<div class="ai-card"><img src="'+aiData.image_url+'" style="max-width:100%;border-radius:12px;margin-bottom:10px"><p style="font-size:13px;color:#5f6368">✨ AI Artwork — พร้อมนำไปสร้าง mockup</p></div>' : '') + '<label>รายละเอียด design</label><textarea id="designDesc" placeholder="อธิบาย design เช่น minimalist cat, black & white">'+(aiData?aiData.image_prompt:'')+'</textarea><div id="mockupResult"></div><div id="mockupSkipNotice" style="display:none;margin-top:8px;padding:8px 12px;background:#fff3cd;border-radius:8px;font-size:12px;color:#856404">⚠️ Mockup API ติดปัญหา — กด Next เพื่อข้ามไปขั้นตอนถัดไป (สร้าง mockup ทีหลัง)</div>' + btns,
     content:   base + '<label>ชื่อสินค้า</label><input type="text" id="prodName" placeholder="Cool Cat Tee" value="'+(aiData?aiData.title:'')+'"><label>คำอธิบาย</label><textarea id="prodDesc" placeholder="อธิบายสินค้า">'+(aiData?aiData.description:'')+'</textarea><div id="tagsDisplay" style="margin-top:10px"></div><div id="aiTagsHint" style="margin-top:8px;font-size:12px;color:#7c3aed"></div>' + btns,
     pricing:   base + '<label>ราคาขาย (USD)</label><input type="number" id="sellPrice" value="'+(aiData?aiData.price:'29.99')+'" step=".01" oninput="calcProfit()"><label>ภูมิภาค</label><select id="region" onchange="calcProfit()"><option>US</option><option>EU</option><option>UK</option><option>CA</option></select><div id="priceResult"></div>' + btns,
     brief:     base + '<div class="ai-section"><label style="font-size:15px;font-weight:600;">📝 บอกว่าอยากได้อะไร</label><textarea id="designBrief" rows="4" placeholder="เช่น เสื้อยืดลายแมวขาวดำ minimalist, เสื้อ Hoodie สีดำพิมพ์ลายเรขาคณิต, แก้ว mugg สีขาวพิมพ์รูปน้องหมา"></textarea><button class="btn btn-ai" id="btnGenerate" onclick="generateWithAI()">🤖 ให้ AI สร้างให้</button><div id="aiProgress" class="loading" style="display:none"><div class="spinner"></div><div class="msg" id="aiMsg">🤖 AI กำลังสร้าง concept...</div></div></div><div id="aiPreview" style="display:none"><h3>✨ ผลลัพธ์จาก AI</h3><div id="aiResults"></div></div>' + '<div class="btn-row right"><button class="btn btn-primary" id="bNext" onclick="goNext()">เริ่มสร้าง →</button></div>',
@@ -601,6 +601,12 @@ async function goNext() {
       showLoading(false);
       return;
     }
+    // Check for mockup_skipped — show warning but continue
+    if (d.mockup_skipped) {
+      var skipNotice = document.getElementById('mockupSkipNotice');
+      if (skipNotice) skipNotice.style.display = 'block';
+      // Don't block navigation, just show warning
+    }
     // Store ONLY session object (S.product_id, S.session_id, S.current_step_idx)
     window.S = d.session || d;
     // Frontend has virtual 'brief' step (idx 0) — backend starts at provider (idx 0)
@@ -630,7 +636,8 @@ function collectData(sid) {
       height_px: +document.getElementById('artH').value || 0,
       dpi: +document.getElementById('artDPI').value || 0,
       file_size_mb: +document.getElementById('artMB').value || 0,
-      file_type: document.getElementById('artType') ? document.getElementById('artType').value : 'PNG'
+      file_type: document.getElementById('artType') ? document.getElementById('artType').value : 'PNG',
+      image_url: (window.aiData && window.aiData.image_url) || S.artwork_image_url || ''
     };
     case 'mockup':  return {};
     case 'content': return {

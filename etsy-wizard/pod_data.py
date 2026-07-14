@@ -473,6 +473,7 @@ def create_printful_mockup(
     try:
         import http.client
         body = json.dumps(payload).encode()
+        logger.info(f"Printful mockup payload: {json.dumps(payload)[:500]}")
         req = Request(
             f"{PRINTFUL_API}/mockup-generator/create-task/{product_id}",
             data=body,
@@ -481,11 +482,18 @@ def create_printful_mockup(
         with urlopen(req, timeout=60) as resp:
             data = json.loads(resp.read().decode())
         if data.get("code") not in (200, 201):
-            logger.warning(f"Printful create-task error: {data.get('code')}: {data.get('result','')[:200]}")
+            logger.warning(f"Printful create-task error ({data.get('code')}): {json.dumps(data.get('result',{}))[:500]}")
             return None
         return data.get("result")
     except Exception as e:
         logger.warning(f"Failed to create mockup for product {product_id}: {e}")
+        # Try to read response body for more detail
+        if hasattr(e, 'read'):
+            try:
+                err_body = e.read().decode() if callable(e.read) else e.read()
+                logger.warning(f"Printful error body: {err_body[:500]}")
+            except:
+                pass
         return None
 
 
@@ -497,7 +505,7 @@ def check_mockup_task(task_key: str) -> Optional[dict]:
     
     Returns {
         "status": "completed" | "failed" | "pending",
-        "mockups": [{ "placement": "front", "variant_id": 9575, "url": "..." }],
+        "mockups": [{ "placement": "front", "variant_ids": [9575], "mockup_url": "...", "extra": [...] }],
         ...
     }
     """

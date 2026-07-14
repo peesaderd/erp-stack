@@ -73,3 +73,5 @@ tiktok-ugc-studio/refresh_images.py
 modules/video/storage/
 
 .credentials/
+etsy-wizard/.pod_cache/
+etsy-wizard/__pycache__/

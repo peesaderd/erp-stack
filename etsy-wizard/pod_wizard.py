@@ -329,7 +329,7 @@ def handle_step_print_info(session: WizardSession, **kwargs) -> dict:
 
 
 def handle_step_artwork(session: WizardSession, prompt: str = "",
-                         image_url: str = None, width_px: int = 0, height_px: int = 0) -> dict:
+                         image_url: str = None, width_px: int = 0, height_px: int = 0, **kwargs) -> dict:
     """
     Step 6: สร้าง artwork / อัปโหลด
     
@@ -354,6 +354,9 @@ def handle_step_artwork(session: WizardSession, prompt: str = "",
     
     if image_url:
         session.artwork_image_url = image_url
+    elif not session.artwork_image_url:
+        # Preserve existing artwork URL from AI gen step if not overwritten
+        pass
     
     return {
         "ok": True,
@@ -380,6 +383,10 @@ def handle_step_mockup(session: WizardSession, placements: list = None) -> dict:
     artwork_url = session.artwork_image_url or session.artwork_info.get("image_url", "")
     if not artwork_url:
         return {"ok": False, "error": "ไม่พบ artwork URL"}
+    
+    # Convert relative URL to absolute for Printful API
+    if artwork_url.startswith("/"):
+        artwork_url = "https://m2igen.com" + artwork_url
     
     # หา Printful product ID
     product = get_product_detail(session.product_id)
@@ -411,23 +418,61 @@ def handle_step_mockup(session: WizardSession, placements: list = None) -> dict:
     
     # Build files payload
     files = []
-    # ดึง printfile_id จาก templates
-    templates_data = get_printful_mockup_templates(pf_id)
-    template_map = {}
-    if templates_data:
-        for vm in templates_data.get("variant_mapping", []):
-            v_id = vm.get("variant_id")
-            if v_id in variant_ids:
-                for t in vm.get("templates", []):
-                    placement = t.get("placement")
-                    if placement in session.selected_placements:
-                        template_map[placement] = t.get("template_id")
+    # Build placement-to-printfile mapping from printfiles data
+    pf_data = get_printful_printfiles(pf_id)
+    placement_printfile = {}
+    if pf_data:
+        available = pf_data.get("available_placements", {})
+        # Printful auto-selects printfile when we omit printfile_id
+        pass  # We'll omit printfile_id and let Printful auto-select
+    
+    # Use printfile dimensions for position if available
+    pf_list = pf_data.get("printfiles", []) if pf_data else []
+    # Default position: match the printfile area for front
+    default_width = 1800
+    default_height = 2400
+    for pf_entry in pf_list:
+        if pf_entry.get("printfile_id") == 1:
+            default_width = pf_entry.get("width", 1800)
+            default_height = pf_entry.get("height", 2400)
+            break
     
     for placement in session.selected_placements:
+        # Look for matching printfile size for this placement
+        p_width = default_width
+        p_height = default_height
+        if placement == "front_large":
+            for pf_entry in pf_list:
+                if pf_entry.get("printfile_id") == 333:
+                    p_width = pf_entry.get("width", 2250)
+                    p_height = pf_entry.get("height", 2700)
+                    break
+        elif placement in ("back", "sleeve_left", "sleeve_right"):
+            for pf_entry in pf_list:
+                if pf_entry.get("printfile_id") == 71:
+                    p_width = pf_entry.get("width", 450)
+                    p_height = pf_entry.get("height", 450)
+                    break
+        elif "label" in placement:
+            for pf_entry in pf_list:
+                if pf_entry.get("printfile_id") == 130:
+                    p_width = pf_entry.get("width", 600)
+                    p_height = pf_entry.get("height", 525)
+                    break
+        
+        # Printful position format: area_width/area_height = printfile bounds,
+        # width/height = artwork size within area, top/left = offset
         files.append({
             "placement": placement,
             "image_url": artwork_url,
-            "printfile_id": 1,  # default printfile for front
+            "position": {
+                "area_width": p_width,
+                "area_height": p_height,
+                "width": p_width,
+                "height": p_height,
+                "top": 0,
+                "left": 0
+            }
         })
     
     # Create mockup task
@@ -438,7 +483,17 @@ def handle_step_mockup(session: WizardSession, placements: list = None) -> dict:
     )
     
     if not result:
-        return {"ok": False, "error": "Printful Mockup API ล้มเหลว"}
+        # Mockup failed — allow skip, mark as "skipped" so wizard can continue
+        session.mockup_task_status = "skipped"
+        return {
+            "ok": True,
+            "task_key": None,
+            "mockup_skipped": True,
+            "variant_ids": variant_ids[:5],
+            "placements": session.selected_placements,
+            "note": "⚠️ Mockup API ล้มเหลว — ข้ามไปก่อนได้ (สร้าง mockup ทีหลังที่ Printful)",
+            "next_step": "content",
+        }
     
     task_key = result.get("task_key", "")
     session.mockup_task_key = task_key
@@ -470,7 +525,7 @@ def handle_step_mockup_status(session: WizardSession) -> dict:
         mockups = result.get("mockups", [])
         session.mockup_results = mockups
         if mockups:
-            session.mockup_image_url = mockups[0].get("url", "")
+            session.mockup_image_url = mockups[0].get("mockup_url", "")
     
     return {
         "ok": True,

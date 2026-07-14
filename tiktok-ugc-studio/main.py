@@ -1179,6 +1179,20 @@ async def ugc_scripts_generate(req: dict):
             elif len(lines) == 1:
                 hook = lines[0]
     
+    # Also get hashtags from prompt-builder  
+    hashtags = []
+    try:
+        pb_result = await _proxy("POST", "prompt-builder", "/api/v1/build", {
+            "product_name": req.get("product_title", req.get("product_name", "")),
+            "description": req.get("product_details", req.get("description", "")),
+            "ugc_style": req.get("ugc_style", "holding"),
+        })
+        if pb_result.get("ok") and pb_result.get("data"):
+            analysis = pb_result.get("data", {}).get("analysis", {})
+            hashtags = analysis.get("hashtags", [])
+    except Exception:
+        pass
+
     return {
         "success": True,
         "script": raw_script,
@@ -1188,6 +1202,7 @@ async def ugc_scripts_generate(req: dict):
         "uses_llm": script_obj.get("uses_llm", False),
         "duration": script_obj.get("duration", "8s"),
         "product": script_obj.get("product", ""),
+        "hashtags": hashtags,
     }
 
 @app.post("/ugc/images/build-prompt")

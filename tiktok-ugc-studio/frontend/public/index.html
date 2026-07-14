@@ -1008,7 +1008,7 @@ select.input { cursor: pointer; }
 
 <!-- ═══ Content ═══ -->
 <div id="page-content" class="page">
-  <div class="page-header"><div><h2>Content Wizard</h2><p>สร้างสคริปต์และวิดีโอ UGC</p></div></div>
+  <div class="page-header"><div><h2>Video Wizard</h2><p>สร้างสคริปต์และวิดีโอ UGC</p></div></div>
 
   <div class="steps" id="contentSteps">
     <div class="step active" data-step="1"><div class="step-num">1</div><span class="step-label">Product</span></div>
@@ -2067,7 +2067,10 @@ function goToStep3() {
   document.getElementById('step3Voice').textContent = lastScript.voice || lastScript.voice_style || lastScript.script?.voice || 'เสียงไทยหญิง อายุ 20-30 น้ำเสียงเป็นกันเอง';
   document.getElementById('step3Prompt').textContent = (lastScript.prompt || lastScript.video_prompt || lastScript.script?.prompt || '').length > 5 ? (lastScript.prompt || lastScript.video_prompt || lastScript.script?.prompt) : '- กำลัง generate (ลองใหม่)...';
   document.getElementById('step3Mood').textContent = lastScript.mood || lastScript.mood_tone || lastScript.script?.mood || 'เป็นกันเอง, เชื่อถือได้, อุ่นใจ';
-  document.getElementById('step3Hashtags').textContent = lastScript.hashtags || lastScript.script?.hashtags || '#UGC #รีวิวสินค้า #ของดีบอกต่อ';
+  // Hashtags from prompt-builder analysis (returned by script gen endpoint)
+  const rawTags = lastScript.hashtags || lastScript.script?.hashtags || [];
+  const tagStr = Array.isArray(rawTags) ? rawTags.join(', ') : (typeof rawTags === 'string' ? rawTags : '');
+  document.getElementById('step3Hashtags').textContent = tagStr || '-';
 
   // Show uploaded product image
   const productImg = document.getElementById('productImgPreview') || document.querySelector('#productImgZone img');
@@ -2299,7 +2302,6 @@ async function startGeneration() {
       product_title: title || undefined,
       product_url: document.getElementById('productUrl').value || undefined,
       product_image: imageUrl,
-      tags: [],
       hook: hook,
       value: value,
       cta: cta,
@@ -2466,6 +2468,7 @@ async function loadPipelineDetail(jobId) {
       if (sdata.image_prompt) logs.image_prompt = logs.image_prompt || sdata.image_prompt;
       if (sdata.video_prompt) logs.video_prompts = logs.video_prompts || sdata.video_prompt;
       if (sdata.script) logs.script = logs.script || sdata.script;
+      if (sdata.hashtags) logs.hashtags = logs.hashtags || (Array.isArray(sdata.hashtags) ? sdata.hashtags.join(', ') : sdata.hashtags);
       if (sdata.tags) logs.hashtags = logs.hashtags || sdata.tags;
       // ⛔ video_url from steps is ALWAYS a local path — use toWebUrl()!
       if (!logs.video_web_url && sdata.video_url && sdata.video_url.includes('/')) {
@@ -2486,6 +2489,7 @@ async function loadPipelineDetail(jobId) {
       const m = job.metadata;
       if (m.product_name) logs.product_title = logs.product_title || m.product_name;
       if (m.product_image) logs.product_img_web_url = logs.product_img_web_url || toWebUrl(m.product_image);
+      if (m.hashtags) logs.hashtags = logs.hashtags || (Array.isArray(m.hashtags) ? m.hashtags.join(', ') : m.hashtags);
       if (m.tags && Array.isArray(m.tags)) logs.hashtags = logs.hashtags || m.tags.join(', ');
       if (m.hook) logs.script_hook = logs.script_hook || m.hook;
       if (m.value) logs.script_value = logs.script_value || m.value;
@@ -4467,7 +4471,7 @@ async function scoutQuickClone() {
     });
     const d = await r.json();
     if (d.success) {
-      el.innerHTML = '<div class="text-sm" style="color:var(--color-green-400)">✅ Script generated! <a href="#" onclick="document.getElementById(\'productTitle\').value=\'' + productName.replace(/'/g, "\\'") + '\';switchTab(\'content\');return false">Open in Content Wizard →</a></div>'
+      el.innerHTML = '<div class="text-sm" style="color:var(--color-green-400)">✅ Script generated! <a href="#" onclick="document.getElementById(\'productTitle\').value=\'' + productName.replace(/'/g, "\\'") + '\';switchTab(\'content\');return false">Open in Video Wizard →</a></div>'
         + (d.script ? '<pre style="font-size:11px;background:var(--bg-tertiary);padding:8px;border-radius:var(--radius);margin-top:6px;max-height:120px;overflow:auto">' + d.script + '</pre>' : '');
       showToast('✅ Clone script ready!', 'success');
     } else {

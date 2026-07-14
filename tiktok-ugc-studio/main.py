@@ -383,6 +383,7 @@ async def generate_script_tts(req: ScriptTTSRequest):
 # ─── Pipeline Database ─────────────────────────────────────────────────────
 
 PIPELINE_DB_PATH = os.path.join(os.path.dirname(__file__), "pipeline.db")
+LOGS_DB_PATH = os.path.join(os.path.dirname(__file__), "storage", "pipeline_logs.db")
 
 def _init_pipeline_db():
     conn = sqlite3.connect(PIPELINE_DB_PATH)
@@ -449,6 +450,100 @@ def _get_pipeline_job(job_id: str) -> dict:
         "steps": json.loads(row[6]),
     }
 
+def _path_to_web_url(filepath: str) -> str:
+    """Convert local file path to public web URL."""
+    if not filepath:
+        return ""
+    fp = str(filepath)
+    # Remove common base paths and map to /api/tiktok/static/
+    for prefix in [
+        str(STORAGE_DIR),
+        "/home/openhands/erp-stack/modules/video/storage",
+        "/home/openhands/erp-stack/tiktok-ugc-studio/storage",
+    ]:
+        if fp.startswith(prefix):
+            rel = fp[len(prefix):].lstrip("/")
+            return f"/api/tiktok/static/{rel}"
+    # If it's already a URL or starts with /api/ or /static/, return as-is
+    if fp.startswith("http://") or fp.startswith("https://"):
+        return fp
+    if fp.startswith("/api/") or fp.startswith("/static/"):
+        # Ensure it goes through our proxy
+        if fp.startswith("/static/") and not fp.startswith("/api/"):
+            return f"/api/tiktok{fp}"
+        return fp
+    # Fallback: just return filename
+    return os.path.basename(fp)
+
+def _enrich_job_from_logs_db(job_data: dict) -> dict:
+    """Try to enrich pipeline job with data from pipeline_logs.db."""
+    if not os.path.exists(LOGS_DB_PATH):
+        return job_data
+    try:
+        conn = sqlite3.connect(LOGS_DB_PATH)
+        conn.row_factory = sqlite3.Row
+        # Try matching by job_id first, then run_id
+        row = conn.execute("SELECT * FROM pipeline_jobs WHERE job_id = ?", (job_data.get("job_id", ""),)).fetchone()
+        conn.close()
+        if row:
+            d = dict(row)
+            # Convert timestamps and paths
+            job_data["logs"] = {
+                "product_title": d.get("product_title", ""),
+                "product_description": (d.get("product_description") or "")[:300],
+                "product_price": d.get("product_price"),
+                "product_image_path": d.get("product_image_path", ""),
+                "image_prompt": d.get("image_prompt", ""),
+                "video_prompts": d.get("video_prompts", ""),
+                "script": d.get("script", ""),
+                "negative_prompt": d.get("negative_prompt", ""),
+                "hashtags": json.loads(d.get("hashtags", "[]")) if d.get("hashtags") else [],
+                "generated_image_path": d.get("generated_image_path", ""),
+                "tts_audio_path": d.get("tts_audio_path", ""),
+                "video_path": d.get("video_path", ""),
+                "final_video_path": d.get("final_video_path", ""),
+                "cost_total": d.get("cost_total", 0),
+                "cost_image": d.get("cost_image", 0),
+                "cost_voice": d.get("cost_voice", 0),
+                "cost_video": d.get("cost_video", 0),
+                "duration_total_ms": d.get("duration_total_ms", 0),
+                "duration_analysis_ms": d.get("duration_analysis_ms", 0),
+                "duration_script_ms": d.get("duration_script_ms", 0),
+                "duration_image_gen_ms": d.get("duration_image_gen_ms", 0),
+                "duration_tts_ms": d.get("duration_tts_ms", 0),
+                "duration_video_gen_ms": d.get("duration_video_gen_ms", 0),
+                "duration_compose_ms": d.get("duration_compose_ms", 0),
+                "aspect_ratio": d.get("aspect_ratio", "9:16"),
+                "voice": d.get("voice", ""),
+                "total_duration_seconds": d.get("total_duration_seconds", 0),
+                "recipe_name": d.get("recipe_name", "tus"),
+                "ugc_style": d.get("ugc_style", ""),
+                "error_message": d.get("error_message", ""),
+            }
+            # Build web URLs for assets
+            log = job_data["logs"]
+            if log["final_video_path"]:
+                log["video_web_url"] = _path_to_web_url(log["final_video_path"])
+            elif log["video_path"]:
+                log["video_web_url"] = _path_to_web_url(log["video_path"])
+            else:
+                log["video_web_url"] = ""
+            if log["generated_image_path"]:
+                log["image_web_url"] = _path_to_web_url(log["generated_image_path"])
+            else:
+                log["image_web_url"] = ""
+            if log["product_image_path"]:
+                log["product_img_web_url"] = _path_to_web_url(log["product_image_path"])
+            else:
+                log["product_img_web_url"] = ""
+            if log["tts_audio_path"]:
+                log["tts_web_url"] = _path_to_web_url(log["tts_audio_path"])
+            else:
+                log["tts_web_url"] = ""
+    except Exception as e:
+        logger.warning(f"Failed to enrich from logs DB: {e}")
+    return job_data
+
 @app.get("/pipeline/{job_id}/status")
 def pipeline_status(job_id: str):
     job = _get_pipeline_job(job_id)
@@ -460,7 +555,7 @@ def pipeline_status(job_id: str):
 def pipeline_list(limit: int = 20):
     conn = sqlite3.connect(PIPELINE_DB_PATH)
     rows = conn.execute(
-        "SELECT job_id, account_id, status, product_url, created_at, updated_at FROM pipeline_jobs ORDER BY created_at DESC LIMIT ?",
+        "SELECT job_id, account_id, status, product_url, created_at, updated_at FROM pipeline_jobs ORDER BY REPLACE(created_at, ' ', 'T') DESC LIMIT ?",
         (limit,)
     ).fetchall()
     conn.close()
@@ -633,7 +728,11 @@ async def generate_video(req: VideoRequest):
                 img_prompt = pb_data.get("image_prompt", "")
                 video_prompts = [pb_data.get("video_prompt", "")] * len(scenes)
                 neg_prompt = pb_data.get("negative_prompt", req.negative_prompt)
-                _update_pipeline_step(job_id, "prompt_builder", "success")
+                _update_pipeline_step(job_id, "prompt_builder", "success", {
+                    "image_prompt": (img_prompt or "")[:200],
+                    "video_prompt": ((video_prompts or [""])[0] or "")[:200],
+                    "negative_prompt": (neg_prompt or "")[:200],
+                })
             else:
                 img_prompt = scenes[0].script if scenes else (req.product_title or "product")
                 video_prompts = [s.script for s in scenes] if scenes else [req.product_title or "product"]
@@ -690,6 +789,28 @@ async def generate_video(req: VideoRequest):
             final_video_path = VIDEOS_DIR / f"final_{job_id}.mp4"
             shutil.copy2(final_path, final_video_path)
 
+            # Store final rich result
+            video_web_url = f"/api/tiktok/static/videos/final_{job_id}.mp4"
+            
+            _update_pipeline_step(job_id, "result", "success", {
+                "product_name": (req.product_title or "")[:100],
+                "product_price": req.product_price,
+                "product_image": req.product_image or "",
+                "script_hook": (req.hook or "")[:200],
+                "script_value": (req.value or "")[:200],
+                "script_cta": (req.cta or "")[:200],
+                "image_prompt": (img_prompt or "")[:300],
+                "video_prompt": ((video_prompts or [""])[0] or "")[:300],
+                "negative_prompt": (neg_prompt or "")[:200],
+                "tags": (", ".join(req.tags or []))[:200],
+                "video_url": video_web_url,
+                "video_path": str(final_path),
+                "cost_estimate": result.get("cost_estimate", 0),
+                "duration": req.duration,
+                "ugc_style": req.ugc_style or "",
+                "aspect_ratio": req.aspect_ratio or "9:16",
+            })
+
             _pipeline_results[job_id] = {
                 "status": "completed",
                 "video_url": f"/static/videos/final_{job_id}.mp4",
@@ -708,6 +829,9 @@ async def generate_video(req: VideoRequest):
                     "ugc_style": req.ugc_style,
                     "duration": req.duration,
                     "aspect_ratio": req.aspect_ratio or "9:16",
+                    "image_prompt": img_prompt or "",
+                    "video_prompts": video_prompts or [],
+                    "negative_prompt": neg_prompt or "",
                 },
                 "job_id": job_id,
             }
@@ -1155,7 +1279,7 @@ def dashboard_summary():
             # Recent jobs (last 10)
             rows = conn.execute(
                 "SELECT job_id, account_id, status, product_url, created_at, updated_at "
-                "FROM pipeline_jobs ORDER BY created_at DESC LIMIT 10"
+                "FROM pipeline_jobs ORDER BY REPLACE(created_at, ' ', 'T') DESC LIMIT 10"
             ).fetchall()
             conn.close()
             for r in rows:
@@ -1313,16 +1437,27 @@ def get_pipeline_recipes():
 
 @app.get("/pipeline/detail/{job_id}")
 async def pipeline_detail(job_id: str):
-    """Get pipeline job details (frontend expects /pipeline/detail/{id})."""
-    # Check in-memory results first
-    result = _pipeline_results.get(job_id)
-    if result:
-        return {"job": result}
-    # Fall back to pipeline.db
+    """Get pipeline job details with enriched data from logs DB."""
+    # Start with pipeline.db data (has steps, created_at, etc.)
     job = _get_pipeline_job(job_id)
     if not job:
+        # Fall back to in-memory results
+        result = _pipeline_results.get(job_id)
+        if result:
+            return {"job": _enrich_job_from_logs_db(result)}
         return {"error": "Job not found"}
-    return {"job": job}
+    
+    # Merge in-memory results if available (has video_url, metadata, etc.)
+    mem = _pipeline_results.get(job_id, {})
+    if mem:
+        job["video_url"] = mem.get("video_url", "")
+        job["cost"] = mem.get("cost", 0)
+        job["metadata"] = mem.get("metadata", {})
+        # Update status if in-memory differs
+        if mem.get("status") in ("completed", "failed"):
+            job["status"] = mem["status"]
+    
+    return {"job": _enrich_job_from_logs_db(job)}
 
 @app.post("/dashboard/track-event")
 async def track_event():

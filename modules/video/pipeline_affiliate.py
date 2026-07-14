@@ -862,7 +862,7 @@ def run_pipeline(
                 'video_prompts': video_prompts,
                 'script': script,
                 'negative_prompt': '',
-                'hashtags': [],
+                'hashtags': product_profile.get('hashtags', []),
             })
         except Exception as e:
             logger.warning(f"Logger update_prompts failed: {e}")

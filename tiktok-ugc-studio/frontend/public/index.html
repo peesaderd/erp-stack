@@ -181,7 +181,7 @@ body {
 }
 
 /* ═══ Page layout & Content ═══ */
-.page { display: none; padding: 32px; max-width: 1340px; margin: 0 auto; width: 100%; }
+.page { display: none; padding: 32px 32px 80px; max-width: 1340px; margin: 0 auto; width: 100%; }
 .page.active { display: block; }
 
 .page-header {
@@ -473,11 +473,11 @@ select.input { cursor: pointer; }
 .mobile-tab-bar { display: none; }
 
 @media (max-width: 768px) {
-  .page { padding: 20px; }
+  .page { padding: 20px 20px 90px; }
   .topbar-nav { display: none !important; }
   .mobile-menu-btn { display: flex !important; }
   
-  .app { padding-bottom: 78px !important; }
+  .app { padding-bottom: 0 !important; }
   .mobile-tab-bar {
     display: flex !important;
     position: fixed; bottom: 0; left: 0; right: 0; height: 72px;
@@ -664,7 +664,7 @@ select.input { cursor: pointer; }
 }
 .pipeline-job-card {
   background: var(--bg-secondary); border: 1px solid var(--border-primary);
-  border-radius: var(--radius-xl); padding: 16px 20px; margin-bottom: 10px;
+  border-radius: var(--radius-xl); padding: 16px 20px; margin-bottom: 10px; gap: 12px;
   display: flex; align-items: center; justify-content: space-between;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: var(--shadow-sm);
@@ -1276,7 +1276,6 @@ select.input { cursor: pointer; }
         <option value="restarted">🔄 Restarted</option>
       </select>
       <button class="btn btn-secondary btn-sm" onclick="loadPipelineJobs()">⟳ Refresh</button>
-      <button class="btn btn-ghost btn-sm" onclick="loadAssetLibrary()">🖼 Assets</button>
     </div>
   </div>
   <div id="pipelineJobList"><div class="text-sm text-secondary" style="text-align:center;padding:32px">Loading...</div></div>
@@ -1284,12 +1283,15 @@ select.input { cursor: pointer; }
 
 <!-- Pipeline Detail Modal -->
 <div class="modal-overlay" id="pipelineDetailModal" style="z-index:100">
-  <div class="modal" style="max-width:800px;max-height:90vh;overflow-y:auto">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+  <div class="modal" style="max-width:820px;max-height:95vh;overflow-y:auto;padding:20px">
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;position:sticky;top:0;background:var(--bg-primary);z-index:2;padding-bottom:8px">
       <div>
-        <h3 style="margin:0">📦 <span id="pdJobId">—</span></h3>
-        <span id="pdStatusBadge" class="badge"></span>
-        <span class="text-xs text-secondary ml-2" id="pdCreatedAt"></span>
+        <h3 style="margin:0;font-size:16px">📦 <span id="pdJobId">—</span></h3>
+        <div style="margin-top:4px">
+          <span id="pdStatusBadge" class="badge"></span>
+          <span class="text-xs text-secondary ml-2" id="pdCreatedAt"></span>
+        </div>
       </div>
       <div class="flex gap-2">
         <button class="btn btn-primary btn-sm" id="pdRetryBtn" onclick="retryJob(currentDetailJobId)" style="display:none">🔄 Retry</button>
@@ -1297,9 +1299,74 @@ select.input { cursor: pointer; }
         <button class="btn btn-ghost btn-sm" onclick="closePipelineDetail()">✕</button>
       </div>
     </div>
-    <div id="pdAccountInfo" class="text-sm text-secondary mb-3"></div>
-    <div id="pdTimeline"></div>
-    <div id="pdAssets" style="margin-top:16px"></div>
+    <div id="pdAccountInfo" class="text-sm text-secondary mb-4"></div>
+
+    <!-- ── Product Info Section ── -->
+    <div id="pdInfoSection" class="card mb-4" style="display:none;border:1px solid var(--border-primary);border-radius:12px;padding:16px;background:var(--bg-secondary)">
+      <div style="display:flex;gap:16px">
+        <div style="width:120px;height:120px;border-radius:10px;overflow:hidden;background:var(--bg-tertiary);flex-shrink:0">
+          <img id="pdProductImg" src="" alt="Product" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">
+        </div>
+        <div style="flex:1">
+          <div class="card-title" id="pdProductName" style="font-size:15px;font-weight:700"></div>
+          <div id="pdProductDesc" class="text-xs text-secondary mt-1" style="line-height:1.4"></div>
+          <div id="pdProductPrice" class="text-sm" style="font-weight:600;color:var(--accent-green);margin-top:4px"></div>
+          <div id="pdProductTags" class="mt-2" style="display:flex;gap:4px;flex-wrap:wrap"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Video Section ── -->
+    <div id="pdVideoSection" class="card mb-4" style="display:none;border:1px solid var(--border-primary);border-radius:12px;padding:16px;background:#0a0a0a">
+      <div class="card-title mb-2" style="font-size:14px;color:white">🎬 Generated Video</div>
+      <video id="pdVideoPlayer" controls style="width:100%;border-radius:10px;max-height:500px" preload="metadata"></video>
+      <div style="margin-top:8px;text-align:center">
+        <a id="pdVideoLink" href="" target="_blank" class="btn btn-sm">⬇ ดาวน์โหลดวิดีโอ</a>
+      </div>
+    </div>
+
+    <!-- ── Generated Image Section ── -->
+    <div id="pdImageSection" class="card mb-4" style="display:none;border:1px solid var(--border-primary);border-radius:12px;padding:16px">
+      <div class="card-title mb-2" style="font-size:14px">🖼 Generated Image</div>
+      <div id="pdGenImgContainer" style="display:flex;justify-content:center">
+        <img id="pdGeneratedImg" alt="Generated" style="max-width:100%;max-height:300px;border-radius:10px;object-fit:contain">
+      </div>
+    </div>
+
+    <!-- ── Script Section ── -->
+    <div id="pdScriptSection" class="card mb-4" style="display:none;border:1px solid var(--border-primary);border-radius:12px;padding:16px">
+      <div class="card-title mb-2" style="font-size:14px">📝 Script / Voiceover</div>
+      <div id="pdScript" style="background:var(--bg-tertiary);padding:12px;border-radius:8px"></div>
+    </div>
+
+    <!-- ── Prompts Section ── -->
+    <div id="pdPromptsSection" class="card mb-4" style="display:none;border:1px solid var(--border-primary);border-radius:12px;padding:16px">
+      <div class="card-title mb-2" style="font-size:14px">🤖 AI Prompts</div>
+      <div id="pdPrompts"></div>
+    </div>
+
+    <!-- ── Hashtags Section ── -->
+    <div id="pdHashtagsSection" class="card mb-4" style="display:none;border:1px solid var(--border-primary);border-radius:12px;padding:16px">
+      <div class="card-title mb-2" style="font-size:14px">🏷️ Hashtags</div>
+      <div id="pdHashtags" style="display:flex;gap:4px;flex-wrap:wrap"></div>
+    </div>
+
+    <!-- ── Costs Section ── -->
+    <div id="pdCostsSection" class="card mb-4" style="display:none;border:1px solid var(--border-primary);border-radius:12px;padding:16px">
+      <div class="card-title mb-2" style="font-size:14px">💰 Cost Summary</div>
+      <div class="flex gap-4" style="flex-wrap:wrap">
+        <div class="badge" style="background:rgba(16,185,129,0.15);color:var(--accent-green);font-size:12px;padding:4px 10px" id="pdCostTotal"></div>
+        <div class="badge" style="background:rgba(99,102,241,0.1);color:var(--brand);font-size:11px" id="pdCostImage"></div>
+        <div class="badge" style="background:rgba(245,158,11,0.1);color:var(--accent-amber);font-size:11px" id="pdCostVoice"></div>
+        <div class="badge" style="background:rgba(239,68,68,0.1);color:var(--accent-red);font-size:11px" id="pdCostVideo"></div>
+      </div>
+    </div>
+
+    <!-- ── Timeline ── -->
+    <div id="pdTimeline" class="mb-3"></div>
+
+    <!-- ── Bottom Assets ── -->
+    <div id="pdAssets"></div>
   </div>
 </div>
 
@@ -1697,7 +1764,9 @@ function switchTab(name) {
 
   // Load specific tab data
   if (name === 'dashboard') loadDashboard();
-  if (name === 'pipeline') loadPipelineJobs();
+  if (name === 'pipeline') {
+    loadPipelineJobs();
+  }
   if (name === 'products') loadAnalyzedProducts();
   if (name === 'assets') loadAssets();
   if (name === 'publisher') pfmFetchAccounts();
@@ -2289,12 +2358,12 @@ async function startGeneration() {
 let currentDetailJobId = '';
 
 function statusBadgeClass(status) {
-  const map = { 'completed': 'badge-green', 'running': 'badge-blue', 'pending': 'badge', 'error': 'badge-red', 'cancelled': 'badge', 'restarted': 'badge-yellow' };
+  const map = { 'completed': 'badge-green', 'running': 'badge-blue', 'pending': 'badge', 'error': 'badge-red', 'cancelled': 'badge', 'restarted': 'badge-yellow', 'failed': 'badge-red' };
   return map[status] || 'badge';
 }
 
 function statusIcon(status) {
-  const map = { 'completed': '✅', 'running': '⏳', 'pending': '⏸', 'error': '❌', 'cancelled': '🚫', 'restarted': '🔄' };
+  const map = { 'completed': '✅', 'running': '⏳', 'pending': '⏸', 'error': '❌', 'cancelled': '🚫', 'restarted': '🔄', 'failed': '❌' };
   return map[status] || '❓';
 }
 
@@ -2319,25 +2388,27 @@ async function loadPipelineJobs() {
       el.innerHTML = '<div class="text-sm text-secondary" style="text-align:center;padding:32px">📭 ไม่มีงานที่ตรงกับเงื่อนไข</div>';
       return;
     }
+    // Use product_url from DB as product name (no per-job detail fetch to avoid flicker)
     el.innerHTML = jobs.map(j => {
       const badgeCls = statusBadgeClass(j.status);
       const icon = statusIcon(j.status);
       const timeAgo = timeSince(j.created_at);
-      const account = j.account_id || '—';
+      const prodName = (j.product_url || '').replace(/^https?:\/\//i, '').slice(0, 45);
+      const hasProdName = prodName && !prodName.includes('...') && prodName.length > 5;
       return `<div class="pipeline-job-card">
-        <div class="job-info">
-          <div class="job-id">${icon} ${j.job_id}</div>
-          <div class="job-meta">
+        <div style="width:40px;height:40px;min-width:40px;border-radius:50%;background:var(--bg-tertiary);display:flex;align-items:center;justify-content:center;font-size:20px;border:1px solid var(--border-primary)">${icon}</div>
+        <div class="job-info" style="min-width:0;padding-left:4px">
+          <div class="job-id" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px">${hasProdName ? prodName : j.job_id}</div>
+          <div class="job-meta" style="font-size:11px;color:var(--text-secondary)">
             <span class="badge ${badgeCls}">${j.status}</span>
-            <span>👤 ${account}</span>
-            <span>📦 ${j.product_url ? j.product_url.slice(0, 40) : '—'}</span>
-            <span>🕐 ${timeAgo}</span>
+            <span style="margin-left:8px">🕐 ${timeAgo}</span>
+            <span style="margin-left:8px">📋 ${j.job_id}</span>
           </div>
         </div>
-        <div class="job-actions">
-          <button class="btn btn-ghost btn-sm" onclick="loadPipelineDetail('${j.job_id}')">🔍 Details</button>
-          ${j.status === 'error' || j.status === 'restarted' ? `<button class="btn btn-sm" onclick="retryJob('${j.job_id}')">🔄 Retry</button>` : ''}
-          ${j.status === 'running' || j.status === 'pending' ? `<button class="btn btn-sm" style="color:var(--color-red-500)" onclick="cancelJobFromList('${j.job_id}')">✖</button>` : ''}
+        <div class="job-actions" style="flex-shrink:0;display:flex;gap:4px">
+          <button class="btn btn-primary btn-sm" onclick="loadPipelineDetail('${j.job_id}')" style="padding:5px 12px;font-size:12px">📋 ดู</button>
+          ${j.status === 'error' || j.status === 'restarted' ? `<button class="btn btn-sm" onclick="retryJob('${j.job_id}')" style="padding:5px 10px;font-size:11px">🔄</button>` : ''}
+          ${j.status === 'running' || j.status === 'pending' ? `<button class="btn btn-sm" onclick="cancelJobFromList('${j.job_id}')" style="padding:5px 10px;font-size:11px;color:var(--color-red-500)">✖</button>` : ''}
         </div>
       </div>`;
     }).join('');
@@ -2357,12 +2428,27 @@ async function loadPipelineDetail(jobId) {
   const assetsEl = document.getElementById('pdAssets');
   const retryBtn = document.getElementById('pdRetryBtn');
   const cancelBtn = document.getElementById('pdCancelBtn');
+  const infoSection = document.getElementById('pdInfoSection');
+  const videoSection = document.getElementById('pdVideoSection');
+  const imageSection = document.getElementById('pdImageSection');
+  const scriptSection = document.getElementById('pdScriptSection');
+  const promptsSection = document.getElementById('pdPromptsSection');
+  const hashtagsSection = document.getElementById('pdHashtagsSection');
+  const costsSection = document.getElementById('pdCostsSection');
 
   modal.classList.add('open');
   idEl.textContent = 'Loading...';
   statusEl.textContent = '...';
   timelineEl.innerHTML = '<div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line"></div>';
   assetsEl.innerHTML = '';
+  // Show all sections by default (hide only if truly empty later)
+  infoSection.style.display = 'block';
+  videoSection.style.display = 'block';
+  imageSection.style.display = 'block';
+  scriptSection.style.display = 'block';
+  promptsSection.style.display = 'block';
+  hashtagsSection.style.display = 'block';
+  costsSection.style.display = 'block';
   retryBtn.style.display = 'none';
   cancelBtn.style.display = 'none';
 
@@ -2371,12 +2457,58 @@ async function loadPipelineDetail(jobId) {
     if (!res.ok) throw new Error('Job not found');
     const data = await res.json();
     const job = data.job;
+    const logs = job.logs || {};
+    const steps = job.steps || {};
+
+    // Merge step data into logs for easier access
+    for (const [sname, sdata] of Object.entries(steps)) {
+      if (sdata.product_name) logs.product_title = logs.product_title || sdata.product_name;
+      if (sdata.image_prompt) logs.image_prompt = logs.image_prompt || sdata.image_prompt;
+      if (sdata.video_prompt) logs.video_prompts = logs.video_prompts || sdata.video_prompt;
+      if (sdata.script) logs.script = logs.script || sdata.script;
+      if (sdata.tags) logs.hashtags = logs.hashtags || sdata.tags;
+      // ⛔ video_url from steps is ALWAYS a local path — use toWebUrl()!
+      if (!logs.video_web_url && sdata.video_url && sdata.video_url.includes('/')) {
+        logs.video_web_url = toWebUrl(sdata.video_url);
+      }
+      if (sdata.filepath) logs.video_path = logs.video_path || sdata.filepath;
+      if (sdata.video_path) logs.video_path = logs.video_path || sdata.video_path;
+      if (sdata.negative_prompt) logs.negative_prompt = logs.negative_prompt || sdata.negative_prompt;
+      if (sdata.cost_estimate) logs.cost_total = logs.cost_total || sdata.cost_estimate;
+    }
+    // For old jobs: extract tts filepath
+    if (!logs.tts_audio_path && steps.tts && steps.tts.filepath) {
+      logs.tts_audio_path = steps.tts.filepath;
+      logs.tts_web_url = toWebUrl(steps.tts.filepath);
+    }
+    // Extract from metadata (in-memory results)
+    if (job.metadata) {
+      const m = job.metadata;
+      if (m.product_name) logs.product_title = logs.product_title || m.product_name;
+      if (m.product_image) logs.product_img_web_url = logs.product_img_web_url || toWebUrl(m.product_image);
+      if (m.tags && Array.isArray(m.tags)) logs.hashtags = logs.hashtags || m.tags.join(', ');
+      if (m.hook) logs.script_hook = logs.script_hook || m.hook;
+      if (m.value) logs.script_value = logs.script_value || m.value;
+      if (m.cta) logs.script_cta = logs.script_cta || m.cta;
+      if (m.image_prompt) logs.image_prompt = logs.image_prompt || m.image_prompt;
+      if (m.negative_prompt) logs.negative_prompt = logs.negative_prompt || m.negative_prompt;
+      if (m.aspect_ratio) logs.aspect_ratio = logs.aspect_ratio || m.aspect_ratio;
+      if (m.ugc_style) logs.ugc_style = logs.ugc_style || m.ugc_style;
+    }
+    // Also try metadata.product_url as product image
+    if (!logs.product_img_web_url && job.product_url && job.product_url.match(/\.(jpg|jpeg|png|gif|webp)/i)) {
+      logs.product_img_web_url = toWebUrl(job.product_url);
+    }
+    // Extract video from job.video_url (in-memory merged)
+    if (!logs.video_web_url && job.video_url) {
+      logs.video_web_url = toWebUrl(job.video_url);
+    }
 
     idEl.textContent = job.job_id;
     statusEl.textContent = statusIcon(job.status) + ' ' + job.status;
     statusEl.className = 'badge ' + statusBadgeClass(job.status);
-    createdEl.textContent = '🕐 ' + timeSince(job.created_at);
-    accountEl.innerHTML = '👤 ' + (job.account_id || '—') + (job.product_url ? ' &middot; 📦 ' + job.product_url.slice(0, 60) : '');
+    createdEl.textContent = '🕐 ' + (job.created_at ? timeSince(job.created_at) : 'just now');
+    accountEl.innerHTML = '👤 ' + (job.account_id || '—') + (job.product_url ? ' · 📦 ' + job.product_url.slice(0, 60) : '');
 
     // Retry / Cancel buttons
     if (job.status === 'error' || job.status === 'restarted') {
@@ -2386,56 +2518,192 @@ async function loadPipelineDetail(jobId) {
       cancelBtn.style.display = 'inline-flex';
     }
 
-    // Render timeline
-    const steps = job.steps || {};
-    const stepNames = Object.keys(steps);
-    if (stepNames.length === 0) {
-      timelineEl.innerHTML = '<div class="text-sm text-secondary" style="text-align:center;padding:20px">No steps recorded yet.</div>';
+    // ── Product Info Section ──
+    const productName = logs.product_title || logs.product_name || '';
+    const productDesc = logs.product_description || '';
+    const productPrice = logs.product_price;
+    const productImgUrl = logs.product_img_web_url || logs.product_image_path || '';
+    document.getElementById('pdProductName').textContent = productName || '—';
+    document.getElementById('pdProductDesc').textContent = (productDesc || '').slice(0, 200) || '—';
+    document.getElementById('pdProductPrice').textContent = productPrice ? '฿' + Number(productPrice).toLocaleString() : '—';
+    const pimg = document.getElementById('pdProductImg');
+    if (productImgUrl) {
+      pimg.src = productImgUrl;
+      pimg.style.display = 'block';
     } else {
-      timelineEl.innerHTML = '<div class="timeline">' + stepNames.map((name, i) => {
-        const step = steps[name];
-        const st = step.status || 'pending';
-        const dotClass = st === 'success' ? 'success' : st === 'error' ? 'error' : st === 'processing' ? 'processing' : 'pending';
-        const icon = stepStatusIcon(st);
-        const details = [];
-        for (const [k, v] of Object.entries(step)) {
-          if (k === 'status') continue;
-          const val = typeof v === 'string' ? v.slice(0, 120) : JSON.stringify(v).slice(0, 120);
-          if (val && val !== '{}' && val !== '[]') {
-            details.push('<div class="detail-row"><span class="detail-label">' + k.replace(/_/g, ' ') + '</span><span>' + val + '</span></div>');
-          }
-        }
-        return `<div class="timeline-item">
-          <div class="timeline-dot ${dotClass}">${icon}</div>
-          <div class="timeline-body">
-            <div class="step-name">${name}</div>
-            <div class="step-details">
-              <div class="detail-row"><span class="detail-label">status</span><span>${st}</span></div>
-              ${details.join('')}
-              ${step.filepath ? `<div class="detail-row"><span class="detail-label">file</span><a href="${step.filepath}" target="_blank" class="text-xs" style="color:var(--color-brand-500)">${step.filepath.split('/').pop()}</a></div>` : ''}
-            </div>
-          </div>
-        </div>`;
-      }).join('') + '</div>';
+      pimg.style.display = 'none';
+    }
+    // Tags / hashtags as badges
+    const tagsEl = document.getElementById('pdProductTags');
+    const tags = logs.hashtags || '';
+    if (tags) {
+      const tagList = typeof tags === 'string' ? tags.split(',').map(t => t.trim()).filter(Boolean) : tags;
+      tagsEl.innerHTML = tagList.slice(0, 8).map(t => `<span class="badge badge-indigo" style="font-size:10px">🏷 ${t}</span>`).join(' ');
+    } else {
+      tagsEl.innerHTML = '<span class="text-secondary" style="font-size:12px">—</span>';
     }
 
-    // Assets preview from steps
+    // ── Video Section ──
+    const videoUrl = logs.video_web_url || '';
+    const vp = document.getElementById('pdVideoPlayer');
+    if (videoUrl) {
+      vp.pause();
+      vp.src = videoUrl;
+      vp.load();
+      document.getElementById('pdVideoLink').href = videoUrl;
+      videoSection.style.display = 'block';
+    } else {
+      vp.pause();
+      vp.removeAttribute('src');
+      vp.load();
+    }
+
+    // ── Generated Image ──
+    const imageUrl = logs.image_web_url || logs.generated_image_path || '';
+    const imgEl = document.getElementById('pdGeneratedImg');
+    if (imageUrl && imgEl) {
+      imgEl.onerror = function() { this.parentElement.innerHTML = '<span class="text-secondary" style="font-size:12px">❌ Image unavailable</span>'; };
+      imgEl.src = imageUrl;
+      imageSection.style.display = 'block';
+    } else {
+      imageSection.style.display = 'none';
+    }
+
+    // ── Script Section ──
+    const script = logs.script || '';
+    const hook = logs.hook || logs.script_hook || '';
+    const value = logs.value || logs.script_value || '';
+    const cta = logs.cta || logs.script_cta || '';
+    const scEl = document.getElementById('pdScript');
+    if (script) {
+      scriptSection.style.display = 'block';
+      scEl.innerHTML = '<pre style="white-space:pre-wrap;font-family:inherit;font-size:13px;line-height:1.6;color:var(--text-primary);margin:0">' + escapeHtml(script) + '</pre>';
+    } else if (hook || value || cta) {
+      scriptSection.style.display = 'block';
+      const parts = [];
+      if (hook) parts.push('<div class="mb-2"><span class="badge badge-amber" style="font-size:10px">📢 Hook</span><div style="margin-top:4px;font-size:13px;color:var(--text-primary)">' + escapeHtml(hook) + '</div></div>');
+      if (value) parts.push('<div class="mb-2"><span class="badge badge-green" style="font-size:10px">💡 Value</span><div style="margin-top:4px;font-size:13px;color:var(--text-primary)">' + escapeHtml(value) + '</div></div>');
+      if (cta) parts.push('<div><span class="badge badge-indigo" style="font-size:10px">🎯 CTA</span><div style="margin-top:4px;font-size:13px;color:var(--text-primary)">' + escapeHtml(cta) + '</div></div>');
+      scEl.innerHTML = parts.join('');
+    } else {
+      scEl.innerHTML = '<span class="text-secondary" style="font-size:12px">ไม่มีข้อมูล Script</span>';
+    }
+
+    // ── Prompts Section ──
+    const imgPrompt = logs.image_prompt || '';
+    const vidPrompt = logs.video_prompts || '';
+    const negPrompt = logs.negative_prompt || '';
+    const promptEl = document.getElementById('pdPrompts');
+    const pParts = [];
+    if (imgPrompt) pParts.push('<div class="mb-3"><span class="badge" style="background:rgba(99,102,241,0.1);color:var(--brand);font-size:10px">🖼 Image Prompt</span><div style="margin-top:4px;font-size:12.5px;color:var(--text-primary);line-height:1.5">' + escapeHtml(imgPrompt.slice(0, 500)) + '</div></div>');
+    if (vidPrompt) {
+      const vpText = typeof vidPrompt === 'string' ? vidPrompt : Array.isArray(vidPrompt) ? vidPrompt.join(' | ') : JSON.stringify(vidPrompt);
+      pParts.push('<div class="mb-3"><span class="badge" style="background:rgba(16,185,129,0.1);color:var(--accent-green);font-size:10px">🎬 Video Prompt</span><div style="margin-top:4px;font-size:12.5px;color:var(--text-primary);line-height:1.5">' + escapeHtml(vpText.slice(0, 500)) + '</div></div>');
+    }
+    if (negPrompt) pParts.push('<div><span class="badge badge-red" style="font-size:10px">🚫 Negative Prompt</span><div style="margin-top:4px;font-size:12.5px;color:var(--text-secondary);line-height:1.5">' + escapeHtml(negPrompt.slice(0, 300)) + '</div></div>');
+    if (pParts.length) {
+      promptEl.innerHTML = pParts.join('');
+      promptsSection.style.display = 'block';
+    } else {
+      promptEl.innerHTML = '<span class="text-secondary" style="font-size:12px">ไม่มีข้อมูล Prompt</span>';
+    }
+
+    // ── Hashtags Section ──
+    const hashtags = logs.hashtags || '';
+    const htEl = document.getElementById('pdHashtags');
+    if (hashtags && hashtags !== '[]') {
+      const tagList = typeof hashtags === 'string' ? hashtags.split(',').map(t => t.trim()).filter(Boolean) : hashtags;
+      // Filter out empty/brace artifacts from JSON array strings
+      const cleanTags = tagList.filter(t => t && t !== '[' && t !== ']');
+      if (cleanTags.length) {
+        htEl.innerHTML = cleanTags.map(t => `<span class="badge badge-indigo" style="font-size:11px;margin:2px">🏷 ${t}</span>`).join(' ');
+        hashtagsSection.style.display = 'block';
+      } else {
+        htEl.innerHTML = '<span class="text-secondary" style="font-size:12px">ไม่มี Hashtags</span>';
+      }
+    }
+
+    // ── Costs Section ──
+    const costTotal = logs.cost_total || logs.cost_estimate || 0;
+    if (costTotal) {
+      costsSection.style.display = 'block';
+      document.getElementById('pdCostTotal').textContent = '💰 $' + Number(costTotal).toFixed(3);
+      document.getElementById('pdCostImage').textContent = '🖼 $' + Number(logs.cost_image || 0).toFixed(3);
+      document.getElementById('pdCostVoice').textContent = '🔊 $' + Number(logs.cost_voice || 0).toFixed(3);
+      document.getElementById('pdCostVideo').textContent = '🎬 $' + Number(logs.cost_video || 0).toFixed(3);
+    }
+
+    // ── Timeline (compact, no bubbles, no file paths) ──
+    const stepNames = Object.keys(steps).filter(n => n !== 'result');
+    if (stepNames.length === 0) {
+      timelineEl.innerHTML = '<div class="text-sm text-secondary" style="text-align:center;padding:20px">ℹ️ ยังไม่มีข้อมูลขั้นตอน</div>';
+    } else {
+      timelineEl.innerHTML = '<div class="card-title mb-2" style="font-size:14px">📋 ขั้นตอนการทำงาน</div>'
+        + '<div style="display:table;width:100%;border-collapse:collapse">'
+        + stepNames.map((name, i) => {
+          const step = steps[name];
+          const st = step.status || 'pending';
+          const icon = stepStatusIcon(st);
+          const badgeCls = st === 'success' ? 'badge-green' : st === 'error' ? 'badge-red' : st === 'processing' ? 'badge-amber' : 'badge-gray';
+          const bgRow = st === 'success' ? 'rgba(16,185,129,0.05)' : st === 'error' ? 'rgba(239,68,68,0.05)' : 'transparent';
+          return `<div style="display:table-row">
+            <div style="display:table-cell;padding:6px 8px;white-space:nowrap;font-size:13px;border-bottom:1px solid var(--border-primary);background:${bgRow}">${icon} <span style="text-transform:capitalize">${name.replace(/_/g, ' ')}</span></div>
+            <div style="display:table-cell;padding:6px 8px;text-align:right;font-size:12px;border-bottom:1px solid var(--border-primary);background:${bgRow}"><span class="badge ${badgeCls}" style="font-size:10px">${st}</span></div>
+          </div>`;
+        }).join('') + '</div>';
+    }
+
+    // ── Bottom Assets (compact, filenames only) ──
     const assetFiles = [];
     for (const [name, step] of Object.entries(steps)) {
-      if (step.filepath) assetFiles.push({ name, path: step.filepath });
+      if (step.filepath) assetFiles.push({ label: name, path: step.filepath });
     }
+    if (logs.tts_audio_path) assetFiles.push({ label: 'TTS Audio', path: logs.tts_audio_path });
+    if (logs.video_path) assetFiles.push({ label: 'Raw Video', path: logs.video_path });
+    if (logs.final_video_path) assetFiles.push({ label: 'Final Video', path: logs.final_video_path });
     if (assetFiles.length) {
-      assetsEl.innerHTML = '<div class="card-title mb-2" style="font-size:13px">📎 Generated Assets</div>'
-        + assetFiles.map(a => {
+      const unique = [...new Map(assetFiles.map(a => [a.path, a])).values()];
+      assetsEl.innerHTML = '<div class="card-title mb-2" style="font-size:13px">📎 ไฟล์ที่สร้าง</div>'
+        + unique.map(a => {
           const isVideo = a.path.match(/\.(mp4|mov|webm)$/i);
-          return '<span class="pd-asset-thumb" onclick="window.open(\'' + a.path + '\',\'_blank\')">'
-            + (isVideo ? '🎬' : '🖼') + ' ' + a.path.split('/').pop() + '</span>';
+          return `<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;margin:2px;border-radius:6px;background:var(--bg-tertiary);cursor:pointer;font-size:12px;border:1px solid var(--border-primary)" onclick="window.open('${toWebUrl(a.path)}','_blank')">${isVideo ? '🎬' : '📄'} ${a.path.split('/').pop()}</span>`;
         }).join('');
     }
   } catch(e) {
     idEl.textContent = 'Error';
     timelineEl.innerHTML = '<div class="text-sm text-secondary" style="text-align:center;padding:20px;color:var(--color-red-500)">❌ ' + e.message + '</div>';
   }
+}
+
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = String(text);
+  return div.innerHTML;
+}
+
+function toWebUrl(localPath) {
+  if (!localPath) return '';
+  if (localPath.startsWith('http://') || localPath.startsWith('https://') || localPath.startsWith('/')) {
+    // Already a URL or web path, just ensure it goes through proxy
+    if (localPath.startsWith('/static/') && !localPath.startsWith('/api/')) {
+      return '/api/tiktok' + localPath;
+    }
+    if (localPath.startsWith('/api/')) return localPath;
+    // Convert local file paths
+    for (const prefix of ['/home/openhands/erp-stack/modules/video/storage', '/home/openhands/erp-stack/tiktok-ugc-studio/storage']) {
+      if (localPath.startsWith(prefix)) {
+        return '/api/tiktok/static/' + localPath.slice(prefix.length).replace(/^\//, '');
+      }
+    }
+    if (localPath.startsWith('http://')) return localPath;
+  }
+  return localPath;
+}
+
+function fmtCost(c) {
+  if (!c || c == 0) return '';
+  return '$' + Number(c).toFixed(3);
 }
 
 function closePipelineDetail() {

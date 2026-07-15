@@ -663,19 +663,94 @@ async def video_status(task_id: str):
 
 @app.get("/video/completed")
 def list_completed_videos():
+    """List completed videos — from in-memory pipeline results + filesystem scan.
+    
+    Survives PM2 restarts by scanning storage/videos/*.mp4 + pipeline.db.
+    """
+    seen = set()
     jobs = []
+
+    # 1) In-memory pipeline results (fast path, survives during uptime)
     for job_id, result in _pipeline_results.items():
         if result.get("status") == "completed":
             meta = result.get("metadata", {})
+            video_url = result.get("video_url", "")
+            seen.add(job_id)
             jobs.append({
                 "job_id": job_id,
-                "video_url": result.get("video_url", ""),
+                "video_url": video_url,
                 "cost": result.get("cost", 0),
                 "product_name": meta.get("product_name", ""),
                 "duration": meta.get("duration", 8),
                 "style": meta.get("ugc_style", ""),
             })
-    jobs.reverse()
+
+    # 2) Filesystem scan — find videos stored on disk (survives PM2 restart)
+    mp4_files = sorted(VIDEOS_DIR.glob("final_*.mp4"), key=lambda p: p.stat().st_mtime, reverse=True)
+    for mp4 in mp4_files:
+        job_id = mp4.stem.replace("final_", "")  # final_vid_049e078c → vid_049e078c
+        if job_id in seen:
+            continue
+        seen.add(job_id)
+        # Derive human-readable name from filename
+        size_mb = mp4.stat().st_size / (1024 * 1024)
+        mtime = datetime.fromtimestamp(mp4.stat().st_mtime).strftime("%Y-%m-%d")
+        pname = mp4.stem.replace("final_vid_", "Video ").replace("final_", "")
+        jobs.append({
+            "job_id": job_id,
+            "video_url": f"/api/tiktok/static/videos/{mp4.name}",
+            "cost": 0,
+            "product_name": pname,
+            "duration": 8,
+            "style": "ugc",
+            "size_mb": round(size_mb, 1),
+            "created": mtime,
+        })
+
+    # 3) Enrich from logs DB (has product_title, duration, ugc_style, cost)
+    if os.path.exists(str(LOGS_DB_PATH)):
+        try:
+            conn = sqlite3.connect(str(LOGS_DB_PATH))
+            conn.row_factory = sqlite3.Row
+            for j in jobs:
+                row = conn.execute(
+                    "SELECT product_title, ugc_style, total_duration_seconds, cost_total, hashtags FROM pipeline_jobs WHERE job_id = ?",
+                    (j["job_id"],)
+                ).fetchone()
+                if row:
+                    # Override with real data from logs DB
+                    if row["product_title"]:
+                        j["product_name"] = row["product_title"]
+                    if row["ugc_style"]:
+                        j["style"] = row["ugc_style"]
+                    if row["total_duration_seconds"]:
+                        j["duration"] = int(row["total_duration_seconds"])
+                    if row["cost_total"] is not None:
+                        j["cost"] = round(row["cost_total"], 4)
+            conn.close()
+        except Exception as e:
+            logger.warning(f"Logs DB enrich: {e}")
+
+    # 4) Fallback enrich from pipeline.db (only for jobs still showing auto-generated names)
+    if os.path.exists(PIPELINE_DB_PATH):
+        try:
+            conn = sqlite3.connect(PIPELINE_DB_PATH)
+            conn.row_factory = sqlite3.Row
+            for j in jobs:
+                pn = j.get("product_name", "")
+                # Skip if already enriched from logs DB (real product name, not URL/auto)
+                if pn and not pn.startswith("Video ") and not pn.startswith("final_") and not pn.startswith("http"):
+                    continue
+                row = conn.execute(
+                    "SELECT product_url FROM pipeline_jobs WHERE job_id = ?",
+                    (j["job_id"],)
+                ).fetchone()
+                if row and row["product_url"]:
+                    j["product_name"] = row["product_url"][:60]
+            conn.close()
+        except Exception:
+            pass
+
     return {"jobs": jobs, "total": len(jobs)}
 
 @app.get("/active-model")

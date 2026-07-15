@@ -1,0 +1,97 @@
+# 🎤 Talking Head — Lip-Sync Pipeline Template
+# Wan 2.7 img2vid + Audio → คนพูด sync ปากกับ TTS
+
+name: talking_head
+description: "Wan 2.7 + audio lip-sync — person speaks to camera with product"
+emoji: 🎤
+label: "Talking Head — พูดหน้ากล้อง"
+
+# ═══════════════════════════════════════════════════════
+# Generation Config
+# ═══════════════════════════════════════════════════════
+generation:
+  job_type: wan2-7.img2vid.v1
+  needs_audio: true                    # KEY: ต้องส่ง audio_bytes → lip-sync
+  audio_field: audio                   # multipart field name
+  image_requirement: person_with_product  # รูปต้องมีคน + สินค้า
+  image_model: nano-banana             # สร้างรูปคนก่อน → img2img
+  negative_prompt: "deformed face, extra fingers, blurry, low quality, text watermark"
+
+# ═══════════════════════════════════════════════════════
+# Scene Prompts — {product} และ {variations} inject ตอน runtime
+# ═══════════════════════════════════════════════════════
+scene_prompts:
+  hook: |
+    {model} confidently speaking directly to camera, {lighting},
+    natural hand gestures, warm friendly expression,
+    holding {product} naturally in frame,
+    {angle}, {color_palette} aesthetic, {background},
+    professional UGC style, authentic Thai creator vibe
+
+  value: |
+    {model} explaining product benefits with genuine enthusiasm,
+    close-up hands showing {product} texture and details,
+    natural conversation style, {lighting},
+    {angle}, {color_palette}, {background}
+
+  cta: |
+    {model} giving confident call to action,
+    pointing toward camera or shopping cart area,
+    warm smile, final product showcase next to face,
+    encouraging expression, {lighting}, {color_palette}
+
+# ═══════════════════════════════════════════════════════
+# Variations — randomize ทุกครั้งที่ generate
+# ═══════════════════════════════════════════════════════
+variations:
+  lighting:
+    - soft natural window light
+    - ring light studio setup
+    - warm golden hour sunlight
+    - bright daylight interior
+    - cozy warm lamp light
+    
+  angle:
+    - eye-level direct
+    - slight low angle
+    - face close-up
+    - medium chest-up shot
+    - slight dutch angle dynamic
+    
+  color_palette:
+    - warm beige and cream tones
+    - soft pastel pink and white
+    - clean white minimalist
+    - warm earth tones
+    - cool neutral grey with warm accent
+    
+  model:
+    - Thai woman casual style natural makeup
+    - young Thai creator confident expression
+    - Thai woman minimalist clean look
+    - Thai girl next door authentic vibe
+    - modern Thai woman professional look
+    
+  background:
+    - minimalist beige room
+    - cozy home setting
+    - clean aesthetic shelf backdrop
+    - warm natural light room
+    - modern simple interior
+
+# ═══════════════════════════════════════════════════════
+# Video Generation Params
+# ═══════════════════════════════════════════════════════
+video_params:
+  duration: [8, 15]
+  resolution: 720P
+  ratio: "9:16"
+  default_duration: 8
+
+# ═══════════════════════════════════════════════════════
+# CTA Strategy
+# ═══════════════════════════════════════════════════════
+cta_strategy:
+  pool: [urgent, social_proof, direct, soft]
+  position: end_of_video
+  max_length_chars: 50

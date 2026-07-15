@@ -1,0 +1,80 @@
+# ⭐ UGC Review — Authentic Review Pipeline Template
+# Wan 2.7 img2vid, no audio → รีวิวสินค้าแบบ authentic
+
+name: ugc_review
+description: "Authentic product review — natural UGC style, Wan 2.7 I2V, no lip-sync"
+emoji: ⭐
+label: "UGC Review — รีวิวสินค้า"
+
+generation:
+  job_type: wan2-7.img2vid.v1
+  needs_audio: false
+  image_requirement: product_with_reviewer
+  image_model: nano-banana
+  negative_prompt: "deformed face, blurry, low quality, text watermark, distorted product"
+
+scene_prompts:
+  hook: |
+    {model} looking at {product} with genuine curiosity,
+    authentic reaction shot, unboxing or first impression moment,
+    {lighting}, {angle}, relaxed natural vibe,
+    {color_palette}, {background}
+
+  value: |
+    {model} reviewing {product} with honest enthusiasm,
+    showing product details up close, pointing out features,
+    natural conversational gesture, {lighting},
+    authentic UGC feel, not overly polished
+
+  cta: |
+    {model} giving final verdict on {product},
+    genuine recommendation expression,
+    product clearly visible in frame,
+    {lighting}, natural relaxed finish
+
+variations:
+  lighting:
+    - natural bedroom light
+    - cozy room ambient
+    - soft window daylight
+    - warm evening indoor
+    - casual home lighting
+    
+  angle:
+    - relaxed eye-level
+    - casual sitting angle
+    - close-up reaction
+    - natural hand-held feel
+    - comfortable medium shot
+    
+  color_palette:
+    - cozy warm tones
+    - natural neutral palette
+    - soft lived-in aesthetic
+    - warm earth and cream
+    - casual everyday colors
+    
+  model:
+    - Thai woman genuine reaction
+    - young creator authentic review
+    - relatable girl next door
+    - casual everyday Thai woman
+    - natural no-filter look
+    
+  background:
+    - cozy bedroom setting
+    - casual living room
+    - relaxed home corner
+    - natural light room
+    - everyday home background
+
+video_params:
+  duration: [8, 15]
+  resolution: 720P
+  ratio: "9:16"
+  default_duration: 8
+
+cta_strategy:
+  pool: [soft, social_proof, direct]
+  position: end_of_video
+  max_length_chars: 50

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🗓️ Content Calendar — TikTok UGC</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #0f0f0f; color: #f0f0f0; padding: 20px; }
+  h1 { font-size: 1.5em; margin-bottom: 20px; }
+  .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 20px; }
+  .stat-card { background: #1a1a1a; border-radius: 10px; padding: 16px; text-align: center; border: 1px solid #333; }
+  .stat-card .num { font-size: 2em; font-weight: 700; }
+  .stat-card .label { font-size: 0.8em; color: #888; margin-top: 4px; }
+  .days { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; }
+  .day-card { background: #1a1a1a; border-radius: 12px; padding: 16px; border: 1px solid #333; }
+  .day-card.today { border-color: #ff0050; }
+  .day-header { font-weight: 700; margin-bottom: 10px; display: flex; justify-content: space-between; }
+  .day-header .date { color: #ff0050; }
+  .post-item { background: #252525; border-radius: 8px; padding: 12px; margin-bottom: 8px; 
+    border-left: 3px solid #ff0050; }
+  .post-item .caption { font-size: 0.9em; margin-bottom: 4px; }
+  .post-item .meta { font-size: 0.75em; color: #888; }
+  .post-item .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.7em; }
+  .badge-posted { background: #004d25; color: #4cff88; }
+  .badge-scheduled { background: #004466; color: #4cc9ff; }
+  .badge-pending { background: #664400; color: #ffc44c; }
+  .badge-failed { background: #660000; color: #ff4c4c; }
+  .empty { color: #555; text-align: center; padding: 40px; }
+  .refresh { background: #ff0050; color: white; border: none; padding: 8px 20px; border-radius: 8px; cursor: pointer; }
+  .controls { display: flex; gap: 10px; align-items: center; }
+  .controls select { background: #252525; color: white; border: 1px solid #333; padding: 8px 12px; border-radius: 8px; }
+  @keyframes pulse { 0%, 100% { opacity: 1 } 50% { opacity: 0.5 } }
+  .loading { animation: pulse 1.5s infinite; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>🗓️ Content Calendar</h1>
+  <div class="controls">
+    <select id="daysSelect" onchange="loadCalendar()">
+      <option value="7">7 วัน</option>
+      <option value="14">14 วัน</option>
+      <option value="30" selected>30 วัน</option>
+    </select>
+    <button class="refresh" onclick="loadCalendar()">🔄 Refresh</button>
+  </div>
+</div>
+
+<div class="stats" id="stats"></div>
+<div class="days" id="calendar"></div>
+
+<script>
+const API = '/api/tiktok';
+
+function statusBadge(status) {
+  const map = { posted: 'badge-posted', scheduled: 'badge-scheduled', pending: 'badge-pending', failed: 'badge-failed', posting: 'badge-scheduled' };
+  return map[status] || 'badge-pending';
+}
+
+function statusThai(status) {
+  const map = { posted: '✅ โพสต์แล้ว', scheduled: '📅 ตามเวลา', pending: '⏳ รอโพสต์', failed: '❌ ล้มเหลว', posting: '📤 กำลังโพสต์' };
+  return map[status] || status;
+}
+
+async function loadCalendar() {
+  const days = document.getElementById('daysSelect').value;
+  document.getElementById('calendar').innerHTML = '<div class="empty loading">กำลังโหลด...</div>';
+  
+  try {
+    const [calResp, statsResp] = await Promise.all([
+      fetch(`${API}/publisher/calendar?days=${days}`),
+      fetch(`${API}/publisher/status`)
+    ]);
+    
+    const cal = await calResp.json();
+    const status = await statsResp.json();
+    const qs = status.data.queue_stats;
+
+    // Stats bar
+    document.getElementById('stats').innerHTML = `
+      <div class="stat-card"><div class="num">${qs.pending || 0}</div><div class="label">⏳ รอโพสต์</div></div>
+      <div class="stat-card"><div class="num">${qs.scheduled || 0}</div><div class="label">📅 ตามเวลา</div></div>
+      <div class="stat-card"><div class="num">${qs.posted || 0}</div><div class="label">✅ โพสต์แล้ว</div></div>
+      <div class="stat-card"><div class="num">${qs.failed || 0}</div><div class="label">❌ ล้มเหลว</div></div>
+    `;
+
+    // Calendar
+    const today = new Date().toISOString().slice(0, 10);
+    const calendar = cal.calendar || {};
+    const dates = Object.keys(calendar).sort();
+    
+    if (dates.length === 0) {
+      document.getElementById('calendar').innerHTML = '<div class="empty">ยังไม่มีคอนเทนต์ในปฏิทิน 🗓️<br>ลองสร้างวิดีโอและเพิ่มลงคิว!</div>';
+      return;
+    }
+    
+    document.getElementById('calendar').innerHTML = dates.map(date => {
+      const posts = calendar[date] || [];
+      const isToday = date === today;
+      const dayName = new Date(date).toLocaleDateString('th-TH', { weekday: 'long' });
+      const dateFmt = new Date(date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+      
+      return `
+        <div class="day-card ${isToday ? 'today' : ''}">
+          <div class="day-header">
+            <span>${dayName} ${dateFmt}</span>
+            <span class="date">${posts.length} โพสต์</span>
+          </div>
+          ${posts.map(p => `
+            <div class="post-item">
+              <div class="caption">${(p.caption || 'ไม่มีคำบรรยาย').slice(0, 80)}${(p.caption||'').length > 80 ? '...' : ''}</div>
+              <div class="meta">
+                <span class="badge ${statusBadge(p.status)}">${statusThai(p.status)}</span>
+                ${p.schedule_at ? ' · ' + new Date(p.schedule_at).toLocaleTimeString('th-TH', {hour:'2-digit',minute:'2-digit'}) : ''}
+                ${p.platform ? ' · ' + p.platform : ''}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }).join('');
+  } catch(e) {
+    document.getElementById('calendar').innerHTML = `<div class="empty">โหลดไม่สำเร็จ: ${e.message}</div>`;
+  }
+}
+
+loadCalendar();
+// Auto-refresh every 60s
+setInterval(loadCalendar, 60000);
+</script>
+</body>
+</html>

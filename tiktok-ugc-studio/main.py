@@ -39,6 +39,7 @@ from tiktok_accounts import (
 from recipes import list_recipes, get_recipe
 from publisher import scheduler as publisher_scheduler, enqueue as pq_enqueue, list_posts as pq_list, get_post as pq_get, delete_post as pq_delete, get_calendar as pq_calendar, get_stats as pq_stats
 from connect.tiktok_poster import poster as tiktok_poster
+from connect.aitoearn_connector import connector as aitoearn
 
 # ─── Scout modules ─────────────────────────────────────────────────────────
 try:
@@ -381,6 +382,28 @@ async def run_full_pipeline(req: FullPipelineRequest):
                 _update_pipeline_step(job_id, "video_gen", "skipped", {"message": "No product image"})
 
         _update_pipeline_step(job_id, "pipeline", "success")
+        
+        # Auto-enqueue for posting
+        job = _get_pipeline_job(job_id)
+        job = _enrich_job_from_logs_db(job)
+        final_video = job.get("logs", {}).get("final_video_path", "")
+        if final_video:
+            try:
+                pq_enqueue(
+                    job_id=job_id,
+                    video_path=final_video,
+                    caption=job.get("logs", {}).get("script", "")[:150],
+                    hashtags=job.get("logs", {}).get("hashtags", []),
+                    affiliate_link="",
+                )
+                logger.info(f"Auto-enqueued {job_id} for posting")
+            except Exception as e:
+                logger.warning(f"Auto-enqueue failed: {e}")
+        
+        # Sync with AitoEarn (fire-and-forget)
+        import asyncio
+        asyncio.create_task(aitoearn.sync_with_pipeline(job))
+        
         return {"success": True, "job_id": job_id, "status": "completed"}
     except Exception as e:
         logger.error(f"Pipeline {job_id} failed: {e}")
@@ -1282,6 +1305,45 @@ async def pipeline_cancel(job_id: str):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# AITOEARN ROUTES — Campaigns, Affiliates, Earnings bridge
+# ═══════════════════════════════════════════════════════════════════════════
+
+@app.get("/aitoearn/campaigns")
+async def aitoearn_campaigns():
+    """Get active AitoEarn campaigns."""
+    campaigns = await aitoearn.get_active_campaigns()
+    return {"success": True, "campaigns": campaigns, "count": len(campaigns)}
+
+@app.get("/aitoearn/earnings")
+async def aitoearn_earnings(period: str = "30d"):
+    """Get AitoEarn earnings summary."""
+    data = await aitoearn.get_earnings(period=period)
+    return {"success": True, "data": data}
+
+@app.get("/aitoearn/affiliate-link")
+async def aitoearn_affiliate_link(product_name: str = "", product_url: str = ""):
+    """Get affiliate link for a product."""
+    if product_name:
+        link = await aitoearn.get_product_affiliate_link(product_name)
+    elif product_url:
+        link = await aitoearn.generate_affiliate_link(product_url)
+    else:
+        raise HTTPException(status_code=400, detail="product_name or product_url required")
+    return {"success": True, "affiliate_link": link}
+
+@app.post("/aitoearn/sync-job/{job_id}")
+async def aitoearn_sync_job(job_id: str):
+    """Sync a completed pipeline job with AitoEarn."""
+    from pipeline_db import get_job, enrich_from_logs
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    job = enrich_from_logs(job)
+    result = await aitoearn.sync_with_pipeline(job)
+    return {"success": True, "job_id": job_id, "sync": result}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # PUBLISHER ROUTES — Post Queue + Scheduler + Calendar
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -1358,6 +1420,48 @@ async def publisher_cancel(post_id: str):
     """Cancel a scheduled post."""
     pq_delete(post_id)
     return {"success": True}
+
+@app.post("/publisher/{post_id}/retry")
+async def publisher_retry(post_id: str):
+    """Retry a failed post with exponential backoff."""
+    post = pq_get(post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if post["status"] == "posted":
+        return {"success": True, "message": "Already posted"}
+    
+    from publisher.post_queue import mark_posting
+    mark_posting(post_id)
+    
+    import json as _json
+    hashtags = _json.loads(post.get("hashtags", "[]")) if post.get("hashtags") else []
+    
+    # Exponential backoff based on attempts
+    attempt = (post.get("attempt_count") or 0) + 1
+    delay = min(30 * (2 ** attempt), 1800)  # 30s, 60s, 2min, 4min, ... max 30min
+    logger.info(f"Retrying {post_id} attempt #{attempt} after {delay}s delay")
+    await asyncio.sleep(min(delay / 10, 30))  # Wait scaled-down for API response
+    
+    try:
+        result = await tiktok_poster.post(
+            video_path=post["video_path"],
+            caption=post.get("caption", ""),
+            hashtags=hashtags,
+        )
+        if result.get("success"):
+            from publisher.post_queue import mark_posted
+            mark_posted(post_id, result.get("post_id", ""), result.get("post_url", ""))
+            return {"success": True, "post_id": post_id, "method": result.get("method")}
+        else:
+            from publisher.post_queue import mark_failed
+            mark_failed(post_id, result.get("error", "Retry failed"))
+            raise HTTPException(status_code=500, detail=result.get("error"))
+    except HTTPException:
+        raise
+    except Exception as e:
+        from publisher.post_queue import mark_failed
+        mark_failed(post_id, str(e))
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/publisher/calendar")
 async def publisher_calendar(days: int = 7):

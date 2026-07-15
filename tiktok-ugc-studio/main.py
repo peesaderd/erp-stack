@@ -39,7 +39,7 @@ from tiktok_accounts import (
 from recipes import list_recipes, get_recipe
 from publisher import scheduler as publisher_scheduler, enqueue as pq_enqueue, list_posts as pq_list, get_post as pq_get, delete_post as pq_delete, get_calendar as pq_calendar, get_stats as pq_stats
 from connect.tiktok_poster import poster as tiktok_poster
-from connect.aitoearn_connector import connector as aitoearn
+from connect.aitoearn_client import client as aitoearn
 
 # ─── Scout modules ─────────────────────────────────────────────────────────
 try:
@@ -1308,6 +1308,48 @@ async def pipeline_cancel(job_id: str):
 # AITOEARN ROUTES — Campaigns, Affiliates, Earnings bridge
 # ═══════════════════════════════════════════════════════════════════════════
 
+@app.get("/aitoearn/accounts")
+async def aitoearn_accounts(platform: str = None):
+    """List connected AitoEarn channel accounts."""
+    if not aitoearn.configured:
+        return {"success": False, "error": "AITOEARN_API_KEY not configured", "accounts": []}
+    accounts = await aitoearn.list_accounts(platform=platform)
+    return {"success": True, "accounts": accounts, "count": len(accounts)}
+
+@app.get("/aitoearn/platforms")
+async def aitoearn_platforms():
+    """Get grouped connected platforms with their accounts."""
+    if not aitoearn.configured:
+        return {"success": False, "error": "AITOEARN_API_KEY not configured", "platforms": []}
+    platforms = await aitoearn.get_connected_platforms()
+    return {"success": True, "platforms": platforms, "total_platforms": len(platforms)}
+
+@app.get("/aitoearn/accounts/{account_id}")
+async def aitoearn_account_detail(account_id: str):
+    """Get single account detail."""
+    account = await aitoearn.get_account(account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    return {"success": True, "account": account}
+
+@app.get("/aitoearn/status")
+async def aitoearn_status():
+    """AitoEarn connection status — shows API key configured, connected platforms."""
+    if not aitoearn.configured:
+        return {"success": True, "connected": False, "reason": "AITOEARN_API_KEY not configured"}
+    try:
+        platforms = await aitoearn.get_connected_platforms()
+        total_accounts = sum(p["count"] for p in platforms)
+        return {
+            "success": True,
+            "connected": True,
+            "api_configured": True,
+            "platforms": platforms,
+            "total_accounts": total_accounts,
+        }
+    except Exception as e:
+        return {"success": False, "connected": False, "error": str(e)}
+
 @app.get("/aitoearn/campaigns")
 async def aitoearn_campaigns():
     """Get active AitoEarn campaigns."""
@@ -1323,12 +1365,7 @@ async def aitoearn_earnings(period: str = "30d"):
 @app.get("/aitoearn/affiliate-link")
 async def aitoearn_affiliate_link(product_name: str = "", product_url: str = ""):
     """Get affiliate link for a product."""
-    if product_name:
-        link = await aitoearn.get_product_affiliate_link(product_name)
-    elif product_url:
-        link = await aitoearn.generate_affiliate_link(product_url)
-    else:
-        raise HTTPException(status_code=400, detail="product_name or product_url required")
+    link = await aitoearn.get_affiliate_link(product_name=product_name, product_url=product_url)
     return {"success": True, "affiliate_link": link}
 
 @app.post("/aitoearn/sync-job/{job_id}")
@@ -1339,8 +1376,10 @@ async def aitoearn_sync_job(job_id: str):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     job = enrich_from_logs(job)
-    result = await aitoearn.sync_with_pipeline(job)
-    return {"success": True, "job_id": job_id, "sync": result}
+    # Get affiliate link
+    product_name = job.get("logs", {}).get("product_title", "")
+    link = await aitoearn.get_affiliate_link(product_name=product_name) if product_name else None
+    return {"success": True, "job_id": job_id, "sync": {"affiliate_link": link}}
 
 
 # ═══════════════════════════════════════════════════════════════════════════

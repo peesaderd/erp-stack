@@ -133,9 +133,11 @@ class PublisherScheduler:
             )
 
             if result.get("success"):
-                mark_posted(post_id, result.get("post_id", ""), result.get("post_url", ""))
+                publish_id = result.get("task_id") or result.get("flow_id") or ""
+                post_url = result.get("platform_work_id") or ""
+                mark_posted(post_id, publish_id, post_url)
                 self._stats["posted"] += 1
-                logger.info(f"✅ {post_id} posted via {result.get('method', '?')}")
+                logger.info(f"✅ {post_id} posted via {result.get('method', '?')} — {publish_id}")
             else:
                 mark_failed(post_id, result.get("error", "Unknown error"))
                 self._stats["failed"] += 1

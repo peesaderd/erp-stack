@@ -1478,8 +1478,17 @@ async def publisher_post_now(post_id: str):
         )
         if result.get("success"):
             from publisher.post_queue import mark_posted
-            mark_posted(post_id, result.get("post_id", ""), result.get("post_url", ""))
-            return {"success": True, "post_id": post_id, "method": result.get("method"), "publish_id": result.get("post_id")}
+            publish_id = result.get("task_id") or result.get("flow_id") or ""
+            post_url = result.get("platform_work_id") or ""
+            mark_posted(post_id, publish_id, post_url)
+            return {
+                "success": True,
+                "post_id": post_id,
+                "method": result.get("method"),
+                "flow_id": result.get("flow_id"),
+                "task_id": result.get("task_id"),
+                "platform_work_id": result.get("platform_work_id"),
+            }
         else:
             from publisher.post_queue import mark_failed
             mark_failed(post_id, result.get("error", "Unknown"))

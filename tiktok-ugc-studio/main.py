@@ -1447,14 +1447,17 @@ async def publisher_enqueue(req: dict):
                 account_id = active[0]["id"]
                 account_info = active[0]
 
-    post_id = publisher_scheduler.enqueue_completed_video(
-        job_id=job_id,
-        video_path=resolved,
-        caption=caption,
-        hashtags=hashtags,
-        affiliate_link=affiliate_link,
-        schedule_at=schedule_at,
-    )
+    try:
+        post_id = publisher_scheduler.enqueue_completed_video(
+            job_id=job_id,
+            video_path=resolved,
+            caption=caption,
+            hashtags=hashtags,
+            affiliate_link=affiliate_link,
+            schedule_at=schedule_at,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
 
     return {
         "success": True,
@@ -1471,12 +1474,19 @@ async def publisher_enqueue(req: dict):
 
 @app.post("/publisher/{post_id}/post-now")
 async def publisher_post_now(post_id: str):
-    """Post a queued video immediately (skip schedule)."""
+    """Post a queued video immediately (skip schedule). Only works if status is pending."""
     post = pq_get(post_id)
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
-    if post["status"] == "posted":
-        raise HTTPException(status_code=400, detail="Already posted")
+    if post["status"] not in ("pending", "scheduled"):
+        raise HTTPException(status_code=400, detail=f"Cannot post: status is '{post['status']}' (must be pending/scheduled)")
+    
+    # Check for duplicate video posts
+    from publisher.post_queue import list_posts
+    existing = list_posts(status="posted", limit=50)
+    same_video = [p for p in existing if p.get("video_path") == post["video_path"]]
+    if same_video:
+        raise HTTPException(status_code=409, detail=f"Video already posted ({len(same_video)} times). Use a different video.")
 
     import json as _json
     hashtags = _json.loads(post.get("hashtags", "[]")) if post.get("hashtags") else []
@@ -1748,10 +1758,12 @@ async def startup():
     logger.info("TikTok UGC Studio starting up...")
     logger.info(f"Storage: {STORAGE_DIR}")
     logger.info(f"Module URLs: {MODULE_URLS}")
-    # Start Publisher Scheduler
+    # Publisher Scheduler — start automatically
     try:
         publisher_scheduler.start()
-        logger.info("Publisher Scheduler: started")
+        logger.info("Publisher Scheduler: started (interval: {}s, random window: ±{}min)".format(
+            publisher_scheduler.CHECK_INTERVAL_SECONDS,
+            publisher_scheduler.RANDOM_WINDOW_MINUTES))
     except Exception as e:
         logger.warning(f"Publisher Scheduler: {e}")
 

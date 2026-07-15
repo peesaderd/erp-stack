@@ -64,6 +64,35 @@ def enqueue(
     schedule_at: str = None,
 ) -> str:
     """Add a video to the post queue. Returns post id."""
+    # ── DUPLICATE GUARD ──────────────────────────────────
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.row_factory = sqlite3.Row
+    dup = conn.execute(
+        "SELECT id, status FROM post_queue WHERE video_path = ? AND status IN ('pending', 'scheduled', 'posting')",
+        (video_path,),
+    ).fetchone()
+    conn.close()
+    
+    if dup:
+        logger.warning(f"Duplicate enqueue blocked: {dup['id']} already {dup['status']} for {video_path}")
+        raise ValueError(f"Video already queued ({dup['id']}, status={dup['status']})")
+    
+    # Also check recently posted (last 24h) to prevent re-post loops
+    from datetime import timedelta
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.row_factory = sqlite3.Row
+    cutoff = (datetime.utcnow() - timedelta(hours=24)).isoformat()
+    dup_posted = conn.execute(
+        "SELECT id FROM post_queue WHERE video_path = ? AND status = 'posted' AND updated_at > ? LIMIT 1",
+        (video_path, cutoff),
+    ).fetchone()
+    conn.close()
+    
+    if dup_posted:
+        logger.warning(f"Repost blocked: {dup_posted['id']} already posted in last 24h for {video_path}")
+        raise ValueError(f"Video already posted ({dup_posted['id']}) in last 24h. Use a different video.")
+    # ─────────────────────────────────────────────────────────
+    
     post_id = f"pq_{uuid.uuid4().hex[:8]}"
     now = datetime.utcnow().isoformat()
     status = "scheduled" if schedule_at else "pending"

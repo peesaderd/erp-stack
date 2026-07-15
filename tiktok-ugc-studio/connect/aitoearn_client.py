@@ -368,6 +368,33 @@ class AitoEarnClient:
         result = await self._call("GET", f"/api/v1/earnings?period={period}")
         return result.get("data", {}) if result["ok"] else {"total": 0, "period": period}
 
+    # ─── OAuth / Platform Connect ───────────────────────────────────
+
+    async def start_oauth(self, platform: str, redirect_uri: str = "", callback_url: str = "") -> Dict:
+        """Initiate platform OAuth. Returns {url, sessionId, expiresAt}."""
+        params = {}
+        if redirect_uri:
+            params["redirectUri"] = redirect_uri
+        if callback_url:
+            params["callbackUrl"] = callback_url
+        result = await self._call("GET", f"/api/v2/channels/accounts/auth/{platform}", params)
+        if result["ok"]:
+            return {"success": True, "data": result.get("data", {})}
+        return {"success": False, "error": result.get("message", "OAuth failed")}
+
+    async def check_oauth_status(self, platform: str, session_id: str) -> Dict:
+        """Poll OAuth session status."""
+        result = await self._call("GET", f"/api/v2/channels/accounts/auth/{platform}/status/{session_id}")
+        if result["ok"]:
+            data = result.get("data", {})
+            return {
+                "success": True,
+                "status": data.get("status", "pending"),
+                "account_id": data.get("accountId"),
+                "data": data,
+            }
+        return {"success": False, "error": result.get("message", "Status check failed")}
+
 
 # Singleton
 client = AitoEarnClient()

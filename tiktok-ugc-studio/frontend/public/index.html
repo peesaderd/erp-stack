@@ -636,19 +636,85 @@ select.input { cursor: pointer; }
 /* Post For Me (PFM) card & list layouts */
 .pfm-pane { display: none; }
 .pfm-pane.active { display: block; }
-.pfm-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px; }
+.pfm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px; }
 @media (max-width: 768px) {
+  .pfm-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+}
+@media (max-width: 480px) {
   .pfm-grid { grid-template-columns: 1fr; }
 }
-.pfm-card .status-dot {
-  position: absolute; top: -6px; right: -6px; width: 24px; height: 24px;
-  background: var(--accent-green); border-radius: 50%; border: 3px solid var(--bg-secondary);
-  display: none; align-items: center; justify-content: center;
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+
+/* Platform Card */
+.pfm-card {
+  position: relative;
+  background: var(--bg-secondary);
+  border: 2px solid var(--border-primary);
+  border-radius: 20px;
+  padding: 28px 20px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  min-height: 200px;
 }
-.pfm-card.connected .status-dot { display: flex; }
-.pfm-card .card-label { font-size: 14px; font-weight: 700; color: var(--text-primary); }
-.pfm-card .card-sub { font-size: 11.5px; color: var(--text-secondary); }
+.pfm-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.15);
+  border-color: var(--brand);
+}
+.pfm-card.connected {
+  border-color: rgba(16, 185, 129, 0.3);
+  background: linear-gradient(160deg, var(--bg-secondary) 0%, rgba(16, 185, 129, 0.04) 100%);
+}
+.pfm-card .pfm-platform-icon {
+  font-size: 44px;
+  line-height: 1;
+  transition: transform 0.2s ease;
+}
+.pfm-card:hover .pfm-platform-icon { transform: scale(1.1); }
+.pfm-card .pfm-avatar {
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--bg-primary);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+}
+.pfm-card.connected .pfm-avatar {
+  border-color: rgba(16, 185, 129, 0.3);
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.2);
+}
+.pfm-card .status-dot {
+  position: absolute; top: 10px; right: 10px; width: 12px; height: 12px;
+  background: var(--accent-green); border-radius: 50%;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+  display: none;
+}
+.pfm-card.connected .status-dot { display: block; }
+.pfm-card .card-label { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+.pfm-card .card-sub { font-size: 12px; color: var(--text-secondary); }
+.pfm-card .card-meta { font-size: 11px; color: var(--text-tertiary); display: flex; gap: 12px; justify-content: center; }
+.pfm-card .card-meta span { display: flex; align-items: center; gap: 4px; }
+.pfm-card .pfm-connect-btn {
+  margin-top: auto;
+  padding: 8px 20px;
+  border-radius: 20px;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: var(--brand);
+  color: #fff;
+}
+.pfm-card .pfm-connect-btn:hover {
+  opacity: 0.9;
+  transform: scale(1.05);
+}
+.pfm-card.disabled { opacity: 0.45; cursor: not-allowed; }
+.pfm-card.disabled:hover { transform: none; box-shadow: none; }
 #pfm-accounts-list table, #pfm-history-list table { width: 100%; border-collapse: collapse; margin-top: 10px; }
 #pfm-accounts-list td, #pfm-history-list td { padding: 12px 14px; border-bottom: 1.5px solid var(--border-primary); font-size: 13.5px; }
 #pfm-accounts-list th, #pfm-history-list th {
@@ -4048,15 +4114,31 @@ async function aeFetchStatus() {
   } catch(e) { return {connected:false, error:e.message}; }
 }
 
+// Platform brand data — colors, icons, display names
+const PFM_BRANDS = {
+  tiktok:     { color:'#ff0050', icon:'🎵', name:'TikTok', bg:'linear-gradient(135deg, #ff0050, #00f2ea)' },
+  tiktok_local:{ color:'#ff0050', icon:'🔑', name:'TikTok Local', bg:'linear-gradient(135deg, #333, #666)' },
+  youtube:    { color:'#ff0000', icon:'▶️', name:'YouTube', bg:'linear-gradient(135deg, #cc0000, #ff0000)' },
+  twitter:    { color:'#1da1f2', icon:'𝕏', name:'X (Twitter)', bg:'linear-gradient(135deg, #000, #1da1f2)' },
+  x:          { color:'#1da1f2', icon:'𝕏', name:'X', bg:'linear-gradient(135deg, #000, #555)' },
+  facebook:   { color:'#1877f2', icon:'📘', name:'Facebook', bg:'linear-gradient(135deg, #0d6efd, #1877f2)' },
+  instagram:  { color:'#e4405f', icon:'📷', name:'Instagram', bg:'linear-gradient(135deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)' },
+  linkedin:   { color:'#0a66c2', icon:'💼', name:'LinkedIn', bg:'linear-gradient(135deg, #0a66c2, #0077b5)' },
+  pinterest:  { color:'#e60023', icon:'📌', name:'Pinterest', bg:'linear-gradient(135deg, #bd081c, #e60023)' },
+  threads:    { color:'#000', icon:'🧵', name:'Threads', bg:'linear-gradient(135deg, #000, #333)' },
+  tiktok_business:{ color:'#ff0050', icon:'💼', name:'TikTok Biz', bg:'linear-gradient(135deg, #333, #ff0050)' },
+};
+
 // Platform SVG logos (loaded from external file)
 const PFM_PLATFORMS = {
+  tiktok: { icon:'🎵', name:'TikTok' },
   tiktok_local: { icon:'🔑', name:'TikTok (Local)' },
   tiktok_business: { icon:'💼', name:'TikTok Business' },
-  facebook: { icon:'🔵', name:'Facebook' },
-  instagram: { icon:'📸', name:'Instagram' },
-  x: { icon:'🐦', name:'X (Twitter)' },
-  linkedin: { icon:'👔', name:'LinkedIn' },
-  youtube: { icon:'🎥', name:'YouTube' },
+  facebook: { icon:'📘', name:'Facebook' },
+  instagram: { icon:'📷', name:'Instagram' },
+  x: { icon:'𝕏', name:'X (Twitter)' },
+  linkedin: { icon:'💼', name:'LinkedIn' },
+  youtube: { icon:'▶️', name:'YouTube' },
   pinterest: { icon:'📌', name:'Pinterest' },
   threads: { icon:'🧵', name:'Threads' }
 };
@@ -4180,79 +4262,88 @@ async function pfmFetchAccounts() {
   _aeAccounts.forEach(function(a){
     var plat = a.platform || 'unknown';
     if (!accountMap[plat]) accountMap[plat] = [];
-    // Normalize AitoEarn account format to match frontend expectations
     accountMap[plat].push({
-      id: a.id,
-      platform: plat,
+      id: a.id, platform: plat,
       username: a.nickname || a.id,
       avatar: a.avatar || '',
       status: a.status === 1 ? 'active' : 'inactive',
-      fans: a.fans || 0,
-      works: a.works || 0,
+      fans: a.fans || 0, works: a.works || 0,
       source: 'aitoearn'
     });
   });
   
-  // Add local accounts under tiktok_local
   localAccounts.forEach(function(a){
     if (!accountMap['tiktok_local']) accountMap['tiktok_local'] = [];
     accountMap['tiktok_local'].push(Object.assign({source:'local'}, a));
   });
   
-  var connectedPlatforms = new Set();
-  Object.keys(accountMap).forEach(function(k){ connectedPlatforms.add(k); });
-  
-  // Render grid
+  // Render beautiful grid
   var grid = document.getElementById('pfm-platform-grid');
-  if (grid) {
-    grid.innerHTML = '';
-    var platforms = ['tiktok', 'tiktok_local', 'youtube', 'twitter', 'facebook', 'instagram', 'pinterest', 'x', 'linkedin', 'threads'];
-    var svgs = window.PLATFORM_SVGS || {};
+  if (!grid) return;
+  grid.innerHTML = '';
+  
+  var platforms = ['tiktok', 'youtube', 'twitter', 'facebook', 'instagram', 'pinterest', 'tiktok_local', 'linkedin', 'threads'];
+  
+  platforms.forEach(function(plat){
+    var brand = PFM_BRANDS[plat] || { color:'#888', icon:'�', name:plat, bg:'#333' };
+    var accts = accountMap[plat] || [];
+    var connected = accts.length > 0;
+    var ace = accts[0] || {};
+    var isAitoearn = ace.source === 'aitoearn';
     
-    var localAcctsCount = localAccounts.length;
+    var card = document.createElement('div');
+    card.className = 'pfm-card' + (connected ? ' connected' : '');
+    card.style.borderTop = '3px solid ' + brand.color;
     
-    platforms.forEach(function(plat){
-      var pf = PFM_PLATFORMS[plat] || { icon:'?', name:plat };
-      var accts = accountMap[plat] || [];
-      var connected = accts.length > 0;
-      var ace = accts[0] || {};
-      var svgHtml = svgs[plat] || pf.icon;
-      
-      var card = document.createElement('div');
-      card.className = 'pfm-card' + (connected ? ' connected' : '');
-      
-      if (connected) {
-        var isAitoearn = ace.source === 'aitoearn';
-        var label = isAitoearn ? (ace.username || 'Connected') : (localAcctsCount + ' Session(s)');
-        var subLabel = isAitoearn ? '' + ace.fans + ' followers · ' + ace.works + ' works' : '';
-        
+    if (connected) {
+      // Connected card with avatar, name, follower stats
+      if (isAitoearn) {
         card.innerHTML =
-          '<div class="status-dot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div>' +
-          '<div>' + (ace.avatar ? '<img src="' + ace.avatar + '" style="width:40px;height:40px;border-radius:50%;object-fit:cover" onerror="this.style.display=\'none\'">' : svgHtml) + '</div>' +
-          '<div class="card-label">' + pf.name + '</div>' +
-          '<div class="card-sub">' + label + '</div>' +
-          (isAitoearn ? '<div class="card-sub" style="font-size:10px">' + subLabel + '</div>' : '');
-          
-        card.onclick = function() {
-          if (isAitoearn) {
-            pfmOpenDetail(plat, accts);
-          } else {
-            // Scroll to local panel
-            var panel = document.getElementById('tiktok-local-panel');
-            if (panel) { panel.scrollIntoView({behavior:'smooth'}); panel.style.boxShadow='0 0 20px var(--brand)'; setTimeout(function(){panel.style.boxShadow='';},1500); }
-          }
+          '<div class="status-dot"></div>' +
+          (ace.avatar
+            ? '<img class="pfm-avatar" src="' + ace.avatar + '" alt="" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'">' +
+              '<div class="pfm-platform-icon" style="display:none">' + brand.icon + '</div>'
+            : '<div class="pfm-platform-icon">' + brand.icon + '</div>') +
+          '<div class="card-label">' + brand.name + '</div>' +
+          '<div class="card-sub" style="font-weight:600">' + (ace.username||'Connected') + '</div>' +
+          '<div class="card-meta"><span>' + (ace.fans||0) + ' <span style="opacity:0.6">👥</span></span><span>' + (ace.works||0) + ' <span style="opacity:0.6">📹</span></span></div>';
+        card.onclick = function(){ pfmOpenDetail(plat, accts); };
+      } else {
+        // Local session
+        card.innerHTML =
+          '<div class="status-dot"></div>' +
+          '<div class="pfm-platform-icon">🔑</div>' +
+          '<div class="card-label">' + brand.name + '</div>' +
+          '<div class="card-sub" style="font-weight:600">' + localAccounts.length + ' Session(s)</div>' +
+          '<div class="card-meta"><span>Local Upload</span></div>';
+        card.onclick = function(){
+          var panel = document.getElementById('tiktok-local-panel');
+          if (panel) { panel.scrollIntoView({behavior:'smooth'}); panel.style.boxShadow='0 0 20px var(--brand)'; setTimeout(function(){panel.style.boxShadow='';},1500); }
         };
+      }
+    } else {
+      // Unconnected — show Connect button
+      var comingSoon = ['threads'];
+      if (comingSoon.includes(plat)) {
+        card.innerHTML =
+          '<div class="pfm-platform-icon" style="opacity:0.4">' + brand.icon + '</div>' +
+          '<div class="card-label" style="opacity:0.5">' + brand.name + '</div>' +
+          '<div class="card-sub" style="color:var(--text-tertiary)">Coming Soon</div>';
+        card.className += ' disabled';
       } else {
         card.innerHTML =
-          '<div>' + svgHtml + '</div>' +
-          '<div class="card-label">' + pf.name + '</div>' +
-          '<div class="card-sub" style="color:var(--color-red-400)">Not connected</div>';
-        card.style.opacity = '0.5';
+          '<div class="pfm-platform-icon" style="opacity:0.5">' + brand.icon + '</div>' +
+          '<div class="card-label" style="opacity:0.7">' + brand.name + '</div>' +
+          '<button class="pfm-connect-btn" style="background:' + brand.color + '">🔗 Connect</button>';
+        card.onclick = function(e){
+          e.stopPropagation();
+          pfmStartOAuth(plat);
+        };
       }
-      
-      grid.appendChild(card);
-    });
-  }
+    }
+    
+    grid.appendChild(card);
+  });
   
   // Update selects for Post/Schedule tabs
   ['pfm-post-accounts','pfm-sched-accounts'].forEach(function(id){
@@ -4264,7 +4355,6 @@ async function pfmFetchAccounts() {
       opt.textContent = '[' + (a.platform||'?').toUpperCase() + '] ' + (a.nickname||a.id);
       sel.appendChild(opt);
     });
-    // Also add local accounts
     localAccounts.forEach(function(a){
       var opt = document.createElement('option');
       opt.value = a.account_id || a.id;
@@ -4272,6 +4362,67 @@ async function pfmFetchAccounts() {
       sel.appendChild(opt);
     });
   });
+}
+
+// ─── AitoEarn OAuth Connect ────────────────────────────────────────
+var _oauthPopup = null;
+var _oauthInterval = null;
+
+async function pfmStartOAuth(platform) {
+  var brand = PFM_BRANDS[platform] || { name: platform };
+  if (!confirm('Connect ' + brand.name + ' via AitoEarn?\\n\\nThis will open a popup to authorize your ' + brand.name + ' account.')) return;
+  
+  try {
+    var r = await fetch(PFM_API + '/aitoearn/connect/' + platform + '?redirect_uri=' + encodeURIComponent(window.location.origin + '/tiktok/'));
+    var d = await r.json();
+    if (!d.success || !d.data || !d.data.url) {
+      alert('OAuth failed: ' + (d.error || 'No URL returned'));
+      return;
+    }
+    
+    var w = 600, h = 700;
+    var left = (screen.width - w) / 2, top = (screen.height - h) / 2;
+    _oauthPopup = window.open(d.data.url, 'aitoearn-oauth', 'width=' + w + ',height=' + h + ',left=' + left + ',top=' + top);
+    
+    if (!_oauthPopup) {
+      // Popup blocked — redirect instead
+      window.location.href = d.data.url;
+      return;
+    }
+    
+    var sessionId = d.data.sessionId;
+    // Poll for completion
+    var attempts = 0;
+    _oauthInterval = setInterval(async function() {
+      attempts++;
+      if (_oauthPopup.closed) {
+        clearInterval(_oauthInterval);
+        // Refresh accounts
+        await pfmFetchAccounts();
+        return;
+      }
+      if (attempts > 120) { // 2 min timeout
+        clearInterval(_oauthInterval);
+        if (!_oauthPopup.closed) _oauthPopup.close();
+        alert('OAuth timed out. Try again.');
+        return;
+      }
+      // Check status every 5 seconds
+      if (sessionId && attempts % 5 === 0) {
+        try {
+          var sr = await fetch(PFM_API + '/aitoearn/connect/' + platform + '/status/' + sessionId);
+          var sd = await sr.json();
+          if (sd.success && sd.status === 'completed') {
+            clearInterval(_oauthInterval);
+            if (!_oauthPopup.closed) _oauthPopup.close();
+            await pfmFetchAccounts();
+          }
+        } catch(e) {}
+      }
+    }, 1000);
+  } catch(e) {
+    alert('OAuth error: ' + e.message);
+  }
 }
 
 function pfmOpenDetail(platform, accounts) {

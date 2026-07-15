@@ -1332,6 +1332,20 @@ async def aitoearn_account_detail(account_id: str):
         raise HTTPException(status_code=404, detail="Account not found")
     return {"success": True, "account": account}
 
+@app.get("/aitoearn/connect/{platform}")
+async def aitoearn_connect_start(platform: str, redirect_uri: str = ""):
+    """Start OAuth for a platform. Returns auth URL to open in popup."""
+    if not aitoearn.configured:
+        raise HTTPException(status_code=503, detail="AITOEARN_API_KEY not configured")
+    result = await aitoearn.start_oauth(platform, redirect_uri=redirect_uri)
+    return result
+
+@app.get("/aitoearn/connect/{platform}/status/{session_id}")
+async def aitoearn_connect_status(platform: str, session_id: str):
+    """Check OAuth session status."""
+    result = await aitoearn.check_oauth_status(platform, session_id)
+    return result
+
 @app.get("/aitoearn/status")
 async def aitoearn_status():
     """AitoEarn connection status — shows API key configured, connected platforms."""

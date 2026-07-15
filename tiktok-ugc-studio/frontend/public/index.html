@@ -1478,17 +1478,6 @@ select.input { cursor: pointer; }
     <div><h2>Connections</h2><p>Manage connection sessions for publishing platforms</p></div>
   </div>
 
-  <!-- Connected Platforms Grid -->
-  <div class="card mb-4">
-    <div class="card-body">
-      <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px">
-        <strong style="font-size:16px">🔗 Connected Platforms</strong>
-        <button class="btn btn-ghost btn-sm" onclick="pfmFetchAccounts()" title="Refresh" style="min-width:32px">🔄</button>
-      </div>
-      <div class="pfm-grid" id="pfm-platform-grid"><!-- rendered by JS --></div>
-    </div>
-  </div>
-
   <!-- TikTok Local Accounts List Panel -->
   <div class="card" id="tiktok-local-panel">
     <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
@@ -4247,17 +4236,16 @@ async function pfmDoConnect() {
 }
 
 async function pfmFetchAccounts() {
-  // Fetch AitoEarn platforms FIRST (primary source)
+  // Fetch AitoEarn platforms + local accounts
   await aeFetchStatus();
   
-  // Also fetch local accounts (fallback/cookie-based)
   var localAccounts = [];
   try {
     var localR = await pfmFetch('/tiktok/accounts');
     localAccounts = localR.accounts || [];
   } catch(e) { console.log('No local accounts:', e.message); }
 
-  // Build account map from AitoEarn (primary) + local (fallback)
+  // Build account map from AitoEarn
   var accountMap = {};
   _aeAccounts.forEach(function(a){
     var plat = a.platform || 'unknown';
@@ -4275,74 +4263,6 @@ async function pfmFetchAccounts() {
   localAccounts.forEach(function(a){
     if (!accountMap['tiktok_local']) accountMap['tiktok_local'] = [];
     accountMap['tiktok_local'].push(Object.assign({source:'local'}, a));
-  });
-  
-  // Render beautiful grid
-  var grid = document.getElementById('pfm-platform-grid');
-  if (!grid) return;
-  grid.innerHTML = '';
-  
-  var platforms = ['tiktok', 'youtube', 'twitter', 'facebook', 'instagram', 'pinterest', 'tiktok_local', 'linkedin', 'threads'];
-  
-  platforms.forEach(function(plat){
-    var brand = PFM_BRANDS[plat] || { color:'#888', icon:'�', name:plat, bg:'#333' };
-    var accts = accountMap[plat] || [];
-    var connected = accts.length > 0;
-    var ace = accts[0] || {};
-    var isAitoearn = ace.source === 'aitoearn';
-    
-    var card = document.createElement('div');
-    card.className = 'pfm-card' + (connected ? ' connected' : '');
-    card.style.borderTop = '3px solid ' + brand.color;
-    
-    if (connected) {
-      // Connected card with avatar, name, follower stats
-      if (isAitoearn) {
-        card.innerHTML =
-          '<div class="status-dot"></div>' +
-          (ace.avatar
-            ? '<img class="pfm-avatar" src="' + ace.avatar + '" alt="" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'">' +
-              '<div class="pfm-platform-icon" style="display:none">' + brand.icon + '</div>'
-            : '<div class="pfm-platform-icon">' + brand.icon + '</div>') +
-          '<div class="card-label">' + brand.name + '</div>' +
-          '<div class="card-sub" style="font-weight:600">' + (ace.username||'Connected') + '</div>' +
-          '<div class="card-meta"><span>' + (ace.fans||0) + ' <span style="opacity:0.6">👥</span></span><span>' + (ace.works||0) + ' <span style="opacity:0.6">📹</span></span></div>';
-        card.onclick = function(){ pfmOpenDetail(plat, accts); };
-      } else {
-        // Local session
-        card.innerHTML =
-          '<div class="status-dot"></div>' +
-          '<div class="pfm-platform-icon">🔑</div>' +
-          '<div class="card-label">' + brand.name + '</div>' +
-          '<div class="card-sub" style="font-weight:600">' + localAccounts.length + ' Session(s)</div>' +
-          '<div class="card-meta"><span>Local Upload</span></div>';
-        card.onclick = function(){
-          var panel = document.getElementById('tiktok-local-panel');
-          if (panel) { panel.scrollIntoView({behavior:'smooth'}); panel.style.boxShadow='0 0 20px var(--brand)'; setTimeout(function(){panel.style.boxShadow='';},1500); }
-        };
-      }
-    } else {
-      // Unconnected — show Connect button
-      var comingSoon = ['threads'];
-      if (comingSoon.includes(plat)) {
-        card.innerHTML =
-          '<div class="pfm-platform-icon" style="opacity:0.4">' + brand.icon + '</div>' +
-          '<div class="card-label" style="opacity:0.5">' + brand.name + '</div>' +
-          '<div class="card-sub" style="color:var(--text-tertiary)">Coming Soon</div>';
-        card.className += ' disabled';
-      } else {
-        card.innerHTML =
-          '<div class="pfm-platform-icon" style="opacity:0.5">' + brand.icon + '</div>' +
-          '<div class="card-label" style="opacity:0.7">' + brand.name + '</div>' +
-          '<button class="pfm-connect-btn" style="background:' + brand.color + '">🔗 Connect</button>';
-        card.onclick = function(e){
-          e.stopPropagation();
-          pfmStartOAuth(plat);
-        };
-      }
-    }
-    
-    grid.appendChild(card);
   });
   
   // Update selects for Post/Schedule tabs

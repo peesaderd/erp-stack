@@ -1701,89 +1701,31 @@ select.input { cursor: pointer; }
   <div style="position:absolute;bottom:20px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,.7);font-size:13px;text-align:center" id="lightboxCaption"></div>
 </div>
 
-<!-- ═══ Post For Me ═══ -->
-<!-- === Publisher === -->
+<!-- ═══ Publisher ═══ -->
 <div id="page-publisher" class="page">
   <div class="page-header">
-    <div><h2>Publisher</h2><p>Cross-platform automated social media posting and scheduled jobs</p></div>
+    <div><h2>🚀 Publisher</h2><p>Video from TUS → Post to TikTok via AitoEarn</p></div>
+    <button class="btn btn-secondary btn-sm" onclick="loadPublisherVideos()">🔄 Refresh</button>
   </div>
 
-  <!-- Publisher Sub-tabs -->
-  <div class="tab-bar mb-3" id="publisherSubTabs">
-    <button class="active" data-subtab="post" onclick="switchPublisherSub('post')">📝 Post Wizard</button>
-    <button data-subtab="queue" onclick="switchPublisherSub('queue')">📅 Scheduler Queue</button>
-    <button data-subtab="history" onclick="switchPublisherSub('history')">📜 Post History</button>
-  </div>
-
-  <!-- Subpage 1: Post Wizard -->
-  <div id="publisher-post" class="publisher-pane active">
-    <div class="card"><div class="card-body">
-      <div class="mb-2"><label class="form-label">Platform<br><select id="pfm-post-platform" class="input" onchange="pfmShowOpts()">
-        <option value="tiktok">TikTok</option><option value="tiktok_business">TikTok Business</option>
-        <option value="facebook">Facebook</option><option value="instagram">Instagram</option>
-        <option value="x">X (Twitter)</option><option value="linkedin">LinkedIn</option>
-        <option value="youtube">YouTube</option><option value="pinterest">Pinterest</option>
-        <option value="bluesky">Bluesky</option><option value="threads">Threads</option>
-      </select></label></div>
-      <div class="mb-2"><label class="form-label">Account(s)<br><select id="pfm-post-accounts" class="input" multiple size="3"></select></label></div>
-      <div class="mb-2"><label class="form-label">Caption<br><textarea id="pfm-post-caption" class="input" rows="4" placeholder="Write your caption..." oninput="document.getElementById('pfm-cc').textContent=this.value.length"></textarea>
-      <span class="text-xs text-secondary"><span id="pfm-cc">0</span> chars</span></label></div>
-      <div class="mb-2"><label class="form-label">Media URL (optional)<br><input type="text" id="pfm-post-media" class="input" placeholder="https://..."></label></div>
-      <div id="pfm-opts" class="mb-2" style="padding:12px;background:var(--bg-tertiary);border-radius:var(--radius)"></div>
-      <button class="btn btn-primary" onclick="pfmPostNow()">🚀 Post Now</button>
-      <div id="pfm-post-res" class="mt-2"></div>
-    </div></div>
-  </div>
-
-  <!-- Subpage 2: Scheduler Queue -->
-  <div id="publisher-queue" class="publisher-pane" style="display:none">
-    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:16px">
-      <!-- Quick Schedule Post Form -->
-      <div class="card"><div class="card-body">
-        <div class="card-title">📅 Quick Schedule Post</div>
-        <div class="mb-2"><label class="form-label">Platform<br><select id="pfm-sched-platform" class="input">
-          <option value="tiktok">TikTok</option><option value="tiktok_business">TikTok Business</option>
-          <option value="facebook">Facebook</option><option value="instagram">Instagram</option>
-          <option value="x">X (Twitter)</option><option value="linkedin">LinkedIn</option>
-          <option value="youtube">YouTube</option><option value="pinterest">Pinterest</option>
-          <option value="bluesky">Bluesky</option><option value="threads">Threads</option>
-        </select></label></div>
-        <div class="mb-2"><label class="form-label">Account(s)<br><select id="pfm-sched-accounts" class="input" multiple size="3"></select></label></div>
-        <div class="mb-2"><label class="form-label">Caption<br><textarea id="pfm-sched-caption" class="input" rows="4"></textarea></label></div>
-        <div class="mb-2"><label class="form-label">Media URL<br><input type="text" id="pfm-sched-media" class="input" placeholder="https://..."></label></div>
-        <div class="mb-2"><label class="form-label">Schedule Time<br><input type="datetime-local" id="pfm-sched-time" class="input"></label></div>
-        <button class="btn btn-primary" onclick="pfmSchedule()">📅 Schedule</button>
-        <div id="pfm-sched-res" class="mt-2"></div>
-      </div></div>
-      
-      <!-- Video Generation Queue -->
-      <div class="card"><div class="card-body">
-        <div class="card-title">⏳ Video Production Queue</div>
-        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">งานสร้างวิดีโอแบบตั้งเวลาผ่านระบบอัตโนมัติ</p>
-        <div class="flex gap-2 mb-3">
-          <button class="btn btn-secondary btn-sm" onclick="loadScheduledPosts()">🔄 Refresh</button>
-        </div>
-        <div id="scheduledPostsList"><div class="text-sm text-secondary">Loading...</div></div>
-      </div></div>
+  <!-- ── Completed Videos ── -->
+  <div class="card mb-4">
+    <div class="card-header"><span class="card-title">📺 Completed Videos <span style="font-weight:400;color:var(--text-secondary)">(from TUS Pipeline)</span></span></div>
+    <div class="card-body">
+      <div id="pub-videos-grid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));gap:16px">
+        <div class="text-sm text-secondary" style="grid-column:1/-1;text-align:center;padding:32px">Loading completed videos...</div>
+      </div>
     </div>
   </div>
 
-  <!-- Subpage 3: Post History -->
-  <div id="publisher-history" class="publisher-pane" style="display:none">
-    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:16px">
-      <!-- Social Posting Logs -->
-      <div class="card"><div class="card-body">
-        <div class="card-title">🔗 Social Posting Logs</div>
-        <div class="flex gap-2 mb-3"><button class="btn btn-secondary btn-sm" onclick="pfmFetchHistory()">🔄 Refresh</button></div>
-        <div id="pfm-history-list"><div class="text-sm text-secondary">Loading history...</div></div>
-      </div></div>
-      
-      <!-- Video Generation History -->
-      <div class="card"><div class="card-body">
-        <div class="card-title">🎬 Video Production Logs</div>
-        <div class="flex gap-2 mb-3"><button class="btn btn-secondary btn-sm" onclick="loadHistory()">🔄 Refresh</button></div>
-        <div id="historyList"><div class="text-sm text-secondary">Loading history...</div></div>
-      </div></div>
+  <!-- ── Post Queue ── -->
+  <div class="card">
+    <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+      <span class="card-title">📊 Post Queue</span>
+      <span id="pub-queue-stats" style="font-size:12px;color:var(--text-secondary)">—</span>
+    </div>
+    <div class="card-body">
+      <div id="pub-queue-list"><div class="text-sm text-secondary">Loading queue...</div></div>
     </div>
   </div>
 </div>
@@ -1844,7 +1786,7 @@ function switchTab(name) {
   }
   if (name === 'products') loadAnalyzedProducts();
   if (name === 'assets') loadAssets();
-  if (name === 'publisher') pfmFetchAccounts();
+  if (name === 'publisher') { loadPublisherVideos(); loadPublisherQueue(); }
   if (name === 'scout') {
     switchScoutSub('niche');
   }
@@ -1869,21 +1811,9 @@ function switchAccountsSub(sub) {
 }
 
 function switchPublisherSub(sub) {
-  document.querySelectorAll('#publisherSubTabs button').forEach(btn => {
-    btn.classList.remove('active');
-    if (btn.getAttribute('data-subtab') === sub) btn.classList.add('active');
-  });
-  document.querySelectorAll('.publisher-pane').forEach(p => p.style.display = 'none');
-  document.getElementById('publisher-' + sub).style.display = 'block';
-  if (sub === 'post') pfmFetchAccounts();
-  if (sub === 'queue') {
-    loadScheduledPosts();
-    pfmFetchAccounts();
-  }
-  if (sub === 'history') {
-    pfmFetchHistory();
-    loadHistory();
-  }
+  // Publisher now uses single unified view — load everything
+  loadPublisherVideos();
+  loadPublisherQueue();
 }
 
 function switchScoutSub(sub) {
@@ -4170,24 +4100,216 @@ async function pfmFetch(url, opts={}) {
   } catch(e) { return {success:false, error: e.message}; }
 }
 
-const PFM_PLATFORM_OPTS = {
-  tiktok: [{k:'privacy_status',l:'Privacy',t:'select',o:['public','private'],d:'public'},{k:'is_ai_generated',l:'AI Generated',t:'checkbox',d:true},{k:'allow_duet',l:'Allow Duet',t:'checkbox',d:true},{k:'allow_stitch',l:'Allow Stitch',t:'checkbox',d:true}],
-  facebook: [{k:'placement',l:'Placement',t:'select',o:['timeline','reels','stories'],d:'timeline'},{k:'privacy_status',l:'Privacy',t:'select',o:['public','private'],d:'public'}],
-  instagram: [{k:'placement',l:'Placement',t:'select',o:['timeline','reels','stories'],d:'timeline'},{k:'is_ai_generated',l:'AI Generated',t:'checkbox',d:true}],
-  youtube: [{k:'privacy_status',l:'Privacy',t:'select',o:['public','private','unlisted'],d:'public'},{k:'made_for_kids',l:'Made for Kids',t:'checkbox'}],
-};
+// ─── Publisher: Completed Videos from TUS ───────────────────
 
-function pfmShowOpts() {
-  const p = document.getElementById('pfm-post-platform').value;
-  const opts = PFM_PLATFORM_OPTS[p] || [];
-  const c = document.getElementById('pfm-opts');
-  c.innerHTML = '<strong style="font-size:12px;color:var(--text-secondary)">Platform Options:</strong><br>';
-  opts.forEach(o => {
-    if(o.t==='select') c.innerHTML += `<label style="display:inline-block;margin:4px 8px 4px 0">${o.l}: <select class="pfm-opt input" style="width:auto" data-k="${o.k}">${o.o.map(v => `<option value="${v}"${v===o.d?' selected':''}>${v}</option>`).join('')}</select></label>`;
-    if(o.t==='checkbox') c.innerHTML += `<label style="display:inline-block;margin:4px 8px 4px 0"><input type="checkbox" class="pfm-opt" data-k="${o.k}"${o.d?' checked':''}> ${o.l}</label>`;
-  });
+async function loadPublisherVideos() {
+  var grid = document.getElementById('pub-videos-grid');
+  if (!grid) return;
+  grid.innerHTML = '<div class="text-sm text-secondary" style="grid-column:1/-1;text-align:center;padding:32px">⏳ Loading completed videos...</div>';
+  
+  // Fetch AitoEarn accounts first (for platform info)
+  await aeFetchStatus();
+  
+  try {
+    var r = await fetch(API + '/video/completed');
+    var d = await r.json();
+    var jobs = d.jobs || [];
+    
+    if (!jobs.length) {
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:48px;color:var(--text-tertiary)"><div style="font-size:48px;margin-bottom:12px">📭</div><div>No completed videos yet</div><div style="font-size:12px;margin-top:4px">Generate videos in the Studio tab first</div></div>';
+      return;
+    }
+    
+    grid.innerHTML = '';
+    jobs.forEach(function(job) {
+      var vid = job.video_url || '';
+      var name = job.product_name || 'Untitled';
+      var dur = job.duration || 8;
+      var style = job.ugc_style || 'ugc';
+      var jobId = job.job_id || '';
+      var cost = job.cost ? ('$' + job.cost.toFixed(3)) : '—';
+      
+      var card = document.createElement('div');
+      card.style.cssText = 'background:var(--bg-secondary);border:1px solid var(--border-primary);border-radius:12px;overflow:hidden;transition:all 0.2s ease';
+      card.onmouseenter = function(){ this.style.borderColor='var(--brand)'; this.style.transform='translateY(-2px)'; };
+      card.onmouseleave = function(){ this.style.borderColor='var(--border-primary)'; this.style.transform='none'; };
+      
+      // Thumbnail — try to show video preview
+      var thumbHtml = vid
+        ? '<div style="position:relative;aspect-ratio:9/16;background:var(--bg-tertiary);overflow:hidden"><video src="' + vid + '" muted preload="metadata" style="width:100%;height:100%;object-fit:cover" onmouseenter="this.play()" onmouseleave="this.pause();this.currentTime=0"></video><div style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,0.7);color:#fff;border-radius:4px;padding:2px 6px;font-size:10px">' + dur + 's</div></div>'
+        : '<div style="aspect-ratio:9/16;background:var(--bg-tertiary);display:flex;align-items:center;justify-content:center;font-size:36px">🎬</div>';
+      
+      card.innerHTML = thumbHtml +
+        '<div style="padding:12px">' +
+        '<div style="font-size:13px;font-weight:700;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + name + '</div>' +
+        '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;display:flex;gap:12px"><span>🕐 ' + dur + 's</span><span>🎭 ' + style + '</span><span>' + cost + '</span></div>' +
+        '<div style="display:flex;gap:6px">' +
+        '<button class="btn btn-primary btn-sm" style="flex:1;font-size:12px" onclick="pubPostNow(\'' + jobId + '\', \'' + escapeHtml(name) + '\')">🚀 Post Now</button>' +
+        '<button class="btn btn-secondary btn-sm" style="flex:1;font-size:12px" onclick="pubSchedule(\'' + jobId + '\', \'' + escapeHtml(name) + '\')">📅 Schedule</button>' +
+        '</div></div>';
+      
+      grid.appendChild(card);
+    });
+  } catch(e) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:32px;color:var(--color-red-400)">❌ Error: ' + e.message + '</div>';
+  }
 }
 
+// ─── Publisher: Post Now ────────────────────────────────────
+
+async function pubPostNow(jobId, productName) {
+  if (!confirm('Post "' + productName + '" to TikTok now?')) return;
+  
+  // Get the video path from completed jobs
+  var r, vid, d;
+  try {
+    r = await fetch(API + '/video/completed');
+    d = await r.json();
+    vid = (d.jobs||[]).find(function(j){ return j.job_id === jobId; });
+  } catch(e) {}
+  
+  if (!vid || !vid.video_url) {
+    alert('Video not found for ' + jobId);
+    return;
+  }
+  
+  // Enqueue
+  var enqR = await pfmFetch('/publisher/enqueue', {
+    method: 'POST', body: JSON.stringify({
+      video_path: vid.video_url,
+      caption: (vid.product_name || productName) + ' | #TUS #UGC',
+      platform: 'tiktok',
+      job_id: jobId
+    })
+  });
+  
+  if (!enqR.success) {
+    alert('Enqueue failed: ' + (enqR.detail||enqR.error||'Unknown'));
+    return;
+  }
+  
+  // Post now
+  var postR = await pfmFetch('/publisher/' + enqR.post_id + '/post-now', {method:'POST'});
+  
+  if (postR.success) {
+    alert('✅ Posted!\nflow_id: ' + (postR.flow_id||'—') + '\ntask_id: ' + (postR.task_id||'—'));
+  } else {
+    alert('❌ Post failed: ' + (postR.detail||postR.error||'Unknown'));
+  }
+  
+  loadPublisherQueue();
+}
+
+// ─── Publisher: Schedule ────────────────────────────────────
+
+async function pubSchedule(jobId, productName) {
+  // Get video info
+  var r, vid;
+  try {
+    r = await fetch(API + '/video/completed');
+    var d = await r.json();
+    vid = (d.jobs||[]).find(function(j){ return j.job_id === jobId; });
+  } catch(e) {}
+  
+  if (!vid || !vid.video_url) { alert('Video not found'); return; }
+  
+  // Build simple schedule dialog inline
+  var mode = prompt('Schedule mode for "' + productName + '":\n\n1 = Random (±30 min from now)\n2 = Fixed time (choose)\n3 = Sequential (every 30 min)\n\nEnter 1, 2, or 3:', '1');
+  
+  var scheduleAt;
+  if (mode === '1') {
+    // Random: now + random 0-30 min
+    var mins = Math.floor(Math.random() * 30);
+    scheduleAt = new Date(Date.now() + mins * 60000).toISOString();
+  } else if (mode === '2') {
+    var timeStr = prompt('Enter time (HH:MM, 24h format, UTC):', '14:00');
+    if (!timeStr) return;
+    var today = new Date();
+    scheduleAt = new Date(today.toISOString().split('T')[0] + 'T' + timeStr + ':00Z').toISOString();
+  } else if (mode === '3') {
+    scheduleAt = new Date(Date.now() + 30 * 60000).toISOString();
+  } else {
+    return;
+  }
+  
+  var enqR = await pfmFetch('/publisher/enqueue', {
+    method: 'POST', body: JSON.stringify({
+      video_path: vid.video_url,
+      caption: (vid.product_name || productName) + ' | #TUS #UGC',
+      platform: 'tiktok',
+      job_id: jobId,
+      schedule_at: scheduleAt
+    })
+  });
+  
+  if (enqR.success) {
+    alert('✅ Scheduled!\nID: ' + enqR.post_id + '\nAt: ' + new Date(scheduleAt).toLocaleString());
+  } else {
+    alert('❌ Schedule failed: ' + (enqR.detail||enqR.error||'Unknown'));
+  }
+  
+  loadPublisherQueue();
+}
+
+// ─── Publisher: Queue ────────────────────────────────────────
+
+async function loadPublisherQueue() {
+  var list = document.getElementById('pub-queue-list');
+  var stats = document.getElementById('pub-queue-stats');
+  if (!list) return;
+  list.innerHTML = '<div class="text-sm text-secondary">⏳ Loading...</div>';
+  
+  try {
+    var r = await fetch(API + '/publisher/queue');
+    var posts = (await r.json()).posts || [];
+    
+    // Stats
+    var counts = {pending:0,scheduled:0,posting:0,posted:0,failed:0};
+    posts.forEach(function(p){ counts[p.status] = (counts[p.status]||0) + 1; });
+    if (stats) stats.innerHTML = '⏳' + counts.pending + ' Pending | 📅' + counts.scheduled + ' Scheduled | ✅' + counts.posted + ' Posted | ❌' + counts.failed + ' Failed';
+    
+    if (!posts.length) {
+      list.innerHTML = '<div class="text-sm text-secondary" style="text-align:center;padding:24px">No posts in queue. Click "Post Now" or "Schedule" on a video above.</div>';
+      return;
+    }
+    
+    var scColors = {pending:'#f59e0b',scheduled:'#3b82f6',posting:'#f59e0b',posted:'#10b981',failed:'#ef4444',cancelled:'#6b7280'};
+    var scIcons = {pending:'⏳',scheduled:'📅',posting:'⬆️',posted:'✅',failed:'❌',cancelled:'🚫'};
+    
+    var html = '<table style="width:100%;border-collapse:collapse"><tr style="font-size:11px;text-transform:uppercase;color:var(--text-secondary);border-bottom:1px solid var(--border-primary)"><th style="padding:8px;text-align:left">ID</th><th style="padding:8px;text-align:left">Video</th><th style="padding:8px;text-align:left">Status</th><th style="padding:8px;text-align:left">Scheduled</th><th style="padding:8px;text-align:left">Result</th><th></th></tr>';
+    
+    posts.forEach(function(p){
+      var vidName = (p.video_path||'').split('/').pop() || '-';
+      html += '<tr style="border-bottom:1px solid var(--border-primary);font-size:13px">' +
+        '<td style="padding:8px;font-family:mono;font-size:10px">' + (p.id||'').substring(0,10) + '</td>' +
+        '<td style="padding:8px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + (p.video_path||'') + '">🎬 ' + vidName + '</td>' +
+        '<td style="padding:8px;color:' + (scColors[p.status]||'gray') + ';font-weight:600">' + (scIcons[p.status]||'') + ' ' + p.status + '</td>' +
+        '<td style="padding:8px;font-size:11px">' + (p.schedule_at ? new Date(p.schedule_at).toLocaleString() : '—') + '</td>' +
+        '<td style="padding:8px;font-size:10px;font-family:mono">' + (p.publish_id ? p.publish_id.substring(0,14) : (p.error ? '⚠️ ' + (p.error.substring(0,30)) : '—')) + '</td>' +
+        '<td style="padding:8px">' + (p.status === 'pending' ? '<button class="btn btn-primary btn-sm" onclick="pubPostNowById(\'' + p.id + '\')" style="font-size:11px">▶ Post</button>' : '') + '</td>' +
+        '</tr>';
+    });
+    html += '</table>';
+    list.innerHTML = html;
+  } catch(e) {
+    list.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ ' + e.message + '</div>';
+  }
+}
+
+async function pubPostNowById(postId) {
+  var r = await pfmFetch('/publisher/' + postId + '/post-now', {method:'POST'});
+  if (r.success) {
+    alert('✅ Posted!');
+    loadPublisherQueue();
+  } else {
+    alert('❌ Failed: ' + (r.detail||r.error||'Unknown'));
+    loadPublisherQueue();
+  }
+}
+
+function escapeHtml(str) {
+  return (str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 
 function pfmOpenConnectModal(platform) {
   pfmConnectPlatform = platform;
@@ -4591,132 +4713,6 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(updateAuthUI, 50);
   }
 });
-
-async function pfmPostNow() {
-  const d = document.getElementById('pfm-post-res');
-  d.innerHTML = '<div class="text-sm text-secondary">⏳ Refreshing accounts...</div>';
-  await pfmFetchAccounts();
-  
-  const selEl = document.getElementById('pfm-post-accounts');
-  const sel = selEl ? Array.from(selEl.selectedOptions).map(o=>o.value) : [];
-  if(!sel.length) { d.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ Select account(s) — no AitoEarn accounts connected</div>'; return; }
-  
-  const platform = document.getElementById('pfm-post-platform')?.value || 'tiktok';
-  const caption = document.getElementById('pfm-post-caption')?.value || '';
-  const mediaUrl = document.getElementById('pfm-post-media')?.value || '';
-  
-  d.innerHTML = '<div class="text-sm text-secondary">⏳ Enqueuing...</div>';
-  
-  // Step 1: Enqueue
-  const enqR = await pfmFetch('/publisher/enqueue', {
-    method: 'POST', body: JSON.stringify({
-      video_path: mediaUrl,
-      caption: caption,
-      hashtags: caption.match(/#\w+/g) || [],
-      platform: platform,
-      account_id: sel[0]
-    })
-  });
-  
-  if (!enqR.success) {
-    d.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ Enqueue failed: ' + (enqR.error||JSON.stringify(enqR)) + '</div>';
-    return;
-  }
-  
-  d.innerHTML = '<div class="text-sm text-secondary">⏳ Posting ' + enqR.post_id + ' via AitoEarn...</div>';
-  
-  // Step 2: Post now
-  const postR = await pfmFetch('/publisher/' + enqR.post_id + '/post-now', {method:'POST'});
-  
-  if (postR.success) {
-    d.innerHTML = '<div class="text-sm" style="color:var(--color-green-400)">✅ Posted! ' + (postR.method||'aitoearn') + '</div>' +
-      '<pre style="font-size:11px;background:var(--bg-tertiary);padding:8px;border-radius:var(--radius);overflow:auto;max-height:200px">' +
-      'flow_id: ' + (postR.flow_id||'-') + '\ntask_id: ' + (postR.task_id||'-') + '\nplatform_work_id: ' + (postR.platform_work_id||'pending') +
-      '</pre>';
-  } else {
-    d.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ Post failed: ' + (postR.error||'Unknown') + '</div>';
-  }
-  
-  pfmFetchHistory();
-}
-
-async function pfmSchedule() {
-  const d = document.getElementById('pfm-sched-res');
-  d.innerHTML = '<div class="text-sm text-secondary">⏳ Refreshing accounts...</div>';
-  await pfmFetchAccounts();
-  
-  const selEl = document.getElementById('pfm-sched-accounts');
-  const sel = selEl ? Array.from(selEl.selectedOptions).map(o=>o.value) : [];
-  if(!sel.length) { d.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ Select account(s)</div>'; return; }
-  
-  const caption = document.getElementById('pfm-sched-caption')?.value || '';
-  const mediaUrl = document.getElementById('pfm-sched-media')?.value || '';
-  const st = document.getElementById('pfm-sched-time')?.value;
-  if(!st) { d.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ Select schedule time</div>'; return; }
-  const platform = document.getElementById('pfm-sched-platform')?.value || 'tiktok';
-  
-  d.innerHTML = '<div class="text-sm text-secondary">⏳ Scheduling...</div>';
-  
-  const r = await pfmFetch('/publisher/enqueue', {method:'POST', body:JSON.stringify({
-    video_path: mediaUrl,
-    caption: caption,
-    hashtags: caption.match(/#\w+/g) || [],
-    platform: platform,
-    account_id: sel[0],
-    schedule_at: new Date(st).toISOString()
-  })});
-  
-  if(r.success) {
-    d.innerHTML = '<div class="text-sm" style="color:var(--color-green-400)">✅ Scheduled! ID: ' + r.post_id + ' | At: ' + (r.schedule_at||st) + '</div>';
-  } else {
-    d.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ ' + (r.error||'Schedule failed') + '</div>';
-  }
-  pfmFetchHistory();
-}
-
-async function pfmFetchHistory() {
-  const d = document.getElementById('pfm-history-list');
-  d.innerHTML = '<div class="text-sm text-secondary">⏳ Loading...</div>';
-  // Try publisher queue first, fall back to old /posts
-  var r = await pfmFetch('/publisher/queue');
-  var posts = r.posts || [];
-  
-  if (!posts.length) {
-    // Fallback to old endpoint
-    var oldR = await pfmFetch('/posts/scheduled');
-    posts = oldR.posts || oldR.scheduled || [];
-  }
-  
-  if (!posts.length) { d.innerHTML = '<div class="text-sm text-secondary">No posts yet. Enqueue a video to see it here.</div>'; return; }
-  
-  const sc = {pending:'orange',scheduled:'var(--color-blue-400)',posting:'orange',posted:'var(--color-green-400)',failed:'var(--color-red-400)',cancelled:'gray'};
-  let html = '<table><tr><th>ID</th><th>Platform</th><th>Caption</th><th>Status</th><th>Publish ID</th><th>Created</th><th></th></tr>';
-  posts.forEach(function(p) {
-    html += '<tr>' +
-      '<td style="font-size:11px">' + (p.id||'').substring(0,12) + '</td>' +
-      '<td>' + (p.platform||'-') + '</td>' +
-      '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (p.caption||'-') + '</td>' +
-      '<td style="color:' + (sc[p.status]||'gray') + ';font-weight:600">' + p.status + '</td>' +
-      '<td style="font-size:10px;font-family:mono">' + (p.publish_id||'-').substring(0,10) + '</td>' +
-      '<td style="font-size:11px">' + (p.created_at ? new Date(p.created_at).toLocaleString() : '-') + '</td>' +
-      '<td>' + (p.status==='pending' ? '<button class="btn btn-sm btn-primary" onclick="pfmPostNowById(\'' + p.id + '\')">▶ Post</button>' : '') + '</td>' +
-      '</tr>';
-  });
-  html += '</table>';
-  d.innerHTML = html;
-}
-
-async function pfmPostNowById(postId) {
-  const d = document.getElementById('pfm-history-list');
-  var r = await pfmFetch('/publisher/' + postId + '/post-now', {method:'POST'});
-  if (r.success) {
-    // Refresh history
-    pfmFetchHistory();
-  } else {
-    d.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ Failed: ' + (r.error||'Unknown') + '</div>';
-    setTimeout(pfmFetchHistory, 2000);
-  }
-}
 
 /* ═══ Scout — Facebook/IG Viral Clip Search ═══ */
 let _scoutNicheCache = [];

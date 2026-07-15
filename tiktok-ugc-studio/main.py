@@ -1426,14 +1426,23 @@ async def publisher_enqueue(req: dict):
     if not video_path:
         raise HTTPException(status_code=400, detail="video_path required")
 
-    # Resolve video path — try local, then storage dir
+    # Resolve video path — handles web URLs, local paths, and storage
     resolved = video_path
-    if not os.path.exists(video_path):
-        alt = STORAGE_DIR / "videos" / os.path.basename(video_path)
+
+    # Strip web path prefixes: /api/tiktok/static/videos/ → storage/videos/
+    filename = os.path.basename(video_path)
+    for prefix in ("/api/tiktok/static/videos/", "/static/videos/", "/storage/videos/"):
+        if video_path.startswith(prefix):
+            resolved = str(VIDEOS_DIR / filename)
+            break
+
+    # Fallback: check filesystem
+    if not os.path.exists(resolved):
+        alt = VIDEOS_DIR / filename
         if alt.exists():
             resolved = str(alt)
         else:
-            raise HTTPException(status_code=400, detail=f"Video not found: {video_path}")
+            raise HTTPException(status_code=400, detail=f"Video not found: {video_path} (resolved: {resolved})")
 
     # Resolve AitoEarn account
     account_info = None

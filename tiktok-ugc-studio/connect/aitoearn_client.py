@@ -67,15 +67,24 @@ class AitoEarnClient:
                 else:
                     return {"ok": False, "error": f"Unsupported method: {method}"}
 
+                status = resp.status_code
                 data = resp.json() if resp.text else {}
+                
+                # Log non-200 responses for debugging
+                if status >= 400:
+                    logger.warning(f"AitoEarn {method} {path} → HTTP {status}: {resp.text[:500] if resp.text else '(empty)'}")
 
                 # AitoEarn wraps all responses: {code, message, data}
                 if data.get("code") == 0:
-                    return {"ok": True, "data": data.get("data", data)}
+                    result_data = data.get("data", data)
+                    # Empty data for uploadSign means something went wrong
+                    if isinstance(result_data, dict) and not result_data and "uploadSign" in path:
+                        logger.warning(f"uploadSign returned empty data — API may have changed. Full response: {data}")
+                    return {"ok": True, "data": result_data}
                 
                 return {
                     "ok": False,
-                    "error": f"{data.get('message', 'Unknown error')} (code={data.get('code')})",
+                    "error": f"{data.get('message', 'Unknown error')} (HTTP {status}, code={data.get('code')})",
                     "raw": data,
                 }
 
@@ -160,12 +169,13 @@ class AitoEarnClient:
 
     # ─── Asset Upload ────────────────────────────────────────────────
 
-    async def upload_asset(self, file_path: str, asset_type: str = "publishMedia") -> Optional[str]:
+    async def upload_asset(self, file_path: str, asset_type: str = "publishMedia", public_url: str = "") -> Optional[str]:
         """Upload a local file to AitoEarn asset storage (R2).
         
         3-step flow: getUploadSign → PUT to R2 → confirm
+        Falls back to public_url if uploadSign fails or returns empty.
         
-        Returns public asset URL, or None on failure.
+        Returns public asset URL, or the public_url fallback, or None on total failure.
         """
         file_path = Path(file_path)
         if not file_path.exists():
@@ -176,12 +186,27 @@ class AitoEarnClient:
         file_size = file_path.stat().st_size
 
         try:
-            # Step 1: Get upload signature
-            sign = await self._call("POST", "/api/assets/uploadSign", {
-                "filename": filename,
-                "type": asset_type,
-                "size": file_size,
-            })
+            # Step 1: Get upload signature — try multiple field name formats
+            # AitoEarn may use 'fileName' (camelCase) or 'filename' (lowercase)
+            sign = None
+            for payload in [
+                {"fileName": filename, "type": asset_type, "size": file_size},
+                {"fileName": filename, "fileType": asset_type, "size": file_size},
+                {"filename": filename, "type": asset_type, "size": file_size},
+                {"filename": filename, "contentType": "video/mp4", "type": asset_type},
+            ]:
+                sign = await self._call("POST", "/api/assets/uploadSign", payload)
+                if sign["ok"] and sign.get("data") and isinstance(sign["data"], dict) and sign["data"].get("uploadUrl"):
+                    break
+                logger.info(f"uploadSign attempt with {list(payload.keys())} → ok={sign.get('ok')}, has_data={bool(sign.get('data'))}")
+
+            # Fallback: if uploadSign returns empty data (API key scope issue), use public URL
+            if not sign or not sign.get("ok") or not isinstance(sign.get("data"), dict) or not sign["data"].get("uploadUrl"):
+                if public_url:
+                    logger.warning(f"uploadSign failed/empty — falling back to public URL: {public_url}")
+                    return public_url
+                logger.error(f"uploadSign failed and no public_url fallback: {sign.get('error') if sign else 'no response'}")
+                return None
             if not sign["ok"]:
                 logger.error(f"Upload sign failed: {sign['error']}")
                 return None
@@ -279,10 +304,13 @@ class AitoEarnClient:
         
         Returns {success, flow_id, task_id, platform_work_id, error}
         """
-        # 1. Upload if local file
+        # 1. Upload if local file (with public URL fallback for API scope issues)
         video_url = video_path
         if not video_path.startswith("http"):
-            uploaded = await self.upload_asset(video_path)
+            # Build public URL fallback: /api/tiktok/static/videos/filename → m2igen.com
+            filename = Path(video_path).name
+            public_fallback = f"https://m2igen.com/api/tiktok/static/videos/{filename}"
+            uploaded = await self.upload_asset(video_path, public_url=public_fallback)
             if not uploaded:
                 return {"success": False, "error": "Asset upload failed"}
             video_url = uploaded

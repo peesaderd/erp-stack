@@ -1399,26 +1399,61 @@ async def publisher_queue(status: str = None, platform: str = None, limit: int =
 
 @app.post("/publisher/enqueue")
 async def publisher_enqueue(req: dict):
-    """Add a completed video to the post queue."""
-    job_id = req.get("job_id", "")
+    """Add a video to the post queue. Validates video exists + AitoEarn account."""
     video_path = req.get("video_path", "")
     caption = req.get("caption", "")
     hashtags = req.get("hashtags", [])
+    platform = req.get("platform", "tiktok")
+    account_id = req.get("account_id", "")  # Optional override
+    schedule_at = req.get("schedule_at")
+    job_id = req.get("job_id", "")
     affiliate_link = req.get("affiliate_link", "")
-    schedule_at = req.get("schedule_at")  # ISO datetime or None for immediate
 
     if not video_path:
         raise HTTPException(status_code=400, detail="video_path required")
 
+    # Resolve video path — try local, then storage dir
+    resolved = video_path
+    if not os.path.exists(video_path):
+        alt = STORAGE_DIR / "videos" / os.path.basename(video_path)
+        if alt.exists():
+            resolved = str(alt)
+        else:
+            raise HTTPException(status_code=400, detail=f"Video not found: {video_path}")
+
+    # Resolve AitoEarn account
+    account_info = None
+    if aitoearn.configured:
+        if account_id:
+            account_info = await aitoearn.get_account(account_id)
+        else:
+            accounts = await aitoearn.list_accounts(platform=platform)
+            active = [a for a in accounts if a.get("status") == 1]
+            if active:
+                account_id = active[0]["id"]
+                account_info = active[0]
+
     post_id = publisher_scheduler.enqueue_completed_video(
         job_id=job_id,
-        video_path=video_path,
+        video_path=resolved,
         caption=caption,
         hashtags=hashtags,
         affiliate_link=affiliate_link,
         schedule_at=schedule_at,
     )
-    return {"success": True, "post_id": post_id, "schedule_at": schedule_at}
+
+    return {
+        "success": True,
+        "post_id": post_id,
+        "schedule_at": schedule_at,
+        "resolved_path": resolved,
+        "platform": platform,
+        "account": {
+            "id": account_id,
+            "nickname": account_info.get("nickname") if account_info else None,
+            "avatar": account_info.get("avatar") if account_info else None,
+        } if account_info else None,
+    }
 
 @app.post("/publisher/{post_id}/post-now")
 async def publisher_post_now(post_id: str):

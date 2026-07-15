@@ -3235,29 +3235,54 @@ async function addAccount() {
 async function loadAccounts() {
   const el = document.getElementById('accountsList');
   try {
-    const res = await fetch(API + '/tiktok/accounts');
-    if (!res.ok) throw new Error('Failed');
-    const data = await res.json();
-    const accounts = data.accounts || data || [];
-    if (!accounts.length) { el.innerHTML = '<div class="text-sm text-secondary" style="text-align:center;padding:16px">No accounts added yet</div>'; return; }
-    el.innerHTML = accounts.map(a => `
-      <div class="account-item">
-        <div class="avatar" style="background:linear-gradient(135deg,${hashColor(a.username||a.id||'A')},${hashColor2(a.username||a.id||'A')})">${(a.username||a.id||'?')[0].toUpperCase()}</div>
-        <div style="flex:1">
-          <div class="font-medium">${a.username || a.id || 'Unknown'}</div>
-          <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
-            <span class="status-dot ${a.is_logged_in ? 'online' : 'offline'}"></span>
-            <span class="text-xs text-secondary">${a.is_logged_in ? 'Logged in ✅' : (a.session_token ? 'Has token' : 'Not logged in')}</span>
-            ${a.session_token ? '<span class="text-xs text-secondary ml-1">🔑</span>' : ''}
-          </div>
-        </div>
-        <div style="display:flex;gap:4px">
-          ${!a.is_logged_in && !a.session_token ? `<button class="btn btn-primary btn-sm" onclick="loginAccount('${a.id||a.username}')">Login</button>` : ''}
-          <button class="btn btn-ghost btn-sm" onclick="checkSession('${a.id||a.username}')">Check</button>
-          <button class="btn btn-danger btn-sm" onclick="removeAccount('${a.id||a.username}')">Delete</button>
-        </div>
-      </div>
-    `).join('');
+    var html = '';
+    
+    // Fetch AitoEarn accounts
+    try {
+      var aeR = await fetch(API + '/aitoearn/platforms');
+      var aeD = await aeR.json();
+      var aePlatforms = aeD.platforms || [];
+      
+      aePlatforms.forEach(function(p) {
+        (p.accounts || []).forEach(function(a) {
+          html += '<div class="account-item">' +
+            '<div class="avatar" style="background-image:url(' + (a.avatar||'') + ');background-size:cover;background-position:center;width:36px;height:36px;border-radius:50%">' + ((!a.avatar) ? (a.nickname||'?')[0].toUpperCase() : '') + '</div>' +
+            '<div style="flex:1">' +
+            '<div class="font-medium">' + (a.nickname || a.id) + ' <span style="font-size:10px;color:var(--text-tertiary)">' + p.platform.toUpperCase() + '</span></div>' +
+            '<div style="display:flex;align-items:center;gap:6px;margin-top:2px">' +
+            '<span class="status-dot online"></span>' +
+            '<span class="text-xs text-secondary">' + a.fans + ' followers · ' + a.works + ' works</span>' +
+            '</div></div>' +
+            '<span style="font-size:11px;background:var(--bg-tertiary);padding:2px 6px;border-radius:4px">AitoEarn</span>' +
+            '</div>';
+        });
+      });
+    } catch(e) { console.log('AitoEarn load error (non-critical):', e); }
+    
+    // Also fetch local accounts
+    try {
+      var res = await fetch(API + '/tiktok/accounts');
+      if (res.ok) {
+        var data = await res.json();
+        var accounts = data.accounts || data || [];
+        accounts.forEach(function(a) {
+          html += '<div class="account-item">' +
+            '<div class="avatar" style="background:linear-gradient(135deg,' + hashColor(a.username||a.id||'A') + ',' + hashColor2(a.username||a.id||'A') + ')">' + (a.username||a.id||'?')[0].toUpperCase() + '</div>' +
+            '<div style="flex:1">' +
+            '<div class="font-medium">' + (a.username || a.id || 'Unknown') + '</div>' +
+            '<div style="display:flex;align-items:center;gap:6px;margin-top:2px">' +
+            '<span class="status-dot ' + (a.is_logged_in ? 'online' : 'offline') + '"></span>' +
+            '<span class="text-xs text-secondary">' + (a.is_logged_in ? 'Logged in ✅' : (a.session_token ? 'Has token' : 'Not logged in')) + '</span>' +
+            (a.session_token ? '<span class="text-xs text-secondary ml-1">🔑</span>' : '') +
+            '</div></div>' +
+            '<span style="font-size:11px;background:var(--bg-tertiary);padding:2px 6px;border-radius:4px">Local</span>' +
+            '</div>';
+        });
+      }
+    } catch(e) { console.log('Local accounts error:', e); }
+    
+    if (!html) { html = '<div class="text-sm text-secondary" style="text-align:center;padding:16px">No accounts yet — connect AitoEarn or add a local session</div>'; }
+    el.innerHTML = html;
   } catch(e) { el.innerHTML = '<div class="text-sm text-secondary" style="padding:16px">Failed to load accounts</div>'; }
 }
 
@@ -4006,7 +4031,22 @@ document.addEventListener('keydown', function(e) {
 });
 
 /* ═══ Post For Me — JS ═══ */
-const PFM_API = window.location.origin + '/ugc';
+const PFM_API = window.location.origin + '/api/tiktok';
+
+// AitoEarn platform cache
+let _aePlatforms = [];
+let _aeAccounts = [];
+
+async function aeFetchStatus() {
+  try {
+    const r = await fetch(PFM_API + '/aitoearn/status');
+    const d = await r.json();
+    _aePlatforms = d.platforms || [];
+    _aeAccounts = [];
+    _aePlatforms.forEach(function(p){ _aeAccounts = _aeAccounts.concat(p.accounts||[]); });
+    return d;
+  } catch(e) { return {connected:false, error:e.message}; }
+}
 
 // Platform SVG logos (loaded from external file)
 const PFM_PLATFORMS = {
@@ -4125,91 +4165,110 @@ async function pfmDoConnect() {
 }
 
 async function pfmFetchAccounts() {
-  const r = await pfmFetch('/accounts');
-  if (!r.success) {
-    var d = document.getElementById('pfm-accounts-list');
-    if (d) d.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ ' + (r.error||'Failed') + '</div>';
-    return;
-  }
+  // Fetch AitoEarn platforms FIRST (primary source)
+  await aeFetchStatus();
   
-  var accounts = r.accounts || [];
+  // Also fetch local accounts (fallback/cookie-based)
+  var localAccounts = [];
+  try {
+    var localR = await pfmFetch('/tiktok/accounts');
+    localAccounts = localR.accounts || [];
+  } catch(e) { console.log('No local accounts:', e.message); }
+
+  // Build account map from AitoEarn (primary) + local (fallback)
   var accountMap = {};
-  accounts.forEach(function(a){
-    if (!accountMap[a.platform]) accountMap[a.platform] = [];
-    accountMap[a.platform].push(a);
+  _aeAccounts.forEach(function(a){
+    var plat = a.platform || 'unknown';
+    if (!accountMap[plat]) accountMap[plat] = [];
+    // Normalize AitoEarn account format to match frontend expectations
+    accountMap[plat].push({
+      id: a.id,
+      platform: plat,
+      username: a.nickname || a.id,
+      avatar: a.avatar || '',
+      status: a.status === 1 ? 'active' : 'inactive',
+      fans: a.fans || 0,
+      works: a.works || 0,
+      source: 'aitoearn'
+    });
   });
-  var connectedPlatforms = new Set(accounts.map(function(a){ return a.platform; }));
+  
+  // Add local accounts under tiktok_local
+  localAccounts.forEach(function(a){
+    if (!accountMap['tiktok_local']) accountMap['tiktok_local'] = [];
+    accountMap['tiktok_local'].push(Object.assign({source:'local'}, a));
+  });
+  
+  var connectedPlatforms = new Set();
+  Object.keys(accountMap).forEach(function(k){ connectedPlatforms.add(k); });
   
   // Render grid
   var grid = document.getElementById('pfm-platform-grid');
   if (grid) {
     grid.innerHTML = '';
-    var platforms = ['tiktok_local', 'tiktok_business', 'facebook', 'instagram', 'youtube', 'x', 'linkedin', 'pinterest', 'threads'];
+    var platforms = ['tiktok', 'tiktok_local', 'youtube', 'twitter', 'facebook', 'instagram', 'pinterest', 'x', 'linkedin', 'threads'];
     var svgs = window.PLATFORM_SVGS || {};
     
-    var localAcctsCount = document.querySelectorAll('#accountsList .account-item').length || 0;
+    var localAcctsCount = localAccounts.length;
     
     platforms.forEach(function(plat){
       var pf = PFM_PLATFORMS[plat] || { icon:'?', name:plat };
       var accts = accountMap[plat] || [];
-      var connected = connectedPlatforms.has(plat);
-      var info = accts[0] || {};
+      var connected = accts.length > 0;
+      var ace = accts[0] || {};
       var svgHtml = svgs[plat] || pf.icon;
       
       var card = document.createElement('div');
+      card.className = 'pfm-card' + (connected ? ' connected' : '');
       
-      if (plat === 'tiktok_local') {
-        var hasLocal = localAcctsCount > 0;
-        card.className = 'pfm-card' + (hasLocal ? ' connected' : '');
-        card.innerHTML = 
-          '<div class="status-dot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div>' +
-          '<div style="font-size:32px;margin-bottom:8px">🔑</div>' +
-          '<div class="card-label">' + pf.name + '</div>' +
-          (hasLocal ? '<div class="card-sub">' + localAcctsCount + ' Session(s)</div>' : '<div class="card-sub" style="color:var(--color-red-400)">Not connected</div>');
-          
-        card.onclick = function() {
-          document.getElementById('tiktok-local-panel').scrollIntoView({ behavior: 'smooth' });
-          var panel = document.getElementById('tiktok-local-panel');
-          panel.style.boxShadow = '0 0 20px var(--brand)';
-          setTimeout(function() { panel.style.boxShadow = ''; }, 1500);
-        };
-      } 
-      else {
-        card.className = 'pfm-card' + (connected ? ' connected' : '');
+      if (connected) {
+        var isAitoearn = ace.source === 'aitoearn';
+        var label = isAitoearn ? (ace.username || 'Connected') : (localAcctsCount + ' Session(s)');
+        var subLabel = isAitoearn ? '' + ace.fans + ' followers · ' + ace.works + ' works' : '';
+        
         card.innerHTML =
           '<div class="status-dot"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div>' +
+          '<div>' + (ace.avatar ? '<img src="' + ace.avatar + '" style="width:40px;height:40px;border-radius:50%;object-fit:cover" onerror="this.style.display=\\'none\'">' : svgHtml) + '</div>' +
+          '<div class="card-label">' + pf.name + '</div>' +
+          '<div class="card-sub">' + label + '</div>' +
+          (isAitoearn ? '<div class="card-sub" style="font-size:10px">' + subLabel + '</div>' : '');
+          
+        card.onclick = function() {
+          if (isAitoearn) {
+            pfmOpenDetail(plat, accts);
+          } else {
+            // Scroll to local panel
+            var panel = document.getElementById('tiktok-local-panel');
+            if (panel) { panel.scrollIntoView({behavior:'smooth'}); panel.style.boxShadow='0 0 20px var(--brand)'; setTimeout(function(){panel.style.boxShadow='';},1500); }
+          }
+        };
+      } else {
+        card.innerHTML =
           '<div>' + svgHtml + '</div>' +
           '<div class="card-label">' + pf.name + '</div>' +
-          (connected ? '<div class="card-sub">' + (info.username||'Connected') + '</div>' : '<div class="card-sub" style="color:var(--color-red-400)">Connect</div>');
-          
-        var unsupported = ['instagram', 'bluesky'];
-        if (unsupported.includes(plat) && !connected) {
-          card.style.opacity = '0.45';
-          card.style.cursor = 'not-allowed';
-          card.querySelector('.card-sub').textContent = 'Coming Soon';
-          card.onclick = function(){};
-        } else {
-          card.onclick = function() {
-            if (connected) {
-              pfmOpenDetail(plat, accts);
-            } else {
-              pfmOpenConnectModal(plat);
-            }
-          };
-        }
+          '<div class="card-sub" style="color:var(--color-red-400)">Not connected</div>';
+        card.style.opacity = '0.5';
       }
+      
       grid.appendChild(card);
     });
   }
   
-  // Update selects for other tabs
+  // Update selects for Post/Schedule tabs
   ['pfm-post-accounts','pfm-sched-accounts'].forEach(function(id){
     var sel = document.getElementById(id); if(!sel) return;
     sel.innerHTML = '';
-    accounts.forEach(function(a){
+    _aeAccounts.forEach(function(a){
       var opt = document.createElement('option');
       opt.value = a.id;
-      opt.textContent = '[' + a.platform.toUpperCase() + '] ' + a.username;
+      opt.textContent = '[' + (a.platform||'?').toUpperCase() + '] ' + (a.nickname||a.id);
+      sel.appendChild(opt);
+    });
+    // Also add local accounts
+    localAccounts.forEach(function(a){
+      var opt = document.createElement('option');
+      opt.value = a.account_id || a.id;
+      opt.textContent = '[LOCAL] ' + (a.username||a.account_id||'?');
       sel.appendChild(opt);
     });
   });
@@ -4448,49 +4507,128 @@ document.addEventListener('DOMContentLoaded', function() {
 
 async function pfmPostNow() {
   const d = document.getElementById('pfm-post-res');
-  d.innerHTML = '<div class="text-sm text-secondary">⏳ Refresh accounts...</div>';
-  // Always fetch latest accounts first to get fresh IDs
+  d.innerHTML = '<div class="text-sm text-secondary">⏳ Refreshing accounts...</div>';
   await pfmFetchAccounts();
-  d.innerHTML = '<div class="text-sm text-secondary">⏳ Posting...</div>';
-  const sel = Array.from(document.getElementById('pfm-post-accounts').selectedOptions).map(o=>o.value);
-  if(!sel.length) { d.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ Select account(s)</div>'; return; }
-  const p = document.getElementById('pfm-post-platform').value;
-  const caption = document.getElementById('pfm-post-caption').value;
-  const mediaUrl = document.getElementById('pfm-post-media').value;
-  const r = await pfmFetch('/post', {method:'POST', body:JSON.stringify({account_id:sel[0], caption, media_urls:mediaUrl?[mediaUrl]:[], platform:p})});
-  if(r.success) d.innerHTML = '<div class="text-sm" style="color:var(--color-green-400)">✅ Posted! ID: ' + r.post_id + ' | Status: ' + r.status + '</div><pre style="font-size:11px;background:var(--bg-tertiary);padding:8px;border-radius:var(--radius);overflow:auto;max-height:200px">' + JSON.stringify(r.result||{},null,2) + '</pre>';
-  else d.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ ' + (r.error||'Post failed') + '</div>';
+  
+  const selEl = document.getElementById('pfm-post-accounts');
+  const sel = selEl ? Array.from(selEl.selectedOptions).map(o=>o.value) : [];
+  if(!sel.length) { d.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ Select account(s) — no AitoEarn accounts connected</div>'; return; }
+  
+  const platform = document.getElementById('pfm-post-platform')?.value || 'tiktok';
+  const caption = document.getElementById('pfm-post-caption')?.value || '';
+  const mediaUrl = document.getElementById('pfm-post-media')?.value || '';
+  
+  d.innerHTML = '<div class="text-sm text-secondary">⏳ Enqueuing...</div>';
+  
+  // Step 1: Enqueue
+  const enqR = await pfmFetch('/publisher/enqueue', {
+    method: 'POST', body: JSON.stringify({
+      video_path: mediaUrl,
+      caption: caption,
+      hashtags: caption.match(/#\w+/g) || [],
+      platform: platform,
+      account_id: sel[0]
+    })
+  });
+  
+  if (!enqR.success) {
+    d.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ Enqueue failed: ' + (enqR.error||JSON.stringify(enqR)) + '</div>';
+    return;
+  }
+  
+  d.innerHTML = '<div class="text-sm text-secondary">⏳ Posting ' + enqR.post_id + ' via AitoEarn...</div>';
+  
+  // Step 2: Post now
+  const postR = await pfmFetch('/publisher/' + enqR.post_id + '/post-now', {method:'POST'});
+  
+  if (postR.success) {
+    d.innerHTML = '<div class="text-sm" style="color:var(--color-green-400)">✅ Posted! ' + (postR.method||'aitoearn') + '</div>' +
+      '<pre style="font-size:11px;background:var(--bg-tertiary);padding:8px;border-radius:var(--radius);overflow:auto;max-height:200px">' +
+      'flow_id: ' + (postR.flow_id||'-') + '\ntask_id: ' + (postR.task_id||'-') + '\nplatform_work_id: ' + (postR.platform_work_id||'pending') +
+      '</pre>';
+  } else {
+    d.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ Post failed: ' + (postR.error||'Unknown') + '</div>';
+  }
+  
+  pfmFetchHistory();
 }
 
 async function pfmSchedule() {
   const d = document.getElementById('pfm-sched-res');
-  d.innerHTML = '<div class="text-sm text-secondary">⏳ Refresh accounts...</div>';
+  d.innerHTML = '<div class="text-sm text-secondary">⏳ Refreshing accounts...</div>';
   await pfmFetchAccounts();
-  d.innerHTML = '<div class="text-sm text-secondary">⏳ Scheduling...</div>';
-  const sel = Array.from(document.getElementById('pfm-sched-accounts').selectedOptions).map(o=>o.value);
+  
+  const selEl = document.getElementById('pfm-sched-accounts');
+  const sel = selEl ? Array.from(selEl.selectedOptions).map(o=>o.value) : [];
   if(!sel.length) { d.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ Select account(s)</div>'; return; }
-  const caption = document.getElementById('pfm-sched-caption').value;
-  const mediaUrl = document.getElementById('pfm-sched-media').value;
-  const st = document.getElementById('pfm-sched-time').value;
+  
+  const caption = document.getElementById('pfm-sched-caption')?.value || '';
+  const mediaUrl = document.getElementById('pfm-sched-media')?.value || '';
+  const st = document.getElementById('pfm-sched-time')?.value;
   if(!st) { d.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ Select schedule time</div>'; return; }
-  const p = document.getElementById('pfm-sched-platform').value;
-  const r = await pfmFetch('/schedule', {method:'POST', body:JSON.stringify({account_id:sel[0], caption, media_urls:mediaUrl?[mediaUrl]:[], platform:p, scheduled_at:new Date(st).toISOString()})});
-  if(r.success) d.innerHTML = '<div class="text-sm" style="color:var(--color-green-400)">✅ Scheduled! ID: ' + r.post_id + ' | At: ' + (r.scheduled_at||st) + '</div><pre style="font-size:11px;background:var(--bg-tertiary);padding:8px;border-radius:var(--radius);overflow:auto;max-height:200px">' + JSON.stringify(r.result||{},null,2) + '</pre>';
-  else d.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ ' + (r.error||'Schedule failed') + '</div>';
+  const platform = document.getElementById('pfm-sched-platform')?.value || 'tiktok';
+  
+  d.innerHTML = '<div class="text-sm text-secondary">⏳ Scheduling...</div>';
+  
+  const r = await pfmFetch('/publisher/enqueue', {method:'POST', body:JSON.stringify({
+    video_path: mediaUrl,
+    caption: caption,
+    hashtags: caption.match(/#\w+/g) || [],
+    platform: platform,
+    account_id: sel[0],
+    schedule_at: new Date(st).toISOString()
+  })});
+  
+  if(r.success) {
+    d.innerHTML = '<div class="text-sm" style="color:var(--color-green-400)">✅ Scheduled! ID: ' + r.post_id + ' | At: ' + (r.schedule_at||st) + '</div>';
+  } else {
+    d.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ ' + (r.error||'Schedule failed') + '</div>';
+  }
+  pfmFetchHistory();
 }
 
 async function pfmFetchHistory() {
   const d = document.getElementById('pfm-history-list');
   d.innerHTML = '<div class="text-sm text-secondary">⏳ Loading...</div>';
-  const r = await pfmFetch('/posts');
-  if(r.success) {
-    if(!r.posts||!r.posts.length) { d.innerHTML = '<div class="text-sm text-secondary">No posts yet.</div>'; return; }
-    const sc = {pending:'orange',scheduled:'var(--color-blue-400)',processing:'orange',completed:'var(--color-green-400)',failed:'var(--color-red-400)'};
-    let html = '<table><tr><th>ID</th><th>Platform</th><th>Caption</th><th>Status</th><th>Created</th></tr>';
-    r.posts.forEach(p => { html += `<tr><td style="font-size:11px">${(p.post_id||p.id||'').substring(0,12)}</td><td>${p.platform||'-'}</td><td>${(p.caption||'').substring(0,40)}</td><td style="color:${sc[p.status]||'gray'};font-weight:600">${p.status}</td><td style="font-size:11px">${p.created_at?new Date(p.created_at).toLocaleString():'-'}</td></tr>`; });
-    html += '</table>';
-    d.innerHTML = html;
-  } else d.innerHTML = `<div class="text-sm" style="color:var(--color-red-400)">❌ ${r.error||'Failed'}</div>`;
+  // Try publisher queue first, fall back to old /posts
+  var r = await pfmFetch('/publisher/queue');
+  var posts = r.posts || [];
+  
+  if (!posts.length) {
+    // Fallback to old endpoint
+    var oldR = await pfmFetch('/posts/scheduled');
+    posts = oldR.posts || oldR.scheduled || [];
+  }
+  
+  if (!posts.length) { d.innerHTML = '<div class="text-sm text-secondary">No posts yet. Enqueue a video to see it here.</div>'; return; }
+  
+  const sc = {pending:'orange',scheduled:'var(--color-blue-400)',posting:'orange',posted:'var(--color-green-400)',failed:'var(--color-red-400)',cancelled:'gray'};
+  let html = '<table><tr><th>ID</th><th>Platform</th><th>Caption</th><th>Status</th><th>Publish ID</th><th>Created</th><th></th></tr>';
+  posts.forEach(function(p) {
+    html += '<tr>' +
+      '<td style="font-size:11px">' + (p.id||'').substring(0,12) + '</td>' +
+      '<td>' + (p.platform||'-') + '</td>' +
+      '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (p.caption||'-') + '</td>' +
+      '<td style="color:' + (sc[p.status]||'gray') + ';font-weight:600">' + p.status + '</td>' +
+      '<td style="font-size:10px;font-family:mono">' + (p.publish_id||'-').substring(0,10) + '</td>' +
+      '<td style="font-size:11px">' + (p.created_at ? new Date(p.created_at).toLocaleString() : '-') + '</td>' +
+      '<td>' + (p.status==='pending' ? '<button class="btn btn-sm btn-primary" onclick="pfmPostNowById(\'' + p.id + '\')">▶ Post</button>' : '') + '</td>' +
+      '</tr>';
+  });
+  html += '</table>';
+  d.innerHTML = html;
+}
+
+async function pfmPostNowById(postId) {
+  const d = document.getElementById('pfm-history-list');
+  var r = await pfmFetch('/publisher/' + postId + '/post-now', {method:'POST'});
+  if (r.success) {
+    // Refresh history
+    pfmFetchHistory();
+  } else {
+    d.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ Failed: ' + (r.error||'Unknown') + '</div>';
+    setTimeout(pfmFetchHistory, 2000);
+  }
 }
 
 /* ═══ Scout — Facebook/IG Viral Clip Search ═══ */

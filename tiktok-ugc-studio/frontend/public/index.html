@@ -1797,6 +1797,11 @@ let currentStep = 1;
 
 /* ═══ Tab switching ═══ */
 function switchTab(name) {
+  // Persist tab in URL hash for PWA pull-to-refresh restore
+  if (location.hash !== '#' + name) {
+    location.hash = name;
+  }
+  
   // Always close mobile side drawer
   const nav = document.getElementById('sideNav');
   const overlay = document.getElementById('sideOverlay');
@@ -3443,6 +3448,17 @@ async function loginAccount(id) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+  // ── Restore tab from URL hash (PWA pull-to-refresh) ────
+  if (location.hash) {
+    var hashTab = location.hash.replace('#', '');
+    if (hashTab && document.getElementById('page-' + hashTab)) {
+      switchTab(hashTab);
+    }
+  } else {
+    // First load — set default tab in URL hash
+    location.hash = 'dashboard';
+  }
+  
   // ถ้ามีปุ่ม QR Login เพิ่มในหน้า Accounts
   const accountsHeader = document.querySelector('#page-accounts .page-header .flex');
   if (accountsHeader) {

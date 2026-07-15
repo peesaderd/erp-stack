@@ -5,6 +5,7 @@ Strategy: AitoEarn API bypass → Cookie-based fallback → Error.
 
 import os
 import json
+import asyncio
 import logging
 import httpx
 from pathlib import Path
@@ -112,33 +113,52 @@ class TikTokPoster:
             if not cookies:
                 return {"success": False, "error": "Cookies empty", "method": "cookie"}
 
-            # Use tiktok_uploader package
-            from tiktok_uploader.upload import upload_video
-            from tiktok_uploader.auth import AuthBackend
+            # Use tiktok_uploader package (v1.2.0+)
+            from tiktok_uploader import upload_video
+            from tiktok_uploader.types import Cookie
 
-            # Write temp cookie file for tiktok_uploader
-            cookie_path = STORAGE_DIR / "tiktok_session.txt"
-            cookie_path.write_text(cookies.get("sessionid", ""))
+            # Convert saved cookies to Cookie objects
+            cookie_list = []
+            if isinstance(cookies, list):
+                for c in cookies:
+                    cookie_list.append(Cookie(
+                        name=c.get("name", ""),
+                        value=c.get("value", ""),
+                        domain=c.get("domain", ".tiktok.com"),
+                        path=c.get("path", "/"),
+                    ))
+            elif isinstance(cookies, dict):
+                # Single cookie object
+                for name, value in cookies.items():
+                    if isinstance(value, str):
+                        cookie_list.append(Cookie(name=name, value=value, domain=".tiktok.com", path="/"))
 
-            result = upload_video(
-                video_path,
-                caption,
-                cookies=cookies,
+            # Post via headless browser (sync, run in thread)
+            results = await asyncio.to_thread(
+                upload_video,
+                str(video_path),
+                description=caption,
+                cookies_list=cookie_list,
+                headless=True,
+                browser="chromium",
             )
 
-            if result and getattr(result, "id", None):
+            if len(results) == 0:
+                # Empty failed list = ALL SUCCESS
                 return {
                     "success": True,
-                    "post_id": str(result.id),
                     "method": "cookie",
+                    "message": "Video posted to TikTok"
                 }
+            # Check if any failed
+            failed_paths = [v.get("path", "?") for v in results]
             return {
                 "success": False,
-                "error": f"Upload returned no ID: {result}",
+                "error": f"Upload failed for videos: {failed_paths}",
                 "method": "cookie",
             }
-        except ImportError:
-            return {"success": False, "error": "tiktok_uploader package not available", "method": "cookie"}
+        except ImportError as e:
+            return {"success": False, "error": f"tiktok_uploader: {e}", "method": "cookie"}
         except Exception as e:
             return {"success": False, "error": str(e), "method": "cookie"}
 

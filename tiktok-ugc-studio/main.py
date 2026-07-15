@@ -37,6 +37,8 @@ from tiktok_accounts import (
     delete_account as _delete_tiktok_account,
 )
 from recipes import list_recipes, get_recipe
+from publisher import scheduler as publisher_scheduler, enqueue as pq_enqueue, list_posts as pq_list, get_post as pq_get, delete_post as pq_delete, get_calendar as pq_calendar, get_stats as pq_stats
+from connect.tiktok_poster import poster as tiktok_poster
 
 # ─── Scout modules ─────────────────────────────────────────────────────────
 try:
@@ -1280,6 +1282,116 @@ async def pipeline_cancel(job_id: str):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# PUBLISHER ROUTES — Post Queue + Scheduler + Calendar
+# ═══════════════════════════════════════════════════════════════════════════
+
+@app.get("/publisher/status")
+async def publisher_status():
+    """Get publisher scheduler status + queue stats."""
+    return {"success": True, "data": publisher_scheduler.get_status()}
+
+@app.get("/publisher/queue")
+async def publisher_queue(status: str = None, platform: str = None, limit: int = 50):
+    """List posts in queue — filter by status/platform."""
+    posts = pq_list(status=status, platform=platform, limit=limit)
+    return {"success": True, "posts": posts, "count": len(posts)}
+
+@app.post("/publisher/enqueue")
+async def publisher_enqueue(req: dict):
+    """Add a completed video to the post queue."""
+    job_id = req.get("job_id", "")
+    video_path = req.get("video_path", "")
+    caption = req.get("caption", "")
+    hashtags = req.get("hashtags", [])
+    affiliate_link = req.get("affiliate_link", "")
+    schedule_at = req.get("schedule_at")  # ISO datetime or None for immediate
+
+    if not video_path:
+        raise HTTPException(status_code=400, detail="video_path required")
+
+    post_id = publisher_scheduler.enqueue_completed_video(
+        job_id=job_id,
+        video_path=video_path,
+        caption=caption,
+        hashtags=hashtags,
+        affiliate_link=affiliate_link,
+        schedule_at=schedule_at,
+    )
+    return {"success": True, "post_id": post_id, "schedule_at": schedule_at}
+
+@app.post("/publisher/{post_id}/post-now")
+async def publisher_post_now(post_id: str):
+    """Post a queued video immediately (skip schedule)."""
+    post = pq_get(post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if post["status"] == "posted":
+        raise HTTPException(status_code=400, detail="Already posted")
+
+    import json as _json
+    hashtags = _json.loads(post.get("hashtags", "[]")) if post.get("hashtags") else []
+
+    from publisher.post_queue import mark_posting
+    mark_posting(post_id)
+
+    try:
+        result = await tiktok_poster.post(
+            video_path=post["video_path"],
+            caption=post.get("caption", ""),
+            hashtags=hashtags,
+        )
+        if result.get("success"):
+            from publisher.post_queue import mark_posted
+            mark_posted(post_id, result.get("post_id", ""), result.get("post_url", ""))
+            return {"success": True, "post_id": post_id, "method": result.get("method"), "publish_id": result.get("post_id")}
+        else:
+            from publisher.post_queue import mark_failed
+            mark_failed(post_id, result.get("error", "Unknown"))
+            return {"success": False, "error": result.get("error")}
+    except Exception as e:
+        from publisher.post_queue import mark_failed
+        mark_failed(post_id, str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/publisher/{post_id}")
+async def publisher_cancel(post_id: str):
+    """Cancel a scheduled post."""
+    pq_delete(post_id)
+    return {"success": True}
+
+@app.get("/publisher/calendar")
+async def publisher_calendar(days: int = 7):
+    """Get content calendar for next N days."""
+    items = pq_calendar(days=days)
+    # Group by date
+    from collections import defaultdict
+    by_date = defaultdict(list)
+    for item in items:
+        date_key = (item.get("schedule_at") or "")[:10]
+        by_date[date_key].append(item)
+    return {"success": True, "days": days, "calendar": dict(by_date), "total": len(items)}
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CONNECTION / TIKTOK ROUTES — Cookie management, OAuth, posting
+# ═══════════════════════════════════════════════════════════════════════════
+
+@app.post("/tiktok/cookies")
+async def tiktok_save_cookies(req: dict):
+    """Save TikTok session cookies for cookie-based posting."""
+    cookies = req.get("cookies", req)
+    if not cookies:
+        raise HTTPException(status_code=400, detail="cookies required")
+    tiktok_poster.save_cookies(cookies)
+    return {"success": True, "method": "cookie", "message": "Cookies saved"}
+
+@app.get("/tiktok/cookies/status")
+async def tiktok_cookies_status():
+    """Check if TikTok cookies are available."""
+    has = tiktok_poster.has_cookies()
+    return {"success": True, "has_cookies": has, "method": "cookie" if has else "aitoearn"}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # MONITOR ROUTES — Performance tracking & content strategy optimization
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -1435,8 +1547,23 @@ async def startup():
     logger.info("TikTok UGC Studio starting up...")
     logger.info(f"Storage: {STORAGE_DIR}")
     logger.info(f"Module URLs: {MODULE_URLS}")
+    # Start Publisher Scheduler
+    try:
+        publisher_scheduler.start()
+        logger.info("Publisher Scheduler: started")
+    except Exception as e:
+        logger.warning(f"Publisher Scheduler: {e}")
 
 # ─── Root ─────────────────────────────────────────────────────────────────
+
+
+@app.on_event("shutdown")
+async def shutdown():
+    try:
+        publisher_scheduler.stop()
+        logger.info("Publisher Scheduler: stopped")
+    except Exception:
+        pass
 
 @app.get("/")
 async def root():

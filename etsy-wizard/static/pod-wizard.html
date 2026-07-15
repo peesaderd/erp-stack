@@ -605,7 +605,20 @@ async function goNext() {
     if (d.mockup_skipped) {
       var skipNotice = document.getElementById('mockupSkipNotice');
       if (skipNotice) skipNotice.style.display = 'block';
-      // Don't block navigation, just show warning
+    }
+    // Show mockup results if available
+    if (d.mockup_urls && d.mockup_urls.length > 0) {
+      var resultEl = document.getElementById('mockupResult');
+      if (resultEl) {
+        var html = '<div style="margin:10px 0"><h4 style="font-size:14px;margin-bottom:8px">✅ Mockup Ready!</h4><div style="display:flex;flex-wrap:wrap;gap:8px">';
+        d.mockup_urls.forEach(function(m) {
+          html += '<div style="flex:1;min-width:200px;border:1px solid #e0e0e0;border-radius:8px;padding:6px;background:#fafafa;text-align:center">';
+          html += '<img src="'+m.mockup_url+'" style="max-width:100%;border-radius:4px" alt="'+m.placement+' mockup">';
+          html += '<p style="font-size:11px;color:#5f6368;margin-top:4px">📍 '+m.placement+'</p></div>';
+        });
+        html += '</div></div>';
+        resultEl.innerHTML = html;
+      }
     }
     // Store ONLY session object (S.product_id, S.session_id, S.current_step_idx)
     window.S = d.session || d;
@@ -639,7 +652,10 @@ function collectData(sid) {
       file_type: document.getElementById('artType') ? document.getElementById('artType').value : 'PNG',
       image_url: (window.aiData && window.aiData.image_url) || S.artwork_image_url || ''
     };
-    case 'mockup':  return {};
+    case 'mockup':  return {
+      image_url: (window.aiData && window.aiData.image_url) || window.S?.ai_image_url || '',
+      prompt: document.getElementById('designDesc') ? document.getElementById('designDesc').value : ''
+    };
     case 'content': return {
       product_name: document.getElementById('prodName') ? document.getElementById('prodName').value : '',
       product_desc: document.getElementById('prodDesc') ? document.getElementById('prodDesc').value : ''
@@ -816,6 +832,10 @@ async function generateWithAI() {
       image_style: concept.image_style || 'product'
     };
     
+    // Store image URL for mockup step (collectData reads from window.S)
+    if (!window.S) window.S = {};
+    window.S.ai_image_url = aiData.image_url;
+    
     // Auto-detect category & product from brief + AI concept
     var detected = await autoDetectProduct(brief, concept);
     
@@ -896,6 +916,23 @@ function fillArtwork() {
     if (result) {
       result.innerHTML = '<div class="ai-card"><img src="'+aiData.image_url+'" style="max-width:100%;border-radius:8px"><p style="font-size:12px;color:#5f6368;margin-top:6px">🎨 AI-generated artwork via Fal.ai</p></div>';
     }
+  }
+}
+
+function afterContent() {
+  // Fill tags display from AI data
+  var tagsEl = document.getElementById('tagsDisplay');
+  var hintEl = document.getElementById('aiTagsHint');
+  if (tagsEl && aiData && aiData.tags) {
+    var tags = Array.isArray(aiData.tags) ? aiData.tags : (aiData.tags || '').split(',').map(function(t){return t.trim();}).filter(Boolean);
+    if (tags.length) {
+      tagsEl.innerHTML = '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">' + tags.slice(0,15).map(function(t){
+        return '<span style="background:#f3e8ff;padding:3px 8px;border-radius:12px;font-size:12px;color:#7c3aed">#' + t.replace(/^#/,'') + '</span>';
+      }).join('') + '</div>';
+    }
+  }
+  if (hintEl && aiData) {
+    hintEl.textContent = '💡 AI แนะนำให้ใช้ชื่อสินค้าที่มีคำค้นหา + อธิบายวัสดุ';
   }
 }
 

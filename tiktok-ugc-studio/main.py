@@ -1,16 +1,52 @@
 """
-TikTok UGC Studio — Micro Service
-AI UGC Video Script Generator + AI Video Generation
+TikTok UGC Studio — Thin API Gateway
+AI UGC Video Pipeline — routes only, logic in modules.
 """
 
-import os
-import json
-import time
-import asyncio
-import logging
+import os, json, time, asyncio, logging, base64, uuid, sqlite3, re, shutil
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Optional
+
+import httpx
+from fastapi import FastAPI, HTTPException, Query, Request, File, Form, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+import sys
+sys.path.insert(0, os.path.dirname(__file__))
+
+# ─── Extracted modules ─────────────────────────────────────────────────────
+from models import (
+    ScriptRequest, UGCRequest, TTSRequest, ScriptTTSRequest,
+    SceneBlock, VideoRequest, VideoPostRequest, PipelineRequest,
+    FullPipelineRequest, ScrapeAndGenerateRequest,
+)
+from pipeline_db import (
+    create_job as _create_pipeline_job,
+    update_step as _update_pipeline_step,
+    get_job as _get_pipeline_job,
+    list_jobs as _list_pipeline_jobs,
+    enrich_from_logs as _enrich_job_from_logs_db,
+)
+from tiktok_accounts import (
+    list_accounts as _list_tiktok_accounts,
+    get_account as _get_tiktok_account,
+    save_account as _save_tiktok_account,
+    delete_account as _delete_tiktok_account,
+)
+from recipes import list_recipes, get_recipe
+
+# ─── Scout modules ─────────────────────────────────────────────────────────
+try:
+    from scout_targets import router as scout_targets_router
+    from scout_templates import router as scout_templates_router
+    from scout_trends import router as scout_trends_router
+    from monitor_tracker import router as monitor_tracker_router
+    SCOUT_AVAILABLE = True
+except ImportError:
+    SCOUT_AVAILABLE = False
 
 # ─── Storage paths ────────────────────────────────────────────────────────
 STORAGE_DIR = Path(__file__).parent / "storage"
@@ -21,20 +57,9 @@ for d in [STORAGE_DIR, TTS_DIR, IMAGES_DIR, VIDEOS_DIR]:
     d.mkdir(parents=True, exist_ok=True)
 
 TIKTOK_ACCOUNTS_FILE = STORAGE_DIR / "tiktok_accounts.json"
-
-from fastapi import FastAPI, HTTPException, Query, Request, File, Form, UploadFile
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-from pydantic import BaseModel
-import base64
-import uuid
-import sqlite3
-import requests
-import httpx
-
-import sys
-sys.path.insert(0, os.path.dirname(__file__))
+PIPELINE_DB_PATH = os.path.join(os.path.dirname(__file__), "pipeline.db")
+LOGS_DB_PATH = STORAGE_DIR / "pipeline_logs.db"
+SCRAPER_API_URL = "http://localhost:54444"
 
 # Module service URLs
 MODULE_URLS = {
@@ -46,6 +71,7 @@ MODULE_URLS = {
     "profile": "http://localhost:8107",
     "auth": "http://localhost:8101",
 }
+
 
 async def _proxy(method: str, module: str, path: str, body: dict = None, timeout: float = 300.0) -> dict:
     """Proxy request to a module, return normalized response."""
@@ -68,7 +94,8 @@ async def _proxy(method: str, module: str, path: str, body: dict = None, timeout
     except Exception as e:
         return {"ok": False, "status": 0, "error": str(e), "data": None}
 
-# Load .env file for API keys
+
+# Load .env
 _env_file = os.path.join(os.path.dirname(__file__), '.env')
 if os.path.exists(_env_file):
     with open(_env_file) as _f:
@@ -84,7 +111,7 @@ logger = logging.getLogger("tiktok-ugc")
 
 app = FastAPI(
     title="TikTok UGC Studio",
-    version="0.2.0",
+    version="0.2.1",
     description="AI UGC video pipeline - Script gen, TTS, Wan 2.7 I2V, FFmpeg compose, TikTok integration",
 )
 
@@ -107,115 +134,14 @@ except Exception as e:
 
 PRODUCT_IMAGE_DIR = STORAGE_DIR / "product_images"
 PRODUCT_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+os.makedirs(str(PRODUCT_IMAGE_DIR), exist_ok=True)
+try:
+    app.mount("/ugc/static/product_images", StaticFiles(directory=str(PRODUCT_IMAGE_DIR)), name="product_images")
+except Exception:
+    pass
 
-# In-memory pipeline results
+# In-memory pipeline results (for /video/status and /video/completed)
 _pipeline_results = {}
-
-# ─── Pydantic Models ───────────────────────────────────────────────────────
-
-class ScriptRequest(BaseModel):
-    product_name: str = ""
-    customer_problem: str = ""
-    main_benefit: str = ""
-    target_audience: str = ""
-    tone: str = ""
-    cta: str = ""
-    duration: str = "8s"
-    extra_rules: str = ""
-    product_url: str = ""
-    product_title: str = ""
-    product_details: str = ""
-    ugc_style: str = ""
-
-class UGCRequest(BaseModel):
-    style: str = "ugc_review"
-    product_name: str
-    product_desc: str = ""
-    gender: str = "female"
-    age: str = "25-35"
-    scene: str = "home"
-    negative_prompt: Optional[str] = None
-
-class TTSRequest(BaseModel):
-    text: str
-    lang: str = "th"
-    slow: bool = False
-
-class ScriptTTSRequest(BaseModel):
-    hook: str
-    value_proposition: str = ""
-    cta: str = ""
-    lang: str = "th"
-
-class SceneBlock(BaseModel):
-    script: str
-    duration: int = 8
-    mood: str = "energetic"
-    sound_style: str = "upbeat_pop"
-    style: str = "product_usage"
-
-class VideoRequest(BaseModel):
-    product_title: str = ""
-    product_url: str = ""
-    product_image: str = ""
-    product_price: Optional[float] = None
-    product_description: Optional[str] = ""
-    product_commission: Optional[float] = None
-    tags: list[str] = []
-    hook: str = ""
-    value: str = ""
-    cta: str = ""
-    content_type: str = "affiliate"
-    ugc_style: str = "product_usage"
-    aspect_ratio: str = "9:16"
-    duration: int = 8
-    scenes: list[SceneBlock] = []
-    prompt: str = ""
-    provider: str = "prodia"
-    model_tier: str = "standard"
-    image_url: Optional[str] = None
-    script: Optional[str] = None
-    negative_prompt: Optional[str] = None
-
-class VideoPostRequest(BaseModel):
-    job_id: str
-    account_id: str
-    affiliate_link: str = ""
-    caption: str = ""
-    schedule_at: Optional[str] = None
-
-class FullPipelineRequest(BaseModel):
-    product_url: Optional[str] = ""
-    product_title: Optional[str] = ""
-    product_description: Optional[str] = ""
-    product_image: Optional[str] = None
-    model_image: Optional[str] = None
-    ugc_style: str = "holding"
-    hook: Optional[str] = ""
-    value_proposition: Optional[str] = ""
-    cta: Optional[str] = ""
-    provider: str = "prodia"
-    duration: int = 8
-    aspect_ratio: str = "9:16"
-    negative_prompt: Optional[str] = ""
-    tts_lang: str = "th"
-    bg_music: Optional[str] = None
-    preset: Optional[str] = None
-    recipe: Optional[str] = None
-    run_tts: bool = True
-    run_video_gen: bool = True
-    run_compose: bool = True
-    platforms: Optional[list] = None
-    schedule_time: Optional[str] = "immediate"
-
-class ScrapeAndGenerateRequest(BaseModel):
-    url: str
-    duration: str = "8s"
-    tone: str = ""
-    cta: str = ""
-    ugc_style: str = "ugc_review"
-    use_vision: bool = False
-
 # ─── Auth Proxy Routes ─────────────────────────────────────────────────────
 
 @app.post("/api/auth/register")
@@ -253,7 +179,6 @@ def health():
 
 # ─── Product Scraper ───────────────────────────────────────────────────────
 
-SCRAPER_API_URL = "http://localhost:8106"
 
 @app.post("/product/scrape-and-generate")
 async def scrape_and_generate(req: ScrapeAndGenerateRequest):
@@ -379,205 +304,6 @@ async def generate_script_tts(req: ScriptTTSRequest):
         return data
     else:
         raise HTTPException(status_code=502, detail=result.get("error", "Script TTS failed"))
-
-# ─── Pipeline Database ─────────────────────────────────────────────────────
-
-PIPELINE_DB_PATH = os.path.join(os.path.dirname(__file__), "pipeline.db")
-LOGS_DB_PATH = os.path.join(os.path.dirname(__file__), "storage", "pipeline_logs.db")
-
-def _init_pipeline_db():
-    conn = sqlite3.connect(PIPELINE_DB_PATH)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS pipeline_jobs (
-            job_id TEXT PRIMARY KEY,
-            account_id TEXT,
-            product_url TEXT,
-            status TEXT DEFAULT 'pending',
-            created_at TEXT,
-            updated_at TEXT,
-            steps_data TEXT DEFAULT '{}'
-        )
-    """)
-    conn.commit()
-    conn.close()
-
-_init_pipeline_db()
-
-def _create_pipeline_job(account_id: str = "", product_url: str = "", job_id: str = None) -> str:
-    if not job_id:
-        job_id = str(uuid.uuid4())[:8]
-    now = datetime.utcnow().isoformat()
-    conn = sqlite3.connect(PIPELINE_DB_PATH)
-    conn.execute(
-        "INSERT OR IGNORE INTO pipeline_jobs (job_id, account_id, product_url, status, created_at, updated_at, steps_data) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (job_id, account_id, product_url, "pending", now, now, "{}")
-    )
-    conn.commit()
-    conn.close()
-    return job_id
-
-def _update_pipeline_step(job_id: str, step_name: str, status: str, result: dict = None):
-    conn = sqlite3.connect(PIPELINE_DB_PATH)
-    row = conn.execute("SELECT steps_data FROM pipeline_jobs WHERE job_id = ?", (job_id,)).fetchone()
-    if not row:
-        conn.close()
-        return
-    steps = json.loads(row[0])
-    steps[step_name] = {"status": status, **(result or {})}
-    now = datetime.utcnow().isoformat()
-    all_done = all(s.get("status") in ("success", "error") for s in steps.values()) if steps else False
-    overall = "completed" if all_done else "running"
-    conn.execute(
-        "UPDATE pipeline_jobs SET steps_data = ?, status = ?, updated_at = ? WHERE job_id = ?",
-        (json.dumps(steps), overall, now, job_id)
-    )
-    conn.commit()
-    conn.close()
-
-def _get_pipeline_job(job_id: str) -> dict:
-    conn = sqlite3.connect(PIPELINE_DB_PATH)
-    row = conn.execute("SELECT * FROM pipeline_jobs WHERE job_id = ?", (job_id,)).fetchone()
-    conn.close()
-    if not row:
-        return None
-    return {
-        "job_id": row[0],
-        "account_id": row[1],
-        "product_url": row[2],
-        "status": row[3],
-        "created_at": row[4],
-        "updated_at": row[5],
-        "steps": json.loads(row[6]),
-    }
-
-def _path_to_web_url(filepath: str) -> str:
-    """Convert local file path to public web URL."""
-    if not filepath:
-        return ""
-    fp = str(filepath)
-    # Remove common base paths and map to /api/tiktok/static/
-    for prefix in [
-        str(STORAGE_DIR),
-        "/home/openhands/erp-stack/modules/video/storage",
-        "/home/openhands/erp-stack/tiktok-ugc-studio/storage",
-    ]:
-        if fp.startswith(prefix):
-            rel = fp[len(prefix):].lstrip("/")
-            return f"/api/tiktok/static/{rel}"
-    # If it's already a URL or starts with /api/ or /static/, return as-is
-    if fp.startswith("http://") or fp.startswith("https://"):
-        return fp
-    if fp.startswith("/api/") or fp.startswith("/static/"):
-        # Ensure it goes through our proxy
-        if fp.startswith("/static/") and not fp.startswith("/api/"):
-            return f"/api/tiktok{fp}"
-        return fp
-    # Fallback: just return filename
-    return os.path.basename(fp)
-
-def _enrich_job_from_logs_db(job_data: dict) -> dict:
-    """Try to enrich pipeline job with data from pipeline_logs.db."""
-    if not os.path.exists(LOGS_DB_PATH):
-        return job_data
-    try:
-        conn = sqlite3.connect(LOGS_DB_PATH)
-        conn.row_factory = sqlite3.Row
-        # Try matching by job_id first, then run_id
-        row = conn.execute("SELECT * FROM pipeline_jobs WHERE job_id = ?", (job_data.get("job_id", ""),)).fetchone()
-        conn.close()
-        if row:
-            d = dict(row)
-            # Convert timestamps and paths
-            job_data["logs"] = {
-                "product_title": d.get("product_title", ""),
-                "product_description": (d.get("product_description") or "")[:300],
-                "product_price": d.get("product_price"),
-                "product_image_path": d.get("product_image_path", ""),
-                "image_prompt": d.get("image_prompt", ""),
-                "video_prompts": d.get("video_prompts", ""),
-                "script": d.get("script", ""),
-                "negative_prompt": d.get("negative_prompt", ""),
-                "hashtags": json.loads(d.get("hashtags", "[]")) if d.get("hashtags") else [],
-                "generated_image_path": d.get("generated_image_path", ""),
-                "tts_audio_path": d.get("tts_audio_path", ""),
-                "video_path": d.get("video_path", ""),
-                "final_video_path": d.get("final_video_path", ""),
-                "cost_total": d.get("cost_total", 0),
-                "cost_image": d.get("cost_image", 0),
-                "cost_voice": d.get("cost_voice", 0),
-                "cost_video": d.get("cost_video", 0),
-                "duration_total_ms": d.get("duration_total_ms", 0),
-                "duration_analysis_ms": d.get("duration_analysis_ms", 0),
-                "duration_script_ms": d.get("duration_script_ms", 0),
-                "duration_image_gen_ms": d.get("duration_image_gen_ms", 0),
-                "duration_tts_ms": d.get("duration_tts_ms", 0),
-                "duration_video_gen_ms": d.get("duration_video_gen_ms", 0),
-                "duration_compose_ms": d.get("duration_compose_ms", 0),
-                "aspect_ratio": d.get("aspect_ratio", "9:16"),
-                "voice": d.get("voice", ""),
-                "total_duration_seconds": d.get("total_duration_seconds", 0),
-                "recipe_name": d.get("recipe_name", "tus"),
-                "ugc_style": d.get("ugc_style", ""),
-                "error_message": d.get("error_message", ""),
-            }
-            # Build web URLs for assets
-            log = job_data["logs"]
-            if log["final_video_path"]:
-                log["video_web_url"] = _path_to_web_url(log["final_video_path"])
-            elif log["video_path"]:
-                log["video_web_url"] = _path_to_web_url(log["video_path"])
-            else:
-                log["video_web_url"] = ""
-            if log["generated_image_path"]:
-                log["image_web_url"] = _path_to_web_url(log["generated_image_path"])
-            else:
-                log["image_web_url"] = ""
-            if log["product_image_path"]:
-                log["product_img_web_url"] = _path_to_web_url(log["product_image_path"])
-            else:
-                log["product_img_web_url"] = ""
-            if log["tts_audio_path"]:
-                log["tts_web_url"] = _path_to_web_url(log["tts_audio_path"])
-            else:
-                log["tts_web_url"] = ""
-    except Exception as e:
-        logger.warning(f"Failed to enrich from logs DB: {e}")
-    # Fallback: ถ้าไม่เจอใน pipeline_logs.db ให้ดึงจาก steps.result แทน
-    if 'logs' not in job_data:
-        job_data['logs'] = {}
-    logs = job_data['logs']
-    steps_dict = job_data.get('steps', {})
-    try:
-        if isinstance(steps_dict, str):
-            steps_dict = json.loads(steps_dict)
-    except Exception:
-        steps_dict = {}
-    result_data = steps_dict.get('result', {}) if isinstance(steps_dict, dict) else {}
-    # Hashtags fallback
-    if not logs.get('hashtags'):
-        raw = result_data.get('hashtags', '')
-        if raw:
-            try:
-                logs['hashtags'] = json.loads(raw) if isinstance(raw, str) else raw
-            except Exception:
-                logs['hashtags'] = [raw]
-    # Product image fallback
-    if not logs.get('product_img_web_url'):
-        pi = result_data.get('product_image', '')
-        if pi:
-            logs['product_img_web_url'] = _path_to_web_url(pi)
-    # Generated image fallback
-    if not logs.get('image_web_url'):
-        gi = result_data.get('generated_image_path', result_data.get('image_path', ''))
-        if gi:
-            logs['image_web_url'] = _path_to_web_url(gi)
-    # Video URL fallback
-    if not logs.get('video_web_url'):
-        vu = result_data.get('video_url', '')
-        if vu:
-            logs['video_web_url'] = _path_to_web_url(vu)
-    return job_data
-
 @app.get("/pipeline/{job_id}/status")
 def pipeline_status(job_id: str):
     job = _get_pipeline_job(job_id)
@@ -985,40 +711,22 @@ async def video_providers():
         },
     }
 
-# ─── TikTok Accounts & Upload ──────────────────────────────────────────────
-
-def _load_tiktok_accounts() -> dict:
-    if TIKTOK_ACCOUNTS_FILE.exists():
-        try:
-            return json.loads(TIKTOK_ACCOUNTS_FILE.read_text())
-        except Exception:
-            return {}
-    return {}
-
-def _save_tiktok_accounts(accounts: dict):
-    TIKTOK_ACCOUNTS_FILE.write_text(json.dumps(accounts, indent=2))
-
 @app.get("/tiktok/accounts")
 async def list_tiktok_accounts():
-    accounts = _load_tiktok_accounts()
-    return {"success": True, "accounts": [{"id": k, **v} for k, v in accounts.items()]}
+    accounts = _list_tiktok_accounts()
+    return {"success": True, "accounts": accounts}
 
 @app.post("/tiktok/accounts")
 async def save_tiktok_account(req: dict):
-    account_id = req.get("account_id", "")
+    account_id = req.pop("account_id", "")
     if not account_id:
         raise HTTPException(status_code=400, detail="account_id required")
-    accounts = _load_tiktok_accounts()
-    accounts[account_id] = req
-    _save_tiktok_accounts(accounts)
+    _save_tiktok_account(account_id, req)
     return {"success": True, "account_id": account_id}
 
 @app.delete("/tiktok/accounts/{account_id}")
 async def delete_tiktok_account(account_id: str):
-    accounts = _load_tiktok_accounts()
-    if account_id in accounts:
-        del accounts[account_id]
-        _save_tiktok_accounts(accounts)
+    _delete_tiktok_account(account_id)
     return {"success": True}
 
 @app.post("/tiktok/upload")
@@ -1059,8 +767,7 @@ async def post_video_to_tiktok(req: VideoPostRequest):
     if req.affiliate_link:
         caption += f"\n\n🔗 {req.affiliate_link}"
 
-    accounts = _load_tiktok_accounts()
-    acct = accounts.get(req.account_id.lstrip("@"))
+    acct = _get_tiktok_account(req.account_id.lstrip("@"))
     if not acct or not acct.get("session_token"):
         raise HTTPException(status_code=400, detail="No session token for account")
 
@@ -1195,9 +902,26 @@ async def ugc_scripts_generate(req: dict):
                 cta = lines[-1]
             elif len(lines) == 1:
                 hook = lines[0]
+        
+        # Final fallback: sentence-split single-line scripts into hook/value/cta
+        if hook and not value_proposition and not cta:
+            sentences = [s.strip() for s in re.split(r'(?<=[.!?。])\s+', hook) if s.strip()]
+            if len(sentences) >= 3:
+                value_proposition = ' '.join(sentences[1:-1])
+                cta = sentences[-1]
+                hook = sentences[0]
+            elif len(sentences) == 2:
+                cta = sentences[-1]
+                hook = sentences[0]
     
-    # Also get hashtags from prompt-builder  
+    # Also get hashtags + prompts from prompt-builder (single call, reuse across fields)
     hashtags = []
+    image_prompt = ""
+    video_prompt = ""
+    negative_prompt = ""
+    scene = ""
+    voice = ""
+    mood = ""
     try:
         pb_result = await _proxy("POST", "prompt-builder", "/api/v1/build", {
             "product_name": req.get("product_title", req.get("product_name", "")),
@@ -1205,8 +929,20 @@ async def ugc_scripts_generate(req: dict):
             "ugc_style": req.get("ugc_style", "holding"),
         })
         if pb_result.get("ok") and pb_result.get("data"):
-            analysis = pb_result.get("data", {}).get("analysis", {})
+            data = pb_result["data"]
+            analysis = data.get("analysis", {})
             hashtags = analysis.get("hashtags", [])
+            image_prompt = data.get("image_prompt", "")
+            video_prompt = data.get("video_prompt", "")
+            negative_prompt = data.get("negative_prompt", "")
+            setting = analysis.get("setting", "")
+            target_gender = analysis.get("target_gender", "female")
+            target_age = analysis.get("target_age", "25-35")
+            ugc_style_display = {"holding":"ถือสินค้า", "usage":"ใช้สินค้า", "review":"รีวิว", "unboxing":"แกะกล่อง"}.get(req.get("ugc_style", "holding"), req.get("ugc_style", "holding"))
+            # Derive scene/voice/mood from analysis data
+            scene = f"UGC {ugc_style_display} หน้ากากหลัง {setting or 'เรียบ'}"
+            voice = f"เสียงไทย{target_gender} อายุ {target_age} น้ำเสียง{req.get('tone', 'เป็นกันเอง')}"
+            mood = f"{req.get('tone', 'เป็นกันเอง')}, สบายๆ, อบอุ่น"
     except Exception:
         pass
 
@@ -1220,6 +956,12 @@ async def ugc_scripts_generate(req: dict):
         "duration": script_obj.get("duration", "8s"),
         "product": script_obj.get("product", ""),
         "hashtags": hashtags,
+        "prompt": image_prompt,
+        "video_prompt": video_prompt,
+        "negative_prompt": negative_prompt,
+        "scene": scene,
+        "voice": voice,
+        "mood": mood,
     }
 
 @app.post("/ugc/images/build-prompt")
@@ -1704,3 +1446,8 @@ async def root():
         "status": "running",
         "docs": "/docs",
     }
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8105, reload=False)

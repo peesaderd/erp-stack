@@ -447,7 +447,14 @@ def create_printful_mockup(
         {
             "placement": "front",          # placement จาก printfiles
             "image_url": "https://...",    # URL ของ artwork ที่ gen แล้ว
-            "position": {"x": 0, "y": 0, "width": 1800, "height": 2400},
+            "position": {
+                "area_width": 3000,        # printfile width
+                "area_height": 3000,       # printfile height
+                "width": 1800,             # artwork display width
+                "height": 2400,            # artwork display height
+                "top": 0,                  # offset from top
+                "left": 0                  # offset from left
+            },
             "printfile_id": 1,             # printfile_id จาก printfiles
         }
     ]

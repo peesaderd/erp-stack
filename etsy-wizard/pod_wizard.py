@@ -6,6 +6,7 @@ State machine สำหรับสร้าง POD product ตั้งแต�
 
 import json
 import logging
+import os
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -87,6 +88,38 @@ class WizardSession:
         # AI analysis data
         self.product_analysis = None
     
+    @classmethod
+    def from_dict(cls, data: dict) -> "WizardSession":
+        """Restore session from a dict (file storage)"""
+        s = cls.__new__(cls)
+        s.session_id = data.get("session_id", str(uuid.uuid4())[:8])
+        s.created_at = datetime.fromisoformat(data["created_at"]) if isinstance(data.get("created_at"), str) else data.get("created_at", datetime.now())
+        s.updated_at = datetime.fromisoformat(data["updated_at"]) if isinstance(data.get("updated_at"), str) else data.get("updated_at", datetime.now())
+        s.status = data.get("status", "active")
+        s.current_step_idx = data.get("current_step_idx", 0)
+        s.provider = data.get("provider")
+        s.category = data.get("category")
+        s.product_id = data.get("product_id")
+        s.variant_color = data.get("variant_color")
+        s.variant_size = data.get("variant_size")
+        s.variant_colors = data.get("variant_colors", [])
+        s.variant_sizes = data.get("variant_sizes", [])
+        s.print_info = data.get("print_info")
+        s.selected_placements = data.get("selected_placements", [])
+        s.artwork_info = data.get("artwork_info")
+        s.artwork_validation = data.get("artwork_validation")
+        s.artwork_image_url = data.get("artwork_image_url")
+        s.mockup_image_url = data.get("mockup_image_url")
+        s.mockup_task_key = data.get("mockup_task_key")
+        s.mockup_task_status = data.get("mockup_task_status")
+        s.mockup_results = data.get("mockup_results", [])
+        s.generated_content = data.get("generated_content")
+        s.pricing = data.get("pricing")
+        s.selling_price = data.get("selling_price")
+        s.completed_steps = data.get("completed_steps", [])
+        s.product_analysis = data.get("product_analysis")
+        return s
+    
     def to_dict(self) -> dict:
         """Serialize session state"""
         return {
@@ -110,8 +143,12 @@ class WizardSession:
             "selected_placements": getattr(self, 'selected_placements', []),
             "has_artwork": self.artwork_image_url is not None,
             "artwork_valid": self.artwork_validation.get("valid") if self.artwork_validation else None,
-            "has_mockup": self.mockup_image_url is not None,
+            "artwork_image_url": self.artwork_image_url,
+            "mockup_image_url": self.mockup_image_url,
+            "mockup_task_key": self.mockup_task_key,
             "mockup_task_status": self.mockup_task_status,
+            "mockup_results": self.mockup_results,
+            "has_mockup": self.mockup_image_url is not None,
             "has_content": self.generated_content is not None,
             "has_pricing": self.pricing is not None,
             "selling_price": self.selling_price,
@@ -162,35 +199,73 @@ class WizardSession:
 
 # ─── Session Manager ─────────────────────────────────────────────────────────
 
+SESSIONS_DIR = os.path.join(os.path.dirname(__file__), "sessions")
+
+
 class WizardSessionManager:
-    """จัดการ Wizard sessions ทั้งหมด (in-memory)"""
+    """จัดการ Wizard sessions (persist to file)"""
     
     def __init__(self):
-        self._sessions: dict[str, WizardSession] = {}
+        os.makedirs(SESSIONS_DIR, exist_ok=True)
+    
+    def _session_path(self, session_id: str) -> str:
+        return os.path.join(SESSIONS_DIR, f"{session_id}.json")
     
     def create_session(self) -> WizardSession:
         session = WizardSession()
-        self._sessions[session.session_id] = session
+        self._save(session)
         logger.info(f"Wizard session created: {session.session_id}")
         return session
     
     def get_session(self, session_id: str) -> Optional[WizardSession]:
-        session = self._sessions.get(session_id)
-        if not session:
+        path = self._session_path(session_id)
+        if not os.path.exists(path):
             return None
+        try:
+            with open(path, "r") as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            return None
+        session = WizardSession.from_dict(data)
         # Auto-cancel stale sessions (>24h)
         if session.status == "active" and (datetime.now() - session.updated_at).total_seconds() > 86400:
             session.status = "cancelled"
+            self._save(session)
         return session
     
+    def _save(self, session: WizardSession):
+        session.updated_at = datetime.now()
+        path = self._session_path(session.session_id)
+        try:
+            with open(path, "w") as f:
+                json.dump(session.to_dict(), f, indent=2, default=str)
+        except OSError as e:
+            logger.error(f"Failed to save session {session.session_id}: {e}")
+    
+    def _save_new(self, session: WizardSession):
+        self._save(session)
+    
     def delete_session(self, session_id: str):
-        self._sessions.pop(session_id, None)
+        path = self._session_path(session_id)
+        if os.path.exists(path):
+            os.remove(path)
     
     def list_sessions(self, status: str = None) -> list:
-        sessions = list(self._sessions.values())
-        if status:
-            sessions = [s for s in sessions if s.status == status]
-        return [s.to_dict() for s in sorted(sessions, key=lambda s: s.updated_at, reverse=True)]
+        sessions = []
+        if not os.path.isdir(SESSIONS_DIR):
+            return sessions
+        for fn in os.listdir(SESSIONS_DIR):
+            if not fn.endswith(".json"):
+                continue
+            try:
+                with open(os.path.join(SESSIONS_DIR, fn), "r") as f:
+                    data = json.load(f)
+            except:
+                continue
+            if status and data.get("status") != status:
+                continue
+            sessions.append(data)
+        return sorted(sessions, key=lambda s: s.get("updated_at", ""), reverse=True)
 
 
 # Singleton
@@ -368,7 +443,7 @@ def handle_step_artwork(session: WizardSession, prompt: str = "",
     }
 
 
-def handle_step_mockup(session: WizardSession, placements: list = None) -> dict:
+def handle_step_mockup(session: WizardSession, placements: list = None, **kwargs) -> dict:
     """
     Step 7: สร้าง mockup ผ่าน Printful Mockup API
     
@@ -377,10 +452,15 @@ def handle_step_mockup(session: WizardSession, placements: list = None) -> dict:
     """
     if not session.product_id:
         return {"ok": False, "error": "ยังไม่ได้เลือกสินค้า"}
-    if not session.artwork_image_url and not session.artwork_info.get("image_url"):
+    # artwork_info might be None if skipped; try ai_data as fallback
+    # Also accept image_url passed directly from frontend's collectData('mockup')
+    artwork_info = session.artwork_info or {}
+    ai_data = getattr(session, 'ai_data', None) or {}
+    frontend_image_url = kwargs.get('image_url', '')
+    if not session.artwork_image_url and not artwork_info.get("image_url") and not ai_data.get("image_url") and not frontend_image_url:
         return {"ok": False, "error": "ยังไม่มี artwork — ไปสร้าง artwork ก่อน"}
     
-    artwork_url = session.artwork_image_url or session.artwork_info.get("image_url", "")
+    artwork_url = session.artwork_image_url or artwork_info.get("image_url", "") or ai_data.get("image_url", "") or frontend_image_url
     if not artwork_url:
         return {"ok": False, "error": "ไม่พบ artwork URL"}
     
@@ -418,47 +498,52 @@ def handle_step_mockup(session: WizardSession, placements: list = None) -> dict:
     
     # Build files payload
     files = []
-    # Build placement-to-printfile mapping from printfiles data
-    pf_data = get_printful_printfiles(pf_id)
-    placement_printfile = {}
-    if pf_data:
-        available = pf_data.get("available_placements", {})
-        # Printful auto-selects printfile when we omit printfile_id
-        pass  # We'll omit printfile_id and let Printful auto-select
     
-    # Use printfile dimensions for position if available
-    pf_list = pf_data.get("printfiles", []) if pf_data else []
-    # Default position: match the printfile area for front
-    default_width = 1800
-    default_height = 2400
-    for pf_entry in pf_list:
-        if pf_entry.get("printfile_id") == 1:
-            default_width = pf_entry.get("width", 1800)
-            default_height = pf_entry.get("height", 2400)
-            break
+    # Dynamic dimension lookup from Printful API
+    pf_dimensions = {}  # printfile_id -> {width, height}
+    placement_to_pfid = {}  # placement -> printfile_id (first variant's mapping)
+    
+    pf_data = get_printful_printfiles(pf_id)
+    if pf_data:
+        # Build printfile_id -> dimensions lookup
+        for pf_entry in pf_data.get("printfiles", []):
+            pfid = pf_entry.get("printfile_id")
+            if pfid:
+                w = pf_entry.get("width")
+                h = pf_entry.get("height")
+                if w and h:
+                    pf_dimensions[pfid] = {"width": w, "height": h}
+        
+        # Build placement -> printfile_id from first variant's mapping
+        vpf = pf_data.get("variant_printfiles", [])
+        if vpf:
+            first_variant_placements = vpf[0].get("placements", {})
+            for pl, pfid in first_variant_placements.items():
+                placement_to_pfid[pl] = pfid
+    
+    # Fallback dimensions for known printfile types
+    FALLBACK_DIMENSIONS = {
+        1: {"width": 1800, "height": 2400},    # front default
+        333: {"width": 2250, "height": 2700},   # front_large
+        71: {"width": 450, "height": 450},      # label_inside
+        90: {"width": 450, "height": 450},      # label_outside
+        130: {"width": 600, "height": 525},     # sleeve
+    }
     
     for placement in session.selected_placements:
-        # Look for matching printfile size for this placement
-        p_width = default_width
-        p_height = default_height
-        if placement == "front_large":
-            for pf_entry in pf_list:
-                if pf_entry.get("printfile_id") == 333:
-                    p_width = pf_entry.get("width", 2250)
-                    p_height = pf_entry.get("height", 2700)
-                    break
-        elif placement in ("back", "sleeve_left", "sleeve_right"):
-            for pf_entry in pf_list:
-                if pf_entry.get("printfile_id") == 71:
-                    p_width = pf_entry.get("width", 450)
-                    p_height = pf_entry.get("height", 450)
-                    break
-        elif "label" in placement:
-            for pf_entry in pf_list:
-                if pf_entry.get("printfile_id") == 130:
-                    p_width = pf_entry.get("width", 600)
-                    p_height = pf_entry.get("height", 525)
-                    break
+        pfid = placement_to_pfid.get(placement, 1)
+        dims = None
+        
+        # Try API dimensions first, then fallback
+        if pfid in pf_dimensions:
+            dims = pf_dimensions[pfid]
+        elif pfid in FALLBACK_DIMENSIONS:
+            dims = FALLBACK_DIMENSIONS[pfid]
+        else:
+            dims = {"width": 1800, "height": 2400}  # ultimate fallback
+        
+        p_width = dims["width"]
+        p_height = dims["height"]
         
         # Printful position format: area_width/area_height = printfile bounds,
         # width/height = artwork size within area, top/left = offset
@@ -499,12 +584,58 @@ def handle_step_mockup(session: WizardSession, placements: list = None) -> dict:
     session.mockup_task_key = task_key
     session.mockup_task_status = "pending"
     
+    # Poll for task completion (up to ~15 seconds)
+    from time import sleep
+    mockup_urls = []
+    poll_result = None
+    for attempt in range(5):
+        sleep(3)
+        check = check_mockup_task(task_key)
+        if check is None:
+            continue
+        status = check.get("status")
+        if status == "completed":
+            mockups = check.get("mockups", [])
+            session.mockup_results = mockups
+            session.mockup_task_status = "completed"
+            if mockups:
+                session.mockup_image_url = mockups[0].get("mockup_url", "")
+                for m in mockups[:3]:
+                    mockup_urls.append({
+                        "placement": m.get("placement"),
+                        "mockup_url": m.get("mockup_url"),
+                        "variant_ids": m.get("variant_ids", []),
+                        "extra": [e.get("url", "") for e in m.get("extra", [])],
+                    })
+            break
+        elif status == "failed":
+            session.mockup_task_status = "failed"
+            logger.warning(f"Mockup task {task_key} failed: {check.get('error')}")
+            break
+        # else still pending, retry
+    else:
+        # Timeout — still pending after all retries
+        logger.info(f"Mockup task {task_key} still pending after 15s")
+    
+    note = ""
+    if mockup_urls:
+        note = f"✅ Mockup สร้างเสร็จ — {len(mockup_urls)} รูป"
+    elif session.mockup_task_status == "pending":
+        note = f"⏳ Mockup กำลังสร้าง (task_key={task_key}) — กด Next เพื่อไปต่อ หรือกลับมาตรวจสอบทีหลัง"
+    elif session.mockup_task_status == "failed":
+        note = "⚠️ Mockup สร้างไม่สำเร็จ — ข้ามไปก่อนได้"
+    else:
+        note = "Mockup task กำลังตรวจสอบสถานะ..."
+    
     return {
         "ok": True,
         "task_key": task_key,
+        "mockup_ready": len(mockup_urls) > 0,
+        "mockup_urls": mockup_urls,
+        "mockup_status": session.mockup_task_status,
         "variant_ids": variant_ids[:5],
         "placements": session.selected_placements,
-        "note": f"Mockup task กำลังสร้าง — ใช้ task_key={task_key} เพื่อตรวจสอบสถานะ",
+        "note": note,
         "next_step": "content",
     }
 

@@ -1,0 +1,29 @@
+{
+  "session_id": "a5ff465a",
+  "created_at": "2026-07-14T12:37:02.422503",
+  "updated_at": "2026-07-14T12:37:02.422995",
+  "status": "active",
+  "current_step": "category",
+  "current_step_idx": 1,
+  "total_steps": 10,
+  "completed_steps": [
+    "provider"
+  ],
+  "progress": "1/10",
+  "provider": "printful",
+  "category": null,
+  "product_id": null,
+  "variant_color": null,
+  "variant_size": null,
+  "variant_colors": [],
+  "variant_sizes": [],
+  "has_print_info": false,
+  "selected_placements": [],
+  "has_artwork": false,
+  "artwork_valid": null,
+  "has_mockup": false,
+  "mockup_task_status": null,
+  "has_content": false,
+  "has_pricing": false,
+  "selling_price": null
+}

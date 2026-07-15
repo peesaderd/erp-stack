@@ -1467,10 +1467,14 @@ def pod_wizard_step(req: WizardStepRequest):
         result = handler(session, **req.data)
         if not result.get("ok"):
             return {"ok": False, "error": result.get("error"), "step": step_id, "available": result.get("available")}
+    
+    # Persist session after any modification
+    mgr._save(session)
 
     # Advance step
     if req.action == "next":
         advance = session.advance_step()
+        mgr._save(session)
         return {
             "ok": True,
             "step_result": result,

@@ -1704,8 +1704,11 @@ select.input { cursor: pointer; }
 <!-- ═══ Publisher ═══ -->
 <div id="page-publisher" class="page">
   <div class="page-header">
-    <div><h2>🚀 Publisher</h2><p>Video from TUS → Post to TikTok via AitoEarn</p></div>
-    <button class="btn btn-secondary btn-sm" onclick="loadPublisherVideos()">🔄 Refresh</button>
+    <div><h2>🚀 Publisher</h2><p>Video from TUS → Post to social media via AitoEarn</p></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary btn-sm" onclick="showBatchSchedule()">📅 Batch Schedule</button>
+      <button class="btn btn-secondary btn-sm" onclick="loadPublisherVideos()">🔄 Refresh</button>
+    </div>
   </div>
 
   <!-- ── Completed Videos ── -->
@@ -4371,6 +4374,134 @@ async function pubSchedule(jobId, productName) {
   }
   
   loadPublisherQueue();
+}
+
+// ─── Publisher: Batch Schedule ──────────────────────────────
+
+function showBatchSchedule() {
+  var modal = document.getElementById('batch-schedule-modal');
+  if (!modal) return;
+  modal.style.display = 'flex';
+  
+  // Set default dates
+  var today = new Date();
+  var nextWeek = new Date(today);
+  nextWeek.setDate(nextWeek.getDate() + 7);
+  
+  document.getElementById('batch-start').value = today.toISOString().split('T')[0];
+  document.getElementById('batch-end').value = nextWeek.toISOString().split('T')[0];
+  
+  updateBatchPreview();
+  
+  // Update preview on any change
+  ['batch-start','batch-end','batch-count','batch-time-start','batch-time-end'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('input', updateBatchPreview);
+  });
+  document.querySelectorAll('input[name="batch-mode"]').forEach(function(r){
+    r.addEventListener('change', updateBatchPreview);
+  });
+}
+
+function closeBatchSchedule() {
+  var modal = document.getElementById('batch-schedule-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+function updateBatchPreview() {
+  var preview = document.getElementById('batch-preview');
+  if (!preview) return;
+  
+  var start = document.getElementById('batch-start').value;
+  var end = document.getElementById('batch-end').value;
+  var count = parseInt(document.getElementById('batch-count').value) || 3;
+  var tStart = document.getElementById('batch-time-start').value;
+  var tEnd = document.getElementById('batch-time-end').value;
+  var mode = (document.querySelector('input[name="batch-mode"]:checked') || {}).value || 'random';
+  
+  if (!start || !end) {
+    preview.innerHTML = '<span style="color:var(--text-tertiary)">Select both start and end dates...</span>';
+    return;
+  }
+  
+  var startDate = new Date(start);
+  var endDate = new Date(end);
+  var days = Math.floor((endDate - startDate) / 86400000) + 1;
+  var total = days * count;
+  
+  if (days < 0) {
+    preview.innerHTML = '<span style="color:var(--color-red-400)">End date must be after start date</span>';
+    return;
+  }
+  
+  var modeLabels = {random:'🎲 Random times', fixed:'🔒 Fixed time ('+tStart+')', sequential:'📏 Evenly spaced'};
+  preview.innerHTML = 
+    '<div style="font-weight:600;margin-bottom:4px">📊 Schedule Preview</div>' +
+    '<div>📅 ' + days + ' days (' + start + ' → ' + end + ')</div>' +
+    '<div>📈 ' + count + ' posts/day = <strong>' + total + ' total</strong></div>' +
+    '<div>⏰ Window: ' + tStart + ' – ' + tEnd + ' (' + modeLabels[mode] + ')</div>' +
+    '<div style="margin-top:6px;font-size:10px;color:var(--text-tertiary)">Videos will be spread across dates. Click "Schedule All" to add them to the post queue.</div>';
+}
+
+async function executeBatchSchedule() {
+  // Gather all visible completed video job IDs
+  var vids = [];
+  try {
+    var r = await fetch(API + '/video/completed');
+    var d = await r.json();
+    var platform = document.getElementById('batch-platform').value || 'tiktok';
+    (d.jobs||[]).forEach(function(j){
+      vids.push({
+        job_id: j.job_id,
+        video_path: j.video_url || ('/api/tiktok/static/videos/final_' + j.job_id + '.mp4'),
+        title: j.title || j.product_name || '',
+        description: j.description || '',
+        caption: j.product_name || '',
+        hashtags: j.hashtags || [],
+        platform: platform
+      });
+    });
+  } catch(e) {}
+  
+  if (!vids.length) {
+    alert('No completed videos found. Run a pipeline first.');
+    return;
+  }
+  
+  var mode = (document.querySelector('input[name="batch-mode"]:checked') || {}).value || 'random';
+  var count = parseInt(document.getElementById('batch-count').value) || 3;
+  
+  if (!confirm('Schedule ' + vids.length + ' videos | Mode: ' + mode + ', ' + count + '/day | ' + document.getElementById('batch-start').value + ' - ' + document.getElementById('batch-end').value + ' | ' + document.getElementById('batch-time-start').value + '-' + document.getElementById('batch-time-end').value)) return;
+  
+  var btn = document.querySelector('#batch-schedule-modal .btn-primary');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Scheduling...'; }
+  
+  try {
+    var r = await pfmFetch('/publisher/bulk-schedule', {
+      method: 'POST', body: JSON.stringify({
+        video_ids: vids,
+        date_range_start: document.getElementById('batch-start').value,
+        date_range_end: document.getElementById('batch-end').value,
+        count_per_day: count,
+        mode: mode,
+        time_window_start: document.getElementById('batch-time-start').value,
+        time_window_end: document.getElementById('batch-time-end').value,
+        platform: document.getElementById('batch-platform').value || 'tiktok'
+      })
+    });
+    
+    if (r.success) {
+      alert('✅ ' + r.scheduled + ' posts scheduled! ' + r.config.date_range + ' | ' + r.config.count_per_day + '/day | ' + r.config.mode);
+      closeBatchSchedule();
+      loadPublisherQueue();
+    } else {
+      alert('❌ Failed: ' + (r.detail||r.error||'Unknown'));
+    }
+  } catch(e) {
+    alert('❌ Error: ' + e.message);
+  }
+  
+  if (btn) { btn.disabled = false; btn.textContent = '📅 Schedule All'; }
 }
 
 // ─── Publisher: Queue ────────────────────────────────────────

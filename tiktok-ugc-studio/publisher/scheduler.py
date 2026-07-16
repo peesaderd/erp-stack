@@ -129,6 +129,10 @@ class PublisherScheduler:
             result = await self.poster.post(
                 video_path=video_path,
                 caption=caption,
+                title=post.get("title", ""),
+                description=post.get("description", ""),
+                platform=post.get("platform", "tiktok"),
+                account_id=post.get("account_id", ""),
                 hashtags=hashtags,
             )
 
@@ -186,6 +190,101 @@ class PublisherScheduler:
             "stats": dict(self._stats),
             "queue_stats": get_stats(),
         }
+
+    def bulk_schedule(
+        self,
+        video_ids: List[str],
+        date_range_start: str = None,
+        date_range_end: str = None,
+        count_per_day: int = 3,
+        mode: str = "random",  # random | fixed | sequential
+        time_window_start: str = "08:00",
+        time_window_end: str = "22:00",
+        platform: str = "tiktok",
+    ) -> List[str]:
+        """Bulk schedule multiple videos across a date range.
+        
+        Mode:
+        - random: random time within window each day
+        - fixed: same time each day (time_window_start)
+        - sequential: evenly spaced within window
+        
+        Returns list of post IDs created.
+        """
+        import random as _rand
+        
+        if not video_ids:
+            return []
+        
+        # Parse date range (default: next 7 days)
+        today = datetime.utcnow().date()
+        start_date = datetime.fromisoformat(date_range_start).date() if date_range_start else today
+        end_date = datetime.fromisoformat(date_range_end).date() if date_range_end else today + timedelta(days=7)
+        
+        if end_date < start_date:
+            raise ValueError("end_date must be >= start_date")
+        
+        # Parse time window
+        tw_start_h, tw_start_m = map(int, time_window_start.split(":"))
+        tw_end_h, tw_end_m = map(int, time_window_end.split(":"))
+        tw_start_min = tw_start_h * 60 + tw_start_m
+        tw_end_min = tw_end_h * 60 + tw_end_m
+        window_minutes = tw_end_min - tw_start_min
+        
+        if window_minutes <= 0:
+            raise ValueError("time_window_end must be after time_window_start")
+        
+        total_days = (end_date - start_date).days + 1
+        total_slots = total_days * count_per_day
+        
+        # Distribute videos across slots (cycle through if more videos than slots)
+        posts = []
+        for i, vid_info in enumerate(video_ids):
+            if isinstance(vid_info, str):
+                vid_info = {"job_id": vid_info, "video_path": vid_info}
+            
+            slot_idx = i % total_slots
+            day_offset = slot_idx // count_per_day
+            slot_in_day = slot_idx % count_per_day
+            post_date = start_date + timedelta(days=day_offset)
+            
+            # Calculate time based on mode
+            if mode == "random":
+                minute_offset = _rand.randint(0, window_minutes)
+                
+            elif mode == "fixed":
+                minute_offset = 0  # use time_window_start
+                
+            elif mode == "sequential":
+                # Evenly spaced within window
+                if count_per_day > 1:
+                    minute_offset = (window_minutes // (count_per_day - 1)) * slot_in_day if count_per_day > 1 else 0
+                else:
+                    minute_offset = window_minutes // 2
+            else:
+                minute_offset = 0
+            
+            total_minutes = tw_start_min + minute_offset
+            post_h = total_minutes // 60
+            post_m = total_minutes % 60
+            schedule_dt = datetime(post_date.year, post_date.month, post_date.day, post_h, post_m, 0)
+            
+            # Enqueue
+            post_id = enqueue(
+                job_id=vid_info.get("job_id", ""),
+                video_path=vid_info.get("video_path", ""),
+                title=vid_info.get("title", ""),
+                description=vid_info.get("description", ""),
+                caption=vid_info.get("caption", ""),
+                hashtags=vid_info.get("hashtags", []),
+                platform=vid_info.get("platform", platform),
+                account_id=vid_info.get("account_id", ""),
+                schedule_at=schedule_dt.isoformat(),
+            )
+            posts.append(post_id)
+        
+        logger.info(f"📅 Bulk scheduled {len(posts)} posts across {total_days} days ({count_per_day}/day, mode={mode})")
+        return posts
 
 
 # Singleton

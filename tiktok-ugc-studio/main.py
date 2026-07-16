@@ -1668,6 +1668,50 @@ async def publisher_post_now(post_id: str):
         mark_failed(post_id, str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/publisher/bulk-schedule")
+async def publisher_bulk_schedule(req: dict):
+    """Bulk schedule multiple videos.
+    
+    Body: {
+        video_ids: [{job_id, video_path, title?, description?, caption?, hashtags?}, ...],
+        date_range_start: "2026-07-16",
+        date_range_end: "2026-07-22",
+        count_per_day: 3,
+        mode: "random" | "fixed" | "sequential",
+        time_window_start: "08:00",
+        time_window_end: "22:00",
+        platform: "tiktok"
+    }
+    """
+    video_ids = req.get("video_ids", [])
+    if not video_ids:
+        raise HTTPException(status_code=400, detail="video_ids required")
+    
+    try:
+        post_ids = publisher_scheduler.bulk_schedule(
+            video_ids=video_ids,
+            date_range_start=req.get("date_range_start"),
+            date_range_end=req.get("date_range_end"),
+            count_per_day=req.get("count_per_day", 3),
+            mode=req.get("mode", "random"),
+            time_window_start=req.get("time_window_start", "08:00"),
+            time_window_end=req.get("time_window_end", "22:00"),
+            platform=req.get("platform", "tiktok"),
+        )
+        return {
+            "success": True,
+            "scheduled": len(post_ids),
+            "post_ids": post_ids,
+            "config": {
+                "date_range": f"{req.get('date_range_start','today')} → {req.get('date_range_end','+7d')}",
+                "count_per_day": req.get("count_per_day", 3),
+                "mode": req.get("mode", "random"),
+                "window": f"{req.get('time_window_start','08:00')}–{req.get('time_window_end','22:00')}",
+            }
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 @app.delete("/publisher/{post_id}")
 async def publisher_cancel(post_id: str):
     """Cancel a scheduled post."""

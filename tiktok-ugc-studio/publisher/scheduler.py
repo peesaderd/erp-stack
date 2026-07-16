@@ -153,18 +153,26 @@ class PublisherScheduler:
         self,
         job_id: str,
         video_path: str,
+        title: str = "",
+        description: str = "",
         caption: str = "",
         hashtags: list = None,
         affiliate_link: str = "",
+        platform: str = "tiktok",
+        account_id: str = "",
         schedule_at: str = None,
     ) -> str:
         """Enqueue a completed pipeline video for posting."""
         return enqueue(
             job_id=job_id,
             video_path=video_path,
+            title=title,
+            description=description,
             caption=caption,
             hashtags=hashtags,
             affiliate_link=affiliate_link,
+            platform=platform,
+            account_id=account_id,
             schedule_at=schedule_at,
         )
 

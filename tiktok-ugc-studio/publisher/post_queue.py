@@ -27,10 +27,13 @@ def init_db():
             id TEXT PRIMARY KEY,
             job_id TEXT,
             video_path TEXT NOT NULL,
+            title TEXT,
+            description TEXT,
             caption TEXT,
             hashtags TEXT DEFAULT '[]',
             affiliate_link TEXT,
             platform TEXT DEFAULT 'tiktok',
+            account_id TEXT,
             schedule_at TEXT,
             status TEXT DEFAULT 'pending',
             publish_id TEXT,
@@ -42,6 +45,16 @@ def init_db():
             updated_at TEXT
         )
     """)
+    # Add columns if they don't exist (migration for existing DBs)
+    for col, coltype in [
+        ("title", "TEXT"),
+        ("description", "TEXT"),
+        ("account_id", "TEXT"),
+    ]:
+        try:
+            conn.execute(f"ALTER TABLE post_queue ADD COLUMN {col} {coltype}")
+        except sqlite3.OperationalError:
+            pass  # column already exists
     # Index for fast scheduler queries
     conn.execute("""
         CREATE INDEX IF NOT EXISTS idx_schedule_status 
@@ -57,10 +70,13 @@ init_db()
 def enqueue(
     job_id: str = "",
     video_path: str = "",
+    title: str = "",
+    description: str = "",
     caption: str = "",
     hashtags: list = None,
     affiliate_link: str = "",
     platform: str = "tiktok",
+    account_id: str = "",
     schedule_at: str = None,
 ) -> str:
     """Add a video to the post queue. Returns post id."""
@@ -100,13 +116,13 @@ def enqueue(
     conn = sqlite3.connect(str(DB_PATH))
     conn.execute(
         """INSERT INTO post_queue 
-           (id, job_id, video_path, caption, hashtags, affiliate_link, 
-            platform, schedule_at, status, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+           (id, job_id, video_path, title, description, caption, hashtags, affiliate_link, 
+            platform, account_id, schedule_at, status, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
-            post_id, job_id, video_path, caption,
+            post_id, job_id, video_path, title, description, caption,
             json.dumps(hashtags or []), affiliate_link,
-            platform, schedule_at, status, now, now,
+            platform, account_id, schedule_at, status, now, now,
         ),
     )
     conn.commit()

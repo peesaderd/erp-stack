@@ -4158,7 +4158,8 @@ async function loadPublisherVideos() {
     
     jobs.forEach(function(job) {
       var vid = job.video_url || '';
-      var name = job.product_name || 'Untitled';
+      var name = job.title || job.product_name || 'Untitled';
+      var htags = job.hashtags || [];
       var dur = job.duration || 8;
       var style = job.style || job.ugc_style || 'ugc';
       var styleLabel = {holding_product:'ถือสินค้า',product_usage:'ใช้สินค้า',ugc_review:'รีวิว',ugc:'ทั่วไป',talking_head:'พูดกล้อง',unboxing:'แกะกล่อง'}[style] || style;
@@ -4217,7 +4218,14 @@ async function loadPublisherVideos() {
       if (created) inner += '<span style="font-size:10px;color:var(--text-tertiary)">' + created + '</span>';
       inner += '</div>';
       // Cost
-      inner += '<div style="font-size:10px;color:var(--text-tertiary);margin-bottom:8px">💰 ' + cost + '</div>';
+      inner += '<div style="font-size:10px;color:var(--text-tertiary);margin-bottom:4px">💰 ' + cost + '</div>';
+      // Hashtags (if available)
+      if (htags.length) {
+        inner += '<div style="font-size:9px;color:var(--brand);margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%">';
+        inner += htags.slice(0,5).map(function(t){ return '#' + t.replace(/^#/,''); }).join(' ');
+        if (htags.length > 5) inner += ' ...';
+        inner += '</div>';
+      }
       // Action buttons (horizontal)
       inner += '<div style="display:flex;gap:6px">';
       inner += '<button class="btn btn-primary btn-sm" onclick="pubPostNow(\'' + escapeHtml(jobId) + '\', \'' + escapeHtml(name) + '\')" style="flex:1;font-size:12px">🚀 Post Now</button>';
@@ -4254,10 +4262,19 @@ async function pubPostNow(jobId, productName) {
   }
   
   // Enqueue
+  var title = vid.title || vid.product_name || productName;
+  var desc = vid.description || '';
+  var htags = vid.hashtags || [];
+  var cap = (vid.product_name || productName) + ' | #TUS #UGC';
+  if (htags.length) cap = cap + ' ' + htags.map(function(t){ return '#' + t.replace(/^#/, ''); }).join(' ');
+  
   var enqR = await pfmFetch('/publisher/enqueue', {
     method: 'POST', body: JSON.stringify({
       video_path: vid.video_url,
-      caption: (vid.product_name || productName) + ' | #TUS #UGC',
+      title: title,
+      description: desc,
+      caption: cap,
+      hashtags: htags,
       platform: 'tiktok',
       job_id: jobId
     })
@@ -4312,10 +4329,19 @@ async function pubSchedule(jobId, productName) {
     return;
   }
   
+  var title = vid.title || vid.product_name || productName;
+  var desc = vid.description || '';
+  var htags = vid.hashtags || [];
+  var cap = (vid.product_name || productName) + ' | #TUS #UGC';
+  if (htags.length) cap = cap + ' ' + htags.map(function(t){ return '#' + t.replace(/^#/, ''); }).join(' ');
+  
   var enqR = await pfmFetch('/publisher/enqueue', {
     method: 'POST', body: JSON.stringify({
       video_path: vid.video_url,
-      caption: (vid.product_name || productName) + ' | #TUS #UGC',
+      title: title,
+      description: desc,
+      caption: cap,
+      hashtags: htags,
       platform: 'tiktok',
       job_id: jobId,
       schedule_at: scheduleAt

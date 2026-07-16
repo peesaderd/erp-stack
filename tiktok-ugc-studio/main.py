@@ -389,14 +389,32 @@ async def run_full_pipeline(req: FullPipelineRequest):
         final_video = job.get("logs", {}).get("final_video_path", "")
         if final_video:
             try:
+                # Build rich metadata
+                product_name = job.get("logs", {}).get("product_name", "") or ""
+                ugc_style = job.get("logs", {}).get("ugc_style", "") or ""
+                script_text = job.get("logs", {}).get("script", "") or ""
+                hook_text = job.get("logs", {}).get("script_hook", "") or ""
+                htags = job.get("logs", {}).get("hashtags", [])
+                if isinstance(htags, str):
+                    try:
+                        htags = json.loads(htags)
+                    except Exception:
+                        htags = [t.strip("# ") for t in htags.split(",")] if htags else []
+                
+                title = f"{product_name} | {ugc_style}" if product_name and ugc_style else product_name
+                description = (hook_text or script_text)[:500] or product_name
+                caption = (script_text or product_name)[:200]
+                
                 pq_enqueue(
                     job_id=job_id,
                     video_path=final_video,
-                    caption=job.get("logs", {}).get("script", "")[:150],
-                    hashtags=job.get("logs", {}).get("hashtags", []),
+                    title=title,
+                    description=description,
+                    caption=caption,
+                    hashtags=htags,
                     affiliate_link="",
                 )
-                logger.info(f"Auto-enqueued {job_id} for posting")
+                logger.info(f"Auto-enqueued {job_id} for posting — title: {title[:50]}")
             except Exception as e:
                 logger.warning(f"Auto-enqueue failed: {e}")
         
@@ -676,11 +694,28 @@ def list_completed_videos():
             meta = result.get("metadata", {})
             video_url = result.get("video_url", "")
             seen.add(job_id)
+            htags = meta.get("hashtags", [])
+            if isinstance(htags, str):
+                try:
+                    htags = json.loads(htags)
+                except Exception:
+                    htags = [t.strip("# ") for t in htags.split(",")] if htags else []
+            product_name = meta.get("product_name", "") or ""
+            style_label = meta.get("ugc_style", "") or ""
+            # Build title and description
+            title = f"{product_name} | {style_label}" if product_name and style_label else (product_name or f"Video {job_id[:8]}")
+            description = (meta.get("hook", "") or "")[:500]
+            script_val = (meta.get("script_value", "") or meta.get("value", "") or "")[:300]
+            if script_val:
+                description = f"{description}\n\n{script_val}"
             jobs.append({
                 "job_id": job_id,
                 "video_url": video_url,
                 "cost": result.get("cost", 0),
-                "product_name": meta.get("product_name", ""),
+                "product_name": product_name,
+                "title": title,
+                "description": description.strip()[:800],
+                "hashtags": htags,
                 "duration": meta.get("duration", 8),
                 "style": meta.get("ugc_style", ""),
             })
@@ -692,7 +727,6 @@ def list_completed_videos():
         if job_id in seen:
             continue
         seen.add(job_id)
-        # Derive human-readable name from filename
         size_mb = mp4.stat().st_size / (1024 * 1024)
         mtime = datetime.fromtimestamp(mp4.stat().st_mtime).strftime("%Y-%m-%d")
         pname = mp4.stem.replace("final_vid_", "Video ").replace("final_", "")
@@ -701,24 +735,26 @@ def list_completed_videos():
             "video_url": f"/api/tiktok/static/videos/{mp4.name}",
             "cost": 0,
             "product_name": pname,
+            "title": pname,
+            "description": "",
+            "hashtags": [],
             "duration": 8,
             "style": "ugc",
             "size_mb": round(size_mb, 1),
             "created": mtime,
         })
 
-    # 3) Enrich from logs DB (has product_title, duration, ugc_style, cost)
+    # 3) Enrich from logs DB (has product_title, duration, ugc_style, cost, hashtags, script)
     if os.path.exists(str(LOGS_DB_PATH)):
         try:
             conn = sqlite3.connect(str(LOGS_DB_PATH))
             conn.row_factory = sqlite3.Row
             for j in jobs:
                 row = conn.execute(
-                    "SELECT product_title, ugc_style, total_duration_seconds, cost_total, hashtags FROM pipeline_jobs WHERE job_id = ?",
+                    "SELECT product_title, ugc_style, total_duration_seconds, cost_total, hashtags, script FROM pipeline_jobs WHERE job_id = ?",
                     (j["job_id"],)
                 ).fetchone()
                 if row:
-                    # Override with real data from logs DB
                     if row["product_title"]:
                         j["product_name"] = row["product_title"]
                     if row["ugc_style"]:
@@ -727,6 +763,22 @@ def list_completed_videos():
                         j["duration"] = int(row["total_duration_seconds"])
                     if row["cost_total"] is not None:
                         j["cost"] = round(row["cost_total"], 4)
+                    # Enrich hashtags
+                    if row["hashtags"]:
+                        try:
+                            htags = json.loads(row["hashtags"])
+                            if isinstance(htags, list) and htags:
+                                j["hashtags"] = htags
+                        except Exception:
+                            pass
+                    # Enrich description from script (first 500 chars)
+                    if row["script"] and not j.get("description"):
+                        j["description"] = row["script"][:500]
+                    # Build better title
+                    pn = j.get("product_name", "")
+                    st = j.get("style", "")
+                    if pn and st and not j.get("title"):
+                        j["title"] = f"{pn} | {st}"
             conn.close()
         except Exception as e:
             logger.warning(f"Logs DB enrich: {e}")
@@ -1490,6 +1542,8 @@ async def publisher_queue(status: str = None, platform: str = None, limit: int =
 async def publisher_enqueue(req: dict):
     """Add a video to the post queue. Validates video exists + AitoEarn account."""
     video_path = req.get("video_path", "")
+    title = req.get("title", "")
+    description = req.get("description", "")
     caption = req.get("caption", "")
     hashtags = req.get("hashtags", [])
     platform = req.get("platform", "tiktok")
@@ -1535,9 +1589,13 @@ async def publisher_enqueue(req: dict):
         post_id = publisher_scheduler.enqueue_completed_video(
             job_id=job_id,
             video_path=resolved,
+            title=title,
+            description=description,
             caption=caption,
             hashtags=hashtags,
             affiliate_link=affiliate_link,
+            platform=platform,
+            account_id=account_id,
             schedule_at=schedule_at,
         )
     except ValueError as e:

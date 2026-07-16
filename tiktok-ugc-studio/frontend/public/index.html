@@ -4176,7 +4176,7 @@ async function pfmFetch(url, opts={}) {
 // ─── Publisher: Completed Videos from TUS ───────────────────
 
 // ─── Publisher: Video Preview Modal ─────────────────────────
-function pubOpenVideoModal(videoUrl, jobId, productName) {
+function pubOpenVideoModal(videoUrl, jobId, productName, title, description, hashtags, style, duration) {
   var overlay = document.getElementById('pub-video-modal');
   if (!overlay) {
     overlay = document.createElement('div');
@@ -4185,19 +4185,35 @@ function pubOpenVideoModal(videoUrl, jobId, productName) {
     overlay.style.cssText = 'z-index:200';
     overlay.onclick = function(e) { if (e.target === this) { var v=document.getElementById('pub-modal-video'); if(v)v.pause(); this.style.display = 'none'; } };
     overlay.innerHTML = 
-      '<div class="modal" style="max-width:420px;padding:0;background:#000;border-radius:16px;overflow:hidden;position:relative">' +
+      '<div class="modal" style="max-width:440px;padding:0;background:#000;border-radius:16px;overflow:hidden;position:relative">' +
       '<button onclick="var m=document.getElementById(\'pub-video-modal\');var v=document.getElementById(\'pub-modal-video\');if(v)v.pause();m.style.display=\'none\'" style="position:absolute;top:10px;right:10px;z-index:20;background:rgba(0,0,0,0.7);color:#fff;border:2px solid rgba(255,255,255,0.3);border-radius:50%;width:34px;height:34px;font-size:16px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center">✕</button>' +
-      '<video id="pub-modal-video" controls autoplay style="width:100%;max-height:70vh;display:block"></video>' +
+      '<video id="pub-modal-video" controls autoplay style="width:100%;max-height:60vh;display:block"></video>' +
       '<div id="pub-modal-info" style="padding:14px 16px;background:var(--bg-secondary);color:var(--text-primary)"></div>' +
       '</div>';
     document.body.appendChild(overlay);
   }
   document.getElementById('pub-modal-video').src = videoUrl;
-  var tiktokSvg = (window.PLATFORM_SVGS && window.PLATFORM_SVGS.tiktok) ? window.PLATFORM_SVGS.tiktok : '🎵';
+  
+  var styleMap = {holding_product:'🤳 ถือสินค้า',product_usage:'✨ ใช้สินค้า',ugc_review:'📝 รีวิว',ugc:'🎬 ทั่วไป',talking_head:'🗣️ พูดกล้อง',unboxing:'📦 แกะกล่อง'};
+  var displayTitle = title || productName || 'Untitled';
+  var htagsHtml = '';
+  if (hashtags && hashtags.length) {
+    htagsHtml = '<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px">' + hashtags.slice(0,8).map(function(t){ return '<span style="font-size:10px;background:rgba(59,130,246,0.15);color:#60a5fa;padding:2px 8px;border-radius:10px">#' + t.replace(/^#/,'') + '</span>'; }).join('') + '</div>';
+  }
+  var descHtml = '';
+  if (description) {
+    descHtml = '<div style="font-size:11px;color:var(--text-secondary);margin-top:6px;line-height:1.5;max-height:60px;overflow-y:auto">' + escapeHtml(description) + '</div>';
+  }
   document.getElementById('pub-modal-info').innerHTML =
-    '<div style="font-size:14px;font-weight:700;margin-bottom:4px">' + escapeHtml(productName) + '</div>' +
-    '<div style="font-size:10px;font-family:mono;color:var(--text-secondary);margin-bottom:10px">#' + escapeHtml(jobId) + '</div>' +
-    '<div style="display:flex;gap:6px">' +
+    '<div style="font-size:15px;font-weight:700;margin-bottom:2px">' + escapeHtml(displayTitle) + '</div>' +
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">' +
+    '<span style="font-size:10px;font-family:mono;color:var(--text-tertiary)">#' + escapeHtml(jobId) + '</span>' +
+    (style ? '<span style="font-size:10px;color:var(--text-secondary);background:var(--bg-tertiary);padding:1px 6px;border-radius:8px">' + (styleMap[style] || style) + '</span>' : '') +
+    (duration ? '<span style="font-size:10px;color:var(--text-tertiary)">🕐 ' + duration + 's</span>' : '') +
+    '</div>' +
+    descHtml +
+    htagsHtml +
+    '<div style="display:flex;gap:6px;margin-top:10px">' +
     '<button class="btn btn-primary btn-sm" onclick="pubPostNow(\'' + escapeHtml(jobId) + '\', \'' + escapeHtml(productName) + '\')" style="flex:1;font-size:12px">🚀 Post Now</button>' +
     '<button class="btn btn-secondary btn-sm" onclick="pubSchedule(\'' + escapeHtml(jobId) + '\', \'' + escapeHtml(productName) + '\')" style="flex:1;font-size:12px">📅 Schedule</button>' +
     '</div>';
@@ -4270,10 +4286,17 @@ async function loadPublisherVideos() {
       
       // Thumbnail
       var thumbW = 100;
-      inner += '<div style="width:' + thumbW + 'px;flex-shrink:0;border-radius:8px;overflow:hidden;aspect-ratio:9/16;background:var(--bg-tertiary);cursor:pointer;position:relative" onclick="pubOpenVideoModal(\'' + escapeHtml(vidSrc) + '\', \'' + escapeHtml(jobId) + '\', \'' + escapeHtml(name) + '\')">';
+      var titleSafe = job.title || '';
+      var descSafe = job.description || '';
+      var onclickModal = "pubOpenVideoModal('" + escapeHtml(vidSrc) + "','" + escapeHtml(jobId) + "','" + escapeHtml(name) + "','" + escapeHtml(titleSafe) + "','" + escapeHtml(descSafe) + "'," + JSON.stringify(htags) + ",'" + escapeHtml(style) + "'," + dur + ")";
+      inner += '<div style="width:' + thumbW + 'px;flex-shrink:0;border-radius:8px;overflow:hidden;aspect-ratio:9/16;background:var(--bg-tertiary);cursor:pointer;position:relative" onclick="' + onclickModal + '">';
       if (vid) {
         inner += '<video src="' + vid + '" muted preload="metadata" style="width:100%;height:100%;object-fit:cover;pointer-events:none"></video>';
         inner += '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.2);transition:opacity 0.2s;opacity:0" onmouseenter="this.style.opacity=\'1\'" onmouseleave="this.style.opacity=\'0\'"><span style="font-size:28px">▶️</span></div>';
+        // Product name overlay
+        if (job.product_name) {
+          inner += '<div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.7));padding:16px 6px 4px;font-size:9px;font-weight:600;color:#fff;text-align:center;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHtml(job.product_name.substring(0,30)) + '</div>';
+        }
       } else {
         inner += '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:28px">🎬</div>';
       }

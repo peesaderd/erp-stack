@@ -1712,24 +1712,25 @@ select.input { cursor: pointer; }
   </div>
 
   <!-- ── Completed Videos ── -->
-  <div class="card mb-4">
-    <div class="card-header"><span class="card-title">📺 Completed Videos <span style="font-weight:400;color:var(--text-secondary)">(from TUS Pipeline)</span></span></div>
-    <div class="card-body">
-      <div id="pub-videos-grid" style="display:flex;flex-direction:column;gap:10px">
-        <div class="text-sm text-secondary" style="grid-column:1/-1;text-align:center;padding:32px">Loading completed videos...</div>
-      </div>
+  <div style="margin-bottom:24px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+      <h3 style="margin:0;font-size:15px;font-weight:600">📺 Completed Videos</h3>
+      <span style="font-size:11px;color:var(--text-tertiary);font-weight:400">from TUS Pipeline</span>
+    </div>
+    <div id="pub-videos-grid" style="display:flex;flex-direction:column;gap:10px">
+      <div class="text-sm text-secondary" style="text-align:center;padding:32px">Loading completed videos...</div>
     </div>
   </div>
 
   <!-- ── Post Queue ── -->
-  <div class="card">
-    <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
-      <span class="card-title">📊 Post Queue</span>
-      <span id="pub-queue-stats" style="font-size:12px;color:var(--text-secondary)">—</span>
+  <div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <h3 style="margin:0;font-size:15px;font-weight:600">📊 Post Queue</h3>
+        <span id="pub-queue-stats" style="font-size:11px;color:var(--text-tertiary)">—</span>
+      </div>
     </div>
-    <div class="card-body">
-      <div id="pub-queue-list"><div class="text-sm text-secondary">Loading queue...</div></div>
-    </div>
+    <div id="pub-queue-list"><div class="text-sm text-secondary">Loading queue...</div></div>
   </div>
 </div>
 
@@ -4682,27 +4683,28 @@ async function loadPublisherQueue() {
     var scColors = {pending:'#f59e0b',scheduled:'#3b82f6',posting:'#f59e0b',posted:'#10b981',failed:'#ef4444',cancelled:'#6b7280'};
     var scIcons = {pending:'⏳',scheduled:'📅',posting:'⬆️',posted:'✅',failed:'❌',cancelled:'🚫'};
     
+    var html = '';
     posts.forEach(function(p){
       var vidName = (p.video_path||'').split('/').pop() || '-';
       var title = p.title || p.caption || vidName;
-      var platIcon = {tiktok:'🎵', instagram:'📸', youtube:'▶️', facebook:'👤'}[p.platform] || '📱';
-      html += '<div style="background:var(--bg-secondary);border:1px solid var(--border-primary);border-radius:10px;padding:12px;margin-bottom:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">' +
-        '<div style="flex:1;min-width:150px">' +
-          '<div style="font-size:13px;font-weight:600;margin-bottom:2px;display:flex;align-items:center;gap:6px">' +
-            '<span style="font-size:10px;font-family:mono;color:var(--text-tertiary)">' + (p.id||'').substring(0,10) + '</span>' +
-            '<span style="color:' + (scColors[p.status]||'gray') + '">' + (scIcons[p.status]||'') + '</span>' +
-            '<span style="font-size:11px;color:var(--text-secondary)">' + platIcon + ' ' + (p.platform||'tiktok') + '</span>' +
-          '</div>' +
-          '<div style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%" title="' + (p.video_path||'') + '">🎬 ' + escapeHtml(title) + '</div>' +
-          '<div style="font-size:10px;color:var(--text-tertiary);margin-top:2px">' +
-            (p.schedule_at ? '📅 ' + new Date(p.schedule_at).toLocaleString() : '') +
-            (p.publish_id ? ' | 🆔 ' + (p.publish_id||'').substring(0,14) : '') +
-            (p.error ? ' | ⚠️ ' + (p.error||'').substring(0,40) : '') +
+      var pal = {tiktok:{icon:'🎵',name:'TikTok'},instagram:{icon:'📸',name:'IG'},youtube:{icon:'▶️',name:'YT'},facebook:{icon:'👤',name:'FB'}};
+      var sColor = scColors[p.status]||'gray';
+      var sIco = scIcons[p.status]||'';
+      html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border-primary);transition:background .15s">' +
+        '<div style="flex-shrink:0;width:36px;height:36px;border-radius:50%;background:' + sColor + '20;display:flex;align-items:center;justify-content:center;font-size:16px">' + sIco + '</div>' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + escapeHtml(title) + '">' + escapeHtml(title) + '</div>' +
+          '<div style="display:flex;align-items:center;gap:8px;margin-top:2px;flex-wrap:wrap">' +
+            '<span style="font-size:10px;font-family:mono;color:var(--text-tertiary)">' + (p.id||'').substring(0,12) + '</span>' +
+            '<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;color:var(--text-secondary);background:var(--bg-tertiary);padding:1px 8px;border-radius:10px;font-weight:500">' + (pal[p.platform] ? pal[p.platform].icon + ' ' + pal[p.platform].name : '📱') + '</span>' +
+            (p.schedule_at ? '<span style="font-size:10px;color:var(--text-tertiary)">' + new Date(p.schedule_at).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'}) + '</span>' : '') +
+            (p.publish_id ? '<span style="font-size:10px;color:var(--color-green-400);font-family:mono">✓ ' + (p.publish_id||'').substring(0,12) + '</span>' : '') +
+            (p.error ? '<span style="font-size:10px;color:var(--color-red-400)" title="' + escapeHtml(p.error||'') + '">⚠ ' + (p.error||'').substring(0,30) + '</span>' : '') +
           '</div>' +
         '</div>' +
-        '<div style="flex-shrink:0">' +
-          (p.status === 'pending' ? '<button class="btn btn-primary btn-sm" onclick="pubPostNowById(\'' + p.id + '\')" style="font-size:11px">▶ Post</button>' : '') +
-          (p.status === 'failed' ? '<button class="btn btn-secondary btn-sm" onclick="pubPostNowById(\'' + p.id + '\')" style="font-size:11px">🔁 Retry</button>' : '') +
+        '<div style="flex-shrink:0;display:flex;gap:6px">' +
+          (p.status === 'pending' ? '<button class="btn btn-primary btn-sm" onclick="pubPostNowById(\'' + p.id + '\')" style="font-size:11px;padding:4px 12px">▶ Post</button>' : '') +
+          (p.status === 'failed' ? '<button class="btn btn-secondary btn-sm" onclick="pubPostNowById(\'' + p.id + '\')" style="font-size:11px;padding:4px 12px">🔁 Retry</button>' : '') +
         '</div>' +
       '</div>';
     });

@@ -777,7 +777,9 @@ def list_completed_videos():
                     # Build better title
                     pn = j.get("product_name", "")
                     st = j.get("style", "")
-                    if pn and st and not j.get("title"):
+                    # Always rebuild title from DB since filesystem fallback title is generic
+                    title_from_filesystem = f"Video {j['job_id'][:8]}"
+                    if pn and st and j.get("title", "") in ("", pn, title_from_filesystem):
                         j["title"] = f"{pn} | {st}"
             conn.close()
         except Exception as e:

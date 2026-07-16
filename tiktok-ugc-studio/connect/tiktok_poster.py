@@ -1,5 +1,5 @@
 """
-TikTok Poster — Strategy: AitoEarn REST API → Cookie-based Playwright fallback.
+TikTok Poster → Social Poster — Multi-platform posting: AitoEarn REST API → Cookie fallback.
 Uses AitoEarnClient for all API operations.
 """
 
@@ -10,20 +10,23 @@ import logging
 from pathlib import Path
 from typing import Optional, Dict, Any
 
-logger = logging.getLogger("tiktok-poster")
+logger = logging.getLogger("social-poster")
 
 STORAGE_DIR = Path(__file__).parent.parent / "storage"
 COOKIE_FILE = STORAGE_DIR / "tiktok_cookies.json"
 
-# Account ID for TikTok (from AitoEarn)
+# Default account ID for backward compat
 TIKTOK_ACCOUNT_ID = os.getenv("TIKTOK_AITOEARN_ACCOUNT_ID", "")
 
 
-class TikTokPoster:
-    """Post videos to TikTok: AitoEarn first, cookie fallback."""
+class SocialPoster:
+    """Post videos to any platform via AitoEarn, with TikTok cookie fallback."""
+
+    # Platforms that support cookie-based posting fallback
+    COOKIE_PLATFORMS = {"tiktok"}
 
     def __init__(self, account_id: str = None):
-        self.account_id = account_id or TIKTOK_ACCOUNT_ID
+        self.account_id = account_id or TIKTOK_ACCOUNT_ID  # default TikTok for backward compat
         self._cookies = None
         self._client = None  # Lazy AitoEarnClient
 
@@ -54,26 +57,31 @@ class TikTokPoster:
     def has_cookies(self) -> bool:
         return self._cookies is not None or COOKIE_FILE.exists()
 
-    # ─── AitoEarn API (primary) ──────────────────────────────────────
+    # ─── AitoEarn API (primary for all platforms) ────────────────────
 
     async def post_via_aitoearn(
         self,
         video_path: str,
         caption: str,
+        platform: str = "tiktok",
+        account_id: str = "",
+        title: str = "",
+        description: str = "",
         hashtags: list = None,
         schedule_at: str = None,
     ) -> Dict[str, Any]:
-        """Post via AitoEarn REST API. Uses the central client."""
+        """Post via AitoEarn REST API — any platform. Uses central client."""
         if not self.aitoearn.configured:
             return {"success": False, "error": "AITOEARN_API_KEY not configured", "method": "aitoearn"}
-        if not self.account_id:
-            return {"success": False, "error": "TIKTOK_AITOEARN_ACCOUNT_ID not configured", "method": "aitoearn"}
 
         result = await self.aitoearn.publish_video(
             video_path=video_path,
             caption=caption,
+            title=title,
+            description=description,
             hashtags=hashtags,
-            account_id=self.account_id,
+            platform=platform,
+            account_id=account_id,
             schedule_at=schedule_at,
             publish_immediately=True,
         )
@@ -148,29 +156,44 @@ class TikTokPoster:
         self,
         video_path: str,
         caption: str,
+        platform: str = "tiktok",
+        account_id: str = "",
+        title: str = "",
+        description: str = "",
         hashtags: list = None,
         schedule_at: str = None,
     ) -> Dict[str, Any]:
-        """Post to TikTok: AitoEarn first, cookie fallback."""
-        logger.info(f"📤 Posting: {Path(video_path).name} — {caption[:60]}...")
+        """Post to any platform via AitoEarn, with TikTok cookie fallback."""
+        platform_label = platform.title()
+        logger.info(f"📤 Posting to {platform_label}: {Path(video_path).name} — {caption[:60]}...")
 
-        # 1. Try AitoEarn (primary)
-        if self.aitoearn.configured and self.account_id:
-            result = await self.post_via_aitoearn(video_path, caption, hashtags, schedule_at)
+        # 1. Try AitoEarn (primary — supports all platforms)
+        if self.aitoearn.configured:
+            result = await self.post_via_aitoearn(
+                video_path=video_path,
+                caption=caption,
+                platform=platform,
+                account_id=account_id,
+                title=title,
+                description=description,
+                hashtags=hashtags,
+                schedule_at=schedule_at,
+            )
             if result.get("success"):
                 return result
-            logger.info(f"AitoEarn failed: {result.get('error')}, trying cookie...")
+            logger.info(f"AitoEarn {platform_label} failed: {result.get('error')}")
         else:
-            logger.info("AitoEarn not configured, skipping to cookie")
+            logger.info("AitoEarn not configured")
 
-        # 2. Cookie fallback
-        if self.has_cookies():
+        # 2. Cookie fallback (TikTok only)
+        if platform == "tiktok" and self.has_cookies():
             result = await self.post_via_cookie(video_path, caption, hashtags)
             if result.get("success"):
                 return result
 
-        return {"success": False, "error": "All methods failed", "method": "all_failed"}
+        return {"success": False, "error": f"All methods failed for {platform_label}", "method": "all_failed"}
 
 
-# Singleton
-poster = TikTokPoster()
+# Singleton (backward compat aliases)
+poster = SocialPoster()
+TikTokPoster = SocialPoster  # alias for backward compat

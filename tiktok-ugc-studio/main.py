@@ -1640,6 +1640,10 @@ async def publisher_post_now(post_id: str):
         result = await tiktok_poster.post(
             video_path=post["video_path"],
             caption=post.get("caption", ""),
+            title=post.get("title", ""),
+            description=post.get("description", ""),
+            platform=post.get("platform", "tiktok"),
+            account_id=post.get("account_id", ""),
             hashtags=hashtags,
         )
         if result.get("success"):
@@ -1695,6 +1699,10 @@ async def publisher_retry(post_id: str):
         result = await tiktok_poster.post(
             video_path=post["video_path"],
             caption=post.get("caption", ""),
+            title=post.get("title", ""),
+            description=post.get("description", ""),
+            platform=post.get("platform", "tiktok"),
+            account_id=post.get("account_id", ""),
             hashtags=hashtags,
         )
         if result.get("success"):

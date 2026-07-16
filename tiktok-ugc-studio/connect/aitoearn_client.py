@@ -293,17 +293,34 @@ class AitoEarnClient:
         self,
         video_path: str,
         caption: str,
-        account_id: str,
+        account_id: str = "",
+        platform: str = "tiktok",
         hashtags: List[str] = None,
         schedule_at: str = None,
         publish_immediately: bool = True,
+        title: str = "",
+        description: str = "",
     ) -> Dict[str, Any]:
         """One-shot: upload video + create flow + optionally publish now.
         
         This is the main entry point for the publisher.
         
+        Auto-resolves account_id from platform if not provided.
         Returns {success, flow_id, task_id, platform_work_id, error}
         """
+        # 0. Resolve account_id if not provided
+        if not account_id:
+            acct = self.get_account_for_platform(platform)
+            if not acct:
+                # Try to refresh cache
+                await self.list_accounts(use_cache=False)
+                acct = self.get_account_for_platform(platform)
+            if acct:
+                account_id = acct.get("id", "")
+                logger.info(f"Auto-resolved {platform} account: {account_id} ({acct.get('nickname')})")
+            else:
+                return {"success": False, "error": f"No active {platform} account connected. Please connect via AitoEarn first."}
+        
         # 1. Upload if local file (with public URL fallback for API scope issues)
         video_url = video_path
         if not video_path.startswith("http"):
@@ -316,20 +333,21 @@ class AitoEarnClient:
             video_url = uploaded
 
         # 2. Build caption with hashtags
-        full_caption = caption
+        full_title = (title or caption or description)[:100]
+        full_body = (description or caption or full_title)[:2200]
         if hashtags:
             tags = " ".join(f"#{t.strip('#')}" for t in hashtags)
-            full_caption = f"{caption} {tags}"
+            full_body = f"{full_body} {tags}"
 
         # 3. Create publish flow
         flow = await self.create_publish_flow(
             content={
-                "title": caption[:100],
-                "body": full_caption[:2200],
+                "title": full_title,
+                "body": full_body[:2200],
                 "media": [{"url": video_url}],
             },
             items=[{
-                "platform": "tiktok",
+                "platform": platform,
                 "accountId": account_id,
             }],
             publish_at=schedule_at,

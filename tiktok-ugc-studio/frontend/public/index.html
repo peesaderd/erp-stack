@@ -4226,8 +4226,14 @@ async function loadPublisherVideos() {
         if (htags.length > 5) inner += ' ...';
         inner += '</div>';
       }
-      // Action buttons (horizontal)
-      inner += '<div style="display:flex;gap:6px">';
+      // Action buttons (horizontal row with platform picker)
+      inner += '<div style="display:flex;gap:6px;align-items:stretch">';
+      inner += '<select id="plat-' + escapeHtml(jobId) + '" style="font-size:11px;border-radius:6px;border:1px solid var(--border-primary);background:var(--bg-primary);color:var(--text-primary);padding:4px 6px;max-width:110px">';
+      inner += '<option value="tiktok">🎵 TT</option>';
+      inner += '<option value="instagram">📸 IG</option>';
+      inner += '<option value="youtube">▶️ YT</option>';
+      inner += '<option value="facebook">👤 FB</option>';
+      inner += '</select>';
       inner += '<button class="btn btn-primary btn-sm" onclick="pubPostNow(\'' + escapeHtml(jobId) + '\', \'' + escapeHtml(name) + '\')" style="flex:1;font-size:12px">🚀 Post Now</button>';
       inner += '<button class="btn btn-secondary btn-sm" onclick="pubSchedule(\'' + escapeHtml(jobId) + '\', \'' + escapeHtml(name) + '\')" style="flex:1;font-size:12px">📅 Schedule</button>';
       inner += '</div>';
@@ -4241,6 +4247,15 @@ async function loadPublisherVideos() {
   } catch(e) {
     grid.innerHTML = '<div style="text-align:center;padding:32px;color:var(--color-red-400)">❌ Error: ' + e.message + '</div>';
   }
+}
+
+// ─── Publisher: Post Now ────────────────────────────────────
+
+// ─── Publisher: Platform helpers ───────────────────────────────
+
+function getCardPlatform(jobId) {
+  var sel = document.getElementById('plat-' + jobId);
+  return sel ? sel.value : 'tiktok';
 }
 
 // ─── Publisher: Post Now ────────────────────────────────────
@@ -4335,6 +4350,7 @@ async function pubSchedule(jobId, productName) {
   var cap = (vid.product_name || productName) + ' | #TUS #UGC';
   if (htags.length) cap = cap + ' ' + htags.map(function(t){ return '#' + t.replace(/^#/, ''); }).join(' ');
   
+  var platform = getCardPlatform(jobId);
   var enqR = await pfmFetch('/publisher/enqueue', {
     method: 'POST', body: JSON.stringify({
       video_path: vid.video_url,
@@ -4342,7 +4358,7 @@ async function pubSchedule(jobId, productName) {
       description: desc,
       caption: cap,
       hashtags: htags,
-      platform: 'tiktok',
+      platform: platform,
       job_id: jobId,
       schedule_at: scheduleAt
     })
@@ -4401,6 +4417,8 @@ async function loadPublisherQueue() {
     list.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ ' + e.message + '</div>';
   }
 }
+
+// ─── Publisher: Post By ID (from queue) ────────────────────────
 
 async function pubPostNowById(postId) {
   var r = await pfmFetch('/publisher/' + postId + '/post-now', {method:'POST'});

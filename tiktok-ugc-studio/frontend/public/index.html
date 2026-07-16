@@ -4298,14 +4298,8 @@ async function loadPublisherVideos() {
         if (htags.length > 5) inner += ' ...';
         inner += '</div>';
       }
-      // Action buttons (horizontal row with platform picker)
-      inner += '<div style="display:flex;gap:6px;align-items:stretch">';
-      inner += '<select id="plat-' + escapeHtml(jobId) + '" style="font-size:11px;border-radius:6px;border:1px solid var(--border-primary);background:var(--bg-primary);color:var(--text-primary);padding:4px 6px;max-width:110px">';
-      inner += '<option value="tiktok">🎵 TT</option>';
-      inner += '<option value="instagram">📸 IG</option>';
-      inner += '<option value="youtube">▶️ YT</option>';
-      inner += '<option value="facebook">👤 FB</option>';
-      inner += '</select>';
+      // Action buttons
+      inner += '<div style="display:flex;gap:6px">';
       inner += '<button class="btn btn-primary btn-sm" onclick="pubPostNow(\'' + escapeHtml(jobId) + '\', \'' + escapeHtml(name) + '\')" style="flex:1;font-size:12px">🚀 Post Now</button>';
       inner += '<button class="btn btn-secondary btn-sm" onclick="pubSchedule(\'' + escapeHtml(jobId) + '\', \'' + escapeHtml(name) + '\')" style="flex:1;font-size:12px">📅 Schedule</button>';
       inner += '</div>';
@@ -4340,55 +4334,90 @@ function getCardPlatform(jobId) {
 // ─── Publisher: Post Now ────────────────────────────────────
 
 async function pubPostNow(jobId, productName) {
-  if (!confirm('Post "' + productName + '" to TikTok now?')) return;
-  
-  // Get the video path from completed jobs
-  var r, vid, d;
+  var r, vid;
   try {
     r = await fetch(API + '/video/completed');
-    d = await r.json();
+    var d = await r.json();
     vid = (d.jobs||[]).find(function(j){ return j.job_id === jobId; });
   } catch(e) {}
   
-  if (!vid || !vid.video_url) {
-    alert('Video not found for ' + jobId);
-    return;
+  if (!vid || !vid.video_url) { alert('Video not found'); return; }
+  
+  // Show Post Now modal with platform selection
+  var overlay = document.getElementById('pub-postnow-modal');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'pub-postnow-modal';
+    overlay.className = 'modal-overlay';
+    overlay.style.cssText = 'z-index:200';
+    overlay.onclick = function(e) { if (e.target === this) this.style.display = 'none'; };
+    overlay.innerHTML =
+      '<div onclick="event.stopPropagation()" style="background:var(--bg-primary);border-radius:16px;padding:24px;max-width:440px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);position:relative">' +
+      '<button onclick="document.getElementById(\'pub-postnow-modal\').style.display=\'none\'" style="position:absolute;top:12px;right:12px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-secondary)">✕</button>' +
+      '<h3 style="margin:0 0 8px 0">🚀 Post Now</h3>' +
+      '<div id="pub-postnow-title" style="font-size:13px;color:var(--text-secondary);margin-bottom:16px"></div>' +
+      '<div style="margin-bottom:16px"><label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:6px;font-weight:600">📱 Select Platforms</label>' +
+      '<div id="pub-postnow-platforms" style="display:flex;flex-wrap:wrap;gap:8px">' +
+      '<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;padding:6px 14px;border:1px solid var(--border-primary);border-radius:20px;background:var(--bg-secondary)"><input type="checkbox" value="tiktok" checked> 🎵 TikTok</label>' +
+      '<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;padding:6px 14px;border:1px solid var(--border-primary);border-radius:20px;background:var(--bg-secondary)"><input type="checkbox" value="instagram"> 📸 Instagram</label>' +
+      '<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;padding:6px 14px;border:1px solid var(--border-primary);border-radius:20px;background:var(--bg-secondary)"><input type="checkbox" value="youtube"> ▶️ YouTube</label>' +
+      '<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;padding:6px 14px;border:1px solid var(--border-primary);border-radius:20px;background:var(--bg-secondary)"><input type="checkbox" value="facebook"> 👤 Facebook</label>' +
+      '</div></div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end">' +
+      '<button class="btn btn-secondary btn-sm" onclick="document.getElementById(\'pub-postnow-modal\').style.display=\'none\'">Cancel</button>' +
+      '<button class="btn btn-primary btn-sm" id="pub-postnow-confirm">🚀 Post Now</button>' +
+      '</div></div>';
+    document.body.appendChild(overlay);
   }
   
-  // Enqueue
-  var title = vid.title || vid.product_name || productName;
-  var desc = vid.description || '';
-  var htags = vid.hashtags || [];
-  var cap = (vid.product_name || productName) + ' | #TUS #UGC';
-  if (htags.length) cap = cap + ' ' + htags.map(function(t){ return '#' + t.replace(/^#/, ''); }).join(' ');
+  document.getElementById('pub-postnow-title').textContent = '🎬 ' + (productName || vid.product_name || jobId);
+  overlay.style.display = 'flex';
   
-  var enqR = await pfmFetch('/publisher/enqueue', {
-    method: 'POST', body: JSON.stringify({
-      video_path: vid.video_url,
-      title: title,
-      description: desc,
-      caption: cap,
-      hashtags: htags,
-      platform: 'tiktok',
-      job_id: jobId
-    })
-  });
-  
-  if (!enqR.success) {
-    alert('Enqueue failed: ' + (enqR.detail||enqR.error||'Unknown'));
-    return;
-  }
-  
-  // Post now
-  var postR = await pfmFetch('/publisher/' + enqR.post_id + '/post-now', {method:'POST'});
-  
-  if (postR.success) {
-    alert('✅ Posted!\nflow_id: ' + (postR.flow_id||'—') + '\ntask_id: ' + (postR.task_id||'—'));
-  } else {
-    alert('❌ Post failed: ' + (postR.detail||postR.error||'Unknown'));
-  }
-  
-  loadPublisherQueue();
+  document.getElementById('pub-postnow-confirm').onclick = async function(){
+    // Gather selected platforms
+    var checks = document.querySelectorAll('#pub-postnow-platforms input[type="checkbox"]:checked');
+    var platforms = [];
+    checks.forEach(function(c){ platforms.push(c.value); });
+    if (!platforms.length) { alert('กรุณาเลือกอย่างน้อย 1 platform'); return; }
+    
+    overlay.style.display = 'none';
+    
+    var title = vid.title || vid.product_name || productName;
+    var desc = vid.description || '';
+    var htags = vid.hashtags || [];
+    var cap = (vid.product_name || productName) + ' | #TUS #UGC';
+    if (htags.length) cap = cap + ' ' + htags.map(function(t){ return '#' + t.replace(/^#/,''); }).join(' ');
+    
+    // Post to each platform
+    var results = [];
+    for (var i = 0; i < platforms.length; i++) {
+      var plat = platforms[i];
+      var enqR = await pfmFetch('/publisher/enqueue', {
+        method: 'POST', body: JSON.stringify({
+          video_path: vid.video_url, title: title, description: desc,
+          caption: cap, hashtags: htags, platform: plat, job_id: jobId
+        })
+      });
+      
+      if (enqR.success) {
+        var postR = await pfmFetch('/publisher/' + enqR.post_id + '/post-now', {method:'POST'});
+        results.push({platform: plat, success: postR.success, id: enqR.post_id, error: postR.detail||postR.error});
+      } else {
+        results.push({platform: plat, success: false, error: enqR.detail||enqR.error});
+      }
+    }
+    
+    var ok = results.filter(function(r){ return r.success; });
+    var fail = results.filter(function(r){ return !r.success; });
+    var msg = '✅ Posted to ' + ok.length + ' platforms';
+    ok.forEach(function(r){ msg += '\n  ' + r.platform + ': ✅'; });
+    if (fail.length) {
+      msg += '\n\n❌ Failed on ' + fail.length + ':';
+      fail.forEach(function(r){ msg += '\n  ' + r.platform + ': ' + (r.error||'Unknown'); });
+    }
+    alert(msg);
+    loadPublisherQueue();
+  };
 }
 
 // ─── Publisher: Schedule ────────────────────────────────────
@@ -4409,25 +4438,31 @@ async function pubSchedule(jobId, productName) {
     overlay.id = 'pub-schedule-modal';
     overlay.className = 'modal-overlay';
     overlay.style.cssText = 'z-index:200';
-    overlay.onclick = function(e) { if (e.target === this) { var v=document.getElementById('pub-modal-video'); if(v)v.pause(); this.style.display = 'none'; } };
+    overlay.onclick = function(e) { if (e.target === this) this.style.display = 'none'; };
     overlay.innerHTML =
-      '<div onclick="event.stopPropagation()" style="background:var(--bg-primary);border-radius:16px;padding:24px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);position:relative">' +
+      '<div onclick="event.stopPropagation()" style="background:var(--bg-primary);border-radius:16px;padding:24px;max-width:440px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);position:relative">' +
       '<button onclick="document.getElementById(\'pub-schedule-modal\').style.display=\'none\'" style="position:absolute;top:12px;right:12px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-secondary)">✕</button>' +
-      '<h3 style="margin:0 0 16px 0">📅 Schedule Post</h3>' +
-      '<div style="margin-bottom:12px"><label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;font-weight:600">📱 Platform</label>' +
-      '<select id="sched-platform" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-primary);background:var(--bg-secondary);color:var(--text-primary);font-size:13px">' +
-      '<option value="tiktok">🎵 TikTok</option><option value="instagram">📸 Instagram</option><option value="youtube">▶️ YouTube</option><option value="facebook">👤 Facebook</option>' +
-      '</select></div>' +
-      '<div style="margin-bottom:12px"><label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;font-weight:600">🎯 Mode</label>' +
-      '<div style="display:flex;flex-direction:column;gap:8px">' +
-      '<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="radio" name="sched-mode" value="random" checked> 🎲 Random (±30min)</label>' +
-      '<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="radio" name="sched-mode" value="fixed"> 🔒 Fixed Time</label>' +
+      '<h3 style="margin:0 0 8px 0">📅 Schedule Post</h3>' +
+      '<div id="pub-schedule-title" style="font-size:13px;color:var(--text-secondary);margin-bottom:16px"></div>' +
+      '<div style="margin-bottom:12px"><label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:6px;font-weight:600">📱 Platforms</label>' +
+      '<div id="pub-schedule-platforms" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">' +
+      '<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;padding:6px 14px;border:1px solid var(--border-primary);border-radius:20px;background:var(--bg-secondary)"><input type="checkbox" value="tiktok" checked> 🎵 TikTok</label>' +
+      '<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;padding:6px 14px;border:1px solid var(--border-primary);border-radius:20px;background:var(--bg-secondary)"><input type="checkbox" value="instagram"> 📸 Instagram</label>' +
+      '<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;padding:6px 14px;border:1px solid var(--border-primary);border-radius:20px;background:var(--bg-secondary)"><input type="checkbox" value="youtube"> ▶️ YouTube</label>' +
+      '<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;padding:6px 14px;border:1px solid var(--border-primary);border-radius:20px;background:var(--bg-secondary)"><input type="checkbox" value="facebook"> 👤 Facebook</label>' +
+      '</div></div>' +
+      '<div style="margin-bottom:12px"><label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:6px;font-weight:600">🎯 Mode</label>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:16px;margin-bottom:12px">' +
+      '<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="radio" name="sched-mode" value="random" checked> 🎲 Random</label>' +
+      '<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="radio" name="sched-mode" value="fixed"> 🔒 Fixed</label>' +
       '<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="radio" name="sched-mode" value="sequential"> 📏 Sequential</label>' +
       '</div></div>' +
-      '<div id="sched-fixed-time" style="display:none;margin-bottom:12px"><label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;font-weight:600">⏰ Time (UTC)</label>' +
-      '<input type="time" id="sched-time" value="14:00" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-primary);background:var(--bg-secondary);color:var(--text-primary);font-size:13px"></div>' +
-      '<div style="margin-bottom:12px"><label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;font-weight:600">📅 Date</label>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">' +
+      '<div><label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;font-weight:600">📅 Date</label>' +
       '<input type="date" id="sched-date" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-primary);background:var(--bg-secondary);color:var(--text-primary);font-size:13px"></div>' +
+      '<div id="sched-fixed-time"><label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;font-weight:600">⏰ Time</label>' +
+      '<input type="time" id="sched-time" value="14:00" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-primary);background:var(--bg-secondary);color:var(--text-primary);font-size:13px"></div>' +
+      '</div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end">' +
       '<button class="btn btn-secondary btn-sm" onclick="document.getElementById(\'pub-schedule-modal\').style.display=\'none\'">Cancel</button>' +
       '<button class="btn btn-primary btn-sm" id="pub-schedule-confirm">📅 Schedule</button>' +
@@ -4435,7 +4470,9 @@ async function pubSchedule(jobId, productName) {
     document.body.appendChild(overlay);
   }
   
+  document.getElementById('pub-schedule-title').textContent = '🎬 ' + (productName || vid.product_name || jobId);
   document.getElementById('sched-date').value = new Date().toISOString().split('T')[0];
+  
   document.querySelectorAll('input[name="sched-mode"]').forEach(function(rd){
     rd.onchange = function(){
       document.getElementById('sched-fixed-time').style.display = this.value === 'fixed' ? 'block' : 'none';
@@ -4445,6 +4482,11 @@ async function pubSchedule(jobId, productName) {
   overlay.style.display = 'flex';
   
   document.getElementById('pub-schedule-confirm').onclick = async function(){
+    var checks = document.querySelectorAll('#pub-schedule-platforms input[type="checkbox"]:checked');
+    var platforms = [];
+    checks.forEach(function(c){ platforms.push(c.value); });
+    if (!platforms.length) { alert('กรุณาเลือก platform'); return; }
+    
     var mode = (document.querySelector('input[name="sched-mode"]:checked') || {}).value || 'random';
     var schedDate = document.getElementById('sched-date').value;
     if (!schedDate) { alert('กรุณาเลือกวันที่'); return; }
@@ -4464,26 +4506,25 @@ async function pubSchedule(jobId, productName) {
     
     overlay.style.display = 'none';
     
-    var platform = document.getElementById('sched-platform').value;
     var title = vid.title || vid.product_name || productName;
     var desc = vid.description || '';
     var htags = vid.hashtags || [];
     var cap = (vid.product_name || productName) + ' | #TUS #UGC';
     if (htags.length) cap = cap + ' ' + htags.map(function(t){ return '#' + t.replace(/^#/,''); }).join(' ');
     
-    var enqR = await pfmFetch('/publisher/enqueue', {
-      method: 'POST', body: JSON.stringify({
-        video_path: vid.video_url, title: title, description: desc,
-        caption: cap, hashtags: htags, platform: platform,
-        job_id: jobId, schedule_at: scheduleAt
-      })
-    });
-    
-    if (enqR.success) {
-      alert('✅ Scheduled! ID: ' + enqR.post_id + ' | ' + new Date(scheduleAt).toLocaleString());
-    } else {
-      alert('❌ Failed: ' + (enqR.detail||enqR.error||'Unknown'));
+    var ok = 0;
+    for (var i = 0; i < platforms.length; i++) {
+      var enqR = await pfmFetch('/publisher/enqueue', {
+        method: 'POST', body: JSON.stringify({
+          video_path: vid.video_url, title: title, description: desc,
+          caption: cap, hashtags: htags, platform: platforms[i],
+          job_id: jobId, schedule_at: scheduleAt
+        })
+      });
+      if (enqR.success) ok++;
     }
+    
+    alert('✅ Scheduled ' + ok + '/' + platforms.length + ' platforms\n⏰ ' + new Date(scheduleAt).toLocaleString());
     loadPublisherQueue();
   };
 }

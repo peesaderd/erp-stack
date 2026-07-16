@@ -1732,6 +1732,75 @@ select.input { cursor: pointer; }
     </div>
   </div>
 </div>
+
+  <!-- Batch Schedule Modal -->
+  <div id="batch-schedule-modal" style="display:none" class="modal-overlay">
+    <div onclick="event.stopPropagation()" style="background:var(--bg-primary);border-radius:16px;padding:24px;max-width:560px;width:90%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);position:relative">
+      <button onclick="document.getElementById('batch-schedule-modal').style.display='none'" style="position:absolute;top:12px;right:12px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-secondary)">✕</button>
+      <h3 style="margin:0 0 16px 0;font-size:18px">📅 Batch Schedule</h3>
+
+      <div style="margin-bottom:12px">
+        <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;font-weight:600">📱 Platforms</label>
+        <div id="batch-platforms" style="display:flex;flex-wrap:wrap;gap:8px">
+          <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;padding:4px 10px;border:1px solid var(--border-primary);border-radius:20px;background:var(--bg-secondary)"><input type="checkbox" value="tiktok" checked onchange="updateBatchPreview()"> 🎵 TikTok</label>
+          <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;padding:4px 10px;border:1px solid var(--border-primary);border-radius:20px;background:var(--bg-secondary)"><input type="checkbox" value="instagram" onchange="updateBatchPreview()"> 📸 Instagram</label>
+          <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;padding:4px 10px;border:1px solid var(--border-primary);border-radius:20px;background:var(--bg-secondary)"><input type="checkbox" value="youtube" onchange="updateBatchPreview()"> ▶️ YouTube</label>
+          <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;padding:4px 10px;border:1px solid var(--border-primary);border-radius:20px;background:var(--bg-secondary)"><input type="checkbox" value="facebook" onchange="updateBatchPreview()"> 👤 Facebook</label>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div>
+          <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;font-weight:600">📅 Start Date</label>
+          <input type="date" id="batch-start" onchange="updateBatchPreview()" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-primary);background:var(--bg-secondary);color:var(--text-primary);font-size:13px">
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;font-weight:600">📅 End Date</label>
+          <input type="date" id="batch-end" onchange="updateBatchPreview()" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-primary);background:var(--bg-secondary);color:var(--text-primary);font-size:13px">
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+        <div>
+          <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;font-weight:600">📈 Posts/Day</label>
+          <input type="number" id="batch-count" value="3" min="1" max="20" onchange="updateBatchPreview()" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-primary);background:var(--bg-secondary);color:var(--text-primary);font-size:13px">
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;font-weight:600">⏰ Time From</label>
+          <input type="time" id="batch-time-start" value="08:00" onchange="updateBatchPreview()" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-primary);background:var(--bg-secondary);color:var(--text-primary);font-size:13px">
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;font-weight:600">⏰ Time To</label>
+          <input type="time" id="batch-time-end" value="22:00" onchange="updateBatchPreview()" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-primary);background:var(--bg-secondary);color:var(--text-primary);font-size:13px">
+        </div>
+      </div>
+
+      <div style="margin-bottom:16px">
+        <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;font-weight:600">🎯 Timing Mode</label>
+        <div style="display:flex;gap:16px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer">
+            <input type="radio" name="batch-mode" value="random" checked onchange="updateBatchPreview()"> 🎲 Random
+          </label>
+          <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer">
+            <input type="radio" name="batch-mode" value="fixed" onchange="updateBatchPreview()"> 🔒 Fixed
+          </label>
+          <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer">
+            <input type="radio" name="batch-mode" value="sequential" onchange="updateBatchPreview()"> 📏 Sequential
+          </label>
+        </div>
+      </div>
+
+      <div style="margin-bottom:16px;padding:12px;background:var(--bg-tertiary);border-radius:8px;font-size:12px;color:var(--text-secondary);line-height:1.6" id="batch-preview">
+        เลือกวันที่และตั้งค่าเพื่อดูตัวอย่าง...
+      </div>
+
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('batch-schedule-modal').style.display='none'">Cancel</button>
+        <button class="btn btn-primary btn-sm" onclick="executeBatchSchedule()">📅 Schedule All</button>
+      </div>
+    </div>
+  </div>
+
 </div><!-- /app -->
 
 <script>
@@ -4112,11 +4181,11 @@ function pubOpenVideoModal(videoUrl, jobId, productName) {
     overlay = document.createElement('div');
     overlay.id = 'pub-video-modal';
     overlay.className = 'modal-overlay';
-    overlay.style.cssText = 'z-index:200;display:flex;align-items:center;justify-content:center';
-    overlay.onclick = function(e) { if (e.target === this) this.classList.remove('open'); };
+    overlay.style.cssText = 'z-index:200';
+    overlay.onclick = function(e) { if (e.target === this) this.style.display = 'none'; };
     overlay.innerHTML = 
       '<div class="modal" style="max-width:420px;padding:0;background:#000;border-radius:16px;overflow:hidden;position:relative">' +
-      '<button onclick="document.getElementById(\'pub-video-modal\').classList.remove(\'open\')" style="position:absolute;top:10px;right:10px;z-index:20;background:rgba(0,0,0,0.7);color:#fff;border:2px solid rgba(255,255,255,0.3);border-radius:50%;width:34px;height:34px;font-size:16px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center">✕</button>' +
+      '<button onclick="document.getElementById(\'pub-video-modal\').style.display=\'none\'" style="position:absolute;top:10px;right:10px;z-index:20;background:rgba(0,0,0,0.7);color:#fff;border:2px solid rgba(255,255,255,0.3);border-radius:50%;width:34px;height:34px;font-size:16px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center">✕</button>' +
       '<video id="pub-modal-video" controls autoplay style="width:100%;max-height:70vh;display:block"></video>' +
       '<div id="pub-modal-info" style="padding:14px 16px;background:var(--bg-secondary);color:var(--text-primary)"></div>' +
       '</div>';
@@ -4131,7 +4200,7 @@ function pubOpenVideoModal(videoUrl, jobId, productName) {
     '<button class="btn btn-primary btn-sm" onclick="pubPostNow(\'' + escapeHtml(jobId) + '\', \'' + escapeHtml(productName) + '\')" style="flex:1;font-size:12px">🚀 Post Now</button>' +
     '<button class="btn btn-secondary btn-sm" onclick="pubSchedule(\'' + escapeHtml(jobId) + '\', \'' + escapeHtml(productName) + '\')" style="flex:1;font-size:12px">📅 Schedule</button>' +
     '</div>';
-  overlay.classList.add('open');
+  overlay.style.display = 'flex';
 }
 
 async function loadPublisherVideos() {
@@ -4256,6 +4325,13 @@ async function loadPublisherVideos() {
 
 // ─── Publisher: Platform helpers ───────────────────────────────
 
+function getBatchPlatforms() {
+  var checks = document.querySelectorAll('#batch-platforms input[type="checkbox"]:checked');
+  var platforms = [];
+  checks.forEach(function(c){ platforms.push(c.value); });
+  return platforms.length ? platforms : ['tiktok'];
+}
+
 function getCardPlatform(jobId) {
   var sel = document.getElementById('plat-' + jobId);
   return sel ? sel.value : 'tiktok';
@@ -4318,7 +4394,6 @@ async function pubPostNow(jobId, productName) {
 // ─── Publisher: Schedule ────────────────────────────────────
 
 async function pubSchedule(jobId, productName) {
-  // Get video info
   var r, vid;
   try {
     r = await fetch(API + '/video/completed');
@@ -4328,52 +4403,89 @@ async function pubSchedule(jobId, productName) {
   
   if (!vid || !vid.video_url) { alert('Video not found'); return; }
   
-  // Build simple schedule dialog inline
-  var mode = prompt('Schedule mode for "' + productName + '":\n\n1 = Random (±30 min from now)\n2 = Fixed time (choose)\n3 = Sequential (every 30 min)\n\nEnter 1, 2, or 3:', '1');
-  
-  var scheduleAt;
-  if (mode === '1') {
-    // Random: now + random 0-30 min
-    var mins = Math.floor(Math.random() * 30);
-    scheduleAt = new Date(Date.now() + mins * 60000).toISOString();
-  } else if (mode === '2') {
-    var timeStr = prompt('Enter time (HH:MM, 24h format, UTC):', '14:00');
-    if (!timeStr) return;
-    var today = new Date();
-    scheduleAt = new Date(today.toISOString().split('T')[0] + 'T' + timeStr + ':00Z').toISOString();
-  } else if (mode === '3') {
-    scheduleAt = new Date(Date.now() + 30 * 60000).toISOString();
-  } else {
-    return;
+  var overlay = document.getElementById('pub-schedule-modal');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'pub-schedule-modal';
+    overlay.className = 'modal-overlay';
+    overlay.style.cssText = 'z-index:200';
+    overlay.onclick = function(e) { if (e.target === this) this.style.display = 'none'; };
+    overlay.innerHTML =
+      '<div onclick="event.stopPropagation()" style="background:var(--bg-primary);border-radius:16px;padding:24px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);position:relative">' +
+      '<button onclick="document.getElementById(\'pub-schedule-modal\').style.display=\'none\'" style="position:absolute;top:12px;right:12px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-secondary)">✕</button>' +
+      '<h3 style="margin:0 0 16px 0">📅 Schedule Post</h3>' +
+      '<div style="margin-bottom:12px"><label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;font-weight:600">📱 Platform</label>' +
+      '<select id="sched-platform" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-primary);background:var(--bg-secondary);color:var(--text-primary);font-size:13px">' +
+      '<option value="tiktok">🎵 TikTok</option><option value="instagram">📸 Instagram</option><option value="youtube">▶️ YouTube</option><option value="facebook">👤 Facebook</option>' +
+      '</select></div>' +
+      '<div style="margin-bottom:12px"><label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;font-weight:600">🎯 Mode</label>' +
+      '<div style="display:flex;flex-direction:column;gap:8px">' +
+      '<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="radio" name="sched-mode" value="random" checked> 🎲 Random (±30min)</label>' +
+      '<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="radio" name="sched-mode" value="fixed"> 🔒 Fixed Time</label>' +
+      '<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="radio" name="sched-mode" value="sequential"> 📏 Sequential</label>' +
+      '</div></div>' +
+      '<div id="sched-fixed-time" style="display:none;margin-bottom:12px"><label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;font-weight:600">⏰ Time (UTC)</label>' +
+      '<input type="time" id="sched-time" value="14:00" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-primary);background:var(--bg-secondary);color:var(--text-primary);font-size:13px"></div>' +
+      '<div style="margin-bottom:12px"><label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;font-weight:600">📅 Date</label>' +
+      '<input type="date" id="sched-date" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-primary);background:var(--bg-secondary);color:var(--text-primary);font-size:13px"></div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end">' +
+      '<button class="btn btn-secondary btn-sm" onclick="document.getElementById(\'pub-schedule-modal\').style.display=\'none\'">Cancel</button>' +
+      '<button class="btn btn-primary btn-sm" id="pub-schedule-confirm">📅 Schedule</button>' +
+      '</div></div>';
+    document.body.appendChild(overlay);
   }
   
-  var title = vid.title || vid.product_name || productName;
-  var desc = vid.description || '';
-  var htags = vid.hashtags || [];
-  var cap = (vid.product_name || productName) + ' | #TUS #UGC';
-  if (htags.length) cap = cap + ' ' + htags.map(function(t){ return '#' + t.replace(/^#/, ''); }).join(' ');
-  
-  var platform = getCardPlatform(jobId);
-  var enqR = await pfmFetch('/publisher/enqueue', {
-    method: 'POST', body: JSON.stringify({
-      video_path: vid.video_url,
-      title: title,
-      description: desc,
-      caption: cap,
-      hashtags: htags,
-      platform: platform,
-      job_id: jobId,
-      schedule_at: scheduleAt
-    })
+  document.getElementById('sched-date').value = new Date().toISOString().split('T')[0];
+  document.querySelectorAll('input[name="sched-mode"]').forEach(function(rd){
+    rd.onchange = function(){
+      document.getElementById('sched-fixed-time').style.display = this.value === 'fixed' ? 'block' : 'none';
+    };
   });
   
-  if (enqR.success) {
-    alert('✅ Scheduled!\nID: ' + enqR.post_id + '\nAt: ' + new Date(scheduleAt).toLocaleString());
-  } else {
-    alert('❌ Schedule failed: ' + (enqR.detail||enqR.error||'Unknown'));
-  }
+  overlay.style.display = 'flex';
   
-  loadPublisherQueue();
+  document.getElementById('pub-schedule-confirm').onclick = async function(){
+    var mode = (document.querySelector('input[name="sched-mode"]:checked') || {}).value || 'random';
+    var schedDate = document.getElementById('sched-date').value;
+    if (!schedDate) { alert('กรุณาเลือกวันที่'); return; }
+    
+    var scheduleAt;
+    if (mode === 'random') {
+      var h = 8 + Math.floor(Math.random() * 14);
+      var m = Math.floor(Math.random() * 60);
+      scheduleAt = new Date(schedDate + 'T' + String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':00Z').toISOString();
+    } else if (mode === 'fixed') {
+      var timeStr = document.getElementById('sched-time').value;
+      if (!timeStr) { alert('กรุณากรอกเวลา'); return; }
+      scheduleAt = new Date(schedDate + 'T' + timeStr + ':00Z').toISOString();
+    } else {
+      scheduleAt = new Date(Date.now() + 30 * 60000).toISOString();
+    }
+    
+    overlay.style.display = 'none';
+    
+    var platform = document.getElementById('sched-platform').value;
+    var title = vid.title || vid.product_name || productName;
+    var desc = vid.description || '';
+    var htags = vid.hashtags || [];
+    var cap = (vid.product_name || productName) + ' | #TUS #UGC';
+    if (htags.length) cap = cap + ' ' + htags.map(function(t){ return '#' + t.replace(/^#/,''); }).join(' ');
+    
+    var enqR = await pfmFetch('/publisher/enqueue', {
+      method: 'POST', body: JSON.stringify({
+        video_path: vid.video_url, title: title, description: desc,
+        caption: cap, hashtags: htags, platform: platform,
+        job_id: jobId, schedule_at: scheduleAt
+      })
+    });
+    
+    if (enqR.success) {
+      alert('✅ Scheduled! ID: ' + enqR.post_id + ' | ' + new Date(scheduleAt).toLocaleString());
+    } else {
+      alert('❌ Failed: ' + (enqR.detail||enqR.error||'Unknown'));
+    }
+    loadPublisherQueue();
+  };
 }
 
 // ─── Publisher: Batch Schedule ──────────────────────────────
@@ -4388,19 +4500,12 @@ function showBatchSchedule() {
   var nextWeek = new Date(today);
   nextWeek.setDate(nextWeek.getDate() + 7);
   
-  document.getElementById('batch-start').value = today.toISOString().split('T')[0];
-  document.getElementById('batch-end').value = nextWeek.toISOString().split('T')[0];
+  var bs = document.getElementById('batch-start');
+  var be = document.getElementById('batch-end');
+  if (bs && !bs.value) bs.value = today.toISOString().split('T')[0];
+  if (be && !be.value) be.value = nextWeek.toISOString().split('T')[0];
   
   updateBatchPreview();
-  
-  // Update preview on any change
-  ['batch-start','batch-end','batch-count','batch-time-start','batch-time-end'].forEach(function(id){
-    var el = document.getElementById(id);
-    if (el) el.addEventListener('input', updateBatchPreview);
-  });
-  document.querySelectorAll('input[name="batch-mode"]').forEach(function(r){
-    r.addEventListener('change', updateBatchPreview);
-  });
 }
 
 function closeBatchSchedule() {
@@ -4418,9 +4523,10 @@ function updateBatchPreview() {
   var tStart = document.getElementById('batch-time-start').value;
   var tEnd = document.getElementById('batch-time-end').value;
   var mode = (document.querySelector('input[name="batch-mode"]:checked') || {}).value || 'random';
+  var platforms = getBatchPlatforms();
   
   if (!start || !end) {
-    preview.innerHTML = '<span style="color:var(--text-tertiary)">Select both start and end dates...</span>';
+    preview.innerHTML = '<span style="color:var(--text-tertiary)">กรุณาเลือกวันที่เริ่มและวันที่สิ้นสุด...</span>';
     return;
   }
   
@@ -4430,17 +4536,21 @@ function updateBatchPreview() {
   var total = days * count;
   
   if (days < 0) {
-    preview.innerHTML = '<span style="color:var(--color-red-400)">End date must be after start date</span>';
+    preview.innerHTML = '<span style="color:var(--color-red-400)">วันที่สิ้นสุดต้องมาหลังวันที่เริ่ม</span>';
     return;
   }
   
-  var modeLabels = {random:'🎲 Random times', fixed:'🔒 Fixed time ('+tStart+')', sequential:'📏 Evenly spaced'};
+  var modeLabels = {random:'🎲 Random', fixed:'🔒 Fixed ('+tStart+')', sequential:'📏 Sequential'};
+  var platNames = {tiktok:'🎵 TikTok', instagram:'📸 IG', youtube:'▶️ YT', facebook:'👤 FB'};
+  var platList = platforms.map(function(p){ return platNames[p] || p; }).join(', ');
+  
   preview.innerHTML = 
-    '<div style="font-weight:600;margin-bottom:4px">📊 Schedule Preview</div>' +
-    '<div>📅 ' + days + ' days (' + start + ' → ' + end + ')</div>' +
-    '<div>📈 ' + count + ' posts/day = <strong>' + total + ' total</strong></div>' +
-    '<div>⏰ Window: ' + tStart + ' – ' + tEnd + ' (' + modeLabels[mode] + ')</div>' +
-    '<div style="margin-top:6px;font-size:10px;color:var(--text-tertiary)">Videos will be spread across dates. Click "Schedule All" to add them to the post queue.</div>';
+    '<div style="font-weight:600;margin-bottom:6px">📊 ตัวอย่างตารางโพสต์</div>' +
+    '<div>📱 <strong>' + platList + '</strong> (' + platforms.length + ' platforms)</div>' +
+    '<div>📅 ' + days + ' วัน (' + start + ' → ' + end + ')</div>' +
+    '<div>📈 ' + count + ' โพสต์/วัน/แพลตฟอร์ม = <strong>' + total + ' total/plat</strong></div>' +
+    '<div>⏰ ' + tStart + ' – ' + tEnd + ' (' + modeLabels[mode] + ')</div>' +
+    '<div style="margin-top:6px;font-size:10px;color:var(--text-tertiary)">วิดีโอจะถูกกระจายตามวันที่เลือก กด "Schedule All" เพื่อเพิ่มลงคิว</div>';
 }
 
 async function executeBatchSchedule() {
@@ -4449,16 +4559,18 @@ async function executeBatchSchedule() {
   try {
     var r = await fetch(API + '/video/completed');
     var d = await r.json();
-    var platform = document.getElementById('batch-platform').value || 'tiktok';
+    var platforms = getBatchPlatforms();
     (d.jobs||[]).forEach(function(j){
-      vids.push({
-        job_id: j.job_id,
-        video_path: j.video_url || ('/api/tiktok/static/videos/final_' + j.job_id + '.mp4'),
-        title: j.title || j.product_name || '',
-        description: j.description || '',
-        caption: j.product_name || '',
-        hashtags: j.hashtags || [],
-        platform: platform
+      platforms.forEach(function(plat){
+        vids.push({
+          job_id: j.job_id,
+          video_path: j.video_url || ('/api/tiktok/static/videos/final_' + j.job_id + '.mp4'),
+          title: j.title || j.product_name || '',
+          description: j.description || '',
+          caption: j.product_name || '',
+          hashtags: j.hashtags || [],
+          platform: plat
+        });
       });
     });
   } catch(e) {}
@@ -4486,7 +4598,7 @@ async function executeBatchSchedule() {
         mode: mode,
         time_window_start: document.getElementById('batch-time-start').value,
         time_window_end: document.getElementById('batch-time-end').value,
-        platform: document.getElementById('batch-platform').value || 'tiktok'
+        platform: platforms[0]
       })
     });
     
@@ -4529,20 +4641,30 @@ async function loadPublisherQueue() {
     var scColors = {pending:'#f59e0b',scheduled:'#3b82f6',posting:'#f59e0b',posted:'#10b981',failed:'#ef4444',cancelled:'#6b7280'};
     var scIcons = {pending:'⏳',scheduled:'📅',posting:'⬆️',posted:'✅',failed:'❌',cancelled:'🚫'};
     
-    var html = '<table style="width:100%;border-collapse:collapse"><tr style="font-size:11px;text-transform:uppercase;color:var(--text-secondary);border-bottom:1px solid var(--border-primary)"><th style="padding:8px;text-align:left">ID</th><th style="padding:8px;text-align:left">Video</th><th style="padding:8px;text-align:left">Status</th><th style="padding:8px;text-align:left">Scheduled</th><th style="padding:8px;text-align:left">Result</th><th></th></tr>';
-    
     posts.forEach(function(p){
       var vidName = (p.video_path||'').split('/').pop() || '-';
-      html += '<tr style="border-bottom:1px solid var(--border-primary);font-size:13px">' +
-        '<td style="padding:8px;font-family:mono;font-size:10px">' + (p.id||'').substring(0,10) + '</td>' +
-        '<td style="padding:8px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + (p.video_path||'') + '">🎬 ' + vidName + '</td>' +
-        '<td style="padding:8px;color:' + (scColors[p.status]||'gray') + ';font-weight:600">' + (scIcons[p.status]||'') + ' ' + p.status + '</td>' +
-        '<td style="padding:8px;font-size:11px">' + (p.schedule_at ? new Date(p.schedule_at).toLocaleString() : '—') + '</td>' +
-        '<td style="padding:8px;font-size:10px;font-family:mono">' + (p.publish_id ? p.publish_id.substring(0,14) : (p.error ? '⚠️ ' + (p.error.substring(0,30)) : '—')) + '</td>' +
-        '<td style="padding:8px">' + (p.status === 'pending' ? '<button class="btn btn-primary btn-sm" onclick="pubPostNowById(\'' + p.id + '\')" style="font-size:11px">▶ Post</button>' : '') + '</td>' +
-        '</tr>';
+      var title = p.title || p.caption || vidName;
+      var platIcon = {tiktok:'🎵', instagram:'📸', youtube:'▶️', facebook:'👤'}[p.platform] || '📱';
+      html += '<div style="background:var(--bg-secondary);border:1px solid var(--border-primary);border-radius:10px;padding:12px;margin-bottom:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">' +
+        '<div style="flex:1;min-width:150px">' +
+          '<div style="font-size:13px;font-weight:600;margin-bottom:2px;display:flex;align-items:center;gap:6px">' +
+            '<span style="font-size:10px;font-family:mono;color:var(--text-tertiary)">' + (p.id||'').substring(0,10) + '</span>' +
+            '<span style="color:' + (scColors[p.status]||'gray') + '">' + (scIcons[p.status]||'') + '</span>' +
+            '<span style="font-size:11px;color:var(--text-secondary)">' + platIcon + ' ' + (p.platform||'tiktok') + '</span>' +
+          '</div>' +
+          '<div style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%" title="' + (p.video_path||'') + '">🎬 ' + escapeHtml(title) + '</div>' +
+          '<div style="font-size:10px;color:var(--text-tertiary);margin-top:2px">' +
+            (p.schedule_at ? '📅 ' + new Date(p.schedule_at).toLocaleString() : '') +
+            (p.publish_id ? ' | 🆔 ' + (p.publish_id||'').substring(0,14) : '') +
+            (p.error ? ' | ⚠️ ' + (p.error||'').substring(0,40) : '') +
+          '</div>' +
+        '</div>' +
+        '<div style="flex-shrink:0">' +
+          (p.status === 'pending' ? '<button class="btn btn-primary btn-sm" onclick="pubPostNowById(\'' + p.id + '\')" style="font-size:11px">▶ Post</button>' : '') +
+          (p.status === 'failed' ? '<button class="btn btn-secondary btn-sm" onclick="pubPostNowById(\'' + p.id + '\')" style="font-size:11px">🔁 Retry</button>' : '') +
+        '</div>' +
+      '</div>';
     });
-    html += '</table>';
     list.innerHTML = html;
   } catch(e) {
     list.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ ' + e.message + '</div>';

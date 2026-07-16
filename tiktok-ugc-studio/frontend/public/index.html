@@ -4182,10 +4182,10 @@ function pubOpenVideoModal(videoUrl, jobId, productName) {
     overlay.id = 'pub-video-modal';
     overlay.className = 'modal-overlay';
     overlay.style.cssText = 'z-index:200';
-    overlay.onclick = function(e) { if (e.target === this) this.style.display = 'none'; };
+    overlay.onclick = function(e) { if (e.target === this) { var v=document.getElementById('pub-modal-video'); if(v)v.pause(); this.style.display = 'none'; } };
     overlay.innerHTML = 
       '<div class="modal" style="max-width:420px;padding:0;background:#000;border-radius:16px;overflow:hidden;position:relative">' +
-      '<button onclick="document.getElementById(\'pub-video-modal\').style.display=\'none\'" style="position:absolute;top:10px;right:10px;z-index:20;background:rgba(0,0,0,0.7);color:#fff;border:2px solid rgba(255,255,255,0.3);border-radius:50%;width:34px;height:34px;font-size:16px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center">✕</button>' +
+      '<button onclick="var m=document.getElementById(\'pub-video-modal\');var v=document.getElementById(\'pub-modal-video\');if(v)v.pause();m.style.display=\'none\'" style="position:absolute;top:10px;right:10px;z-index:20;background:rgba(0,0,0,0.7);color:#fff;border:2px solid rgba(255,255,255,0.3);border-radius:50%;width:34px;height:34px;font-size:16px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center">✕</button>' +
       '<video id="pub-modal-video" controls autoplay style="width:100%;max-height:70vh;display:block"></video>' +
       '<div id="pub-modal-info" style="padding:14px 16px;background:var(--bg-secondary);color:var(--text-primary)"></div>' +
       '</div>';
@@ -4409,7 +4409,7 @@ async function pubSchedule(jobId, productName) {
     overlay.id = 'pub-schedule-modal';
     overlay.className = 'modal-overlay';
     overlay.style.cssText = 'z-index:200';
-    overlay.onclick = function(e) { if (e.target === this) this.style.display = 'none'; };
+    overlay.onclick = function(e) { if (e.target === this) { var v=document.getElementById('pub-modal-video'); if(v)v.pause(); this.style.display = 'none'; } };
     overlay.innerHTML =
       '<div onclick="event.stopPropagation()" style="background:var(--bg-primary);border-radius:16px;padding:24px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);position:relative">' +
       '<button onclick="document.getElementById(\'pub-schedule-modal\').style.display=\'none\'" style="position:absolute;top:12px;right:12px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-secondary)">✕</button>' +

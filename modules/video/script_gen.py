@@ -33,11 +33,15 @@ PROMPTS_DIR = Path(__file__).parent / "prompts"
 # ─── Persona-Aware System Prompt Builder ────────────────────────────
 # ═══════════════════════════════════════════════════════════════════════
 
-def build_script_system_prompt(persona: dict) -> str:
+def build_script_system_prompt(persona: dict, duration: str = "8s") -> str:
     """Build a persona-injected system prompt for Gemini script generation.
     
     Takes the persona dict (from persona_engine._select_persona()) and
-    generates a system prompt layer that controls tone, voice, and pacing.
+    generates a system prompt layer that controls tone, voice, pacing and timing.
+    
+    Args:
+        persona: dict from _select_persona()
+        duration: "8s", "15s", or "16s"
     """
     persona_name = persona.get("vibe", "ทั่วไป").split(",")[0].strip()
     persona_age = persona.get("model_age", "25-35")
@@ -46,7 +50,7 @@ def build_script_system_prompt(persona: dict) -> str:
     forbidden = persona.get("forbidden_phrases", "")
 
     base = """คุณคือ Copywriter มืออาชีพที่เขียนสคริปต์โฆษณา UGC สั้นๆ สำหรับ TikTok
-สคริปต์ต้องสั้น กระชับ เข้าใจง่าย เหมาะกับ Voiceover ความยาว 8-16 วินาที
+สคริปต์ต้องสั้น กระชับ เข้าใจง่าย เหมาะกับ Voiceover
 
 [STRICT TONE & VOICE CONTROL]
 ให้สวมบทบาทเป็นบุคคลที่มีบุคลิกดังนี้:
@@ -71,17 +75,44 @@ def build_script_system_prompt(persona: dict) -> str:
 12. ห้ามใช้ Hook Value CTA ในสคริปต์
 13. ห้ามมีตัวเลขและ emoji ในสคริปต์เด็ดขาด"""
 
-    return base.format(
+    base = base.format(
         persona_name=persona_name,
         persona_age=persona_age,
         speech_style=speech_style,
         pacing=pacing,
         forbidden=forbidden,
     )
+    
+    # ─── Append duration timing constraints ──────────────────────────
+    if duration in ("15s", "16s"):
+        base += adjust_prompt_for_duration(duration)
+    
+    return base
 
 
 # ─── Gemini Config ─────────────────────────────────────────────────────────
 
+# ─── Duration Timing Constraints ──────────────────────────────────────────
+
+def adjust_prompt_for_duration(duration_type: str = "15s") -> str:
+    """Return timing constraint prompt layer for longer videos."""
+    if duration_type == "15s":
+        return (
+            "\\n[TIMING CONSTRAINT for 15 วินาที]"
+            "\\n- สคริปต์ทั้งหมดต้องมีความยาวรวมกันประมาณ 45-55 คำ (ภาษาไทย) เพื่อให้พูดจบภายใน 15 วินาที"
+            "\\n- แบ่งเวลาเป็น 3-4 ช่วง ช่วงละ 3-5 วินาที"
+            "\\n- ห้ามน้ำท่วมทุ่ง ให้เข้าประเด็นตามโครงสร้างที่กำหนด"
+            "\\n- ห้ามมีเนื้อหาซ้ำหรืออธิบายยืดเยื้อ"
+            "\\n- CTA ต้องสั้นและชัดเจนภายใน 2 วินาทีสุดท้าย"
+        )
+    elif duration_type == "16s":
+        return (
+            "\\n[TIMING CONSTRAINT for 16 วินาที]"
+            "\\n- สคริปต์ทั้งหมดต้องมีความยาวรวมกันประมาณ 48-60 คำ (ภาษาไทย)"
+            "\\n- แบ่งเป็น Hook (3s), Value (10s), CTA (3s)"
+            "\\n- ห้ามน้ำท่วมทุ่ง ให้เข้าประเด็นตามโครงสร้างที่กำหนด"
+        )
+    return ""
 def _call_gemini(system_prompt: str, user_prompt: str) -> Optional[str]:
     """Call Gemini API for script generation."""
     api_key = GEMINI_API_KEY()
@@ -169,6 +200,11 @@ def generate_tiktok_review_script(
         system = load_prompt("system_16s.prompt.txt")
         master = load_prompt("master_16s_3step.prompt.txt")
         user_tpl = load_prompt("user_16s.prompt.txt")
+    elif duration == "15s":
+        # 15s uses same base prompts as 8s but with timing addendum
+        system = load_prompt("system.prompt.txt")
+        master = load_prompt("master.prompt.txt")
+        user_tpl = load_prompt("user.template.prompt.txt")
     else:
         system = load_prompt("system.prompt.txt")
         master = load_prompt("master.prompt.txt")
@@ -191,7 +227,7 @@ def generate_tiktok_review_script(
     user_prompt = fill_template(user_tpl, user_data)
     
     # ─── Build persona-aware system prompt ────────────────────────────
-    persona_layer = build_script_system_prompt(persona)
+    persona_layer = build_script_system_prompt(persona, duration)
     combined_system = f"{persona_layer}\n\n{system}" if system else persona_layer
 
     # ─── Try LLM with persona injection ───────────────────────────────
@@ -325,6 +361,11 @@ SCRIPT_TEMPLATES = {
         "hook": ["เปิดด้วยปัญหา", "เปิดด้วยคำถาม", "เปิดด้วยความว้าว"],
         "value": ["บอกประโยชน์หลัก", "บอกจุดเด่น"],
         "cta": ["เชิญชวนซื้อ", "บอกให้กดลิงก์"],
+    },
+    "15s": {
+        "hook": ["เปิดด้วยคำถามลึก", "หยุดก่อนซื้อ", "ทำไมคนถึงเปลี่ยน"],
+        "value": ["ขยายปัญหา", "อธิบายจุดต่าง", "เหตุผลที่เหนือกว่า"],
+        "cta": ["เปลี่ยนเลยวันนี้", "ได้สิทธิพิเศษ", "กดลิงก์เลย"],
     },
     "16s": {
         "hook": ["เปิดเรื่อง", "ดึงดูดความสนใจ"],

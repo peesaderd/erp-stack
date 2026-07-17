@@ -1,0 +1,73 @@
+{
+    "name": "tus_comparison_15s",
+    "description": "Us vs Them recipe — เปรียบเทียบเรา vs คู่แข่ง แบบเจาะลึก 15 seconds. เหมาะกับสินค้าที่ต้องการเพิ่ม Conversion Rate",
+    "version": "1.0",
+    "total_duration": 15,
+    "video_model": "wan2.7",
+    "video_count": 1,
+    "scenes": [
+        {
+            "name": "Hook",
+            "scene_index": 0,
+            "function": "Difference Hook",
+            "duration_seconds": 3,
+            "word_count": "8-12",
+            "content": "เปิดด้วยความต่าง — 'หยุดเสียเงินซื้อแบบเดิมๆ...' หรือ 'ทำไมต้องจ่ายแพงกว่า?'",
+            "prompt": "Person looking at camera with a 'let me tell you' expression, holding two products, curious/contrast vibe",
+            "voice_over_type": "contrast_hook",
+            "visual_focus": "curiosity_builder"
+        },
+        {
+            "name": "Them",
+            "scene_index": 1,
+            "function": "Competitor Flaw",
+            "duration_seconds": 4,
+            "word_count": "12-15",
+            "content": "ชี้จุดบกพร่องของตลาดทั่วไป — ขนส่งช้า พังง่าย กลิ่นฉุน ราคาแพง ใช้ไม่คุ้ม",
+            "prompt": "Person showing disappointment with competitor product, skeptical expression, holding inferior product with distaste",
+            "voice_over_type": "competitor_exposure",
+            "visual_focus": "competitor_weakness"
+        },
+        {
+            "name": "Us",
+            "scene_index": 2,
+            "function": "Our Superiority",
+            "duration_seconds": 6,
+            "word_count": "18-22",
+            "content": "โชว์จุดขายที่เราเหนือกว่าอย่างชัดเจน — สูตรเข้มข้นกว่า 2 เท่า บริการถึงที่ ราคาคุ้มกว่า",
+            "prompt": "Person holding our product with pride, confident smile, warm premium lighting, product features visible, side by side with competitor",
+            "voice_over_type": "superiority_explanation",
+            "visual_focus": "product_superiority"
+        },
+        {
+            "name": "CTA",
+            "scene_index": 3,
+            "function": "CTA",
+            "duration_seconds": 2,
+            "word_count": "6-8",
+            "content": "เปลี่ยนมาใช้เราเลย — ราคา ส่วนลด หรือ benefit ปิดท้าย",
+            "prompt": "Person pointing to cart or link, confident final nod, product in premium end frame",
+            "voice_over_type": "winner_cta",
+            "visual_focus": "purchase_decision"
+        }
+    ],
+    "ugc_styles": ["holding", "review", "split_comparison", "talking", "street_interview"],
+    "default_style": "split_comparison",
+    "voice_tone": "confident, convincing, slightly competitive, then warm",
+    "target_audience": "Thai TikTok users comparing options before purchase, need decisive reason",
+    "language": "th",
+    "image_generation": {
+        "model": "nano-banana",
+        "aspect_ratio": "9:16",
+        "style": "realistic, dramatic comparison"
+    },
+    "video_generation": {
+        "model": "wan2.7",
+        "duration": 15,
+        "async": true
+    },
+    "tts": {
+        "voice": "Aoede",
+        "language": "th"
+    }
+}

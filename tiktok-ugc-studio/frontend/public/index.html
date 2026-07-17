@@ -1086,6 +1086,23 @@ select.input { cursor: pointer; }
     <div class="skeleton skeleton-line"></div>
     <div class="skeleton skeleton-line"></div>
   </div>
+
+  <!-- Scraped Products (Gemini) -->
+  <div id="scrapedSection" style="margin-top:28px;display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div>
+        <h3 style="font-size:16px;margin:0">📦 Scraped Products (Gemini)</h3>
+        <p class="text-xs text-secondary" style="margin:2px 0 0 0">60 สินค้าจากระบบ Scraped Product</p>
+      </div>
+      <div style="display:flex;gap:6px">
+        <span id="scrapedTotalBadge" class="badge" style="background:rgba(139,92,246,0.1);color:var(--accent-purple);font-size:11px"></span>
+        <button class="btn btn-primary btn-sm" onclick="loadScrapedProducts()">🔄 Refresh</button>
+      </div>
+    </div>
+    <div id="scrapedProductGrid" class="product-grid">
+      <div class="empty-state" style="grid-column:1/-1;text-align:center;padding:24px">กด Refresh เพื่อโหลดสินค้าจาก PostgreSQL</div>
+    </div>
+  </div>
 </div>
 
 <!-- ═══ Content ═══ -->
@@ -4139,6 +4156,67 @@ async function loadAnalyzedProducts() {
       return `<div class="product-card" onclick="useProduct('${enc}')">${imgHtml}<div class="product-card-body"><div class="product-card-title">${p.title || "Unknown"}</div><div class="product-card-meta"><span class="product-card-price">฿${Number(price).toLocaleString()}</span><span class="product-card-comm">💰 ${comm}%</span><span class="product-card-platform">${p.source || "tiktok"}</span></div><div class="product-card-sold">🔥 Sold ${sold.toLocaleString()} pcs ${imgCount ? '· 📸 ' + imgCount + ' รูป' : ''}</div><div class="product-card-footer"><span class="text-xs text-secondary truncate" style="max-width:140px">${pUrl}</span><button class="btn btn-primary btn-sm">🎬 Create Video</button></div></div></div>`;
     }).join("");
   } catch(e) { grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">Error: ' + e.message + '</div>'; }
+  // Also load scraped products
+  loadScrapedProducts();
+}
+
+async function loadScrapedProducts() {
+  var section = document.getElementById('scrapedSection');
+  var grid = document.getElementById('scrapedProductGrid');
+  if (!grid) return;
+  section.style.display = 'block';
+  grid.innerHTML = '<div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line"></div>';
+  try {
+    var r = await fetch(API + '/products/scraped?limit=100');
+    if (!r.ok) throw new Error('API Error');
+    var d = await r.json();
+    var products = d.products || [];
+    document.getElementById('scrapedTotalBadge').textContent = products.length + ' รายการ';
+    if (!products.length) {
+      grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">No scraped products in DB</div>';
+      return;
+    }
+    var avgComm = products.reduce(function(a,p){ return a + parseFloat(p.commission||0); }, 0) / products.length;
+    grid.innerHTML = products.map(function(p){
+      var price = p.price_thb || 0;
+      var comm = p.commission || '';
+      var cat = p.category || '';
+      var hook = p.hook_concept || '';
+      var enc = encodeURIComponent(JSON.stringify(p));
+      var imgUrl = p.image_filename ? '' : ''; // images on server, not accessible via URL yet
+      return '<div class="product-card" onclick="useScrapedProduct(\'' + enc.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')">' +
+        '<div class="product-card-img" style="display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);font-size:32px;background:var(--bg-tertiary)">\ud83d\udce6</div>' +
+        '<div class="product-card-body">' +
+        '<div class="product-card-title">' + (p.title || 'Unknown').slice(0,60) + '</div>' +
+        '<div class="product-card-meta">' +
+        '<span class="product-card-price">\u0e3f' + Number(price).toLocaleString() + '</span>' +
+        (comm ? '<span class="product-card-comm">\ud83d\udcb0 ' + comm + '</span>' : '') +
+        (cat ? '<span class="product-card-platform">' + cat.slice(0,20) + '</span>' : '') +
+        '</div>' +
+        (hook ? '<div class="text-xs text-secondary" style="margin-top:4px;line-height:1.3">\ud83d\udca1 ' + hook.slice(0,80) + '</div>' : '') +
+        '<div class="product-card-footer" style="margin-top:6px">' +
+        '<button class="btn btn-primary btn-sm">\ud83c\udfac Create Video</button>' +
+        '</div></div></div>';
+    }).join('');
+  } catch(e) {
+    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">Error: ' + e.message + '</div>';
+  }
+}
+
+function useScrapedProduct(jsonEncoded) {
+  try {
+    var p = JSON.parse(decodeURIComponent(jsonEncoded));
+    // Fill wizard fields
+    document.getElementById('productTitle').value = p.title || '';
+    document.getElementById('productDetails').value = (p.hook_concept || '') + '\n\nสินค้า: ' + (p.title || '') + '\nราคา: ฿' + (p.price_thb || 0);
+    // Store for auto pipeline
+    sessionStorage.setItem('autoSelectedProduct', JSON.stringify(p));
+    // Switch to content tab
+    switchTab('content');
+    showToast('\u2705 Selected: ' + (p.title || '').slice(0,40), 'success');
+  } catch(e) {
+    showToast('Error selecting product: ' + e.message, 'error');
+  }
 }
 
 /* ═══ Product Picker Modal ═══ */

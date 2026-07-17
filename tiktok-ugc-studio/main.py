@@ -10,6 +10,7 @@ from typing import Optional
 
 import httpx
 from fastapi import FastAPI, HTTPException, Query, Request, File, Form, UploadFile
+import asyncpg
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -999,6 +1000,40 @@ def list_products(limit: int = 50, preset: str = "all"):
         products.append(row_dict)
     
     return {"products": products}
+
+
+PRODUCTDB_DSN = "postgresql://openhands:OpenHands%40ERP2026@127.0.0.1:5435/productdb"
+
+@app.get("/products/scraped")
+async def list_scraped_products(limit: int = 100):
+    """List products from PostgreSQL productdb.products (Gemini-scraped)."""
+    try:
+        conn = await asyncpg.connect(PRODUCTDB_DSN)
+        rows = await conn.fetch(
+            "SELECT id, name, data FROM products ORDER BY id ASC LIMIT $1", limit
+        )
+        await conn.close()
+        products = []
+        for r in rows:
+            data = json.loads(r["data"]) if isinstance(r["data"], str) else (r["data"] or {})
+            products.append({
+                "id": r["id"],
+                "title": r["name"],
+                "price_thb": float(data.get("price", 0)),
+                "commission": data.get("commission_rate", ""),
+                "category": data.get("category", ""),
+                "product_id": data.get("product_id", ""),
+                "product_url": data.get("product_url", ""),
+                "hook_concept": data.get("hook_concept", ""),
+                "image_filename": data.get("image_filename", ""),
+                "source": "tiktok",
+                "images": [],
+                "image_count": 0,
+            })
+        return {"success": True, "products": products, "total": len(products)}
+    except Exception as e:
+        logger.error(f"list_scraped_products failed: {e}")
+        return {"success": False, "products": [], "total": 0, "error": str(e)}
 
 # ─── UGC Frontend API Compatibility ───────────────────────────────────────
 

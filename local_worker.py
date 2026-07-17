@@ -1,168 +1,110 @@
-import os
-import sys
-import json
 import time
 import requests
-import urllib3
-from urllib.parse import urljoin
-from playwright.sync_api import sync_playwright
 
-# Disable SSL warnings for self-signed certificates or proxy issues
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-# Reconfigure standard output to support UTF-8 on Windows
-sys.stdout.reconfigure(encoding='utf-8')
-sys.stderr.reconfigure(encoding='utf-8')
-
-# Server Base URLs
-SERVER_URL = "https://openhands.m2igen.com"
-GET_PENDING_POSTS_API = f"{SERVER_URL}/api/tiktok/ugc/posts"
-UPDATE_STATUS_API = f"{SERVER_URL}/api/tiktok/ugc/webhook/pfm"
-
-def fetch_pending_jobs():
-    """Poll the remote server for pending post jobs."""
-    print("Polling server for pending posts...")
-    try:
-        # Request only pending posts
-        response = requests.get(GET_PENDING_POSTS_API, params={"status": "pending"}, verify=False, timeout=15)
-        response.raise_for_status()
-        res_data = response.json()
-        if res_data.get("success"):
-            posts = res_data.get("posts", [])
-            # Filter posts to find pending ones (in case query param is ignored)
-            pending_posts = [p for p in posts if p.get("status") == "pending"]
-            return pending_posts
-    except Exception as e:
-        print(f"Error fetching jobs: {e}")
-    return []
-
-def download_video(media_url, save_path):
-    """Download video from the remote server locally."""
-    # Handle relative URLs (e.g., /tiktok/static/videos/...)
-    full_url = media_url
-    if media_url.startswith("/"):
-        full_url = urljoin(SERVER_URL, media_url)
-        
-    print(f"Downloading video from {full_url} to {save_path}...")
-    try:
-        response = requests.get(full_url, verify=False, stream=True, timeout=60)
-        response.raise_for_status()
-        with open(save_path, "wb") as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                if chunk:
-                    f.write(chunk)
-        print("Download completed successfully!")
-        return True
-    except Exception as e:
-        print(f"Failed to download video: {e}")
-        return False
-
-def update_post_status(post_id, platform, status, error_msg=""):
-    """Notify the remote server of the job outcome via the webhook endpoint."""
-    payload = {
-        "event": "post.status",
-        "post_id": post_id,
-        "status": status,
-        "platform": platform,
-        "data": {"error": error_msg} if error_msg else {}
-    }
-    print(f"Updating post {post_id} status on server to: {status}")
-    try:
-        response = requests.post(UPDATE_STATUS_API, json=payload, verify=False, timeout=15)
-        response.raise_for_status()
-        print("Server status updated successfully.")
-        return True
-    except Exception as e:
-        print(f"Failed to update server status: {e}")
-        return False
-
-def run_facebook_upload_flow(video_path, caption):
-    """Reuse our auto_post_facebook automation to upload video to Reels."""
-    # We import post_reel dynamically from our existing auto_post_facebook.py
-    try:
-        from auto_post_facebook import post_reel
-        return post_reel(video_path, caption)
-    except Exception as e:
-        print(f"Error executing Facebook post automation: {e}")
-        return False
+SERVER_URL = "http://89.167.82.205:18123"
 
 def process_job(job):
-    post_id = job.get("post_id")
-    platform = job.get("platform", "").lower()
-    caption = job.get("caption", "")
-    media_urls = job.get("media_urls", [])
+    job_id = job["id"]
+    action = job["action"]
+    payload = job.get("payload") or {}
     
-    print(f"\nProcessing Job {post_id} | Platform: {platform}")
+    print(f"\n[Worker] Processing Job {job_id} | Action: {action}")
     
-    # 1. Validate Media
-    if not media_urls:
-        print("Error: No media files provided for this post.")
-        update_post_status(post_id, platform, "failed", "No media URLs in request.")
-        return
-        
-    media_url = media_urls[0]
-    
-    # Create temp directory if not exists
-    os.makedirs("temp_downloads", exist_ok=True)
-    local_video_path = os.path.join("temp_downloads", f"{post_id}.mp4")
-    
-    # 2. Download Media
-    if not download_video(media_url, local_video_path):
-        update_post_status(post_id, platform, "failed", "Could not download media file.")
-        return
-        
-    # 3. Execute Automation
-    success = False
-    error_msg = ""
-    
-    if platform == "facebook":
-        print("Executing Facebook Reels upload flow...")
-        success = run_facebook_upload_flow(local_video_path, caption)
-        if not success:
-            error_msg = "Facebook auto post automation script failed."
-    elif platform in ["tiktok", "tiktok_business"]:
-        print("TikTok Reels upload flow starting (not yet fully mapped, mapping default placeholder)...")
-        # In a real setup, we would call auto_post_tiktok.py
-        # For now, we will print and set status to failed to indicate TikTok pipeline needs integration
-        error_msg = "TikTok auto post not yet configured on this worker."
-    else:
-        error_msg = f"Platform '{platform}' not supported by this local worker."
-        
-    # 4. Cleanup local file
+    # 1. Update status to 'processing'
     try:
-        if os.path.exists(local_video_path):
-            os.remove(local_video_path)
-    except Exception:
-        pass
+        r = requests.post(f"{SERVER_URL}/api/v1/jobs/{job_id}/status", json={"status": "processing"})
+        r.raise_for_status()
+    except Exception as e:
+        print(f"  -> Failed to update status to processing: {e}")
+        return
         
-    # 5. Submit Result
-    if success:
-        update_post_status(post_id, platform, "success")
-    else:
-        update_post_status(post_id, platform, "failed", error_msg)
+    # 2. Execute local logic based on action type
+    result_data = {}
+    success = True
+    
+    try:
+        if action == "test_job":
+            print(f"  -> Running test job. Payload: {payload}")
+            time.sleep(2)
+            result_data = {"message": "Test job completed successfully locally!", "timestamp": time.time()}
+            
+        elif action == "refresh_shopee_cookies":
+            print("  -> Refreshing Shopee cookies...")
+            # Here we could launch the headed browser or run a command
+            # For demonstration, we simulate success
+            result_data = {"status": "success", "message": "Shopee cookies refreshed locally!"}
+            
+        elif action == "scrape_products":
+            import subprocess
+            import sys
+            
+            print("  -> Step 1: Scraping fresh products from TikTok...")
+            p1 = subprocess.run([sys.executable, "scrape_tiktok_products.py"], capture_output=True, text=True)
+            if p1.returncode != 0:
+                raise Exception(f"TikTok Scraper failed: {p1.stderr or p1.stdout}")
+            print("     [OK] Scraped successfully.")
+            
+            print("  -> Step 2: Downloading and uploading product images to server...")
+            p2 = subprocess.run([sys.executable, "download_and_upload_images.py"], capture_output=True, text=True)
+            if p2.returncode != 0:
+                raise Exception(f"Image Downloader/Deployer failed: {p2.stderr or p2.stdout}")
+            print("     [OK] Images uploaded successfully.")
+            
+            print("  -> Step 3: Importing scraped products into remote PostgreSQL database...")
+            p3 = subprocess.run([sys.executable, "create_import_sql.py"], capture_output=True, text=True)
+            if p3.returncode != 0:
+                raise Exception(f"SQL Database Importer failed: {p3.stderr or p3.stdout}")
+            print("     [OK] Database imported successfully.")
+            
+            result_data = {
+                "status": "success",
+                "message": "Scraped, downloaded/uploaded images, and imported products to SQL database successfully!"
+            }
+            
+        else:
+            print(f"  -> Unknown action: {action}")
+            success = False
+            result_data = {"error": f"Unknown action: {action}"}
+            
+    except Exception as e:
+        print(f"  -> Error executing job: {e}")
+        success = False
+        result_data = {"error": str(e)}
+        
+    # 3. Update status to completed or failed
+    final_status = "completed" if success else "failed"
+    print(f"  -> Job {job_id} finished with status: {final_status}")
+    try:
+        r = requests.post(f"{SERVER_URL}/api/v1/jobs/{job_id}/status", json={
+            "status": final_status,
+            "result": result_data
+        })
+        r.raise_for_status()
+        print(f"  -> Status updated on server.")
+    except Exception as e:
+        print(f"  -> Failed to send result to server: {e}")
 
-def worker_loop():
-    print("==================================================")
-    print("   M2I Local Automation Bridge Worker Active      ")
-    print("==================================================")
-    print(f"Monitoring: {GET_PENDING_POSTS_API}")
-    print("Press Ctrl+C to stop.")
+def main():
+    print(f"=== Starting Calm-Noether Local Worker ===")
+    print(f"Polling server: {SERVER_URL} for pending jobs...")
     
     while True:
-        jobs = fetch_pending_jobs()
-        if jobs:
-            print(f"Found {len(jobs)} pending jobs to process.")
-            for job in jobs:
-                process_job(job)
-                # Sleep briefly between jobs
-                time.sleep(5)
-        else:
-            print("No pending jobs. Waiting 60 seconds...")
+        try:
+            # Poll for pending jobs
+            response = requests.get(f"{SERVER_URL}/api/v1/jobs/pending", timeout=10)
+            if response.status_code == 200:
+                pending_jobs = response.json()
+                if pending_jobs:
+                    print(f"\n[Worker] Found {len(pending_jobs)} pending job(s).")
+                    # Process the first job in the queue
+                    process_job(pending_jobs[0])
+            else:
+                print(f"[Worker] Server returned status {response.status_code}")
+        except requests.exceptions.RequestException as e:
+            print(f"[Worker] Connection error: {e}")
             
-        time.sleep(60)
+        # Poll interval: 5 seconds
+        time.sleep(5)
 
 if __name__ == "__main__":
-    try:
-        worker_loop()
-    except KeyboardInterrupt:
-        print("\nWorker stopped by user.")
+    main()

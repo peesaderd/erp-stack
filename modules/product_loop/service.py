@@ -13,7 +13,7 @@ from sqlalchemy import (Column, Integer, String, DateTime, JSON, create_engine,
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@db:5432/productdb")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://openhands:OpenHands%40ERP2026@db:5432/productdb")
 
 engine = create_engine(DATABASE_URL, echo=False)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -31,6 +31,16 @@ class Usage(Base):
     user_id = Column(String, index=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+class Job(Base):
+    __tablename__ = "jobs"
+    id = Column(Integer, primary_key=True, index=True)
+    status = Column(String, default="pending", nullable=False)  # pending, processing, completed, failed
+    action = Column(String, nullable=False)
+    payload = Column(JSON)
+    result = Column(JSON)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Product Loop Service")
@@ -44,6 +54,23 @@ class ProductOut(BaseModel):
     id: int
     name: str
     data: Optional[dict]
+
+class JobCreate(BaseModel):
+    action: str
+    payload: Optional[dict] = None
+
+class JobUpdate(BaseModel):
+    status: str
+    result: Optional[dict] = None
+
+class JobOut(BaseModel):
+    id: int
+    status: str
+    action: str
+    payload: Optional[dict]
+    result: Optional[dict]
+    created_at: datetime
+    updated_at: datetime
 
 def get_db():
     db = SessionLocal()
@@ -92,6 +119,39 @@ def get_usage(user_id: str, db: Session = Depends(get_db)):
     cutoff = datetime.utcnow() - timedelta(days=WINDOW_DAYS)
     count = db.query(Usage).filter(Usage.user_id == user_id, Usage.created_at >= cutoff).count()
     return JSONResponse({"user_id": user_id, "usage_last_30d": count, "max_allowed": MAX_USES})
+
+@app.post("/api/v1/jobs", response_model=JobOut)
+def create_job(job: JobCreate, db: Session = Depends(get_db)):
+    db_job = Job(action=job.action, payload=job.payload, status="pending")
+    db.add(db_job)
+    db.commit()
+    db.refresh(db_job)
+    return db_job
+
+@app.get("/api/v1/jobs/pending", response_model=List[JobOut])
+def get_pending_jobs(db: Session = Depends(get_db)):
+    return db.query(Job).filter(Job.status == "pending").order_by(Job.created_at.asc()).all()
+
+@app.post("/api/v1/jobs/{job_id}/status", response_model=JobOut)
+def update_job_status(job_id: int, status_update: JobUpdate, db: Session = Depends(get_db)):
+    db_job = db.query(Job).filter(Job.id == job_id).first()
+    if not db_job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if status_update.status not in ["pending", "processing", "completed", "failed"]:
+        raise HTTPException(status_code=400, detail="Invalid status")
+    db_job.status = status_update.status
+    if status_update.result is not None:
+        db_job.result = status_update.result
+    db.commit()
+    db.refresh(db_job)
+    return db_job
+
+@app.get("/api/v1/jobs/{job_id}", response_model=JobOut)
+def get_job(job_id: int, db: Session = Depends(get_db)):
+    db_job = db.query(Job).filter(Job.id == job_id).first()
+    if not db_job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return db_job
 
 @app.get("/health")
 def health():

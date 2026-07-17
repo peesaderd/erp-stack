@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "name": "comparison",
+  "label": "Us vs Them",
+  "description": "เปรียบเทียบของเก่า/คู่แข่ง vs สินค้าเรา — เหมาะกับสินค้าที่มีจุดขายเหนือกว่าชัดเจน",
+  "scenes": [
+    {
+      "id": "hook",
+      "timing_ratio": 0.2,
+      "purpose": "เปิดด้วยความไม่พอใจสินค้าเดิมของ '{target_audience}'",
+      "prompt": "เปิดด้วยปัญหาของสินค้าทั่วไปที่คนใช้อยู่"
+    },
+    {
+      "id": "them",
+      "timing_ratio": 0.25,
+      "purpose": "ชี้จุดด้อยของของเก่า/คู่แข่ง — {problem}",
+      "prompt": "ของทั่วไปมัน {problem}"
+    },
+    {
+      "id": "us",
+      "timing_ratio": 0.4,
+      "purpose": "'{product}' ดีกว่ายังไง — เหนือกว่า เห็นผลจริง",
+      "prompt": "แต่ {product} แตกต่างเพราะ {benefit}"
+    },
+    {
+      "id": "cta",
+      "timing_ratio": 0.15,
+      "purpose": "เปลี่ยนมาใช้ {product}",
+      "prompt": "ถึงเวลาเปลี่ยน — {product} พร้อมให้ลอง"
+    }
+  ],
+  "recommended": {
+    "styles": ["split_comparison", "holding", "review"],
+    "personas": ["gen_z_trendy", "aesthetic_minimalist"],
+    "categories": ["electronics", "tools", "fashion", "food"]
+  }
+}

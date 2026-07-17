@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "name": "pas",
+  "label": "Problem → Agitate → Solve",
+  "description": "โครงสร้างคลาสสิกสำหรับสินค้าที่แก้ปัญหา — เปิดด้วยปัญหา ขยายความเจ็บปวด แล้วเสนอทางออก",
+  "scenes": [
+    {
+      "id": "hook",
+      "timing_ratio": 0.2,
+      "purpose": "เปิดด้วยปัญหา '{problem}' ให้คนดูรู้สึกว่าใช่เลย",
+      "prompt": "เปิดด้วยปัญหาที่คนดูเจอ — {problem}"
+    },
+    {
+      "id": "agitate",
+      "timing_ratio": 0.3,
+      "purpose": "ขยายความเจ็บปวด — ถ้าไม่แก้ '{problem}' จะแย่ลง",
+      "prompt": "{problem} แย่ขนาดไหนถ้าปล่อยไว้"
+    },
+    {
+      "id": "solve",
+      "timing_ratio": 0.35,
+      "purpose": "'{product}' คือทางออก — แก้ '{problem}' ได้จริง",
+      "prompt": "แนะนำ {product} ที่ช่วยแก้ {problem}"
+    },
+    {
+      "id": "cta",
+      "timing_ratio": 0.15,
+      "purpose": "CTA สั้น — ให้ลอง {product}",
+      "prompt": "ชวนให้ลอง {product} วันนี้"
+    }
+  ],
+  "recommended": {
+    "styles": ["usage", "asmr_texture", "aesthetic_vlog"],
+    "personas": ["busy_mom", "calm_professional"],
+    "categories": ["beauty", "skincare", "health", "home"]
+  }
+}

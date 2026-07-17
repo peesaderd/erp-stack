@@ -1,178 +1,211 @@
 #!/usr/bin/env python3
 """
-Recipe System — TikTok Affiliate Content Recipes
-=================================================
-Loads and manages content recipes from JSON files.
+Recipe System — Schema-Based Content Structure Loader
+======================================================
+โหลด 3 Core Schemas (pas, comparison, secret_hook) → คำนวณ scene durations
+ตาม timing_ratio × total_seconds
+
+Zero hardcoded durations — schema เดียวใช้ได้ทั้ง 8s, 15s, 30s
 """
 
 import json
 import logging
 from pathlib import Path
-from typing import Optional, Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 logger = logging.getLogger("recipe-system")
 
-RECIPES_DIR = Path(__file__).resolve().parent / "recipes"
+SCHEMAS_DIR = Path(__file__).resolve().parent / "schemas"
+
+# ─── Schema Catalog ─────────────────────────────────────────────────────
+SCHEMA_NAMES = {
+    "pas": "Problem → Agitate → Solve",
+    "comparison": "Us vs Them",
+    "secret_hook": "Secret/Gatekeeping Hook",
+}
 
 
-def load_recipe(recipe_name: str = "tus") -> Dict[str, Any]:
-    """Load recipe from JSON file.
+def load_schema(recipe_type: str = "pas") -> Dict[str, Any]:
+    """Load a schema JSON by recipe type.
     
     Args:
-        recipe_name: Recipe name (e.g., "tus", "etsy")
+        recipe_type: "pas", "comparison", or "secret_hook"
     
     Returns:
-        Recipe dict with scenes, prompts, etc.
+        Schema dict with scenes, recommended styles/personas
     """
-    recipe_path = RECIPES_DIR / f"{recipe_name}.json"
-    if not recipe_path.exists():
-        logger.warning(f"Recipe {recipe_name} not found, using default")
-        return _default_recipe()
+    schema_path = SCHEMAS_DIR / f"{recipe_type}_schema.json"
+    
+    if not schema_path.exists():
+        logger.warning(f"Schema '{recipe_type}' not found, using default")
+        return _default_schema()
     
     try:
-        with open(recipe_path, "r", encoding="utf-8") as f:
-            recipe = json.load(f)
-        logger.info(f"Loaded recipe: {recipe_name}")
-        return recipe
+        with open(schema_path, "r", encoding="utf-8") as f:
+            schema = json.load(f)
+        logger.info(f"Loaded schema: {schema.get('name', recipe_type)} (v{schema.get('schema_version', '?')})")
+        return schema
     except Exception as e:
-        logger.error(f"Failed to load recipe {recipe_name}: {e}")
-        return _default_recipe()
+        logger.error(f"Failed to load schema {recipe_type}: {e}")
+        return _default_schema()
 
 
-def _default_recipe() -> Dict[str, Any]:
-    """Default recipe structure."""
+def _default_schema() -> Dict[str, Any]:
+    """Safe fallback schema."""
     return {
+        "schema_version": 1,
         "name": "default",
-        "description": "Default TikTok affiliate content recipe",
+        "label": "Default",
         "scenes": [
-            {
-                "name": "Hook",
-                "duration_range": [0.5, 1.0],
-                "function": "Hook",
-                "content": "เปิดมาสวยเลย สินค้าสวย เห็นชัด",
-                "prompt": "Product showcase, clean background, professional lighting"
-            }
+            {"id": "hook", "timing_ratio": 0.3, "purpose": "เปิด", "prompt": "เปิด"},
+            {"id": "value", "timing_ratio": 0.5, "purpose": "เนื้อหา", "prompt": "เนื้อหาสินค้า"},
+            {"id": "cta", "timing_ratio": 0.2, "purpose": "CTA", "prompt": "ชวนซื้อ"},
         ],
-        "total_duration": 8,
-        "ugc_styles": ["holding", "review", "usage", "talking"],
+        "recommended": {"styles": ["holding", "review"], "personas": ["gen_z_trendy"]},
     }
 
 
-def get_scenes_for_duration(recipe: Dict[str, Any], duration: int = 8) -> List[Dict[str, Any]]:
-    """Get scenes adjusted for target duration.
+def build_scenes_from_schema(recipe_type: str, duration: str = "8s") -> List[Dict[str, Any]]:
+    """Load schema → calculate scene durations from timing_ratio.
     
     Args:
-        recipe: Recipe dict
-        duration: Target video duration in seconds
+        recipe_type: "pas", "comparison", "secret_hook"
+        duration: "8s", "15s", etc.
     
     Returns:
-        List of scene dicts with timing
+        List of scene dicts with actual durations in seconds
     """
-    scenes = recipe.get("scenes", [])
-    if not scenes:
-        return []
+    schema = load_schema(recipe_type)
+    scenes_raw = schema.get("scenes", [])
+    if not scenes_raw:
+        return _default_scenes(duration)
     
-    # Calculate timing based on duration ranges
+    total_seconds = int(duration.replace("s", ""))
     result = []
-    total_min = sum(s.get("duration_range", [0, 0])[0] for s in scenes)
-    total_max = sum(s.get("duration_range", [0, 0])[1] for s in scenes)
     
-    if total_max == 0:
-        # No duration info, distribute evenly
-        per_scene = duration / len(scenes)
-        for i, scene in enumerate(scenes):
-            result.append({
-                **scene,
-                "scene_index": i,
-                "duration": per_scene,
-            })
-        return result
-    
-    # Scale durations to fit target
-    scale = duration / total_max if total_max > 0 else 1
-    current_time = 0.0
-    
-    for i, scene in enumerate(scenes):
-        dur_range = scene.get("duration_range", [1, 2])
-        scene_duration = min(dur_range[1], max(dur_range[0], dur_range[1] * scale))
-        
+    for scene in scenes_raw:
+        ratio = scene.get("timing_ratio", 1.0 / len(scenes_raw))
+        dur = round(total_seconds * ratio, 1)
         result.append({
-            **scene,
-            "scene_index": i,
-            "duration": scene_duration,
-            "start_time": current_time,
-            "end_time": current_time + scene_duration,
+            "id": scene["id"],
+            "duration": dur,
+            "purpose": scene.get("purpose", ""),
+            "prompt_template": scene.get("prompt", ""),
         })
-        current_time += scene_duration
     
     return result
 
 
-def build_scene_prompts(scenes: List[Dict[str, Any]], product_name: str, ugc_style: str = "holding") -> List[str]:
-    """Build video prompts for each scene.
+def _default_scenes(duration: str) -> List[Dict[str, Any]]:
+    """Safe fallback scene list."""
+    total = int(duration.replace("s", ""))
+    return [
+        {"id": "hook", "duration": round(total * 0.3, 1), "purpose": "เปิด", "prompt_template": ""},
+        {"id": "value", "duration": round(total * 0.5, 1), "purpose": "เนื้อหา", "prompt_template": ""},
+        {"id": "cta", "duration": round(total * 0.2, 1), "purpose": "CTA", "prompt_template": ""},
+    ]
+
+
+def get_recommended(recipe_type: str) -> Dict[str, list]:
+    """Get recommended styles and personas for a recipe type."""
+    schema = load_schema(recipe_type)
+    return schema.get("recommended", {"styles": ["holding"], "personas": ["gen_z_trendy"]})
+
+
+def list_schemas() -> List[Dict[str, Any]]:
+    """List all available schemas with metadata."""
+    schemas = []
+    if not SCHEMAS_DIR.exists():
+        return schemas
     
-    Args:
-        scenes: List of scene dicts
-        product_name: Product name
-        ugc_style: UGC style (holding, review, usage, talking)
+    for schema_file in sorted(SCHEMAS_DIR.glob("*_schema.json")):
+        try:
+            with open(schema_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            schemas.append({
+                "name": data.get("name", schema_file.stem.replace("_schema", "")),
+                "label": data.get("label", ""),
+                "description": data.get("description", ""),
+                "scenes": data.get("scenes", []),
+                "recommended": data.get("recommended", {}),
+            })
+        except Exception as e:
+            logger.error(f"Failed to load schema {schema_file}: {e}")
     
-    Returns:
-        List of video prompts (one per scene)
+    return schemas
+
+
+# ─── Backward Compat ────────────────────────────────────────────────────
+
+def load_recipe(recipe_name: str = "tus") -> Dict[str, Any]:
+    """Legacy — map old recipe names to new schema format.
+    
+    Old: "tus" → "pas" (default)
+    Old: "etsy" → "comparison"  
+    New: "pas", "comparison", "secret_hook"
     """
+    legacy_map = {
+        "tus": "pas",
+        "etsy": "comparison",
+        "tus_8s": "pas",
+        "tus_15s": "pas",
+        "tus_pas_8s": "pas",
+        "tus_pas_15s": "pas",
+        "tus_comparison_8s": "comparison",
+        "tus_comparison_15s": "comparison",
+        "tus_secret_8s": "secret_hook",
+    }
+    recipe_type = legacy_map.get(recipe_name, recipe_name)
+    return load_schema(recipe_type)
+
+
+def get_scenes_for_duration(recipe: Dict[str, Any], duration: int = 8) -> List[Dict[str, Any]]:
+    """Legacy — build scenes from schema dict + target duration."""
+    scenes_raw = recipe.get("scenes", [])
+    if not scenes_raw:
+        return _default_scenes(f"{duration}s")
+    
+    result = []
+    for i, scene in enumerate(scenes_raw):
+        ratio = scene.get("timing_ratio", 1.0 / len(scenes_raw))
+        dur = round(duration * ratio, 1)
+        result.append({
+            **scene,
+            "scene_index": i,
+            "duration": dur,
+        })
+    return result
+
+
+def build_scene_prompts(scenes: List[Dict[str, Any]], product_name: str, ugc_style: str = "holding") -> List[str]:
+    """Legacy — fill scene prompt templates with product data."""
     prompts = []
-    
     for scene in scenes:
-        base_prompt = scene.get("prompt", "")
-        content = scene.get("content", "")
-        
-        # Enhance with product context
-        if "{product}" in base_prompt:
-            base_prompt = base_prompt.replace("{product}", product_name)
-        
-        prompt = f"{content}. {base_prompt}. Product: {product_name}"
+        base = scene.get("prompt_template", "")
+        content = scene.get("purpose", "")
+        filled = base.replace("{product}", product_name) if "{product}" in base else base
+        prompt = f"{content}. {filled}. Product: {product_name}" if base else f"{content}. Product: {product_name}"
         prompts.append(prompt)
-    
     return prompts
 
 
-def list_recipes() -> List[Dict[str, Any]]:
-    """List all available recipes.
-    
-    Returns:
-        List of recipe metadata
-    """
-    recipes = []
-    
-    if not RECIPES_DIR.exists():
-        return recipes
-    
-    for recipe_file in RECIPES_DIR.glob("*.json"):
-        try:
-            with open(recipe_file, "r", encoding="utf-8") as f:
-                recipe = json.load(f)
-            recipes.append({
-                "name": recipe.get("name", recipe_file.stem),
-                "description": recipe.get("description", ""),
-                "file": recipe_file.name,
-            })
-        except Exception as e:
-            logger.error(f"Failed to load recipe {recipe_file}: {e}")
-    
-    return recipes
-
-
 if __name__ == "__main__":
-    # Test
     logging.basicConfig(level=logging.INFO)
     
-    recipe = load_recipe("tus")
-    print(f"Recipe: {recipe.get('name')}")
-    print(f"Scenes: {len(recipe.get('scenes', []))}")
+    print("=== Available Schemas ===")
+    for s in list_schemas():
+        print(f"  {s['name']}: {s['label']}")
     
-    scenes = get_scenes_for_duration(recipe, duration=8)
-    print(f"\nAdjusted scenes for 8s:")
-    for scene in scenes:
-        print(f"  {scene['name']}: {scene['duration']:.1f}s - {scene.get('content', '')[:40]}")
+    print("\n=== PAS Schema → 8s ===")
+    scenes = build_scenes_from_schema("pas", "8s")
+    for s in scenes:
+        print(f"  {s['id']}: {s['duration']}s — {s['purpose'][:30]}")
     
-    prompts = build_scene_prompts(scenes, "Test Product", "holding")
-    print(f"\nScene prompts: {len(prompts)}")
+    print("\n=== PAS Schema → 15s ===")
+    scenes = build_scenes_from_schema("pas", "15s")
+    for s in scenes:
+        print(f"  {s['id']}: {s['duration']}s — {s['purpose'][:30]}")
+    
+    print("\n=== Backward Compat ===")
+    recipe = load_recipe("tus_pas_8s")
+    print(f"  load_recipe('tus_pas_8s') → {recipe.get('name')}")

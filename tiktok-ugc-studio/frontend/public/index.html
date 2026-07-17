@@ -1097,6 +1097,7 @@ select.input { cursor: pointer; }
       <div style="display:flex;gap:6px">
         <span id="scrapedTotalBadge" class="badge" style="background:rgba(139,92,246,0.1);color:var(--accent-purple);font-size:11px"></span>
         <button class="btn btn-primary btn-sm" onclick="loadScrapedProducts()">🔄 Refresh</button>
+        <button class="btn btn-primary btn-sm" id="analyzeScrapedBtn" onclick="runScrapedAnalysis()" style="background:linear-gradient(135deg,#f43f5e,#8b5cf6)!important;border:none!important">⚡ Analyze & Export to TUS</button>
       </div>
     </div>
     <div id="scrapedProductGrid" class="product-grid">
@@ -4158,6 +4159,26 @@ async function loadAnalyzedProducts() {
   } catch(e) { grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">Error: ' + e.message + '</div>'; }
   // Also load scraped products
   loadScrapedProducts();
+}
+
+async function runScrapedAnalysis() {
+  var btn = document.getElementById('analyzeScrapedBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Analyzing...'; }
+  try {
+    var r = await fetch(API + '/products/analyze-scraped', { method: 'POST' });
+    var d = await r.json();
+    if (d.success) {
+      showToast('✅ Analyzed ' + d.enriched + ' products! (skipped ' + d.skipped + ', errors ' + d.errors + ', total in TUS: ' + d.total_in_tus + ')', 'success');
+      loadScrapedProducts();
+      loadAnalyzedProducts();
+    } else {
+      showToast('❌ Analysis failed: ' + (d.detail || 'unknown'), 'error');
+    }
+  } catch(e) {
+    showToast('❌ Error: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '⚡ Analyze & Export to TUS'; }
+  }
 }
 
 async function loadScrapedProducts() {

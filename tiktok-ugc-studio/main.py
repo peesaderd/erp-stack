@@ -1035,6 +1035,110 @@ async def list_scraped_products(limit: int = 100):
         logger.error(f"list_scraped_products failed: {e}")
         return {"success": False, "products": [], "total": 0, "error": str(e)}
 
+
+@app.post("/products/analyze-scraped")
+async def analyze_scraped_products():
+    """Read scraped products from PostgreSQL → Normalize → Enrich (Gemini) → Write to tus_products.db"""
+    import google.generativeai as genai
+    from gemini_agent import TEXT_MODEL
+
+    # 1. Read from PostgreSQL
+    try:
+        conn = await asyncpg.connect(PRODUCTDB_DSN)
+        rows = await conn.fetch(
+            "SELECT id, name, data::text FROM products ORDER BY id ASC"
+        )
+        await conn.close()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"PostgreSQL read failed: {e}")
+
+    db_path = os.path.join(os.path.dirname(__file__), "tus_products.db")
+    tus_conn = sqlite3.connect(db_path)
+    enriched = 0
+    skipped = 0
+    errors = 0
+
+    for r in rows:
+        try:
+            row_id = r["id"]
+            name = r["name"]
+            data = json.loads(r["data"]) if isinstance(r["data"], str) else {}
+            product_id = data.get("product_id", str(row_id))
+
+            # Skip if already in tus_products.db
+            existing = tus_conn.execute(
+                "SELECT 1 FROM tus_products WHERE product_id = ?", (product_id,)
+            ).fetchone()
+            if existing:
+                skipped += 1
+                continue
+
+            # 2. Extract keywords using Gemini
+            keywords = []
+            try:
+                gen_model = genai.GenerativeModel(TEXT_MODEL)
+                resp = gen_model.generate_content(
+                    f"จากชื่อสินค้า: '{name}'\nจง extract คำค้นหาหลัก 5-10 คำ (ภาษาไทย) ที่เกี่ยวข้องกับสินค้านี้ "
+                    f"เช่น หมวดหมู่, ประเภท, คุณสมบัติเด่น\nตอบเฉพาะคำค้นหา คั่นด้วยจุลภาค"
+                )
+                kw_text = resp.text.strip()
+                keywords = [k.strip() for k in kw_text.split(",") if k.strip()]
+            except Exception:
+                # Fallback: extract Thai/Eng words from name
+                words = re.findall(r"[\u0E00-\u0E7Fa-zA-Zก-๙]+(?:\s+[\u0E00-\u0E7Fa-zA-Zก-๙]+)*", name)
+                keywords = [w.strip() for w in words if len(w.strip()) > 2][:10]
+
+            # 3. Parse commission rate
+            comm_raw = data.get("commission_rate", "0")
+            comm_num = float(re.sub(r"[^0-9.]", "", str(comm_raw)) or "0")
+            viral_score = min(99, int(comm_num * 5))
+            price = float(data.get("price", 0))
+
+            # 4. Insert into tus_products.db
+            tus_conn.execute("""
+                INSERT INTO tus_products 
+                (product_id, title, title_th, price_thb, rating, sold_total, viral_score,
+                 trending, category, commission_rate, seller_name, seller_id, url,
+                 description, description_th, images, keywords, source, imported_at, tus_status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), 'pending')
+            """, (
+                product_id,
+                name,
+                name,
+                price,
+                0,
+                0,
+                viral_score,
+                0,
+                data.get("category", ""),
+                str(comm_raw),
+                data.get("seller_name", ""),
+                data.get("seller_id", ""),
+                data.get("product_url", ""),
+                data.get("hook_concept", ""),
+                data.get("hook_concept", ""),
+                json.dumps([]),
+                json.dumps(keywords[:10]),
+                "tiktok",
+            ))
+            enriched += 1
+        except Exception as e:
+            logger.warning(f"analyze-scraped row {r.get('id','?')}: {e}")
+            errors += 1
+
+    tus_conn.commit()
+    total = tus_conn.execute("SELECT count(*) FROM tus_products").fetchone()[0]
+    tus_conn.close()
+
+    return {
+        "success": True,
+        "enriched": enriched,
+        "skipped": skipped,
+        "errors": errors,
+        "total_in_tus": total,
+    }
+
+
 # ─── UGC Frontend API Compatibility ───────────────────────────────────────
 
 @app.post("/ugc/scripts/generate")

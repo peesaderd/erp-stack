@@ -1,6 +1,7 @@
 """
 TikTok UGC Studio — AI Script Generator
-ใช้ AiBot Auto-Gen v4.5 prompt system + LLM API
+ใช้ AiBot Auto-Gen v4.5 prompt system + Gemini API
+✨ PERSONA-AWARE — น้ำเสียงสอดคล้องกับ Persona ที่เลือกไว้
 """
 
 import os
@@ -14,11 +15,70 @@ from typing import Optional
 _erp_stack = Path(__file__).parent.parent.parent
 if str(_erp_stack) not in sys.path:
     sys.path.insert(0, str(_erp_stack))
+
+# ─── Import shared modules ──────────────────────────────────────────
+_pb_path = _erp_stack / "prompt-builder-service"
+if str(_pb_path) not in sys.path:
+    sys.path.insert(0, str(_pb_path))
+
 from shared_config import GEMINI_API_KEY
+from persona_engine import PERSONA_TEMPLATES, _select_persona
 
 logger = logging.getLogger("tiktok-ugc.script_gen")
 
 PROMPTS_DIR = Path(__file__).parent / "prompts"
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# ─── Persona-Aware System Prompt Builder ────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════
+
+def build_script_system_prompt(persona: dict) -> str:
+    """Build a persona-injected system prompt for Gemini script generation.
+    
+    Takes the persona dict (from persona_engine._select_persona()) and
+    generates a system prompt layer that controls tone, voice, and pacing.
+    """
+    persona_name = persona.get("vibe", "ทั่วไป").split(",")[0].strip()
+    persona_age = persona.get("model_age", "25-35")
+    speech_style = persona.get("speech_style", "พูดเป็นกันเอง ธรรมชาติ")
+    pacing = persona.get("pacing", "ธรรมชาติ")
+    forbidden = persona.get("forbidden_phrases", "")
+
+    base = """คุณคือ Copywriter มืออาชีพที่เขียนสคริปต์โฆษณา UGC สั้นๆ สำหรับ TikTok
+สคริปต์ต้องสั้น กระชับ เข้าใจง่าย เหมาะกับ Voiceover ความยาว 8-16 วินาที
+
+[STRICT TONE & VOICE CONTROL]
+ให้สวมบทบาทเป็นบุคคลที่มีบุคลิกดังนี้:
+- ลักษณะ: {persona_name} (อายุช่วง {persona_age})
+- รูปแบบการพูด: {speech_style}
+- จังหวะการเล่าเรื่อง: {pacing}
+- ข้อห้าม: {forbidden}
+
+[OUTPUT FORMAT]
+13 คำสั่งต่อไปนี้ STRICT มาก:
+1. ภาษาไทยเท่านั้น ไม่มีภาษาอังกฤษปนเว้นแต่จำเป็น
+2. ห้ามใส่เครื่องหมายวรรคตอนในสคริปต์หลัก (ห้าม . , ! ? " ")
+3. ห้ามใช้ตัวเลข ห้ามใส่ emoji
+4. ห้ามมีคำว่า Hook Value CTA หรือ [วงเล็บ]
+5. ห้ามมีคำว่า "สวัสดี" "วันนี้" "เพื่อนๆ" "ทุกคน" "ครับ" ทุกต้นคลิป
+6. ห้ามขึ้นต้นด้วยคำว่า ว่าไง/ว่าไงบ้าง/ว่าไงครับ
+7. ห้ามบอกว่ากดติดตาม กดไลค์ กดแชร์ แชร์เลย คลิปนี้
+8. ห้ามพูดถึงหัวข้อเดิมซ้ำ
+9. ให้พูดเฉพาะเนื้อหาสินค้า ห้ามพูดนอกเรื่อง
+10. ส่งออกเฉพาะสคริปต์เท่านั้น ห้ามมีคำอธิบายเพิ่มเติม
+11. ตอบกลับด้วยสคริปต์ภาษาไทยที่พร้อมใช้วางใน TikTok Voiceover ทันที
+12. ห้ามใช้ Hook Value CTA ในสคริปต์
+13. ห้ามมีตัวเลขและ emoji ในสคริปต์เด็ดขาด"""
+
+    return base.format(
+        persona_name=persona_name,
+        persona_age=persona_age,
+        speech_style=speech_style,
+        pacing=pacing,
+        forbidden=forbidden,
+    )
+
 
 # ─── Gemini Config ─────────────────────────────────────────────────────────
 
@@ -82,9 +142,29 @@ def generate_tiktok_review_script(
     cta: str = "",
     duration: str = "8s",
     extra_rules: str = "",
+    persona: Optional[dict] = None,
+    persona_category: str = "beauty",
 ) -> dict:
-    """Generate a TikTok UGC review script using AiBot prompts"""
-    # Load prompts
+    """Generate a TikTok UGC review script using AiBot prompts
+    
+    Args:
+        product_name: ชื่อสินค้า
+        customer_problem: ปัญหาที่สินค้าแก้
+        main_benefit: ประโยชน์หลัก
+        target_audience: กลุ่มเป้าหมาย
+        tone: โทนเสียง (ถ้าไม่ระบุ จะใช้จาก persona)
+        cta: คำกระตุ้นการซื้อ
+        duration: ความยาวคลิป (8s/16s)
+        extra_rules: กฎเพิ่มเติม
+        persona: dict persona จาก persona_engine (ถ้า None จะสุ่มใหม่)
+        persona_category: หมวดหมู่สำหรับสุ่ม persona (ถ้า persona=None)
+    """
+    # ─── Persona sync ──────────────────────────────────────────────────
+    if persona is None:
+        persona = _select_persona(persona_category, product_name)
+    persona_name = persona.get("vibe", "ทั่วไป").split(",")[0].strip()
+    
+    # ─── Load prompts ─────────────────────────────────────────────────
     if duration == "16s":
         system = load_prompt("system_16s.prompt.txt")
         master = load_prompt("master_16s_3step.prompt.txt")
@@ -94,21 +174,28 @@ def generate_tiktok_review_script(
         master = load_prompt("master.prompt.txt")
         user_tpl = load_prompt("user.template.prompt.txt")
 
-    # Build user data
+    # ─── Build user data ──────────────────────────────────────────────
+    # tone จาก persona ถ้าไม่ override
+    effective_tone = tone or persona_name
+    
     user_data = {
         "product_name": product_name,
         "customer_problem": customer_problem or "ปัญหาที่พบเจอบ่อย",
         "main_benefit": main_benefit or "คุณภาพดี ใช้งานได้จริง",
         "target_audience": target_audience or "ทุกคนที่กำลังมองหา",
-        "tone": tone or "เป็นกันเอง พูดเร็ว",
+        "tone": effective_tone,
         "cta": cta or "กดดูในตะกร้าเลย",
         "extra_rules": extra_rules or "-",
     }
 
     user_prompt = fill_template(user_tpl, user_data)
+    
+    # ─── Build persona-aware system prompt ────────────────────────────
+    persona_layer = build_script_system_prompt(persona)
+    combined_system = f"{persona_layer}\n\n{system}" if system else persona_layer
 
-    # Try LLM
-    raw = _call_gemini(system, f"{master}\n\n{user_prompt}")
+    # ─── Try LLM with persona injection ───────────────────────────────
+    raw = _call_gemini(combined_system, f"{master}\n\n{user_prompt}")
 
     if raw:
         return {
@@ -116,6 +203,7 @@ def generate_tiktok_review_script(
             "uses_llm": True,
             "duration": duration,
             "product": product_name,
+            "persona": persona_name,
         }
 
     # Fallback: template-based script
@@ -125,6 +213,7 @@ def generate_tiktok_review_script(
         "uses_llm": False,
         "duration": duration,
         "product": product_name,
+        "persona": persona_name,
     }
 
 
@@ -165,12 +254,11 @@ def generate_ugc_script(
     age: str = "25-35",
     scene: str = "home",
     custom_negative_prompt: Optional[str] = None,
+    persona: Optional[dict] = None,
 ) -> dict:
     """
-    Generate UGC video prompt by style:
-    - holding_product: โชว์สินค้าในมือ
-    - product_usage: สาธิตการใช้งาน
-    - ugc_review: คลิปรีวิวลูกค้าจริง
+    Generate UGC video prompt by style.
+    If persona provided, also pass persona name in result for traceability.
     """
     style_map = {
         "holding_product": "Holding_Product",
@@ -186,7 +274,6 @@ def generate_ugc_script(
     master = load_prompt(f"UGC_prompts/{folder}/master.prompt")
     user_tpl = load_prompt(f"UGC_prompts/{folder}/user.template.prompt")
     file_negative = load_prompt(f"UGC_prompts/{folder}/negative.prompt")
-    # Merge custom negative prompt on top of file-based one
     if custom_negative_prompt:
         negative = custom_negative_prompt + ", " + file_negative if file_negative else custom_negative_prompt
     else:
@@ -202,19 +289,21 @@ def generate_ugc_script(
 
     user_prompt = fill_template(user_tpl, user_data)
     system_full = f"{system}\n\n{negative}" if negative else system
-    full_prompt = f"{system_full}\n\n{master}\n\n{user_prompt}"
 
-    # Try LLM
     raw = _call_gemini(system_full, f"{master}\n\n{user_prompt}")
 
-    return {
+    result = {
         "style": style,
-        "prompt": raw or full_prompt,
+        "prompt": raw or f"{system_full}\n\n{master}\n\n{user_prompt}",
         "negative_prompt": negative,
         "merged_negative_prompt": negative,
         "product": product_name,
         "uses_llm": raw is not None,
     }
+    if persona:
+        persona_name = persona.get("vibe", "").split(",")[0].strip()
+        result["persona"] = persona_name
+    return result
 
 
 def get_script_variations() -> dict:

@@ -335,6 +335,59 @@ def _fallback_analysis(product_name: str, description: str, category: str) -> di
     }
 
 
+def generate_publish_content(
+    product_name: str,
+    description: str = "",
+    tags: list = None,
+    platform: str = "tiktok",
+) -> dict:
+    """Generate platform-optimized title + description using Gemini."""
+    tags = tags or []
+
+    platform_config = {
+        "tiktok": {"name": "TikTok", "title_max": 100, "desc_max": 2200,
+                    "vibe": "trendy, casual, Thai, engaging hook"},
+        "instagram": {"name": "Instagram Reels", "title_max": 120, "desc_max": 2200,
+                       "vibe": "aesthetic, lifestyle, Thai/English, emoji"},
+        "facebook": {"name": "Facebook Reels", "title_max": 120, "desc_max": 2200,
+                      "vibe": "friendly, Thai, shareable"},
+        "youtube": {"name": "YouTube Shorts", "title_max": 100, "desc_max": 5000,
+                     "vibe": "informative, clickable, Thai, keyword-rich"},
+    }
+    plat = platform_config.get(platform, platform_config["tiktok"])
+    tag_line = ", ".join(tags[:5]) if tags else "-"
+
+    prompt = (
+        f"Product: {product_name}\n"
+        f"Description: {description[:300] or '-'}\n"
+        f"Tags: {tag_line}\n"
+        f"Platform: {plat['name']}\n"
+        f"\n"
+        f"Generate a {{'title': ..., 'description': ..., 'hashtags': [...]}} JSON.\n"
+        f"Title max {plat['title_max']} chars, catchy for {plat['vibe']}.\n"
+        f"Description max {plat['desc_max']} chars, include hook + CTA + relevant hashtags.\n"
+        f"Thai language primarily. Return ONLY valid JSON."
+    )
+
+    system = f"You are a {plat['name']} content strategist. Write Thai copy that converts."
+
+    try:
+        raw = _call_gemini(system_prompt=system, user_text=prompt, temperature=0.3)
+        result = _parse_json(raw)
+        return {
+            "title": result.get("title", product_name)[:plat["title_max"]],
+            "description": result.get("description", description)[:plat["desc_max"]],
+            "hashtags": result.get("hashtags", tags)[:8],
+        }
+    except Exception as e:
+        logger.warning(f"generate_publish_content failed: {e}")
+        return {
+            "title": product_name[:plat["title_max"]],
+            "description": description[:plat["desc_max"]],
+            "hashtags": tags[:8],
+        }
+
+
 def research_product(product_name, description='', category='', image_base64=None):
     """Research product via Gemini Vision analysis"""
     has_vision = bool(image_base64)

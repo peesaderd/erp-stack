@@ -38,6 +38,7 @@ from tiktok_accounts import (
 )
 from recipes import list_recipes, get_recipe
 from publisher import scheduler as publisher_scheduler, enqueue as pq_enqueue, list_posts as pq_list, get_post as pq_get, delete_post as pq_delete, get_calendar as pq_calendar, get_stats as pq_stats
+from gemini_agent import generate_publish_content
 from connect.tiktok_poster import poster as tiktok_poster
 from connect.aitoearn_client import client as aitoearn
 
@@ -1527,6 +1528,26 @@ async def aitoearn_sync_job(job_id: str):
 # ═══════════════════════════════════════════════════════════════════════════
 # PUBLISHER ROUTES — Post Queue + Scheduler + Calendar
 # ═══════════════════════════════════════════════════════════════════════════
+
+@app.post("/publisher/generate-content")
+async def publisher_generate_content(req: dict):
+    """Generate platform-optimized title + description using Gemini."""
+    product_name = req.get("product_name", "") or ""
+    description = req.get("description", "") or ""
+    tags = req.get("tags", []) or []
+    platform = req.get("platform", "tiktok")
+
+    if not product_name:
+        raise HTTPException(status_code=400, detail="product_name required")
+
+    result = generate_publish_content(
+        product_name=product_name,
+        description=description,
+        tags=tags,
+        platform=platform,
+    )
+    return {"success": True, **result}
+
 
 @app.get("/publisher/status")
 async def publisher_status():

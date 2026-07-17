@@ -4367,7 +4367,6 @@ async function pubPostNow(jobId, productName) {
   
   if (!vid || !vid.video_url) { alert('Video not found'); return; }
   
-  // Show Post Now modal with platform selection
   var overlay = document.getElementById('pub-postnow-modal');
   if (!overlay) {
     overlay = document.createElement('div');
@@ -4376,10 +4375,26 @@ async function pubPostNow(jobId, productName) {
     overlay.style.cssText = 'z-index:200';
     overlay.onclick = function(e) { if (e.target === this) this.style.display = 'none'; };
     overlay.innerHTML =
-      '<div onclick="event.stopPropagation()" style="background:var(--bg-primary);border-radius:16px;padding:24px;max-width:440px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);position:relative">' +
+      '<div onclick="event.stopPropagation()" style="background:var(--bg-primary);border-radius:16px;padding:24px;max-width:520px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);position:relative">' +
       '<button onclick="document.getElementById(\'pub-postnow-modal\').style.display=\'none\'" style="position:absolute;top:12px;right:12px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-secondary)">✕</button>' +
-      '<h3 style="margin:0 0 8px 0">🚀 Post Now</h3>' +
-      '<div id="pub-postnow-title" style="font-size:13px;color:var(--text-secondary);margin-bottom:16px"></div>' +
+      '<h3 style="margin:0 0 4px 0">🚀 Post Now</h3>' +
+      '<div id="pub-postnow-title" style="font-size:13px;color:var(--text-secondary);margin-bottom:12px"></div>' +
+      '<!-- Title -->' +
+      '<div style="margin-bottom:10px">' +
+      '<label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;font-weight:600">📌 Title</label>' +
+      '<input id="pub-edit-title" class="input" maxlength="120" style="width:100%" placeholder="ชื่อโพสต์ (กระชับ ดึงดูด)">' +
+      '</div>' +
+      '<!-- Description -->' +
+      '<div style="margin-bottom:10px">' +
+      '<label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;font-weight:600">📝 Description <span id="pub-desc-chars" style="font-size:10px;color:var(--text-tertiary)"></span></label>' +
+      '<textarea id="pub-edit-desc" class="input" maxlength="2200" style="width:100%;min-height:80px" placeholder="คำอธิบาย CTA แฮชแท็ก"></textarea>' +
+      '</div>' +
+      '<!-- AI Generate button -->' +
+      '<div style="margin-bottom:12px;display:flex;gap:6px;flex-wrap:wrap">' +
+      '<button class="btn btn-sm" id="pub-ai-gen" onclick="pubAIGenContent(\'postnow\')" style="background:rgba(139,92,246,0.1);color:var(--accent-purple);border-color:rgba(139,92,246,0.2)">✨ AI Generate</button>' +
+      '<span id="pub-ai-status" style="font-size:11px;color:var(--text-tertiary);align-self:center;display:none">⏳ Generating...</span>' +
+      '</div>' +
+      '<!-- Platforms -->' +
       '<div style="margin-bottom:16px"><label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:6px;font-weight:600">📱 Select Platforms</label>' +
       '<div id="pub-postnow-platforms" style="display:flex;flex-wrap:wrap;gap:8px">' +
       '<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;padding:6px 14px;border:1px solid var(--border-primary);border-radius:20px;background:var(--bg-secondary)"><input type="checkbox" value="tiktok" checked> 🎵 TikTok</label>' +
@@ -4394,25 +4409,38 @@ async function pubPostNow(jobId, productName) {
     document.body.appendChild(overlay);
   }
   
-  document.getElementById('pub-postnow-title').textContent = '🎬 ' + (productName || vid.product_name || jobId);
+  var defaultTitle = vid.title || vid.product_name || productName;
+  var defaultDesc = vid.description || '';
+  var defaultHtags = vid.hashtags || [];
+  document.getElementById('pub-postnow-title').textContent = '🎬 ' + defaultTitle;
+  document.getElementById('pub-edit-title').value = defaultTitle;
+  document.getElementById('pub-edit-desc').value = defaultDesc || (defaultHtags.length ? defaultHtags.map(function(t){ return '#' + t.replace(/^#/,''); }).join(' ') : '');
+  document.getElementById('pub-desc-chars').textContent = document.getElementById('pub-edit-desc').value.length + '/2200';
+  document.getElementById('pub-edit-desc').oninput = function(){ document.getElementById('pub-desc-chars').textContent = this.value.length + '/2200'; };
+  
+  // Store product data for AI gen
+  overlay._prodName = productName || vid.product_name || '';
+  overlay._prodDesc = vid.description || '';
+  overlay._prodTags = defaultHtags || [];
+  overlay._vid = vid;
+  overlay._jobId = jobId;
+  
   overlay.style.display = 'flex';
   
   document.getElementById('pub-postnow-confirm').onclick = async function(){
-    // Gather selected platforms
     var checks = document.querySelectorAll('#pub-postnow-platforms input[type="checkbox"]:checked');
     var platforms = [];
     checks.forEach(function(c){ platforms.push(c.value); });
     if (!platforms.length) { alert('กรุณาเลือกอย่างน้อย 1 platform'); return; }
     
+    var title = document.getElementById('pub-edit-title').value.trim() || defaultTitle;
+    var desc = document.getElementById('pub-edit-desc').value.trim() || defaultDesc;
+    var htags = defaultHtags;
+    var cap = title;
+    if (htags.length) cap = cap + '\n' + htags.map(function(t){ return '#' + t.replace(/^#/,''); }).join(' ');
+    
     overlay.style.display = 'none';
     
-    var title = vid.title || vid.product_name || productName;
-    var desc = vid.description || '';
-    var htags = vid.hashtags || [];
-    var cap = (vid.product_name || productName) + ' | #TUS #UGC';
-    if (htags.length) cap = cap + ' ' + htags.map(function(t){ return '#' + t.replace(/^#/,''); }).join(' ');
-    
-    // Post to each platform
     var results = [];
     for (var i = 0; i < platforms.length; i++) {
       var plat = platforms[i];
@@ -4436,12 +4464,75 @@ async function pubPostNow(jobId, productName) {
     var msg = '✅ Posted to ' + ok.length + ' platforms';
     ok.forEach(function(r){ msg += '\n  ' + r.platform + ': ✅'; });
     if (fail.length) {
-      msg += '\n\n❌ Failed on ' + fail.length + ':';
+      msg += '\n\n❌ Failed on ' + fail.length + ':';   
       fail.forEach(function(r){ msg += '\n  ' + r.platform + ': ' + (r.error||'Unknown'); });
     }
     alert(msg);
     loadPublisherQueue();
   };
+}
+
+// ─── AI Generate Title+Description ─────────────────────────
+
+var _pubAiSource = null; // 'postnow' | 'schedule'
+
+async function pubAIGenContent(source) {
+  _pubAiSource = source;
+  var overlay = document.getElementById('pub-postnow-modal');
+  var isPostNow = source === 'postnow';
+  var modalEl = overlay;
+  if (!isPostNow) {
+    modalEl = document.getElementById('pub-schedule-modal');
+  }
+  
+  var productName = modalEl._prodName || '';
+  var productDesc = modalEl._prodDesc || '';
+  var tags = modalEl._prodTags || [];
+  
+  // Pick first checked platform as target
+  var platChecks = modalEl.querySelectorAll('input[type="checkbox"]:checked');
+  var platform = 'tiktok';
+  if (platChecks.length) platform = platChecks[0].value;
+  
+  if (!productName) { alert('No product name available'); return; }
+  
+  var statusEl = document.getElementById('pub-ai-status');
+  var btn = document.getElementById('pub-ai-gen');
+  if (statusEl) statusEl.style.display = 'inline';
+  if (btn) btn.disabled = true;
+  
+  try {
+    var r = await fetch(API + '/publisher/generate-content', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        product_name: productName,
+        description: productDesc,
+        tags: tags,
+        platform: platform
+      })
+    });
+    var data = await r.json();
+    
+    if (data.success) {
+      var titleInput = document.getElementById('pub-edit-title');
+      var descInput = document.getElementById('pub-edit-desc');
+      if (titleInput && data.title) titleInput.value = data.title;
+      if (descInput && data.description) {
+        descInput.value = data.description;
+        var charEl = document.getElementById('pub-desc-chars');
+        if (charEl) charEl.textContent = data.description.length + '/2200';
+      }
+      showToast('✨ AI generated content for ' + platform, 'success');
+    } else {
+      showToast('AI generation failed', 'error');
+    }
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  } finally {
+    if (statusEl) statusEl.style.display = 'none';
+    if (btn) btn.disabled = false;
+  }
 }
 
 // ─── Publisher: Schedule ────────────────────────────────────
@@ -4464,10 +4555,24 @@ async function pubSchedule(jobId, productName) {
     overlay.style.cssText = 'z-index:200';
     overlay.onclick = function(e) { if (e.target === this) this.style.display = 'none'; };
     overlay.innerHTML =
-      '<div onclick="event.stopPropagation()" style="background:var(--bg-primary);border-radius:16px;padding:24px;max-width:440px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);position:relative">' +
+      '<div onclick="event.stopPropagation()" style="background:var(--bg-primary);border-radius:16px;padding:24px;max-width:520px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);position:relative">' +
       '<button onclick="document.getElementById(\'pub-schedule-modal\').style.display=\'none\'" style="position:absolute;top:12px;right:12px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-secondary)">✕</button>' +
-      '<h3 style="margin:0 0 8px 0">📅 Schedule Post</h3>' +
-      '<div id="pub-schedule-title" style="font-size:13px;color:var(--text-secondary);margin-bottom:16px"></div>' +
+      '<h3 style="margin:0 0 4px 0">📅 Schedule Post</h3>' +
+      '<div id="pub-schedule-title" style="font-size:13px;color:var(--text-secondary);margin-bottom:12px"></div>' +
+      '<!-- Title -->' +
+      '<div style="margin-bottom:10px">' +
+      '<label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;font-weight:600">📌 Title</label>' +
+      '<input id="pub-sched-edit-title" class="input" maxlength="120" style="width:100%" placeholder="ชื่อโพสต์ (กระชับ ดึงดูด)">' +
+      '</div>' +
+      '<!-- Description -->' +
+      '<div style="margin-bottom:10px">' +
+      '<label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;font-weight:600">📝 Description <span id="pub-sched-desc-chars" style="font-size:10px;color:var(--text-tertiary)"></span></label>' +
+      '<textarea id="pub-sched-edit-desc" class="input" maxlength="2200" style="width:100%;min-height:80px" placeholder="คำอธิบาย CTA แฮชแท็ก"></textarea>' +
+      '</div>' +
+      '<!-- AI Generate -->' +
+      '<div style="margin-bottom:12px;display:flex;gap:6px;flex-wrap:wrap">' +
+      '<button class="btn btn-sm" onclick="pubAIGenContent(\'schedule\')" style="background:rgba(139,92,246,0.1);color:var(--accent-purple);border-color:rgba(139,92,246,0.2)">✨ AI Generate</button>' +
+      '</div>' +
       '<div style="margin-bottom:12px"><label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:6px;font-weight:600">📱 Platforms</label>' +
       '<div id="pub-schedule-platforms" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">' +
       '<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;padding:6px 14px;border:1px solid var(--border-primary);border-radius:20px;background:var(--bg-secondary)"><input type="checkbox" value="tiktok" checked> 🎵 TikTok</label>' +
@@ -4494,7 +4599,15 @@ async function pubSchedule(jobId, productName) {
     document.body.appendChild(overlay);
   }
   
-  document.getElementById('pub-schedule-title').textContent = '🎬 ' + (productName || vid.product_name || jobId);
+  var defaultTitle = vid.title || vid.product_name || productName;
+  var defaultDesc = vid.description || '';
+  var defaultHtags = vid.hashtags || [];
+  document.getElementById('pub-schedule-title').textContent = '🎬 ' + defaultTitle;
+  document.getElementById('pub-sched-edit-title').value = defaultTitle;
+  document.getElementById('pub-sched-edit-desc').value = defaultDesc || (defaultHtags.length ? defaultHtags.map(function(t){ return '#' + t.replace(/^#/,''); }).join(' ') : '');
+  document.getElementById('pub-sched-desc-chars').textContent = document.getElementById('pub-sched-edit-desc').value.length + '/2200';
+  document.getElementById('pub-sched-edit-desc').oninput = function(){ document.getElementById('pub-sched-desc-chars').textContent = this.value.length + '/2200'; };
+  
   document.getElementById('sched-date').value = new Date().toISOString().split('T')[0];
   
   document.querySelectorAll('input[name="sched-mode"]').forEach(function(rd){
@@ -4502,6 +4615,13 @@ async function pubSchedule(jobId, productName) {
       document.getElementById('sched-fixed-time').style.display = this.value === 'fixed' ? 'block' : 'none';
     };
   });
+  
+  // Store product data for AI gen
+  overlay._prodName = productName || vid.product_name || '';
+  overlay._prodDesc = vid.description || '';
+  overlay._prodTags = defaultHtags || [];
+  overlay._vid = vid;
+  overlay._jobId = jobId;
   
   overlay.style.display = 'flex';
   
@@ -4528,13 +4648,13 @@ async function pubSchedule(jobId, productName) {
       scheduleAt = new Date(Date.now() + 30 * 60000).toISOString();
     }
     
-    overlay.style.display = 'none';
+    var title = document.getElementById('pub-sched-edit-title').value.trim() || defaultTitle;
+    var desc = document.getElementById('pub-sched-edit-desc').value.trim() || defaultDesc;
+    var htags = defaultHtags;
+    var cap = title;
+    if (htags.length) cap = cap + '\n' + htags.map(function(t){ return '#' + t.replace(/^#/,''); }).join(' ');
     
-    var title = vid.title || vid.product_name || productName;
-    var desc = vid.description || '';
-    var htags = vid.hashtags || [];
-    var cap = (vid.product_name || productName) + ' | #TUS #UGC';
-    if (htags.length) cap = cap + ' ' + htags.map(function(t){ return '#' + t.replace(/^#/,''); }).join(' ');
+    overlay.style.display = 'none';
     
     var ok = 0;
     for (var i = 0; i < platforms.length; i++) {

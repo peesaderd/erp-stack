@@ -752,7 +752,7 @@ def list_completed_videos():
             conn.row_factory = sqlite3.Row
             for j in jobs:
                 row = conn.execute(
-                    "SELECT product_title, ugc_style, total_duration_seconds, cost_total, hashtags, script FROM pipeline_jobs WHERE job_id = ?",
+                    "SELECT product_title, product_description, ugc_style, total_duration_seconds, cost_total, hashtags, script FROM pipeline_jobs WHERE job_id = ?",
                     (j["job_id"],)
                 ).fetchone()
                 if row:
@@ -775,6 +775,9 @@ def list_completed_videos():
                     # Enrich description from script (first 500 chars)
                     if row["script"] and not j.get("description"):
                         j["description"] = row["script"][:500]
+                    # Enrich from product_description (overrides script) 
+                    if row["product_description"]:
+                        j["description"] = row["product_description"][:800]
                     # Build better title
                     pn = j.get("product_name", "")
                     st = j.get("style", "")
@@ -1528,6 +1531,42 @@ async def aitoearn_sync_job(job_id: str):
 # ═══════════════════════════════════════════════════════════════════════════
 # PUBLISHER ROUTES — Post Queue + Scheduler + Calendar
 # ═══════════════════════════════════════════════════════════════════════════
+
+@app.post("/publisher/save-content")
+async def publisher_save_content(req: dict):
+    """Save AI-generated title+description back into pipeline_logs.db."""
+    job_id = req.get("job_id", "")
+    title = req.get("title", "")
+    description = req.get("description", "")
+    platform = req.get("platform", "tiktok")
+
+    if not job_id:
+        raise HTTPException(status_code=400, detail="job_id required")
+
+    logs_db = LOGS_DB_PATH
+    if not os.path.exists(str(logs_db)):
+        raise HTTPException(status_code=404, detail="pipeline_logs.db not found")
+
+    try:
+        conn = sqlite3.connect(str(logs_db))
+        existing = conn.execute("SELECT 1 FROM pipeline_jobs WHERE job_id = ?", (job_id,)).fetchone()
+        if existing:
+            conn.execute(
+                "UPDATE pipeline_jobs SET product_title = ?, product_description = ? WHERE job_id = ?",
+                (title or "", description or "", job_id),
+            )
+        else:
+            conn.execute(
+                "INSERT INTO pipeline_jobs (job_id, product_title, product_description) VALUES (?, ?, ?)",
+                (job_id, title or "", description or ""),
+            )
+        conn.commit()
+        conn.close()
+        return {"success": True, "saved": True, "job_id": job_id}
+    except Exception as e:
+        logger.error(f"save-content failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/publisher/generate-content")
 async def publisher_generate_content(req: dict):

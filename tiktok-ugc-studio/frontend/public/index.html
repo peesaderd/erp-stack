@@ -4501,6 +4501,11 @@ async function pubAIGenContent(source) {
   if (statusEl) statusEl.style.display = 'inline';
   if (btn) btn.disabled = true;
   
+  // Determine which field IDs to use based on source
+  var titleId = isPostNow ? 'pub-edit-title' : 'pub-sched-edit-title';
+  var descId = isPostNow ? 'pub-edit-desc' : 'pub-sched-edit-desc';
+  var charsId = isPostNow ? 'pub-desc-chars' : 'pub-sched-desc-chars';
+  
   try {
     var r = await fetch(API + '/publisher/generate-content', {
       method: 'POST',
@@ -4515,13 +4520,27 @@ async function pubAIGenContent(source) {
     var data = await r.json();
     
     if (data.success) {
-      var titleInput = document.getElementById('pub-edit-title');
-      var descInput = document.getElementById('pub-edit-desc');
+      var titleInput = document.getElementById(titleId);
+      var descInput = document.getElementById(descId);
       if (titleInput && data.title) titleInput.value = data.title;
       if (descInput && data.description) {
         descInput.value = data.description;
-        var charEl = document.getElementById('pub-desc-chars');
+        var charEl = document.getElementById(charsId);
         if (charEl) charEl.textContent = data.description.length + '/2200';
+      }
+      // Save to pipeline_logs.db for persistence
+      var jobId = modalEl._jobId || '';
+      if (jobId) {
+        fetch(API + '/publisher/save-content', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            job_id: jobId,
+            title: data.title || '',
+            description: data.description || '',
+            platform: platform
+          })
+        }).catch(function(){}); // fire-and-forget
       }
       showToast('✨ AI generated content for ' + platform, 'success');
     } else {

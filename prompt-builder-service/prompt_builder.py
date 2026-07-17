@@ -1,494 +1,32 @@
-#!/usr/bin/env python3
-"""
-Prompt Builder — Unified Pipeline
-====================================
-Uses Gemini (instead of Mistral) for:
-  - Product analysis (category, gender, age, problem, benefit)
-  - UGC prompt generation (image_prompt, video_prompt, negative_prompt)
-
-Single import for all prompt-related work.
-"""
+# ─── Prompt Builder — Main Orchestrator ──────────────────────────
+# Thin layer that imports from sub-modules and orchestrates the pipeline
+# ═══════════════════════════════════════════════════════════════════════
 
 import os
-import sys
 import json
 import logging
+import random
 import re
-import requests
+from typing import Optional, List, Dict, Any
 from pathlib import Path
-from typing import Optional, Dict, Any, List
+from copy import deepcopy
+
+import requests
+
+from prompt_templates import (
+    STYLE_MAP, PRODUCT_CATEGORY_MAP, UGC_STYLE_FOLDER,
+    load_ugc_templates, fill_template, _match_category,
+    _get_lighting, _extract_json, BASE_DIR,
+)
+from gemini_client import (
+    _call_gemini, _call_gemini_vision, _get_gemini_key, analyze_product_image,
+    PRODUCT_ANALYSIS_SYSTEM,
+)
+from persona_engine import (
+    PERSONA_TEMPLATES, _select_persona, _apply_persona_to_profile,
+)
 
 logger = logging.getLogger("prompt-builder-service")
-
-# ─── Paths ───────────────────────────────────────────────────────────
-BASE_DIR = Path(__file__).resolve().parent  # prompt-builder-service/
-PROMPTS_DIR = BASE_DIR
-UGC_DIR = BASE_DIR / "UGC_prompts"
-
-# ─── Mistral Config ──────────────────────────────────────────────────
-from shared_config import GEMINI_API_KEY as _GEMINI_API_KEY_LAZY
-from shared_config import GEMINI_MODEL
-
-# ─── Style / Category Maps (fallback when Mistral fails) ─────────────
-
-STYLE_MAP = {
-    "holding": {
-        "model_action": "holding the product in both hands, product packaging facing camera, smiling naturally",
-        "camera": "mid shot, waist up, product visible at chest level",
-        "vibe": "friendly, approachable, product-focused",
-        "keywords": "both hands holding product, product clearly visible and in focus",
-        "video_motion": "model holding product, gentle hand movement showing product tube, natural breathing motion, slight head tilt",
-    },
-    "usage": {
-        "model_action": "actively using the product in a natural daily setting, candid moment, product in use",
-        "camera": "medium shot showing product usage context, slightly zoomed for action",
-        "vibe": "authentic, lifestyle, in-the-moment",
-        "keywords": "product in use, daily routine, natural hands-on moment",
-        "video_motion": "model applying/using product naturally, gentle hand movements, routine motion",
-    },
-    "review": {
-        "model_action": "holding product up showing packaging to camera, excited expression, like unboxing reaction",
-        "camera": "close up to mid shot, product front and center, model slightly off-center",
-        "vibe": "enthusiastic, honest, review energy",
-        "keywords": "product held up, packaging visible, model reacting to product",
-        "video_motion": "model showing product to camera, gentle presenter motion, slight zoom effect",
-    },
-    "talking": {
-        "model_action": "talking while casually holding product, relaxed hand gesture, product naturally present",
-        "camera": "close up, talking head style, product in lower frame",
-        "vibe": "conversational, vlog-style, personal",
-        "keywords": "talking head, casually holding, natural conversation pose",
-        "video_motion": "model talking naturally, subtle head and hand gestures, casual vlog motion",
-    },
-    "pov_lifehack": {
-        "model_action": "POV angle, hands visible doing task, product solving a specific problem in real-time",
-        "camera": "over-the-shoulder, chest-mounted POV, focus on hands and product action",
-        "vibe": "authentic, problem-solving, instructional",
-        "keywords": "POV, life hack, hands-on solution, real-time problem solving",
-        "video_motion": "first-person POV motion, hands demonstrating product use, natural hand movements, solution reveal",
-    },
-    "asmr_texture": {
-        "model_action": "extreme close-up, product being opened/applied, slow deliberate movements, no talking first 3 seconds",
-        "camera": "macro close-up, extreme close up of product texture, slow zoom",
-        "vibe": "satisfying, sensory, focused",
-        "keywords": "ASMR, texture close-up, satisfying sounds, product details",
-        "video_motion": "very slow pan across product texture, product being clicked/opened/closed, slow-motion liquid flow",
-    },
-    "split_comparison": {
-        "model_action": "before and after comparison, showing old way vs new way, split screen effect",
-        "camera": "two shots side by side, same framing for before and after",
-        "vibe": "dramatic, transformative, convincing",
-        "keywords": "before after, comparison, transformation, old vs new",
-        "video_motion": "split screen motion, left side showing struggle, right side showing ease, wipe transition effect",
-    },
-    "street_interview": {
-        "model_action": "excited reaction, showing product as if discovered randomly, genuine surprise",
-        "camera": "shaky handheld style, vlog style, product front and center",
-        "vibe": "surprised, genuine, authentic discovery",
-        "keywords": "street find, random discovery, honest reaction, impulse buy",
-        "video_motion": "handheld camera motion, product being brought into frame suddenly, excited presenter gestures",
-    },
-    "greenscreen_react": {
-        "model_action": "model pointing at content behind them, reacting to product benefits shown on screen",
-        "camera": "medium shot, model off-center left/right, space for content behind",
-        "vibe": "reactive, commentary-style, TikTok-native",
-        "keywords": "green screen, reaction, point and comment, trending format",
-        "video_motion": "model pointing and gesturing at content, head turns, reaction expressions",
-    },
-    "aesthetic_vlog": {
-        "model_action": "model going through routine naturally, product appears organically in scene, GRWM energy",
-        "camera": "variety of angles, fast cuts, cinematic b-roll, sometimes model not looking at camera",
-        "vibe": "cinematic, aesthetic, aspirational, premium",
-        "keywords": "vlog, daily routine, GRWM, aesthetic lifestyle, cinematic",
-        "video_motion": "fast paced cuts, product smoothly appearing in frame, slow motion segments, smooth transitions",
-    },
-}
-
-PRODUCT_CATEGORY_MAP = {
-    "ลิปสติก":    {"category": "beauty",  "gender": "female", "age": "25", "setting": "vanity room หรือ outdoor เช่น ร้านกาแฟ"},
-    "ลิป":        {"category": "beauty",  "gender": "female", "age": "25", "setting": "vanity room หรือ outdoor เช่น ร้านกาแฟ"},
-    "คอนซีลเลอร์": {"category": "beauty",  "gender": "female", "age": "25", "setting": "vanity room with mirror, good lighting"},
-    "บลัช":       {"category": "beauty",  "gender": "female", "age": "25", "setting": "vanity or bedroom, soft natural lighting"},
-    "มาส์ก":      {"category": "beauty",  "gender": "female", "age": "25", "setting": "bathroom or bedroom, clean modern background"},
-    "สบู่":        {"category": "beauty",  "gender": "unisex", "age": "25", "setting": "bathroom, clean tiled wall, modern"},
-    "ครีม":       {"category": "beauty",  "gender": "female", "age": "25", "setting": "bathroom หรือ bedroom vanity"},
-    "เซรั่ม":     {"category": "beauty",  "gender": "female", "age": "25", "setting": "bathroom vanity, clean white background"},
-    "กันแดด":     {"category": "beauty",  "gender": "unisex", "age": "25", "setting": "outdoor หรือ near window, natural light"},
-    "สกินแคร์":    {"category": "beauty",  "gender": "female", "age": "25", "setting": "bedroom vanity, soft natural lighting"},
-    "หูฟัง":      {"category": "electronics", "gender": "unisex", "age": "25", "setting": "modern room, desk with tech accessories"},
-    "ลำโพง":     {"category": "electronics", "gender": "unisex", "age": "25", "setting": "living room หรือ desk, modern decor"},
-    "ขนม":        {"category": "food",    "gender": "unisex", "age": "25", "setting": "kitchen table หรือ cafe, natural lighting"},
-    "เครื่องดื่ม": {"category": "food",    "gender": "unisex", "age": "25", "setting": "cafe corner หรือ modern kitchen"},
-    "เสื้อผ้า":    {"category": "fashion", "gender": "unisex", "age": "25", "setting": "modern wardrobe, clean background"},
-    "รองเท้า":    {"category": "fashion", "gender": "unisex", "age": "25", "setting": "streetwear style, urban background"},
-    "ไขควง":      {"category": "tools",   "gender": "male",   "age": "25", "setting": "workshop หรือ garage, tool bench background"},
-    "เครื่องมือ":  {"category": "tools",   "gender": "male",   "age": "25", "setting": "workshop background with tool rack"},
-    "ของใช้ในบ้าน": {"category": "home",  "gender": "unisex", "age": "25", "setting": "bright living room หรือ kitchen"},
-    "เฟอร์นิเจอร์": {"category": "home",  "gender": "unisex", "age": "25", "setting": "bright modern room display"},
-}
-
-LIGHTING_MAP = {
-    "beauty":     {"lighting": "soft diffused natural window lighting, warm and gentle", "composition": "model centered or slightly off-center, eye-level angle", "background": "clean minimal background, soft pastel tones or white", "color_palette": "warm pastels, pink tones, natural skin tones", "atmosphere": "warm, inviting, feminine, premium"},
-    "tools":      {"lighting": "bright functional lighting, cool to neutral white balance", "composition": "model holding tool in working posture, slightly low angle for strength", "background": "workshop wall with tool rack or pegboard", "color_palette": "neutral grays, blue tones, wood workshop tones", "atmosphere": "practical, sturdy, professional"},
-    "electronics": {"lighting": "clean bright studio lighting with soft shadows", "composition": "model holding device at chest level, tech-focused framing", "background": "modern minimalist room, blurred ambient background", "color_palette": "cool whites, blue-grays, tech blue accent", "atmosphere": "modern, sleek, innovative"},
-    "food":       {"lighting": "warm golden hour lighting, natural and appetizing", "composition": "close up of product and model's hands, upper body shot", "background": "cafe, kitchen counter, blurred warm background", "color_palette": "warm amber, creamy beige, natural green accents", "atmosphere": "cozy, appetizing, lifestyle"},
-    "fashion":    {"lighting": "bright studio lighting, fashion editorial style", "composition": "full body or 3/4 shot, dynamic pose", "background": "modern clean background, studio or urban setting", "color_palette": "neutral fashion tones, monochrome or bold accent", "atmosphere": "stylish, trendy, confident"},
-    "home":       {"lighting": "bright natural daylight, clean and fresh", "composition": "medium shot showing product in home context", "background": "bright clean living space, lifestyle setting", "color_palette": "clean whites, wood tones, natural greens", "atmosphere": "clean, organized, practical"},
-    "other":      {"lighting": "soft natural lighting, clean and professional", "composition": "upper body shot, product visible and in focus", "background": "clean minimal background, lifestyle appropriate", "color_palette": "natural tones, neutral background", "atmosphere": "authentic, professional, relatable"},
-}
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# ─── Core: Load UGC Prompt Templates ─────────────────────────────────
-# ═══════════════════════════════════════════════════════════════════════
-
-UGC_STYLE_FOLDER = {
-    "holding": "Holding_Product",
-    "review": "UGC_Review",
-    "usage": "Product_Usage",
-    "talking": "UGC_Review",
-    "pov_lifehack": "POV_Lifehack",
-    "asmr_texture": "ASMR_Texture",
-    "split_comparison": "Split_Comparison",
-    "street_interview": "Street_Interview",
-    "greenscreen_react": "Greenscreen_React",
-    "aesthetic_vlog": "Aesthetic_Vlog",
-}
-
-
-def load_ugc_templates(style: str) -> dict:
-    """Load UGC_prompts/{style}/ template files into a dict.
-
-    Returns: { 'system': str, 'master': str, 'user.template': str, 'negative': str }
-    """
-    folder_name = UGC_STYLE_FOLDER.get(style, "UGC_Review")
-    base = UGC_DIR / folder_name
-    result = {}
-    for name in ["system", "master", "user.template", "negative"]:
-        f = base / f"{name}.prompt"
-        if f.exists():
-            result[name] = f.read_text(encoding="utf-8")
-        else:
-            result[name] = ""
-    return result
-
-
-def fill_template(template: str, data: dict) -> str:
-    """Replace {key} or {{key}} placeholders with data[key]."""
-    def replacer(m):
-        key = m.group(1).strip()
-        v = data.get(key)
-        return str(v) if v is not None else ""
-    text = re.sub(r'\{\{(\w+)\}\}', replacer, template)
-    text = re.sub(r'\{(\w+)\}', replacer, text)
-    return text
-
-
-def _match_category(product_name: str, description: str = "") -> dict:
-    """Match product name keywords to category map (fallback)."""
-    combined = (product_name + " " + description).lower()
-    best_match = {"category": "other", "gender": "unisex", "age": "20-35", "setting": "clean modern lifestyle setting"}
-    for keyword, info in PRODUCT_CATEGORY_MAP.items():
-        if keyword.lower() in combined:
-            return info
-    return best_match
-
-
-def _get_lighting(category: str) -> dict:
-    return LIGHTING_MAP.get(category, LIGHTING_MAP["other"])
-
-
-def _extract_json(text: str) -> Optional[dict]:
-    """Extract JSON from Mistral response."""
-    if not text:
-        return None
-    if "```json" in text:
-        text = text.split("```json")[1].split("```")[0]
-    elif "```" in text:
-        text = text.split("```")[1].split("```")[0]
-    text = text.strip()
-    start = text.find("{")
-    end = text.rfind("}")
-    if start >= 0 and end > start:
-        try:
-            return json.loads(text[start:end+1])
-        except json.JSONDecodeError:
-            return None
-    return None
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# ─── Gemini API Calls ────────────────────────────────────────────────
-# ═══════════════════════════════════════════════════════════════════════
-
-GEMINI_MODEL_NAME = GEMINI_MODEL if isinstance(GEMINI_MODEL, str) else "gemini-2.5-flash"
-GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
-
-
-def _get_gemini_key() -> str:
-    key = os.environ.get("GEMINI_API_KEY", "")
-    if key:
-        return key
-    try:
-        key = _GEMINI_API_KEY_LAZY() if callable(_GEMINI_API_KEY_LAZY) else _GEMINI_API_KEY_LAZY
-        if key:
-            return key
-    except Exception:
-        pass
-    return ""
-
-
-def _call_gemini(system_prompt: str, user_text: str, temperature: float = 0.3) -> Optional[str]:
-    """Call Gemini API with system instruction."""
-    api_key = _get_gemini_key()
-    if not api_key:
-        logger.warning("No GEMINI_API_KEY set in environment")
-        return None
-    try:
-        model = GEMINI_MODEL_NAME
-        url = f"{GEMINI_API_URL}/{model}:generateContent"
-        payload = {
-            "system_instruction": {"parts": [{"text": system_prompt}]},
-            "contents": [{"parts": [{"text": user_text}]}],
-            "generationConfig": {"temperature": temperature, "maxOutputTokens": 2048},
-        }
-        resp = requests.post(
-            url,
-            headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
-            json=payload,
-            timeout=30,
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            return data["candidates"][0]["content"]["parts"][0]["text"]
-        else:
-            logger.error(f"Gemini API error ({resp.status_code}): {resp.text[:200]}")
-            return None
-    except Exception as e:
-        logger.error(f"Gemini call failed: {e}")
-        return None
-
-
-import base64
-
-
-def _call_gemini_vision(system_prompt: str, user_text: str, image_url: str, temperature: float = 0.3) -> Optional[str]:
-    """Call Gemini API with image input (multimodal)."""
-    api_key = _get_gemini_key()
-    if not api_key:
-        logger.warning("No GEMINI_API_KEY set in environment")
-        return None
-    if not image_url:
-        return None
-    try:
-        img_resp = requests.get(image_url, timeout=30)
-        img_resp.raise_for_status()
-        img_b64 = base64.b64encode(img_resp.content).decode("utf-8")
-        mime = img_resp.headers.get("content-type", "image/jpeg")
-        model = GEMINI_MODEL_NAME
-        url = f"{GEMINI_API_URL}/{model}:generateContent"
-        payload = {
-            "system_instruction": {"parts": [{"text": system_prompt}]},
-            "contents": [{"parts": [
-                {"text": user_text},
-                {"inlineData": {"mimeType": mime, "data": img_b64}}
-            ]}],
-            "generationConfig": {"temperature": temperature, "maxOutputTokens": 2048},
-        }
-        resp = requests.post(
-            url,
-            headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
-            json=payload,
-            timeout=60,
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            return data["candidates"][0]["content"]["parts"][0]["text"]
-        else:
-            logger.error(f"Gemini Vision API error ({resp.status_code}): {resp.text[:200]}")
-            return None
-    except Exception as e:
-        logger.error(f"Gemini Vision call failed: {e}")
-        return None
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# ─── Product Analysis ─────────────────────────────────────────────────
-# ═══════════════════════════════════════════════════════════════════════
-
-PRODUCT_ANALYSIS_SYSTEM = """คุณคือนักวิเคราะห์สินค้าสำหรับ TikTok Shop (Gemini-powered)
-วิเคราะห์สินค้าที่ได้รับ และตอบกลับเป็น JSON ONLY (ไม่มีข้อความอื่น)
-
-กฎสำคัญ:
-- target_gender ต้องเลือกเพียง 1 เพศเท่านั้น: "male" หรือ "female" ห้ามใช้ "unisex"
-- customer_problem: ระบุปัญหาเฉพาะที่เจาะจง ไม่กว้างเกินไป
-- image_description: ภาษาอังกฤษล้วน 100% ห้ามมีภาษาไทยเด็ดขาด
-
-🔴 กฎการวิเคราะห์ Packaging Action (บังคับ):
-- อ่านชื่อสินค้า + คำอธิบาย แล้วค้นหาคำที่บ่งบอกกลไกการใช้งานของแพ็กเกจจิ้ง
-- คำสำคัญที่ต้องระบุให้เจอ:
-  • "Click", "คลิก", "กด", "กดกิ๊ก" → packaging_action: "click_to_release" + action_desc: "กดที่ตูดลิปเพื่อให้เนื้อลิปไหลขึ้นมา"
-  • "Pump", "ปั๊ม", "กดปั๊ม" → packaging_action: "pump" + action_desc: "กดปั๊มเพื่อป้อนเนื้อผลิตภัณฑ์"
-  • "Spray", "สเปรย์", "ฉีด" → packaging_action: "spray" + action_desc: "ฉีดพ่นลงบนผิว/ใบหน้า"
-  • "Roll", "กลิ้ง", "โรลออน" → packaging_action: "roll" + action_desc: "กลิ้งลูกกลิ้งบนผิว"
-  • "Matte", "แมทท์" → packaging_action: "smooth_application" + action_desc: "เกลี่ยเนื้อแมทท์ให้เนียน"
-  • "Glossy", "ฉ่ำ", "วาว", "ชุ่มชื้น" → packaging_action: "glossy_shine" + action_desc: "อวดเนื้อลิปแวววาวฉ่ำ เม้มปากให้เห็นความฉ่ำ"
-  • "Cream", "ครีม", "เนื้อครีม" → packaging_action: "blend" + action_desc: "เกลี่ยครีมซึมซาบสู่ผิว"
-  • "Cushion", "คุชชั่น", "แพด" → packaging_action: "dab_press" + action_desc: "แตะคุมชั่นบนใบหน้าเบาๆ"
-  • "Pen", "ปากกา", "คลิก Pen" → packaging_action: "click_pen" + action_desc: "คลิกปากกาแล้วเขียน/วาด"
-
-- ถ้าไม่มีคำเหล่านี้เลย → packaging_action: "generic_hold" + action_desc: "ถือสินค้าและใช้งานทั่วไป"
-- action_desc ให้เขียนภาษาไทย สั้น กระชับ
-
-JSON ที่ต้องตอบ:
-{
-  "category": "beauty/fashion/electronics/food/home/tools/health/other",
-  "target_gender": "male/female",
-  "target_age": "25",
-  "target_audience": "กลุ่มเป้าหมายหลัก เช่น สาววัยทำงานที่มีปัญหาริมฝีปากแห้ง",
-  "setting": "สถานที่ถ่ายวิดีโอ เช่น vanity room หรือ bathroom",
-  "customer_problem": "ปัญหาที่สินค้านี้แก้ (เจาะจง) เช่น ริมฝีปากแห้งแตก ไม่ฉ่ำ ใต้ตาคล้ำจากนอนดึก",
-  "main_benefit": "คุณประโยชน์หลักของสินค้า เช่น ให้ริมฝีปากชุ่มชื้น ฉ่ำวาว ตลอดวัน",
-  "packaging_action": "click_to_release/pump/spray/roll/smooth_application/glossy_shine/blend/dab_press/click_pen/generic_hold",
-  "action_desc": "คำอธิบายภาษาไทยสั้นๆ ว่าแพ็กเกจจิ้งทำงานยังไง",
-  "hashtags": ["hashtag1", "hashtag2", "hashtag3", "hashtag4", "hashtag5"],
-  "image_description": "ENGLISH ONLY — absolutely NO Thai language. Describe the scene for AI image generation.
-
-🔴 CRITICAL — First Frame Rule (บังคับ):
-- image_description = FIRST FRAME ของวิดีโอ (Wan 2.7 ใช้เป็น reference image)
-- ต้องตรงกับท่าเริ่มต้นของ Video Prompt Scene แรกเป๊ะๆ
-- สำหรับ Holding/UGC Style: นางแบบต้อง "ถือสินค้าที่ระดับอก" (holding at chest level) — ยังไม่เริ่มใช้
-- ห้ามระบุว่านางแบบกำลังใช้สินค้า (กำลังทา, กำลังปั๊ม, กำลังฉีด) ใน image_description
-- การทำงานที่ถูกต้อง:
-  • Image (First Frame): ถือสินค้าที่ระดับอกเฉยๆ
-  • Video Scene 1: เริ่มขยับจากท่าถือ → เริ่มใช้สินค้า
-  • Video Scene 2+: ใช้สินค้าจริง
-
-Include: model appearance (Thai woman/man, age 25, glowing skin), pose (HOLDING product at chest level — NOT applying yet), expression (confident smile / happy), setting (vanity room, cafe), lighting (soft natural window light), mood (warm, inviting). Focus on product being clearly visible and in focus. Do NOT describe the product being used/applied — that happens in the video.
-
-Example (correct for Holding style): 'A beautiful Thai woman, 25 years old, glowing skin, happy smile, holding a lip product at chest level, product visible and in focus, in a vanity room with soft natural window lighting, warm and inviting atmosphere'",
-}"""
-
-
-PRODUCT_VISION_SYSTEM = """You are a product image analyst for TikTok Shop (Gemini-powered).
-Analyze the product image and return JSON ONLY (no other text).
-
-CRITICAL RULES:
-- target_gender MUST be "male" or "female" — NEVER "unisex"
-- image_description must be 100% English with NO Thai language
-
-JSON format:
-{
-  "category": "beauty/fashion/electronics/food/home/tools/health/other",
-  "product_type": "lipstick/cream/headphones/etc.",
-  "target_gender": "male/female",
-  "target_age": "25",
-  "target_audience": "primary target audience (specific, in Thai for script)",
-  "setting": "suggested video setting (English, e.g. vanity room, bathroom, cafe)",
-  "colors": ["dominant color 1", "dominant color 2", "dominant color 3"],
-  "packaging_style": "luxury/minimal/colorful/modern",
-  "estimated_product_size": "small/medium/large",
-  "customer_problem": "specific problem this product solves (in Thai for script)",
-  "main_benefit": "specific main benefit (in Thai for script)",
-  "image_description": "ENGLISH ONLY — absolutely NO Thai. Describe the ideal scene for AI image gen. Include: model appearance (Thai woman/man, age 25, glowing skin), pose (how they hold/use product, e.g. applying on lips showing glossy texture), expression, setting, lighting, mood. Focus on product texture/usage. Example: 'A beautiful Thai woman, 25 years old, glowing skin, happy smile, applying product on lips, vanity room, soft natural window lighting, glossy texture visible, warm atmosphere'
-}"""
-
-
-
-
-# ─── Persona Injection ────────────────────────────────────────────────
-
-PERSONA_TEMPLATES = {
-    "energetic_young": {
-        "model_age": "22-26",
-        "vibe": "high energy, trendy, fast talker, Gen Z slang",
-        "environment": "bedroom with led lights, trendy cafe",
-        "lighting_variation": "neon pink/purple, bright indoor",
-        "motion_speed": "fast, snappy cuts",
-    },
-    "calm_professional": {
-        "model_age": "28-35",
-        "vibe": "calm, authoritative, measured speech, professional",
-        "environment": "modern office, clean white studio",
-        "lighting_variation": "soft neutral, ring light style",
-        "motion_speed": "slow, deliberate pans",
-    },
-    "mom_at_home": {
-        "model_age": "30-40",
-        "vibe": "warm, relatable, busy mom energy",
-        "environment": "home kitchen, living room with kids toys",
-        "lighting_variation": "warm golden, natural window",
-        "motion_speed": "natural, slightly rushed",
-    },
-    "college_student": {
-        "model_age": "19-23",
-        "vibe": "casual, budget-conscious, honest reactions",
-        "environment": "dorm room, campus, library",
-        "lighting_variation": "cool fluorescent, mixed daylight",
-        "motion_speed": "casual, natural hand gestures",
-    },
-    "minimalist_zen": {
-        "model_age": "25-32",
-        "vibe": "calm, aesthetic, slow living, premium feel",
-        "environment": "minimalist room with plants, yoga space",
-        "lighting_variation": "soft diffused, morning light",
-        "motion_speed": "slow, graceful movements",
-    },
-    "tech_enthusiast": {
-        "model_age": "22-30",
-        "vibe": "excited, gadget-focused, fast demo style",
-        "environment": "desk with monitors, gaming setup",
-        "lighting_variation": "RGB lighting, cool blue/white",
-        "motion_speed": "fast, demonstrative",
-    },
-}
-
-
-def _select_persona(category: str, product_name: str = "") -> dict:
-    import random
-    cat_persona_map = {
-        "beauty": ["energetic_young", "calm_professional", "mom_at_home", "minimalist_zen"],
-        "electronics": ["tech_enthusiast", "college_student", "calm_professional"],
-        "food": ["mom_at_home", "college_student", "energetic_young"],
-        "fashion": ["energetic_young", "minimalist_zen", "calm_professional"],
-        "home": ["mom_at_home", "minimalist_zen", "calm_professional"],
-        "tools": ["calm_professional", "tech_enthusiast", "mom_at_home"],
-        "health": ["calm_professional", "minimalist_zen", "energetic_young"],
-    }
-    pool = cat_persona_map.get(category, list(PERSONA_TEMPLATES.keys()))
-    chosen = random.choice(pool)
-    return PERSONA_TEMPLATES[chosen]
-
-
-def _apply_persona_to_profile(profile: dict, persona: dict) -> dict:
-    if persona.get("model_age"):
-        profile["persona_age"] = persona["model_age"]
-    if persona.get("vibe"):
-        profile["persona_vibe"] = persona["vibe"]
-    if persona.get("environment"):
-        profile["setting"] = persona["environment"]
-    if persona.get("lighting_variation"):
-        profile["persona_lighting"] = persona["lighting_variation"]
-    if persona.get("motion_speed"):
-        profile["persona_motion"] = persona["motion_speed"]
-    base_audience = profile.get("target_audience", "")
-    if persona.get("vibe") and base_audience:
-        profile["target_audience"] = f"{base_audience} -- {persona['vibe']}"
-    return profile
-
-def analyze_product_image(product_image: str, product_name: str, description: str = "") -> Optional[dict]:
-    """Analyze product image via Mistral Pixtral Vision API."""
-    if not product_image:
-        return None
-    user_text = f"Analyze this product image. Product name: {product_name}. Description: {description if description else 'N/A'}"
-    raw = _call_gemini_vision(PRODUCT_VISION_SYSTEM, user_text, product_image, temperature=0.3)
-    if raw:
-        result = _extract_json(raw)
-        if result:
-            logger.info(f"Vision analysis result: {result.get('category', 'unknown')} / {result.get('product_type', 'unknown')}")
-            return result
-    return None
-
 
 def analyze_product(product_name: str, description: str = "", keywords: Optional[List[str]] = None) -> dict:
     """Analyze product via Mistral and return profile dict.
@@ -549,6 +87,8 @@ Keywords: {kw_str}"""
 # ═══════════════════════════════════════════════════════════════════════
 # ─── Image & Video Prompt Generation ──────────────────────────────────
 # ═══════════════════════════════════════════════════════════════════════
+
+
 
 def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holding") -> str:
     """Generate image prompt using Mistral's image_description + UGC templates.
@@ -633,145 +173,6 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
 
 # ─── Audio Timing & Script Length Validation ──────────────────────────
 
-def _estimate_speech_duration(text: str) -> float:
-    """
-    Estimate speaking duration for Thai + mixed Thai/English text.
-    
-    Thai: ~15 chars/sec at normal conversational pace
-    English: ~8 chars/sec in Thai context (shorter words, brand names)
-    Mixed: weighted average
-    
-    These are calibrated for Google TTS Thai female voice at 1.0x speed.
-    """
-    if not text or not text.strip():
-        return 0
-    text_clean = text.replace(' ', '')
-    if not text_clean:
-        return 0
-    # Separate Thai and non-Thai characters
-    thai_chars = sum(1 for c in text if '\u0E00' <= c <= '\u0E7F')
-    non_thai_chars = len(text_clean) - thai_chars
-    if non_thai_chars < 0:
-        non_thai_chars = 0
-    
-    # Thai at natural conversational pace
-    thai_sec = thai_chars / 18.0  # ~18 chars/sec (native Thai speakers are fast)
-    non_thai_sec = non_thai_chars / 9.0  # ~9 chars/sec for English brand names in Thai context
-    
-    # Add a small buffer for pauses/gaps between language switches
-    switches = 0
-    if thai_chars > 0 and non_thai_chars > 0:
-        switches = 1  # one natural pause between language change
-    
-    return thai_sec + non_thai_sec + (switches * 0.1)
-
-
-def _build_timing_validated_script(product_name: str, category: str = "beauty") -> dict:
-    """
-    Build script segments with timing validation.
-    Auto-abbreviates product name if it would cause TTS to rush.
-    
-    Returns {
-        "hook": {"text": ..., "timing": "0-2", "duration_sec": 2, "ok": bool},
-        "value": {"text": ..., "timing": "2-6", "duration_sec": 4, "ok": bool},
-        "cta": {"text": ..., "timing": "6-8", "duration_sec": 2, "ok": bool},
-        "tts_speed": 1.0,  # suggested speed multiplier
-        "full_script": ...,
-        "tts_script": ...,  # abbreviated version for TTS
-    }
-    """
-    # Full product name — check if it fits
-    product_short = product_name
-    full_name_chars = len(product_name)
-    
-    # If product name is long, create abbreviated version for TTS
-    # Strategy: keep brand name + key category word, drop descriptive adjectives
-    if full_name_chars > 25:
-        parts = product_name.split()
-        # Words that are brand/essential keywords worth keeping
-        keep_keywords = {"la", "glace", "lip", "click", "pen", "pump", "spray", "cream", "mask", "serum"}
-        # Words that are fluff/description — drop for TTS brevity
-        drop_keywords = {"melted", "sundae", "matte", "glossy", "shine", "moisture", "hydra", "glow", 
-                       "smooth", "natural", "fresh", "clear", "bright", "perfect", "daily", "extra",
-                       "ultra", "pro", "max", "new", "premium", "luxury", "blink", "blush"}
-        kept = []
-        for p in parts:
-            p_lower = p.lower().strip("(),.!")
-            if p_lower in keep_keywords:
-                kept.append(p)
-            elif p_lower not in drop_keywords and len(p) > 3:
-                # Keep unknown words that are short brand-like (e.g. SADOER, OUKEYA)
-                if p.isupper() and len(p) <= 8:
-                    kept.append(p)
-                elif not p.isupper():
-                    kept.append(p)  # Keep Thai text
-        candidate = ' '.join(kept) if kept else product_name[:30]
-        if len(candidate) <= 35:
-            product_short = candidate
-        else:
-            # If still too long, just take first 3 relevant parts
-            product_short = ' '.join(kept[:3]) if len(kept) >= 3 else product_name[:30]
-    
-    # Ensure we never use empty or too-short name
-    if len(product_short) < 5:
-        product_short = product_name[:30]
-    
-    # Build script segments — category-aware
-    if "blush" in category.lower() or "cheek" in category.lower():
-        hook_text = f"หน้าแบน ไม่มีมิติ แต่งหน้ายังไงก็ไม่ปัง?"
-        value_text = f"{product_short} บลัชออน 2 เฉดในเดียว เพิ่มความสดใส วิ้งเบาๆ เป็นธรรมชาติ"
-    elif "lip" in category.lower() or "lipstick" in category.lower() or "lip gloss" in category.lower():
-        hook_text = f"ใครปากแห้ง ปากหมองคล้ำบ้าง?"
-        value_text = f"{product_short} ให้ปากฉ่ำวาว ไม่เหนอะ ติดทนตลอดวัน"
-    elif "mask" in category.lower() or "facial" in category.lower():
-        hook_text = f"ผิวแห้ง หมองคล้ำ ไม่สดใส ต้องลอง!"
-        value_text = f"{product_short} บำรุงล้ำลึก ให้ผิวชุ่มชื้น กระจ่างใส"
-    elif "serum" in category.lower() or "moisturizer" in category.lower():
-        hook_text = f"ผิวพังจากมลภาวะ อายุที่เพิ่มขึ้น หมดกังวล!"
-        value_text = f"{product_short} บำรุงเข้มข้น ซึมไว ไม่เหนอะหนะ"
-    elif "concealer" in category.lower() or "corrector" in category.lower():
-        hook_text = f"ใต้ตาดำคล้ำ นอนดึกทุกวัน หมดปัญหา!"
-        value_text = f"{product_short} ปกปิดเนียนกริบ ไม่ตกร่อง ไม่เป็นคราบ"
-    else:
-        hook_text = f"ต้องลอง! สินค้าดีบอกต่อ"
-        value_text = f"{product_short} คุณภาพเยี่ยม ใช้งานง่าย เห็นผลจริง"
-    cta_text = f"กดลิงก์หน้าโปรไฟล์เลย รับส่วนลดทันที"
-    
-    segments = [
-        {"key": "hook", "text": hook_text, "duration_sec": 2, "timing": "0-2"},
-        {"key": "value", "text": value_text, "duration_sec": 4, "timing": "2-6"},
-        {"key": "cta", "text": cta_text, "duration_sec": 2, "timing": "6-8"},
-    ]
-    
-    total_ok = True
-    max_speed_needed = 1.0
-    for seg in segments:
-        estimated = _estimate_speech_duration(seg["text"])
-        seg["estimated_sec"] = round(estimated, 1)
-        seg["ok"] = estimated <= seg["duration_sec"]
-        if not seg["ok"]:
-            total_ok = False
-            # Calculate needed speedup
-            needed = estimated / seg["duration_sec"]
-            if needed > max_speed_needed:
-                max_speed_needed = needed
-    
-    tts_speed = min(max_speed_needed, 1.3)  # Max 1.3x speed
-    if tts_speed < 1.0:
-        tts_speed = 1.0
-    
-    full = " ".join(s["text"] for s in segments)
-    
-    return {
-        "hook": segments[0],
-        "value": segments[1],
-        "cta": segments[2],
-        "tts_speed": tts_speed,
-        "full_script": full,
-        "tts_script": full,
-        "product_short_for_tts": product_short,
-        "all_segments_fit": total_ok,
-    }
 
 
 def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holding") -> str:
@@ -842,6 +243,8 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         f"9:16 portrait, smooth natural motion, no text, no watermark"
     )
     return video_prompt
+
+
 
 
 def build_negative_prompt(profile: dict, ugc_style: str = "holding") -> str:
@@ -1011,3 +414,326 @@ async def process_image_prompt_request(
         description=description,
         ugc_style=ugc_style,
     )
+
+
+def _estimate_speech_duration(text: str) -> float:
+    """
+    Estimate speaking duration for Thai + mixed Thai/English text.
+    
+    Thai: ~15 chars/sec at normal conversational pace
+    English: ~8 chars/sec in Thai context (shorter words, brand names)
+    Mixed: weighted average
+    
+    These are calibrated for Google TTS Thai female voice at 1.0x speed.
+    """
+    if not text or not text.strip():
+        return 0
+    text_clean = text.replace(' ', '')
+    if not text_clean:
+        return 0
+    # Separate Thai and non-Thai characters
+    thai_chars = sum(1 for c in text if '\u0E00' <= c <= '\u0E7F')
+    non_thai_chars = len(text_clean) - thai_chars
+    if non_thai_chars < 0:
+        non_thai_chars = 0
+    
+    # Thai at natural conversational pace
+    thai_sec = thai_chars / 18.0  # ~18 chars/sec (native Thai speakers are fast)
+    non_thai_sec = non_thai_chars / 9.0  # ~9 chars/sec for English brand names in Thai context
+    
+    # Add a small buffer for pauses/gaps between language switches
+    switches = 0
+    if thai_chars > 0 and non_thai_chars > 0:
+        switches = 1  # one natural pause between language change
+    
+    return thai_sec + non_thai_sec + (switches * 0.1)
+
+
+
+
+def _build_timing_validated_script(product_name: str, category: str = "beauty") -> dict:
+    """
+    Build script segments with timing validation.
+    Auto-abbreviates product name if it would cause TTS to rush.
+    
+    Returns {
+        "hook": {"text": ..., "timing": "0-2", "duration_sec": 2, "ok": bool},
+        "value": {"text": ..., "timing": "2-6", "duration_sec": 4, "ok": bool},
+        "cta": {"text": ..., "timing": "6-8", "duration_sec": 2, "ok": bool},
+        "tts_speed": 1.0,  # suggested speed multiplier
+        "full_script": ...,
+        "tts_script": ...,  # abbreviated version for TTS
+    }
+    """
+    # Full product name — check if it fits
+    product_short = product_name
+    full_name_chars = len(product_name)
+    
+    # If product name is long, create abbreviated version for TTS
+    # Strategy: keep brand name + key category word, drop descriptive adjectives
+    if full_name_chars > 25:
+        parts = product_name.split()
+        # Words that are brand/essential keywords worth keeping
+        keep_keywords = {"la", "glace", "lip", "click", "pen", "pump", "spray", "cream", "mask", "serum"}
+        # Words that are fluff/description — drop for TTS brevity
+        drop_keywords = {"melted", "sundae", "matte", "glossy", "shine", "moisture", "hydra", "glow", 
+                       "smooth", "natural", "fresh", "clear", "bright", "perfect", "daily", "extra",
+                       "ultra", "pro", "max", "new", "premium", "luxury", "blink", "blush"}
+        kept = []
+        for p in parts:
+            p_lower = p.lower().strip("(),.!")
+            if p_lower in keep_keywords:
+                kept.append(p)
+            elif p_lower not in drop_keywords and len(p) > 3:
+                # Keep unknown words that are short brand-like (e.g. SADOER, OUKEYA)
+                if p.isupper() and len(p) <= 8:
+                    kept.append(p)
+                elif not p.isupper():
+                    kept.append(p)  # Keep Thai text
+        candidate = ' '.join(kept) if kept else product_name[:30]
+        if len(candidate) <= 35:
+            product_short = candidate
+        else:
+            # If still too long, just take first 3 relevant parts
+            product_short = ' '.join(kept[:3]) if len(kept) >= 3 else product_name[:30]
+    
+    # Ensure we never use empty or too-short name
+    if len(product_short) < 5:
+        product_short = product_name[:30]
+    
+    # Build script segments — category-aware
+    if "blush" in category.lower() or "cheek" in category.lower():
+        hook_text = f"หน้าแบน ไม่มีมิติ แต่งหน้ายังไงก็ไม่ปัง?"
+        value_text = f"{product_short} บลัชออน 2 เฉดในเดียว เพิ่มความสดใส วิ้งเบาๆ เป็นธรรมชาติ"
+    elif "lip" in category.lower() or "lipstick" in category.lower() or "lip gloss" in category.lower():
+        hook_text = f"ใครปากแห้ง ปากหมองคล้ำบ้าง?"
+        value_text = f"{product_short} ให้ปากฉ่ำวาว ไม่เหนอะ ติดทนตลอดวัน"
+    elif "mask" in category.lower() or "facial" in category.lower():
+        hook_text = f"ผิวแห้ง หมองคล้ำ ไม่สดใส ต้องลอง!"
+        value_text = f"{product_short} บำรุงล้ำลึก ให้ผิวชุ่มชื้น กระจ่างใส"
+    elif "serum" in category.lower() or "moisturizer" in category.lower():
+        hook_text = f"ผิวพังจากมลภาวะ อายุที่เพิ่มขึ้น หมดกังวล!"
+        value_text = f"{product_short} บำรุงเข้มข้น ซึมไว ไม่เหนอะหนะ"
+    elif "concealer" in category.lower() or "corrector" in category.lower():
+        hook_text = f"ใต้ตาดำคล้ำ นอนดึกทุกวัน หมดปัญหา!"
+        value_text = f"{product_short} ปกปิดเนียนกริบ ไม่ตกร่อง ไม่เป็นคราบ"
+    else:
+        hook_text = f"ต้องลอง! สินค้าดีบอกต่อ"
+        value_text = f"{product_short} คุณภาพเยี่ยม ใช้งานง่าย เห็นผลจริง"
+    cta_text = f"กดลิงก์หน้าโปรไฟล์เลย รับส่วนลดทันที"
+    
+    segments = [
+        {"key": "hook", "text": hook_text, "duration_sec": 2, "timing": "0-2"},
+        {"key": "value", "text": value_text, "duration_sec": 4, "timing": "2-6"},
+        {"key": "cta", "text": cta_text, "duration_sec": 2, "timing": "6-8"},
+    ]
+    
+    total_ok = True
+    max_speed_needed = 1.0
+    for seg in segments:
+        estimated = _estimate_speech_duration(seg["text"])
+        seg["estimated_sec"] = round(estimated, 1)
+        seg["ok"] = estimated <= seg["duration_sec"]
+        if not seg["ok"]:
+            total_ok = False
+            # Calculate needed speedup
+            needed = estimated / seg["duration_sec"]
+            if needed > max_speed_needed:
+                max_speed_needed = needed
+    
+    tts_speed = min(max_speed_needed, 1.3)  # Max 1.3x speed
+    if tts_speed < 1.0:
+        tts_speed = 1.0
+    
+    full = " ".join(s["text"] for s in segments)
+    
+    return {
+        "hook": segments[0],
+        "value": segments[1],
+        "cta": segments[2],
+        "tts_speed": tts_speed,
+        "full_script": full,
+        "tts_script": full,
+        "product_short_for_tts": product_short,
+        "all_segments_fit": total_ok,
+    }
+
+
+
+
+async def analyze_and_build_prompts(
+    product_name: str,
+    description: str = "",
+    keywords: Optional[List[str]] = None,
+    ugc_style: str = "holding",
+    product_id: str = "",
+    price: float = 0.0,
+    product_image: str = "",
+    category: str = "",
+    product_category: str = "",
+) -> dict:
+    """
+    Full pipeline:
+      1. Analyze product via Gemini → product profile
+      2. Optionally analyze product image via Gemini Vision for enrichment
+      3. Build image prompt, video prompt, negative prompt (from UGC_prompts)
+      4. Return everything in one dict
+    """
+    # Step 1: Analyze
+    profile = analyze_product(product_name, description, keywords)
+
+    # Step 1b: If product_image provided, run vision analysis to enrich profile
+    vision_profile = None
+    if product_image:
+        try:
+            vision_profile = analyze_product_image(product_image, product_name, description)
+        except Exception as e:
+            logger.warning(f"Vision analysis failed (non-fatal): {e}")
+
+    if vision_profile:
+        for key in ["category", "target_gender", "target_age", "target_audience", "setting",
+                     "customer_problem", "main_benefit", "image_description"]:
+            if key in vision_profile and vision_profile[key]:
+                profile[key] = vision_profile[key]
+        if "product_type" in vision_profile and vision_profile["product_type"]:
+            profile["product_type"] = vision_profile["product_type"]
+        if "colors" in vision_profile and vision_profile["colors"]:
+            profile["colors"] = vision_profile["colors"]
+        if "packaging_style" in vision_profile and vision_profile["packaging_style"]:
+            profile["packaging_style"] = vision_profile["packaging_style"]
+
+    # Override with explicit params if provided
+    if category:
+        profile["category"] = category
+    if product_category:
+        profile["product_category"] = product_category
+    
+    # Step 2b: Inject random persona for diversity
+    persona = _select_persona(profile.get("category", category or "other"), product_name)
+    profile = _apply_persona_to_profile(profile, persona)
+    logger.info(f"Persona: {persona.get('vibe', '')} | Env: {persona.get('environment', '')}")
+
+    # Step 3: Build prompts (with persona-injected profile)
+    image_prompt, negative_prompt = build_image_prompt(profile, product_name, ugc_style)
+    video_prompt = build_video_prompt(profile, product_name, ugc_style)
+    if not negative_prompt:
+        negative_prompt = build_negative_prompt(profile, ugc_style)
+    
+    # Step 4: Validate script timing
+    category_key = profile.get("category", category or "beauty")
+    timing_validation = _build_timing_validated_script(product_name, category_key)
+    
+    result = {
+        "product_id": product_id,
+        "analysis": {
+            "category": profile.get("category", "other"),
+            "target_gender": profile.get("target_gender", "unisex"),
+            "target_age": profile.get("target_age", "20-35"),
+            "target_audience": profile.get("target_audience", ""),
+            "setting": profile.get("setting", ""),
+            "customer_problem": profile.get("customer_problem", ""),
+            "main_benefit": profile.get("main_benefit", ""),
+            "hashtags": profile.get("hashtags", []),
+            "image_description": profile.get("image_description", ""),
+        },
+        "timing_validation": {
+            "segments": {
+                "hook": timing_validation["hook"],
+                "value": timing_validation["value"],
+                "cta": timing_validation["cta"],
+            },
+            "tts_speed": timing_validation["tts_speed"],
+            "product_short_for_tts": timing_validation["product_short_for_tts"],
+            "all_segments_fit": timing_validation["all_segments_fit"],
+            "total_duration": 8,
+        },
+        "scripts": {
+            "full_script": timing_validation["full_script"],
+            "tts_script": timing_validation["tts_script"],
+            "breakdown": {
+                "hook": timing_validation["hook"]["text"],
+                "value": timing_validation["value"]["text"],
+                "cta": timing_validation["cta"]["text"],
+            }
+        },
+        "image_prompt": image_prompt,
+        "video_prompt": video_prompt,
+        "negative_prompt": negative_prompt,
+        "metadata": {
+            "ugc_style": ugc_style,
+            "used_gemini": True,
+            "image_analyzed": bool(vision_profile),
+            "persona": {
+                "vibe": profile.get("persona_vibe", persona.get("vibe", "")),
+                "environment": profile.get("setting", persona.get("environment", "")),
+                "lighting": profile.get("persona_lighting", persona.get("lighting_variation", "")),
+                "motion_speed": profile.get("persona_motion", persona.get("motion_speed", "")),
+            }
+        },
+        "vision_enrichment": {
+            "product_type": profile.get("product_type", ""),
+            "colors": profile.get("colors", []),
+            "packaging_style": profile.get("packaging_style", ""),
+        } if vision_profile else None,
+    }
+    
+    logger.info(f"Prompt built for [{product_name[:30]}]: img={len(image_prompt)}ch, vid={len(video_prompt)}ch")
+    return result
+
+
+# ─── Backward Compat APIs ────────────────────────────────────────────
+
+async def build_prompt(
+    product_name: str,
+    description: str = "",
+    ugc_style: str = "holding",
+    gemini_analysis: Optional[dict] = None
+) -> dict:
+    """Legacy API — calls analyze_and_build_prompts."""
+    return await analyze_and_build_prompts(
+        product_name=product_name,
+        description=description,
+        ugc_style=ugc_style,
+    )
+
+
+async def process_image_prompt_request(
+    product_name: str,
+    description: str = "",
+    ugc_style: str = "holding",
+) -> dict:
+    """Legacy API wrapper."""
+    return await analyze_and_build_prompts(
+        product_name=product_name,
+        description=description,
+        ugc_style=ugc_style,
+    )
+
+
+async def build_prompt(
+    product_name: str,
+    description: str = "",
+    ugc_style: str = "holding",
+    gemini_analysis: Optional[dict] = None
+) -> dict:
+    """Legacy API — calls analyze_and_build_prompts."""
+    return await analyze_and_build_prompts(
+        product_name=product_name,
+        description=description,
+        ugc_style=ugc_style,
+    )
+
+
+async def process_image_prompt_request(
+    product_name: str,
+    description: str = "",
+    ugc_style: str = "holding",
+) -> dict:
+    """Legacy API wrapper."""
+    return await analyze_and_build_prompts(
+        product_name=product_name,
+        description=description,
+        ugc_style=ugc_style,
+    )
+
+

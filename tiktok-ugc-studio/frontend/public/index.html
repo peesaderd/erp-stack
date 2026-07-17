@@ -801,6 +801,8 @@ select.input { cursor: pointer; }
 
 /* Style card / wizard options selection cards */
 .style-select-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px 0; }
+.auto-pipeline-modes .mode-card.selected { border-color: var(--accent-purple) !important; background: rgba(139,92,246,0.08) !important; }
+.auto-pipeline-modes .mode-card:hover { border-color: var(--accent-purple); background: rgba(139,92,246,0.04); }
 .style-select-grid .style-card { text-align: center; padding: 14px 10px; }
 .style-card {
   cursor: pointer; padding: 18px; border: 1.5px solid var(--border-primary);
@@ -1339,6 +1341,79 @@ select.input { cursor: pointer; }
     </div>
 
     <button class="btn btn-primary w-full" id="genBtn" onclick="startGeneration()" style="justify-content:center">🚀 Generate Video</button>
+
+    <!-- ═══ Auto Pipeline Section ═══ -->
+    <div class="card" style="margin-top:20px;border:1px solid rgba(139,92,246,0.2);background:rgba(139,92,246,0.03)">
+      <div class="card-title mb-3" style="color:var(--accent-purple)">🤖 Auto Pipeline</div>
+      
+      <!-- Mode Selector -->
+      <div class="mb-3">
+        <label class="text-sm text-secondary mb-2" style="display:block">เลือกโหมด</label>
+        <div class="auto-pipeline-modes" style="display:flex;flex-wrap:wrap;gap:8px">
+          <label class="mode-card selected" data-mode="manual" onclick="selectAutoMode(this)" style="flex:1;min-width:120px;cursor:pointer;padding:12px;border-radius:12px;border:2px solid var(--border-primary);text-align:center;transition:all .2s;background:var(--bg-secondary)">
+            <div style="font-size:24px;margin-bottom:4px">🎯</div>
+            <div style="font-weight:600;font-size:13px">Manual</div>
+            <div class="text-xs text-secondary" style="margin-top:2px">Gen เสร็จ → รอ User Post</div>
+          </label>
+          <label class="mode-card" data-mode="auto-queue" onclick="selectAutoMode(this)" style="flex:1;min-width:120px;cursor:pointer;padding:12px;border-radius:12px;border:2px solid var(--border-primary);text-align:center;transition:all .2s;background:var(--bg-secondary)">
+            <div style="font-size:24px;margin-bottom:4px">⏳</div>
+            <div style="font-weight:600;font-size:13px">Auto Queue</div>
+            <div class="text-xs text-secondary" style="margin-top:2px">Gen → เข้า Queue → รอ Approve</div>
+          </label>
+          <label class="mode-card" data-mode="full-auto" onclick="selectAutoMode(this)" style="flex:1;min-width:120px;cursor:pointer;padding:12px;border-radius:12px;border:2px solid var(--border-primary);text-align:center;transition:all .2s;background:var(--bg-secondary)">
+            <div style="font-size:24px;margin-bottom:4px">🚀</div>
+            <div style="font-weight:600;font-size:13px">Full Auto</div>
+            <div class="text-xs text-secondary" style="margin-top:2px">Gen → Post อัตโนมัติ</div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Platforms (from existing data) -->
+      <div class="mb-3">
+        <label class="text-sm text-secondary mb-2" style="display:block">📱 Platforms</label>
+        <div id="autoPfmPlatforms" style="display:flex;flex-wrap:wrap;gap:8px">
+          <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;padding:6px 14px;border:1px solid var(--border-primary);border-radius:20px;background:var(--bg-secondary)"><input type="checkbox" value="tiktok" checked> 🎵 TikTok</label>
+          <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;padding:6px 14px;border:1px solid var(--border-primary);border-radius:20px;background:var(--bg-secondary)"><input type="checkbox" value="instagram"> 📸 Instagram</label>
+          <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;padding:6px 14px;border:1px solid var(--border-primary);border-radius:20px;background:var(--bg-secondary)"><input type="checkbox" value="youtube"> ▶️ YouTube</label>
+          <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;padding:6px 14px;border:1px solid var(--border-primary);border-radius:20px;background:var(--bg-secondary)"><input type="checkbox" value="facebook"> 👤 Facebook</label>
+        </div>
+      </div>
+
+      <!-- Schedule -->
+      <div class="mb-3" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>
+          <label class="text-sm text-secondary mb-1" style="display:block">📊 จำนวนต่อวัน</label>
+          <input type="number" id="autoDailyCount" class="input" value="3" min="1" max="20" style="width:100%">
+        </div>
+        <div>
+          <label class="text-sm text-secondary mb-1" style="display:block">⏰ เวลาตีพิมพ์</label>
+          <select id="autoPostTime" class="input" style="width:100%">
+            <option value="random">🎲 Random 8:00-22:00</option>
+            <option value="morning">🌅 เช้า 8:00-10:00</option>
+            <option value="afternoon">☀️ บ่าย 12:00-15:00</option>
+            <option value="evening">🌆 เย็น 17:00-20:00</option>
+            <option value="night">🌙 กลางคืน 20:00-23:00</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Product Source -->
+      <div class="mb-3">
+        <label class="text-sm text-secondary mb-1" style="display:block">📦 Product Source</label>
+        <select id="autoProductSource" class="input" style="width:100%">
+          <option value="all">ทั้งหมด (เรียงตาม Viral Score)</option>
+          <option value="untouched">เฉพาะที่ยังไม่ได้สร้างวิดีโอ</option>
+          <option value="retry">เฉพาะที่สร้างวิดีโอแล้ว</option>
+        </select>
+      </div>
+
+      <!-- Actions -->
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">
+        <button class="btn btn-primary btn-sm" onclick="saveAutoPipelineSettings()" style="flex:1">💾 Save Settings</button>
+        <button class="btn btn-primary btn-sm" id="startAutoPipeline" onclick="startAutoPipelineNow()" style="flex:1;background:linear-gradient(135deg,#f43f5e,#8b5cf6)!important;border:none!important">▶️ Start Auto Pipeline</button>
+      </div>
+      <div id="autoPipelineStatus" class="text-xs text-secondary mt-1" style="text-align:center"></div>
+    </div>
   </div>
 </div>
 
@@ -2208,6 +2283,145 @@ async function autoGenerateAll() {
   } catch(e) {
     setButtonLoading('autoGenBtn', false);
     showToast('❌ Auto Generate Failed: '+e.message,'error');
+  }
+}
+
+// ─── Auto Pipeline ─────────────────────────────────────────
+
+function selectAutoMode(el) {
+  document.querySelectorAll('.auto-pipeline-modes .mode-card').forEach(function(c){ 
+    c.classList.remove('selected');
+    c.style.borderColor = 'var(--border-primary)';
+    c.style.background = 'var(--bg-secondary)';
+  });
+  el.classList.add('selected');
+  el.style.borderColor = 'var(--accent-purple)';
+  el.style.background = 'rgba(139,92,246,0.08)';
+  localStorage.setItem('autoPipelineMode', el.dataset.mode);
+}
+
+function saveAutoPipelineSettings() {
+  var settings = {
+    mode: localStorage.getItem('autoPipelineMode') || 'manual',
+    platforms: [],
+    dailyCount: document.getElementById('autoDailyCount')?.value || 3,
+    postTime: document.getElementById('autoPostTime')?.value || 'random',
+    productSource: document.getElementById('autoProductSource')?.value || 'all',
+  };
+  document.querySelectorAll('#autoPfmPlatforms input[type="checkbox"]:checked').forEach(function(c){
+    settings.platforms.push(c.value);
+  });
+  localStorage.setItem('autoPipelineSettings', JSON.stringify(settings));
+  showToast('💾 Auto Pipeline settings saved!', 'success');
+}
+
+async function startAutoPipelineNow() {
+  saveAutoPipelineSettings();
+  var settings = JSON.parse(localStorage.getItem('autoPipelineSettings') || '{}');
+  if (!settings.platforms || !settings.platforms.length) { showToast('กรุณาเลือก platform', 'error'); return; }
+  
+  var btn = document.getElementById('startAutoPipeline');
+  var status = document.getElementById('autoPipelineStatus');
+  btn.disabled = true;
+  btn.textContent = '⏳ Running...';
+  status.textContent = 'กำลังดึงข้อมูลสินค้า...';
+  
+  try {
+    // Fetch products from DB
+    var r = await fetch(API + '/products/list?limit=50&preset=all');
+    var d = await r.json();
+    var products = d.products || [];
+    
+    if (!products.length) { showToast('ไม่มีสินค้าในระบบ', 'error'); btn.disabled=false; btn.textContent='▶️ Start Auto Pipeline'; return; }
+    
+    status.textContent = 'พบสินค้า ' + products.length + ' รายการ กำลังเลือก...';
+    
+    // Filter by source
+    var filtered = products;
+    if (settings.productSource === 'untouched') {
+      filtered = products.filter(function(p){ return p.tus_status === 'pending' || !p.tus_status; });
+    } else if (settings.productSource === 'retry') {
+      filtered = products.filter(function(p){ return p.tus_status === 'failed' || p.tus_status === 'running'; });
+    }
+    
+    if (!filtered.length) { showToast('ไม่พบสินค้าที่ตรงเงื่อนไข', 'error'); btn.disabled=false; btn.textContent='▶️ Start Auto Pipeline'; return; }
+    
+    status.textContent = 'เลือก ' + filtered[0].title.slice(0,50) + '... กำลังส่งเข้า Pipeline';
+    
+    // Run pipeline for first product
+    var title = filtered[0].title || '';
+    var desc = filtered[0].description || filtered[0].title_th || '';
+    var images = filtered[0].images || [];
+    
+    // Fill wizard fields with this product data
+    document.getElementById('productTitle').value = title;
+    document.getElementById('productDetails').value = desc;
+    if (images.length) {
+      var url = images[0];
+      document.getElementById('productImgPlaceholder').innerHTML = '<img src="'+url+'" style="max-width:100%;max-height:120px;border-radius:8px">';
+      uploadedImages.product = url;
+    }
+    
+    showToast('✅ Selected: ' + title.slice(0,40), 'success');
+    
+    if (settings.mode === 'manual') {
+      status.textContent = '✅ เลือกสินค้าแล้ว — กรุณากด Auto Generate All หรือ Generate Video';
+      showToast('🎯 Manual mode: กรอกข้อมูลแล้ว พร้อมให้สร้างวิดีโอ!', 'success');
+      return;
+    }
+    
+    // Auto Queue or Full Auto: auto-generate
+    status.textContent = '⏳ Auto generating...';
+    await autoGenerateAll();
+    
+    status.textContent = '✅ วิดีโอสร้างเสร็จ!';
+    
+    if (settings.mode === 'full-auto') {
+      // Post directly
+      status.textContent = '⏳ Auto posting...';
+      showToast('🚀 Full Auto: กำลังโพสต์...', 'info');
+      // Generate AI content first
+      var genR = await fetch(API + '/publisher/generate-content', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({product_name: title, description: desc, tags: [], platform: settings.platforms[0]})
+      });
+      var genData = await genR.json();
+      
+      // Find most recent pipeline job
+      var pipeR = await fetch(API + '/pipeline/list');
+      var pipeD = await pipeR.json();
+      var jobs = pipeD.jobs || [];
+      var latestJob = jobs.filter(function(j){ return j.status === 'completed' || j.status === 'running'; })[0];
+      
+      if (latestJob) {
+        for (var i = 0; i < settings.platforms.length; i++) {
+          await pfmFetch('/publisher/enqueue', {
+            method: 'POST', body: JSON.stringify({
+              video_path: latestJob.video_url || '',
+              title: genData.title || title,
+              description: genData.description || desc,
+              caption: title,
+              hashtags: genData.hashtags || [],
+              platform: settings.platforms[i],
+              job_id: latestJob.job_id,
+              schedule_at: new Date(Date.now() + 30000).toISOString()
+            })
+          });
+        }
+        status.textContent = '✅ Auto posted to ' + settings.platforms.length + ' platforms!';
+        showToast('🚀 Auto posted!', 'success');
+      }
+    } else {
+      showToast('⏳ Auto Queue: วิดีโออยู่ในคิว โปรดตรวจสอบที่ Publisher', 'success');
+    }
+    
+    loadPublisherQueue();
+  } catch(e) {
+    showToast('Auto Pipeline Error: ' + e.message, 'error');
+    status.textContent = '❌ Error: ' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '▶️ Start Auto Pipeline';
   }
 }
 
@@ -3871,6 +4085,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initial loads
   loadDashboard(); loadAccounts(); populateAccountSelect(); loadProviders(); autoInitSheets(); loadRecipes();
+  
+  // Restore Auto Pipeline settings
+  var savedMode = localStorage.getItem('autoPipelineMode');
+  if (savedMode) {
+    var modeEl = document.querySelector('.auto-pipeline-modes .mode-card[data-mode="' + savedMode + '"]');
+    if (modeEl) selectAutoMode(modeEl);
+  }
+  var savedSettings = localStorage.getItem('autoPipelineSettings');
+  if (savedSettings) {
+    try {
+      var s = JSON.parse(savedSettings);
+      if (s.platforms) {
+        document.querySelectorAll('#autoPfmPlatforms input[type="checkbox"]').forEach(function(c){
+          c.checked = s.platforms.indexOf(c.value) !== -1;
+        });
+      }
+      if (s.dailyCount) document.getElementById('autoDailyCount').value = s.dailyCount;
+      if (s.postTime) document.getElementById('autoPostTime').value = s.postTime;
+      if (s.productSource) document.getElementById('autoProductSource').value = s.productSource;
+    } catch(e){}
+  }
 });
 
 

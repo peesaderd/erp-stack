@@ -259,5 +259,31 @@ class AnalyzedProduct(Base):
     trending = Column(Boolean, default=False)
     keywords = Column(JSON, default=list)
     enriched = Column(Boolean, default=False)
+    variants = Column(JSON, default=list, nullable=True)
     created_at = Column(String(50), default="")
     updated_at = Column(String(50), default="")
+
+
+# ──────────────────────────────────────────────
+# Product Watch (Auto Keyword Monitor)
+# ──────────────────────────────────────────────
+
+class ProductWatch(Base):
+    """Auto keyword watch — periodically queries analyzed products by keyword."""
+    __tablename__ = "product_watches"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    user_id = Column(String, default="", index=True)
+    name = Column(String(200), default="")
+    keywords = Column(JSON, default=list)
+    source = Column(String(50), default="all")
+    limit = Column(Integer, default=10)
+    schedule = Column(String(20), default="daily")  # daily, weekly, manual
+    export_to_tus = Column(Boolean, default=False)
+    min_rating = Column(Float, default=0.0)
+    min_sold = Column(Integer, default=0)
+    last_run_at = Column(DateTime(timezone=True), nullable=True)
+    last_found_ids = Column(JSON, default=list)
+    active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), default=_utcnow)
+    updated_at = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)

@@ -963,11 +963,18 @@ async def api_export_analyzed(
     source: Optional[str] = None,
     seller_id: Optional[str] = None,
     seller_name: Optional[str] = None,
+    keyword: Optional[str] = None,
+    limit: int = Query(100, description="Max results (1-500)"),
+    offset: int = Query(0, description="Pagination offset"),
 ):
     """Export analyzed products with optional filters.
     source: tiktok|shopee|lazada|facebook|generic
     seller_id/seller_name: filter by specific shop.
+    keyword: search by keywords, title, or description.
+    limit/offset: pagination.
     """
+    limit = max(1, min(limit, 500))
+    offset = max(0, offset)
     result = await get_analyzed_products(
         min_rating=min_rating,
         min_sold=min_sold,
@@ -976,6 +983,9 @@ async def api_export_analyzed(
         source=source,
         seller_id=seller_id,
         seller_name=seller_name,
+        keyword=keyword,
+        limit=limit,
+        offset=offset,
     )
     return result
 
@@ -1256,3 +1266,225 @@ async def api_analyze_stats():
     """Get statistics of analyzed products"""
     stats = await get_analyzed_stats()
     return stats
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Auto Watch — Keyword-based Product Monitoring
+# ═══════════════════════════════════════════════════════════════════════
+
+class WatchCreateRequest(BaseModel):
+    name: str = ""
+    keywords: List[str]
+    source: str = "all"
+    limit: int = 10
+    schedule: str = "daily"
+    export_to_tus: bool = False
+    min_rating: float = 0.0
+    min_sold: int = 0
+
+
+class WatchUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    keywords: Optional[List[str]] = None
+    source: Optional[str] = None
+    limit: Optional[int] = None
+    schedule: Optional[str] = None
+    export_to_tus: Optional[bool] = None
+    min_rating: Optional[float] = None
+    min_sold: Optional[int] = None
+    active: Optional[bool] = None
+
+
+async def _run_watch(watch_id: str) -> dict:
+    """Execute a single watch: query analyzed_products by keywords, track results."""
+    from product.db_models import ProductWatch
+    from sqlalchemy import select
+    from datetime import datetime, timezone
+
+    async with async_session_factory() as session:
+        result = await session.execute(
+            select(ProductWatch).where(ProductWatch.id == watch_id)
+        )
+        watch = result.scalar_one_or_none()
+        if not watch or not watch.active:
+            return {"success": False, "error": "Watch not found or inactive"}
+
+        keywords = watch.keywords or []
+        if not keywords:
+            return {"success": False, "error": "No keywords configured"}
+
+        # Query analyzed products for each keyword, collect unique product IDs
+        all_found = set()
+        new_found = []
+        previous_ids = set(watch.last_found_ids or [])
+
+        for kw in keywords:
+            kw_result = await get_analyzed_products(
+                keyword=kw,
+                source=watch.source if watch.source != "all" else None,
+                min_rating=watch.min_rating,
+                min_sold=watch.min_sold,
+                limit=watch.limit,
+            )
+            for p in kw_result.get("products", []):
+                pid = p.get("product_id", "")
+                if pid and pid not in all_found:
+                    all_found.add(pid)
+                    if pid not in previous_ids:
+                        new_found.append(p)
+
+        # Update watch state
+        now = datetime.now(timezone.utc)
+        watch.last_run_at = now
+        watch.last_found_ids = list(all_found)
+        watch.updated_at = now
+        await session.commit()
+
+    # Export new products to TUS pipeline if configured
+    exported = 0
+    if watch.export_to_tus and new_found:
+        try:
+            from product.scraper_service import export_to_pipeline
+            new_ids = [p.get("product_id", "") for p in new_found if p.get("product_id")]
+            await export_to_pipeline(product_ids=new_ids)
+            exported = len(new_ids)
+        except Exception as e:
+            logger.error(f"TUS export failed for watch {watch_id}: {e}")
+
+    return {
+        "success": True,
+        "watch_id": watch_id,
+        "watch_name": watch.name,
+        "total_tracked": len(all_found),
+        "new_found": len(new_found),
+        "exported_to_tus": exported,
+        "new_products": new_found[:5],  # preview first 5
+    }
+
+
+@app.post("/api/v1/watch", response_model=dict)
+async def api_create_watch(req: WatchCreateRequest):
+    """Create a keyword watch."""
+    from product.db_models import ProductWatch
+
+    if not req.keywords:
+        return {"success": False, "error": "At least one keyword required"}
+
+    limit = max(1, min(req.limit, 200))
+    watch_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc)
+
+    async with async_session_factory() as session:
+        watch = ProductWatch(
+            id=watch_id,
+            name=req.name or req.keywords[0][:100],
+            keywords=req.keywords,
+            source=req.source,
+            limit=limit,
+            schedule=req.schedule,
+            export_to_tus=req.export_to_tus,
+            min_rating=req.min_rating,
+            min_sold=req.min_sold,
+            active=True,
+            created_at=now,
+            updated_at=now,
+        )
+        session.add(watch)
+        await session.commit()
+
+    return {"success": True, "watch_id": watch_id, "watch": {
+        "name": watch.name,
+        "keywords": watch.keywords,
+        "source": watch.source,
+        "limit": watch.limit,
+        "schedule": watch.schedule,
+        "export_to_tus": watch.export_to_tus,
+    }}
+
+
+@app.get("/api/v1/watch")
+async def api_list_watches():
+    """List all keyword watches."""
+    from product.db_models import ProductWatch
+    from sqlalchemy import select, desc
+
+    async with async_session_factory() as session:
+        result = await session.execute(
+            select(ProductWatch).order_by(desc(ProductWatch.created_at))
+        )
+        watches = result.scalars().all()
+
+    return {
+        "success": True,
+        "watches": [{
+            "id": w.id,
+            "name": w.name,
+            "keywords": w.keywords,
+            "source": w.source,
+            "limit": w.limit,
+            "schedule": w.schedule,
+            "export_to_tus": w.export_to_tus,
+            "min_rating": w.min_rating,
+            "min_sold": w.min_sold,
+            "active": w.active,
+            "last_run_at": w.last_run_at.isoformat() if w.last_run_at else None,
+            "total_tracked": len(w.last_found_ids or []),
+            "created_at": w.created_at.isoformat() if w.created_at else None,
+        } for w in watches]
+    }
+
+
+@app.delete("/api/v1/watch/{watch_id}")
+async def api_delete_watch(watch_id: str):
+    """Delete a keyword watch."""
+    from product.db_models import ProductWatch
+    from sqlalchemy import select
+
+    async with async_session_factory() as session:
+        result = await session.execute(
+            select(ProductWatch).where(ProductWatch.id == watch_id)
+        )
+        watch = result.scalar_one_or_none()
+        if not watch:
+            return {"success": False, "error": "Watch not found"}
+        await session.delete(watch)
+        await session.commit()
+
+    return {"success": True}
+
+
+@app.put("/api/v1/watch/{watch_id}")
+async def api_update_watch(watch_id: str, req: WatchUpdateRequest):
+    """Update a keyword watch."""
+    from product.db_models import ProductWatch
+    from sqlalchemy import select
+
+    async with async_session_factory() as session:
+        result = await session.execute(
+            select(ProductWatch).where(ProductWatch.id == watch_id)
+        )
+        watch = result.scalar_one_or_none()
+        if not watch:
+            return {"success": False, "error": "Watch not found"}
+
+        if req.name is not None: watch.name = req.name
+        if req.keywords is not None: watch.keywords = req.keywords
+        if req.source is not None: watch.source = req.source
+        if req.limit is not None: watch.limit = max(1, min(req.limit, 200))
+        if req.schedule is not None: watch.schedule = req.schedule
+        if req.export_to_tus is not None: watch.export_to_tus = req.export_to_tus
+        if req.min_rating is not None: watch.min_rating = req.min_rating
+        if req.min_sold is not None: watch.min_sold = req.min_sold
+        if req.active is not None: watch.active = req.active
+
+        watch.updated_at = datetime.now(timezone.utc)
+        await session.commit()
+
+        return {"success": True, "watch_id": watch_id}
+
+
+@app.post("/api/v1/watch/{watch_id}/run")
+async def api_run_watch(watch_id: str):
+    """Execute a keyword watch immediately. Returns new products found."""
+    result = await _run_watch(watch_id)
+    return result

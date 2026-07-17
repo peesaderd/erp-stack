@@ -709,6 +709,9 @@ async def get_analyzed_products(
     source: Optional[str] = None,
     seller_id: Optional[str] = None,
     seller_name: Optional[str] = None,
+    keyword: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0,
 ) -> dict:
     return await _get_products(
         min_rating=min_rating or 0,
@@ -718,4 +721,7 @@ async def get_analyzed_products(
         source=source,
         seller_id=seller_id,
         seller_name=seller_name,
+        keyword=keyword,
+        limit=limit,
+        offset=offset,
     )

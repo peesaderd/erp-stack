@@ -4,7 +4,11 @@ Replaces in-memory store for analyzed product data.
 import os, logging
 from typing import Optional
 from datetime import datetime, timezone
-from sqlalchemy import func, select, and_, text
+from sqlalchemy import func, select, and_, or_, cast, String, text
+try:
+    from sqlalchemy.dialects.postgresql import JSONB
+except ImportError:
+    JSONB = None
 from shared.database import async_session_factory
 from product.db_models import AnalyzedProduct
 import uuid
@@ -127,6 +131,7 @@ async def get_analyzed_products(
     source: str = None,
     seller_id: str = None,
     seller_name: str = None,
+    keyword: str = None,
     limit: int = 100,
     offset: int = 0,
 ) -> dict:
@@ -148,6 +153,24 @@ async def get_analyzed_products(
                 stmt = stmt.where(AnalyzedProduct.seller_id == seller_id)
             if seller_name:
                 stmt = stmt.where(AnalyzedProduct.seller_name == seller_name)
+
+            if keyword:
+                kw = keyword.lower()
+                # Search across keywords (JSON array), title, title_th, description
+                try:
+                    if JSONB:
+                        kw_json_match = cast(AnalyzedProduct.keywords, JSONB).contains([keyword])
+                    else:
+                        kw_json_match = func.lower(cast(AnalyzedProduct.keywords, String)).contains(kw)
+                except Exception:
+                    kw_json_match = func.lower(cast(AnalyzedProduct.keywords, String)).contains(kw)
+
+                stmt = stmt.where(or_(
+                    kw_json_match,
+                    func.lower(AnalyzedProduct.title).contains(kw),
+                    func.lower(AnalyzedProduct.title_th).contains(kw),
+                    func.lower(AnalyzedProduct.description).contains(kw),
+                ))
 
             result = await session.execute(stmt)
             all_records = result.scalars().all()

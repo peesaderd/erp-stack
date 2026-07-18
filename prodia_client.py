@@ -400,9 +400,6 @@ class ProdiaV2Client:
             "duration": duration,
             "resolution": resolution,
         }
-        # ratio เฉพาะ txt2vid เท่านั้น
-        if not input_image and not audio_bytes:
-            config["ratio"] = ratio
         config.update(extra_config)
 
         inputs = [input_image] if input_image else None

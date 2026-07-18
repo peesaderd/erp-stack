@@ -199,7 +199,7 @@ def load_recipe(recipe_name: str = "tus") -> dict:
         # Fallback: basic 8s recipe
         return {
             "name": "tus",
-            "total_duration": 8,
+            "total_duration": 15,
             "scenes": [
                 {"name": "Hook", "duration_range": [0.5, 1.0], "prompt": "Close-up product shot"},
                 {"name": "Problem", "duration_range": [1.5, 3.0], "prompt": "Person showing concern"},

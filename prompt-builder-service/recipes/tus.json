@@ -2,7 +2,7 @@
   "name": "tus",
   "description": "TikTok UGC Studio recipe — 6 scenes สำหรับสร้าง content TikTok affiliate review",
   "version": "2.0",
-  "total_duration": 8,
+  "total_duration": 15,
   "scenes": [
     {
       "name": "Hook",
@@ -78,8 +78,8 @@
   },
   "video_generation": {
     "model": "wan-2.7",
-    "duration_per_scene": 8,
-    "total_duration": 8
+    "duration_per_scene": 15,
+    "total_duration": 15
   },
   "tts": {
     "voice": "Aoede",

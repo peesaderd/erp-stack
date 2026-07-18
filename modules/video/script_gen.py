@@ -105,6 +105,16 @@ def adjust_prompt_for_duration(duration_type: str = "15s") -> str:
             "\\n- ห้ามมีเนื้อหาซ้ำหรืออธิบายยืดเยื้อ"
             "\\n- CTA ต้องสั้นและชัดเจนภายใน 2 วินาทีสุดท้าย"
         )
+    elif duration_type == "30s":
+        return (
+            "\n[TIMING CONSTRAINT for 30 วินาที]"
+            "\n- สคริปต์ทั้งหมดต้องมีความยาวรวมกันประมาณ 90-110 คำ (ภาษาไทย)"
+            "\n- แบ่งเวลาเป็น 4-5 ช่วง ช่วงละ 5-7 วินาที"
+            "\n- Hook 3-4 วินาทีแรก ติดเบ็ดให้อยู่"
+            "\n- Content 18-20 วินาที อธิบายละเอียดกว่า 15s"
+            "\n- CTA 3-4 วินาทีสุดท้าย ปิดการขายให้ชัดเจน"
+            "\n- ห้ามยืดเนื้อหาเกินจำเป็น ให้กระชับในทุกช่วง"
+        )
     elif duration_type == "16s":
         return (
             "\\n[TIMING CONSTRAINT for 16 วินาที]"
@@ -300,6 +310,13 @@ def generate_ugc_script(
         "holding_product": "Holding_Product",
         "product_usage": "Product_Usage",
         "ugc_review": "UGC_Review",
+        "talking": "UGC_Review",
+        "pov_lifehack": "POV_Lifehack",
+        "asmr_texture": "ASMR_Texture",
+        "split_comparison": "Split_Comparison",
+        "street_interview": "Street_Interview",
+        "greenscreen_react": "Greenscreen_React",
+        "aesthetic_vlog": "Aesthetic_Vlog",
     }
 
     folder = style_map.get(style)

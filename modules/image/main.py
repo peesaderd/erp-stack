@@ -21,6 +21,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 import uvicorn
+from PIL import Image
+import io
 
 # Add erp-stack to path for shared_config
 _erp_stack = Path(__file__).parent.parent.parent
@@ -139,6 +141,17 @@ def prodia_generate_img2img(
                 ", beautiful Thai person style, realistic skin texture, highly detailed face, soft warm lighting"
 
     image_data = _download_image(input_image)
+    # Prodia max input = 2048px - scale down, keep aspect ratio
+    img = Image.open(io.BytesIO(image_data))
+    if img.width > 2048 or img.height > 2048:
+        ratio = min(2048 / img.width, 2048 / img.height)
+        new_w = int(img.width * ratio)
+        new_h = int(img.height * ratio)
+        img = img.resize((new_w, new_h), Image.LANCZOS)
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        image_data = buf.getvalue()
+        logger.info(f"  Input resized: {img.width}x{img.height} -> {new_w}x{new_h}")
     token = PRODIA_TOKEN()
 
     config = {

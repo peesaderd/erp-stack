@@ -414,6 +414,23 @@ class AitoEarnClient:
         result = await self._call("GET", f"/api/v1/earnings?period={period}")
         return result.get("data", {}) if result["ok"] else {"total": 0, "period": period}
 
+    # ─── Pipeline Sync ─────────────────────────────────────────────
+
+    async def sync_with_pipeline(self, pipeline_job: dict) -> Dict:
+        """Sync a completed pipeline job with AitoEarn."""
+        try:
+            product_name = pipeline_job.get("product_title", "") or pipeline_job.get("product_url", "")
+            result = {"affiliate_link": None, "synced": True}
+            if product_name:
+                link = await self.get_affiliate_link(product_name)
+                if link:
+                    result["affiliate_link"] = link
+            logger.info(f"Pipeline sync complete for {str(product_name)[:40] if product_name else 'unknown'}")
+            return result
+        except Exception as e:
+            logger.warning(f"Pipeline sync skipped: {e}")
+            return {"synced": False, "error": str(e)}
+
     # ─── OAuth / Platform Connect ───────────────────────────────────
 
     async def start_oauth(self, platform: str, redirect_uri: str = "", callback_url: str = "") -> Dict:

@@ -30,7 +30,6 @@ if str(_erp_stack) not in sys.path:
 from shared_config import PRODIA_TOKEN, MISTRAL_API_KEY
 from prodia_pricing import get_price_for_sync_image
 from prodia_client import ProdiaV2Client, ProdiaV2Error, ProdiaValidationError, ProdiaJobFailedError, ProdiaTimeoutError
-
 # ─── Logging ─────────────────────────────────────────────────────────
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(name)s] %(levelname)s: %(message)s')
 logger = logging.getLogger("image-module")

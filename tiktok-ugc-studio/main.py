@@ -1094,7 +1094,28 @@ async def analyze_scraped_products():
             viral_score = min(99, int(comm_num * 5))
             price = float(data.get("price", 0))
 
-            # 4. Insert into tus_products.db
+            # 4. Resolve product image — copy from calm-noether → TUS storage
+            image_urls = []
+            image_filename = data.get("image_filename", "")
+            if not image_filename:
+                for ext in ("jpg", "png", "jpeg", "webp"):
+                    candidate = f"{product_id}.{ext}"
+                    calm_path = os.path.expanduser(f"~/calm-noether/product_images/{candidate}")
+                    if os.path.exists(calm_path):
+                        image_filename = candidate
+                        break
+            if image_filename:
+                calm_path = os.path.expanduser(f"~/calm-noether/product_images/{image_filename}")
+                tus_img_dir = os.path.join(os.path.dirname(__file__), "storage", "product_images")
+                os.makedirs(tus_img_dir, exist_ok=True)
+                tus_img_path = os.path.join(tus_img_dir, image_filename)
+                if os.path.exists(calm_path) and not os.path.exists(tus_img_path):
+                    import shutil
+                    shutil.copy2(calm_path, tus_img_path)
+                    logger.info(f"  Copied product image: {image_filename}")
+                if os.path.exists(tus_img_path):
+                    image_urls.append(f"/ugc/static/product_images/{image_filename}")
+            # 5. Insert into tus_products.db
             tus_conn.execute("""
                 INSERT INTO tus_products 
                 (product_id, title, title_th, price_thb, rating, sold_total, viral_score,
@@ -1117,7 +1138,7 @@ async def analyze_scraped_products():
                 data.get("product_url", ""),
                 data.get("hook_concept", ""),
                 data.get("hook_concept", ""),
-                json.dumps([]),
+                json.dumps(image_urls),
                 json.dumps(keywords[:10]),
                 "tiktok",
             ))

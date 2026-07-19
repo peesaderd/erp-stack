@@ -461,7 +461,7 @@ async def script_variations():
 async def script_templates():
     result = await _proxy("GET", "video", "/api/v1/scripts/templates")
     return {
-        "durations": ["8s", "16s"],
+        "durations": ["8s", "15s"],
         "ugc_styles": ["holding_product", "product_usage", "ugc_review"],
         "templates": result.get("templates", {}),
     }
@@ -490,7 +490,7 @@ async def generate_video(req: VideoRequest):
     scenes = []
     if req.scenes:
         scenes = req.scenes
-    elif req.duration <= 15:
+    elif req.duration <= 15:  # single scene for wan2.7 (max 15s)
         scenes = [SceneBlock(
             script=full_script,
             duration=req.duration,

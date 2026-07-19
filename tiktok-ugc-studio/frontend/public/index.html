@@ -1236,9 +1236,9 @@ select.input { cursor: pointer; }
       <label class="text-sm text-secondary mb-2" style="display:block">ความยาววิดีโอ</label>
       <div class="duration-chips">
         <span class="duration-chip selected" onclick="selectDuration(this,'8')">8 วิ ~$0.09</span>
-        <span class="duration-chip" onclick="selectDuration(this,'16')">16 วิ ~$0.16 (2 scenes)</span>
+        <span class="duration-chip" onclick="selectDuration(this,'15')">15 วิ ~$0.15 (1 scene)</span>
       </div>
-      <div class="text-xs text-secondary mt-1" id="durationHint">8 วิ = 1 scene, 16 วิ = 2 scenes (รูป + วิดีโออัตโนมัติ)</div>
+      <div class="text-xs text-secondary mt-1" id="durationHint">8 วิ = 1 scene, 15 วิ = 1 scene</div>
     </div>
 
     <button class="btn btn-primary" id="genScriptBtn" onclick="generateScript()">⚡ Generate Script →</button>
@@ -1332,7 +1332,7 @@ select.input { cursor: pointer; }
       <label class="text-sm text-secondary mb-2" style="display:block">Duration (ตั้งจาก Step 1)</label>
       <div class="duration-chips">
         <span class="duration-chip selected" onclick="selectDuration(this,'8')">8s ~$0.09</span>
-        <span class="duration-chip" onclick="selectDuration(this,'16')">16s ~$0.16 (2 scenes)</span>
+        <span class="duration-chip" onclick="selectDuration(this,'15')">15s ~$0.15 (1 scene)</span>
       </div>
       <div class="text-xs text-secondary mt-1" id="durationHint4">ตั้งค่าจาก Step 1 หรือกดเปลี่ยนที่นี่</div>
     </div>
@@ -2484,7 +2484,7 @@ function goToStep3() {
   document.getElementById('step3Cta').textContent = document.getElementById('scriptCta').value || '-';
   
   const duration = sessionStorage.getItem('selectedDuration') || '8';
-  document.getElementById('step3Duration').textContent = duration + ' วิ' + (duration >= 16 ? ' (2 scenes)' : ' (1 scene)');
+  document.getElementById('step3Duration').textContent = duration + ' วิ' + (duration >= 15 ? ' (1 scene)' : ' (1 scene)');
   
   const lastScript = JSON.parse(localStorage.getItem('lastScript') || '{}');
   document.getElementById('step3Scene').textContent = lastScript.scene || lastScript.scenes?.join(', ') || lastScript.script?.scene || 'UGC ถือสินค้าหน้าฉากหลังเรียบ';
@@ -2636,10 +2636,10 @@ function selectDuration(el, dur) {
   el.classList.add('selected');
   sessionStorage.setItem('selectedDuration', dur);
   [document.getElementById('durationHint'), document.getElementById('durationHint4')].forEach(h => {
-    if (h) h.textContent = dur == 16 ? '🎬 16 วิ = 2 scenes (รูป + วิดีโออัตโนมัติ) ต้นทุน ~$0.16' : '8 วิ = 1 scene ต้นทุน ~$0.09';
+    if (h) h.textContent = dur == 15 ? '🎬 15 วิ = 1 scene ต้นทุน ~$0.15' : '8 วิ = 1 scene ต้นทุน ~$0.09';
   });
   const costHint = document.getElementById('costHint');
-  if (costHint) costHint.textContent = dur == 16 ? 'ต้นทุน ~$0.16 (2 scenes)' : 'ต้นทุน ~$0.09/clip';
+  if (costHint) costHint.textContent = dur == 15 ? 'ต้นทุน ~$0.15 (1 scene)' : 'ต้นทุน ~$0.09/clip';
 }
 
 /* ═══ Image Upload Handlers ═══ */
@@ -2712,14 +2712,14 @@ async function startGeneration() {
   document.getElementById('progressBar').style.width = '20%';
 
   const duration = parseInt(sessionStorage.getItem('selectedDuration') || '8');
-  const totalScenes = duration >= 16 ? 2 : 1;
+  const totalScenes = duration >= 15 ? 2 : 1;
 
   try {
     const basePrompt = hook + '. ' + value + (cta ? '. ' + cta : '');
     const title = document.getElementById('productTitle').value.trim();
     const imageUrl = uploadedImages.product || null;
     
-      // Single request — backend handles 8s (1 scene) or 16s (2 scenes + concat)
+      // Single request — backend handles 8s or 15s (1 scene)
     const label = duration + ' วิ';
     document.getElementById('progressText').textContent = '🎬 กำลังสร้างวิดีโอ ' + label + '...';
     document.getElementById('progressBar').style.width = '40%';
@@ -3009,7 +3009,7 @@ async function loadPipelineDetail(jobId) {
     // Parse from script text if empty
     if (script && !hookFromLogs && !valueFromLogs && !ctaFromLogs) {
       const scriptText = script;
-      // Match [Hook] ... [Value] ... [CTA] pattern (16s format)
+      // Match [Hook] ... [Value] ... [CTA] pattern
       const hookMatch = scriptText.match(/\[Hook\]\s*([^\[]+)/i);
       const valueMatch = scriptText.match(/\[Value\]\s*([^\[]+)/i);
       const ctaMatch = scriptText.match(/\[CTA\]\s*([^\[]+)/i);

@@ -490,10 +490,10 @@ async def generate_video(req: VideoRequest):
     scenes = []
     if req.scenes:
         scenes = req.scenes
-    elif req.duration <= 8:
+    elif req.duration <= 15:
         scenes = [SceneBlock(
             script=full_script,
-            duration=min(req.duration, 8),
+            duration=req.duration,
             mood="energetic",
             sound_style="upbeat_pop",
             style=req.ugc_style,
@@ -502,14 +502,14 @@ async def generate_video(req: VideoRequest):
         scenes = [
             SceneBlock(
                 script=f"{req.hook or ''} Let me show you this!" if req.hook else f"Check out {req.product_title}!",
-                duration=8,
+                duration=req.duration // 2,
                 mood="energetic",
                 sound_style="upbeat_pop",
                 style="holding_product",
             ),
             SceneBlock(
                 script=f"{req.value or ''} {req.cta or 'Link in bio!'}" if req.value else f"Amazing right? {req.cta or 'Link in bio! 🛍️'}",
-                duration=8,
+                duration=req.duration - (req.duration // 2),
                 mood="calm",
                 sound_style="chill_loft",
                 style="product_usage",
@@ -567,7 +567,7 @@ async def generate_video(req: VideoRequest):
                 "hook": req.hook or "",
                 "value": req.value or "",
                 "cta": req.cta or "",
-                "duration": min(scenes[0].duration, 8) if scenes else 8,
+                "duration": scenes[0].duration if scenes else 8,
                 "scenes": [s.dict() for s in scenes] if scenes else [],
                 "tags": req.tags or [],
                 "content_type": req.content_type or "affiliate",

@@ -1,0 +1,44 @@
+{
+  "summary": "Knowledge Graph validation: 257 nodes, 411 edges, 9 layers, 21 tour steps",
+  "issues": [
+    {
+      "severity": "warning",
+      "description": "Layer 'layer:i2m-frontend' has 0 nodes",
+      "affectedLayers": [
+        "layer:i2m-frontend"
+      ]
+    },
+    {
+      "severity": "info",
+      "description": "Custom node types found: 12 nodes with types not in schema",
+      "examples": [
+        "file:script:bridge-server/manage-password.sh",
+        "file:script:modules/product/start.sh",
+        "file:script:modules/product/test_scraper.sh"
+      ]
+    }
+  ],
+  "critical": [],
+  "warnings": [
+    {
+      "severity": "warning",
+      "description": "Layer 'layer:i2m-frontend' has 0 nodes",
+      "affectedLayers": [
+        "layer:i2m-frontend"
+      ]
+    }
+  ],
+  "infos": [
+    {
+      "severity": "info",
+      "description": "Custom node types found: 12 nodes with types not in schema",
+      "examples": [
+        "file:script:bridge-server/manage-password.sh",
+        "file:script:modules/product/start.sh",
+        "file:script:modules/product/test_scraper.sh"
+      ]
+    }
+  ],
+  "totalFiles": 257,
+  "passed": true
+}

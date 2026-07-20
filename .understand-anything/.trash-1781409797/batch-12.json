@@ -1,0 +1,142 @@
+{
+  "batchIndex": 11,
+  "nodes": [
+    {
+      "id": "document:prompt-studio/prompts/tiktok/master.prompt.txt",
+      "type": "document",
+      "name": "master.prompt.txt",
+      "filePath": "prompt-studio/prompts/tiktok/master.prompt.txt",
+      "language": "txt",
+      "fileCategory": "docs",
+      "sizeLines": 150,
+      "complexity": "moderate",
+      "summary": "Docs file for prompt-studio/prompts/tiktok",
+      "tags": [
+        "service:prompt-studio",
+        "docs",
+        "module:prompt-studio",
+        "txt"
+      ]
+    },
+    {
+      "id": "document:prompt-studio/prompts/tiktok/master_16s_3step.prompt.txt",
+      "type": "document",
+      "name": "master_16s_3step.prompt.txt",
+      "filePath": "prompt-studio/prompts/tiktok/master_16s_3step.prompt.txt",
+      "language": "txt",
+      "fileCategory": "docs",
+      "sizeLines": 88,
+      "complexity": "moderate",
+      "summary": "Docs file for prompt-studio/prompts/tiktok",
+      "tags": [
+        "service:prompt-studio",
+        "docs",
+        "module:prompt-studio",
+        "txt"
+      ]
+    },
+    {
+      "id": "document:prompt-studio/prompts/tiktok/system.prompt.txt",
+      "type": "document",
+      "name": "system.prompt.txt",
+      "filePath": "prompt-studio/prompts/tiktok/system.prompt.txt",
+      "language": "txt",
+      "fileCategory": "docs",
+      "sizeLines": 113,
+      "complexity": "moderate",
+      "summary": "Docs file for prompt-studio/prompts/tiktok",
+      "tags": [
+        "service:prompt-studio",
+        "docs",
+        "module:prompt-studio",
+        "txt"
+      ]
+    },
+    {
+      "id": "document:prompt-studio/prompts/tiktok/system_16s.prompt.txt",
+      "type": "document",
+      "name": "system_16s.prompt.txt",
+      "filePath": "prompt-studio/prompts/tiktok/system_16s.prompt.txt",
+      "language": "txt",
+      "fileCategory": "docs",
+      "sizeLines": 30,
+      "complexity": "moderate",
+      "summary": "Docs file for prompt-studio/prompts/tiktok",
+      "tags": [
+        "service:prompt-studio",
+        "docs",
+        "module:prompt-studio",
+        "txt"
+      ]
+    },
+    {
+      "id": "config:prompt-studio/prompts/tiktok/tiktok_review_prompts.json",
+      "type": "config",
+      "name": "tiktok_review_prompts.json",
+      "filePath": "prompt-studio/prompts/tiktok/tiktok_review_prompts.json",
+      "language": "json",
+      "fileCategory": "config",
+      "sizeLines": 19,
+      "complexity": "simple",
+      "summary": "Configuration file for prompt-studio/prompts/tiktok",
+      "tags": [
+        "service:prompt-studio",
+        "json",
+        "config",
+        "module:prompt-studio"
+      ]
+    },
+    {
+      "id": "document:prompt-studio/prompts/tiktok/user.template.prompt.txt",
+      "type": "document",
+      "name": "user.template.prompt.txt",
+      "filePath": "prompt-studio/prompts/tiktok/user.template.prompt.txt",
+      "language": "txt",
+      "fileCategory": "docs",
+      "sizeLines": 39,
+      "complexity": "moderate",
+      "summary": "Docs file for prompt-studio/prompts/tiktok",
+      "tags": [
+        "service:prompt-studio",
+        "docs",
+        "module:prompt-studio",
+        "txt"
+      ]
+    },
+    {
+      "id": "document:prompt-studio/prompts/tiktok/user_16s.prompt.txt",
+      "type": "document",
+      "name": "user_16s.prompt.txt",
+      "filePath": "prompt-studio/prompts/tiktok/user_16s.prompt.txt",
+      "language": "txt",
+      "fileCategory": "docs",
+      "sizeLines": 12,
+      "complexity": "simple",
+      "summary": "Docs file for prompt-studio/prompts/tiktok",
+      "tags": [
+        "service:prompt-studio",
+        "docs",
+        "module:prompt-studio",
+        "txt"
+      ]
+    },
+    {
+      "id": "config:prompt-studio/prompts/tiktok/variation.json",
+      "type": "config",
+      "name": "variation.json",
+      "filePath": "prompt-studio/prompts/tiktok/variation.json",
+      "language": "json",
+      "fileCategory": "config",
+      "sizeLines": 46,
+      "complexity": "moderate",
+      "summary": "Configuration file for prompt-studio/prompts/tiktok",
+      "tags": [
+        "service:prompt-studio",
+        "json",
+        "config",
+        "module:prompt-studio"
+      ]
+    }
+  ],
+  "edges": []
+}

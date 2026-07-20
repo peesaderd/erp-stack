@@ -1,0 +1,420 @@
+{
+  "schema": "1.0",
+  "batch": "2/2",
+  "projectRoot": "/home/openhands/erp-stack/modules/product",
+  "nodes": [
+    {
+      "id": "__init__.py",
+      "type": "file",
+      "name": "product/__init__.py",
+      "filePath": "__init__.py",
+      "summary": "Package init file — empty, marks product/ as a Python package.",
+      "tags": ["package-init"],
+      "complexity": "simple"
+    },
+    {
+      "id": "models.py",
+      "type": "file",
+      "name": "product/models.py",
+      "filePath": "models.py",
+      "summary": "Pydantic request/response models for the product scraper API: ScrapeRequest, ProductData, ScrapeResponse, BatchScrapeItem, BatchScrapeRequest/Response, ExportToPipelineRequest/Response, ScheduledScrapeCreate/Response, ProductCategory.",
+      "tags": ["pydantic", "models"],
+      "complexity": "moderate"
+    },
+    {
+      "id": "analyze_models.py",
+      "type": "file",
+      "name": "product/analyze_models.py",
+      "filePath": "analyze_models.py",
+      "summary": "Pydantic models for AI analysis API: AnalyzeRequest, AnalyzeResponse, BatchAnalyzeRequest/Response, ExportResponse, AnalyzeFromScrapeRequest/Response, ScrapedProductListItem, ScrapedProductListResponse.",
+      "tags": ["pydantic", "analysis", "models"],
+      "complexity": "moderate"
+    },
+    {
+      "id": "db_models.py",
+      "type": "file",
+      "name": "product/db_models.py",
+      "filePath": "db_models.py",
+      "summary": "SQLAlchemy ORM models for the product scraper: ApiKey (API key auth), ScrapedProduct (cached scrapes), ScrapeLog (audit trail), CreditUsage (billing), PriceHistory (price tracking), ScheduledScrape (recurring jobs), AnalyzedProduct (AI analysis results). Contains SCRAPE_TIERS pricing config, get_tier_config(), calculate_scrape_cost(), and utility helpers _utcnow(), _uuid(), _hash_url().",
+      "tags": ["database", "sqlalchemy", "orm", "models", "auth", "billing"],
+      "complexity": "complex"
+    },
+    {
+      "id": "main.py",
+      "type": "file",
+      "name": "product/main.py",
+      "filePath": "main.py",
+      "summary": "FastAPI micro-service entry point on port 8106. ~80 endpoints covering: API key CRUD, product scraping (single URL, batch, platform-specific), AI analysis pipeline, Google Sheets export, scheduled scrape management, pricing tiers, usage tracking. Imports and orchestrates all other modules. Includes dynamic platform scraper registry (TikTokShop, Shopee, Lazada).",
+      "tags": ["fastapi", "router", "api", "endpoints", "entry-point"],
+      "complexity": "complex"
+    },
+    {
+      "id": "scraper.py",
+      "type": "file",
+      "name": "product/scraper.py",
+      "filePath": "scraper.py",
+      "summary": "Multi-layer product scraping engine with stealth anti-detection. Fallback chain: HTTP+regex → Playwright stealth → JSON-LD → Nuxt state extraction → API intercept. Supports TikTok Shop, Shopee, Lazada, Boots, Watsons, Amazon, Central, JIB, Powerbuy. Features proxy rotation with auto-failover, session persistence, human-like scrolling/delays, WebGL spoofing, and site-specific parsing helpers (_parse_shopee_api, _parse_lazada_api, _parse_tiktok_api).",
+      "tags": ["scraper", "playwright", "stealth", "proxy", "ecommerce"],
+      "complexity": "complex"
+    },
+    {
+      "id": "scraper_service.py",
+      "type": "file",
+      "name": "product/scraper_service.py",
+      "filePath": "scraper_service.py",
+      "summary": "Service layer for product scraper: API key management (create, validate, list, revoke with monthly quotas), Redis-backed caching with TTL, scrape logging and usage tracking, cost deduction with per-user tier billing, Google Sheets pipeline export, scheduled scrape CRUD, category detection from product names, and the primary scrape_with_tracking() function that orchestrates cache→scrape→log→bill flow.",
+      "tags": ["service", "auth", "caching", "billing", "usage"],
+      "complexity": "complex"
+    },
+    {
+      "id": "analyze_pipeline.py",
+      "type": "file",
+      "name": "product/analyze_pipeline.py",
+      "filePath": "analyze_pipeline.py",
+      "summary": "Three-stage AI analysis pipeline: ProductNormalizer (normalize raw scraped data from TikTok/Shopee/Lazada into UnifiedProduct), ProductEnricher (call Mistral API for category detection, Thai translation, keyword extraction), ProductExporter (format for TUS-ready output with sorting/filtering). Includes local image download via proxy, TTLCache, ErrorRateLimiter, and entry points analyze_product() and batch_analyze(). Re-exports DB functions from analyzer_db.py.",
+      "tags": ["analysis", "pipeline", "ai", "mistral", "normalizer", "enricher"],
+      "complexity": "complex"
+    },
+    {
+      "id": "analyzer.py",
+      "type": "file",
+      "name": "product/analyzer.py",
+      "filePath": "analyzer.py",
+      "summary": "AI vision analyzer using Mistral Pixtral for product image analysis (name, price, brand, SKU extraction). Also provides OpenCode API enrichment for Thai translation, keyword extraction, and category detection. Includes rule-based viral potential scoring (0-100). Used as fallback when Playwright extraction fails.",
+      "tags": ["ai", "vision", "mistral", "opencode", "enrichment"],
+      "complexity": "moderate"
+    },
+    {
+      "id": "analyzer_db.py",
+      "type": "file",
+      "name": "product/analyzer_db.py",
+      "filePath": "analyzer_db.py",
+      "summary": "Async PostgreSQL CRUD layer for AnalyzedProduct via shared.database. Supports dedup by product_id+source or title+source, aggregate stats (avg rating, avg viral score, trending count, top categories), filtered queries with pagination and sorting by viral_score, and batch storage. Used by analyze_pipeline for persistence.",
+      "tags": ["database", "crud", "asyncpg", "analysis"],
+      "complexity": "moderate"
+    },
+    {
+      "id": "export_service.py",
+      "type": "file",
+      "name": "product/export_service.py",
+      "filePath": "export_service.py",
+      "summary": "Google Sheets export service using gspread + service account auth. Functions: is_ready() checks for credentials, export_products_to_sheet() pushes scraped product data to a Sheet with append/replace modes, get_setup_instructions() returns GCP setup guide. Uses local sheets_credentials.json for auth.",
+      "tags": ["export", "google-sheets", "gspread"],
+      "complexity": "moderate"
+    },
+    {
+      "id": "scheduler.py",
+      "type": "file",
+      "name": "product/scheduler.py",
+      "filePath": "scheduler.py",
+      "summary": "Background scheduler loop that checks PostgreSQL every 60 seconds for due ScheduledScrape jobs. Executes via scraper_service.run_scheduled_scrape() and updates next_run based on schedule (hourly/daily/weekly/monthly). Entry point: start_scheduler() for asyncio background task.",
+      "tags": ["scheduler", "background", "cron", "async"],
+      "complexity": "simple"
+    },
+    {
+      "id": "platforms/__init__.py",
+      "type": "file",
+      "name": "product/platforms/__init__.py",
+      "filePath": "platforms/__init__.py",
+      "summary": "Package init for platforms/ — empty, makes it a Python package.",
+      "tags": ["package-init"],
+      "complexity": "simple"
+    },
+    {
+      "id": "platforms/base.py",
+      "type": "file",
+      "name": "product/platforms/base.py",
+      "filePath": "platforms/base.py",
+      "summary": "Abstract base class BaseScraper(ABC) with abstract method scrape(url) -> dict. Defines the interface all platform-specific scrapers must implement.",
+      "tags": ["abstract", "base-class", "scraper"],
+      "complexity": "simple"
+    },
+    {
+      "id": "platforms/lazada.py",
+      "type": "file",
+      "name": "product/platforms/lazada.py",
+      "filePath": "platforms/lazada.py",
+      "summary": "Lazada platform scraper. Uses Playwright stealth browser to scrape product pages with CSS selectors for name, price, images, description. Handles Lazada-specific page structure and extracts to a standardized dict format.",
+      "tags": ["scraper", "lazada", "playwright"],
+      "complexity": "moderate"
+    },
+    {
+      "id": "platforms/shopee.py",
+      "type": "file",
+      "name": "product/platforms/shopee.py",
+      "filePath": "platforms/shopee.py",
+      "summary": "Shopee platform scraper. Uses Playwright to extract product data from Shopee pages with specific CSS selectors for name, price, images, description. Handles Shopee's unique page DOM structure.",
+      "tags": ["scraper", "shopee", "playwright"],
+      "complexity": "moderate"
+    },
+    {
+      "id": "platforms/tiktok_shop.py",
+      "type": "file",
+      "name": "product/platforms/tiktok_shop.py",
+      "filePath": "platforms/tiktok_shop.py",
+      "summary": "TikTok Shop platform scraper. Contains SelectorEngine class for flexible DOM traversal and TikTokShopScraper that extends BaseScraper. Handles TikTok Shop's dynamic page structure with Playwright stealth.",
+      "tags": ["scraper", "tiktok-shop", "playwright"],
+      "complexity": "moderate"
+    }
+  ],
+  "edges": [
+    {
+      "source": "main.py",
+      "target": "models.py",
+      "type": "imports",
+      "weight": 1.0
+    },
+    {
+      "source": "main.py",
+      "target": "analyze_models.py",
+      "type": "imports",
+      "weight": 1.0
+    },
+    {
+      "source": "main.py",
+      "target": "db_models.py",
+      "type": "imports",
+      "weight": 1.0
+    },
+    {
+      "source": "main.py",
+      "target": "scraper.py",
+      "type": "imports",
+      "weight": 1.0
+    },
+    {
+      "source": "main.py",
+      "target": "analyzer.py",
+      "type": "imports",
+      "weight": 1.0
+    },
+    {
+      "source": "main.py",
+      "target": "analyze_pipeline.py",
+      "type": "imports",
+      "weight": 1.0
+    },
+    {
+      "source": "main.py",
+      "target": "export_service.py",
+      "type": "imports",
+      "weight": 1.0
+    },
+    {
+      "source": "main.py",
+      "target": "scraper_service.py",
+      "type": "imports",
+      "weight": 1.0
+    },
+    {
+      "source": "main.py",
+      "target": "scheduler.py",
+      "type": "imports",
+      "weight": 1.0
+    },
+    {
+      "source": "main.py",
+      "target": "platforms/tiktok_shop.py",
+      "type": "imports",
+      "weight": 0.8
+    },
+    {
+      "source": "main.py",
+      "target": "platforms/shopee.py",
+      "type": "imports",
+      "weight": 0.8
+    },
+    {
+      "source": "main.py",
+      "target": "platforms/lazada.py",
+      "type": "imports",
+      "weight": 0.8
+    },
+    {
+      "source": "scraper_service.py",
+      "target": "db_models.py",
+      "type": "imports",
+      "weight": 1.0
+    },
+    {
+      "source": "scraper_service.py",
+      "target": "models.py",
+      "type": "imports",
+      "weight": 0.9
+    },
+    {
+      "source": "scraper_service.py",
+      "target": "scraper.py",
+      "type": "imports",
+      "weight": 1.0
+    },
+    {
+      "source": "analyze_pipeline.py",
+      "target": "analyzer_db.py",
+      "type": "imports",
+      "weight": 1.0
+    },
+    {
+      "source": "analyze_pipeline.py",
+      "target": "analyzer.py",
+      "type": "imports",
+      "weight": 0.5
+    },
+    {
+      "source": "analyzer_db.py",
+      "target": "db_models.py",
+      "type": "imports",
+      "weight": 1.0
+    },
+    {
+      "source": "scheduler.py",
+      "target": "db_models.py",
+      "type": "imports",
+      "weight": 1.0
+    },
+    {
+      "source": "scheduler.py",
+      "target": "scraper_service.py",
+      "type": "imports",
+      "weight": 1.0
+    },
+    {
+      "source": "platforms/lazada.py",
+      "target": "platforms/base.py",
+      "type": "inherits",
+      "weight": 1.0
+    },
+    {
+      "source": "platforms/shopee.py",
+      "target": "platforms/base.py",
+      "type": "inherits",
+      "weight": 1.0
+    },
+    {
+      "source": "platforms/tiktok_shop.py",
+      "target": "platforms/base.py",
+      "type": "inherits",
+      "weight": 1.0
+    },
+    {
+      "source": "scraper.py",
+      "target": "analyzer.py",
+      "type": "imports",
+      "weight": 0.7
+    },
+    {
+      "source": "scraper_service.py",
+      "target": "analyze_pipeline.py",
+      "type": "imports",
+      "weight": 0.6
+    },
+    {
+      "source": "main.py",
+      "target": "__init__.py",
+      "type": "contains",
+      "weight": 1.0
+    },
+    {
+      "source": "platforms/__init__.py",
+      "target": "platforms/base.py",
+      "type": "contains",
+      "weight": 0.5
+    },
+    {
+      "source": "platforms/__init__.py",
+      "target": "platforms/lazada.py",
+      "type": "contains",
+      "weight": 0.5
+    },
+    {
+      "source": "platforms/__init__.py",
+      "target": "platforms/shopee.py",
+      "type": "contains",
+      "weight": 0.5
+    },
+    {
+      "source": "platforms/__init__.py",
+      "target": "platforms/tiktok_shop.py",
+      "type": "contains",
+      "weight": 0.5
+    },
+    {
+      "source": "scraper_service.py",
+      "target": "models.py",
+      "type": "uses",
+      "weight": 0.7
+    },
+    {
+      "source": "main.py",
+      "target": "scraper_service.py",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "source": "main.py",
+      "target": "scraper.py",
+      "type": "calls",
+      "weight": 0.9
+    },
+    {
+      "source": "main.py",
+      "target": "analyze_pipeline.py",
+      "type": "calls",
+      "weight": 0.9
+    },
+    {
+      "source": "main.py",
+      "target": "export_service.py",
+      "type": "calls",
+      "weight": 0.8
+    },
+    {
+      "source": "main.py",
+      "target": "scheduler.py",
+      "type": "calls",
+      "weight": 0.8
+    },
+    {
+      "source": "main.py",
+      "target": "analyzer.py",
+      "type": "calls",
+      "weight": 0.7
+    },
+    {
+      "source": "scheduler.py",
+      "target": "db_models.py",
+      "type": "queries",
+      "weight": 0.9
+    },
+    {
+      "source": "analyzer_db.py",
+      "target": "shared.database",
+      "type": "imports",
+      "weight": 0.9
+    },
+    {
+      "source": "scheduler.py",
+      "target": "shared.database",
+      "type": "imports",
+      "weight": 0.9
+    },
+    {
+      "source": "db_models.py",
+      "target": "shared.database",
+      "type": "imports",
+      "weight": 0.8
+    },
+    {
+      "source": "analyze_pipeline.py",
+      "target": "analyzer_db.py",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "source": "analyze_pipeline.py",
+      "target": "export_service.py",
+      "type": "imports",
+      "weight": 0.5
+    }
+  ]
+}

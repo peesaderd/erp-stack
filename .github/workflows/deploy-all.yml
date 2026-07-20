@@ -1,0 +1,107 @@
+name: Deploy All Modules
+
+on:
+  push:
+    branches: [master, bridge-service]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      auth: ${{ steps.filter.outputs.auth }}
+      payment: ${{ steps.filter.outputs.payment }}
+      media: ${{ steps.filter.outputs.media }}
+      product: ${{ steps.filter.outputs.product }}
+      image_gen: ${{ steps.filter.outputs.image_gen }}
+      etsy_wizard: ${{ steps.filter.outputs.etsy_wizard }}
+      shared: ${{ steps.filter.outputs.shared }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            frontend: ['i2m-frontend/**']
+            auth: ['modules/auth/**']
+            payment: ['modules/payment/**']
+            media: ['modules/media/**']
+            product: ['modules/product/**']
+            image_gen: ['tiktok-ugc-studio/**']
+            etsy_wizard: ['etsy-wizard/**']
+            shared: ['modules/shared/**', 'modules/erp-bridge/**']
+
+  deploy:
+    needs: detect-changes
+    runs-on: ubuntu-latest
+    if: |
+      needs.detect-changes.outputs.frontend == 'true' ||
+      needs.detect-changes.outputs.auth == 'true' ||
+      needs.detect-changes.outputs.payment == 'true' ||
+      needs.detect-changes.outputs.media == 'true' ||
+      needs.detect-changes.outputs.product == 'true' ||
+      needs.detect-changes.outputs.image_gen == 'true' ||
+      needs.detect-changes.outputs.etsy_wizard == 'true' ||
+      needs.detect-changes.outputs.shared == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H 89.167.82.205 >> ~/.ssh/known_hosts
+
+      - name: Deploy frontend
+        if: needs.detect-changes.outputs.frontend == 'true'
+        env:
+          SERVER: "openhands@89.167.82.205"
+        run: |
+          ssh $SERVER "cd /home/openhands/erp-stack/i2m-frontend && git pull origin master && npm ci && npm run build"
+
+      - name: Deploy etsy-wizard (image gen)
+        if: needs.detect-changes.outputs.etsy_wizard == 'true' || needs.detect-changes.outputs.shared == 'true'
+        env:
+          SERVER: "openhands@89.167.82.205"
+        run: |
+          ssh $SERVER "cd /home/openhands/erp-stack && git pull origin master && cd etsy-wizard && pip install -r requirements.txt 2>/dev/null; pm2 restart etsy-wizard"
+
+      - name: Deploy tiktok-ugc-studio
+        if: needs.detect-changes.outputs.image_gen == 'true' || needs.detect-changes.outputs.shared == 'true'
+        env:
+          SERVER: "openhands@89.167.82.205"
+        run: |
+          ssh $SERVER "cd /home/openhands/erp-stack && git pull origin master && cd tiktok-ugc-studio && pip install -r requirements.txt 2>/dev/null; pm2 restart tiktok-ugc-studio"
+
+      - name: Deploy module services
+        if: |
+          needs.detect-changes.outputs.auth == 'true' ||
+          needs.detect-changes.outputs.payment == 'true' ||
+          needs.detect-changes.outputs.media == 'true' ||
+          needs.detect-changes.outputs.product == 'true'
+        env:
+          SERVER: "openhands@89.167.82.205"
+        run: |
+          ssh $SERVER bash << 'DEPLOY'
+            cd /home/openhands/erp-stack
+            git pull origin master
+            for mod in auth payment media product; do
+              if [ -f "modules/$mod/requirements.txt" ]; then
+                pip install -r "modules/$mod/requirements.txt" 2>/dev/null
+              fi
+              if pm2 show "modules-$mod" >/dev/null 2>&1; then
+                pm2 restart "modules-$mod"
+              elif [ -f "modules/$mod/main.py" ]; then
+                pm2 start modules/$mod/main.py --name "modules-$mod" --interpreter python3
+              fi
+            done
+          DEPLOY

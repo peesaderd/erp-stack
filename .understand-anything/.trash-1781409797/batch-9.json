@@ -1,0 +1,57 @@
+{
+  "batchIndex": 8,
+  "nodes": [
+    {
+      "id": "config:etsy-wizard/rules/image-rules.yaml",
+      "type": "config",
+      "name": "image-rules.yaml",
+      "filePath": "etsy-wizard/rules/image-rules.yaml",
+      "language": "yaml",
+      "fileCategory": "config",
+      "sizeLines": 41,
+      "complexity": "moderate",
+      "summary": "Configuration defining: rules",
+      "tags": [
+        "yaml",
+        "module:etsy-wizard",
+        "service:etsy-wizard",
+        "config"
+      ]
+    },
+    {
+      "id": "config:etsy-wizard/rules/listing-rules.yaml",
+      "type": "config",
+      "name": "listing-rules.yaml",
+      "filePath": "etsy-wizard/rules/listing-rules.yaml",
+      "language": "yaml",
+      "fileCategory": "config",
+      "sizeLines": 72,
+      "complexity": "moderate",
+      "summary": "Configuration defining: rules",
+      "tags": [
+        "yaml",
+        "module:etsy-wizard",
+        "service:etsy-wizard",
+        "config"
+      ]
+    },
+    {
+      "id": "config:etsy-wizard/rules/policy-rules.yaml",
+      "type": "config",
+      "name": "policy-rules.yaml",
+      "filePath": "etsy-wizard/rules/policy-rules.yaml",
+      "language": "yaml",
+      "fileCategory": "config",
+      "sizeLines": 82,
+      "complexity": "moderate",
+      "summary": "Configuration defining: rules",
+      "tags": [
+        "yaml",
+        "module:etsy-wizard",
+        "service:etsy-wizard",
+        "config"
+      ]
+    }
+  ],
+  "edges": []
+}

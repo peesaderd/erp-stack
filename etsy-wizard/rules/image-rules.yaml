@@ -1,0 +1,41 @@
+# Etsy Image Rules
+# Reference: https://help.etsy.com/hc/image-requirements
+# Validator: rules/validator.py
+
+rules:
+  main_image:
+    min_width: 2000
+    min_height: 2000
+    aspect_ratio: "1:1 (square preferred)"
+    file_types: ["JPEG", "PNG", "GIF", "WEBP", "BMP", "TIFF"]
+    max_file_size_mb: 20
+    hints:
+      - "พื้นหลังเรียบ (white/transparent ดีที่สุด)"
+      - "สินค้าต้องเต็มพื้นที่ภาพ >80%"
+      - "แสงสว่าง ไม่มืด ไม่มีเงา"
+      - "ห้ามใส่ลายน้ำ (watermark), text overlay, logo"
+      - "ห้ามใส่ border/frame"
+      - "ภาพเบลอหรือ pixelated ไม่ผ่าน"
+
+  additional_images:
+    max_count: 10
+    min_count: 1
+    recommended_count: 5
+    min_width: 1000
+    min_height: 1000
+    hints:
+      - "ถ่ายหลายมุม (front, back, side, detail)"
+      - "แสดง scale/size reference (เช่น วางข้างเหรียญ)"
+      - "ภาพ lifestyle (คนใส่/ใช้จริง)"
+      - "ภาพ packaging"
+      - "ภาพวัสดุ/เนื้อผ้า (detail shot)"
+
+  prohibited:
+    - "watermarks หรือ text overlays (ยกเว้น digital product)"
+    - "ภาพมี watermark หรือ logo ของคนอื่น"
+    - "stock photos ที่ไม่ใช่สินค้าจริง"
+    - "ภาพเบลอ หรือโฟกัสไม่ตรง"
+    - "ภาพที่มีคนไม่เกี่ยวข้องหรือเนื้อหาไม่เหมาะสม"
+    - "ภาพซ้ำกับสินค้าอื่นในร้าน"
+    - "ภาพที่มี text โฆษณา เช่น 'SALE 50%'"
+    - "ภาพที่ใช้แฟลชจน overexposed"

@@ -1,0 +1,93 @@
+{
+  "session_id": "8e77d102",
+  "created_at": "2026-07-14T13:52:16.213151",
+  "updated_at": "2026-07-14T13:55:42.048968",
+  "status": "active",
+  "current_step": "summary",
+  "current_step_idx": 9,
+  "total_steps": 10,
+  "completed_steps": [
+    "provider",
+    "category",
+    "product",
+    "variant",
+    "print_info",
+    "artwork",
+    "mockup",
+    "content",
+    "pricing"
+  ],
+  "progress": "9/10",
+  "provider": "printful",
+  "category": "apparel",
+  "product_id": "tshirt_standard",
+  "variant_color": null,
+  "variant_size": null,
+  "variant_colors": [
+    "White"
+  ],
+  "variant_sizes": [
+    "M"
+  ],
+  "has_print_info": false,
+  "selected_placements": [
+    "front"
+  ],
+  "has_artwork": true,
+  "artwork_valid": null,
+  "artwork_image_url": "/etsy/storage/images/nano_8004c60f2f20.png",
+  "mockup_image_url": "https://printful-upload.s3-accelerate.amazonaws.com/tmp/988bba5a13ced226cc5105cc6197a881/unisex-staple-t-shirt-white-front-6a563f9f91826.png",
+  "mockup_task_key": "gt-943882819",
+  "mockup_task_status": "completed",
+  "mockup_results": [
+    {
+      "placement": "front",
+      "variant_ids": [
+        4012
+      ],
+      "mockup_url": "https://printful-upload.s3-accelerate.amazonaws.com/tmp/988bba5a13ced226cc5105cc6197a881/unisex-staple-t-shirt-white-front-6a563f9f91826.png",
+      "generator_mockup_id": 25297,
+      "extra": [
+        {
+          "generator_mockup_id": 7917,
+          "title": "Front",
+          "option": "Front",
+          "option_group": "Flat",
+          "url": "https://printful-upload.s3-accelerate.amazonaws.com/tmp/548f55687b6e74f4dbe7b96d4c3f611f/unisex-staple-t-shirt-white-front-6a563f9f92b2f.png"
+        },
+        {
+          "generator_mockup_id": 54936,
+          "title": "Back",
+          "option": "Back",
+          "option_group": "Flat",
+          "url": "https://printful-upload.s3-accelerate.amazonaws.com/tmp/c31c2114be681b230867c034c1151a80/unisex-staple-t-shirt-white-back-6a563f9f936e0.png"
+        },
+        {
+          "generator_mockup_id": 55015,
+          "title": "Back",
+          "option": "Back",
+          "option_group": "Ghost",
+          "url": "https://printful-upload.s3-accelerate.amazonaws.com/tmp/c9f6503ce31cc7529ed5ed26965e497b/unisex-staple-t-shirt-white-back-6a563f9f940b9.png"
+        },
+        {
+          "generator_mockup_id": 55041,
+          "title": "Left",
+          "option": "Left",
+          "option_group": "Ghost",
+          "url": "https://printful-upload.s3-accelerate.amazonaws.com/tmp/a2d0e9d98ec80cb33ada2232b607aab1/unisex-staple-t-shirt-white-left-6a563f9f94def.png"
+        },
+        {
+          "generator_mockup_id": 55055,
+          "title": "Right",
+          "option": "Right",
+          "option_group": "Ghost",
+          "url": "https://printful-upload.s3-accelerate.amazonaws.com/tmp/497535b303238960bc925d526d16e59e/unisex-staple-t-shirt-white-right-6a563f9f956bb.png"
+        }
+      ]
+    }
+  ],
+  "has_mockup": true,
+  "has_content": false,
+  "has_pricing": true,
+  "selling_price": 19.99
+}

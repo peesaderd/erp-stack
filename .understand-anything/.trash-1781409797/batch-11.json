@@ -1,0 +1,142 @@
+{
+  "batchIndex": 10,
+  "nodes": [
+    {
+      "id": "config:modules/product/sessions/example.com.json",
+      "type": "config",
+      "name": "example.com.json",
+      "filePath": "modules/product/sessions/example.com.json",
+      "language": "json",
+      "fileCategory": "config",
+      "sizeLines": 0,
+      "complexity": "simple",
+      "summary": "Configuration file for modules/product/sessions",
+      "tags": [
+        "json",
+        "module:modules",
+        "service:product",
+        "config"
+      ]
+    },
+    {
+      "id": "config:modules/product/sessions/httpbin.org.json",
+      "type": "config",
+      "name": "httpbin.org.json",
+      "filePath": "modules/product/sessions/httpbin.org.json",
+      "language": "json",
+      "fileCategory": "config",
+      "sizeLines": 0,
+      "complexity": "simple",
+      "summary": "Configuration file for modules/product/sessions",
+      "tags": [
+        "json",
+        "module:modules",
+        "service:product",
+        "config"
+      ]
+    },
+    {
+      "id": "config:modules/product/sessions/shop.tiktok.com.json",
+      "type": "config",
+      "name": "shop.tiktok.com.json",
+      "filePath": "modules/product/sessions/shop.tiktok.com.json",
+      "language": "json",
+      "fileCategory": "config",
+      "sizeLines": 0,
+      "complexity": "simple",
+      "summary": "Configuration file for modules/product/sessions",
+      "tags": [
+        "json",
+        "module:modules",
+        "service:product",
+        "config"
+      ]
+    },
+    {
+      "id": "config:modules/product/sessions/shopee.co.th.json",
+      "type": "config",
+      "name": "shopee.co.th.json",
+      "filePath": "modules/product/sessions/shopee.co.th.json",
+      "language": "json",
+      "fileCategory": "config",
+      "sizeLines": 0,
+      "complexity": "simple",
+      "summary": "Configuration file for modules/product/sessions",
+      "tags": [
+        "json",
+        "module:modules",
+        "service:product",
+        "config"
+      ]
+    },
+    {
+      "id": "config:modules/product/sessions/store.boots.co.th.json",
+      "type": "config",
+      "name": "store.boots.co.th.json",
+      "filePath": "modules/product/sessions/store.boots.co.th.json",
+      "language": "json",
+      "fileCategory": "config",
+      "sizeLines": 0,
+      "complexity": "simple",
+      "summary": "Configuration file for modules/product/sessions",
+      "tags": [
+        "json",
+        "module:modules",
+        "service:product",
+        "config"
+      ]
+    },
+    {
+      "id": "config:modules/product/sessions/www.amazon.com.json",
+      "type": "config",
+      "name": "www.amazon.com.json",
+      "filePath": "modules/product/sessions/www.amazon.com.json",
+      "language": "json",
+      "fileCategory": "config",
+      "sizeLines": 0,
+      "complexity": "simple",
+      "summary": "Configuration file for modules/product/sessions",
+      "tags": [
+        "json",
+        "module:modules",
+        "service:product",
+        "config"
+      ]
+    },
+    {
+      "id": "config:modules/product/sessions/www.boots.co.th.json",
+      "type": "config",
+      "name": "www.boots.co.th.json",
+      "filePath": "modules/product/sessions/www.boots.co.th.json",
+      "language": "json",
+      "fileCategory": "config",
+      "sizeLines": 0,
+      "complexity": "simple",
+      "summary": "Configuration file for modules/product/sessions",
+      "tags": [
+        "json",
+        "module:modules",
+        "service:product",
+        "config"
+      ]
+    },
+    {
+      "id": "config:modules/product/sessions/www.lazada.co.th.json",
+      "type": "config",
+      "name": "www.lazada.co.th.json",
+      "filePath": "modules/product/sessions/www.lazada.co.th.json",
+      "language": "json",
+      "fileCategory": "config",
+      "sizeLines": 0,
+      "complexity": "simple",
+      "summary": "Configuration file for modules/product/sessions",
+      "tags": [
+        "json",
+        "module:modules",
+        "service:product",
+        "config"
+      ]
+    }
+  ],
+  "edges": []
+}

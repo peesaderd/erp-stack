@@ -1,0 +1,1602 @@
+{
+  "scriptCompleted": true,
+  "files": [
+    {
+      "path": ".aider.conf.yml",
+      "language": "yaml",
+      "sizeLines": 78,
+      "fileCategory": "config"
+    },
+    {
+      "path": ".aiderignore",
+      "language": "unknown",
+      "sizeLines": 16,
+      "fileCategory": "code"
+    },
+    {
+      "path": ".dockerignore",
+      "language": "unknown",
+      "sizeLines": 10,
+      "fileCategory": "infra"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/bug.md",
+      "language": "markdown",
+      "sizeLines": 34,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/change.md",
+      "language": "markdown",
+      "sizeLines": 34,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/task.md",
+      "language": "markdown",
+      "sizeLines": 30,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".github/workflows/deploy-all.yml",
+      "language": "yaml",
+      "sizeLines": 107,
+      "fileCategory": "infra"
+    },
+    {
+      "path": ".github/workflows/deploy-i2m.yml",
+      "language": "yaml",
+      "sizeLines": 52,
+      "fileCategory": "infra"
+    },
+    {
+      "path": ".inner-monologue-memory/history.json",
+      "language": "json",
+      "sizeLines": 70,
+      "fileCategory": "config"
+    },
+    {
+      "path": ".inner-monologue-memory/summary.txt",
+      "language": "txt",
+      "sizeLines": 2,
+      "fileCategory": "docs"
+    },
+    {
+      "path": ".inner-monologue-memory/user_profile.json",
+      "language": "json",
+      "sizeLines": 12,
+      "fileCategory": "config"
+    },
+    {
+      "path": ".planka_token",
+      "language": "unknown",
+      "sizeLines": 1,
+      "fileCategory": "code"
+    },
+    {
+      "path": ".understandignore",
+      "language": "unknown",
+      "sizeLines": 19,
+      "fileCategory": "code"
+    },
+    {
+      "path": "aider-mcp-README.md",
+      "language": "markdown",
+      "sizeLines": 171,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "ARCHITECTURE.md",
+      "language": "markdown",
+      "sizeLines": 511,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "bookstack_client.py",
+      "language": "python",
+      "sizeLines": 75,
+      "fileCategory": "code"
+    },
+    {
+      "path": "brain_server_v6.py",
+      "language": "python",
+      "sizeLines": 707,
+      "fileCategory": "code"
+    },
+    {
+      "path": "bridge-server/__init__.py",
+      "language": "python",
+      "sizeLines": 0,
+      "fileCategory": "code"
+    },
+    {
+      "path": "bridge-server/.env.example",
+      "language": "config",
+      "sizeLines": 34,
+      "fileCategory": "config"
+    },
+    {
+      "path": "bridge-server/app.py",
+      "language": "python",
+      "sizeLines": 582,
+      "fileCategory": "code"
+    },
+    {
+      "path": "bridge-server/BRIDGE.md",
+      "language": "markdown",
+      "sizeLines": 244,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "bridge-server/config.py",
+      "language": "python",
+      "sizeLines": 37,
+      "fileCategory": "code"
+    },
+    {
+      "path": "bridge-server/CREDENTIALS.md",
+      "language": "markdown",
+      "sizeLines": 99,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "bridge-server/ecosystem.config.cjs",
+      "language": "javascript",
+      "sizeLines": 15,
+      "fileCategory": "code"
+    },
+    {
+      "path": "bridge-server/ecosystem.config.js",
+      "language": "javascript",
+      "sizeLines": 15,
+      "fileCategory": "code"
+    },
+    {
+      "path": "bridge-server/handlers/__init__.py",
+      "language": "python",
+      "sizeLines": 0,
+      "fileCategory": "code"
+    },
+    {
+      "path": "bridge-server/manage-password.sh",
+      "language": "shell",
+      "sizeLines": 154,
+      "fileCategory": "script"
+    },
+    {
+      "path": "bridge-server/requirements.txt",
+      "language": "txt",
+      "sizeLines": 5,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "bridge-server/SETUP.md",
+      "language": "markdown",
+      "sizeLines": 140,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "docker-compose.bookstack.yml",
+      "language": "yaml",
+      "sizeLines": 53,
+      "fileCategory": "infra"
+    },
+    {
+      "path": "docker-compose.network.yml",
+      "language": "yaml",
+      "sizeLines": 3,
+      "fileCategory": "infra"
+    },
+    {
+      "path": "docker-compose.openobserve.yml",
+      "language": "yaml",
+      "sizeLines": 22,
+      "fileCategory": "infra"
+    },
+    {
+      "path": "docker-compose.plane.yml",
+      "language": "yaml",
+      "sizeLines": 139,
+      "fileCategory": "infra"
+    },
+    {
+      "path": "docker-compose.planka.yml",
+      "language": "yaml",
+      "sizeLines": 48,
+      "fileCategory": "infra"
+    },
+    {
+      "path": "docker-compose.prod.yml",
+      "language": "yaml",
+      "sizeLines": 65,
+      "fileCategory": "infra"
+    },
+    {
+      "path": "docker-compose.siyuan.yml",
+      "language": "yaml",
+      "sizeLines": 17,
+      "fileCategory": "infra"
+    },
+    {
+      "path": "docker-compose.yml",
+      "language": "yaml",
+      "sizeLines": 18,
+      "fileCategory": "infra"
+    },
+    {
+      "path": "Dockerfile.etsy-wizard",
+      "language": "dockerfile",
+      "sizeLines": 32,
+      "fileCategory": "infra"
+    },
+    {
+      "path": "Dockerfile.i2m-frontend",
+      "language": "dockerfile",
+      "sizeLines": 35,
+      "fileCategory": "infra"
+    },
+    {
+      "path": "Dockerfile.tiktok-ugc-studio",
+      "language": "dockerfile",
+      "sizeLines": 15,
+      "fileCategory": "infra"
+    },
+    {
+      "path": "ecosystem-product.config.js",
+      "language": "javascript",
+      "sizeLines": 21,
+      "fileCategory": "code"
+    },
+    {
+      "path": "ecosystem.config.cjs",
+      "language": "javascript",
+      "sizeLines": 22,
+      "fileCategory": "code"
+    },
+    {
+      "path": "erp-modular/.env.example",
+      "language": "config",
+      "sizeLines": 9,
+      "fileCategory": "config"
+    },
+    {
+      "path": "erp-modular/{models,api,core}/__init__.py",
+      "language": "python",
+      "sizeLines": 0,
+      "fileCategory": "code"
+    },
+    {
+      "path": "erp-modular/api/__init__.py",
+      "language": "python",
+      "sizeLines": 0,
+      "fileCategory": "code"
+    },
+    {
+      "path": "erp-modular/api/auth.py",
+      "language": "python",
+      "sizeLines": 223,
+      "fileCategory": "code"
+    },
+    {
+      "path": "erp-modular/api/gateway.py",
+      "language": "python",
+      "sizeLines": 246,
+      "fileCategory": "code"
+    },
+    {
+      "path": "erp-modular/api/rate_limit.py",
+      "language": "python",
+      "sizeLines": 224,
+      "fileCategory": "code"
+    },
+    {
+      "path": "erp-modular/api/router.py",
+      "language": "python",
+      "sizeLines": 603,
+      "fileCategory": "code"
+    },
+    {
+      "path": "erp-modular/core/__init__.py",
+      "language": "python",
+      "sizeLines": 0,
+      "fileCategory": "code"
+    },
+    {
+      "path": "erp-modular/core/database.py",
+      "language": "python",
+      "sizeLines": 15,
+      "fileCategory": "code"
+    },
+    {
+      "path": "erp-modular/core/plugin_interface.py",
+      "language": "python",
+      "sizeLines": 64,
+      "fileCategory": "code"
+    },
+    {
+      "path": "erp-modular/core/plugin.py",
+      "language": "python",
+      "sizeLines": 91,
+      "fileCategory": "code"
+    },
+    {
+      "path": "erp-modular/core/template_engine.py",
+      "language": "python",
+      "sizeLines": 174,
+      "fileCategory": "code"
+    },
+    {
+      "path": "erp-modular/design/DESIGN.md",
+      "language": "markdown",
+      "sizeLines": 116,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "erp-modular/design/PRODUCT.md",
+      "language": "markdown",
+      "sizeLines": 49,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "erp-modular/design/tokens.css",
+      "language": "css",
+      "sizeLines": 60,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "erp-modular/docker-compose.yml",
+      "language": "yaml",
+      "sizeLines": 28,
+      "fileCategory": "infra"
+    },
+    {
+      "path": "erp-modular/Dockerfile",
+      "language": "dockerfile",
+      "sizeLines": 17,
+      "fileCategory": "infra"
+    },
+    {
+      "path": "erp-modular/ecosystem.config.cjs",
+      "language": "javascript",
+      "sizeLines": 16,
+      "fileCategory": "code"
+    },
+    {
+      "path": "erp-modular/ecosystem.config.js",
+      "language": "javascript",
+      "sizeLines": 16,
+      "fileCategory": "code"
+    },
+    {
+      "path": "erp-modular/ERP_ROADMAP.md",
+      "language": "markdown",
+      "sizeLines": 168,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "erp-modular/frontend/css/style.css",
+      "language": "css",
+      "sizeLines": 366,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "erp-modular/frontend/index.html",
+      "language": "html",
+      "sizeLines": 70,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "erp-modular/frontend/js/app-registry.js",
+      "language": "javascript",
+      "sizeLines": 92,
+      "fileCategory": "code"
+    },
+    {
+      "path": "erp-modular/frontend/js/auth-client.js",
+      "language": "javascript",
+      "sizeLines": 120,
+      "fileCategory": "code"
+    },
+    {
+      "path": "erp-modular/frontend/js/config.js",
+      "language": "javascript",
+      "sizeLines": 16,
+      "fileCategory": "code"
+    },
+    {
+      "path": "erp-modular/frontend/js/event-bus.js",
+      "language": "javascript",
+      "sizeLines": 88,
+      "fileCategory": "code"
+    },
+    {
+      "path": "erp-modular/frontend/js/shell.js",
+      "language": "javascript",
+      "sizeLines": 228,
+      "fileCategory": "code"
+    },
+    {
+      "path": "erp-modular/main.py",
+      "language": "python",
+      "sizeLines": 166,
+      "fileCategory": "code"
+    },
+    {
+      "path": "erp-modular/models/__init__.py",
+      "language": "python",
+      "sizeLines": 0,
+      "fileCategory": "code"
+    },
+    {
+      "path": "erp-modular/models/entity.py",
+      "language": "python",
+      "sizeLines": 243,
+      "fileCategory": "code"
+    },
+    {
+      "path": "erp-modular/nginx.conf",
+      "language": "conf",
+      "sizeLines": 56,
+      "fileCategory": "code"
+    },
+    {
+      "path": "erp-modular/READY_FOR_REVIEW.txt",
+      "language": "txt",
+      "sizeLines": 32,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "erp-modular/requirements.txt",
+      "language": "txt",
+      "sizeLines": 6,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "etsy-wizard/__init__.py",
+      "language": "python",
+      "sizeLines": 1,
+      "fileCategory": "code"
+    },
+    {
+      "path": "etsy-wizard/assistant/__init__.py",
+      "language": "python",
+      "sizeLines": 267,
+      "fileCategory": "code"
+    },
+    {
+      "path": "etsy-wizard/design/DESIGN.md",
+      "language": "markdown",
+      "sizeLines": 37,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "etsy-wizard/design/PRODUCT.md",
+      "language": "markdown",
+      "sizeLines": 34,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "etsy-wizard/detector.py",
+      "language": "python",
+      "sizeLines": 285,
+      "fileCategory": "code"
+    },
+    {
+      "path": "etsy-wizard/ecosystem.config.js",
+      "language": "javascript",
+      "sizeLines": 15,
+      "fileCategory": "code"
+    },
+    {
+      "path": "etsy-wizard/image_gen.py",
+      "language": "python",
+      "sizeLines": 668,
+      "fileCategory": "code"
+    },
+    {
+      "path": "etsy-wizard/main.py",
+      "language": "python",
+      "sizeLines": 961,
+      "fileCategory": "code"
+    },
+    {
+      "path": "etsy-wizard/models/yolo11n-pose.pt",
+      "language": "pt",
+      "sizeLines": 17918,
+      "fileCategory": "code"
+    },
+    {
+      "path": "etsy-wizard/models/yolo11n.pt",
+      "language": "pt",
+      "sizeLines": 16106,
+      "fileCategory": "code"
+    },
+    {
+      "path": "etsy-wizard/requirements.txt",
+      "language": "txt",
+      "sizeLines": 6,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "etsy-wizard/rules/__init__.py",
+      "language": "python",
+      "sizeLines": 0,
+      "fileCategory": "code"
+    },
+    {
+      "path": "etsy-wizard/rules/image-rules.yaml",
+      "language": "yaml",
+      "sizeLines": 41,
+      "fileCategory": "config"
+    },
+    {
+      "path": "etsy-wizard/rules/listing-rules.yaml",
+      "language": "yaml",
+      "sizeLines": 72,
+      "fileCategory": "config"
+    },
+    {
+      "path": "etsy-wizard/rules/policy-rules.yaml",
+      "language": "yaml",
+      "sizeLines": 82,
+      "fileCategory": "config"
+    },
+    {
+      "path": "etsy-wizard/rules/validator.py",
+      "language": "python",
+      "sizeLines": 246,
+      "fileCategory": "code"
+    },
+    {
+      "path": "etsy-wizard/start.sh",
+      "language": "shell",
+      "sizeLines": 12,
+      "fileCategory": "script"
+    },
+    {
+      "path": "etsy-wizard/yolo11n-pose.pt",
+      "language": "pt",
+      "sizeLines": 17918,
+      "fileCategory": "code"
+    },
+    {
+      "path": "etsy-wizard/yolo11n.pt",
+      "language": "pt",
+      "sizeLines": 16106,
+      "fileCategory": "code"
+    },
+    {
+      "path": "inner_monologue/__init__.py",
+      "language": "python",
+      "sizeLines": 32,
+      "fileCategory": "code"
+    },
+    {
+      "path": "inner_monologue/agent.py",
+      "language": "python",
+      "sizeLines": 1108,
+      "fileCategory": "code"
+    },
+    {
+      "path": "inner_monologue/ARCHITECTURE.md",
+      "language": "markdown",
+      "sizeLines": 172,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "inner_monologue/delegation.py",
+      "language": "python",
+      "sizeLines": 687,
+      "fileCategory": "code"
+    },
+    {
+      "path": "inner_monologue/ecosystem.config.cjs",
+      "language": "javascript",
+      "sizeLines": 32,
+      "fileCategory": "code"
+    },
+    {
+      "path": "inner_monologue/heartbeat.py",
+      "language": "python",
+      "sizeLines": 76,
+      "fileCategory": "code"
+    },
+    {
+      "path": "inner_monologue/hitl.py",
+      "language": "python",
+      "sizeLines": 280,
+      "fileCategory": "code"
+    },
+    {
+      "path": "inner_monologue/main.py",
+      "language": "python",
+      "sizeLines": 204,
+      "fileCategory": "code"
+    },
+    {
+      "path": "inner_monologue/memory.py",
+      "language": "python",
+      "sizeLines": 242,
+      "fileCategory": "code"
+    },
+    {
+      "path": "inner_monologue/README.md",
+      "language": "markdown",
+      "sizeLines": 111,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "inner_monologue/resilience.py",
+      "language": "python",
+      "sizeLines": 449,
+      "fileCategory": "code"
+    },
+    {
+      "path": "inner_monologue/scanner.py",
+      "language": "python",
+      "sizeLines": 539,
+      "fileCategory": "code"
+    },
+    {
+      "path": "inner_monologue/self_reflection.py",
+      "language": "python",
+      "sizeLines": 236,
+      "fileCategory": "code"
+    },
+    {
+      "path": "modules/auth/main.py",
+      "language": "python",
+      "sizeLines": 308,
+      "fileCategory": "code"
+    },
+    {
+      "path": "modules/auth/requirements.txt",
+      "language": "txt",
+      "sizeLines": 7,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "modules/erp_bridge/__init__.py",
+      "language": "python",
+      "sizeLines": 91,
+      "fileCategory": "code"
+    },
+    {
+      "path": "modules/media/main.py",
+      "language": "python",
+      "sizeLines": 130,
+      "fileCategory": "code"
+    },
+    {
+      "path": "modules/media/modules/media/main.py",
+      "language": "python",
+      "sizeLines": 0,
+      "fileCategory": "code"
+    },
+    {
+      "path": "modules/media/start.sh",
+      "language": "shell",
+      "sizeLines": 11,
+      "fileCategory": "script"
+    },
+    {
+      "path": "modules/product/__init__.py",
+      "language": "python",
+      "sizeLines": 1,
+      "fileCategory": "code"
+    },
+    {
+      "path": "modules/product/analyze_models.py",
+      "language": "python",
+      "sizeLines": 68,
+      "fileCategory": "code"
+    },
+    {
+      "path": "modules/product/analyze_pipeline.py",
+      "language": "python",
+      "sizeLines": 545,
+      "fileCategory": "code"
+    },
+    {
+      "path": "modules/product/analyzer_db.py",
+      "language": "python",
+      "sizeLines": 213,
+      "fileCategory": "code"
+    },
+    {
+      "path": "modules/product/analyzer.py",
+      "language": "python",
+      "sizeLines": 204,
+      "fileCategory": "code"
+    },
+    {
+      "path": "modules/product/db_models.py",
+      "language": "python",
+      "sizeLines": 263,
+      "fileCategory": "code"
+    },
+    {
+      "path": "modules/product/ecosystem.config.js",
+      "language": "javascript",
+      "sizeLines": 15,
+      "fileCategory": "code"
+    },
+    {
+      "path": "modules/product/export_service.py",
+      "language": "python",
+      "sizeLines": 147,
+      "fileCategory": "code"
+    },
+    {
+      "path": "modules/product/main.py",
+      "language": "python",
+      "sizeLines": 1258,
+      "fileCategory": "code"
+    },
+    {
+      "path": "modules/product/models.py",
+      "language": "python",
+      "sizeLines": 148,
+      "fileCategory": "code"
+    },
+    {
+      "path": "modules/product/opencode_analyzer_task.txt",
+      "language": "txt",
+      "sizeLines": 54,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "modules/product/platforms/__init__.py",
+      "language": "python",
+      "sizeLines": 47,
+      "fileCategory": "code"
+    },
+    {
+      "path": "modules/product/platforms/base.py",
+      "language": "python",
+      "sizeLines": 52,
+      "fileCategory": "code"
+    },
+    {
+      "path": "modules/product/platforms/lazada.py",
+      "language": "python",
+      "sizeLines": 243,
+      "fileCategory": "code"
+    },
+    {
+      "path": "modules/product/platforms/shopee.py",
+      "language": "python",
+      "sizeLines": 240,
+      "fileCategory": "code"
+    },
+    {
+      "path": "modules/product/platforms/tiktok_shop.py",
+      "language": "python",
+      "sizeLines": 314,
+      "fileCategory": "code"
+    },
+    {
+      "path": "modules/product/requirements.txt",
+      "language": "txt",
+      "sizeLines": 6,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "modules/product/scheduler.py",
+      "language": "python",
+      "sizeLines": 62,
+      "fileCategory": "code"
+    },
+    {
+      "path": "modules/product/scraper_service.py",
+      "language": "python",
+      "sizeLines": 760,
+      "fileCategory": "code"
+    },
+    {
+      "path": "modules/product/scraper.py",
+      "language": "python",
+      "sizeLines": 1021,
+      "fileCategory": "code"
+    },
+    {
+      "path": "modules/product/sessions/example.com.json",
+      "language": "json",
+      "sizeLines": 0,
+      "fileCategory": "config"
+    },
+    {
+      "path": "modules/product/sessions/httpbin.org.json",
+      "language": "json",
+      "sizeLines": 0,
+      "fileCategory": "config"
+    },
+    {
+      "path": "modules/product/sessions/shop.tiktok.com.json",
+      "language": "json",
+      "sizeLines": 0,
+      "fileCategory": "config"
+    },
+    {
+      "path": "modules/product/sessions/shopee.co.th.json",
+      "language": "json",
+      "sizeLines": 0,
+      "fileCategory": "config"
+    },
+    {
+      "path": "modules/product/sessions/store.boots.co.th.json",
+      "language": "json",
+      "sizeLines": 0,
+      "fileCategory": "config"
+    },
+    {
+      "path": "modules/product/sessions/www.amazon.com.json",
+      "language": "json",
+      "sizeLines": 0,
+      "fileCategory": "config"
+    },
+    {
+      "path": "modules/product/sessions/www.boots.co.th.json",
+      "language": "json",
+      "sizeLines": 0,
+      "fileCategory": "config"
+    },
+    {
+      "path": "modules/product/sessions/www.lazada.co.th.json",
+      "language": "json",
+      "sizeLines": 0,
+      "fileCategory": "config"
+    },
+    {
+      "path": "modules/product/simple_proxy.py",
+      "language": "python",
+      "sizeLines": 92,
+      "fileCategory": "code"
+    },
+    {
+      "path": "modules/product/start.sh",
+      "language": "shell",
+      "sizeLines": 13,
+      "fileCategory": "script"
+    },
+    {
+      "path": "modules/product/test_scraper.sh",
+      "language": "shell",
+      "sizeLines": 46,
+      "fileCategory": "script"
+    },
+    {
+      "path": "modules/product/ui/analyzer/index.html",
+      "language": "html",
+      "sizeLines": 605,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "modules/product/ui/index.html",
+      "language": "html",
+      "sizeLines": 1224,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "modules/profile/__init__.py",
+      "language": "python",
+      "sizeLines": 0,
+      "fileCategory": "code"
+    },
+    {
+      "path": "modules/profile/main.py",
+      "language": "python",
+      "sizeLines": 362,
+      "fileCategory": "code"
+    },
+    {
+      "path": "modules/profile/start.sh",
+      "language": "shell",
+      "sizeLines": 11,
+      "fileCategory": "script"
+    },
+    {
+      "path": "modules/shared/__init__.py",
+      "language": "python",
+      "sizeLines": 12,
+      "fileCategory": "code"
+    },
+    {
+      "path": "modules/shared/database.py",
+      "language": "python",
+      "sizeLines": 29,
+      "fileCategory": "code"
+    },
+    {
+      "path": "modules/shared/models.py",
+      "language": "python",
+      "sizeLines": 174,
+      "fileCategory": "code"
+    },
+    {
+      "path": "package.json",
+      "language": "json",
+      "sizeLines": 24,
+      "fileCategory": "config"
+    },
+    {
+      "path": "plane.env",
+      "language": "config",
+      "sizeLines": 44,
+      "fileCategory": "config"
+    },
+    {
+      "path": "prompt-studio/design/DESIGN.md",
+      "language": "markdown",
+      "sizeLines": 20,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "prompt-studio/design/PRODUCT.md",
+      "language": "markdown",
+      "sizeLines": 17,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "prompt-studio/ecosystem.config.js",
+      "language": "javascript",
+      "sizeLines": 13,
+      "fileCategory": "code"
+    },
+    {
+      "path": "prompt-studio/main.py",
+      "language": "python",
+      "sizeLines": 57,
+      "fileCategory": "code"
+    },
+    {
+      "path": "prompt-studio/prompt_loader.py",
+      "language": "python",
+      "sizeLines": 125,
+      "fileCategory": "code"
+    },
+    {
+      "path": "prompt-studio/prompts/image/image_gen_default.txt",
+      "language": "txt",
+      "sizeLines": 1,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "prompt-studio/prompts/image/negative_prompt.txt",
+      "language": "txt",
+      "sizeLines": 1,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "prompt-studio/prompts/tiktok/master_16s_3step.prompt.txt",
+      "language": "txt",
+      "sizeLines": 88,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "prompt-studio/prompts/tiktok/master.prompt.txt",
+      "language": "txt",
+      "sizeLines": 150,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "prompt-studio/prompts/tiktok/system_16s.prompt.txt",
+      "language": "txt",
+      "sizeLines": 30,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "prompt-studio/prompts/tiktok/system.prompt.txt",
+      "language": "txt",
+      "sizeLines": 113,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "prompt-studio/prompts/tiktok/tiktok_review_prompts.json",
+      "language": "json",
+      "sizeLines": 19,
+      "fileCategory": "config"
+    },
+    {
+      "path": "prompt-studio/prompts/tiktok/user_16s.prompt.txt",
+      "language": "txt",
+      "sizeLines": 12,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "prompt-studio/prompts/tiktok/user.template.prompt.txt",
+      "language": "txt",
+      "sizeLines": 39,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "prompt-studio/prompts/tiktok/variation.json",
+      "language": "json",
+      "sizeLines": 46,
+      "fileCategory": "config"
+    },
+    {
+      "path": "prompt-studio/prompts/ugc/Holding_Product/master.prompt",
+      "language": "prompt",
+      "sizeLines": 5,
+      "fileCategory": "code"
+    },
+    {
+      "path": "prompt-studio/prompts/ugc/Holding_Product/negative.prompt",
+      "language": "prompt",
+      "sizeLines": 0,
+      "fileCategory": "code"
+    },
+    {
+      "path": "prompt-studio/prompts/ugc/Holding_Product/system.prompt",
+      "language": "prompt",
+      "sizeLines": 15,
+      "fileCategory": "code"
+    },
+    {
+      "path": "prompt-studio/prompts/ugc/Holding_Product/user.template.prompt",
+      "language": "prompt",
+      "sizeLines": 7,
+      "fileCategory": "code"
+    },
+    {
+      "path": "prompt-studio/prompts/ugc/Product_Usage/master.prompt",
+      "language": "prompt",
+      "sizeLines": 5,
+      "fileCategory": "code"
+    },
+    {
+      "path": "prompt-studio/prompts/ugc/Product_Usage/negative.prompt",
+      "language": "prompt",
+      "sizeLines": 0,
+      "fileCategory": "code"
+    },
+    {
+      "path": "prompt-studio/prompts/ugc/Product_Usage/system.prompt",
+      "language": "prompt",
+      "sizeLines": 15,
+      "fileCategory": "code"
+    },
+    {
+      "path": "prompt-studio/prompts/ugc/Product_Usage/user.template.prompt",
+      "language": "prompt",
+      "sizeLines": 8,
+      "fileCategory": "code"
+    },
+    {
+      "path": "prompt-studio/prompts/ugc/UGC_Review/master.prompt",
+      "language": "prompt",
+      "sizeLines": 5,
+      "fileCategory": "code"
+    },
+    {
+      "path": "prompt-studio/prompts/ugc/UGC_Review/negative.prompt",
+      "language": "prompt",
+      "sizeLines": 0,
+      "fileCategory": "code"
+    },
+    {
+      "path": "prompt-studio/prompts/ugc/UGC_Review/system.prompt",
+      "language": "prompt",
+      "sizeLines": 16,
+      "fileCategory": "code"
+    },
+    {
+      "path": "prompt-studio/prompts/ugc/UGC_Review/user.template.prompt",
+      "language": "prompt",
+      "sizeLines": 8,
+      "fileCategory": "code"
+    },
+    {
+      "path": "prompt-studio/requirements.txt",
+      "language": "txt",
+      "sizeLines": 3,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "README.md",
+      "language": "markdown",
+      "sizeLines": 396,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "READY_FOR_REVIEW.txt",
+      "language": "txt",
+      "sizeLines": 5,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "setup_aider_mcp.sh",
+      "language": "shell",
+      "sizeLines": 906,
+      "fileCategory": "script"
+    },
+    {
+      "path": "setup.py",
+      "language": "python",
+      "sizeLines": 12,
+      "fileCategory": "code"
+    },
+    {
+      "path": "STATUS.md",
+      "language": "markdown",
+      "sizeLines": 129,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "system_bot.py",
+      "language": "python",
+      "sizeLines": 74,
+      "fileCategory": "code"
+    },
+    {
+      "path": "test_aider_mcp.sh",
+      "language": "shell",
+      "sizeLines": 571,
+      "fileCategory": "script"
+    },
+    {
+      "path": "tiktok-ugc-studio/composer.py",
+      "language": "python",
+      "sizeLines": 257,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/design/DESIGN.md",
+      "language": "markdown",
+      "sizeLines": 34,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "tiktok-ugc-studio/design/PRODUCT.md",
+      "language": "markdown",
+      "sizeLines": 24,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "tiktok-ugc-studio/ecosystem.config.js",
+      "language": "javascript",
+      "sizeLines": 47,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/fal_client.py",
+      "language": "python",
+      "sizeLines": 257,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/frontend_old_server.js",
+      "language": "javascript",
+      "sizeLines": 39,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/frontend/package.json",
+      "language": "json",
+      "sizeLines": 17,
+      "fileCategory": "config"
+    },
+    {
+      "path": "tiktok-ugc-studio/frontend/public/AIDER_TASK.md",
+      "language": "markdown",
+      "sizeLines": 0,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "tiktok-ugc-studio/frontend/public/dashboard.html",
+      "language": "html",
+      "sizeLines": 1304,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "tiktok-ugc-studio/frontend/public/index.html",
+      "language": "html",
+      "sizeLines": 1697,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "tiktok-ugc-studio/frontend/public/index.html.bak2",
+      "language": "bak2",
+      "sizeLines": 572,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/frontend/public/index.html.bak3",
+      "language": "bak3",
+      "sizeLines": 572,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/frontend/public/manifest-studio.json",
+      "language": "json",
+      "sizeLines": 27,
+      "fileCategory": "config"
+    },
+    {
+      "path": "tiktok-ugc-studio/frontend/public/manifest.json",
+      "language": "json",
+      "sizeLines": 25,
+      "fileCategory": "config"
+    },
+    {
+      "path": "tiktok-ugc-studio/frontend/public/offline.html",
+      "language": "html",
+      "sizeLines": 38,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "tiktok-ugc-studio/frontend/public/sw.js",
+      "language": "javascript",
+      "sizeLines": 112,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/frontend/server.js",
+      "language": "javascript",
+      "sizeLines": 102,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/gemini_agent.py",
+      "language": "python",
+      "sizeLines": 666,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/main.py",
+      "language": "python",
+      "sizeLines": 2817,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/monitor/__init__.py",
+      "language": "python",
+      "sizeLines": 4,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/monitor/optimizer.py",
+      "language": "python",
+      "sizeLines": 309,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/monitor/tracker.py",
+      "language": "python",
+      "sizeLines": 144,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/pipeline_affiliate.py",
+      "language": "python",
+      "sizeLines": 563,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/pipeline_cartoon.py",
+      "language": "python",
+      "sizeLines": 373,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/pipeline_default.py",
+      "language": "python",
+      "sizeLines": 622,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/postforme_integration.py",
+      "language": "python",
+      "sizeLines": 217,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/PRICING.md",
+      "language": "markdown",
+      "sizeLines": 103,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "tiktok-ugc-studio/PRODUCT_INTELLIGENCE_HUB.md",
+      "language": "markdown",
+      "sizeLines": 370,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "tiktok-ugc-studio/PRODUCT_SCRAPER.md",
+      "language": "markdown",
+      "sizeLines": 260,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "tiktok-ugc-studio/prompts/master_16s_3step.prompt.txt",
+      "language": "txt",
+      "sizeLines": 88,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "tiktok-ugc-studio/prompts/master.prompt.txt",
+      "language": "txt",
+      "sizeLines": 150,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "tiktok-ugc-studio/prompts/system_16s.prompt.txt",
+      "language": "txt",
+      "sizeLines": 30,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "tiktok-ugc-studio/prompts/system.prompt.txt",
+      "language": "txt",
+      "sizeLines": 113,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "tiktok-ugc-studio/prompts/tiktok_review_prompts.json",
+      "language": "json",
+      "sizeLines": 19,
+      "fileCategory": "config"
+    },
+    {
+      "path": "tiktok-ugc-studio/prompts/UGC_prompts/Holding_Product/master.prompt",
+      "language": "prompt",
+      "sizeLines": 5,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/prompts/UGC_prompts/Holding_Product/negative.prompt",
+      "language": "prompt",
+      "sizeLines": 0,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/prompts/UGC_prompts/Holding_Product/system.prompt",
+      "language": "prompt",
+      "sizeLines": 15,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/prompts/UGC_prompts/Holding_Product/user.template.prompt",
+      "language": "prompt",
+      "sizeLines": 19,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/prompts/UGC_prompts/Product_Usage/master.prompt",
+      "language": "prompt",
+      "sizeLines": 5,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/prompts/UGC_prompts/Product_Usage/negative.prompt",
+      "language": "prompt",
+      "sizeLines": 0,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/prompts/UGC_prompts/Product_Usage/system.prompt",
+      "language": "prompt",
+      "sizeLines": 15,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/prompts/UGC_prompts/Product_Usage/user.template.prompt",
+      "language": "prompt",
+      "sizeLines": 18,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/prompts/UGC_prompts/UGC_Review/master.prompt",
+      "language": "prompt",
+      "sizeLines": 4,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/prompts/UGC_prompts/UGC_Review/negative.prompt",
+      "language": "prompt",
+      "sizeLines": 0,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/prompts/UGC_prompts/UGC_Review/system.prompt",
+      "language": "prompt",
+      "sizeLines": 16,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/prompts/UGC_prompts/UGC_Review/user.template.prompt",
+      "language": "prompt",
+      "sizeLines": 18,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/prompts/user_16s.prompt.txt",
+      "language": "txt",
+      "sizeLines": 12,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "tiktok-ugc-studio/prompts/user.template.prompt.txt",
+      "language": "txt",
+      "sizeLines": 39,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "tiktok-ugc-studio/prompts/variation.json",
+      "language": "json",
+      "sizeLines": 46,
+      "fileCategory": "config"
+    },
+    {
+      "path": "tiktok-ugc-studio/remote_auth_browser.py",
+      "language": "python",
+      "sizeLines": 73,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/remote_auth_final.py",
+      "language": "python",
+      "sizeLines": 98,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/requirements.txt",
+      "language": "txt",
+      "sizeLines": 5,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "tiktok-ugc-studio/sam3_client.py",
+      "language": "python",
+      "sizeLines": 389,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/scout/__init__.py",
+      "language": "python",
+      "sizeLines": 4,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/scout/analyzer.py",
+      "language": "python",
+      "sizeLines": 222,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/scout/targets.py",
+      "language": "python",
+      "sizeLines": 250,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/scout/templates.py",
+      "language": "python",
+      "sizeLines": 181,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/scout/trends.py",
+      "language": "python",
+      "sizeLines": 219,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/script_gen.py",
+      "language": "python",
+      "sizeLines": 247,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/TASK_CARD.md",
+      "language": "markdown",
+      "sizeLines": 97,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "tiktok-ugc-studio/tiktok_browser.py",
+      "language": "python",
+      "sizeLines": 873,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/tiktok_remote_auth.py",
+      "language": "python",
+      "sizeLines": 192,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/tts_gen.py",
+      "language": "python",
+      "sizeLines": 51,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/tus_analyzer_pipeline.py",
+      "language": "python",
+      "sizeLines": 224,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/video_gen.py",
+      "language": "python",
+      "sizeLines": 631,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/vnc_auth_server.py",
+      "language": "python",
+      "sizeLines": 207,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tiktok-ugc-studio/wav2lip_colab.md",
+      "language": "markdown",
+      "sizeLines": 210,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "tiktok-ugc-studio/WORK_PLAN.md",
+      "language": "markdown",
+      "sizeLines": 89,
+      "fileCategory": "docs"
+    }
+  ],
+  "totalFiles": 257,
+  "filteredByIgnore": 33,
+  "estimatedComplexity": "large",
+  "stats": {
+    "filesScanned": 257,
+    "byCategory": {
+      "config": 25,
+      "code": 147,
+      "infra": 16,
+      "docs": 53,
+      "script": 8,
+      "markup": 8
+    },
+    "byLanguage": {
+      "yaml": 15,
+      "unknown": 4,
+      "markdown": 28,
+      "json": 18,
+      "txt": 25,
+      "python": 94,
+      "config": 3,
+      "javascript": 19,
+      "shell": 8,
+      "dockerfile": 4,
+      "css": 2,
+      "html": 6,
+      "conf": 1,
+      "pt": 4,
+      "prompt": 24,
+      "bak2": 1,
+      "bak3": 1
+    }
+  },
+  "projectName": "Business OS",
+  "projectDescription": "A modular business management platform integrating ERP modular services, TikTok UGC (User Generated Content) studio, Etsy wizard automation, and bridge-server integration. The system manages products, inventory, orders, payments, shipping, social media content, and Etsy marketplace operations through a plugin-based architecture.",
+  "languages": [
+    "Python",
+    "JavaScript",
+    "TypeScript",
+    "HTML",
+    "CSS",
+    "YAML",
+    "JSON",
+    "Shell",
+    "Markdown",
+    "Dockerfile"
+  ],
+  "frameworks": [
+    "FastAPI",
+    "Flask",
+    "Vue.js",
+    "Docker",
+    "Vite"
+  ],
+  "entryPoint": "erp-modular/main.py"
+}

@@ -1,0 +1,3786 @@
+{
+  "batchIndex": 17,
+  "nodes": [
+    {
+      "id": "script:etsy-wizard/start.sh",
+      "type": "script",
+      "name": "start.sh",
+      "filePath": "etsy-wizard/start.sh",
+      "language": "shell",
+      "fileCategory": "script",
+      "sizeLines": 12,
+      "complexity": "simple",
+      "summary": "Shell script executing: cd",
+      "tags": [
+        "shell",
+        "service:etsy-wizard",
+        "script",
+        "deployment",
+        "module:etsy-wizard"
+      ]
+    },
+    {
+      "id": "model:etsy-wizard/yolo11n-pose.pt",
+      "type": "model",
+      "name": "yolo11n-pose.pt",
+      "filePath": "etsy-wizard/yolo11n-pose.pt",
+      "language": "pt",
+      "fileCategory": "code",
+      "sizeLines": 17918,
+      "complexity": "very_complex",
+      "summary": "PyTorch model weights file",
+      "tags": [
+        "code",
+        "service:etsy-wizard",
+        "module:etsy-wizard",
+        "pt"
+      ]
+    },
+    {
+      "id": "model:etsy-wizard/yolo11n.pt",
+      "type": "model",
+      "name": "yolo11n.pt",
+      "filePath": "etsy-wizard/yolo11n.pt",
+      "language": "pt",
+      "fileCategory": "code",
+      "sizeLines": 16106,
+      "complexity": "very_complex",
+      "summary": "PyTorch model weights file",
+      "tags": [
+        "code",
+        "service:etsy-wizard",
+        "module:etsy-wizard",
+        "pt"
+      ]
+    },
+    {
+      "id": "file:inner_monologue/__init__.py",
+      "type": "file",
+      "name": "__init__.py",
+      "filePath": "inner_monologue/__init__.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 32,
+      "complexity": "moderate",
+      "summary": "Inner Monologue \u2014 \u0e23\u0e30\u0e1a\u0e1a\u0e43\u0e2b\u0e49 AI Agent \u0e21\u0e35\u0e01\u0e23\u0e30\u0e1a\u0e27\u0e19\u0e01\u0e32\u0e23\u0e04\u0e34\u0e14\u0e20\u0e32\u0e22\u0e43\u0e19 (Inner Monologue)",
+      "tags": [
+        "code",
+        "module:inner_monologue",
+        "service:inner-monologue",
+        "python"
+      ]
+    },
+    {
+      "id": "file:inner_monologue/agent.py",
+      "type": "file",
+      "name": "agent.py",
+      "filePath": "inner_monologue/agent.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 1108,
+      "complexity": "very_complex",
+      "summary": "Inner Monologue Agent - \u0e15\u0e31\u0e27\u0e41\u0e17\u0e19\u0e17\u0e35\u0e48\u0e21\u0e35\u0e01\u0e23\u0e30\u0e1a\u0e27\u0e19\u0e01\u0e32\u0e23\u0e04\u0e34\u0e14\u0e20\u0e32\u0e22\u0e43\u0e19 (Inner Monologue)",
+      "tags": [
+        "python",
+        "has-classes",
+        "has-imports",
+        "module:inner_monologue",
+        "code",
+        "service:inner-monologue"
+      ]
+    },
+    {
+      "id": "document:inner_monologue/ARCHITECTURE.md",
+      "type": "document",
+      "name": "ARCHITECTURE.md",
+      "filePath": "inner_monologue/ARCHITECTURE.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "sizeLines": 172,
+      "complexity": "moderate",
+      "summary": "Documentation: Inner Monologue Agent \u2014 Architecture \u2014 covers Overview, Components",
+      "tags": [
+        "markdown",
+        "module:inner_monologue",
+        "service:inner-monologue",
+        "docs"
+      ]
+    },
+    {
+      "id": "file:inner_monologue/delegation.py",
+      "type": "file",
+      "name": "delegation.py",
+      "filePath": "inner_monologue/delegation.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 687,
+      "complexity": "complex",
+      "summary": "Multi-Agent Delegation System \u2014 Sub-Agent Manager + Delegate Protocol",
+      "tags": [
+        "python",
+        "has-classes",
+        "has-imports",
+        "module:inner_monologue",
+        "code",
+        "service:inner-monologue"
+      ]
+    },
+    {
+      "id": "file:inner_monologue/ecosystem.config.cjs",
+      "type": "file",
+      "name": "ecosystem.config.cjs",
+      "filePath": "inner_monologue/ecosystem.config.cjs",
+      "language": "javascript",
+      "fileCategory": "code",
+      "sizeLines": 32,
+      "complexity": "moderate",
+      "summary": "JavaScript module (32 lines)",
+      "tags": [
+        "module:inner_monologue",
+        "javascript",
+        "code",
+        "service:inner-monologue",
+        "pm2"
+      ]
+    },
+    {
+      "id": "file:inner_monologue/heartbeat.py",
+      "type": "file",
+      "name": "heartbeat.py",
+      "filePath": "inner_monologue/heartbeat.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 76,
+      "complexity": "moderate",
+      "summary": "Heartbeat \u2014 \u0e41\u0e2a\u0e14\u0e07\u0e2a\u0e16\u0e32\u0e19\u0e30\u0e02\u0e2d\u0e07 Agent \u0e17\u0e38\u0e01\u0e23\u0e2d\u0e1a",
+      "tags": [
+        "python",
+        "has-classes",
+        "module:inner_monologue",
+        "code",
+        "service:inner-monologue"
+      ]
+    },
+    {
+      "id": "file:inner_monologue/hitl.py",
+      "type": "file",
+      "name": "hitl.py",
+      "filePath": "inner_monologue/hitl.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 280,
+      "complexity": "complex",
+      "summary": "HITL (Human-in-the-Loop) \u2014 Confirmation Mode + Flag Files + Callbacks",
+      "tags": [
+        "python",
+        "has-classes",
+        "has-imports",
+        "module:inner_monologue",
+        "code",
+        "service:inner-monologue"
+      ]
+    },
+    {
+      "id": "file:inner_monologue/main.py",
+      "type": "file",
+      "name": "main.py",
+      "filePath": "inner_monologue/main.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 204,
+      "complexity": "complex",
+      "summary": "Main \u2014 \u0e15\u0e31\u0e27\u0e23\u0e31\u0e19 Inner Monologue Agent",
+      "tags": [
+        "python",
+        "has-imports",
+        "module:inner_monologue",
+        "code",
+        "service:inner-monologue"
+      ]
+    },
+    {
+      "id": "file:inner_monologue/memory.py",
+      "type": "file",
+      "name": "memory.py",
+      "filePath": "inner_monologue/memory.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 242,
+      "complexity": "complex",
+      "summary": "Memory \u2014 Persistent Memory + Condenser \u0e2a\u0e33\u0e2b\u0e23\u0e31\u0e1a Inner Monologue Agent",
+      "tags": [
+        "python",
+        "has-classes",
+        "has-imports",
+        "module:inner_monologue",
+        "code",
+        "service:inner-monologue"
+      ]
+    },
+    {
+      "id": "document:inner_monologue/README.md",
+      "type": "document",
+      "name": "README.md",
+      "filePath": "inner_monologue/README.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "sizeLines": 111,
+      "complexity": "moderate",
+      "summary": "Documentation: Inner Monologue Agent \u2014 covers \u0e2a\u0e16\u0e32\u0e1b\u0e31\u0e15\u0e22\u0e01\u0e23\u0e23\u0e21, \u0e27\u0e34\u0e18\u0e35\u0e43\u0e0a\u0e49",
+      "tags": [
+        "markdown",
+        "module:inner_monologue",
+        "service:inner-monologue",
+        "docs"
+      ]
+    },
+    {
+      "id": "file:inner_monologue/resilience.py",
+      "type": "file",
+      "name": "resilience.py",
+      "filePath": "inner_monologue/resilience.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 449,
+      "complexity": "complex",
+      "summary": "Resilience \u2014 Retry Strategy + Fallback Provider + Circuit Breaker + JSON Schema Validation",
+      "tags": [
+        "python",
+        "has-classes",
+        "has-imports",
+        "module:inner_monologue",
+        "code",
+        "service:inner-monologue"
+      ]
+    },
+    {
+      "id": "file:inner_monologue/scanner.py",
+      "type": "file",
+      "name": "scanner.py",
+      "filePath": "inner_monologue/scanner.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 539,
+      "complexity": "complex",
+      "summary": "System Bot Scanner \u2014 Auto-Discovery \u0e2a\u0e33\u0e2b\u0e23\u0e31\u0e1a ERP Stack",
+      "tags": [
+        "python",
+        "has-classes",
+        "has-imports",
+        "module:inner_monologue",
+        "code",
+        "service:inner-monologue"
+      ]
+    },
+    {
+      "id": "file:inner_monologue/self_reflection.py",
+      "type": "file",
+      "name": "self_reflection.py",
+      "filePath": "inner_monologue/self_reflection.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 236,
+      "complexity": "complex",
+      "summary": "Self-Reflection (Tom Agent) \u2014 \u0e43\u0e2b\u0e49 Agent \u0e40\u0e02\u0e49\u0e32\u0e43\u0e08\u0e1e\u0e24\u0e15\u0e34\u0e01\u0e23\u0e23\u0e21\u0e1c\u0e39\u0e49\u0e43\u0e0a\u0e49\u0e41\u0e25\u0e30\u0e1e\u0e31\u0e12\u0e19\u0e32\u0e15\u0e31\u0e27\u0e40\u0e2d\u0e07",
+      "tags": [
+        "python",
+        "has-classes",
+        "has-imports",
+        "module:inner_monologue",
+        "code",
+        "service:inner-monologue"
+      ]
+    },
+    {
+      "id": "file:modules/auth/main.py",
+      "type": "file",
+      "name": "main.py",
+      "filePath": "modules/auth/main.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 308,
+      "complexity": "complex",
+      "summary": "Auth Module \u2014 user registration, login, OAuth (Google, Facebook, Line), biometric",
+      "tags": [
+        "fastapi",
+        "python",
+        "has-classes",
+        "has-imports",
+        "code",
+        "pydantic",
+        "service:auth",
+        "module:modules",
+        "database"
+      ]
+    },
+    {
+      "id": "document:modules/auth/requirements.txt",
+      "type": "document",
+      "name": "requirements.txt",
+      "filePath": "modules/auth/requirements.txt",
+      "language": "txt",
+      "fileCategory": "docs",
+      "sizeLines": 7,
+      "complexity": "simple",
+      "summary": "Python dependencies: fastapi[standard], uvicorn, sqlalchemy[asyncio], asyncpg, httpx, pyjwt",
+      "tags": [
+        "docs",
+        "service:auth",
+        "module:modules",
+        "txt"
+      ]
+    },
+    {
+      "id": "file:modules/erp_bridge/__init__.py",
+      "type": "file",
+      "name": "__init__.py",
+      "filePath": "modules/erp_bridge/__init__.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 91,
+      "complexity": "moderate",
+      "summary": "ERP Bridge \u2014 Module registration client",
+      "tags": [
+        "python",
+        "has-imports",
+        "service:bridge",
+        "code",
+        "module:modules"
+      ]
+    },
+    {
+      "id": "file:modules/media/main.py",
+      "type": "file",
+      "name": "main.py",
+      "filePath": "modules/media/main.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 130,
+      "complexity": "moderate",
+      "summary": "Media Module - File upload and management service on port 8103.",
+      "tags": [
+        "fastapi",
+        "python",
+        "has-imports",
+        "service:media",
+        "code",
+        "module:modules"
+      ]
+    },
+    {
+      "id": "file:modules/media/modules/media/main.py",
+      "type": "file",
+      "name": "main.py",
+      "filePath": "modules/media/modules/media/main.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 0,
+      "complexity": "simple",
+      "summary": "Python module (0 lines)",
+      "tags": [
+        "code",
+        "python",
+        "module:modules",
+        "service:media"
+      ]
+    },
+    {
+      "id": "script:modules/media/start.sh",
+      "type": "script",
+      "name": "start.sh",
+      "filePath": "modules/media/start.sh",
+      "language": "shell",
+      "fileCategory": "script",
+      "sizeLines": 11,
+      "complexity": "simple",
+      "summary": "Shell script executing: cd",
+      "tags": [
+        "shell",
+        "service:media",
+        "script",
+        "module:modules",
+        "deployment"
+      ]
+    },
+    {
+      "id": "file:modules/product/__init__.py",
+      "type": "file",
+      "name": "__init__.py",
+      "filePath": "modules/product/__init__.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 1,
+      "complexity": "simple",
+      "summary": "Product Scraper Module \u2014 Playwright + Gemini Vision",
+      "tags": [
+        "code",
+        "service:product",
+        "python",
+        "module:modules"
+      ]
+    },
+    {
+      "id": "file:modules/product/analyze_models.py",
+      "type": "file",
+      "name": "analyze_models.py",
+      "filePath": "modules/product/analyze_models.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 68,
+      "complexity": "moderate",
+      "summary": "Analyze from previously scraped products. Choose products by filters.",
+      "tags": [
+        "service:product",
+        "python",
+        "has-classes",
+        "code",
+        "pydantic",
+        "module:modules"
+      ]
+    },
+    {
+      "id": "file:modules/product/analyze_pipeline.py",
+      "type": "file",
+      "name": "analyze_pipeline.py",
+      "filePath": "modules/product/analyze_pipeline.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 545,
+      "complexity": "complex",
+      "summary": "Product Analysis Pipeline \u2014 Normalizer \u2192 Enricher \u2192 Exporter",
+      "tags": [
+        "service:product",
+        "python",
+        "has-imports",
+        "code",
+        "module:modules"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:etsy-wizard/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:etsy-wizard/yolo11n-pose.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:etsy-wizard/yolo11n.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/agent.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/ARCHITECTURE.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/delegation.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/heartbeat.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/hitl.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/memory.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/README.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/resilience.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/scanner.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/self_reflection.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/auth/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/auth/requirements.txt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/erp_bridge/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/media/modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/media/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/product/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/product/analyze_models.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/product/analyze_pipeline.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:etsy-wizard/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:etsy-wizard/yolo11n-pose.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:etsy-wizard/yolo11n.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/agent.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/ARCHITECTURE.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/delegation.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/heartbeat.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/hitl.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/memory.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/README.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/resilience.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/scanner.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/self_reflection.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/auth/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/auth/requirements.txt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/erp_bridge/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/media/modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/media/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/product/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/product/analyze_models.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/product/analyze_pipeline.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:etsy-wizard/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:etsy-wizard/yolo11n-pose.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:etsy-wizard/yolo11n.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/agent.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/ARCHITECTURE.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/delegation.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/heartbeat.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/hitl.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/memory.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/README.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/resilience.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/scanner.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/self_reflection.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/auth/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/auth/requirements.txt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/erp_bridge/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/media/modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/media/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/product/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/product/analyze_models.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/product/analyze_pipeline.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:etsy-wizard/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:etsy-wizard/yolo11n-pose.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:etsy-wizard/yolo11n.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/agent.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/ARCHITECTURE.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/delegation.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/heartbeat.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/hitl.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/memory.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/README.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/resilience.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/scanner.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/self_reflection.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/auth/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/auth/requirements.txt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/erp_bridge/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/media/modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/media/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/product/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/product/analyze_models.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/product/analyze_pipeline.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:etsy-wizard/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:etsy-wizard/yolo11n-pose.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:etsy-wizard/yolo11n.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/agent.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/ARCHITECTURE.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/delegation.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/heartbeat.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/hitl.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/memory.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/README.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/resilience.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/scanner.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/self_reflection.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/auth/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/auth/requirements.txt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/erp_bridge/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/media/modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/media/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/product/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/product/analyze_models.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/product/analyze_pipeline.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:etsy-wizard/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:etsy-wizard/yolo11n-pose.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:etsy-wizard/yolo11n.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/agent.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/ARCHITECTURE.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/delegation.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/heartbeat.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/hitl.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/memory.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/README.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/resilience.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/scanner.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:inner_monologue/self_reflection.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/auth/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/auth/requirements.txt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/erp_bridge/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/media/modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/media/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/product/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/product/analyze_models.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/__init__.py",
+      "target": "file:modules/product/analyze_pipeline.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:etsy-wizard/yolo11n-pose.pt",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/resilience.py",
+      "type": "imports",
+      "label": "imports re"
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/self_reflection.py",
+      "type": "imports",
+      "label": "imports re"
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/auth/requirements.txt",
+      "type": "imports",
+      "label": "imports re"
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:etsy-wizard/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:etsy-wizard/yolo11n-pose.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:etsy-wizard/yolo11n.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/agent.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/ARCHITECTURE.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/delegation.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/heartbeat.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/hitl.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/memory.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/README.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/resilience.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/scanner.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/self_reflection.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/auth/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/auth/requirements.txt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/erp_bridge/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/media/modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/media/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/product/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/product/analyze_models.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/product/analyze_pipeline.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:etsy-wizard/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:etsy-wizard/yolo11n-pose.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:etsy-wizard/yolo11n.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/agent.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/ARCHITECTURE.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/delegation.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/heartbeat.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/hitl.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/memory.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/README.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/resilience.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/scanner.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/self_reflection.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/auth/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/auth/requirements.txt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/erp_bridge/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/media/modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/media/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/product/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/product/analyze_models.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/product/analyze_pipeline.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:etsy-wizard/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:etsy-wizard/yolo11n-pose.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:etsy-wizard/yolo11n.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/agent.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/ARCHITECTURE.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/delegation.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/heartbeat.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/hitl.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/memory.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/README.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/resilience.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/scanner.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/self_reflection.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/auth/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/auth/requirements.txt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/erp_bridge/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/media/modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/media/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/product/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/product/analyze_models.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/product/analyze_pipeline.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:etsy-wizard/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:etsy-wizard/yolo11n-pose.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:etsy-wizard/yolo11n.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/agent.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/ARCHITECTURE.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/delegation.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/heartbeat.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/hitl.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/memory.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/README.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/resilience.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/scanner.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/self_reflection.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/auth/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/auth/requirements.txt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/erp_bridge/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/media/modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/media/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/product/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/product/analyze_models.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/product/analyze_pipeline.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:etsy-wizard/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:etsy-wizard/yolo11n-pose.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:etsy-wizard/yolo11n.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/agent.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/ARCHITECTURE.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/delegation.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/heartbeat.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/hitl.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/memory.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/README.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/resilience.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/scanner.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/self_reflection.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/auth/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/auth/requirements.txt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/erp_bridge/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/media/modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/media/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/product/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/product/analyze_models.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/product/analyze_pipeline.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:etsy-wizard/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:etsy-wizard/yolo11n-pose.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:etsy-wizard/yolo11n.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/agent.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/ARCHITECTURE.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/delegation.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/heartbeat.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/hitl.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/memory.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/README.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/resilience.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/scanner.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:inner_monologue/self_reflection.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/auth/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/auth/requirements.txt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/erp_bridge/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/media/modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/media/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/product/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/product/analyze_models.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/agent.py",
+      "target": "file:modules/product/analyze_pipeline.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:etsy-wizard/yolo11n-pose.pt",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:etsy-wizard/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:etsy-wizard/yolo11n-pose.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:etsy-wizard/yolo11n.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/agent.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/ARCHITECTURE.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/delegation.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/heartbeat.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/hitl.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/memory.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/README.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/resilience.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/scanner.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/self_reflection.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:modules/auth/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:modules/auth/requirements.txt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:modules/erp_bridge/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:modules/media/modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:modules/media/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:modules/product/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:modules/product/analyze_models.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:modules/product/analyze_pipeline.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:etsy-wizard/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:etsy-wizard/yolo11n-pose.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:etsy-wizard/yolo11n.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/agent.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/ARCHITECTURE.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/delegation.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/heartbeat.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/hitl.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/memory.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/README.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/resilience.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/scanner.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/self_reflection.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:modules/auth/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:modules/auth/requirements.txt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:modules/erp_bridge/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:modules/media/modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:modules/media/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:modules/product/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:modules/product/analyze_models.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:modules/product/analyze_pipeline.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:etsy-wizard/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:etsy-wizard/yolo11n-pose.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:etsy-wizard/yolo11n.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/agent.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/ARCHITECTURE.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/delegation.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/heartbeat.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/hitl.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/memory.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/README.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/resilience.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/scanner.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:inner_monologue/self_reflection.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:modules/auth/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:modules/auth/requirements.txt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:modules/erp_bridge/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:modules/media/modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:modules/media/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:modules/product/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:modules/product/analyze_models.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/delegation.py",
+      "target": "file:modules/product/analyze_pipeline.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/hitl.py",
+      "target": "file:etsy-wizard/yolo11n-pose.pt",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:inner_monologue/hitl.py",
+      "target": "file:inner_monologue/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:etsy-wizard/yolo11n-pose.pt",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports sys"
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:etsy-wizard/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:etsy-wizard/yolo11n-pose.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:etsy-wizard/yolo11n.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/agent.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/ARCHITECTURE.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/delegation.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/heartbeat.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/hitl.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/memory.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/README.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/resilience.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/scanner.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/self_reflection.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/auth/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/auth/requirements.txt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/erp_bridge/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/media/modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/media/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/product/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/product/analyze_models.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/product/analyze_pipeline.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:etsy-wizard/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:etsy-wizard/yolo11n-pose.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:etsy-wizard/yolo11n.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/agent.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/ARCHITECTURE.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/delegation.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/heartbeat.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/hitl.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/memory.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/README.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/resilience.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/scanner.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/self_reflection.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/auth/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/auth/requirements.txt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/erp_bridge/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/media/modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/media/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/product/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/product/analyze_models.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/product/analyze_pipeline.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:etsy-wizard/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:etsy-wizard/yolo11n-pose.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:etsy-wizard/yolo11n.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/agent.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/ARCHITECTURE.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/delegation.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/heartbeat.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/hitl.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/memory.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/README.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/resilience.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/scanner.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/self_reflection.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/auth/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/auth/requirements.txt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/erp_bridge/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/media/modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/media/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/product/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/product/analyze_models.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/product/analyze_pipeline.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:etsy-wizard/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:etsy-wizard/yolo11n-pose.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:etsy-wizard/yolo11n.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/agent.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/ARCHITECTURE.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/delegation.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/heartbeat.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/hitl.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/memory.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/README.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/resilience.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/scanner.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/self_reflection.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/auth/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/auth/requirements.txt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/erp_bridge/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/media/modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/media/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/product/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/product/analyze_models.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/product/analyze_pipeline.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:etsy-wizard/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:etsy-wizard/yolo11n-pose.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:etsy-wizard/yolo11n.pt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/agent.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/ARCHITECTURE.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/delegation.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/heartbeat.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/hitl.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/memory.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/README.md",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/resilience.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/scanner.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:inner_monologue/self_reflection.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/auth/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/auth/requirements.txt",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/erp_bridge/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/media/modules/media/main.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/media/start.sh",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/product/__init__.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/product/analyze_models.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/main.py",
+      "target": "file:modules/product/analyze_pipeline.py",
+      "type": "imports",
+      "label": "imports "
+    },
+    {
+      "source": "file:inner_monologue/memory.py",
+      "target": "file:etsy-wizard/yolo11n-pose.pt",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:inner_monologue/memory.py",
+      "target": "file:inner_monologue/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:inner_monologue/resilience.py",
+      "target": "file:inner_monologue/resilience.py",
+      "type": "imports",
+      "label": "imports re"
+    },
+    {
+      "source": "file:inner_monologue/resilience.py",
+      "target": "file:inner_monologue/self_reflection.py",
+      "type": "imports",
+      "label": "imports re"
+    },
+    {
+      "source": "file:inner_monologue/resilience.py",
+      "target": "file:modules/auth/requirements.txt",
+      "type": "imports",
+      "label": "imports re"
+    },
+    {
+      "source": "file:inner_monologue/scanner.py",
+      "target": "file:etsy-wizard/yolo11n-pose.pt",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:inner_monologue/scanner.py",
+      "target": "file:inner_monologue/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:inner_monologue/scanner.py",
+      "target": "file:inner_monologue/resilience.py",
+      "type": "imports",
+      "label": "imports re"
+    },
+    {
+      "source": "file:inner_monologue/scanner.py",
+      "target": "file:inner_monologue/self_reflection.py",
+      "type": "imports",
+      "label": "imports re"
+    },
+    {
+      "source": "file:inner_monologue/scanner.py",
+      "target": "file:modules/auth/requirements.txt",
+      "type": "imports",
+      "label": "imports re"
+    },
+    {
+      "source": "file:inner_monologue/self_reflection.py",
+      "target": "file:etsy-wizard/yolo11n-pose.pt",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:inner_monologue/self_reflection.py",
+      "target": "file:inner_monologue/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:inner_monologue/self_reflection.py",
+      "target": "file:inner_monologue/resilience.py",
+      "type": "imports",
+      "label": "imports re"
+    },
+    {
+      "source": "file:inner_monologue/self_reflection.py",
+      "target": "file:inner_monologue/self_reflection.py",
+      "type": "imports",
+      "label": "imports re"
+    },
+    {
+      "source": "file:inner_monologue/self_reflection.py",
+      "target": "file:modules/auth/requirements.txt",
+      "type": "imports",
+      "label": "imports re"
+    },
+    {
+      "source": "file:modules/auth/main.py",
+      "target": "file:etsy-wizard/yolo11n-pose.pt",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:modules/auth/main.py",
+      "target": "file:inner_monologue/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:modules/auth/main.py",
+      "target": "file:modules/erp_bridge/__init__.py",
+      "type": "imports",
+      "label": "imports erp_bridge"
+    },
+    {
+      "source": "file:modules/auth/main.py",
+      "target": "file:modules/auth/main.py",
+      "type": "defines",
+      "label": "route: /health"
+    },
+    {
+      "source": "file:modules/auth/main.py",
+      "target": "file:modules/auth/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/auth/register"
+    },
+    {
+      "source": "file:modules/auth/main.py",
+      "target": "file:modules/auth/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/auth/login"
+    },
+    {
+      "source": "file:modules/auth/main.py",
+      "target": "file:modules/auth/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/auth/oauth"
+    },
+    {
+      "source": "file:modules/auth/main.py",
+      "target": "file:modules/auth/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/auth/me"
+    },
+    {
+      "source": "file:modules/auth/main.py",
+      "target": "file:modules/auth/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/auth/profile"
+    },
+    {
+      "source": "file:modules/erp_bridge/__init__.py",
+      "target": "file:etsy-wizard/yolo11n-pose.pt",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:modules/erp_bridge/__init__.py",
+      "target": "file:inner_monologue/ecosystem.config.cjs",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:modules/media/main.py",
+      "target": "file:modules/media/main.py",
+      "type": "defines",
+      "label": "route: /health"
+    },
+    {
+      "source": "file:modules/media/main.py",
+      "target": "file:modules/media/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/media/upload"
+    },
+    {
+      "source": "file:modules/media/main.py",
+      "target": "file:modules/media/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/media/list"
+    },
+    {
+      "source": "file:modules/media/main.py",
+      "target": "file:modules/media/main.py",
+      "type": "defines",
+      "label": "route: /api/v1/media/{media_id}"
+    },
+    {
+      "source": "file:modules/product/analyze_pipeline.py",
+      "target": "file:modules/product/__init__.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/analyze_pipeline.py",
+      "target": "file:modules/product/analyze_models.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/analyze_pipeline.py",
+      "target": "file:modules/product/analyze_pipeline.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/analyze_pipeline.py",
+      "target": "file:modules/product/__init__.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/analyze_pipeline.py",
+      "target": "file:modules/product/analyze_models.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/analyze_pipeline.py",
+      "target": "file:modules/product/analyze_pipeline.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/analyze_pipeline.py",
+      "target": "file:modules/product/__init__.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/analyze_pipeline.py",
+      "target": "file:modules/product/analyze_models.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/analyze_pipeline.py",
+      "target": "file:modules/product/analyze_pipeline.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/analyze_pipeline.py",
+      "target": "file:modules/product/__init__.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/analyze_pipeline.py",
+      "target": "file:modules/product/analyze_models.py",
+      "type": "imports",
+      "label": "imports product"
+    },
+    {
+      "source": "file:modules/product/analyze_pipeline.py",
+      "target": "file:modules/product/analyze_pipeline.py",
+      "type": "imports",
+      "label": "imports product"
+    }
+  ]
+}

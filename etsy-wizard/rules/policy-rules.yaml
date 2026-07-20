@@ -1,0 +1,82 @@
+# Etsy Shop Policy Rules
+# Reference: https://help.etsy.com/hc/shop-policies
+# Validator: rules/validator.py
+
+rules:
+  shipping:
+    required: true
+    sections:
+      - name: "processing_time"
+        required: true
+        min_days: 1
+        description: "เวลาจัดเตรียมสินค้า (1-10 business days)"
+      - name: "delivery_time"
+        required: true
+        description: "ระยะเวลาจัดส่ง (estimate)"
+      - name: "shipping_cost"
+        required: true
+        description: "ค่าจัดส่ง — บอกราคาชัดเจน หรือฟรี"
+      - name: "domestic_shipping"
+        required: true
+        description: "นโยบายจัดส่งในประเทศ"
+      - name: "international_shipping"
+        required: false
+        hint: "ถ้าส่งต่างประเทศ ต้องมีภาษีศุลกากร clear"
+    hints:
+      - "ระยะเวลาที่ให้ต้องทำได้จริง"
+      - "ถ้าส่งฟรี ต้องรวมค่านี้ในราคาสินค้าแล้ว"
+      - "ต้องใช้ความเร็วจัดส่งที่ Etsy มีให้เลือก"
+
+  returns:
+    required: true
+    options:
+      - "accepts_returns"
+      - "accepts_exchanges"
+      - "accepts_returns_and_exchanges"
+      - "no_returns_or_exchanges"
+    sections:
+      - name: "return_window"
+        hint: "ระยะเวลารับคืนสินค้า (เช่น 14, 30, 60 days)"
+      - name: "return_condition"
+        hint: "เงื่อนไขการรับคืน (unused, original packaging, etc.)"
+      - name: "who_pays_shipping"
+        hint: "ใครจ่ายค่าส่งคืน"
+    hints:
+      - "ถ้า Custom/Made-to-order → ไม่รับคืนได้"
+      - "แต่ต้องแจ้งชัดเจนใน policy"
+      - "ถ้า Digital product → ไม่รับคืน"
+
+  privacy:
+    required: true
+    hints:
+      - "ต้องบอกว่าจะใช้ข้อมูลอะไรบ้างและอย่างไร"
+      - "อ้างอิง Etsy's privacy policy"
+      - "ต้องบอกว่าไม่แชร์ข้อมูลกับบุคคลที่สาม"
+      - "ต้องบอกวิธีติดต่อเจ้าของร้าน"
+
+  about:
+    required: true
+    sections:
+      - name: "story"
+        hint: "เล่าเรื่องร้าน — จุดเริ่มต้น แรงบันดาลใจ"
+      - name: "process"
+        hint: "วิธีการผลิต — handmade? curated?"
+      - name: "materials"
+        hint: "วัสดุที่ใช้ แหล่งที่มา"
+    hints:
+      - "รูปโปรไฟล์ร้านต้องมี"
+      - "เขียนเป็นภาษาไทยได้ แต่ควรมีภาษาอังกฤษด้วย"
+
+  shop_name:
+    max_length: 20
+    rules:
+      - "ตัวอักษร A-Z, 0-9, เครื่องหมาย _ และ - เท่านั้น"
+      - "ไม่ซ้ำกับร้านอื่น"
+      - "ไม่มีคำต้องห้าม (profanity, trademark)"
+      - "เปลี่ยนชื่อได้แค่ 1 ครั้ง/ตลอดอายุร้าน"
+
+  shop_banner:
+    width: 3360
+    height: 840
+    max_file_size_mb: 2
+    file_types: ["JPEG", "PNG", "GIF"]

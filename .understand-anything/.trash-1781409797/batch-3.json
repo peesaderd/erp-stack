@@ -1,0 +1,316 @@
+{
+  "batchIndex": 2,
+  "nodes": [
+    {
+      "id": "config:.aider.conf.yml",
+      "type": "config",
+      "name": ".aider.conf.yml",
+      "filePath": ".aider.conf.yml",
+      "language": "yaml",
+      "fileCategory": "config",
+      "sizeLines": 78,
+      "complexity": "moderate",
+      "summary": "Configuration defining: model, edit-format, map-tokens, max-chat-history-tokens, cache-prompts",
+      "tags": [
+        "yaml",
+        "config"
+      ]
+    },
+    {
+      "id": "resource:.dockerignore",
+      "type": "resource",
+      "name": ".dockerignore",
+      "filePath": ".dockerignore",
+      "language": "unknown",
+      "fileCategory": "infra",
+      "sizeLines": 10,
+      "complexity": "simple",
+      "summary": "Infra file for ",
+      "tags": [
+        "infra",
+        "unknown"
+      ]
+    },
+    {
+      "id": "document:ARCHITECTURE.md",
+      "type": "document",
+      "name": "ARCHITECTURE.md",
+      "filePath": "ARCHITECTURE.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "sizeLines": 511,
+      "complexity": "complex",
+      "summary": "Documentation: \ud83c\udfd7\ufe0f ERP Stack \u2014 \u0e2a\u0e16\u0e32\u0e1b\u0e31\u0e15\u0e22\u0e01\u0e23\u0e23\u0e21\u0e23\u0e30\u0e1a\u0e1a \u2014 covers \ud83d\udccb \u0e2a\u0e32\u0e23\u0e1a\u0e31\u0e0d, 1. \u0e20\u0e32\u0e1e\u0e23\u0e27\u0e21\u0e2a\u0e16\u0e32\u0e1b\u0e31\u0e15\u0e22\u0e01\u0e23\u0e23\u0e21",
+      "tags": [
+        "markdown",
+        "docs"
+      ]
+    },
+    {
+      "id": "resource:Dockerfile.etsy-wizard",
+      "type": "resource",
+      "name": "Dockerfile.etsy-wizard",
+      "filePath": "Dockerfile.etsy-wizard",
+      "language": "dockerfile",
+      "fileCategory": "infra",
+      "sizeLines": 32,
+      "complexity": "moderate",
+      "summary": "Infra file for ",
+      "tags": [
+        "infra",
+        "service:etsy-wizard",
+        "dockerfile"
+      ]
+    },
+    {
+      "id": "resource:Dockerfile.i2m-frontend",
+      "type": "resource",
+      "name": "Dockerfile.i2m-frontend",
+      "filePath": "Dockerfile.i2m-frontend",
+      "language": "dockerfile",
+      "fileCategory": "infra",
+      "sizeLines": 35,
+      "complexity": "moderate",
+      "summary": "Infra file for ",
+      "tags": [
+        "infra",
+        "service:i2m-frontend",
+        "dockerfile"
+      ]
+    },
+    {
+      "id": "resource:Dockerfile.tiktok-ugc-studio",
+      "type": "resource",
+      "name": "Dockerfile.tiktok-ugc-studio",
+      "filePath": "Dockerfile.tiktok-ugc-studio",
+      "language": "dockerfile",
+      "fileCategory": "infra",
+      "sizeLines": 15,
+      "complexity": "simple",
+      "summary": "Infra file for ",
+      "tags": [
+        "infra",
+        "service:tiktok-ugc-studio",
+        "dockerfile"
+      ]
+    },
+    {
+      "id": "document:README.md",
+      "type": "document",
+      "name": "README.md",
+      "filePath": "README.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "sizeLines": 396,
+      "complexity": "complex",
+      "summary": "Documentation: ERP Stack \u2014 \u0e04\u0e39\u0e48\u0e21\u0e37\u0e2d\u0e01\u0e32\u0e23\u0e43\u0e0a\u0e49\u0e07\u0e32\u0e19\u0e2a\u0e33\u0e2b\u0e23\u0e31\u0e1a\u0e17\u0e35\u0e21 \u2014 covers \ud83d\udcd6 \u0e2a\u0e32\u0e23\u0e1a\u0e31\u0e0d, 1. \u0e23\u0e30\u0e1a\u0e1a\u0e19\u0e35\u0e49\u0e04\u0e37\u0e2d\u0e2d\u0e30\u0e44\u0e23?",
+      "tags": [
+        "markdown",
+        "docs"
+      ]
+    },
+    {
+      "id": "document:READY_FOR_REVIEW.txt",
+      "type": "document",
+      "name": "READY_FOR_REVIEW.txt",
+      "filePath": "READY_FOR_REVIEW.txt",
+      "language": "txt",
+      "fileCategory": "docs",
+      "sizeLines": 5,
+      "complexity": "simple",
+      "summary": "Docs file for ",
+      "tags": [
+        "docs",
+        "txt"
+      ]
+    },
+    {
+      "id": "document:STATUS.md",
+      "type": "document",
+      "name": "STATUS.md",
+      "filePath": "STATUS.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "sizeLines": 129,
+      "complexity": "moderate",
+      "summary": "Documentation: \ud83d\ude80 ERP + AI Stack \u2014 \u0e2a\u0e16\u0e32\u0e19\u0e30\u0e07\u0e32\u0e19 \u2014 covers \ud83d\udcca \u0e20\u0e32\u0e1e\u0e23\u0e27\u0e21, \u2705 \u0e07\u0e32\u0e19\u0e17\u0e35\u0e48\u0e40\u0e2a\u0e23\u0e47\u0e08\u0e41\u0e25\u0e49\u0e27",
+      "tags": [
+        "markdown",
+        "docs"
+      ]
+    },
+    {
+      "id": "document:aider-mcp-README.md",
+      "type": "document",
+      "name": "aider-mcp-README.md",
+      "filePath": "aider-mcp-README.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "sizeLines": 171,
+      "complexity": "moderate",
+      "summary": "Documentation: AIDER MCP Server Setup \u2014 covers Quick Start, What the script does:, Installation Details",
+      "tags": [
+        "markdown",
+        "docs"
+      ]
+    },
+    {
+      "id": "resource:docker-compose.bookstack.yml",
+      "type": "resource",
+      "name": "docker-compose.bookstack.yml",
+      "filePath": "docker-compose.bookstack.yml",
+      "language": "yaml",
+      "fileCategory": "infra",
+      "sizeLines": 53,
+      "complexity": "moderate",
+      "summary": "Configuration defining: services, volumes, networks",
+      "tags": [
+        "yaml",
+        "deployment",
+        "infra"
+      ]
+    },
+    {
+      "id": "resource:docker-compose.network.yml",
+      "type": "resource",
+      "name": "docker-compose.network.yml",
+      "filePath": "docker-compose.network.yml",
+      "language": "yaml",
+      "fileCategory": "infra",
+      "sizeLines": 3,
+      "complexity": "simple",
+      "summary": "Configuration defining: name",
+      "tags": [
+        "yaml",
+        "deployment",
+        "infra"
+      ]
+    },
+    {
+      "id": "resource:docker-compose.openobserve.yml",
+      "type": "resource",
+      "name": "docker-compose.openobserve.yml",
+      "filePath": "docker-compose.openobserve.yml",
+      "language": "yaml",
+      "fileCategory": "infra",
+      "sizeLines": 22,
+      "complexity": "moderate",
+      "summary": "Configuration defining: services, volumes, networks",
+      "tags": [
+        "yaml",
+        "deployment",
+        "infra"
+      ]
+    },
+    {
+      "id": "resource:docker-compose.plane.yml",
+      "type": "resource",
+      "name": "docker-compose.plane.yml",
+      "filePath": "docker-compose.plane.yml",
+      "language": "yaml",
+      "fileCategory": "infra",
+      "sizeLines": 139,
+      "complexity": "moderate",
+      "summary": "Configuration defining: services",
+      "tags": [
+        "yaml",
+        "deployment",
+        "infra"
+      ]
+    },
+    {
+      "id": "resource:docker-compose.planka.yml",
+      "type": "resource",
+      "name": "docker-compose.planka.yml",
+      "filePath": "docker-compose.planka.yml",
+      "language": "yaml",
+      "fileCategory": "infra",
+      "sizeLines": 48,
+      "complexity": "moderate",
+      "summary": "Configuration defining: version, services, volumes, networks",
+      "tags": [
+        "yaml",
+        "deployment",
+        "infra"
+      ]
+    },
+    {
+      "id": "resource:docker-compose.prod.yml",
+      "type": "resource",
+      "name": "docker-compose.prod.yml",
+      "filePath": "docker-compose.prod.yml",
+      "language": "yaml",
+      "fileCategory": "infra",
+      "sizeLines": 65,
+      "complexity": "moderate",
+      "summary": "Configuration defining: version, services, volumes, networks",
+      "tags": [
+        "yaml",
+        "deployment",
+        "infra"
+      ]
+    },
+    {
+      "id": "resource:docker-compose.siyuan.yml",
+      "type": "resource",
+      "name": "docker-compose.siyuan.yml",
+      "filePath": "docker-compose.siyuan.yml",
+      "language": "yaml",
+      "fileCategory": "infra",
+      "sizeLines": 17,
+      "complexity": "simple",
+      "summary": "Configuration defining: services, networks",
+      "tags": [
+        "yaml",
+        "deployment",
+        "infra"
+      ]
+    },
+    {
+      "id": "resource:docker-compose.yml",
+      "type": "resource",
+      "name": "docker-compose.yml",
+      "filePath": "docker-compose.yml",
+      "language": "yaml",
+      "fileCategory": "infra",
+      "sizeLines": 18,
+      "complexity": "simple",
+      "summary": "Configuration defining: include",
+      "tags": [
+        "yaml",
+        "deployment",
+        "infra"
+      ]
+    },
+    {
+      "id": "config:package.json",
+      "type": "config",
+      "name": "package.json",
+      "filePath": "package.json",
+      "language": "json",
+      "fileCategory": "config",
+      "sizeLines": 24,
+      "complexity": "moderate",
+      "summary": "Configuration file for ",
+      "tags": [
+        "json",
+        "config"
+      ]
+    },
+    {
+      "id": "config:plane.env",
+      "type": "config",
+      "name": "plane.env",
+      "filePath": "plane.env",
+      "language": "config",
+      "fileCategory": "config",
+      "sizeLines": 44,
+      "complexity": "moderate",
+      "summary": "Configuration defining: DJANGO_SETTINGS_MODULE, DJANGO_SECRET_KEY, DJANGO_DEBUG, DATABASE_URL, DATABASE_HOST",
+      "tags": [
+        "config"
+      ]
+    }
+  ],
+  "edges": []
+}

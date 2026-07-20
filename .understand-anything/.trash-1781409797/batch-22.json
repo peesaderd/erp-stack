@@ -1,0 +1,533 @@
+{
+  "batchIndex": 21,
+  "nodes": [
+    {
+      "id": "file:tiktok-ugc-studio/prompts/UGC_prompts/Product_Usage/user.template.prompt",
+      "type": "file",
+      "name": "user.template.prompt",
+      "filePath": "tiktok-ugc-studio/prompts/UGC_prompts/Product_Usage/user.template.prompt",
+      "language": "prompt",
+      "fileCategory": "code",
+      "sizeLines": 18,
+      "complexity": "simple",
+      "summary": "Code file for tiktok-ugc-studio/prompts/UGC_prompts/Product_Usage",
+      "tags": [
+        "code",
+        "module:tiktok-ugc-studio",
+        "prompt",
+        "service:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/prompts/UGC_prompts/UGC_Review/master.prompt",
+      "type": "file",
+      "name": "master.prompt",
+      "filePath": "tiktok-ugc-studio/prompts/UGC_prompts/UGC_Review/master.prompt",
+      "language": "prompt",
+      "fileCategory": "code",
+      "sizeLines": 4,
+      "complexity": "simple",
+      "summary": "Code file for tiktok-ugc-studio/prompts/UGC_prompts/UGC_Review",
+      "tags": [
+        "code",
+        "module:tiktok-ugc-studio",
+        "prompt",
+        "service:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/prompts/UGC_prompts/UGC_Review/negative.prompt",
+      "type": "file",
+      "name": "negative.prompt",
+      "filePath": "tiktok-ugc-studio/prompts/UGC_prompts/UGC_Review/negative.prompt",
+      "language": "prompt",
+      "fileCategory": "code",
+      "sizeLines": 0,
+      "complexity": "simple",
+      "summary": "Code file for tiktok-ugc-studio/prompts/UGC_prompts/UGC_Review",
+      "tags": [
+        "code",
+        "module:tiktok-ugc-studio",
+        "prompt",
+        "service:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/prompts/UGC_prompts/UGC_Review/system.prompt",
+      "type": "file",
+      "name": "system.prompt",
+      "filePath": "tiktok-ugc-studio/prompts/UGC_prompts/UGC_Review/system.prompt",
+      "language": "prompt",
+      "fileCategory": "code",
+      "sizeLines": 16,
+      "complexity": "simple",
+      "summary": "Code file for tiktok-ugc-studio/prompts/UGC_prompts/UGC_Review",
+      "tags": [
+        "code",
+        "module:tiktok-ugc-studio",
+        "prompt",
+        "service:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/prompts/UGC_prompts/UGC_Review/user.template.prompt",
+      "type": "file",
+      "name": "user.template.prompt",
+      "filePath": "tiktok-ugc-studio/prompts/UGC_prompts/UGC_Review/user.template.prompt",
+      "language": "prompt",
+      "fileCategory": "code",
+      "sizeLines": 18,
+      "complexity": "simple",
+      "summary": "Code file for tiktok-ugc-studio/prompts/UGC_prompts/UGC_Review",
+      "tags": [
+        "code",
+        "module:tiktok-ugc-studio",
+        "prompt",
+        "service:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/remote_auth_browser.py",
+      "type": "file",
+      "name": "remote_auth_browser.py",
+      "filePath": "tiktok-ugc-studio/remote_auth_browser.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 73,
+      "complexity": "moderate",
+      "summary": "Simple remote auth - opens browser on virtual display, waits for login, captures session.",
+      "tags": [
+        "python",
+        "has-imports",
+        "service:tiktok-ugc-studio",
+        "code",
+        "module:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/remote_auth_final.py",
+      "type": "file",
+      "name": "remote_auth_final.py",
+      "filePath": "tiktok-ugc-studio/remote_auth_final.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 98,
+      "complexity": "moderate",
+      "summary": "Remote Auth Final \u2014 Opens real Chrome on xvfb, monitors cookies, captures session.",
+      "tags": [
+        "python",
+        "has-imports",
+        "service:tiktok-ugc-studio",
+        "code",
+        "module:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/sam3_client.py",
+      "type": "file",
+      "name": "sam3_client.py",
+      "filePath": "tiktok-ugc-studio/sam3_client.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 389,
+      "complexity": "complex",
+      "summary": "SAM3 Client \u2014 Prodia Segment Anything Model 3 Integration",
+      "tags": [
+        "python",
+        "has-imports",
+        "service:tiktok-ugc-studio",
+        "code",
+        "module:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/scout/__init__.py",
+      "type": "file",
+      "name": "__init__.py",
+      "filePath": "tiktok-ugc-studio/scout/__init__.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 4,
+      "complexity": "simple",
+      "summary": "TikTok Scout (R&D) \u2014 Trend intelligence & viral analysis module.",
+      "tags": [
+        "code",
+        "python",
+        "module:tiktok-ugc-studio",
+        "service:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/scout/analyzer.py",
+      "type": "file",
+      "name": "analyzer.py",
+      "filePath": "tiktok-ugc-studio/scout/analyzer.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 222,
+      "complexity": "complex",
+      "summary": "Viral video analyzer \u2014 deconstructs trending videos to understand why they work.",
+      "tags": [
+        "python",
+        "has-imports",
+        "service:tiktok-ugc-studio",
+        "code",
+        "module:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/scout/targets.py",
+      "type": "file",
+      "name": "targets.py",
+      "filePath": "tiktok-ugc-studio/scout/targets.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 250,
+      "complexity": "complex",
+      "summary": "Scout Targets \u2014 competitor account tracking & analysis.",
+      "tags": [
+        "python",
+        "has-imports",
+        "service:tiktok-ugc-studio",
+        "code",
+        "module:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/scout/templates.py",
+      "type": "file",
+      "name": "templates.py",
+      "filePath": "tiktok-ugc-studio/scout/templates.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 181,
+      "complexity": "moderate",
+      "summary": "Content template generator \u2014 creates clone-ready video scripts and structure.",
+      "tags": [
+        "python",
+        "has-imports",
+        "service:tiktok-ugc-studio",
+        "code",
+        "module:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/scout/trends.py",
+      "type": "file",
+      "name": "trends.py",
+      "filePath": "tiktok-ugc-studio/scout/trends.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 219,
+      "complexity": "complex",
+      "summary": "Trend discovery \u2014 identifies trending content patterns and topics.",
+      "tags": [
+        "python",
+        "has-imports",
+        "service:tiktok-ugc-studio",
+        "code",
+        "module:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/script_gen.py",
+      "type": "file",
+      "name": "script_gen.py",
+      "filePath": "tiktok-ugc-studio/script_gen.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 247,
+      "complexity": "complex",
+      "summary": "TikTok UGC Studio \u2014 AI Script Generator",
+      "tags": [
+        "python",
+        "has-imports",
+        "service:tiktok-ugc-studio",
+        "code",
+        "module:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/tiktok_browser.py",
+      "type": "file",
+      "name": "tiktok_browser.py",
+      "filePath": "tiktok-ugc-studio/tiktok_browser.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 873,
+      "complexity": "complex",
+      "summary": "TikTok Uploader \u2014 Playwright + Mobile Proxy (DataImpulse)",
+      "tags": [
+        "python",
+        "has-imports",
+        "service:tiktok-ugc-studio",
+        "code",
+        "module:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/tiktok_remote_auth.py",
+      "type": "file",
+      "name": "tiktok_remote_auth.py",
+      "filePath": "tiktok-ugc-studio/tiktok_remote_auth.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 192,
+      "complexity": "moderate",
+      "summary": "Remote Auth Service \u2014 lets users login to TikTok from their phone via VNC/NoVNC.",
+      "tags": [
+        "python",
+        "has-imports",
+        "service:tiktok-ugc-studio",
+        "code",
+        "module:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/tts_gen.py",
+      "type": "file",
+      "name": "tts_gen.py",
+      "filePath": "tiktok-ugc-studio/tts_gen.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 51,
+      "complexity": "moderate",
+      "summary": "TikTok UGC Studio \u2014 gTTS Text-to-Speech Wrapper",
+      "tags": [
+        "python",
+        "has-imports",
+        "service:tiktok-ugc-studio",
+        "code",
+        "module:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/tus_analyzer_pipeline.py",
+      "type": "file",
+      "name": "tus_analyzer_pipeline.py",
+      "filePath": "tiktok-ugc-studio/tus_analyzer_pipeline.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 224,
+      "complexity": "complex",
+      "summary": "TUS Analyzer Pipeline \u2014 Bridge between Product Analyzer & TikTok UGC Studio",
+      "tags": [
+        "python",
+        "has-imports",
+        "service:tiktok-ugc-studio",
+        "code",
+        "module:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/video_gen.py",
+      "type": "file",
+      "name": "video_gen.py",
+      "filePath": "tiktok-ugc-studio/video_gen.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 631,
+      "complexity": "complex",
+      "summary": "TikTok UGC Studio \u2014 AI Video Generation Pipeline",
+      "tags": [
+        "python",
+        "has-classes",
+        "has-imports",
+        "service:tiktok-ugc-studio",
+        "code",
+        "module:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/vnc_auth_server.py",
+      "type": "file",
+      "name": "vnc_auth_server.py",
+      "filePath": "tiktok-ugc-studio/vnc_auth_server.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 207,
+      "complexity": "complex",
+      "summary": "Remote Auth VNC Server - FastAPI service for remote TikTok auth via VNC.",
+      "tags": [
+        "fastapi",
+        "python",
+        "has-classes",
+        "has-imports",
+        "service:tiktok-ugc-studio",
+        "code",
+        "pydantic",
+        "module:tiktok-ugc-studio"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "source": "file:tiktok-ugc-studio/sam3_client.py",
+      "target": "file:tiktok-ugc-studio/prompts/UGC_prompts/Product_Usage/user.template.prompt",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/sam3_client.py",
+      "target": "file:tiktok-ugc-studio/prompts/UGC_prompts/UGC_Review/master.prompt",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/sam3_client.py",
+      "target": "file:tiktok-ugc-studio/prompts/UGC_prompts/UGC_Review/negative.prompt",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/sam3_client.py",
+      "target": "file:tiktok-ugc-studio/prompts/UGC_prompts/UGC_Review/system.prompt",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/sam3_client.py",
+      "target": "file:tiktok-ugc-studio/prompts/UGC_prompts/UGC_Review/user.template.prompt",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/sam3_client.py",
+      "target": "file:tiktok-ugc-studio/remote_auth_browser.py",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/sam3_client.py",
+      "target": "file:tiktok-ugc-studio/remote_auth_final.py",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/sam3_client.py",
+      "target": "file:tiktok-ugc-studio/sam3_client.py",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/sam3_client.py",
+      "target": "file:tiktok-ugc-studio/scout/__init__.py",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/sam3_client.py",
+      "target": "file:tiktok-ugc-studio/scout/analyzer.py",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/sam3_client.py",
+      "target": "file:tiktok-ugc-studio/scout/targets.py",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/sam3_client.py",
+      "target": "file:tiktok-ugc-studio/scout/templates.py",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/sam3_client.py",
+      "target": "file:tiktok-ugc-studio/scout/trends.py",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/sam3_client.py",
+      "target": "file:tiktok-ugc-studio/script_gen.py",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/sam3_client.py",
+      "target": "file:tiktok-ugc-studio/tiktok_browser.py",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/sam3_client.py",
+      "target": "file:tiktok-ugc-studio/tiktok_remote_auth.py",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/sam3_client.py",
+      "target": "file:tiktok-ugc-studio/tts_gen.py",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/sam3_client.py",
+      "target": "file:tiktok-ugc-studio/tus_analyzer_pipeline.py",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/sam3_client.py",
+      "target": "file:tiktok-ugc-studio/video_gen.py",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/sam3_client.py",
+      "target": "file:tiktok-ugc-studio/vnc_auth_server.py",
+      "type": "imports",
+      "label": "imports io"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/tiktok_browser.py",
+      "target": "file:tiktok-ugc-studio/remote_auth_browser.py",
+      "type": "imports",
+      "label": "imports re"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/tiktok_browser.py",
+      "target": "file:tiktok-ugc-studio/remote_auth_final.py",
+      "type": "imports",
+      "label": "imports re"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/tiktok_browser.py",
+      "target": "file:tiktok-ugc-studio/scout/trends.py",
+      "type": "imports",
+      "label": "imports re"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/tiktok_browser.py",
+      "target": "file:tiktok-ugc-studio/tiktok_remote_auth.py",
+      "type": "imports",
+      "label": "imports re"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/tiktok_remote_auth.py",
+      "target": "file:tiktok-ugc-studio/prompts/UGC_prompts/UGC_Review/system.prompt",
+      "type": "imports",
+      "label": "imports sys"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/vnc_auth_server.py",
+      "target": "file:tiktok-ugc-studio/vnc_auth_server.py",
+      "type": "defines",
+      "label": "route: /health"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/vnc_auth_server.py",
+      "target": "file:tiktok-ugc-studio/vnc_auth_server.py",
+      "type": "defines",
+      "label": "route: /start"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/vnc_auth_server.py",
+      "target": "file:tiktok-ugc-studio/vnc_auth_server.py",
+      "type": "defines",
+      "label": "route: /status/{session_id}"
+    }
+  ]
+}

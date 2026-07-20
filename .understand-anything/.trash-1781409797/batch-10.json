@@ -1,0 +1,75 @@
+{
+  "batchIndex": 9,
+  "nodes": [
+    {
+      "id": "document:modules/product/opencode_analyzer_task.txt",
+      "type": "document",
+      "name": "opencode_analyzer_task.txt",
+      "filePath": "modules/product/opencode_analyzer_task.txt",
+      "language": "txt",
+      "fileCategory": "docs",
+      "sizeLines": 54,
+      "complexity": "moderate",
+      "summary": "Docs file for modules/product",
+      "tags": [
+        "service:product",
+        "docs",
+        "module:modules",
+        "txt"
+      ]
+    },
+    {
+      "id": "document:modules/product/requirements.txt",
+      "type": "document",
+      "name": "requirements.txt",
+      "filePath": "modules/product/requirements.txt",
+      "language": "txt",
+      "fileCategory": "docs",
+      "sizeLines": 6,
+      "complexity": "simple",
+      "summary": "Python dependencies: fastapi>=0.115.0, uvicorn>=0.30.0, pydantic>=2.0.0, httpx>=0.27.0, playwright>=1.45.0, Pillow>=10.0.0",
+      "tags": [
+        "service:product",
+        "docs",
+        "module:modules",
+        "txt"
+      ]
+    },
+    {
+      "id": "script:modules/product/start.sh",
+      "type": "script",
+      "name": "start.sh",
+      "filePath": "modules/product/start.sh",
+      "language": "shell",
+      "fileCategory": "script",
+      "sizeLines": 13,
+      "complexity": "simple",
+      "summary": "Shell script executing: cd",
+      "tags": [
+        "service:product",
+        "shell",
+        "script",
+        "module:modules",
+        "deployment"
+      ]
+    },
+    {
+      "id": "script:modules/product/test_scraper.sh",
+      "type": "script",
+      "name": "test_scraper.sh",
+      "filePath": "modules/product/test_scraper.sh",
+      "language": "shell",
+      "fileCategory": "script",
+      "sizeLines": 46,
+      "complexity": "moderate",
+      "summary": "Shell script executing: curl, curl, curl, curl, curl",
+      "tags": [
+        "service:product",
+        "shell",
+        "script",
+        "module:modules"
+      ]
+    }
+  ],
+  "edges": []
+}

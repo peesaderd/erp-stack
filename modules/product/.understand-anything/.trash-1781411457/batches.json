@@ -1,0 +1,375 @@
+{
+  "schemaVersion": 1,
+  "algorithm": "louvain",
+  "totalFiles": 18,
+  "totalBatches": 2,
+  "exportsByPath": {
+    "main.py": [
+      "ApiKeyCreateRequest",
+      "ApiKeyCreateResponse",
+      "ApiKeyListResponse",
+      "ApiKeyRevokeRequest",
+      "ApiKeyRevokeResponse",
+      "ScrapeResponseV2",
+      "ExportRequest",
+      "ExportResponse",
+      "UsageResponse",
+      "TikTokScrapeRequest",
+      "TikTokScrapeResponse",
+      "TikTokStatusResponse",
+      "register_platform_scrapers",
+      "get_platform_scraper",
+      "PricingResponse",
+      "lifespan",
+      "serve_ui",
+      "_resolve_auth",
+      "_get_tier_and_limit",
+      "health",
+      "create_new_api_key",
+      "list_user_api_keys",
+      "revoke_api_key_endpoint",
+      "get_pricing",
+      "export_setup_instructions",
+      "export_to_sheets",
+      "scrape_product_v2",
+      "get_usage",
+      "batch_scrape",
+      "export_pipeline",
+      "create_scheduled_scrape_route",
+      "list_scheduled_scrapes_route",
+      "delete_scheduled_scrape_route",
+      "scrape_product_legacy",
+      "extract_html",
+      "scrape_tiktok_shop",
+      "tiktok_shop_status",
+      "PlatformScrapeRequest",
+      "PlatformScrapeResponse",
+      "scrape_platform",
+      "list_platforms",
+      "main",
+      "api_analyze_product",
+      "api_batch_analyze",
+      "api_export_analyzed",
+      "api_list_scraped_products",
+      "api_analyze_from_scrape",
+      "api_analyze_stats"
+    ],
+    "scraper.py": [
+      "_get_next_proxy",
+      "record_proxy_error",
+      "_try_http_extract",
+      "_detect_site",
+      "_launch_browser",
+      "_random_delay",
+      "_human_scroll",
+      "_evaluate_selectors",
+      "_extract_jsonld",
+      "_extract_nuxt_state",
+      "_deep_get",
+      "_extract_all",
+      "_extract_images",
+      "_parse_price",
+      "_save_session",
+      "_load_session",
+      "_intercept_api_data",
+      "_parse_shopee_api",
+      "_parse_lazada_api",
+      "_parse_tiktok_api",
+      "_scrape_with_api_intercept",
+      "scrape_url"
+    ],
+    "scraper_service.py": [
+      "create_api_key",
+      "validate_api_key",
+      "list_api_keys",
+      "revoke_api_key",
+      "get_cached_product",
+      "filter_product_images",
+      "cache_product",
+      "_product_to_dict",
+      "log_scrape",
+      "get_user_usage",
+      "export_to_pipeline",
+      "create_scheduled_scrape",
+      "list_scheduled_scrapes",
+      "delete_scheduled_scrape",
+      "run_scheduled_scrape",
+      "detect_category",
+      "scrape_with_tracking"
+    ],
+    "analyze_pipeline.py": [
+      "_download_images_local",
+      "ErrorRateLimiter",
+      "TTLCache",
+      "UnifiedProduct",
+      "ProductNormalizer",
+      "ProductEnricher",
+      "ProductExporter",
+      "_call_mistral",
+      "_detect_category",
+      "_translate_to_thai",
+      "_extract_keywords",
+      "_score_viral",
+      "analyze_product",
+      "batch_analyze",
+      "store_analyzed",
+      "get_analyzed_stats",
+      "get_analyzed_products"
+    ],
+    "db_models.py": [
+      "_utcnow",
+      "_uuid",
+      "_hash_url",
+      "ApiKey",
+      "ScrapedProduct",
+      "ScrapeLog",
+      "CreditUsage",
+      "PriceHistory",
+      "ScheduledScrape",
+      "get_tier_config",
+      "calculate_scrape_cost",
+      "AnalyzedProduct"
+    ],
+    "analyzer.py": [
+      "analyze_with_vision",
+      "_parse_price",
+      "_call_opencode",
+      "translate_to_thai",
+      "extract_keywords",
+      "score_viral_potential",
+      "enrich_product"
+    ],
+    "analyzer_db.py": [
+      "store_analyzed",
+      "get_analyzed_stats",
+      "get_analyzed_products",
+      "store_analyzed_batch"
+    ],
+    "analyze_models.py": [
+      "AnalyzeRequest",
+      "AnalyzeResponse",
+      "BatchAnalyzeRequest",
+      "BatchAnalyzeResponse",
+      "ExportResponse",
+      "AnalyzeFromScrapeRequest",
+      "AnalyzeFromScrapeResponse",
+      "ScrapedProductListItem",
+      "ScrapedProductListResponse"
+    ],
+    "models.py": [
+      "ScrapeRequest",
+      "ProductData",
+      "ScrapeResponse",
+      "BatchScrapeItem",
+      "BatchScrapeRequest",
+      "BatchScrapeResponse",
+      "ExportToPipelineRequest",
+      "ExportToPipelineResponse",
+      "ScheduledScrapeCreate",
+      "ScheduledScrapeResponse",
+      "ProductCategory",
+      "BatchScrapeItem",
+      "BatchScrapeRequest",
+      "BatchScrapeResponse",
+      "ExportToPipelineRequest",
+      "ExportToPipelineResponse",
+      "ScheduledScrapeCreate",
+      "ScheduledScrapeResponse",
+      "ProductCategory"
+    ],
+    "export_service.py": [
+      "is_ready",
+      "export_products_to_sheet",
+      "get_setup_instructions"
+    ],
+    "scheduler.py": [
+      "run_scheduler_loop",
+      "check_due_jobs",
+      "start_scheduler"
+    ],
+    "__init__.py": [],
+    "platforms/__init__.py": [
+      "BaseScraper"
+    ],
+    "platforms/base.py": [
+      "BaseScraper"
+    ],
+    "platforms/lazada.py": [
+      "LazadaScraper"
+    ]
+  },
+  "batches": [
+    {
+      "batchIndex": 1,
+      "files": [
+        {
+          "path": ".env",
+          "language": "dotenv",
+          "sizeLines": 4,
+          "fileCategory": "config"
+        },
+        {
+          "path": "ecosystem.config.js",
+          "language": "javascript",
+          "sizeLines": 20,
+          "fileCategory": "config"
+        },
+        {
+          "path": "requirements.txt",
+          "language": "yaml",
+          "sizeLines": 7,
+          "fileCategory": "config"
+        }
+      ],
+      "batchImportData": {
+        ".env": [],
+        "ecosystem.config.js": [],
+        "requirements.txt": []
+      },
+      "neighborMap": {}
+    },
+    {
+      "batchIndex": 2,
+      "files": [
+        {
+          "path": "__init__.py",
+          "language": "python",
+          "sizeLines": 1,
+          "fileCategory": "code"
+        },
+        {
+          "path": "analyze_models.py",
+          "language": "python",
+          "sizeLines": 106,
+          "fileCategory": "code"
+        },
+        {
+          "path": "analyze_pipeline.py",
+          "language": "python",
+          "sizeLines": 546,
+          "fileCategory": "code"
+        },
+        {
+          "path": "analyzer_db.py",
+          "language": "python",
+          "sizeLines": 214,
+          "fileCategory": "code"
+        },
+        {
+          "path": "analyzer.py",
+          "language": "python",
+          "sizeLines": 206,
+          "fileCategory": "code"
+        },
+        {
+          "path": "db_models.py",
+          "language": "python",
+          "sizeLines": 264,
+          "fileCategory": "code"
+        },
+        {
+          "path": "export_service.py",
+          "language": "python",
+          "sizeLines": 148,
+          "fileCategory": "code"
+        },
+        {
+          "path": "main.py",
+          "language": "python",
+          "sizeLines": 1260,
+          "fileCategory": "code"
+        },
+        {
+          "path": "models.py",
+          "language": "python",
+          "sizeLines": 96,
+          "fileCategory": "code"
+        },
+        {
+          "path": "platforms/__init__.py",
+          "language": "python",
+          "sizeLines": 1,
+          "fileCategory": "code"
+        },
+        {
+          "path": "platforms/base.py",
+          "language": "python",
+          "sizeLines": 42,
+          "fileCategory": "code"
+        },
+        {
+          "path": "platforms/lazada.py",
+          "language": "python",
+          "sizeLines": 38,
+          "fileCategory": "code"
+        },
+        {
+          "path": "scheduler.py",
+          "language": "python",
+          "sizeLines": 62,
+          "fileCategory": "code"
+        },
+        {
+          "path": "scraper_service.py",
+          "language": "python",
+          "sizeLines": 760,
+          "fileCategory": "code"
+        },
+        {
+          "path": "scraper.py",
+          "language": "python",
+          "sizeLines": 1020,
+          "fileCategory": "code"
+        }
+      ],
+      "batchImportData": {
+        "__init__.py": [],
+        "analyze_models.py": [],
+        "analyze_pipeline.py": [
+          "product.analyzer_db",
+          "product.analyze_models"
+        ],
+        "analyzer_db.py": [
+          "shared.database",
+          "product.db_models"
+        ],
+        "analyzer.py": [],
+        "db_models.py": [
+          "shared.database"
+        ],
+        "export_service.py": [],
+        "main.py": [
+          "product.models",
+          "product.scraper",
+          "product.analyzer",
+          "product.analyze_pipeline",
+          "product.analyze_models",
+          "product.db_models",
+          "product.export_service",
+          "product.scraper_service",
+          "product.scheduler",
+          "shared.database"
+        ],
+        "models.py": [],
+        "platforms/__init__.py": [],
+        "platforms/base.py": [],
+        "platforms/lazada.py": [
+          "product.platforms.base"
+        ],
+        "scheduler.py": [
+          "shared.database",
+          "product.db_models",
+          "product.scraper_service"
+        ],
+        "scraper_service.py": [
+          "product.db_models",
+          "product.models",
+          "product.scraper",
+          "shared.database"
+        ],
+        "scraper.py": []
+      },
+      "neighborMap": {}
+    }
+  ]
+}

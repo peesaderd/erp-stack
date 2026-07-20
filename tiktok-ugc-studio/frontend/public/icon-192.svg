@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#4f46e5"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#a78bfa"/>
+      <stop offset="100%" stop-color="#6366f1"/>
+    </linearGradient>
+  </defs>
+  <!-- Background rounded rect -->
+  <rect width="192" height="192" rx="40" fill="url(#bg)"/>
+  <!-- Play triangle -->
+  <polygon points="72,56 72,136 144,96" fill="url(#accent)" opacity="0.95"/>
+  <!-- Inner sparkle/star -->
+  <g fill="#fff" opacity="0.9">
+    <circle cx="110" cy="85" r="4"/>
+    <circle cx="96" cy="72" r="2.5"/>
+    <circle cx="128" cy="82" r="2.5"/>
+    <circle cx="104" cy="110" r="3"/>
+    <circle cx="120" cy="100" r="2"/>
+  </g>
+  <!-- Music note on bottom-right -->
+  <g fill="#fff" opacity="0.85">
+    <ellipse cx="128" cy="132" rx="10" ry="7"/>
+    <rect x="128" y="110" width="3" height="22" rx="1.5"/>
+    <rect x="124" y="110" width="7" height="4" rx="1.5"/>
+  </g>
+</svg>

@@ -1,0 +1,19 @@
+venv/
+venv-browser-use/
+Python-3.10.12/
+Python-3.9.21/
+node_modules/
+.git/
+__pycache__/
+*.pyc
+logs/
+config/
+pm2-proxies/
+.agent-results/
+i2m-frontend/
+bridge/
+mcp/
+.venv/
+
+# Self-ignore: intermediate build artifacts
+.understand-anything/

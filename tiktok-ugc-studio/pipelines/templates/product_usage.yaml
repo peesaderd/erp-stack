@@ -1,0 +1,80 @@
+# 📱 Product Usage — Demo Pipeline Template
+# Wan 2.7 img2vid, no audio → สาธิตการใช้สินค้า
+
+name: product_usage
+description: "Product demo — showing product in use, Wan 2.7 I2V, no lip-sync"
+emoji: 📱
+label: "Product Usage — สาธิตการใช้"
+
+generation:
+  job_type: wan2-7.img2vid.v1
+  needs_audio: false
+  image_requirement: product_in_use
+  image_model: nano-banana
+  negative_prompt: "deformed hands, blurry, low quality, text watermark, distorted"
+
+scene_prompts:
+  hook: |
+    {model} starting to use {product}, action shot,
+    product in frame clearly, {lighting},
+    engaging demonstration opening, {angle},
+    {color_palette}, {background}
+
+  value: |
+    Close-up of {model} hands actively using {product},
+    showing application technique step by step,
+    product texture and result visible,
+    smooth natural motion, {lighting}, {angle}
+
+  cta: |
+    {model} showing final result after using {product},
+    satisfied expression, product placement visible,
+    ready for CTA text overlay,
+    {lighting}, {color_palette}
+
+variations:
+  lighting:
+    - soft natural daylight
+    - bright clean studio
+    - warm ambient indoor
+    - ring light focused
+    - natural room light
+    
+  angle:
+    - close-up hands detail
+    - over-the-shoulder view
+    - top-down flat lay
+    - eye-level action shot
+    - macro texture close-up
+    
+  color_palette:
+    - clean white and neutral
+    - warm natural tones
+    - soft pastel aesthetic
+    - vibrant fresh look
+    - minimal monochrome
+    
+  model:
+    - Thai woman demonstrating naturally
+    - young creator hands showing product
+    - clean minimal aesthetic hands
+    - authentic casual demo style
+    - soft feminine hands styling
+    
+  background:
+    - clean minimal desk
+    - bright vanity area
+    - aesthetic flat lay surface
+    - natural light tabletop
+    - simple white counter
+
+video_params:
+  duration: [8, 10]
+  resolution: 720P
+  ratio: "9:16"
+  default_duration: 8
+
+cta_strategy:
+  pool: [direct, soft, social_proof]
+  position: end_of_video
+  max_length_chars: 50

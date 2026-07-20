@@ -1,0 +1,125 @@
+{
+  "batchIndex": 12,
+  "nodes": [
+    {
+      "id": "document:tiktok-ugc-studio/PRICING.md",
+      "type": "document",
+      "name": "PRICING.md",
+      "filePath": "tiktok-ugc-studio/PRICING.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "sizeLines": 103,
+      "complexity": "moderate",
+      "summary": "Documentation: \ud83d\udcb0 TikTok UGC Studio \u2014 Pricing & Cost Guide \u2014 covers API Pipeline Cost Matrix (\u0e15\u0e48\u0e2d\u0e04\u0e25\u0e34\u0e1b), \ud83d\udcb5 Provider Breakdown, \ud83d\udcca Volume Projection",
+      "tags": [
+        "markdown",
+        "docs",
+        "module:tiktok-ugc-studio",
+        "service:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "document:tiktok-ugc-studio/PRODUCT_INTELLIGENCE_HUB.md",
+      "type": "document",
+      "name": "PRODUCT_INTELLIGENCE_HUB.md",
+      "filePath": "tiktok-ugc-studio/PRODUCT_INTELLIGENCE_HUB.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "sizeLines": 370,
+      "complexity": "complex",
+      "summary": "Documentation: \ud83e\udde0 Product Intelligence Hub \u2014 Blueprint & Project Perspective \u2014 covers 1. Vision, 2. \u0e2a\u0e16\u0e32\u0e1b\u0e31\u0e15\u0e22\u0e01\u0e23\u0e23\u0e21 (Module-Based), 3. Pricing & Subscription Model",
+      "tags": [
+        "markdown",
+        "docs",
+        "module:tiktok-ugc-studio",
+        "service:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "document:tiktok-ugc-studio/PRODUCT_SCRAPER.md",
+      "type": "document",
+      "name": "PRODUCT_SCRAPER.md",
+      "filePath": "tiktok-ugc-studio/PRODUCT_SCRAPER.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "sizeLines": 260,
+      "complexity": "complex",
+      "summary": "Documentation: \ud83d\uded2 Product Scraper \u2014 Blueprint & Project Perspective \u2014 covers \ud83c\udfaf Objective, \ud83c\udfd7 \u0e2a\u0e16\u0e32\u0e1b\u0e31\u0e15\u0e22\u0e01\u0e23\u0e23\u0e21",
+      "tags": [
+        "markdown",
+        "docs",
+        "module:tiktok-ugc-studio",
+        "service:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "document:tiktok-ugc-studio/TASK_CARD.md",
+      "type": "document",
+      "name": "TASK_CARD.md",
+      "filePath": "tiktok-ugc-studio/TASK_CARD.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "sizeLines": 97,
+      "complexity": "moderate",
+      "summary": "Documentation: \ud83c\udfaf Task Card \u2014 TikTok UGC Studio + Post For Me \u2014 covers \ud83d\ude80 Objective, \u2705 \u0e02\u0e31\u0e49\u0e19\u0e15\u0e2d\u0e19, \ud83d\udcca \u0e15\u0e49\u0e19\u0e17\u0e38\u0e19, \ud83d\udccc Platform IDs \u0e17\u0e35\u0e48\u0e15\u0e49\u0e2d\u0e07\u0e08\u0e14",
+      "tags": [
+        "markdown",
+        "docs",
+        "module:tiktok-ugc-studio",
+        "service:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "document:tiktok-ugc-studio/WORK_PLAN.md",
+      "type": "document",
+      "name": "WORK_PLAN.md",
+      "filePath": "tiktok-ugc-studio/WORK_PLAN.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "sizeLines": 89,
+      "complexity": "moderate",
+      "summary": "Documentation: TikTok UGC Studio \u2014 Work Plan (P1 \u2192 P5) \u2014 covers Architecture Decision, P1: Negative Prompt + Enhanced UX/UI (NOW), P2: Workflow + Pipeline (Clear & Visible), P3: UGC Style Templates + Product Scraper Integration",
+      "tags": [
+        "markdown",
+        "docs",
+        "module:tiktok-ugc-studio",
+        "service:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "document:tiktok-ugc-studio/requirements.txt",
+      "type": "document",
+      "name": "requirements.txt",
+      "filePath": "tiktok-ugc-studio/requirements.txt",
+      "language": "txt",
+      "fileCategory": "docs",
+      "sizeLines": 5,
+      "complexity": "simple",
+      "summary": "Python dependencies: fastapi>=0.109.0, uvicorn>=0.27.0, httpx>=0.27.0, requests>=2.31.0, redis>=5.0.0  # optional - auto-detected via try/import for queue",
+      "tags": [
+        "module:tiktok-ugc-studio",
+        "docs",
+        "service:tiktok-ugc-studio",
+        "txt"
+      ]
+    },
+    {
+      "id": "document:tiktok-ugc-studio/wav2lip_colab.md",
+      "type": "document",
+      "name": "wav2lip_colab.md",
+      "filePath": "tiktok-ugc-studio/wav2lip_colab.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "sizeLines": 210,
+      "complexity": "complex",
+      "summary": "Documentation: Wav2Lip Colab Notebook \u2014 Offline Lip-Sync for TikTok UGC Videos \u2014 covers Step 1: Mount Google Drive, Step 2: Install Dependencies, Step 3: Clone Wav2Lip Repository, Step 4: Upload Your Video and Audio Files",
+      "tags": [
+        "markdown",
+        "docs",
+        "module:tiktok-ugc-studio",
+        "service:tiktok-ugc-studio"
+      ]
+    }
+  ],
+  "edges": []
+}

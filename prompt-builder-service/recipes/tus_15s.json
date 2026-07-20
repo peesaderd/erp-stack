@@ -1,0 +1,85 @@
+{
+    "name": "tus_15s",
+    "description": "TikTok UGC Studio recipe — 15 seconds, 2 parts ส่วนละ 1 video concat",
+    "version": "3.0",
+    "total_duration": 15,
+    "video_model": "wan2.7",
+    "video_count": 2,
+    "scenes": [
+        {
+            "name": "Hook",
+            "scene_index": 0,
+            "function": "Hook + Problem + Discovery",
+            "content": "เปิดมาด้วยปัญหา → เจอสินค้า solve",
+            "prompt": "Person noticing the problem, then discovering the product solution, excited expression, holding product up, authentic reaction, problem-to-solution transition",
+            "voice_over_type": "attention_grabber",
+            "visual_focus": "problem_to_solution"
+        },
+        {
+            "name": "Problem",
+            "scene_index": 1,
+            "function": "Pain Point",
+            "content": "พูดถึงปัญหาเฉพาะ เจาะจง",
+            "prompt": "Person showing concern about the specific problem, natural lighting, authentic emotion, product visible, relatable expression",
+            "voice_over_type": "problem_statement",
+            "visual_focus": "pain_point"
+        },
+        {
+            "name": "Discovery",
+            "scene_index": 2,
+            "function": "Discovery",
+            "content": "เจอสินค้านี้ solve ปัญหา",
+            "prompt": "Person discovering the product, happy surprised expression, holding product naturally, showing packaging, discovery moment",
+            "voice_over_type": "discovery_announcement",
+            "visual_focus": "product_discovery"
+        },
+        {
+            "name": "Features",
+            "scene_index": 3,
+            "function": "Value Prop",
+            "content": "โชว์ texture + ใช้จริง + 3 benefits หลัก",
+            "prompt": "Close-up texture demonstration, product in use, showing key benefits, hands applying product, detailed view, professional demonstration",
+            "voice_over_type": "benefits_explanation",
+            "visual_focus": "product_demonstration",
+            "benefits_count": 3
+        },
+        {
+            "name": "Transformation",
+            "scene_index": 4,
+            "function": "Transformation",
+            "content": "Before-After แสดงผลลัพธ์",
+            "prompt": "Before and after comparison, transformation result, clear improvement visible, satisfying result",
+            "voice_over_type": "transformation_showcase",
+            "visual_focus": "before_after_comparison"
+        },
+        {
+            "name": "CTA",
+            "scene_index": 5,
+            "function": "CTA",
+            "content": "กดตระกร้าเลย + benefit ทิ้งท้าย",
+            "prompt": "Product final shot, call to action, pointing to cart, encouraging purchase, final beautiful product shot",
+            "voice_over_type": "call_to_action",
+            "visual_focus": "purchase_encouragement"
+        }
+    ],
+    "ugc_styles": ["holding", "review", "usage", "talking"],
+    "default_style": "holding",
+    "voice_tone": "friendly, authentic, enthusiastic",
+    "target_audience": "Thai TikTok users interested in the product category",
+    "language": "th",
+    "image_generation": {
+        "model": "nano-banana",
+        "aspect_ratio": "9:16",
+        "style": "realistic, authentic, Thai aesthetic"
+    },
+    "video_generation": {
+        "model": "wan2.7",
+        "duration": 15,
+        "async": true,
+        "videos_per_clip": 2
+    },
+    "tts": {
+        "voice": "Aoede",
+        "language": "th"
+    }
+}

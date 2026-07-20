@@ -1,0 +1,73 @@
+{
+    "name": "tus_pas_15s",
+    "description": "PAS framework recipe — Problem → Agitate (expanded) → Solve (expanded) → CTA. 15 seconds. เหมาะกับสินค้าสปา เครื่องสำอาง สินค้าที่ต้องอธิบายเพิ่ม",
+    "version": "1.0",
+    "total_duration": 15,
+    "video_model": "wan2.7",
+    "video_count": 1,
+    "scenes": [
+        {
+            "name": "Hook",
+            "scene_index": 0,
+            "function": "Hook",
+            "duration_seconds": 3,
+            "word_count": "8-12",
+            "content": "เปิดด้วยผลลัพธ์ร้ายแรงหรือคำถามกระแทกใจ — คนดูสะดุดทันที",
+            "prompt": "Person looking concerned or shocked, eye contact with camera, dramatic pause, problem visible in background",
+            "voice_over_type": "problem_hook",
+            "visual_focus": "attention_grabber"
+        },
+        {
+            "name": "Agitate",
+            "scene_index": 1,
+            "function": "Agitate",
+            "duration_seconds": 5,
+            "word_count": "15-20",
+            "content": "ขยี้ต่อว่าถ้าปล่อยไว้จะเกิดอะไรขึ้น — ทำไมต้องแก้ไขเดี๋ยวนี้ ย้ำความทรมานของปัญหา",
+            "prompt": "Person showing frustration escalating, gestures of discomfort, problem getting worse, looking away from camera then back",
+            "voice_over_type": "pain_deepening",
+            "visual_focus": "problem_escalation"
+        },
+        {
+            "name": "Solution",
+            "scene_index": 2,
+            "function": "Solve",
+            "duration_seconds": 5,
+            "word_count": "15-18",
+            "content": "เปิดตัวสินค้าพร้อมเหตุผลว่าทำไมถึงแก้ปัญหานี้ได้อยู่หมัด — โชว์จุดเด่นเฉพาะ",
+            "prompt": "Person discovering the product, expression shifting from frustration to relief, holding product up with confidence, warm lighting transition",
+            "voice_over_type": "solution_reveal",
+            "visual_focus": "product_hero"
+        },
+        {
+            "name": "CTA",
+            "scene_index": 3,
+            "function": "CTA",
+            "duration_seconds": 2,
+            "word_count": "6-8",
+            "content": "ปิดการขายตรงเป้า — กดตระกร้า หรือ link in bio",
+            "prompt": "Person smiling confidently, product in frame, final premium shot, confident nod",
+            "voice_over_type": "call_to_action",
+            "visual_focus": "purchase_encouragement"
+        }
+    ],
+    "ugc_styles": ["holding", "review", "pov_lifehack", "split_comparison", "street_interview", "aesthetic_vlog"],
+    "default_style": "holding",
+    "voice_tone": "empathetic, urgent, then relieved and confident",
+    "target_audience": "Thai TikTok users experiencing this specific problem, need convincing",
+    "language": "th",
+    "image_generation": {
+        "model": "nano-banana",
+        "aspect_ratio": "9:16",
+        "style": "realistic, authentic, Thai aesthetic"
+    },
+    "video_generation": {
+        "model": "wan2.7",
+        "duration": 15,
+        "async": true
+    },
+    "tts": {
+        "voice": "Aoede",
+        "language": "th"
+    }
+}

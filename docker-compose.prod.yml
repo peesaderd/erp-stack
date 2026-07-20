@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  etsy-wizard:
+    build:
+      context: .
+      dockerfile: Dockerfile.etsy-wizard
+    container_name: etsy-wizard
+    ports:
+      - "8104:8104"
+    env_file: ./tiktok-ugc-studio/.env
+    environment:
+      - PYTHONPATH=/app
+      - FAL_KEY=${FAL_KEY}
+      - MISTRAL_API_KEY=${MISTRAL_API_KEY}
+    volumes:
+      - product_images:/app/static/product_images
+    restart: unless-stopped
+    networks:
+      - erp-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8104/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  tiktok-ugc-studio:
+    build:
+      context: .
+      dockerfile: Dockerfile.tiktok-ugc-studio
+    container_name: tiktok-ugc-studio
+    ports:
+      - "8105:8105"
+    env_file: ./tiktok-ugc-studio/.env
+    environment:
+      - PYTHONPATH=/app
+    volumes:
+      - product_images:/home/openhands/erp-stack/etsy-wizard/static/product_images
+      - ./tiktok-ugc-studio/prompts:/app/prompts
+    restart: unless-stopped
+    networks:
+      - erp-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8105/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  i2m-frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.i2m-frontend
+    container_name: i2m-frontend
+    ports:
+      - "8107:80"
+    restart: unless-stopped
+    networks:
+      - erp-net
+
+volumes:
+  product_images:
+
+networks:
+  erp-net:
+    driver: bridge

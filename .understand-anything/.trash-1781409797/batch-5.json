@@ -1,0 +1,54 @@
+{
+  "batchIndex": 4,
+  "nodes": [
+    {
+      "id": "config:.inner-monologue-memory/history.json",
+      "type": "config",
+      "name": "history.json",
+      "filePath": ".inner-monologue-memory/history.json",
+      "language": "json",
+      "fileCategory": "config",
+      "sizeLines": 70,
+      "complexity": "moderate",
+      "summary": "Configuration file for .inner-monologue-memory",
+      "tags": [
+        "module:.inner-monologue-memory",
+        "json",
+        "config"
+      ]
+    },
+    {
+      "id": "document:.inner-monologue-memory/summary.txt",
+      "type": "document",
+      "name": "summary.txt",
+      "filePath": ".inner-monologue-memory/summary.txt",
+      "language": "txt",
+      "fileCategory": "docs",
+      "sizeLines": 2,
+      "complexity": "simple",
+      "summary": "Docs file for .inner-monologue-memory",
+      "tags": [
+        "module:.inner-monologue-memory",
+        "docs",
+        "txt"
+      ]
+    },
+    {
+      "id": "config:.inner-monologue-memory/user_profile.json",
+      "type": "config",
+      "name": "user_profile.json",
+      "filePath": ".inner-monologue-memory/user_profile.json",
+      "language": "json",
+      "fileCategory": "config",
+      "sizeLines": 12,
+      "complexity": "simple",
+      "summary": "Configuration file for .inner-monologue-memory",
+      "tags": [
+        "module:.inner-monologue-memory",
+        "json",
+        "config"
+      ]
+    }
+  ],
+  "edges": []
+}

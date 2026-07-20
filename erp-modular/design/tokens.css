@@ -1,0 +1,60 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   ERP Modular — Design Tokens (CSS Custom Properties)
+   ═══════════════════════════════════════════════════════════════════════════
+   Reference: ../../DESIGN.md
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ─── Color ────────────────────────────────────────────────────────────── */
+  --clr-primary:        #6366f1;
+  --clr-primary-hover:  #818cf8;
+  --clr-primary-subtle: #312e81;
+  --clr-bg:             #0f1117;
+  --clr-surface:        #1a1d27;
+  --clr-surface-hover:  #242838;
+  --clr-border:         #2a2e3a;
+  --clr-text:           #e2e8f0;
+  --clr-text-muted:     #94a3b8;
+  --clr-text-dim:       #64748b;
+  --clr-success:        #22c55e;
+  --clr-warning:        #f59e0b;
+  --clr-danger:         #ef4444;
+
+  /* ─── Typography ───────────────────────────────────────────────────────── */
+  --font-family:     -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                     'Noto Sans Thai', sans-serif;
+  --font-mono:       'JetBrains Mono', 'Cascadia Code', 'Noto Sans Mono', monospace;
+  --font-display:    800 24px var(--font-family);
+  --font-title:      600 16px var(--font-family);
+  --font-body:       400 14px var(--font-family);
+  --font-small:      400 12px var(--font-family);
+  --font-code:       400 13px var(--font-mono);
+
+  /* ─── Spacing ──────────────────────────────────────────────────────────── */
+  --space-xs:  4px;
+  --space-sm:  8px;
+  --space-md:  12px;
+  --space-lg:  16px;
+  --space-xl:  20px;
+  --space-2xl: 24px;
+  --space-3xl: 32px;
+
+  /* ─── Radii ────────────────────────────────────────────────────────────── */
+  --radius:     8px;
+  --radius-lg:  12px;
+  --radius-full: 9999px;
+
+  /* ─── Shadows ──────────────────────────────────────────────────────────── */
+  --shadow-card:    0 4px 24px rgba(0,0,0,.3);
+  --shadow-elevated: 0 8px 32px rgba(0,0,0,.4);
+  --shadow-modal:   0 16px 48px rgba(0,0,0,.5);
+
+  /* ─── Motion ───────────────────────────────────────────────────────────── */
+  --transition-fast:  .1s ease;
+  --transition:       .2s ease;
+  --transition-slow:  .3s ease;
+
+  /* ─── Layout ───────────────────────────────────────────────────────────── */
+  --sidebar-width: 240px;
+  --topbar-height: 56px;
+}

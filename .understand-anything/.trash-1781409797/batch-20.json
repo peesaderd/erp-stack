@@ -1,0 +1,519 @@
+{
+  "batchIndex": 19,
+  "nodes": [
+    {
+      "id": "document:prompt-studio/design/PRODUCT.md",
+      "type": "document",
+      "name": "PRODUCT.md",
+      "filePath": "prompt-studio/design/PRODUCT.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "sizeLines": 17,
+      "complexity": "simple",
+      "summary": "Documentation: Prompt Studio \u2014 covers Vision, Architecture, Modules",
+      "tags": [
+        "markdown",
+        "service:prompt-studio",
+        "docs",
+        "module:prompt-studio"
+      ]
+    },
+    {
+      "id": "file:prompt-studio/ecosystem.config.js",
+      "type": "file",
+      "name": "ecosystem.config.js",
+      "filePath": "prompt-studio/ecosystem.config.js",
+      "language": "javascript",
+      "fileCategory": "code",
+      "sizeLines": 13,
+      "complexity": "simple",
+      "summary": "JavaScript module (13 lines)",
+      "tags": [
+        "service:prompt-studio",
+        "javascript",
+        "code",
+        "pm2",
+        "module:prompt-studio"
+      ]
+    },
+    {
+      "id": "file:prompt-studio/main.py",
+      "type": "file",
+      "name": "main.py",
+      "filePath": "prompt-studio/main.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 57,
+      "complexity": "moderate",
+      "summary": "Prompt Studio \u2014 Micro Service (port 8107)",
+      "tags": [
+        "fastapi",
+        "service:prompt-studio",
+        "python",
+        "has-classes",
+        "has-imports",
+        "code",
+        "pydantic",
+        "module:prompt-studio"
+      ]
+    },
+    {
+      "id": "file:prompt-studio/prompt_loader.py",
+      "type": "file",
+      "name": "prompt_loader.py",
+      "filePath": "prompt-studio/prompt_loader.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 125,
+      "complexity": "moderate",
+      "summary": "Prompt Studio \u2014 Prompt Loader Abstraction Layer",
+      "tags": [
+        "service:prompt-studio",
+        "python",
+        "has-classes",
+        "has-imports",
+        "code",
+        "module:prompt-studio"
+      ]
+    },
+    {
+      "id": "document:prompt-studio/prompts/image/image_gen_default.txt",
+      "type": "document",
+      "name": "image_gen_default.txt",
+      "filePath": "prompt-studio/prompts/image/image_gen_default.txt",
+      "language": "txt",
+      "fileCategory": "docs",
+      "sizeLines": 1,
+      "complexity": "simple",
+      "summary": "Docs file for prompt-studio/prompts/image",
+      "tags": [
+        "service:prompt-studio",
+        "docs",
+        "module:prompt-studio",
+        "txt"
+      ]
+    },
+    {
+      "id": "document:prompt-studio/prompts/image/negative_prompt.txt",
+      "type": "document",
+      "name": "negative_prompt.txt",
+      "filePath": "prompt-studio/prompts/image/negative_prompt.txt",
+      "language": "txt",
+      "fileCategory": "docs",
+      "sizeLines": 1,
+      "complexity": "simple",
+      "summary": "Docs file for prompt-studio/prompts/image",
+      "tags": [
+        "service:prompt-studio",
+        "docs",
+        "module:prompt-studio",
+        "txt"
+      ]
+    },
+    {
+      "id": "file:prompt-studio/prompts/ugc/Holding_Product/master.prompt",
+      "type": "file",
+      "name": "master.prompt",
+      "filePath": "prompt-studio/prompts/ugc/Holding_Product/master.prompt",
+      "language": "prompt",
+      "fileCategory": "code",
+      "sizeLines": 5,
+      "complexity": "simple",
+      "summary": "Code file for prompt-studio/prompts/ugc/Holding_Product",
+      "tags": [
+        "code",
+        "service:prompt-studio",
+        "prompt",
+        "module:prompt-studio"
+      ]
+    },
+    {
+      "id": "file:prompt-studio/prompts/ugc/Holding_Product/negative.prompt",
+      "type": "file",
+      "name": "negative.prompt",
+      "filePath": "prompt-studio/prompts/ugc/Holding_Product/negative.prompt",
+      "language": "prompt",
+      "fileCategory": "code",
+      "sizeLines": 0,
+      "complexity": "simple",
+      "summary": "Code file for prompt-studio/prompts/ugc/Holding_Product",
+      "tags": [
+        "code",
+        "service:prompt-studio",
+        "prompt",
+        "module:prompt-studio"
+      ]
+    },
+    {
+      "id": "file:prompt-studio/prompts/ugc/Holding_Product/system.prompt",
+      "type": "file",
+      "name": "system.prompt",
+      "filePath": "prompt-studio/prompts/ugc/Holding_Product/system.prompt",
+      "language": "prompt",
+      "fileCategory": "code",
+      "sizeLines": 15,
+      "complexity": "simple",
+      "summary": "Code file for prompt-studio/prompts/ugc/Holding_Product",
+      "tags": [
+        "code",
+        "service:prompt-studio",
+        "prompt",
+        "module:prompt-studio"
+      ]
+    },
+    {
+      "id": "file:prompt-studio/prompts/ugc/Holding_Product/user.template.prompt",
+      "type": "file",
+      "name": "user.template.prompt",
+      "filePath": "prompt-studio/prompts/ugc/Holding_Product/user.template.prompt",
+      "language": "prompt",
+      "fileCategory": "code",
+      "sizeLines": 7,
+      "complexity": "simple",
+      "summary": "Code file for prompt-studio/prompts/ugc/Holding_Product",
+      "tags": [
+        "code",
+        "service:prompt-studio",
+        "prompt",
+        "module:prompt-studio"
+      ]
+    },
+    {
+      "id": "file:prompt-studio/prompts/ugc/Product_Usage/master.prompt",
+      "type": "file",
+      "name": "master.prompt",
+      "filePath": "prompt-studio/prompts/ugc/Product_Usage/master.prompt",
+      "language": "prompt",
+      "fileCategory": "code",
+      "sizeLines": 5,
+      "complexity": "simple",
+      "summary": "Code file for prompt-studio/prompts/ugc/Product_Usage",
+      "tags": [
+        "code",
+        "service:prompt-studio",
+        "prompt",
+        "module:prompt-studio"
+      ]
+    },
+    {
+      "id": "file:prompt-studio/prompts/ugc/Product_Usage/negative.prompt",
+      "type": "file",
+      "name": "negative.prompt",
+      "filePath": "prompt-studio/prompts/ugc/Product_Usage/negative.prompt",
+      "language": "prompt",
+      "fileCategory": "code",
+      "sizeLines": 0,
+      "complexity": "simple",
+      "summary": "Code file for prompt-studio/prompts/ugc/Product_Usage",
+      "tags": [
+        "code",
+        "service:prompt-studio",
+        "prompt",
+        "module:prompt-studio"
+      ]
+    },
+    {
+      "id": "file:prompt-studio/prompts/ugc/Product_Usage/system.prompt",
+      "type": "file",
+      "name": "system.prompt",
+      "filePath": "prompt-studio/prompts/ugc/Product_Usage/system.prompt",
+      "language": "prompt",
+      "fileCategory": "code",
+      "sizeLines": 15,
+      "complexity": "simple",
+      "summary": "Code file for prompt-studio/prompts/ugc/Product_Usage",
+      "tags": [
+        "code",
+        "service:prompt-studio",
+        "prompt",
+        "module:prompt-studio"
+      ]
+    },
+    {
+      "id": "file:prompt-studio/prompts/ugc/Product_Usage/user.template.prompt",
+      "type": "file",
+      "name": "user.template.prompt",
+      "filePath": "prompt-studio/prompts/ugc/Product_Usage/user.template.prompt",
+      "language": "prompt",
+      "fileCategory": "code",
+      "sizeLines": 8,
+      "complexity": "simple",
+      "summary": "Code file for prompt-studio/prompts/ugc/Product_Usage",
+      "tags": [
+        "code",
+        "service:prompt-studio",
+        "prompt",
+        "module:prompt-studio"
+      ]
+    },
+    {
+      "id": "file:prompt-studio/prompts/ugc/UGC_Review/master.prompt",
+      "type": "file",
+      "name": "master.prompt",
+      "filePath": "prompt-studio/prompts/ugc/UGC_Review/master.prompt",
+      "language": "prompt",
+      "fileCategory": "code",
+      "sizeLines": 5,
+      "complexity": "simple",
+      "summary": "Code file for prompt-studio/prompts/ugc/UGC_Review",
+      "tags": [
+        "code",
+        "service:prompt-studio",
+        "prompt",
+        "module:prompt-studio"
+      ]
+    },
+    {
+      "id": "file:prompt-studio/prompts/ugc/UGC_Review/negative.prompt",
+      "type": "file",
+      "name": "negative.prompt",
+      "filePath": "prompt-studio/prompts/ugc/UGC_Review/negative.prompt",
+      "language": "prompt",
+      "fileCategory": "code",
+      "sizeLines": 0,
+      "complexity": "simple",
+      "summary": "Code file for prompt-studio/prompts/ugc/UGC_Review",
+      "tags": [
+        "code",
+        "service:prompt-studio",
+        "prompt",
+        "module:prompt-studio"
+      ]
+    },
+    {
+      "id": "file:prompt-studio/prompts/ugc/UGC_Review/system.prompt",
+      "type": "file",
+      "name": "system.prompt",
+      "filePath": "prompt-studio/prompts/ugc/UGC_Review/system.prompt",
+      "language": "prompt",
+      "fileCategory": "code",
+      "sizeLines": 16,
+      "complexity": "simple",
+      "summary": "Code file for prompt-studio/prompts/ugc/UGC_Review",
+      "tags": [
+        "code",
+        "service:prompt-studio",
+        "prompt",
+        "module:prompt-studio"
+      ]
+    },
+    {
+      "id": "file:prompt-studio/prompts/ugc/UGC_Review/user.template.prompt",
+      "type": "file",
+      "name": "user.template.prompt",
+      "filePath": "prompt-studio/prompts/ugc/UGC_Review/user.template.prompt",
+      "language": "prompt",
+      "fileCategory": "code",
+      "sizeLines": 8,
+      "complexity": "simple",
+      "summary": "Code file for prompt-studio/prompts/ugc/UGC_Review",
+      "tags": [
+        "code",
+        "service:prompt-studio",
+        "prompt",
+        "module:prompt-studio"
+      ]
+    },
+    {
+      "id": "document:prompt-studio/requirements.txt",
+      "type": "document",
+      "name": "requirements.txt",
+      "filePath": "prompt-studio/requirements.txt",
+      "language": "txt",
+      "fileCategory": "docs",
+      "sizeLines": 3,
+      "complexity": "simple",
+      "summary": "Python dependencies: fastapi>=0.109.0, uvicorn>=0.27.0, requests>=2.31.0",
+      "tags": [
+        "service:prompt-studio",
+        "docs",
+        "module:prompt-studio",
+        "txt"
+      ]
+    },
+    {
+      "id": "script:setup_aider_mcp.sh",
+      "type": "script",
+      "name": "setup_aider_mcp.sh",
+      "filePath": "setup_aider_mcp.sh",
+      "language": "shell",
+      "fileCategory": "script",
+      "sizeLines": 906,
+      "complexity": "complex",
+      "summary": "Shell script executing: ",
+      "tags": [
+        "shell",
+        "script"
+      ]
+    },
+    {
+      "id": "file:setup.py",
+      "type": "file",
+      "name": "setup.py",
+      "filePath": "setup.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 12,
+      "complexity": "simple",
+      "summary": "Python module (12 lines)",
+      "tags": [
+        "code",
+        "python",
+        "database"
+      ]
+    },
+    {
+      "id": "file:system_bot.py",
+      "type": "file",
+      "name": "system_bot.py",
+      "filePath": "system_bot.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 74,
+      "complexity": "moderate",
+      "summary": "SystemBot \u2014 system administration utilities for Brain Server.",
+      "tags": [
+        "code",
+        "python",
+        "has-classes",
+        "has-imports"
+      ]
+    },
+    {
+      "id": "script:test_aider_mcp.sh",
+      "type": "script",
+      "name": "test_aider_mcp.sh",
+      "filePath": "test_aider_mcp.sh",
+      "language": "shell",
+      "fileCategory": "script",
+      "sizeLines": 571,
+      "complexity": "complex",
+      "summary": "Shell script executing: ",
+      "tags": [
+        "shell",
+        "script"
+      ]
+    },
+    {
+      "id": "file:tiktok-ugc-studio/composer.py",
+      "type": "file",
+      "name": "composer.py",
+      "filePath": "tiktok-ugc-studio/composer.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 257,
+      "complexity": "complex",
+      "summary": "TikTok UGC Studio \u2014 FFmpeg Composer",
+      "tags": [
+        "python",
+        "has-imports",
+        "service:tiktok-ugc-studio",
+        "code",
+        "module:tiktok-ugc-studio"
+      ]
+    },
+    {
+      "id": "document:tiktok-ugc-studio/design/DESIGN.md",
+      "type": "document",
+      "name": "DESIGN.md",
+      "filePath": "tiktok-ugc-studio/design/DESIGN.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "sizeLines": 34,
+      "complexity": "moderate",
+      "summary": "Documentation: TikTok UGC Studio \u2014 Design System \u2014 covers Brand, API Design, Data Flow, Color Palette",
+      "tags": [
+        "markdown",
+        "docs",
+        "module:tiktok-ugc-studio",
+        "service:tiktok-ugc-studio"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "source": "file:prompt-studio/main.py",
+      "target": "file:prompt-studio/prompt_loader.py",
+      "type": "imports",
+      "label": "imports prompt_loader"
+    },
+    {
+      "source": "file:prompt-studio/main.py",
+      "target": "file:prompt-studio/main.py",
+      "type": "defines",
+      "label": "route: /health"
+    },
+    {
+      "source": "file:prompt-studio/main.py",
+      "target": "file:prompt-studio/main.py",
+      "type": "defines",
+      "label": "route: /prompts/{module}/{name:path}"
+    },
+    {
+      "source": "file:prompt-studio/main.py",
+      "target": "file:prompt-studio/main.py",
+      "type": "defines",
+      "label": "route: /prompts/{module}"
+    },
+    {
+      "source": "file:prompt-studio/main.py",
+      "target": "file:prompt-studio/main.py",
+      "type": "defines",
+      "label": "route: /modules"
+    },
+    {
+      "source": "file:prompt-studio/main.py",
+      "target": "file:prompt-studio/main.py",
+      "type": "defines",
+      "label": "route: /prompts/fill"
+    },
+    {
+      "source": "file:prompt-studio/main.py",
+      "target": "file:prompt-studio/main.py",
+      "type": "defines",
+      "label": "route: /config"
+    },
+    {
+      "source": "file:prompt-studio/main.py",
+      "target": "file:prompt-studio/main.py",
+      "type": "defines",
+      "label": "route: /admin/clear-cache"
+    },
+    {
+      "source": "file:prompt-studio/main.py",
+      "target": "file:prompt-studio/main.py",
+      "type": "defines",
+      "label": "route: /stats"
+    },
+    {
+      "source": "file:prompt-studio/prompt_loader.py",
+      "target": "file:prompt-studio/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:prompt-studio/prompt_loader.py",
+      "target": "file:tiktok-ugc-studio/composer.py",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:prompt-studio/prompt_loader.py",
+      "target": "file:prompt-studio/requirements.txt",
+      "type": "imports",
+      "label": "imports re"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/composer.py",
+      "target": "file:prompt-studio/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:tiktok-ugc-studio/composer.py",
+      "target": "file:tiktok-ugc-studio/composer.py",
+      "type": "imports",
+      "label": "imports os"
+    }
+  ]
+}

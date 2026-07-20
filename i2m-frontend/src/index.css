@@ -1,0 +1,311 @@
+@import "tailwindcss";
+
+@theme {
+  /* Stitch Aether Design System - exact palette from Stitch export */
+  --color-primary: #000000;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #0d1c32;
+  --color-on-primary-container: #76849f;
+  --color-primary-fixed: #d6e3ff;
+  --color-primary-fixed-dim: #b9c7e4;
+  --color-on-primary-fixed: #0d1c32;
+  --color-on-primary-fixed-variant: #39475f;
+
+  --color-secondary: #4b41e1;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #645efb;
+  --color-on-secondary-container: #fffbff;
+  --color-secondary-fixed: #e2dfff;
+  --color-secondary-fixed-dim: #c3c0ff;
+  --color-on-secondary-fixed: #0f0069;
+  --color-on-secondary-fixed-variant: #3323cc;
+
+  --color-tertiary: #000000;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #0b1c30;
+  --color-on-tertiary-container: #75859d;
+  --color-tertiary-fixed: #d3e4fe;
+  --color-tertiary-fixed-dim: #b7c8e1;
+  --color-on-tertiary-fixed: #0b1c30;
+  --color-on-tertiary-fixed-variant: #38485d;
+
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+
+  --color-background: #f7f9fb;
+  --color-on-background: #191c1e;
+  --color-surface: #f7f9fb;
+  --color-on-surface: #191c1e;
+  --color-surface-dim: #d8dadc;
+  --color-surface-bright: #f7f9fb;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f2f4f6;
+  --color-surface-container: #eceef0;
+  --color-surface-container-high: #e6e8ea;
+  --color-surface-container-highest: #e0e3e5;
+  --color-surface-variant: #e0e3e5;
+  --color-on-surface-variant: #44474d;
+  --color-outline: #75777e;
+  --color-outline-variant: #c5c6cd;
+  --color-inverse-surface: #2d3133;
+  --color-inverse-on-surface: #eff1f3;
+  --color-inverse-primary: #b9c7e4;
+  --color-surface-tint: #515f78;
+
+  /* Spacing - Stitch tokens */
+  --spacing-xs: 4px;
+  --spacing-sm: 12px;
+  --spacing-md: 24px;
+  --spacing-lg: 48px;
+  --spacing-xl: 80px;
+  --spacing-gutter: 24px;
+  --spacing-margin-mobile: 16px;
+  --spacing-margin-desktop: 40px;
+  --spacing-container-max: 1440px;
+
+  /* Border Radius */
+  --radius-default: 0.25rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+  --radius-full: 9999px;
+
+  /* Font Family */
+  --font-family-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-family-display: 'Hanken Grotesk', 'Inter', ui-sans-serif, sans-serif;
+  --font-family-mono: 'JetBrains Mono', monospace;
+
+  /* Font Sizes - Stitch Type Scale */
+  --font-size-display-lg: 48px;
+  --font-size-display-lg--line-height: 1.1;
+  --font-size-display-lg--letter-spacing: 0.02em;
+  --font-size-display-lg--font-weight: 600;
+
+  --font-size-display-lg-mobile: 36px;
+  --font-size-display-lg-mobile--line-height: 1.2;
+  --font-size-display-lg-mobile--letter-spacing: 0.02em;
+  --font-size-display-lg-mobile--font-weight: 600;
+
+  --font-size-headline-md: 32px;
+  --font-size-headline-md--line-height: 1.3;
+  --font-size-headline-md--letter-spacing: 0.01em;
+  --font-size-headline-md--font-weight: 500;
+
+  --font-size-headline-sm: 24px;
+  --font-size-headline-sm--line-height: 1.4;
+  --font-size-headline-sm--letter-spacing: 0.01em;
+  --font-size-headline-sm--font-weight: 500;
+
+  --font-size-body-lg: 18px;
+  --font-size-body-lg--line-height: 1.6;
+  --font-size-body-lg--font-weight: 400;
+
+  --font-size-body-md: 16px;
+  --font-size-body-md--line-height: 1.6;
+  --font-size-body-md--font-weight: 400;
+
+  --font-size-label-md: 14px;
+  --font-size-label-md--line-height: 1.2;
+  --font-size-label-md--letter-spacing: 0.05em;
+  --font-size-label-md--font-weight: 600;
+
+  --font-size-label-sm: 12px;
+  --font-size-label-sm--line-height: 1.2;
+  --font-size-label-sm--letter-spacing: 0.03em;
+  --font-size-label-sm--font-weight: 500;
+}
+
+/* Dark Mode — Tailwind v4 custom variant + variables */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  .dark {
+    --color-background: #0f172a;
+    --color-on-background: #e5e7eb;
+    --color-surface: #1a2332;
+    --color-on-surface: #e5e7eb;
+    --color-surface-dim: #111827;
+    --color-surface-bright: #1f2937;
+    --color-surface-container-lowest: #0f172a;
+    --color-surface-container-low: #1a2332;
+    --color-surface-container: #1f2937;
+    --color-surface-container-high: #252f3f;
+    --color-surface-container-highest: #2d3748;
+    --color-surface-variant: #252f3f;
+    --color-on-surface-variant: #a3adbd;
+    --color-outline: #64748b;
+    --color-outline-variant: #334155;
+    --color-inverse-surface: #e5e7eb;
+    --color-inverse-on-surface: #0f172a;
+    --color-error-container: #93000a;
+    --color-on-error-container: #ffdad6;
+  }
+  .dark .glass-panel {
+    background-color: rgba(26, 35, 50, 0.75);
+    backdrop-filter: blur(20px);
+  }
+}
+
+/* Glass Panel */
+.glass-panel {
+  background-color: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(255, 255, 255, 0.4);
+  border-left: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.glass-panel-solid {
+  background-color: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+body {
+  font-family: var(--font-family-sans);
+  background-color: var(--color-background);
+  color: var(--color-on-background);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Dark Mode */
+.dark {
+  --color-primary: #e3e2e6;
+  --color-on-primary: #2f3033;
+  --color-primary-container: #45474a;
+  --color-on-primary-container: #c4c3c8;
+  --color-primary-fixed: #d6e3ff;
+  --color-primary-fixed-dim: #b9c7e4;
+  --color-on-primary-fixed: #0d1c32;
+  --color-on-primary-fixed-variant: #39475f;
+
+  --color-secondary: #c3c0ff;
+  --color-on-secondary: #21128c;
+  --color-secondary-container: #3932c8;
+  --color-on-secondary-container: #e2dfff;
+  --color-secondary-fixed: #e2dfff;
+  --color-secondary-fixed-dim: #c3c0ff;
+  --color-on-secondary-fixed: #0f0069;
+  --color-on-secondary-fixed-variant: #3323cc;
+
+  --color-tertiary: #e3e2e6;
+  --color-on-tertiary: #2f3033;
+  --color-tertiary-container: #45474a;
+  --color-on-tertiary-container: #c4c3c8;
+  --color-tertiary-fixed: #d3e4fe;
+  --color-tertiary-fixed-dim: #b7c8e1;
+  --color-on-tertiary-fixed: #0b1c30;
+  --color-on-tertiary-fixed-variant: #38485d;
+
+  --color-error: #ffb4ab;
+  --color-on-error: #690005;
+  --color-error-container: #93000a;
+  --color-on-error-container: #ffdad6;
+
+  --color-background: #111315;
+  --color-on-background: #e0e3e5;
+  --color-surface: #111315;
+  --color-on-surface: #e0e3e5;
+  --color-surface-dim: #111315;
+  --color-surface-bright: #38393b;
+  --color-surface-container-lowest: #0c0e0f;
+  --color-surface-container-low: #191c1e;
+  --color-surface-container: #1e1f21;
+  --color-surface-container-high: #282a2c;
+  --color-surface-container-highest: #333537;
+  --color-surface-variant: #44474d;
+  --color-on-surface-variant: #c5c6cd;
+  --color-outline: #8e9099;
+  --color-outline-variant: #44474d;
+  --color-inverse-surface: #e0e3e5;
+  --color-inverse-on-surface: #2d3133;
+  --color-inverse-primary: #515f78;
+  --color-surface-tint: #b9c7e4;
+}
+
+/* Dark Mode Glass Panel */
+.dark .glass-panel {
+  background-color: rgba(30, 31, 33, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.dark .glass-panel-solid {
+  background-color: rgba(30, 31, 33, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* Dark Mode - Fix header and text contrast */
+.dark header h1,
+.dark header h2 {
+  color: #f1f5f9;
+}
+
+.dark .text-primary {
+  color: #f1f5f9 !important;
+}
+
+.dark .text-on-surface {
+  color: #e2e8f0 !important;
+}
+
+.dark .text-on-surface-variant {
+  color: #94a3b8 !important;
+}
+
+.dark .skeleton-pulse {
+  background: linear-gradient(90deg, #333537 25%, #282a2c 50%, #333537 75%);
+  background-size: 200% 100%;
+}
+
+/* Hide scrollbar */
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Button interaction */
+.btn-press:active {
+  transform: scale(0.96);
+  opacity: 0.85;
+  transition-duration: 0.1s;
+}
+
+/* Skeleton shimmer */
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.skeleton-pulse {
+  animation: shimmer 1.5s infinite;
+  background: linear-gradient(90deg, #e0e3e5 25%, #eceef0 50%, #e0e3e5 75%);
+  background-size: 200% 100%;
+}
+
+/* Slide up animation for modals */
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
+/* Bounce in animation */
+@keyframes bounce-in {
+  0% { transform: scale(0); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+.animate-bounce-in {
+  animation: bounce-in 0.3s ease-out;
+}

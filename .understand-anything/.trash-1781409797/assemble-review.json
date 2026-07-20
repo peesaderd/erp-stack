@@ -1,0 +1,77 @@
+{
+  "summary": "Assembled graph review for Business OS codebase (257 nodes, 411 edges)",
+  "schemaVersion": 1,
+  "nodeTypes": {
+    "file": 151,
+    "document": 53,
+    "config": 25,
+    "resource": 16,
+    "script": 8,
+    "model": 4
+  },
+  "edgeTypes": {
+    "imports": 398,
+    "defines": 13
+  },
+  "issues": [
+    {
+      "severity": "low",
+      "description": "script type (8 nodes) is custom and not in schema \u2014 kept as-is",
+      "affectedNodes": [
+        "file:script:bridge-server/manage-password.sh",
+        "file:script:modules/product/start.sh",
+        "file:script:modules/product/test_scraper.sh",
+        "file:script:etsy-wizard/start.sh",
+        "file:script:modules/media/start.sh"
+      ]
+    },
+    {
+      "severity": "low",
+      "description": "model type (4 nodes, .pt files) is custom \u2014 kept as-is",
+      "affectedNodes": [
+        "file:model:etsy-wizard/models/yolo11n-pose.pt",
+        "file:model:etsy-wizard/models/yolo11n.pt",
+        "file:model:etsy-wizard/yolo11n-pose.pt",
+        "file:model:etsy-wizard/yolo11n.pt"
+      ]
+    },
+    {
+      "severity": "info",
+      "description": "complexity 'very_complex' defaulted to 'moderate' for large files",
+      "count": 11
+    },
+    {
+      "severity": "info",
+      "description": "Several import edges dropped due to missing targets (cross-batch references to .pt files, shell scripts, markdown docs)",
+      "count": 172
+    },
+    {
+      "severity": "info",
+      "description": "Only imports (398) and defines (13) edge types \u2014 deeper semantic edges (configures, documents, deploys) could be added"
+    }
+  ],
+  "statistics": {
+    "totalNodes": 257,
+    "totalEdges": 411,
+    "codeFiles": 147,
+    "pythonFiles": 94,
+    "services": [
+      "erp-modular",
+      "etsy-wizard",
+      "tiktok-ugc-studio",
+      "inner-monologue",
+      "bridge-server",
+      "prompt-studio",
+      "i2m-frontend",
+      "modules"
+    ],
+    "mergeScriptWarnings": "199 fixable issues: unknown node types (script=8, model=4), complexity defaults (11), dropped edges (172)"
+  },
+  "recommendations": [
+    "Add 'script' and 'model' to schema node types",
+    "Consider adding 'configures', 'documents', 'deploys' edge types for richer graph",
+    "Review dropped import edges for accuracy \u2014 many were artifact references"
+  ],
+  "qualified": true,
+  "reviewedAt": "2026-06-14T03:57:00Z"
+}

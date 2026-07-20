@@ -1,0 +1,42 @@
+{
+  "batchIndex": 0,
+  "nodes": [
+    {
+      "id": "resource:erp-modular/docker-compose.yml",
+      "type": "resource",
+      "name": "docker-compose.yml",
+      "filePath": "erp-modular/docker-compose.yml",
+      "language": "yaml",
+      "fileCategory": "infra",
+      "sizeLines": 28,
+      "complexity": "moderate",
+      "summary": "Configuration defining: version, services, networks, volumes",
+      "tags": [
+        "module:erp-modular",
+        "infra",
+        "yaml",
+        "service:erp-modular",
+        "deployment"
+      ]
+    },
+    {
+      "id": "resource:erp-modular/Dockerfile",
+      "type": "resource",
+      "name": "Dockerfile",
+      "filePath": "erp-modular/Dockerfile",
+      "language": "dockerfile",
+      "fileCategory": "infra",
+      "sizeLines": 17,
+      "complexity": "simple",
+      "summary": "Dockerfile to containerize erp-modular services",
+      "tags": [
+        "module:erp-modular",
+        "infra",
+        "dockerfile",
+        "service:erp-modular",
+        "deployment"
+      ]
+    }
+  ],
+  "edges": []
+}

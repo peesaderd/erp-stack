@@ -1,0 +1,551 @@
+{
+  "version": "1.0.0",
+  "project": {
+    "name": "product-scraper",
+    "languages": [
+      "python"
+    ],
+    "frameworks": [
+      "FastAPI",
+      "SQLAlchemy",
+      "Playwright"
+    ],
+    "description": "Product scraper micro-service with AI vision analysis. Multi-layer scraping engine supporting Shopee, Lazada, Boots, Amazon, TikTok Shop.",
+    "analyzedAt": "2026-06-14T04:30:47.278396+00:00",
+    "gitCommitHash": "3daba4f59bbf5cd5c936347b6d6f6ba6c6bb1c0c"
+  },
+  "nodes": [
+    {
+      "id": "config:.env",
+      "type": "config",
+      "name": ".env",
+      "filePath": ".env",
+      "summary": "Environment variables for product scraper configuration.",
+      "tags": [
+        "env",
+        "config"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:ecosystem.config.js",
+      "type": "config",
+      "name": "ecosystem.config.js",
+      "filePath": "ecosystem.config.js",
+      "summary": "PM2 ecosystem configuration for the product scraper microservice.",
+      "tags": [
+        "pm2",
+        "deploy"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:requirements.txt",
+      "type": "config",
+      "name": "requirements.txt",
+      "filePath": "requirements.txt",
+      "summary": "Python dependencies: fastapi, uvicorn, pydantic, httpx, playwright, pillow.",
+      "tags": [
+        "dependencies",
+        "python"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:main.py",
+      "type": "file",
+      "name": "main.py",
+      "filePath": "main.py",
+      "summary": "FastAPI server entry point with all REST endpoints for product scraping, analysis, export, and scheduled scraping. Handles CORS, static files, and API key auth.",
+      "tags": [
+        "fastapi",
+        "router",
+        "api",
+        "entry-point"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:scraper.py",
+      "type": "file",
+      "name": "scraper.py",
+      "filePath": "scraper.py",
+      "summary": "Multi-layer stealth scraping engine. Fallback chain: HTTP request \u2192 Playwright browser with stealth \u2192 JSON-LD extraction \u2192 returns raw product data. Supports Shopee, Lazada, Boots, Amazon, TikTok Shop with site-specific extraction patterns.",
+      "tags": [
+        "scraper",
+        "playwright",
+        "stealth",
+        "ecommerce"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:scraper_service.py",
+      "type": "file",
+      "name": "scraper_service.py",
+      "filePath": "scraper_service.py",
+      "summary": "Service layer wrapping scraper with API key management, usage billing, product caching, category detection, and export to pipeline. Manages ScrapeLog, CreditUsage, PriceHistory.",
+      "tags": [
+        "service",
+        "auth",
+        "billing",
+        "cache",
+        "tracking"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:analyze_pipeline.py",
+      "type": "file",
+      "name": "analyze_pipeline.py",
+      "filePath": "analyze_pipeline.py",
+      "summary": "Product analysis pipeline: normalizes raw scraped data from multiple sources, enriches with AI (OpenCode/Mistral), downloads product images to local storage, and exports to TikTok UGC Studio format.",
+      "tags": [
+        "pipeline",
+        "normalizer",
+        "enricher",
+        "image-download"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:db_models.py",
+      "type": "file",
+      "name": "db_models.py",
+      "filePath": "db_models.py",
+      "summary": "SQLAlchemy ORM models for the scraper. Tables: ApiKey, ScrapedProduct, ScrapeLog, CreditUsage, PriceHistory, ScheduledScrape, AnalyzedProduct. Includes scraping tiers config.",
+      "tags": [
+        "orm",
+        "database",
+        "sqlalchemy",
+        "postgresql"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:analyzer.py",
+      "type": "file",
+      "name": "analyzer.py",
+      "filePath": "analyzer.py",
+      "summary": "Vision-based product analysis fallback using Mistral Pixtral. Analyzes product images to extract name, price, description, brand, SKU. Also provides OpenCode API enrichment.",
+      "tags": [
+        "vision",
+        "mistral",
+        "ai",
+        "fallback"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:analyzer_db.py",
+      "type": "file",
+      "name": "analyzer_db.py",
+      "filePath": "analyzer_db.py",
+      "summary": "CRUD operations for analyzed products. Stores analyzed data in PostgreSQL with dedup by product_id+source or title+source.",
+      "tags": [
+        "crud",
+        "database",
+        "postgresql"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:analyze_models.py",
+      "type": "file",
+      "name": "analyze_models.py",
+      "filePath": "analyze_models.py",
+      "summary": "Pydantic request/response models for analysis pipeline API endpoints. AnalyzeRequest, BatchAnalyzeRequest, AnalyzeFromScrapeRequest, ScrapedProductListItem.",
+      "tags": [
+        "pydantic",
+        "models",
+        "api"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:models.py",
+      "type": "file",
+      "name": "models.py",
+      "filePath": "models.py",
+      "summary": "Pydantic data models for scrape requests/responses. ScrapeRequest, ProductData, ScrapeResponse, BatchScrapeItem, ExportToPipelineRequest, ScheduledScrapeCreate.",
+      "tags": [
+        "pydantic",
+        "models",
+        "api"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:export_service.py",
+      "type": "file",
+      "name": "export_service.py",
+      "filePath": "export_service.py",
+      "summary": "Google Sheets export service. Pushes scraped product data to Google Sheets via Service Account authentication.",
+      "tags": [
+        "export",
+        "google-sheets",
+        "service-account"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:scheduler.py",
+      "type": "file",
+      "name": "scheduler.py",
+      "filePath": "scheduler.py",
+      "summary": "Background scheduler loop that checks every 60 seconds for due scheduled scrapes and executes them. Supports hourly, daily, weekly, monthly schedules.",
+      "tags": [
+        "scheduler",
+        "background",
+        "cron"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:__init__.py",
+      "type": "file",
+      "name": "__init__.py",
+      "filePath": "__init__.py",
+      "summary": "Package init marker.",
+      "tags": [
+        "package"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:platforms/__init__.py",
+      "type": "file",
+      "name": "platforms/__init__.py",
+      "filePath": "platforms/__init__.py",
+      "summary": "Package init for platform-specific scrapers.",
+      "tags": [
+        "package"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:platforms/base.py",
+      "type": "file",
+      "name": "platforms/base.py",
+      "filePath": "platforms/base.py",
+      "summary": "Base class for platform-specific scrapers.",
+      "tags": [
+        "scraper",
+        "base-class",
+        "abstraction"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:platforms/lazada.py",
+      "type": "file",
+      "name": "platforms/lazada.py",
+      "filePath": "platforms/lazada.py",
+      "summary": "Lazada-specific scraper implementation.",
+      "tags": [
+        "scraper",
+        "lazada",
+        "platform"
+      ],
+      "complexity": "simple"
+    }
+  ],
+  "edges": [
+    {
+      "source": "file:main.py",
+      "target": "file:scraper.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:main.py",
+      "target": "file:scraper_service.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:main.py",
+      "target": "file:analyzer.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:main.py",
+      "target": "file:analyze_pipeline.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:main.py",
+      "target": "file:analyze_models.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:main.py",
+      "target": "file:db_models.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:main.py",
+      "target": "file:export_service.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:main.py",
+      "target": "file:scheduler.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:main.py",
+      "target": "config:.env",
+      "type": "reads_from",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:main.py",
+      "target": "file:models.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:scraper_service.py",
+      "target": "file:db_models.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:scraper_service.py",
+      "target": "file:scraper.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:scraper_service.py",
+      "target": "file:models.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:analyze_pipeline.py",
+      "target": "file:analyzer_db.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:analyze_pipeline.py",
+      "target": "file:analyze_models.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:analyzer_db.py",
+      "target": "file:db_models.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:scheduler.py",
+      "target": "file:db_models.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:scheduler.py",
+      "target": "file:scraper_service.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:platforms/lazada.py",
+      "target": "file:platforms/base.py",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:scraper.py",
+      "target": "file:platforms/base.py",
+      "type": "imports",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:scraper.py",
+      "target": "config:.env",
+      "type": "reads_from",
+      "weight": 0.4,
+      "direction": "forward"
+    },
+    {
+      "source": "file:main.py",
+      "target": "file:platforms/lazada.py",
+      "type": "imports",
+      "weight": 0.6,
+      "direction": "forward"
+    },
+    {
+      "source": "file:scraper_service.py",
+      "target": "config:.env",
+      "type": "reads_from",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:analyzer.py",
+      "target": "config:.env",
+      "type": "reads_from",
+      "weight": 0.5,
+      "direction": "forward"
+    },
+    {
+      "source": "file:export_service.py",
+      "target": "config:ecosystem.config.js",
+      "type": "related",
+      "weight": 0.3,
+      "direction": "forward"
+    }
+  ],
+  "layers": [
+    {
+      "id": "layer:api-gateway",
+      "name": "API Gateway",
+      "description": "FastAPI server and routing layer \u2014 entry point for all client requests",
+      "nodeIds": [
+        "file:main.py",
+        "config:ecosystem.config.js",
+        "config:.env"
+      ]
+    },
+    {
+      "id": "layer:scraping-engine",
+      "name": "Scraping Engine",
+      "description": "Multi-layer extraction: HTTP \u2192 Playwright \u2192 JSON-LD \u2192 Vision. Includes platform-specific scrapers.",
+      "nodeIds": [
+        "file:scraper.py",
+        "file:scraper_service.py",
+        "file:analyzer.py",
+        "file:platforms/base.py",
+        "file:platforms/lazada.py"
+      ]
+    },
+    {
+      "id": "layer:analysis-pipeline",
+      "name": "Analysis Pipeline",
+      "description": "Product data normalization, AI enrichment, and image download pipeline",
+      "nodeIds": [
+        "file:analyze_pipeline.py",
+        "file:analyze_models.py",
+        "file:analyzer_db.py"
+      ]
+    },
+    {
+      "id": "layer:data-models",
+      "name": "Data & Models",
+      "description": "SQLAlchemy ORM models, Pydantic request/response schemas, and configuration",
+      "nodeIds": [
+        "file:db_models.py",
+        "file:models.py",
+        "config:requirements.txt"
+      ]
+    },
+    {
+      "id": "layer:export-scheduler",
+      "name": "Export & Scheduler",
+      "description": "Background scheduler for recurring scrapes and Google Sheets export service",
+      "nodeIds": [
+        "file:export_service.py",
+        "file:scheduler.py"
+      ]
+    },
+    {
+      "id": "layer:package-init",
+      "name": "Package Structure",
+      "description": "Package init markers for module and platform subpackages",
+      "nodeIds": [
+        "file:__init__.py",
+        "file:platforms/__init__.py"
+      ]
+    }
+  ],
+  "tour": [
+    {
+      "order": 1,
+      "title": "Service Entry Point",
+      "description": "FastAPI server on port 8106. All scraping, analysis, and export endpoints are registered here. Also loads env config and starts the background scheduler.",
+      "nodeIds": [
+        "file:main.py",
+        "config:.env",
+        "config:ecosystem.config.js"
+      ]
+    },
+    {
+      "order": 2,
+      "title": "Data Models & Schemas",
+      "description": "SQLAlchemy ORM models define the database schema. Pydantic models define the API contract for requests and responses.",
+      "nodeIds": [
+        "file:db_models.py",
+        "file:models.py",
+        "file:analyze_models.py"
+      ]
+    },
+    {
+      "order": 3,
+      "title": "Scraping Engine",
+      "description": "Multi-layer scraping with proxy rotation and site-specific extraction. Falls back through HTTP \u2192 Playwright \u2192 JSON-LD \u2192 Vision AI analysis.",
+      "nodeIds": [
+        "file:scraper.py",
+        "file:analyzer.py",
+        "file:platforms/base.py",
+        "file:platforms/lazada.py"
+      ]
+    },
+    {
+      "order": 4,
+      "title": "Service Layer: Auth, Cache, Billing",
+      "description": "API key management (scp_ prefix), usage tracking and monthly billing, product caching with 24h TTL. Orchestrates scrapes with full audit trail.",
+      "nodeIds": [
+        "file:scraper_service.py"
+      ]
+    },
+    {
+      "order": 5,
+      "title": "Analysis Pipeline",
+      "description": "Normalizes raw scraped data from various sources (Shopee, Lazada, TikTok), enriches with AI, downloads product images for TUS.",
+      "nodeIds": [
+        "file:analyze_pipeline.py",
+        "file:analyzer_db.py"
+      ]
+    },
+    {
+      "order": 6,
+      "title": "Scheduling & Export",
+      "description": "Background scheduler checks every 60s for due scrape jobs. Export service pushes product data to Google Sheets via Service Account.",
+      "nodeIds": [
+        "file:scheduler.py",
+        "file:export_service.py"
+      ]
+    }
+  ]
+}

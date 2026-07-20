@@ -1,0 +1,52 @@
+# 🎯 CTA Pool — Call-to-Action Templates
+# จัดกลุ่มตาม mood/strategy → randomize ทุกคลิป
+
+urgent:
+  th:
+    - "รีบก่อนของหมด! ⚡"
+    - "เหลือไม่เยอะแล้วนะ รีบเลย! 🔥"
+    - "ด่วน! โปรนี้วันสุดท้ายแล้ว 🏃"
+    - "ของ限量! หมดแล้วหมดเลย 🚨"
+  en:
+    - "Hurry before it's gone! ⚡"
+    - "Limited stock, grab now! 🔥"
+
+social_proof:
+  th:
+    - "คนซื้อเยอะมาก! 🏆"
+    - "ขายดีอันดับ 1 เลยนะ 💯"
+    - "รีวิวเพียบเลย ลองดู! ⭐"
+    - "เค้าใช้กันทั้งนั้น! 🙌"
+  en:
+    - "Everyone's loving this! 🏆"
+    - "Best seller for a reason 💯"
+
+direct:
+  th:
+    - "กดตะกร้าเหลืองเลย! 🛒"
+    - "ลิงก์อยู่หน้าโปรไฟล์น้า 🔗"
+    - "สั่งเลย ของดีบอกต่อ! ✨"
+    - "จิ้มลิงก์เลย ราคาดีมาก! 💰"
+  en:
+    - "Link in bio! 🛒"
+    - "Tap the cart now! ✨"
+
+soft:
+  th:
+    - "ลองดูนะ เผื่อชอบ 💕"
+    - "ไว้ใจได้ สั่งเลย ✨"
+    - "น่ารักมาก ต้องมีแล้ว! 🌸"
+    - "แนะนำเลย ใช้ดีจริงๆ 💖"
+  en:
+    - "Give it a try! 💕"
+    - "You'll love this one ✨"
+
+# ═══════════════════════════════════════════════════════
+# Category → Mood Mapping (recipe → cta pool)
+# ═══════════════════════════════════════════════════════
+mood_style_map:
+  energetic: [urgent, direct, social_proof]
+  calm: [soft, direct]
+  luxurious: [direct, soft]
+  fun: [urgent, social_proof, direct]
+  general: [direct, soft, social_proof]

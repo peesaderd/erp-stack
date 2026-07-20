@@ -1,0 +1,730 @@
+{
+  "batchIndex": 16,
+  "nodes": [
+    {
+      "id": "file:erp-modular/ecosystem.config.js",
+      "type": "file",
+      "name": "ecosystem.config.js",
+      "filePath": "erp-modular/ecosystem.config.js",
+      "language": "javascript",
+      "fileCategory": "code",
+      "sizeLines": 16,
+      "complexity": "simple",
+      "summary": "JavaScript module (16 lines)",
+      "tags": [
+        "module:erp-modular",
+        "javascript",
+        "code",
+        "service:erp-modular",
+        "pm2"
+      ]
+    },
+    {
+      "id": "file:erp-modular/frontend/css/style.css",
+      "type": "file",
+      "name": "style.css",
+      "filePath": "erp-modular/frontend/css/style.css",
+      "language": "css",
+      "fileCategory": "markup",
+      "sizeLines": 366,
+      "complexity": "complex",
+      "summary": "Stylesheet defining 7 classes and 13 IDs",
+      "tags": [
+        "markup",
+        "css",
+        "module:erp-modular",
+        "service:erp-modular"
+      ]
+    },
+    {
+      "id": "file:erp-modular/frontend/index.html",
+      "type": "file",
+      "name": "index.html",
+      "filePath": "erp-modular/frontend/index.html",
+      "language": "html",
+      "fileCategory": "markup",
+      "sizeLines": 70,
+      "complexity": "moderate",
+      "summary": "HTML page: ERP Modular \u2014 Micro-frontend Shell",
+      "tags": [
+        "markup",
+        "module:erp-modular",
+        "html",
+        "service:erp-modular"
+      ]
+    },
+    {
+      "id": "file:erp-modular/frontend/js/app-registry.js",
+      "type": "file",
+      "name": "app-registry.js",
+      "filePath": "erp-modular/frontend/js/app-registry.js",
+      "language": "javascript",
+      "fileCategory": "code",
+      "sizeLines": 92,
+      "complexity": "moderate",
+      "summary": "Module exporting: ERPAppRegistry, _apps, register, defaults, registerAll",
+      "tags": [
+        "code",
+        "service:erp-modular",
+        "javascript",
+        "module:erp-modular"
+      ]
+    },
+    {
+      "id": "file:erp-modular/frontend/js/auth-client.js",
+      "type": "file",
+      "name": "auth-client.js",
+      "filePath": "erp-modular/frontend/js/auth-client.js",
+      "language": "javascript",
+      "fileCategory": "code",
+      "sizeLines": 120,
+      "complexity": "moderate",
+      "summary": "Module exporting: ERPAuth, STORAGE_KEY, GATEWAY_URL, _token, _tokenData",
+      "tags": [
+        "code",
+        "service:erp-modular",
+        "javascript",
+        "module:erp-modular"
+      ]
+    },
+    {
+      "id": "file:erp-modular/frontend/js/config.js",
+      "type": "file",
+      "name": "config.js",
+      "filePath": "erp-modular/frontend/js/config.js",
+      "language": "javascript",
+      "fileCategory": "code",
+      "sizeLines": 16,
+      "complexity": "simple",
+      "summary": "JavaScript module (16 lines)",
+      "tags": [
+        "code",
+        "service:erp-modular",
+        "javascript",
+        "module:erp-modular"
+      ]
+    },
+    {
+      "id": "file:erp-modular/frontend/js/event-bus.js",
+      "type": "file",
+      "name": "event-bus.js",
+      "filePath": "erp-modular/frontend/js/event-bus.js",
+      "language": "javascript",
+      "fileCategory": "code",
+      "sizeLines": 88,
+      "complexity": "moderate",
+      "summary": "Module exporting: ERPEventBus, _listeners, _appOrigins, _getOrigin, _handleMessage",
+      "tags": [
+        "code",
+        "service:erp-modular",
+        "javascript",
+        "module:erp-modular"
+      ]
+    },
+    {
+      "id": "file:erp-modular/frontend/js/shell.js",
+      "type": "file",
+      "name": "shell.js",
+      "filePath": "erp-modular/frontend/js/shell.js",
+      "language": "javascript",
+      "fileCategory": "code",
+      "sizeLines": 228,
+      "complexity": "complex",
+      "summary": "Module exporting: ERPShell, _currentApp, _loading, el, toast",
+      "tags": [
+        "code",
+        "service:erp-modular",
+        "javascript",
+        "module:erp-modular"
+      ]
+    },
+    {
+      "id": "file:erp-modular/main.py",
+      "type": "file",
+      "name": "main.py",
+      "filePath": "erp-modular/main.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 166,
+      "complexity": "moderate",
+      "summary": "ERP Modular - FastAPI Application",
+      "tags": [
+        "fastapi",
+        "python",
+        "module:erp-modular",
+        "has-imports",
+        "code",
+        "service:erp-modular"
+      ]
+    },
+    {
+      "id": "file:erp-modular/models/__init__.py",
+      "type": "file",
+      "name": "__init__.py",
+      "filePath": "erp-modular/models/__init__.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 0,
+      "complexity": "simple",
+      "summary": "Python module (0 lines)",
+      "tags": [
+        "code",
+        "service:erp-modular",
+        "python",
+        "module:erp-modular"
+      ]
+    },
+    {
+      "id": "file:erp-modular/models/entity.py",
+      "type": "file",
+      "name": "entity.py",
+      "filePath": "erp-modular/models/entity.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 243,
+      "complexity": "complex",
+      "summary": "Core Data Models for ERP Modular - Pydantic v2 + SQLModel",
+      "tags": [
+        "python",
+        "has-classes",
+        "module:erp-modular",
+        "code",
+        "service:erp-modular",
+        "pydantic"
+      ]
+    },
+    {
+      "id": "file:erp-modular/nginx.conf",
+      "type": "file",
+      "name": "nginx.conf",
+      "filePath": "erp-modular/nginx.conf",
+      "language": "conf",
+      "fileCategory": "code",
+      "sizeLines": 56,
+      "complexity": "moderate",
+      "summary": "Configuration file for erp-modular",
+      "tags": [
+        "code",
+        "service:erp-modular",
+        "conf",
+        "module:erp-modular"
+      ]
+    },
+    {
+      "id": "file:etsy-wizard/__init__.py",
+      "type": "file",
+      "name": "__init__.py",
+      "filePath": "etsy-wizard/__init__.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 1,
+      "complexity": "simple",
+      "summary": "Etsy Wizard - AI-powered Etsy listing assistant",
+      "tags": [
+        "code",
+        "python",
+        "service:etsy-wizard",
+        "module:etsy-wizard"
+      ]
+    },
+    {
+      "id": "file:etsy-wizard/assistant/__init__.py",
+      "type": "file",
+      "name": "__init__.py",
+      "filePath": "etsy-wizard/assistant/__init__.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 267,
+      "complexity": "complex",
+      "summary": "Etsy AI Assistant \u2014 AI-driven listing gen + fix + optimize",
+      "tags": [
+        "python",
+        "has-imports",
+        "service:etsy-wizard",
+        "code",
+        "module:etsy-wizard"
+      ]
+    },
+    {
+      "id": "document:etsy-wizard/design/DESIGN.md",
+      "type": "document",
+      "name": "DESIGN.md",
+      "filePath": "etsy-wizard/design/DESIGN.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "sizeLines": 37,
+      "complexity": "moderate",
+      "summary": "Documentation: Etsy Wizard \u2014 Design Reference \u2014 covers Wizard UI Patterns, Color Tokens",
+      "tags": [
+        "markdown",
+        "docs",
+        "service:etsy-wizard",
+        "module:etsy-wizard"
+      ]
+    },
+    {
+      "id": "document:etsy-wizard/design/PRODUCT.md",
+      "type": "document",
+      "name": "PRODUCT.md",
+      "filePath": "etsy-wizard/design/PRODUCT.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "sizeLines": 34,
+      "complexity": "moderate",
+      "summary": "Documentation: Etsy Wizard / Shop Assistant \u2014 covers What it does, Who uses it, Architecture, Integration",
+      "tags": [
+        "markdown",
+        "docs",
+        "service:etsy-wizard",
+        "module:etsy-wizard"
+      ]
+    },
+    {
+      "id": "file:etsy-wizard/detector.py",
+      "type": "file",
+      "name": "detector.py",
+      "filePath": "etsy-wizard/detector.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 285,
+      "complexity": "complex",
+      "summary": "detector.py \u2014 Lightning-Fast Product Placement Detection",
+      "tags": [
+        "python",
+        "has-classes",
+        "has-imports",
+        "service:etsy-wizard",
+        "code",
+        "module:etsy-wizard"
+      ]
+    },
+    {
+      "id": "file:etsy-wizard/ecosystem.config.js",
+      "type": "file",
+      "name": "ecosystem.config.js",
+      "filePath": "etsy-wizard/ecosystem.config.js",
+      "language": "javascript",
+      "fileCategory": "code",
+      "sizeLines": 15,
+      "complexity": "simple",
+      "summary": "JavaScript module (15 lines)",
+      "tags": [
+        "javascript",
+        "service:etsy-wizard",
+        "code",
+        "pm2",
+        "module:etsy-wizard"
+      ]
+    },
+    {
+      "id": "file:etsy-wizard/image_gen.py",
+      "type": "file",
+      "name": "image_gen.py",
+      "filePath": "etsy-wizard/image_gen.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 668,
+      "complexity": "complex",
+      "summary": "Etsy Wizard \u2014 AI Image Generation Pipeline",
+      "tags": [
+        "python",
+        "has-classes",
+        "has-imports",
+        "service:etsy-wizard",
+        "code",
+        "module:etsy-wizard"
+      ]
+    },
+    {
+      "id": "file:etsy-wizard/main.py",
+      "type": "file",
+      "name": "main.py",
+      "filePath": "etsy-wizard/main.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 961,
+      "complexity": "complex",
+      "summary": "Etsy Wizard \u2014 Micro Service",
+      "tags": [
+        "fastapi",
+        "python",
+        "has-imports",
+        "service:etsy-wizard",
+        "code",
+        "pydantic",
+        "module:etsy-wizard"
+      ]
+    },
+    {
+      "id": "model:etsy-wizard/models/yolo11n-pose.pt",
+      "type": "model",
+      "name": "yolo11n-pose.pt",
+      "filePath": "etsy-wizard/models/yolo11n-pose.pt",
+      "language": "pt",
+      "fileCategory": "code",
+      "sizeLines": 17918,
+      "complexity": "very_complex",
+      "summary": "PyTorch model weights file",
+      "tags": [
+        "code",
+        "service:etsy-wizard",
+        "module:etsy-wizard",
+        "pt"
+      ]
+    },
+    {
+      "id": "model:etsy-wizard/models/yolo11n.pt",
+      "type": "model",
+      "name": "yolo11n.pt",
+      "filePath": "etsy-wizard/models/yolo11n.pt",
+      "language": "pt",
+      "fileCategory": "code",
+      "sizeLines": 16106,
+      "complexity": "very_complex",
+      "summary": "PyTorch model weights file",
+      "tags": [
+        "code",
+        "service:etsy-wizard",
+        "module:etsy-wizard",
+        "pt"
+      ]
+    },
+    {
+      "id": "document:etsy-wizard/requirements.txt",
+      "type": "document",
+      "name": "requirements.txt",
+      "filePath": "etsy-wizard/requirements.txt",
+      "language": "txt",
+      "fileCategory": "docs",
+      "sizeLines": 6,
+      "complexity": "simple",
+      "summary": "Python dependencies: fastapi>=0.109.0, uvicorn>=0.27.0, pyyaml>=6.0, httpx>=0.27.0, Pillow>=10.0.0, requests>=2.31.0",
+      "tags": [
+        "docs",
+        "service:etsy-wizard",
+        "module:etsy-wizard",
+        "txt"
+      ]
+    },
+    {
+      "id": "file:etsy-wizard/rules/__init__.py",
+      "type": "file",
+      "name": "__init__.py",
+      "filePath": "etsy-wizard/rules/__init__.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 0,
+      "complexity": "simple",
+      "summary": "Python module (0 lines)",
+      "tags": [
+        "code",
+        "python",
+        "service:etsy-wizard",
+        "module:etsy-wizard"
+      ]
+    },
+    {
+      "id": "file:etsy-wizard/rules/validator.py",
+      "type": "file",
+      "name": "validator.py",
+      "filePath": "etsy-wizard/rules/validator.py",
+      "language": "python",
+      "fileCategory": "code",
+      "sizeLines": 246,
+      "complexity": "complex",
+      "summary": "Etsy Rules Validator \u2014 Micro Service",
+      "tags": [
+        "python",
+        "has-classes",
+        "has-imports",
+        "service:etsy-wizard",
+        "code",
+        "module:etsy-wizard"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "source": "file:erp-modular/main.py",
+      "target": "file:erp-modular/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:erp-modular/main.py",
+      "target": "file:etsy-wizard/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:erp-modular/main.py",
+      "target": "file:etsy-wizard/models/yolo11n-pose.pt",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:erp-modular/main.py",
+      "target": "file:erp-modular/main.py",
+      "type": "defines",
+      "label": "route: /"
+    },
+    {
+      "source": "file:erp-modular/main.py",
+      "target": "file:erp-modular/main.py",
+      "type": "defines",
+      "label": "route: /health"
+    },
+    {
+      "source": "file:erp-modular/main.py",
+      "target": "file:erp-modular/main.py",
+      "type": "defines",
+      "label": "route: /agent/logs"
+    },
+    {
+      "source": "file:erp-modular/main.py",
+      "target": "file:erp-modular/main.py",
+      "type": "defines",
+      "label": "route: /agent/logs"
+    },
+    {
+      "source": "file:erp-modular/main.py",
+      "target": "file:erp-modular/main.py",
+      "type": "defines",
+      "label": "route: /agent/stats"
+    },
+    {
+      "source": "file:erp-modular/main.py",
+      "target": "file:erp-modular/main.py",
+      "type": "defines",
+      "label": "route: /agent/logs"
+    },
+    {
+      "source": "file:etsy-wizard/assistant/__init__.py",
+      "target": "file:erp-modular/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:etsy-wizard/assistant/__init__.py",
+      "target": "file:etsy-wizard/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:etsy-wizard/assistant/__init__.py",
+      "target": "file:etsy-wizard/models/yolo11n-pose.pt",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:etsy-wizard/image_gen.py",
+      "target": "file:erp-modular/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:etsy-wizard/image_gen.py",
+      "target": "file:etsy-wizard/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:etsy-wizard/image_gen.py",
+      "target": "file:etsy-wizard/models/yolo11n-pose.pt",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:etsy-wizard/main.py",
+      "target": "file:erp-modular/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports sys"
+    },
+    {
+      "source": "file:etsy-wizard/main.py",
+      "target": "file:etsy-wizard/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports sys"
+    },
+    {
+      "source": "file:etsy-wizard/main.py",
+      "target": "file:erp-modular/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:etsy-wizard/main.py",
+      "target": "file:etsy-wizard/ecosystem.config.js",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:etsy-wizard/main.py",
+      "target": "file:etsy-wizard/models/yolo11n-pose.pt",
+      "type": "imports",
+      "label": "imports os"
+    },
+    {
+      "source": "file:etsy-wizard/main.py",
+      "target": "file:etsy-wizard/rules/__init__.py",
+      "type": "imports",
+      "label": "imports rules"
+    },
+    {
+      "source": "file:etsy-wizard/main.py",
+      "target": "file:etsy-wizard/rules/validator.py",
+      "type": "imports",
+      "label": "imports rules"
+    },
+    {
+      "source": "file:etsy-wizard/main.py",
+      "target": "file:etsy-wizard/main.py",
+      "type": "defines",
+      "label": "route: /health"
+    },
+    {
+      "source": "file:etsy-wizard/main.py",
+      "target": "file:etsy-wizard/main.py",
+      "type": "defines",
+      "label": "route: /validate/listing"
+    },
+    {
+      "source": "file:etsy-wizard/main.py",
+      "target": "file:etsy-wizard/main.py",
+      "type": "defines",
+      "label": "route: /validate/image"
+    },
+    {
+      "source": "file:etsy-wizard/main.py",
+      "target": "file:etsy-wizard/main.py",
+      "type": "defines",
+      "label": "route: /validate/policies"
+    },
+    {
+      "source": "file:etsy-wizard/main.py",
+      "target": "file:etsy-wizard/main.py",
+      "type": "defines",
+      "label": "route: /wizard/start"
+    },
+    {
+      "source": "file:etsy-wizard/main.py",
+      "target": "file:etsy-wizard/main.py",
+      "type": "defines",
+      "label": "route: /wizard/flow"
+    },
+    {
+      "source": "file:etsy-wizard/main.py",
+      "target": "file:etsy-wizard/main.py",
+      "type": "defines",
+      "label": "route: /wizard/step"
+    },
+    {
+      "source": "file:etsy-wizard/main.py",
+      "target": "file:etsy-wizard/main.py",
+      "type": "defines",
+      "label": "route: /wizard/status/{shop_id}"
+    },
+    {
+      "source": "file:etsy-wizard/main.py",
+      "target": "file:etsy-wizard/main.py",
+      "type": "defines",
+      "label": "route: /listing/draft"
+    },
+    {
+      "source": "file:etsy-wizard/main.py",
+      "target": "file:etsy-wizard/main.py",
+      "type": "defines",
+      "label": "route: /listing/drafts/{shop_id}"
+    },
+    {
+      "source": "file:etsy-wizard/main.py",
+      "target": "file:etsy-wizard/main.py",
+      "type": "defines",
+      "label": "route: /ai/providers"
+    },
+    {
+      "source": "file:etsy-wizard/main.py",
+      "target": "file:etsy-wizard/main.py",
+      "type": "defines",
+      "label": "route: /ai/generate-image"
+    },
+    {
+      "source": "file:etsy-wizard/main.py",
+      "target": "file:etsy-wizard/main.py",
+      "type": "defines",
+      "label": "route: /ai/generate-product"
+    },
+    {
+      "source": "file:etsy-wizard/main.py",
+      "target": "file:etsy-wizard/main.py",
+      "type": "defines",
+      "label": "route: /ai/batch-generate"
+    },
+    {
+      "source": "file:etsy-wizard/main.py",
+      "target": "file:etsy-wizard/main.py",
+      "type": "defines",
+      "label": "route: /ai/generate-listing"
+    },
+    {
+      "source": "file:etsy-wizard/main.py",
+      "target": "file:etsy-wizard/main.py",
+      "type": "defines",
+      "label": "route: /ai/fix-listing"
+    },
+    {
+      "source": "file:etsy-wizard/main.py",
+      "target": "file:etsy-wizard/main.py",
+      "type": "defines",
+      "label": "route: /ai/optimize-tags"
+    },
+    {
+      "source": "file:etsy-wizard/main.py",
+      "target": "file:etsy-wizard/main.py",
+      "type": "defines",
+      "label": "route: /ai/validate-and-fix"
+    },
+    {
+      "source": "file:etsy-wizard/main.py",
+      "target": "file:etsy-wizard/main.py",
+      "type": "defines",
+      "label": "route: /ai/assist-wizard-step"
+    },
+    {
+      "source": "file:etsy-wizard/main.py",
+      "target": "file:etsy-wizard/main.py",
+      "type": "defines",
+      "label": "route: /stats"
+    },
+    {
+      "source": "file:etsy-wizard/main.py",
+      "target": "file:etsy-wizard/main.py",
+      "type": "defines",
+      "label": "route: /product/research"
+    },
+    {
+      "source": "file:etsy-wizard/main.py",
+      "target": "file:etsy-wizard/main.py",
+      "type": "defines",
+      "label": "route: /payment/create-qr"
+    },
+    {
+      "source": "file:etsy-wizard/main.py",
+      "target": "file:etsy-wizard/main.py",
+      "type": "defines",
+      "label": "route: /product/scrape"
+    },
+    {
+      "source": "file:etsy-wizard/rules/validator.py",
+      "target": "file:erp-modular/frontend/js/app-registry.js",
+      "type": "imports",
+      "label": "imports re"
+    },
+    {
+      "source": "file:etsy-wizard/rules/validator.py",
+      "target": "file:etsy-wizard/requirements.txt",
+      "type": "imports",
+      "label": "imports re"
+    }
+  ]
+}

@@ -1,0 +1,107 @@
+{
+  "batchIndex": 5,
+  "nodes": [
+    {
+      "id": "config:bridge-server/.env.example",
+      "type": "config",
+      "name": ".env.example",
+      "filePath": "bridge-server/.env.example",
+      "language": "config",
+      "fileCategory": "config",
+      "sizeLines": 34,
+      "complexity": "moderate",
+      "summary": "Configuration defining: HOST, PORT, SECRET_TOKEN, PLANE_URL, PLANE_WORKSPACE_SLUG",
+      "tags": [
+        "module:bridge-server",
+        "config",
+        "service:bridge"
+      ]
+    },
+    {
+      "id": "document:bridge-server/BRIDGE.md",
+      "type": "document",
+      "name": "BRIDGE.md",
+      "filePath": "bridge-server/BRIDGE.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "sizeLines": 244,
+      "complexity": "complex",
+      "summary": "Documentation: \ud83c\udf09 Bridge Server \u2014 ERP Stack Integration Layer \u2014 covers \ud83d\udce6 \u0e2a\u0e34\u0e48\u0e07\u0e17\u0e35\u0e48\u0e15\u0e49\u0e2d\u0e07\u0e21\u0e35\u0e01\u0e48\u0e2d\u0e19, \ud83d\ude80 \u0e01\u0e32\u0e23\u0e15\u0e34\u0e14\u0e15\u0e31\u0e49\u0e07\u0e41\u0e25\u0e30 Deploy",
+      "tags": [
+        "markdown",
+        "module:bridge-server",
+        "docs",
+        "service:bridge"
+      ]
+    },
+    {
+      "id": "document:bridge-server/CREDENTIALS.md",
+      "type": "document",
+      "name": "CREDENTIALS.md",
+      "filePath": "bridge-server/CREDENTIALS.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "sizeLines": 99,
+      "complexity": "moderate",
+      "summary": "Documentation: ERP Stack \u2014 Centralized Credentials \u2014 covers 1. Plane (Project Management), 2. Planka (Kanban Board), 3. BookStack (Documentation / Wiki), 4. OpenObserve (Logging & Monitoring)",
+      "tags": [
+        "markdown",
+        "module:bridge-server",
+        "docs",
+        "service:bridge"
+      ]
+    },
+    {
+      "id": "document:bridge-server/SETUP.md",
+      "type": "document",
+      "name": "SETUP.md",
+      "filePath": "bridge-server/SETUP.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "sizeLines": 140,
+      "complexity": "moderate",
+      "summary": "Documentation: \ud83c\udfd7\ufe0f \u0e04\u0e39\u0e48\u0e21\u0e37\u0e2d\u0e01\u0e32\u0e23\u0e2a\u0e23\u0e49\u0e32\u0e07 Project \u0e43\u0e2b\u0e21\u0e48\u0e43\u0e19 ERP Stack \u2014 covers \ud83d\udccb \u0e02\u0e31\u0e49\u0e19\u0e15\u0e2d\u0e19\u0e01\u0e32\u0e23\u0e2a\u0e23\u0e49\u0e32\u0e07 Project \u0e43\u0e2b\u0e21\u0e48",
+      "tags": [
+        "markdown",
+        "module:bridge-server",
+        "docs",
+        "service:bridge"
+      ]
+    },
+    {
+      "id": "script:bridge-server/manage-password.sh",
+      "type": "script",
+      "name": "manage-password.sh",
+      "filePath": "bridge-server/manage-password.sh",
+      "language": "shell",
+      "fileCategory": "script",
+      "sizeLines": 154,
+      "complexity": "moderate",
+      "summary": "Shell script executing: docker",
+      "tags": [
+        "module:bridge-server",
+        "shell",
+        "script",
+        "service:bridge"
+      ]
+    },
+    {
+      "id": "document:bridge-server/requirements.txt",
+      "type": "document",
+      "name": "requirements.txt",
+      "filePath": "bridge-server/requirements.txt",
+      "language": "txt",
+      "fileCategory": "docs",
+      "sizeLines": 5,
+      "complexity": "simple",
+      "summary": "Python dependencies: fastapi==0.115.6, uvicorn[standard]==0.34.0, httpx==0.28.1, pydantic==2.10.4, python-dotenv==1.0.1",
+      "tags": [
+        "service:bridge",
+        "module:bridge-server",
+        "docs",
+        "txt"
+      ]
+    }
+  ],
+  "edges": []
+}

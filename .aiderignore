@@ -1,0 +1,16 @@
+# ไฟล์ที่ไม่ต้องส่งให้ Aider — ประหยัด Token
+node_modules/
+__pycache__/
+*.pyc
+.env
+.git/
+.venv/
+venv/
+*.log
+*.tmp
+*.bak
+dist/
+build/
+*.egg-info/
+.gitignore
+.aider*

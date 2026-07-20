@@ -1,0 +1,48 @@
+version: "3.8"
+
+services:
+  planka:
+    image: ghcr.io/plankanban/planka:latest
+    container_name: planka
+    restart: unless-stopped
+    ports:
+      - "54513:1337"
+    environment:
+      - BASE_URL=http://89.167.82.205:54513
+      - DATABASE_URL=postgresql://planka:planka_password@planka-db/planka
+      - SECRET_KEY=planka_secret_key_change_in_production_2026
+    volumes:
+      - planka-data:/app/public/user-avatars
+      - planka-attachments:/app/private/attachments
+    depends_on:
+      planka-db:
+        condition: service_healthy
+    networks:
+      - project-mgmt
+
+  planka-db:
+    image: postgres:15-alpine
+    container_name: planka-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=planka
+      - POSTGRES_USER=planka
+      - POSTGRES_PASSWORD=planka_password
+    volumes:
+      - planka-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U planka -d planka"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - project-mgmt
+
+volumes:
+  planka-data:
+  planka-attachments:
+  planka-db-data:
+
+networks:
+  project-mgmt:
+    external: true

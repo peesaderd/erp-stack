@@ -1,0 +1,79 @@
+# 🤳 Holding Product — Product Showcase Pipeline Template
+# Wan 2.7 img2vid, no audio → โชว์สินค้าสวยๆ คนถือให้เห็น
+
+name: holding_product
+description: "Product showcase — person holds product, Wan 2.7 I2V, no lip-sync"
+emoji: 🤳
+label: "Holding Product — ถือสินค้าพูด"
+
+generation:
+  job_type: wan2-7.img2vid.v1
+  needs_audio: false
+  image_requirement: product_only
+  image_model: nano-banana
+  negative_prompt: "deformed product, blurry, low quality, text watermark, distorted"
+
+scene_prompts:
+  hook: |
+    Beautiful product close-up, {model} naturally holding {product},
+    product centered and clearly visible, {lighting},
+    eye-catching opening shot, {color_palette} aesthetic,
+    professional product photography style, {background}
+
+  value: |
+    {model} showing {product} details and key features,
+    hands demonstrating product quality, smooth motion,
+    premium texture visible, {lighting},
+    {angle}, {color_palette}, {background}
+
+  cta: |
+    Final beautiful product shot, {model} presenting {product},
+    clean composition ready for CTA overlay,
+    professional finish, {lighting}, {color_palette}
+
+variations:
+  lighting:
+    - soft natural window light
+    - bright ring light studio
+    - warm golden hour outdoor
+    - clean daylight indoor
+    - soft diffused studio light
+    
+  angle:
+    - eye-level straight on
+    - close-up product detail
+    - slight top-down angle
+    - 45-degree product showcase
+    - wide shot with background
+    
+  color_palette:
+    - warm beige and cream
+    - clean white minimalist
+    - soft pastel tones
+    - vibrant pop colors
+    - muted earth tones
+    
+  model:
+    - Thai woman casually holding product
+    - young creator natural style
+    - clean minimalist look
+    - authentic everyday vibe
+    - soft feminine aesthetic
+    
+  background:
+    - minimalist clean room
+    - aesthetic cafe corner
+    - warm home interior
+    - natural light studio
+    - simple white backdrop
+
+video_params:
+  duration: [8]
+  resolution: 720P
+  ratio: "9:16"
+  default_duration: 8
+
+cta_strategy:
+  pool: [direct, social_proof, urgent]
+  position: end_of_video
+  max_length_chars: 50

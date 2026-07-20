@@ -1,0 +1,53 @@
+services:
+  bookstack:
+    image: lscr.io/linuxserver/bookstack:latest
+    container_name: bookstack
+    restart: unless-stopped
+    ports:
+      - "54515:80"
+    environment:
+      - APP_URL=http://89.167.82.205:54515
+      - DB_HOST=bookstack-db
+      - DB_PORT=3306
+      - DB_DATABASE=bookstack
+      - DB_USERNAME=bookstack
+      - DB_PASSWORD=BookStack@2026
+      - APP_KEY=base64:PYsYVY9MbYmWLb/o4TRAZoWVTN9pWv0VqJo2Xx502Y8=
+      - APP_LANG=th
+      - APP_AUTO_LANG_PUBLIC=true
+    volumes:
+      - bookstack-uploads:/uploads
+      - bookstack-storage:/storage
+    networks:
+      - project-mgmt
+    depends_on:
+      bookstack-db:
+        condition: service_healthy
+
+  bookstack-db:
+    image: mariadb:11
+    container_name: bookstack-db
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=RootPass@2026
+      - MYSQL_DATABASE=bookstack
+      - MYSQL_USER=bookstack
+      - MYSQL_PASSWORD=BookStack@2026
+    volumes:
+      - bookstack-db:/var/lib/mysql
+    networks:
+      - project-mgmt
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  bookstack-uploads:
+  bookstack-storage:
+  bookstack-db:
+
+networks:
+  project-mgmt:
+    external: true

@@ -1,0 +1,24 @@
+{
+  "projectRoot": "/home/openhands/erp-stack/modules/product",
+  "sourceFilePaths": [
+    "main.py",
+    "scraper.py",
+    "scraper_service.py",
+    "analyze_pipeline.py",
+    "db_models.py",
+    "analyzer.py",
+    "analyzer_db.py",
+    "analyze_models.py",
+    "models.py",
+    "export_service.py",
+    "scheduler.py",
+    "__init__.py",
+    "ecosystem.config.js",
+    "requirements.txt",
+    ".env",
+    "platforms/__init__.py",
+    "platforms/base.py",
+    "platforms/lazada.py"
+  ],
+  "gitCommitHash": "3daba4f59bbf5cd5c936347b6d6f6ba6c6bb1c0c"
+}

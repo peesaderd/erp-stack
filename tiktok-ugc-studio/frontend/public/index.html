@@ -950,6 +950,15 @@ select.input { cursor: pointer; }
 </div>
 
 <div class="side-overlay" id="sideOverlay" onclick="toggleSideNav()"></div>
+
+<!-- Loading Overlay -->
+<div class="modal-overlay" id="loadingOverlay">
+  <div class="modal" style="text-align:center;padding:40px">
+    <div class="spinner" style="width:48px;height:48px;border-width:4px;margin:0 auto 20px"></div>
+    <div id="loadingText" style="font-size:16px;font-weight:600">🚀 AI กำลังทำงาน...</div>
+    <div class="text-sm text-secondary" style="margin-top:12px">กรุณารอสักครู่ ระบบกำลังสร้างคอนเทนต์</div>
+  </div>
+</div>
 <div class="side-nav" id="sideNav">
   <div class="side-nav-header">
     <div class="side-nav-brand"><svg class="nav-icon" style="width:20px;height:20px;color:var(--brand)" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/></svg><span>TikTok Studio</span></div>
@@ -2772,10 +2781,11 @@ async function startGeneration() {
       }
       throw new Error('Timeout waiting for video');
     };
-    pollJob();
+    await pollJob();
   } catch(e) {
     document.getElementById('progressText').textContent = '❌ ล้มเหลว: ' + e.message;
-    showToast('Generation failed: ' + e.message,'error');
+    document.getElementById('progressBar').style.width = '0%';
+    throw e;
   } finally {
     btn.disabled = false; btn.style.opacity = '1';
   }
@@ -5793,13 +5803,30 @@ async function autoGenerateAll() {
     // Step 5: Go to Step 4 for video
     goContentStep(4);
     await new Promise(r => setTimeout(r, 600));
-    showToast('🎬 ไปที่ขั้นตอนวิดีโอแล้ว กด "Generate Video" ได้เลย','info');
+      // Step 5: Auto-generate video (startGeneration) instead of waiting
+    goContentStep(4);
+    await new Promise(r => setTimeout(r, 600));
+    showLoadingOverlay('🚀 AI กำลังสร้างวิดีโอ...');
+    await startGeneration();
+    showToast('✅ วิดีโอสร้างเสร็จแล้ว!','success');
   } catch(e) {
     showToast('❌ Auto Generate Failed: '+e.message,'error');
     console.error('autoGenerateAll error:', e);
   } finally {
     setButtonLoading('autoGenBtn', false);
+    hideLoadingOverlay();
   }
+}
+
+function showLoadingOverlay(msg) {
+  const o = document.getElementById('loadingOverlay');
+  if(!o) return;
+  document.getElementById('loadingText').textContent = msg;
+  o.classList.add('open');
+}
+function hideLoadingOverlay() {
+  const o = document.getElementById('loadingOverlay');
+  if(o) o.classList.remove('open');
 }
 
 async function scoutQuickClone() {

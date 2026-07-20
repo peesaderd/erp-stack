@@ -476,6 +476,26 @@ def generate_voice(
 from prodia_client import ProdiaV2Client, ProdiaV2Error, ProdiaValidationError
 
 
+def _retry_prodia(fn, max_retries=3):
+    """Retry Prodia API call with exponential backoff on 429 rate limit"""
+    import time
+    for attempt in range(max_retries):
+        try:
+            return fn()
+        except (RuntimeError, Exception) as e:
+            err = str(e).lower()
+            if "rate limited" in err or "429" in err or "too many requests" in err:
+                if attempt < max_retries - 1:
+                    wait = 2 ** (attempt + 1)
+                    logger.warning(f"Prodia rate limited (attempt {attempt+1}/{max_retries}), retrying in {wait}s...")
+                    time.sleep(wait)
+                    continue
+                else:
+                    logger.error(f"Prodia still rate limited after {max_retries} retries")
+            raise
+    raise RuntimeError(f"Prodia failed after {max_retries} retries")
+
+
 def generate_video(
     image_path: str,
     prompt: str,
@@ -488,6 +508,7 @@ def generate_video(
 
     Uses the shared prodia_client.ProdiaV2Client for job creation, polling,
     and price tracking through /v2/job/async.
+    Retries up to 3 times with exponential backoff on 429 rate limit.
 
     Args:
         image_path: path หรือ URL ของ image จาก Step 5
@@ -518,11 +539,11 @@ def generate_video(
             audio_bytes = f.read()
         logger.info(f"  Audio: {len(audio_bytes)} bytes")
 
-    # ── Generate via shared client ──
+    # ── Generate via shared client (with retry on 429) ──
     client = ProdiaV2Client(token=PRODIA_TOKEN())
 
     try:
-        result = client.generate_video(
+        result = _retry_prodia(lambda: client.generate_video(
             prompt=prompt,
             input_image=image_data,
             duration=duration,
@@ -530,7 +551,7 @@ def generate_video(
             audio_bytes=audio_bytes,
             job_type="inference.wan2-7.img2vid.v1",
             negative_prompt="low resolution, error, worst quality, deformed",
-        )
+        ))
 
         output_url = result.get("output_url", "")
         price = result.get("price", {})

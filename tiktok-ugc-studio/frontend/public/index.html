@@ -2258,10 +2258,10 @@ async function autoGenerateAll() {
     if (!scriptRes.ok) throw new Error('Script generation failed');
     const scriptData = await scriptRes.json();
 
-    // Fill hook/value/cta fields
-    document.getElementById('scriptHook').value = scriptData.hook || '';
-    document.getElementById('scriptValue').value = scriptData.value_proposition || '';
-    document.getElementById('scriptCta').value = scriptData.cta || '';
+    // Fill hook/value/cta fields (keep existing if API returns empty)
+    if (scriptData.hook) document.getElementById('scriptHook').value = scriptData.hook;
+    if (scriptData.value_proposition) document.getElementById('scriptValue').value = scriptData.value_proposition;
+    if (scriptData.cta) document.getElementById('scriptCta').value = scriptData.cta;
     localStorage.setItem('lastScript', JSON.stringify(scriptData));
     
     // Step 2: Go to Step 3 (summary/confirm)
@@ -2303,14 +2303,30 @@ async function autoGenerateAll() {
     sessionStorage.setItem('autoGenImageUrl', imgUrl);
     sessionStorage.setItem('autoGenPrompt', prompt);
 
-    // Step 4: Go to Step 4 for video generation
-    showToast('✅ รูปสร้างเสร็จ! ไปต่อที่วิดีโอ','success');
-    document.getElementById('genBtn')?.click();
-    setButtonLoading('autoGenBtn', false);
+    // Step 4: Auto-trigger video pipeline with loading overlay
+    goContentStep(4);
+    await new Promise(r => setTimeout(r, 600));
+    showLoadingOverlay('🚀 AI กำลังสร้างวิดีโอ...');
+    await startGeneration();
+    showToast('✅ วิดีโอสร้างเสร็จแล้ว!','success');
   } catch(e) {
-    setButtonLoading('autoGenBtn', false);
     showToast('❌ Auto Generate Failed: '+e.message,'error');
+    console.error('autoGenerateAll error:', e);
+  } finally {
+    setButtonLoading('autoGenBtn', false);
+    hideLoadingOverlay();
   }
+}
+
+function showLoadingOverlay(msg) {
+  const o = document.getElementById('loadingOverlay');
+  if(!o) return;
+  document.getElementById('loadingText').textContent = msg;
+  o.classList.add('open');
+}
+function hideLoadingOverlay() {
+  const o = document.getElementById('loadingOverlay');
+  if(o) o.classList.remove('open');
 }
 
 // ─── Auto Pipeline ─────────────────────────────────────────
@@ -2474,9 +2490,14 @@ async function generateScript() {
     if (!res.ok) throw new Error('Generate failed');
     const data = await res.json();
 
-    document.getElementById('scriptHook').value = data.hook || '';
-    document.getElementById('scriptValue').value = data.value_proposition || '';
-    document.getElementById('scriptCta').value = data.cta || '';
+    // Keep existing values if API returns empty (don't clear pre-filled data)
+    if (data.hook) document.getElementById('scriptHook').value = data.hook;
+    if (data.value_proposition) document.getElementById('scriptValue').value = data.value_proposition;
+    if (data.cta) document.getElementById('scriptCta').value = data.cta;
+    if (data.hashtags) {
+      const tagField = document.getElementById('scriptHashtags');
+      if (tagField) tagField.value = Array.isArray(data.hashtags) ? data.hashtags.join(', ') : data.hashtags;
+    }
     localStorage.setItem('lastScript', JSON.stringify(data));
     setButtonLoading('genScriptBtn', false);
     goContentStep(2);
@@ -5760,74 +5781,7 @@ async function scoutClone(idx, mode) {
   }
 }
 
-async function autoGenerateAll() {
-  const btn = document.getElementById('autoGenBtn');
-  if (!btn) return;
-  setButtonLoading('autoGenBtn', true);
-  showToast('🚀 Auto Generate เริ่มแล้ว!','info');
-  try {
-    // Step 1: Generate script
-    await generateScript();
-    showToast('✅ Script พร้อมแล้ว! กำลังสร้างรูป...','success');
-    // Step 2: Go to Step 3 (summary) - use goToStep3() which populates fields
-    goToStep3();
-    goContentStep(3);
-    await new Promise(r => setTimeout(r, 600));
-    // Step 3: Ensure product image exists (scrape from URL if missing)
-    if (!uploadedImages.product) {
-      const url = document.getElementById('productUrl')?.value.trim();
-      if (url) {
-        showToast('🔍 กำลังดึงรูปสินค้า...','info');
-        try {
-          const scrapeRes = await fetch(API + '/product/scrape-and-generate', {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({url, use_vision: false, duration: '8', tone: ''})
-          });
-          if (scrapeRes.ok) {
-            const sd = await scrapeRes.json();
-            if (sd.images?.[0]) {
-              uploadedImages.product = sd.images[0].startsWith('http') ? sd.images[0] : window.location.origin + sd.images[0];
-              showToast('✅ ได้รูปสินค้าแล้ว!','success');
-            }
-          }
-        } catch(e) { console.warn('Scrape image failed:', e.message); }
-      }
-    }
-    // Step 4: Generate image
-    if (uploadedImages.product) {
-      await generateImageFromStep3();
-      showToast('✅ รูปสร้างเสร็จ!','success');
-    } else {
-      showToast('⚠️ ไม่มีรูปสินค้า — ใส่ URL สินค้าหรืออัปโหลดรูปก่อน','warning');
-    }
-    // Step 5: Go to Step 4 for video
-    goContentStep(4);
-    await new Promise(r => setTimeout(r, 600));
-      // Step 5: Auto-generate video (startGeneration) instead of waiting
-    goContentStep(4);
-    await new Promise(r => setTimeout(r, 600));
-    showLoadingOverlay('🚀 AI กำลังสร้างวิดีโอ...');
-    await startGeneration();
-    showToast('✅ วิดีโอสร้างเสร็จแล้ว!','success');
-  } catch(e) {
-    showToast('❌ Auto Generate Failed: '+e.message,'error');
-    console.error('autoGenerateAll error:', e);
-  } finally {
-    setButtonLoading('autoGenBtn', false);
-    hideLoadingOverlay();
-  }
-}
 
-function showLoadingOverlay(msg) {
-  const o = document.getElementById('loadingOverlay');
-  if(!o) return;
-  document.getElementById('loadingText').textContent = msg;
-  o.classList.add('open');
-}
-function hideLoadingOverlay() {
-  const o = document.getElementById('loadingOverlay');
-  if(o) o.classList.remove('open');
-}
 
 async function scoutQuickClone() {
   const productName = document.getElementById('scout-clone-product')?.value.trim();

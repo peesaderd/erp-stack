@@ -617,16 +617,43 @@ def compose_video(
     # Step 9b: Merge voiceover with the concatenated video
     logger.info(f"  9b: Merge voiceover")
     voiced_path = STORAGE_DIR / f"affiliate_{run_id}.mp4"
+
+    # Calculate auto-delay: ถ้า voice สั้นกว่า video ให้หน่วงให้เสียงอยู่ตรงกลาง
+    def _get_media_dur(path):
+        try:
+            out = subprocess.run(['ffprobe', '-v', 'quiet', '-show_format', str(path)],
+                               capture_output=True, text=True, timeout=5)
+            for line in out.stdout.splitlines():
+                if line.startswith('duration='):
+                    return float(line.split('=')[1])
+        except:
+            pass
+        return 0
+
+    video_dur = _get_media_dur(concat_path)
+    voice_dur = _get_media_dur(voice_path)
+    voice_after_atempo = voice_dur / 1.3 if voice_dur > 0 else 0
+
+    delay_ms = 0
+    if voice_after_atempo > 0 and voice_after_atempo < video_dur:
+        # center the voice: เว้นครึ่งนึงก่อนเริ่มพูด
+        delay_ms = int((video_dur - voice_after_atempo) * 1000 / 2)
+        delay_ms = max(500, min(delay_ms, 5000))  # clamp 0.5-5s
+        logger.info(f"    Voice ({voice_after_atempo:.1f}s) < video ({video_dur:.1f}s), adding {delay_ms}ms delay")
+
+    af_filter = "atempo=1.3"
+    if delay_ms > 0:
+        af_filter += f",adelay={delay_ms}|{delay_ms}"
+
     cmd = [
         "ffmpeg", "-y",
         "-i", str(concat_path),
         "-i", str(voice_path),
         "-c:v", "copy",
         "-c:a", "aac",
-        "-af", "atempo=1.3",
+        "-af", af_filter,
         "-map", "0:v:0",
         "-map", "1:a:0",
-        "-shortest",
         str(voiced_path),
     ]
     try:
@@ -666,7 +693,7 @@ def compose_video(
                     "-i", str(final_path),
                     "-i", str(bgm_path),
                     "-filter_complex",
-                    "[1:a]volume=0.15[bg];[0:a][bg]amix=inputs=2:duration=first[out]",
+                    "[1:a]volume=0.15[bg];[0:a][bg]amix=inputs=2:duration=longest[out]",
                     "-map", "0:v",
                     "-map", "[out]",
                     "-c:v", "copy",

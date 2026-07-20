@@ -1,0 +1,16 @@
+{
+  "version": "1",
+  "description": "ควบคุมการเปิด/ปิด UGC Visual Styles — แก้ที่นี่ที่เดียว",
+  "styles": {
+    "holding": { "enabled": true },
+    "usage": { "enabled": true },
+    "review": { "enabled": true },
+    "talking": { "enabled": true },
+    "pov_lifehack": { "enabled": true },
+    "asmr_texture": { "enabled": true },
+    "split_comparison": { "enabled": false },
+    "street_interview": { "enabled": true },
+    "greenscreen_react": { "enabled": true },
+    "aesthetic_vlog": { "enabled": true }
+  }
+}

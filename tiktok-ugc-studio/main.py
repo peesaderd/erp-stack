@@ -39,6 +39,8 @@ from tiktok_accounts import (
 )
 from recipes import list_recipes, get_recipe
 from publisher import scheduler as publisher_scheduler, enqueue as pq_enqueue, list_posts as pq_list, get_post as pq_get, delete_post as pq_delete, get_calendar as pq_calendar, get_stats as pq_stats
+
+from config import DEFAULT_VIDEO_DURATION
 from gemini_agent import generate_publish_content
 from connect.tiktok_poster import poster as tiktok_poster
 from connect.aitoearn_client import client as aitoearn
@@ -361,7 +363,7 @@ async def run_full_pipeline(req: FullPipelineRequest):
                     "hook": req.hook or "",
                     "value": req.value_proposition or "",
                     "cta": req.cta or "",
-                    "duration": req.duration or 8,
+                    "duration": req.duration or DEFAULT_VIDEO_DURATION,
                     "ugc_style": req.ugc_style or "product_usage",
                     "recipe": req.recipe or "tus",
                     "negative_prompt": req.negative_prompt or "",
@@ -567,7 +569,7 @@ async def generate_video(req: VideoRequest):
                 "hook": req.hook or "",
                 "value": req.value or "",
                 "cta": req.cta or "",
-                "duration": scenes[0].duration if scenes else 8,
+                "duration": scenes[0].duration if scenes else DEFAULT_VIDEO_DURATION,
                 "scenes": [s.dict() for s in scenes] if scenes else [],
                 "tags": req.tags or [],
                 "content_type": req.content_type or "affiliate",
@@ -620,7 +622,7 @@ async def generate_video(req: VideoRequest):
 
             _pipeline_results[job_id] = {
                 "status": "completed",
-                "video_url": f"/static/videos/final_{job_id}.mp4",
+                "video_url": f"/api/tiktok/static/videos/final_{job_id}.mp4",
                 "cost": result.get("cost_estimate", 0),
                 "metadata": {
                     "product_name": req.product_title or "",
@@ -718,7 +720,7 @@ def list_completed_videos():
                 "title": title,
                 "description": description.strip()[:800],
                 "hashtags": htags,
-                "duration": meta.get("duration", 8),
+                "duration": meta.get("duration", DEFAULT_VIDEO_DURATION),
                 "style": meta.get("ugc_style", ""),
             })
 
@@ -914,7 +916,12 @@ async def post_video_to_tiktok(req: VideoPostRequest):
         raise HTTPException(status_code=400, detail="Job not completed")
 
     video_url = result.get("video_url", "")
-    video_filename = video_url.replace("/static/videos/", "")
+    # Strip any prefix to get just the filename
+    video_filename = video_url
+    for prefix in ("/api/tiktok/static/videos/", "/static/videos/", "/storage/videos/"):
+        if video_filename.startswith(prefix):
+            video_filename = video_filename[len(prefix):]
+            break
     video_path = VIDEOS_DIR / video_filename
     if not video_path.exists():
         raise HTTPException(status_code=404, detail="Video file not found")

@@ -6,6 +6,8 @@ Extracted from main.py for cleaner separation.
 from typing import Optional
 from pydantic import BaseModel
 
+from config import DEFAULT_VIDEO_DURATION
+
 
 class ScriptRequest(BaseModel):
     product_name: str = ""
@@ -14,7 +16,7 @@ class ScriptRequest(BaseModel):
     target_audience: str = ""
     tone: str = ""
     cta: str = ""
-    duration: str = "8s"
+    duration: str = f"{DEFAULT_VIDEO_DURATION}s"
     extra_rules: str = ""
     product_url: str = ""
     product_title: str = ""
@@ -47,7 +49,7 @@ class ScriptTTSRequest(BaseModel):
 
 class SceneBlock(BaseModel):
     script: str
-    duration: int = 8
+    duration: int = DEFAULT_VIDEO_DURATION
     mood: str = "energetic"
     sound_style: str = "upbeat_pop"
     style: str = "product_usage"
@@ -67,7 +69,7 @@ class VideoRequest(BaseModel):
     content_type: str = "affiliate"
     ugc_style: str = "product_usage"
     aspect_ratio: str = "9:16"
-    duration: int = 8
+    duration: int = DEFAULT_VIDEO_DURATION
     scenes: list[SceneBlock] = []
     prompt: str = ""
     provider: str = "prodia"
@@ -110,7 +112,7 @@ class FullPipelineRequest(BaseModel):
     value_proposition: Optional[str] = ""
     cta: Optional[str] = ""
     provider: str = "prodia"
-    duration: int = 8
+    duration: int = DEFAULT_VIDEO_DURATION
     aspect_ratio: str = "9:16"
     negative_prompt: Optional[str] = ""
     tts_lang: str = "th"
@@ -126,7 +128,7 @@ class FullPipelineRequest(BaseModel):
 
 class ScrapeAndGenerateRequest(BaseModel):
     url: str
-    duration: str = "8s"
+    duration: str = f"{DEFAULT_VIDEO_DURATION}s"
     tone: str = ""
     cta: str = ""
     ugc_style: str = "ugc_review"

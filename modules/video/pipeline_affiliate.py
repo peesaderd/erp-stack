@@ -47,6 +47,9 @@ if str(_erp_stack) not in sys.path:
 
 from shared_config import PRODIA_TOKEN, GEMINI_API_KEY
 
+# Config ควบคุมค่า default — แก้ที่ config.py ที่เดียว
+from config import DEFAULT_DURATION, MAX_WAN_DURATION
+
 # Import pipeline logger (same directory)
 from pipeline_logger import start_job, update_step, update_cost, complete_job, fail_job, update_prompts
 
@@ -219,6 +222,7 @@ def generate_script(
     product_name: str,
     product_profile: dict,
     recipe: dict,
+    total_duration: int = DEFAULT_DURATION,
 ) -> str:
     """
     Step 3: Generate script via Gemini
@@ -227,6 +231,7 @@ def generate_script(
         product_name: ชื่อสินค้า
         product_profile: ผลจาก analyze_product()
         recipe: ผลจาก load_recipe()
+        total_duration: ความยาวคลิป (override ค่าจาก recipe)
 
     Returns:
         str: full_script
@@ -244,7 +249,7 @@ def generate_script(
             main_benefit=product_profile.get("main_benefit", ""),
             target_audience=product_profile.get("target_audience", ""),
             tone="เป็นกันเอง พูดเร็ว",
-            duration=f"{recipe.get('total_duration', 8)}s",
+            duration=f"{total_duration}s",
         )
 
         script = result.get("script", "")
@@ -474,7 +479,7 @@ from prodia_client import ProdiaV2Client, ProdiaV2Error, ProdiaValidationError
 def generate_video(
     image_path: str,
     prompt: str,
-    duration: int = 8,
+    duration: int = DEFAULT_DURATION,
     resolution: str = "720P",
     audio_path: Optional[str] = None,
 ) -> tuple:
@@ -689,6 +694,7 @@ def run_pipeline(
     description: str = "",
     ugc_style: str = "holding",
     external_job_id: Optional[str] = None,
+    duration: Optional[int] = None,
 ) -> dict:
     """
     Run full Affiliate Pipeline v6 (9 Steps ตาม PIPELINE_STRUCTURE.md)
@@ -702,6 +708,7 @@ def run_pipeline(
         description: คําอธิบายสินค้า (optional)
         external_job_id: job_id จาก caller (ถ้ามี) — ใช้แทนการ gen เอง เพื่อให้ pipeline_logs.db
                          ตรงกับ pipeline.db ใน tiktok-ugc-studio
+        duration: ความยาวคลิป (optional) — ถ้าไม่ส่ง จะใช้จาก recipe หรือ DEFAULT_DURATION
 
     Returns:
         dict: {
@@ -754,7 +761,8 @@ def run_pipeline(
         recipe = load_recipe(recipe_name)
         recipe_duration = int((time.time() - step_start) * 1000)
         num_scenes = len(recipe.get("scenes", []))
-        total_duration = recipe.get("total_duration", 8)
+        # ใช้ duration caller (จาก frontend) ก่อน ถ้าไม่มีค่อยใช้จาก recipe → config default
+        total_duration = duration or recipe.get("total_duration", DEFAULT_DURATION)
 
         try:
             update_step(job_id, 'recipe', {'duration_ms': recipe_duration, 'scenes': num_scenes})
@@ -763,7 +771,7 @@ def run_pipeline(
 
         # ── STEP 3: Generate Script ──
         step_start = time.time()
-        script = generate_script(product_name, product_profile, recipe)
+        script = generate_script(product_name, product_profile, recipe, total_duration)
         script_duration = int((time.time() - step_start) * 1000)
 
         try:

@@ -5,6 +5,7 @@
 import os
 import json
 import re
+import logging
 from typing import Optional, List, Dict, Any
 from pathlib import Path
 
@@ -100,12 +101,54 @@ UGC_STYLE_FOLDER = {
 }
 
 
+# ─── Style Config (from style_config.json) ────────────────────────────────
+# ถ้า style ไหน disabled = true → fallback ไป UGC_Review
+
+_STYLE_CONFIG_CACHE = None
+
+
+def _load_style_config() -> dict:
+    """โหลด style_config.json ครั้งเดียว แล้ว cache ไว้"""
+    global _STYLE_CONFIG_CACHE
+    if _STYLE_CONFIG_CACHE is not None:
+        return _STYLE_CONFIG_CACHE
+    config_path = BASE_DIR / "style_config.json"
+    if config_path.exists():
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                _STYLE_CONFIG_CACHE = json.load(f)
+            logger = logging.getLogger("prompt-templates")
+            logger.info(f"Loaded style config: {config_path}")
+        except Exception as e:
+            _STYLE_CONFIG_CACHE = {}
+    else:
+        _STYLE_CONFIG_CACHE = {}
+    return _STYLE_CONFIG_CACHE
+
+
+def _get_active_style(style: str) -> str:
+    """เช็คว่า style ถูก enable อยู่มั้ย ถ้าไม่ → fallback กลับ 'review'"""
+    config = _load_style_config()
+    styles = config.get("styles", {})
+    meta = styles.get(style, {})
+    if meta.get("enabled", True):
+        return style
+    # Fallback
+    logger = logging.getLogger("prompt-templates")
+    logger.warning(f"Style '{style}' is disabled in style_config.json, falling back to 'review'")
+    return "review"
+
+
 def load_ugc_templates(style: str) -> dict:
     """Load UGC_prompts/{style}/ template files into a dict.
 
+    เช็ค style_config.json ก่อน — ถ้า style ไหนถูกปิด จะ fallback ไป 'review'
+
     Returns: { 'system': str, 'master': str, 'user.template': str, 'negative': str }
     """
-    folder_name = UGC_STYLE_FOLDER.get(style, "UGC_Review")
+    # ใช้ active style (fallback ถ้าถูกปิดใน style_config.json)
+    active_style = _get_active_style(style)
+    folder_name = UGC_STYLE_FOLDER.get(active_style, "UGC_Review")
     base = UGC_DIR / folder_name
     result = {}
     for name in ["system", "master", "user.template", "negative"]:

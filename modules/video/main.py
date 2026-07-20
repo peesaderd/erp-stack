@@ -40,6 +40,9 @@ COMPOSED_DIR = STORAGE_DIR / "composed"
 for d in [TTS_DIR, VIDEOS_DIR, COMPOSED_DIR]:
     d.mkdir(parents=True, exist_ok=True)
 
+# Config ควบคุมค่า default — แก้ที่ config.py ที่เดียว
+from config import DEFAULT_DURATION
+
 # ─── Logging ──────────────────────────────────────────────────────────
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("video-module")
@@ -73,7 +76,7 @@ class ScriptRequest(BaseModel):
     target_audience: str = ""
     tone: str = ""
     cta: str = ""
-    duration: str = "8s"
+    duration: str = f"{DEFAULT_DURATION}s"
     extra_rules: str = ""
 
 class UGCRequest(BaseModel):
@@ -91,7 +94,7 @@ class ConcatRequest(BaseModel):
 
 class SceneBlock(BaseModel):
     script: str = ""
-    duration: int = 8
+    duration: int = DEFAULT_DURATION
     mood: str = "energetic"
     sound_style: str = "upbeat_pop"
     style: str = "product_usage"
@@ -109,7 +112,7 @@ class VideoRequest(BaseModel):
     content_type: str = "affiliate"
     ugc_style: str = "product_usage"
     aspect_ratio: str = "9:16"
-    duration: int = 8
+    duration: int = DEFAULT_DURATION
     scenes: list[SceneBlock] = []
     prompt: str = ""
     provider: str = "prodia"
@@ -130,7 +133,7 @@ class FullPipelineRequest(BaseModel):
     hook: str = ""
     value_proposition: str = ""
     cta: str = ""
-    duration: int = 8
+    duration: int = DEFAULT_DURATION
     aspect_ratio: str = "9:16"
     tts_lang: str = "th"
     bg_music: Optional[str] = None
@@ -305,6 +308,7 @@ async def generate_video(req: VideoRequest):
             description=req.product_description or "",
             ugc_style=req.ugc_style or "holding",
             external_job_id=req.job_id,
+            duration=req.duration,
         )
         return {"success": True, "result": result}
     except Exception as e:

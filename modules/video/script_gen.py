@@ -23,6 +23,7 @@ if str(_pb_path) not in sys.path:
 
 from shared_config import GEMINI_API_KEY
 from persona_engine import PERSONA_TEMPLATES, _select_persona
+from config import DEFAULT_DURATION
 
 logger = logging.getLogger("tiktok-ugc.script_gen")
 
@@ -33,7 +34,7 @@ PROMPTS_DIR = Path(__file__).parent / "prompts"
 # ─── Persona-Aware System Prompt Builder ────────────────────────────
 # ═══════════════════════════════════════════════════════════════════════
 
-def build_script_system_prompt(persona: dict, duration: str = "8s") -> str:
+def build_script_system_prompt(persona: dict, duration: str = f"{DEFAULT_DURATION}s") -> str:
     """Build a persona-injected system prompt for Gemini script generation.
     
     Takes the persona dict (from persona_engine._select_persona()) and
@@ -181,7 +182,7 @@ def generate_tiktok_review_script(
     target_audience: str = "",
     tone: str = "",
     cta: str = "",
-    duration: str = "8s",
+    duration: str = f"{DEFAULT_DURATION}s",
     extra_rules: str = "",
     persona: Optional[dict] = None,
     persona_category: str = "beauty",

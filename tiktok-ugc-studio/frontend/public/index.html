@@ -2241,10 +2241,10 @@ async function autoGenerateAll() {
   const style = document.getElementById('selectedStyleLabel')?.textContent?.split(' —')[0]?.trim()?.toLowerCase().replace(/ /g,'_') || 'holding';
   if (!url && !title && !details) { showToast('ใส่ชื่อสินค้าหรือ URL ก่อน','error'); return; }
 
+  showLoadingOverlay('📝 กำลังสร้างสคริปต์...');
   setButtonLoading('autoGenBtn', true);
   try {
     // Step 1: Generate script
-    showToast('📝 Step 1/3: กำลังสร้างสคริปต์...','info');
     const body = { ugc_style: style, duration: sessionStorage.getItem('selectedDuration') || '8' };
     if (url) body.product_url = url;
     if (title) body.product_title = title;
@@ -2269,7 +2269,7 @@ async function autoGenerateAll() {
     await new Promise(r => setTimeout(r, 500));
     
     // Step 3: Build image prompt + generate image
-    showToast('📷 Step 2/3: กำลังสร้างรูปภาพ...','info');
+    showLoadingOverlay('📷 กำลังสร้างรูปภาพ...');
     const builderRes = await fetch(window.location.origin + '/api/tiktok/ugc/images/build-prompt', {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({

@@ -137,6 +137,14 @@ const Store = () => {
         {apps.map(app => (
           <div key={app.id} className="bg-white rounded-lg shadow-md p-6">
             <h2 className="text-xl font-bold mb-2">{app.name}</h2>
+            {(() => {
+              try {
+                const imgs = JSON.parse(app.images);
+                return imgs.length ? <img src={imgs[0]} alt={app.name} className="w-full h-40 object-cover mb-2 rounded"/> : null;
+              } catch {
+                return null;
+              }
+            })()}
             <p className="text-gray-600 mb-4">{app.description}</p>
             <div className="flex justify-between items-center">
               <span className="text-2xl font-bold text-green-600">

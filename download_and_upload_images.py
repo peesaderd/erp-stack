@@ -9,7 +9,7 @@ import paramiko
 
 def download_image(url, save_path):
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     }
     try:
         response = requests.get(url, headers=headers, timeout=10, verify=False)
@@ -21,37 +21,45 @@ def download_image(url, save_path):
         print(f"  -> Error downloading {url}: {e}")
     return False
 
-def get_bing_image_url(query):
-    # Filter search query to remove long generic descriptions
-    # e.g. "PAPA FEEL 577 เซรั่มลดเลือนฝ้ากระและรอยสิว" -> "PAPA FEEL 577 เซรั่ม"
-    clean_query = query
-    if len(query) > 40:
-        # Take first 40 characters or split by space/brackets
-        parts = re.split(r'[\(\)\[\]\s]', query)
-        # Take first few parts to keep it specific but short
-        clean_query = " ".join([p for p in parts[:4] if p])
+def get_bing_image_url(name, category):
+    # Split query to keep it clean but specific
+    clean_name = name
+    if len(name) > 40:
+        parts = re.split(r'[\(\)\[\]\s]', name)
+        clean_name = " ".join([p for p in parts[:4] if p])
+    
+    # Append category context to avoid homonyms (e.g. Papa -> Pope)
+    context = ""
+    cat_lower = category.lower()
+    if "beauty" in cat_lower or "personal care" in cat_lower:
+        context = "skincare cosmetic"
+    elif "supplement" in cat_lower or "food" in cat_lower:
+        context = "supplement product"
+    elif "kitchen" in cat_lower or "home" in cat_lower or "living" in cat_lower:
+        context = "home product"
         
-    url = f"https://www.bing.com/images/search?q={requests.utils.quote(clean_query)}"
+    query = f"{clean_name} {context}".strip()
+    
+    url = f"https://www.bing.com/images/search?q={requests.utils.quote(query)}"
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     }
     try:
         response = requests.get(url, headers=headers, verify=False, timeout=10)
         if response.status_code == 200:
-            # Find all murl URLs
+            # Find image URLs in murl
             matches = re.findall(r'&quot;murl&quot;:&quot;(http[^\s&]+?)&quot;', response.text)
             if not matches:
                 matches = re.findall(r'"murl":"(http[^\s"]+?)"', response.text)
             
-            # Filter out non-image extensions or bad domains if any
+            # Filter matches
             for match in matches:
                 if any(x in match.lower() for x in [".jpg", ".png", ".jpeg", ".webp", "susercontent", "shopee", "lazada", "alicdn"]):
                     return match
-            # Fallback to first URL found
             if matches:
                 return matches[0]
     except Exception as e:
-        print(f"  -> Error searching Bing for '{clean_query}': {e}")
+        print(f"  -> Error searching Bing for '{query}': {e}")
     return None
 
 def main():
@@ -73,30 +81,24 @@ def main():
         fieldnames = reader.fieldnames
         rows = list(reader)
         
-    # Add new column for image filename if not present
     if "Image Filename" not in fieldnames:
         fieldnames.append("Image Filename")
         
-    print(f"Starting image search and download for {len(rows)} products using Bing...")
+    print(f"Starting image search and download for {len(rows)} products...")
     
     downloaded_files = []
     
     for idx, row in enumerate(rows):
         pid = row.get("Product ID")
         name = row.get("Product Name")
-        existing_img = row.get("Image Filename")
+        category = row.get("Category", "")
         
-        # Skip if already downloaded
-        if existing_img and os.path.exists(os.path.join(local_image_dir, existing_img)):
-            print(f"[{idx+1}/{len(rows)}] Image already exists for: {name[:40]}")
-            downloaded_files.append((pid, existing_img))
-            continue
-            
+        # We FORCE re-download to overwrite the wrong Pope images
         print(f"[{idx+1}/{len(rows)}] Searching image for: {name[:40]}...")
         
-        img_url = get_bing_image_url(name)
+        img_url = get_bing_image_url(name, category)
         if img_url:
-            # Try to get extension from URL, fallback to .jpg
+            # Get extension from URL, fallback to .jpg
             ext = ".jpg"
             if "." in img_url.split("/")[-1]:
                 potential_ext = "." + img_url.split("/")[-1].split(".")[-1].split("?")[0]
@@ -116,8 +118,7 @@ def main():
         else:
             print("  -> No image results found.")
             
-        # Small delay to avoid hammering Bing
-        time.sleep(1.0)
+        time.sleep(0.5)
             
     # Save the updated CSV
     print(f"Saving updated CSV back to {input_file}...")
@@ -135,7 +136,6 @@ def main():
     remote_dir = "/home/openhands/calm-noether/product_images"
     
     try:
-        # Create SSH Client
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         ssh.connect(ssh_ip, username=ssh_user, password=ssh_pass, timeout=15)
@@ -144,10 +144,14 @@ def main():
         print(f"Creating remote directory if not exists: {remote_dir}")
         ssh.exec_command(f"mkdir -p {remote_dir}")
         
+        # Clear out old images on the remote server
+        print("Clearing old images from the remote server...")
+        ssh.exec_command(f"rm -rf {remote_dir}/*")
+        
         # Start SFTP
         sftp = ssh.open_sftp()
         
-        print("Uploading images to remote server...")
+        print("Uploading new correct images to remote server...")
         uploaded_count = 0
         for pid, filename in downloaded_files:
             local_path = os.path.join(local_image_dir, filename)
@@ -157,8 +161,37 @@ def main():
                 uploaded_count += 1
                 
         sftp.close()
+        
+        # Update database with correct image keys
+        print("\nUpdating remote database with correct images...")
+        sql_updates = ""
+        for pid, filename in downloaded_files:
+            # We escape single quotes in product_id (though they are numeric, it's safer)
+            safe_pid = pid.replace("'", "''")
+            safe_fn = filename.replace("'", "''")
+            
+            # Construct JSON updates
+            sql_updates += f"""
+            UPDATE products
+            SET data = (data::jsonb || jsonb_build_object(
+                'image_filename', '{safe_fn}',
+                'image', '/product_images/{safe_fn}',
+                'image_url', 'http://89.167.82.205:8108/product_images/{safe_fn}',
+                'image_path', '/home/openhands/calm-noether/product_images/{safe_fn}'
+            ))::json
+            WHERE data::jsonb->>'product_id' = '{safe_pid}';
+            """
+            
+        # Execute batch update
+        db_cmd = f'sudo docker exec -i db psql -U openhands -d productdb -c "{sql_updates}"'
+        stdin, stdout, stderr = ssh.exec_command(db_cmd)
+        print("Database Update Stdout:")
+        print(stdout.read().decode('utf-8'))
+        print("Database Update Stderr:")
+        print(stderr.read().decode('utf-8'))
+        
         ssh.close()
-        print(f"\nSuccessfully uploaded {uploaded_count} images to remote server at {remote_dir}!")
+        print(f"\nSuccessfully downloaded, uploaded {uploaded_count} images, and updated the database!")
         
     except Exception as e:
         print(f"Error connecting or uploading via SSH/SFTP: {e}")

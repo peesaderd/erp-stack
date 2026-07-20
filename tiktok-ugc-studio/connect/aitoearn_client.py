@@ -186,24 +186,13 @@ class AitoEarnClient:
         file_size = file_path.stat().st_size
 
         try:
-            # Step 1: Get upload signature — try multiple field name formats
-            # AitoEarn may use 'fileName' (camelCase) or 'filename' (lowercase)
-            sign = None
-            for payload in [
-                {"fileName": filename, "type": asset_type, "size": file_size},
-                {"fileName": filename, "fileType": asset_type, "size": file_size},
-                {"filename": filename, "type": asset_type, "size": file_size},
-                {"filename": filename, "contentType": "video/mp4", "type": asset_type},
-            ]:
-                sign = await self._call("POST", "/api/assets/uploadSign", payload)
-                if sign["ok"] and sign.get("data") and isinstance(sign["data"], dict) and sign["data"].get("uploadUrl"):
-                    break
-                logger.info(f"uploadSign attempt with {list(payload.keys())} → ok={sign.get('ok')}, has_data={bool(sign.get('data'))}")
+            # Step 1: Get upload signature (API uses lowercase 'filename')
+            sign = await self._call("POST", "/api/assets/uploadSign", {"filename": filename, "type": asset_type, "size": file_size})
 
-            # Fallback: if uploadSign returns empty data (API key scope issue), use public URL
+            # Fallback: if uploadSign fails, try public URL
             if not sign or not sign.get("ok") or not isinstance(sign.get("data"), dict) or not sign["data"].get("uploadUrl"):
                 if public_url:
-                    logger.warning(f"uploadSign failed/empty — falling back to public URL: {public_url}")
+                    logger.warning(f"uploadSign failed — falling back to public URL: {public_url}")
                     return public_url
                 logger.error(f"uploadSign failed and no public_url fallback: {sign.get('error') if sign else 'no response'}")
                 return None
@@ -293,8 +282,7 @@ class AitoEarnClient:
         self,
         video_path: str,
         caption: str,
-        account_id: str = "",
-        platform: str = "tiktok",
+        items: List[Dict] = None,
         hashtags: List[str] = None,
         schedule_at: str = None,
         publish_immediately: bool = True,
@@ -303,33 +291,50 @@ class AitoEarnClient:
     ) -> Dict[str, Any]:
         """One-shot: upload video + create flow + optionally publish now.
         
-        This is the main entry point for the publisher.
-        
-        Auto-resolves account_id from platform if not provided.
-        Returns {success, flow_id, task_id, platform_work_id, error}
+        Supports multi-platform via items=[{platform, accountId}, ...]
+        Falls back to legacy single platform (tiktok) if items is None.
+        Returns {success, flow_id, tasks, platforms, error}
         """
-        # 0. Resolve account_id if not provided
-        if not account_id:
+        # 0. Resolve items from platforms/accounts
+        if items is None:
+            # Legacy: resolve from single platform
+            platform = "tiktok"
             acct = self.get_account_for_platform(platform)
             if not acct:
-                # Try to refresh cache
                 await self.list_accounts(use_cache=False)
                 acct = self.get_account_for_platform(platform)
             if acct:
-                account_id = acct.get("id", "")
-                logger.info(f"Auto-resolved {platform} account: {account_id} ({acct.get('nickname')})")
+                items = [{"platform": platform, "accountId": acct.get("id", "")}]
             else:
-                return {"success": False, "error": f"No active {platform} account connected. Please connect via AitoEarn first."}
-        
-        # 1. Upload if local file (with public URL fallback for API scope issues)
+                return {"success": False, "error": f"No active {platform} account connected"}
+        else:
+            # Multi-platform: resolve any missing accountIds
+            for item in items:
+                if not item.get("accountId"):
+                    plat = item.get("platform", "tiktok")
+                    acct = self.get_account_for_platform(plat)
+                    if not acct:
+                        await self.list_accounts(use_cache=False)
+                        acct = self.get_account_for_platform(plat)
+                    if acct:
+                        item["accountId"] = acct.get("id", "")
+                        logger.info(f"Auto-resolved {plat} account: {item['accountId']}")
+                    else:
+                        logger.warning(f"No active {plat} account — skipping")
+
+        # Filter valid items only
+        items = [i for i in items if i.get("accountId")]
+        if not items:
+            return {"success": False, "error": "No valid platform accounts for publishing"}
+
+        logger.info(f"Publishing to: {[i['platform'] for i in items]}")
+
+        # 1. Upload to AitoEarn asset storage (local file only)
         video_url = video_path
         if not video_path.startswith("http"):
-            # Build public URL fallback: /api/tiktok/static/videos/filename → m2igen.com
-            filename = Path(video_path).name
-            public_fallback = f"https://m2igen.com/api/tiktok/static/videos/{filename}"
-            uploaded = await self.upload_asset(video_path, public_url=public_fallback)
+            uploaded = await self.upload_asset(video_path)
             if not uploaded:
-                return {"success": False, "error": "Asset upload failed"}
+                return {"success": False, "error": "Asset upload failed — m2igen.com URLs not allowed by AitoEarn"}
             video_url = uploaded
 
         # 2. Build caption with hashtags
@@ -339,17 +344,14 @@ class AitoEarnClient:
             tags = " ".join(f"#{t.strip('#')}" for t in hashtags)
             full_body = f"{full_body} {tags}"
 
-        # 3. Create publish flow
+        # 3. Create publish flow (multi-platform via items[])
         flow = await self.create_publish_flow(
             content={
                 "title": full_title,
                 "body": full_body[:2200],
                 "media": [{"url": video_url}],
             },
-            items=[{
-                "platform": platform,
-                "accountId": account_id,
-            }],
+            items=items,
             publish_at=schedule_at,
         )
 
@@ -358,22 +360,25 @@ class AitoEarnClient:
 
         flow_data = flow["data"]
         tasks = flow_data.get("tasks", [])
-        task = tasks[0] if tasks else {}
-        task_id = task.get("id", "")
 
         result = {
             "success": True,
             "flow_id": flow_data.get("flowId", ""),
-            "task_id": task_id,
-            "platform_work_id": task.get("platformWorkId", ""),
-            "status": task.get("status"),
+            "tasks": tasks,
+            "platforms": [t.get("platform") for t in tasks],
         }
 
-        # 4. Publish immediately if requested
-        if publish_immediately and task_id:
-            pub = await self.publish_now(task_id)
-            if pub["ok"]:
-                result["published_now"] = True
+        # 4. Publish immediately if requested (all tasks)
+        if publish_immediately:
+            for task in tasks:
+                task_id = task.get("id", "")
+                if task_id:
+                    pub = await self.publish_now(task_id)
+                    if pub["ok"]:
+                        logger.info(f"Published {task.get('platform')} ({task_id})")
+                    else:
+                        logger.warning(f"publishNow {task.get('platform')} failed: {pub['error']}")
+            result["published_now"] = True
 
         return result
 

@@ -104,8 +104,25 @@ class PublisherScheduler:
         # scheduled — already passed schedule_at, add small random delay
         return random.randint(0, min(RANDOM_WINDOW_MINUTES * 60, 600))
 
+    async def _get_all_platform_items(self) -> List[Dict]:
+        """Get publish items for all connected active platforms."""
+        try:
+            accounts = await self.poster.aitoearn.list_accounts()
+            items = []
+            for a in accounts:
+                if a.get("status") == 1:
+                    items.append({
+                        "platform": a.get("type", ""),
+                        "accountId": a.get("id", ""),
+                        "nickname": a.get("nickname", ""),
+                    })
+            return items
+        except Exception as e:
+            logger.warning(f"Failed to get platform accounts: {e}")
+            return []
+
     async def _post_one(self, post: dict):
-        """Post a single video to TikTok."""
+        """Post a single video to ALL connected platforms (multi-platform)."""
         post_id = post["id"]
         video_path = post["video_path"]
         caption = post.get("caption", "")
@@ -126,22 +143,30 @@ class PublisherScheduler:
         logger.info(f"📤 Posting {post_id}: {os.path.basename(video_path)}")
 
         try:
+            # Build multi-platform items from all connected accounts
+            items = await self._get_all_platform_items()
+            if not items:
+                # Fallback: use queue platform
+                items = None
+                logger.info("No platform items found — using queue platform only")
+
             result = await self.poster.post(
                 video_path=video_path,
                 caption=caption,
                 title=post.get("title", ""),
                 description=post.get("description", ""),
+                items=items,
                 platform=post.get("platform", "tiktok"),
                 account_id=post.get("account_id", ""),
                 hashtags=hashtags,
             )
 
             if result.get("success"):
-                publish_id = result.get("task_id") or result.get("flow_id") or ""
-                post_url = result.get("platform_work_id") or ""
-                mark_posted(post_id, publish_id, post_url)
+                flow_id = result.get("flow_id", "")
+                platforms = result.get("platforms", [])
+                mark_posted(post_id, flow_id, "")
                 self._stats["posted"] += 1
-                logger.info(f"✅ {post_id} posted via {result.get('method', '?')} — {publish_id}")
+                logger.info(f"✅ {post_id} posted to {platforms} via {result.get('method', '?')} — flow={flow_id}")
             else:
                 mark_failed(post_id, result.get("error", "Unknown error"))
                 self._stats["failed"] += 1

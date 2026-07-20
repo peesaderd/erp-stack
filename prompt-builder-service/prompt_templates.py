@@ -55,13 +55,7 @@ STYLE_MAP = {
         "keywords": "ASMR, texture close-up, satisfying sounds, product details",
         "video_motion": "very slow pan across product texture, product being clicked/opened/closed, slow-motion liquid flow",
     },
-    "split_comparison": {
-        "model_action": "before and after comparison, showing old way vs new way, split screen effect",
-        "camera": "two shots side by side, same framing for before and after",
-        "vibe": "dramatic, transformative, convincing",
-        "keywords": "before after, comparison, transformation, old vs new",
-        "video_motion": "split screen motion, left side showing struggle, right side showing ease, wipe transition effect",
-    },
+
     "street_interview": {
         "model_action": "excited reaction, showing product as if discovered randomly, genuine surprise",
         "camera": "shaky handheld style, vlog style, product front and center",
@@ -86,26 +80,30 @@ STYLE_MAP = {
 }
 
 
-UGC_STYLE_FOLDER = {
-    "holding": "Holding_Product",
-    "review": "UGC_Review",
-    "usage": "Product_Usage",
-    "talking": "UGC_Review",
-    "pov_lifehack": "POV_Lifehack",
-    "asmr_texture": "ASMR_Texture",
-    "split_comparison": "Split_Comparison",
-    "street_interview": "Street_Interview",
-    "greenscreen_react": "Greenscreen_React",
-    "aesthetic_vlog": "Aesthetic_Vlog",
-}
+CONFIG_PATH = BASE_DIR / "style_config.json"
 
+def _load_style_config() -> dict:
+    if CONFIG_PATH.exists():
+        try:
+            with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {"styles": {}, "default_folder": "UGC_Review"}
+
+_STYLE_CFG = _load_style_config()
+_STYLE_MAP = {
+    k: v["folder"]
+    for k, v in _STYLE_CFG.get("styles", {}).items()
+    if v.get("enabled", True)
+}
 
 def load_ugc_templates(style: str) -> dict:
     """Load UGC_prompts/{style}/ template files into a dict.
 
     Returns: { 'system': str, 'master': str, 'user.template': str, 'negative': str }
     """
-    folder_name = UGC_STYLE_FOLDER.get(style, "UGC_Review")
+    folder_name = _STYLE_MAP.get(style, _STYLE_CFG.get("default_folder", "UGC_Review"))
     base = UGC_DIR / folder_name
     result = {}
     for name in ["system", "master", "user.template", "negative"]:

@@ -1,0 +1,15 @@
+{
+  "styles": {
+    "holding": { "folder": "Holding_Product", "enabled": true },
+    "review": { "folder": "UGC_Review", "enabled": true },
+    "usage": { "folder": "Product_Usage", "enabled": true },
+    "talking": { "folder": "UGC_Review", "enabled": true },
+    "pov_lifehack": { "folder": "POV_Lifehack", "enabled": true },
+    "asmr_texture": { "folder": "ASMR_Texture", "enabled": true },
+    "split_comparison": { "folder": "Split_Comparison", "enabled": false },
+    "street_interview": { "folder": "Street_Interview", "enabled": true },
+    "greenscreen_react": { "folder": "Greenscreen_React", "enabled": true },
+    "aesthetic_vlog": { "folder": "Aesthetic_Vlog", "enabled": true }
+  },
+  "default_folder": "UGC_Review"
+}

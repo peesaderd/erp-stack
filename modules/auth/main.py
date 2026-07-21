@@ -824,11 +824,18 @@ async def google_callback(code: str, state: Optional[str] = None, db: AsyncSessi
         if provider_link:
             user_result = await db.execute(select(User).where(User.id == provider_link.user_id))
             user = user_result.scalar_one_or_none()
+            # Update name and avatar from provider
+            if user:
+                if name: user.name = name
+                if avatar_url: user.avatar_url = avatar_url
         else:
             user_result = await db.execute(select(User).where(User.email == email))
             user = user_result.scalar_one_or_none()
             
             if user:
+                # Existing user: add provider link + update name/avatar
+                if name: user.name = name
+                if avatar_url: user.avatar_url = avatar_url
                 link = AuthProvider(
                     user_id=user.id,
                     provider="google",
@@ -936,11 +943,16 @@ async def facebook_callback(code: str, state: Optional[str] = None, db: AsyncSes
         if provider_link:
             user_result = await db.execute(select(User).where(User.id == provider_link.user_id))
             user = user_result.scalar_one_or_none()
+            if user:
+                if name: user.name = name
+                if avatar_url: user.avatar_url = avatar_url
         else:
             user_result = await db.execute(select(User).where(User.email == email))
             user = user_result.scalar_one_or_none()
             
             if user:
+                if name: user.name = name
+                if avatar_url: user.avatar_url = avatar_url
                 link = AuthProvider(
                     user_id=user.id,
                     provider="facebook",
@@ -1048,11 +1060,16 @@ async def line_callback(code: str, state: Optional[str] = None, db: AsyncSession
         if provider_link:
             user_result = await db.execute(select(User).where(User.id == provider_link.user_id))
             user = user_result.scalar_one_or_none()
+            if user:
+                if name: user.name = name
+                if avatar_url: user.avatar_url = avatar_url
         else:
             user_result = await db.execute(select(User).where(User.email == email))
             user = user_result.scalar_one_or_none()
             
             if user:
+                if name: user.name = name
+                if avatar_url: user.avatar_url = avatar_url
                 link = AuthProvider(
                     user_id=user.id,
                     provider="line",

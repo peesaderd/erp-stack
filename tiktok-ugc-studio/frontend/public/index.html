@@ -487,8 +487,10 @@ select.input { cursor: pointer; }
 .mobile-tab-bar { display: none; }
 
 @media (max-width: 768px) {
-  .page { padding: 20px 20px calc(120px + env(safe-area-inset-bottom, 0px)); }
-  .main { scroll-padding-bottom: 140px; }
+  .page { padding: 20px 20px calc(140px + env(safe-area-inset-bottom, 0px)); }
+  .main { scroll-padding-bottom: 160px; }
+  #pipelineJobList { padding-bottom: 80px; }
+  #pub-videos-grid { padding-bottom: 80px; }
   .step-content { padding-bottom: 20px; }
   .step-content .btn-primary:last-child { margin-bottom: 10px; }
   .topbar-nav { display: none !important; }
@@ -1767,23 +1769,19 @@ select.input { cursor: pointer; }
 <div id="page-assets" class="page">
   <div class="page-header">
     <div><h2>Asset Library</h2><p>Browse generated images, videos, and audio assets</p></div>
-    <div class="flex gap-2">
+  </div>
+
+  <!-- Filter tabs + Total (inline) -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:8px">
+    <div class="filter-tabs" style="margin-bottom:0" id="assetFilterTabs">
+      <span class="filter-tab active" data-asset-type="all" onclick="filterAssets('all')">All</span>
+      <span class="filter-tab" data-asset-type="images" onclick="filterAssets('images')">📷 Images <span id="assetImgCount" style="font-weight:600;margin-left:4px;font-size:12px;opacity:0.7">-</span></span>
+      <span class="filter-tab" data-asset-type="videos" onclick="filterAssets('videos')">🎬 Videos <span id="assetVidCount" style="font-weight:600;margin-left:4px;font-size:12px;opacity:0.7">-</span></span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:13px;font-weight:700;color:var(--text-secondary)">📦 Total: <span id="assetTotalCount">-</span></span>
       <button class="btn btn-primary btn-sm" onclick="loadAssets(currentAssetFilter)">🔄 Refresh</button>
     </div>
-  </div>
-
-  <!-- Stats row -->
-  <div class="stats-grid mb-4" id="assetStats">
-    <div class="stat-card"><div class="stat-value" id="assetImgCount">-</div><div class="stat-label">Images</div></div>
-    <div class="stat-card"><div class="stat-value" id="assetVidCount">-</div><div class="stat-label">Videos</div></div>
-    <div class="stat-card"><div class="stat-value" id="assetTotalCount">-</div><div class="stat-label">Total Assets</div></div>
-  </div>
-
-  <!-- Filter tabs -->
-  <div class="filter-tabs" id="assetFilterTabs">
-    <span class="filter-tab active" data-asset-type="all" onclick="filterAssets('all')">All</span>
-    <span class="filter-tab" data-asset-type="images" onclick="filterAssets('images')">📷 Images</span>
-    <span class="filter-tab" data-asset-type="videos" onclick="filterAssets('videos')">🎬 Videos</span>
   </div>
 
   <!-- Gallery grid -->
@@ -4421,7 +4419,10 @@ function renderAssets(type) {
 
     return '<div class="asset-card" onclick="openAssetLightbox(' + idx + ')">'
       + '<div class="asset-thumb">'
-      + '<img src="' + url + '" alt="' + (item.name || '') + '" loading="lazy" onerror="this.style.display=\'none\'" crossorigin="anonymous">'
+      + (showPlay
+        ? '<video src="' + url + '" muted preload="metadata" style="width:100%;height:100%;object-fit:cover;pointer-events:none"></video>'
+        : '<img src="' + url + '" alt="' + (item.name || '') + '" loading="lazy" onerror="this.style.display=\'none\'" crossorigin="anonymous">'
+      )
       + (showPlay ? '<div class="asset-play-overlay">▶️</div>' : '')
       + '<span class="asset-type-badge">' + badgeIcon + '</span>'
       + '</div>'

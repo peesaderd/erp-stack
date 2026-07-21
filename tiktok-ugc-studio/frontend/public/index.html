@@ -2924,6 +2924,7 @@ async function loadPipelineDetail(jobId) {
       if (sdata.product_name) logs.product_title = logs.product_title || sdata.product_name;
       if (sdata.product_image) logs.product_img_web_url = logs.product_img_web_url || toWebUrl(sdata.product_image);
       if (sdata.generated_image_path || sdata.image_path) logs.image_web_url = logs.image_web_url || toWebUrl(sdata.generated_image_path || sdata.image_path);
+      if (sdata.image_url && !logs.image_web_url) logs.image_web_url = sdata.image_url;
       if (sdata.image_prompt) logs.image_prompt = logs.image_prompt || sdata.image_prompt;
       if (sdata.video_prompt) logs.video_prompts = logs.video_prompts || sdata.video_prompt;
       if (sdata.script) logs.script = logs.script || sdata.script;
@@ -2957,6 +2958,7 @@ async function loadPipelineDetail(jobId) {
       if (m.negative_prompt) logs.negative_prompt = logs.negative_prompt || m.negative_prompt;
       if (m.aspect_ratio) logs.aspect_ratio = logs.aspect_ratio || m.aspect_ratio;
       if (m.ugc_style) logs.ugc_style = logs.ugc_style || m.ugc_style;
+      if (m.image_url) logs.image_web_url = logs.image_web_url || m.image_url;
     }
     // Also try metadata.product_url as product image
     if (!logs.product_img_web_url && job.product_url && job.product_url.match(/\.(jpg|jpeg|png|gif|webp)/i)) {

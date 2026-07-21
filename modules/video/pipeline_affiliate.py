@@ -850,6 +850,17 @@ def run_pipeline(
         img_url, cost_image = generate_image(image_prompt, product_image)
         img_path = TMP_DIR / f"image_{run_id}.png"
         download_file(img_url, img_path)
+
+        # Save image to permanent storage (not just tmp)
+        IMAGES_DIR = STORAGE_DIR / "images"
+        IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+        perm_img_path = IMAGES_DIR / f"image_{run_id}.png"
+        try:
+            shutil.copy2(img_path, perm_img_path)
+            logger.info(f"  Image saved permanently: {perm_img_path}")
+        except Exception as e:
+            logger.warning(f"  Failed to save image permanently: {e}")
+
         image_duration = int((time.time() - step_start) * 1000)
 
         try:
@@ -960,6 +971,7 @@ def run_pipeline(
             "recipe": recipe_name,
             "script": script,
             "image_path": str(img_path),
+            "perm_image_path": str(perm_img_path),
             "video_paths": video_paths,
             "job_id": job_id,
         }

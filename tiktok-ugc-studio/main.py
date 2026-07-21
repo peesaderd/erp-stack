@@ -30,6 +30,7 @@ from pipeline_db import (
     get_job as _get_pipeline_job,
     list_jobs as _list_pipeline_jobs,
     enrich_from_logs as _enrich_job_from_logs_db,
+    _path_to_web_url,
 )
 from tiktok_accounts import (
     list_accounts as _list_tiktok_accounts,
@@ -399,7 +400,21 @@ def pipeline_list(limit: int = 20):
         (limit,)
     ).fetchall()
     conn.close()
-    return {"success": True, "jobs": [{"job_id": r[0], "account_id": r[1], "status": r[2], "product_url": r[3], "created_at": r[4], "updated_at": r[5]} for r in rows]}
+    jobs = []
+    for r in rows:
+        job = {"job_id": r[0], "account_id": r[1], "status": r[2], "product_url": r[3], "created_at": r[4], "updated_at": r[5], "product_image": "", "generated_image": ""}
+        # Try to enrich with images from pipeline_logs.db
+        try:
+            lconn = sqlite3.connect(str(LOGS_DB_PATH))
+            lrow = lconn.execute("SELECT product_image_path, generated_image_path FROM pipeline_jobs WHERE job_id = ?", (r[0],)).fetchone()
+            lconn.close()
+            if lrow:
+                job["product_image"] = _path_to_web_url(lrow[0]) if lrow[0] else ""
+                job["generated_image"] = _path_to_web_url(lrow[1]) if lrow[1] else ""
+        except Exception:
+            pass
+        jobs.append(job)
+    return {"success": True, "jobs": jobs}
 
 @app.post("/pipeline/run")
 async def run_full_pipeline(req: FullPipelineRequest):

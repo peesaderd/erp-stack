@@ -183,12 +183,14 @@ async def auth_me(request: Request):
     return await _auth_json("GET", "/api/v1/auth/me", headers=hdrs)
 
 @app.post("/api/auth/biometric/register/begin")
-async def auth_biometric_register_begin(req: dict):
-    return await _auth_json("POST", "/api/v1/auth/biometric/register/begin", req=req)
+async def auth_biometric_register_begin(req: dict, request: Request):
+    hdrs = {"Authorization": request.headers.get("authorization", "")}
+    return await _auth_json("POST", "/api/v1/auth/biometric/register/begin", req=req, headers=hdrs)
 
 @app.post("/api/auth/biometric/register/complete")
-async def auth_biometric_register_complete(req: dict):
-    return await _auth_json("POST", "/api/v1/auth/biometric/register/complete", req=req)
+async def auth_biometric_register_complete(req: dict, request: Request):
+    hdrs = {"Authorization": request.headers.get("authorization", "")}
+    return await _auth_json("POST", "/api/v1/auth/biometric/register/complete", req=req, headers=hdrs)
 
 @app.post("/api/auth/biometric/login/begin")
 async def auth_biometric_login_begin(req: dict):

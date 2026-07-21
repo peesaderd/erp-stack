@@ -2930,8 +2930,8 @@ async function loadPipelineDetail(jobId) {
   promptsSection.style.display = 'block';
   hashtagsSection.style.display = 'block';
   costsSection.style.display = 'block';
-  retryBtn.style.display = 'none';
-  cancelBtn.style.display = 'none';
+  if (retryBtn) retryBtn.style.display = 'none';
+  if (cancelBtn) cancelBtn.style.display = 'none';
 
   try {
     const res = await fetch(API + '/pipeline/detail/' + jobId);
@@ -3001,10 +3001,10 @@ async function loadPipelineDetail(jobId) {
     accountEl.innerHTML = '👤 ' + (job.account_id || '—') + (job.product_url ? ' · 📦 ' + job.product_url.slice(0, 60) : '');
 
     // Retry / Cancel buttons
-    if (job.status === 'error' || job.status === 'restarted') {
+    if ((job.status === 'error' || job.status === 'restarted') && retryBtn) {
       retryBtn.style.display = 'inline-flex';
     }
-    if (job.status === 'running' || job.status === 'pending') {
+    if ((job.status === 'running' || job.status === 'pending') && cancelBtn) {
       cancelBtn.style.display = 'inline-flex';
     }
 
@@ -5859,10 +5859,10 @@ async function scoutQuickClone() {
   main.addEventListener('touchmove', function(e) {
     if (!pulling) return;
     var dy = e.touches[0].clientY - sy;
-    if (dy > 20 && !firstMoved) firstMoved = true;
-    if (firstMoved && dy > 0) {
+    if (dy > 80 && !firstMoved) firstMoved = true;
+    if (firstMoved && dy > 80) {
       ptr.style.top = Math.min(Math.max(dy - 50, -50), 0) + 'px';
-      ptr.textContent = dy >= 150 ? '↻ ปล่อยเพื่อรีเฟรช' : '↓ ดึงเพื่อรีเฟรช';
+      ptr.textContent = dy >= 200 ? '↻ ปล่อยเพื่อรีเฟรช' : '↓ ดึงเพื่อรีเฟรช';
     }
   }, {passive:true});
 
@@ -5870,7 +5870,7 @@ async function scoutQuickClone() {
     if (!pulling) return;
     var dy = e.changedTouches[0].clientY - sy;
     pulling = false;
-    if (firstMoved && dy >= 150) {
+    if (firstMoved && dy >= 200) {
       ptr.textContent = '↻ กำลังรีเฟรช...';
       ptr.style.top = '0';
       var active = document.querySelector('.page.active');

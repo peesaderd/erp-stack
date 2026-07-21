@@ -698,6 +698,7 @@ def compose_video(
                     "-map", "[out]",
                     "-c:v", "copy",
                     "-c:a", "aac",
+                    "-movflags", "+faststart",
                     "-shortest",
                     str(bgm_output),
                 ]
@@ -714,6 +715,7 @@ def compose_video(
                         "-i", str(bgm_path),
                         "-c:v", "copy",
                         "-c:a", "aac",
+                        "-movflags", "+faststart",
                         "-map", "0:v:0",
                         "-map", "1:a:0",
                         "-shortest",

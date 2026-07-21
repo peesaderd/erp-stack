@@ -2882,14 +2882,12 @@ async function loadPipelineJobs() {
           }
         </div>
         <div style="flex:1;display:flex;flex-direction:column;gap:4px;min-width:0;padding-left:10px">
-          <div class="job-meta" style="font-size:11px;color:var(--text-secondary);white-space:nowrap">
-            <span>🕐 ${timeAgo}</span>
-            <span style="margin-left:10px">📋 ${j.job_id}</span>
-          </div>
-          <div style="display:flex;gap:4px;align-items:center">
-            <button class="btn btn-primary btn-sm" onclick="loadPipelineDetail('${j.job_id}')" style="padding:5px 12px;font-size:12px">📋 ดู</button>
-            ${j.status === 'error' || j.status === 'restarted' ? `<button class="btn btn-sm" onclick="retryJob('${j.job_id}')" style="padding:5px 10px;font-size:11px">🔄</button>` : ''}
-            ${j.status === 'running' || j.status === 'pending' ? `<button class="btn btn-sm" onclick="cancelJobFromList('${j.job_id}')" style="padding:5px 10px;font-size:11px;color:var(--color-red-500)">✖</button>` : ''}
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11px;color:var(--text-secondary)">
+            <span style="white-space:nowrap">🕐 ${timeAgo}</span>
+            <button class="btn btn-primary btn-sm" onclick="loadPipelineDetail('${j.job_id}')" style="padding:3px 10px;font-size:11px">📋 ดู</button>
+            <span style="white-space:nowrap">📋 ${j.job_id}</span>
+            ${j.status === 'error' || j.status === 'restarted' ? `<button class="btn btn-sm" onclick="retryJob('${j.job_id}')" style="padding:3px 8px;font-size:11px">🔄</button>` : ''}
+            ${j.status === 'running' || j.status === 'pending' ? `<button class="btn btn-sm" onclick="cancelJobFromList('${j.job_id}')" style="padding:3px 8px;font-size:11px;color:var(--color-red-500)">✖</button>` : ''}
           </div>
         </div>
       </div>`;

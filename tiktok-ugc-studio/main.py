@@ -1670,8 +1670,36 @@ async def track_event():
 
 @app.get("/pipeline/assets")
 async def pipeline_assets():
-    """Get pipeline assets list."""
-    return {"assets": [], "count": 0}
+    """List generated images + videos from storage for Asset Gallery."""
+    try:
+        images = []
+        if IMAGES_DIR.exists():
+            for f in sorted(IMAGES_DIR.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True)[:100]:
+                if f.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp"):
+                    images.append({
+                        "name": f.name,
+                        "path": f"images/{f.name}",
+                        "url": f"/api/tiktok/static/images/{f.name}",
+                        "size": f.stat().st_size,
+                        "created": datetime.fromtimestamp(f.stat().st_mtime).isoformat(),
+                    })
+
+        videos = []
+        if VIDEOS_DIR.exists():
+            for f in sorted(VIDEOS_DIR.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True)[:100]:
+                if f.suffix.lower() == ".mp4":
+                    videos.append({
+                        "name": f.name,
+                        "path": f"videos/{f.name}",
+                        "url": f"/api/tiktok/static/videos/{f.name}",
+                        "size": f.stat().st_size,
+                        "created": datetime.fromtimestamp(f.stat().st_mtime).isoformat(),
+                    })
+
+        return {"success": True, "images": images, "videos": videos}
+    except Exception as e:
+        logger.error(f"pipeline/assets error: {e}")
+        return {"success": False, "images": [], "videos": [], "error": str(e)}
 
 @app.get("/posts/scheduled")
 async def posts_scheduled():

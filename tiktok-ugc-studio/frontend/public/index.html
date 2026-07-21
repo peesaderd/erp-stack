@@ -2859,17 +2859,21 @@ async function loadPipelineJobs() {
       const badgeCls = statusBadgeClass(j.status);
       const icon = statusIcon(j.status);
       const timeAgo = timeSince(j.created_at);
-      const prodName = (j.product_url || '').replace(/^https?:\/\//i, '').slice(0, 45);
-      const hasProdName = prodName && !prodName.includes('...') && prodName.length > 5;
+      const title = j.product_title || '';
       const prodImg = j.product_image || '';
       const genImg = j.generated_image || '';
       const hasProd = prodImg ? true : false;
       const hasGen = genImg ? true : false;
       const hasBoth = hasProd && hasGen;
-      return `<div class="pipeline-job-card">
-        <div style="${hasBoth ? 'width:96px;' : 'width:48px;'}height:48px;min-width:${hasBoth ? '96px' : '48px'};border-radius:10px;background:var(--bg-tertiary);overflow:hidden;position:relative;border:1px solid var(--border-primary);display:flex;align-items:center;justify-content:center">
+      const imgW = hasBoth ? 96 : 48;
+      return `<div class="pipeline-job-card" style="flex-wrap:wrap">
+        <div style="width:100%;display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <div class="job-id" style="flex:1;font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${title || j.job_id}</div>
+          <span class="badge ${badgeCls}" style="flex-shrink:0;font-size:11px">${icon} ${j.status}</span>
+        </div>
+        <div style="width:${imgW}px;height:48px;min-width:${imgW}px;border-radius:10px;overflow:hidden;border:1px solid var(--border-primary);display:flex;align-items:center;justify-content:center;background:var(--bg-tertiary);flex-shrink:0">
           ${hasBoth
-            ? `<div style="width:48px;height:48px;min-width:48px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:var(--bg-tertiary)"><img src="${prodImg}" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'"></div><div style="width:1px;height:40px;background:var(--border-primary);flex-shrink:0"></div><div style="width:48px;height:48px;min-width:48px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:var(--bg-tertiary)"><img src="${genImg}" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'"></div>`
+            ? `<div style="width:48px;height:48px;min-width:48px;display:flex;align-items:center;justify-content:center;overflow:hidden"><img src="${prodImg}" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'"></div><div style="width:1px;height:40px;background:var(--border-primary);flex-shrink:0"></div><div style="width:48px;height:48px;min-width:48px;display:flex;align-items:center;justify-content:center;overflow:hidden"><img src="${genImg}" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'"></div>`
             : hasProd
               ? `<img src="${prodImg}" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none';this.parentElement.innerHTML='${icon}'">`
               : hasGen
@@ -2877,18 +2881,16 @@ async function loadPipelineJobs() {
                 : `<span style="font-size:20px">${icon}</span>`
           }
         </div>
-        <div class="job-info" style="min-width:0;padding-left:4px">
-          <div class="job-id" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px">${hasProdName ? prodName : j.job_id}</div>
-          <div class="job-meta" style="font-size:11px;color:var(--text-secondary)">
-            <span class="badge ${badgeCls}">${icon} ${j.status}</span>
-            <span style="margin-left:8px">🕐 ${timeAgo}</span>
-            <span style="margin-left:8px">📋 ${j.job_id}</span>
+        <div style="flex:1;display:flex;flex-direction:column;gap:4px;min-width:0;padding-left:10px">
+          <div class="job-meta" style="font-size:11px;color:var(--text-secondary);white-space:nowrap">
+            <span>🕐 ${timeAgo}</span>
+            <span style="margin-left:10px">📋 ${j.job_id}</span>
           </div>
-        </div>
-        <div class="job-actions" style="flex-shrink:0;display:flex;gap:4px">
-          <button class="btn btn-primary btn-sm" onclick="loadPipelineDetail('${j.job_id}')" style="padding:5px 12px;font-size:12px">📋 ดู</button>
-          ${j.status === 'error' || j.status === 'restarted' ? `<button class="btn btn-sm" onclick="retryJob('${j.job_id}')" style="padding:5px 10px;font-size:11px">🔄</button>` : ''}
-          ${j.status === 'running' || j.status === 'pending' ? `<button class="btn btn-sm" onclick="cancelJobFromList('${j.job_id}')" style="padding:5px 10px;font-size:11px;color:var(--color-red-500)">✖</button>` : ''}
+          <div style="display:flex;gap:4px;align-items:center">
+            <button class="btn btn-primary btn-sm" onclick="loadPipelineDetail('${j.job_id}')" style="padding:5px 12px;font-size:12px">📋 ดู</button>
+            ${j.status === 'error' || j.status === 'restarted' ? `<button class="btn btn-sm" onclick="retryJob('${j.job_id}')" style="padding:5px 10px;font-size:11px">🔄</button>` : ''}
+            ${j.status === 'running' || j.status === 'pending' ? `<button class="btn btn-sm" onclick="cancelJobFromList('${j.job_id}')" style="padding:5px 10px;font-size:11px;color:var(--color-red-500)">✖</button>` : ''}
+          </div>
         </div>
       </div>`;
     }).join('');

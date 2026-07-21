@@ -2882,13 +2882,14 @@ async function loadPipelineJobs() {
           }
         </div>
         <div style="flex:1;display:flex;flex-direction:column;gap:4px;min-width:0;padding-left:10px">
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11px;color:var(--text-secondary)">
+          <div style="display:flex;align-items:center;font-size:11px;color:var(--text-secondary);gap:8px">
             <span style="white-space:nowrap">🕐 ${timeAgo}</span>
+            <span style="margin-left:auto"></span>
             <button class="btn btn-primary btn-sm" onclick="loadPipelineDetail('${j.job_id}')" style="padding:3px 10px;font-size:11px">📋 ดู</button>
-            <span style="white-space:nowrap">📋 ${j.job_id}</span>
             ${j.status === 'error' || j.status === 'restarted' ? `<button class="btn btn-sm" onclick="retryJob('${j.job_id}')" style="padding:3px 8px;font-size:11px">🔄</button>` : ''}
             ${j.status === 'running' || j.status === 'pending' ? `<button class="btn btn-sm" onclick="cancelJobFromList('${j.job_id}')" style="padding:3px 8px;font-size:11px;color:var(--color-red-500)">✖</button>` : ''}
           </div>
+          <div style="font-size:11px;color:var(--text-secondary)">📋 ${j.job_id}</div>
         </div>
       </div>`;
     }).join('');

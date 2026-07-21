@@ -477,6 +477,21 @@ async def generate_video(req: VideoRequest):
     # Register in Pipeline Monitor DB
     _create_pipeline_job(account_id="", product_url=req.product_url or req.product_title or "", job_id=job_id)
 
+    # Extract product name from URL if no title given
+    import urllib.parse as _ul
+    _product_title = req.product_title or ""
+    _product_url = req.product_url or ""
+    if not _product_title and _product_url:
+        try:
+            _parsed = _ul.urlparse(_product_url)
+            _parts = [p for p in _parsed.path.split("/") if p]
+            _product_title = _ul.unquote(_parts[-1]) if _parts else ""
+            _product_title = _product_title.replace("-", " ").replace("_", " ").strip()
+        except Exception:
+            _product_title = _product_url.split("/")[-1] or ""
+        if not _product_title or len(_product_title) < 3:
+            _product_title = "สินค้า"
+
     if req.hook and req.value and req.cta:
         script_parts = [req.hook, req.value, req.cta]
         full_script = " ".join(script_parts)
@@ -484,8 +499,8 @@ async def generate_video(req: VideoRequest):
         full_script = req.script
     elif req.prompt:
         full_script = req.prompt
-    elif req.product_title:
-        full_script = f"Check out this {req.product_title}! Amazing quality, great value! Link in bio! 🛍️"
+    elif _product_title:
+        full_script = f"Check out this {_product_title}! Amazing quality, great value! Link in bio! 🛍️"
     else:
         full_script = "Check out this amazing product!"
 
@@ -503,7 +518,7 @@ async def generate_video(req: VideoRequest):
     else:
         scenes = [
             SceneBlock(
-                script=f"{req.hook or ''} Let me show you this!" if req.hook else f"Check out {req.product_title}!",
+                script=f"{req.hook or ''} Let me show you this!" if req.hook else f"Check out {_product_title}!",
                 duration=req.duration // 2,
                 mood="energetic",
                 sound_style="upbeat_pop",
@@ -522,7 +537,7 @@ async def generate_video(req: VideoRequest):
         try:
             _update_pipeline_step(job_id, "prompt_builder", "processing")
             pb_result = await _proxy("POST", "prompt-builder", "/api/v1/build", {
-                "product_name": req.product_title or "",
+                "product_name": _product_title,
                 "description": req.product_description or "",
                 "keywords": req.tags or [],
                 "ugc_style": req.ugc_style or "holding",
@@ -672,7 +687,7 @@ async def generate_video(req: VideoRequest):
         "job_id": job_id,
         "duration": req.duration,
         "metadata_preview": {
-            "product": req.product_title,
+            "product": _product_title,
             "style": req.ugc_style,
             "content_type": req.content_type,
             "scenes": len(scenes),
@@ -1185,10 +1200,36 @@ async def ugc_scripts_generate(req: dict):
     Parses the returned raw script into hook/value/cta for frontend fields.
     """
     import re
+    import urllib.parse
 
+    # Extract product name from URL if no title given
+    product_title = req.get("product_title", req.get("product_name", "") or "")
+    product_url = req.get("product_url", "") or ""
+    if not product_title and product_url:
+        # Extract slug/name from URL path
+        try:
+            parsed = urllib.parse.urlparse(product_url)
+            path_parts = [p for p in parsed.path.split("/") if p]
+            # For Shopee: use last meaningful path segment
+            if "shopee" in parsed.netloc or "shp" in parsed.netloc:
+                # Shopee URLs like /product/123456789/ชื่อสินค้า
+                if len(path_parts) >= 2:
+                    product_title = urllib.parse.unquote(path_parts[-1])
+            elif "lazada" in parsed.netloc:
+                if len(path_parts) >= 2:
+                    product_title = urllib.parse.unquote(path_parts[-1])
+            else:
+                product_title = urllib.parse.unquote(path_parts[-1]) if path_parts else ""
+            product_title = product_title.replace("-", " ").replace("_", " ").strip()
+        except Exception:
+            product_title = product_url.split("/")[-1] or ""
+        # Final fallback: just use a generic name
+        if not product_title or len(product_title) < 3:
+            product_title = f"สินค้าจาก {product_url[:50]}"
+    
     # Map frontend fields → ScriptRequest fields for script_gen
     script_body = {
-        "product_name": req.get("product_title", req.get("product_name", "")),
+        "product_name": product_title,
         "customer_problem": req.get("customer_problem", ""),
         "main_benefit": req.get("product_details", req.get("description", "")),
         "target_audience": req.get("target_audience", ""),
@@ -1257,7 +1298,7 @@ async def ugc_scripts_generate(req: dict):
     mood = ""
     try:
         pb_result = await _proxy("POST", "prompt-builder", "/api/v1/build", {
-            "product_name": req.get("product_title", req.get("product_name", "")),
+            "product_name": product_title,
             "description": req.get("product_details", req.get("description", "")),
             "ugc_style": req.get("ugc_style", "holding"),
         })

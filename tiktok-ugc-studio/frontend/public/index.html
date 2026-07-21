@@ -526,9 +526,9 @@ select.input { cursor: pointer; }
 }
 
 .toast {
-  position: fixed; bottom: 24px; right: 24px; padding: 14px 22px; border-radius: var(--radius);
+  position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); padding: 14px 22px; border-radius: var(--radius);
   font-size: 14px; font-weight: 700; z-index: 100; animation: slideUp 0.3s ease; max-width: 380px;
-  box-shadow: var(--shadow-xl);
+  box-shadow: var(--shadow-xl); text-align: center;
 }
 .toast.success { background: rgba(16, 185, 129, 0.15) !important; color: #065f46 !important; border: 0.5px solid rgba(16, 185, 129, 0.25) !important; }
 .dark-mode .toast.success { color: #34d399 !important; }
@@ -2100,7 +2100,8 @@ async function profileLocalRegister() {
 function showToast(msg, type='info') {
   const el = document.createElement('div'); el.className = 'toast '+type; el.textContent = msg;
   document.body.appendChild(el);
-  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; setTimeout(() => el.remove(),300); }, 3000);
+  const duration = type === 'error' ? 5000 : type === 'info' ? 4000 : 3500;
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; setTimeout(() => el.remove(),300); }, duration);
 }
 
 /* ═══ Button loading state helper ═══ */
@@ -2243,6 +2244,7 @@ async function autoGenerateAll() {
 
   showLoadingOverlay('📝 กำลังสร้างสคริปต์...');
   setButtonLoading('autoGenBtn', true);
+  var partialResults = [];
   try {
     // Step 1: Generate script
     const body = { ugc_style: style, duration: sessionStorage.getItem('selectedDuration') || '8' };
@@ -2257,6 +2259,7 @@ async function autoGenerateAll() {
     });
     if (!scriptRes.ok) throw new Error('Script generation failed');
     const scriptData = await scriptRes.json();
+    partialResults.push('✅ สคริปต์');
 
     // Fill hook/value/cta fields (keep existing if API returns empty)
     if (scriptData.hook) document.getElementById('scriptHook').value = scriptData.hook;
@@ -2296,6 +2299,7 @@ async function autoGenerateAll() {
     if (imgUrl.startsWith('http://localhost:8110/storage/images/')) {
       imgUrl = window.location.origin + '/storage/images/' + imgUrl.split('/').pop();
     }
+    partialResults.push('✅ รูปภาพ');
 
     setButtonLoading('autoGenBtn', false);
 
@@ -2308,10 +2312,12 @@ async function autoGenerateAll() {
     await new Promise(r => setTimeout(r, 600));
     showLoadingOverlay('🚀 AI กำลังสร้างวิดีโอ...');
     await startGeneration();
-    showToast('✅ วิดีโอสร้างเสร็จแล้ว!','success');
+    partialResults.push('✅ วิดีโอ');
+    showToast('✅ All steps done!','success');
   } catch(e) {
-    showToast('❌ Auto Generate Failed: '+e.message,'error');
-    console.error('autoGenerateAll error:', e);
+    var partialMsg = partialResults.length ? ' (สำเร็จ: ' + partialResults.join(', ') + ')' : '';
+    showToast('❌ ' + e.message + partialMsg, 'error');
+    console.error('autoGenerateAll error:', e, 'partialResults:', partialResults);
   } finally {
     setButtonLoading('autoGenBtn', false);
     hideLoadingOverlay();

@@ -521,7 +521,8 @@ async def biometric_register_complete(
     # Store credential
     credential_id_b64 = _base64url_encode(verification.credential_id)
     public_key_b64 = _base64url_encode(verification.credential_public_key)
-    transports = [t.value for t in (verification.transports or [])]
+    # transports come from the browser credential response, not from VerifiedRegistration
+    transports = req.credential.get("response", {}).get("transports", [])
 
     # Check for duplicate
     existing = await db.execute(

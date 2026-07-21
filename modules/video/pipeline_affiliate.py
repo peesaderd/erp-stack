@@ -851,13 +851,21 @@ def run_pipeline(
         img_path = TMP_DIR / f"image_{run_id}.png"
         download_file(img_url, img_path)
 
-        # Save image to permanent storage (not just tmp)
-        IMAGES_DIR = STORAGE_DIR / "images"
-        IMAGES_DIR.mkdir(parents=True, exist_ok=True)
-        perm_img_path = IMAGES_DIR / f"image_{run_id}.png"
+        # Save image to pipeline storage + TUS storage (for web serving)
+        # Pipeline storage
+        PL_IMAGES_DIR = STORAGE_DIR / "images"
+        PL_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+        pl_img_path = PL_IMAGES_DIR / f"image_{run_id}.png"
+        # TUS storage (served via /api/tiktok/static/images/)
+        TUS_IMAGES_DIR = Path(__file__).parent.parent.parent / "tiktok-ugc-studio" / "storage" / "images"
+        TUS_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+        tus_img_path = TUS_IMAGES_DIR / f"image_{run_id}.png"
         try:
-            shutil.copy2(img_path, perm_img_path)
-            logger.info(f"  Image saved permanently: {perm_img_path}")
+            shutil.copy2(img_path, pl_img_path)
+            # Save to TUS storage for web access (skip if same path)
+            if pl_img_path.resolve() != tus_img_path.resolve():
+                shutil.copy2(img_path, tus_img_path)
+            logger.info(f"  Image saved: {pl_img_path}")
         except Exception as e:
             logger.warning(f"  Failed to save image permanently: {e}")
 
@@ -971,7 +979,7 @@ def run_pipeline(
             "recipe": recipe_name,
             "script": script,
             "image_path": str(img_path),
-            "perm_image_path": str(perm_img_path),
+            "perm_image_path": str(tus_img_path),
             "video_paths": video_paths,
             "job_id": job_id,
         }

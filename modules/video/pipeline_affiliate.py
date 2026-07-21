@@ -751,6 +751,7 @@ def run_pipeline(
     ugc_style: str = "holding",
     external_job_id: Optional[str] = None,
     duration: Optional[int] = None,
+    existing_image: Optional[str] = None,
 ) -> dict:
     """
     Run full Affiliate Pipeline v6 (9 Steps ตาม PIPELINE_STRUCTURE.md)
@@ -845,11 +846,19 @@ def run_pipeline(
         except Exception:
             pass
 
-        # ── STEP 5: Generate Image ──
+        # ── STEP 5: Generate Image — or use existing ──
         step_start = time.time()
-        img_url, cost_image = generate_image(image_prompt, product_image)
-        img_path = TMP_DIR / f"image_{run_id}.png"
-        download_file(img_url, img_path)
+        if existing_image:
+            # ใช้รูปที่มีอยู่แล้ว — ดาวน์โหลดตรงๆ ไม่ผ่าน Prodia
+            img_path = TMP_DIR / f"image_{run_id}.png"
+            download_file(existing_image, img_path)
+            cost_image = 0.0
+            img_url = existing_image
+            logger.info(f"  Using existing image (skipped Prodia): {existing_image}")
+        else:
+            img_url, cost_image = generate_image(image_prompt, product_image)
+            img_path = TMP_DIR / f"image_{run_id}.png"
+            download_file(img_url, img_path)
 
         # Save image to pipeline storage + TUS storage (for web serving)
         # Pipeline storage

@@ -306,7 +306,10 @@ async def generate_video(req: VideoRequest):
             product_image=product_image if product_image else None,
             recipe_name=req.recipe or "tus",
             voice="Aoede",
-            bgm_style=req.bgm_style or random.choice(["chill_loft", "luxury_jazz", "upbeat_pop", "energetic_edm", "informative_jazz", "asmr"]),
+            bgm_style=req.bgm_style or random.choices(
+                ["chill_loft", "luxury_jazz", "upbeat_pop", "energetic_edm", "informative_jazz", "asmr"],
+                weights=[20, 20, 25, 15, 15, 5], k=1
+            )[0],
             description=req.product_description or "",
             ugc_style=req.ugc_style or "holding",
             external_job_id=req.job_id,

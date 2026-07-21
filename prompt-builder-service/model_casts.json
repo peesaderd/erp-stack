@@ -1,0 +1,71 @@
+{
+  "_comment": "Model Casting Database — แก้ไข JSON นี้เพื่อเพิ่ม/ลบ/แก้ไขนางแบบได้",
+  "_how_to_add": "เพิ่ม entry ใหม่ใน casts[] โดยกำหนด id, age, appearance (ภาษาไทย), clothing (ภาษาไทย), style (อังกฤษ), image_desc (อังกฤษล้วนสำหรับส่ง Prodia)",
+  "_category_weights": "ดู cat_prefs ใน model_casting.py เพื่อปรับน้ำหนักตามหมวดสินค้า",
+  "casts": [
+    {
+      "id": "clean_girl",
+      "age": "22",
+      "appearance": "สาวไทยผิวสวย หน้าใส ดูเป็นธรรมชาติ",
+      "clothing": "เสื้อยืดสีขาวเรียบหรู",
+      "style": "clean girl aesthetic, minimal makeup, dewy skin",
+      "image_desc": "A beautiful young Thai woman, 22 years old, glowing dewy skin, minimal makeup, clean girl aesthetic, wearing a crisp white t-shirt, holding product at chest level with a bright natural smile, soft natural window lighting, warm inviting atmosphere"
+    },
+    {
+      "id": "korean_trendy",
+      "age": "23",
+      "appearance": "สาวไทยสไตล์เกาหลี หน้าขาว ผิวใส",
+      "clothing": "เสื้อกันหนาว oversized ตัวใหญ่ น่ารัก",
+      "style": "Korean street fashion, trendy, youthful",
+      "image_desc": "A young Thai woman, 23 years old, Korean-inspired style, glowing glass skin, oversized cozy sweater, holding product at chest level with a playful expression, trendy cafe background, soft warm lighting, trendy youthful atmosphere"
+    },
+    {
+      "id": "chic_minimal",
+      "age": "25",
+      "appearance": "สาวไทยสไตล์ชิค เรียบหรู ดูแพง",
+      "clothing": "ชุดสีโทนกลาง ดูมินิมอล แต่หรู",
+      "style": "minimal chic, sophisticated, elegant",
+      "image_desc": "An elegant Thai woman, 25 years old, sophisticated minimal style, wearing a neutral-toned fitted blouse, minimal gold jewelry, holding product at chest level with a confident calm expression, modern minimalist room with soft diffused lighting, premium elegant atmosphere"
+    },
+    {
+      "id": "casual_cool",
+      "age": "21",
+      "appearance": "สาวไทยแนวแคชชวล เท่ สบายๆ",
+      "clothing": "แจ็คเก็ตยีนส์ กางเกงขายาว ดูเท่",
+      "style": "casual cool, relaxed, street style",
+      "image_desc": "A Thai woman, 21 years old, relaxed street style, wearing a denim jacket, holding product casually at chest level, genuine friendly smile, authentic everyday setting, morning daylight, warm casual atmosphere"
+    },
+    {
+      "id": "soft_romantic",
+      "age": "22",
+      "appearance": "สาวไทยสไตล์หวาน อ่อนโยน ผิวพรรณดี",
+      "clothing": "เดรสลูกไม้สีพาสเทล ดูสุภาพออกแนวหวาน",
+      "style": "romantic soft, feminine, dreamy",
+      "image_desc": "A lovely young Thai woman, 22 years old, soft romantic style, wearing a pastel lace dress, holding product gently at chest level, sweet warm smile, fluffy natural texture, bedroom with warm golden sunset lighting, dreamy romantic atmosphere"
+    },
+    {
+      "id": "fashion_forward",
+      "age": "24",
+      "appearance": "สาวไทยสายแฟชั่น ดูแพง ทันสมัย",
+      "clothing": "เบลเซอร์สีครีม ดูดีมีสไตล์",
+      "style": "modern chic, fashion forward, polished",
+      "image_desc": "A stylish Thai woman, 24 years old, fashion-forward look, wearing a cream blazer, polished refined appearance, holding product at chest level with a natural sophisticated smile, modern loft with floor-to-ceiling windows, soft morning light, chic polished atmosphere"
+    },
+    {
+      "id": "sporty_fresh",
+      "age": "23",
+      "appearance": "สาวไทยสายสุขภาพ ผิวมีน้ำมีนวล",
+      "clothing": "ชุดกีฬาสีสันสดใส ดูมีพลัง",
+      "style": "athleisure, fresh, energetic",
+      "image_desc": "A fresh-faced Thai woman, 23 years old, healthy glowing skin, wearing a sporty pastel outfit, holding product at chest level with an energetic bright smile, bright airy room with plants, natural daylight, fresh vibrant atmosphere"
+    },
+    {
+      "id": "campus_babe",
+      "age": "20",
+      "appearance": "สาวมหาลัย วัยรุ่น สดใส ผิวดี",
+      "clothing": "เสื้อโปโลสีอ่อน กระโปรง ดูสุภาพสดใส",
+      "style": "campus fresh, youthful, bright",
+      "image_desc": "A young Thai college student, 20 years old, bright fresh complexion, wearing a light pastel polo and skirt, holding product at chest level with a cute bright expression, university campus or library background, natural daylight, youthful fresh atmosphere"
+    }
+  ]
+}

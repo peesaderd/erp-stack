@@ -980,7 +980,7 @@ async def facebook_callback(code: str, state: Optional[str] = None, db: AsyncSes
 @app.get("/api/v1/auth/line/login")
 async def line_login():
     channel_id = os.environ.get("LINE_CHANNEL_ID")
-    redirect_uri = os.environ.get("LINE_REDIRECT_URI") or "https://openhands.m2igen.com/api/auth/line/callback"
+    redirect_uri = os.environ.get("LINE_REDIRECT_URI") or "https://m2igen.com/api/auth/line/callback"
     if not channel_id:
         raise HTTPException(status_code=400, detail="LINE login not configured on server")
     
@@ -1001,7 +1001,7 @@ async def line_login():
 async def line_callback(code: str, state: Optional[str] = None, db: AsyncSession = Depends(get_db)):
     channel_id = os.environ.get("LINE_CHANNEL_ID")
     channel_secret = os.environ.get("LINE_CHANNEL_SECRET")
-    redirect_uri = os.environ.get("LINE_REDIRECT_URI") or "https://openhands.m2igen.com/api/auth/line/callback"
+    redirect_uri = os.environ.get("LINE_REDIRECT_URI") or "https://m2igen.com/api/auth/line/callback"
     
     if not all([channel_id, channel_secret]):
         raise HTTPException(status_code=500, detail="LINE credentials missing")

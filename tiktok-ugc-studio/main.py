@@ -13,7 +13,7 @@ from fastapi import FastAPI, HTTPException, Query, Request, File, Form, UploadFi
 import asyncpg
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 
 import sys
 sys.path.insert(0, os.path.dirname(__file__))
@@ -151,68 +151,105 @@ except Exception:
 _pipeline_results = {}
 # ─── Auth Proxy Routes ─────────────────────────────────────────────────────
 
+# ─── Auth Proxy: pass through JSON directly (no wrapping) ────────
+
+async def _auth_json(method: str, path: str, req: dict = None, headers: dict = None):
+    """Proxy to auth module, return the response body directly."""
+    base = MODULE_URLS["auth"]
+    url = f"{base}{path}"
+    async with httpx.AsyncClient(timeout=90, verify=False) as cl:
+        if method == "GET":
+            resp = await cl.get(url, headers=headers or {})
+        elif method == "DELETE":
+            resp = await cl.delete(url, headers=headers or {})
+        else:
+            resp = await cl.post(url, json=req or {}, headers=headers or {})
+        if resp.status_code >= 400:
+            return JSONResponse(status_code=resp.status_code, content={"ok": False, "error": resp.text[:300]})
+        return resp.json()
+
 @app.post("/api/auth/register")
 async def auth_register(req: dict):
-    return await _proxy("POST", "auth", "/api/v1/auth/register", req)
+    return await _auth_json("POST", "/api/v1/auth/register", req=req)
 
 @app.post("/api/auth/login")
 async def auth_login(req: dict):
-    return await _proxy("POST", "auth", "/api/v1/auth/login", req)
+    return await _auth_json("POST", "/api/v1/auth/login", req=req)
 
 @app.get("/api/auth/me")
 async def auth_me(request: Request):
-    base = MODULE_URLS["auth"]
-    url = f"{base}/api/v1/auth/me"
-    headers = {"Authorization": request.headers.get("authorization", "")}
-    async with httpx.AsyncClient(timeout=90, verify=False) as client:
-        resp = await client.get(url, headers=headers)
-        if resp.status_code >= 400:
-            return {"ok": False, "status": resp.status_code, "error": resp.text[:300], "data": None}
-        return {"ok": True, "status": resp.status_code, "data": resp.json()}
-
-# ─── Biometric (WebAuthn / Passkeys) ──────────────────────────────────
+    hdrs = {"Authorization": request.headers.get("authorization", "")}
+    return await _auth_json("GET", "/api/v1/auth/me", headers=hdrs)
 
 @app.post("/api/auth/biometric/register/begin")
 async def auth_biometric_register_begin(req: dict):
-    return await _proxy("POST", "auth", "/api/v1/auth/biometric/register/begin", req)
+    return await _auth_json("POST", "/api/v1/auth/biometric/register/begin", req=req)
 
 @app.post("/api/auth/biometric/register/complete")
 async def auth_biometric_register_complete(req: dict):
-    return await _proxy("POST", "auth", "/api/v1/auth/biometric/register/complete", req)
+    return await _auth_json("POST", "/api/v1/auth/biometric/register/complete", req=req)
 
 @app.post("/api/auth/biometric/login/begin")
 async def auth_biometric_login_begin(req: dict):
-    return await _proxy("POST", "auth", "/api/v1/auth/biometric/login/begin", req)
+    return await _auth_json("POST", "/api/v1/auth/biometric/login/begin", req=req)
 
 @app.post("/api/auth/biometric/login/complete")
 async def auth_biometric_login_complete(req: dict):
-    return await _proxy("POST", "auth", "/api/v1/auth/biometric/login/complete", req)
+    return await _auth_json("POST", "/api/v1/auth/biometric/login/complete", req=req)
 
 @app.get("/api/auth/biometric/credentials")
 async def auth_biometric_list_credentials(request: Request):
-    base = MODULE_URLS["auth"]
-    url = f"{base}/api/v1/auth/biometric/credentials"
-    headers = {"Authorization": request.headers.get("authorization", "")}
-    async with httpx.AsyncClient(timeout=30, verify=False) as cl:
-        resp = await cl.get(url, headers=headers)
-        return resp.json()
+    hdrs = {"Authorization": request.headers.get("authorization", "")}
+    return await _auth_json("GET", "/api/v1/auth/biometric/credentials", headers=hdrs)
 
 @app.delete("/api/auth/biometric/credentials/{credential_id}")
 async def auth_biometric_delete_credential(credential_id: str, request: Request):
-    base = MODULE_URLS["auth"]
-    url = f"{base}/api/v1/auth/biometric/credentials/{credential_id}"
-    headers = {"Authorization": request.headers.get("authorization", "")}
-    async with httpx.AsyncClient(timeout=30, verify=False) as cl:
-        resp = await cl.delete(url, headers=headers)
-        return resp.json()
+    hdrs = {"Authorization": request.headers.get("authorization", "")}
+    return await _auth_json("DELETE", f"/api/v1/auth/biometric/credentials/{credential_id}", headers=hdrs)
 
 @app.get("/api/auth/{provider}/login")
 async def auth_oauth_login(provider: str):
-    return await _proxy("GET", "auth", f"/api/v1/auth/{provider}/login")
+    """OAuth login — transparently pass through the redirect from auth module."""
+    base = MODULE_URLS.get("auth")
+    if not base:
+        raise HTTPException(status_code=400, detail="Auth module not configured")
+    url = f"{base}/api/v1/auth/{provider}/login"
+    async with httpx.AsyncClient(timeout=30, verify=False) as client:
+        resp = await client.get(url, follow_redirects=False)
+        # Pass through the redirect (307/302 to Google/LINE)
+        if resp.status_code in (301, 302, 307, 308):
+            location = resp.headers.get("location")
+            if location:
+                return RedirectResponse(url=location, status_code=resp.status_code)
+        # Fallback: try to return as JSON
+        if resp.status_code < 400:
+            try:
+                return {"ok": True, "status": resp.status_code, "data": resp.json()}
+            except:
+                return {"ok": True, "status": resp.status_code, "data": {"text": resp.text}}
+        return {"ok": False, "status": resp.status_code, "error": resp.text[:300], "data": None}
 
 @app.get("/api/auth/{provider}/callback")
 async def auth_oauth_callback(provider: str, code: str = "", state: str = "", error: str = ""):
-    return await _proxy("GET", "auth", f"/api/v1/auth/{provider}/callback?code={code}&state={state}&error={error}")
+    """OAuth callback — transparently pass through redirect."""
+    base = MODULE_URLS.get("auth")
+    if not base:
+        raise HTTPException(status_code=400, detail="Auth module not configured")
+    url = f"{base}/api/v1/auth/{provider}/callback?code={code}&state={state}&error={error}"
+    async with httpx.AsyncClient(timeout=30, verify=False) as client:
+        resp = await client.get(url, follow_redirects=False)
+        # Pass through redirect (usually redirects to frontend with token)
+        if resp.status_code in (301, 302, 307, 308):
+            location = resp.headers.get("location")
+            if location:
+                return RedirectResponse(url=location, status_code=resp.status_code)
+        # Fallback: return as JSON
+        if resp.status_code < 400:
+            try:
+                return {"ok": True, "status": resp.status_code, "data": resp.json()}
+            except:
+                return {"ok": True, "status": resp.status_code, "data": {"text": resp.text}}
+        return {"ok": False, "status": resp.status_code, "error": resp.text[:300], "data": None}
 
 # ─── Health ────────────────────────────────────────────────────────────────
 

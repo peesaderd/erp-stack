@@ -2863,12 +2863,18 @@ async function loadPipelineJobs() {
       const hasProdName = prodName && !prodName.includes('...') && prodName.length > 5;
       const prodImg = j.product_image || '';
       const genImg = j.generated_image || '';
-      const thumbImg = genImg || prodImg || '';
+      const hasProd = prodImg ? true : false;
+      const hasGen = genImg ? true : false;
+      const hasBoth = hasProd && hasGen;
       return `<div class="pipeline-job-card">
-        <div style="width:48px;height:48px;min-width:48px;border-radius:10px;background:var(--bg-tertiary);overflow:hidden;position:relative;border:1px solid var(--border-primary);display:flex;align-items:center;justify-content:center">
-          ${thumbImg
-            ? `<img src="${thumbImg}" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none';this.parentElement.innerHTML='${icon}'">`
-            : `<span style="font-size:20px">${icon}</span>`
+        <div style="${hasBoth ? 'width:96px;' : 'width:48px;'}height:48px;min-width:${hasBoth ? '96px' : '48px'};border-radius:10px;background:var(--bg-tertiary);overflow:hidden;position:relative;border:1px solid var(--border-primary);display:flex;align-items:center;justify-content:center">
+          ${hasBoth
+            ? `<div style="width:48px;height:48px;min-width:48px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:var(--bg-tertiary)"><img src="${prodImg}" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'"></div><div style="width:1px;height:40px;background:var(--border-primary);flex-shrink:0"></div><div style="width:48px;height:48px;min-width:48px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:var(--bg-tertiary)"><img src="${genImg}" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'"></div>`
+            : hasProd
+              ? `<img src="${prodImg}" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none';this.parentElement.innerHTML='${icon}'">`
+              : hasGen
+                ? `<img src="${genImg}" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none';this.parentElement.innerHTML='${icon}'">`
+                : `<span style="font-size:20px">${icon}</span>`
           }
         </div>
         <div class="job-info" style="min-width:0;padding-left:4px">

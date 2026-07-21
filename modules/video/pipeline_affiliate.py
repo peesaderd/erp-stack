@@ -33,6 +33,7 @@ import json
 import time
 import uuid
 import logging
+import random
 import subprocess
 import shutil
 from pathlib import Path
@@ -673,15 +674,20 @@ def compose_video(
     # Step 9c: Add BGM
     if bgm_style:
         logger.info(f"  9c: Add BGM ({bgm_style})")
-        bgm_map = {
-            "chill_loft": "bg_chill.mp3",
-            "informative_jazz": "bg_jazz.mp3",
-            "energetic_edm": "bg_edm.mp3",
-            "upbeat_pop": "bg_upbeat.mp3",
-            "luxury_jazz": "bg_jazz.mp3",
-            "asmr": "bg_ambient.mp3",
-        }
-        bgm_filename = bgm_map.get(bgm_style, "bg_chill.mp3")
+        # ── BGM Pool: Map style → list of candidate files ──
+        # Randomly pick from available songs for that style
+        # Build BGM pools — each style maps to multiple songs for variety
+        mixkit = STORAGE_DIR / "sounds" / "_mixkit"
+        bgm_pool = {}
+        bgm_pool["chill_loft"] = ["bg_chill.mp3"] + [str(p.relative_to(STORAGE_DIR / "sounds")) for p in mixkit.glob("mx_chill_*.mp3")]
+        bgm_pool["informative_jazz"] = ["bg_jazz.mp3"] + [str(p.relative_to(STORAGE_DIR / "sounds")) for p in mixkit.glob("mx_corporate_*.mp3")]
+        bgm_pool["energetic_edm"] = ["bg_edm.mp3"] + [str(p.relative_to(STORAGE_DIR / "sounds")) for p in mixkit.glob("mx_electronic_*.mp3")]
+        bgm_pool["upbeat_pop"] = ["bg_upbeat.mp3"] + [str(p.relative_to(STORAGE_DIR / "sounds")) for p in mixkit.glob("mx_pop_*.mp3")] + [str(p.relative_to(STORAGE_DIR / "sounds")) for p in mixkit.glob("mx_happy_*.mp3")]
+        bgm_pool["luxury_jazz"] = ["bg_jazz.mp3"] + [str(p.relative_to(STORAGE_DIR / "sounds")) for p in mixkit.glob("mx_corporate_*.mp3")] + [str(p.relative_to(STORAGE_DIR / "sounds")) for p in mixkit.glob("mx_cinematic_*.mp3")]
+        bgm_pool["asmr"] = ["bg_ambient.mp3"] + [str(p.relative_to(STORAGE_DIR / "sounds")) for p in mixkit.glob("mx_ambient_*.mp3")]
+        bgm_pool["relaxing"] = ["bg_chill.mp3"] + [str(p.relative_to(STORAGE_DIR / "sounds")) for p in mixkit.glob("mx_relaxing_*.mp3")]
+        candidates = bgm_pool.get(bgm_style, ["bg_chill.mp3"])
+        bgm_filename = random.choice(candidates)
         bgm_path = STORAGE_DIR / "sounds" / bgm_filename
 
         if bgm_path.exists():

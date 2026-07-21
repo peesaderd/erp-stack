@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+    <head>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+        <meta charset="UTF-8" />
+        <link rel="icon" type="image/svg+xml" href="/bos-pwa/icon-192.svg" />
+        <link rel="apple-touch-icon" href="/bos-pwa/icon-192.svg" />
+        <link rel="manifest" href="/bos-pwa/manifest.json" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="description" content="AI-powered Etsy shop management — generate designs, manage listings, track orders" />
+        <meta name="theme-color" content="#7f56d9" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="mobile-web-app-capable" content="yes" />
+
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400..700;1,14..32,400..700&display=swap" rel="stylesheet" />
+
+        <title>Etsy Dashboard — Business OS</title>
+      <script>
+    // Global error handler - catch React crashes
+    window.addEventListener('error', function() {
+        document.getElementById('app-error').style.display = 'block';
+    });
+    // Timeout fallback - if React doesn't load in 10s, show fallback
+    setTimeout(function() {
+        var root = document.getElementById('root');
+        if (root && root.childElementCount === 0) {
+            document.getElementById('app-error').style.display = 'block';
+        }
+    }, 10000);
+</script>
+<script type="module" crossorigin src="/etsy-dashboard/assets/index-Dn5bBoEA.js?v=2"></script>
+      <link rel="stylesheet" crossorigin href="/etsy-dashboard/assets/index-CFqj5Odd.css">
+    </head>
+
+    <body class="size-full bg-primary antialiased">
+    <div id="app-error" style="display:none;padding:40px;text-align:center;font-family:system-ui,sans-serif;color:#6b7280;">
+        <h2 style="font-size:1.5rem;margin-bottom:12px;color:#374151;">⚠️ เกิดข้อผิดพลาด</h2>
+        <p style="font-size:1rem;">Etsy Dashboard กำลังโหลด... หรือลองรีเฟรชหน้า</p>
+        <button onclick="localStorage.clear();location.reload()" style="margin-top:20px;padding:10px 24px;background:#7c3aed;color:white;border:none;border-radius:8px;font-size:1rem;cursor:pointer;">🔄 ล้างแคช + รีโหลด</button>
+    </div>
+        <div id="root"></div>
+        <script>
+            // On page load or when changing themes, best to add inline in `head` to avoid FOUC
+            if (localStorage.theme === "dark" || (!("theme" in localStorage) && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+                document.documentElement.classList.add("dark-mode");
+            } else {
+                document.documentElement.classList.remove("dark-mode");
+            }
+        </script>
+    </body>
+</html>

@@ -74,4 +74,5 @@ modules/video/storage/
 
 .credentials/
 etsy-wizard/.pod_cache/
+etsy-wizard/sessions/
 etsy-wizard/__pycache__/

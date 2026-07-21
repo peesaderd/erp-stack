@@ -2203,7 +2203,9 @@ async function loadDashboard() {
 function timeSince(dateStr) {
   if (!dateStr) return '';
   const now = new Date();
-  const d = new Date(dateStr);
+  // DB stores UTC, append Z so browser treats it as UTC
+  const utcStr = dateStr.includes('Z') ? dateStr : dateStr.replace(' ', 'T') + 'Z';
+  const d = new Date(utcStr);
   const sec = Math.floor((now - d) / 1000);
   if (sec < 60) return 'just now';
   const min = Math.floor(sec / 60);
@@ -2994,7 +2996,10 @@ async function loadPipelineDetail(jobId) {
     idEl.textContent = job.job_id;
     statusEl.textContent = statusIcon(job.status) + ' ' + job.status;
     statusEl.className = 'badge ' + statusBadgeClass(job.status);
-    createdEl.textContent = '🕐 ' + (job.created_at ? timeSince(job.created_at) : 'just now');
+    const ctStr = job.created_at ? (job.created_at.includes('Z') ? job.created_at : job.created_at.replace(' ', 'T') + 'Z') : null;
+    const ctDate = ctStr ? new Date(ctStr) : null;
+    const thTime = ctDate ? ctDate.toLocaleString('th-TH', {timeZone:'Asia/Bangkok', hour12:false, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'}) : '';
+    createdEl.innerHTML = '🕐 ' + (job.created_at ? timeSince(job.created_at) : 'just now') + (thTime ? ' <span class="text-xs text-secondary">(' + thTime + ' น.)</span>' : '');
     accountEl.innerHTML = '👤 ' + (job.account_id || '—') + (job.product_url ? ' · 📦 ' + job.product_url.slice(0, 60) : '');
 
     // Retry / Cancel buttons

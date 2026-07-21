@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>📸 Photo Passport & Restoration</title>
+<style>
+  :root { --primary: #2563eb; --bg: #f8fafc; --card: #ffffff; --border: #e2e8f0; --radius: 12px; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: #1e293b; min-height: 100vh; }
+  .container { max-width: 1000px; margin: 0 auto; padding: 20px; }
+  header { text-align: center; padding: 30px 0 20px; }
+  header h1 { font-size: 2em; background: linear-gradient(135deg, #2563eb, #7c3aed); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  header p { color: #64748b; margin-top: 8px; }
+
+  .tabs { display: flex; gap: 8px; justify-content: center; margin-bottom: 24px; }
+  .tab { padding: 10px 24px; border: 2px solid var(--border); border-radius: 8px; cursor: pointer; font-size: 15px; font-weight: 600; transition: all .2s; background: var(--card); }
+  .tab.active { border-color: var(--primary); color: var(--primary); background: #eff6ff; }
+  .tab:hover { border-color: var(--primary); }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 20px; }
+  .card h2 { font-size: 18px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 14px; color: #475569; }
+  .form-group select, .form-group input[type="range"], .form-group input[type="file"] { width: 100%; }
+  .form-group select { padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background: white; }
+  .form-group input[type="range"] { margin-top: 4px; }
+  .range-labels { display: flex; justify-content: space-between; font-size: 12px; color: #94a3b8; }
+
+  .checkbox-group { display: flex; flex-wrap: wrap; gap: 12px; }
+  .checkbox-group label { display: flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer; }
+
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 28px; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all .2s; }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover { background: #1d4ed8; transform: translateY(-1px); }
+  .btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+  .btn-secondary { background: #f1f5f9; color: #475569; }
+  .btn-secondary:hover { background: #e2e8f0; }
+  .btn-success { background: #059669; color: white; }
+  .btn-success:hover { background: #047857; }
+
+  .camera-container { position: relative; width: 100%; max-width: 480px; margin: 0 auto; }
+  .camera-container video, .camera-container canvas { width: 100%; border-radius: 8px; }
+  .camera-controls { display: flex; gap: 8px; justify-content: center; margin-top: 12px; }
+
+  .preview-area { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; margin-top: 16px; }
+  .preview-box { text-align: center; }
+  .preview-box img { max-width: 280px; max-height: 320px; border-radius: 8px; border: 2px solid var(--border); box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+  .preview-box .label { font-size: 13px; color: #64748b; margin-top: 8px; }
+
+  .slider-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .slider-row label { flex: 0 0 140px; font-size: 14px; font-weight: 500; }
+  .slider-row input { flex: 1; }
+  .slider-row .value { flex: 0 0 36px; text-align: right; font-size: 14px; color: var(--primary); font-weight: 600; }
+
+  .spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(255,255,255,.3); border-radius: 50%; border-top-color: white; animation: spin .6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .result-actions { display: flex; gap: 12px; justify-content: center; margin-top: 16px; flex-wrap: wrap; }
+  .hidden { display: none !important; }
+  .mt-16 { margin-top: 16px; }
+  .text-center { text-align: center; }
+  .error-msg { color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px; margin-top: 12px; font-size: 14px; }
+
+  .mode-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .mode-passport { background: #dbeafe; color: #1d4ed8; }
+  .mode-restore { background: #fce7f3; color: #be185d; }
+</style>
+</head>
+<body>
+
+<div class="container" id="app">
+  <header>
+    <h1>📸 Photo Passport & Restoration</h1>
+    <p>ถ่ายรูป passport photo หรือซ่อมแซมภาพถ่ายเก่า — พร้อมพิมพ์</p>
+  </header>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" data-tab="passport" onclick="switchTab('passport')">📷 ถ่าย Passport</div>
+    <div class="tab" data-tab="restore" onclick="switchTab('restore')">🛠️ ซ่อมแซมภาพ</div>
+  </div>
+
+  <!-- Mode: Passport -->
+  <div id="tab-passport">
+    <div class="card">
+      <h2>📋 เลือกแบบ Passport</h2>
+      <div class="form-group">
+        <label>ประเทศ / ประเภท</label>
+        <select id="template-select" onchange="onTemplateChange()"></select>
+      </div>
+      <div id="template-detail" class="hidden" style="font-size:13px;color:#64748b;margin-top:-8px;margin-bottom:12px;"></div>
+    </div>
+
+    <div class="card">
+      <h2>📷 ถ่ายรูป</h2>
+      <div class="camera-container">
+        <video id="video" autoplay playsinline></video>
+        <canvas id="canvas" class="hidden"></canvas>
+      </div>
+      <div class="camera-controls">
+        <button class="btn btn-secondary" onclick="startCamera()">📷 เปิดกล้อง</button>
+        <button class="btn btn-primary" onclick="capturePhoto()" id="capture-btn" disabled>📸 ถ่าย!</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('file-upload-passport').click()">📂 อัปโหลดรูป</button>
+        <input type="file" id="file-upload-passport" accept="image/*" class="hidden" onchange="onFileUpload(event)">
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>⚙️ ตัวเลือก</h2>
+      <div class="checkbox-group">
+        <label><input type="checkbox" id="opt-auto-crop" checked> Auto-crop ใบหน้า</label>
+        <label><input type="checkbox" id="opt-enhance" checked> ปรับแสง/สี</label>
+      </div>
+    </div>
+
+    <div class="text-center">
+      <button class="btn btn-primary" onclick="processPassport()" id="process-btn" disabled>
+        ✨ ประมวลผล Passport Photo
+      </button>
+    </div>
+
+    <div id="passport-result" class="hidden">
+      <div class="card">
+        <h2>✅ ผลลัพธ์</h2>
+        <div class="preview-area">
+          <div class="preview-box">
+            <img id="passport-preview" alt="Passport Photo">
+            <div class="label">📸 Passport Photo</div>
+          </div>
+        </div>
+        <div id="passport-info" style="font-size:13px;color:#64748b;margin-top:12px;"></div>
+        <div class="result-actions">
+          <a id="passport-download-link" class="btn btn-success" download>⬇️ ดาวน์โหลด JPG</a>
+          <button class="btn btn-secondary" onclick="generatePrintSheet()">🖨️ สร้าง Print Sheet</button>
+        </div>
+        <div id="print-result" class="hidden mt-16">
+          <div class="preview-box">
+            <img id="print-preview" alt="Print Sheet" style="max-width:380px;">
+          </div>
+          <div class="result-actions">
+            <a id="print-download-link" class="btn btn-success" download>⬇️ ดาวน์โหลด Print Sheet</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="passport-error" class="error-msg hidden"></div>
+  </div>
+
+  <!-- Mode: Restore -->
+  <div id="tab-restore" class="hidden">
+    <div class="card">
+      <h2>🖼️ เลือกรูปที่ต้องการซ่อม</h2>
+      <div class="text-center">
+        <button class="btn btn-secondary" onclick="document.getElementById('file-upload-restore').click()">📂 เลือกไฟล์รูปภาพ</button>
+        <input type="file" id="file-upload-restore" accept="image/*" class="hidden" onchange="onRestoreFile(event)">
+      </div>
+      <div id="restore-source-preview" class="text-center mt-16 hidden">
+        <img id="restore-source-img" style="max-width:300px;max-height:300px;border-radius:8px;border:2px solid var(--border);">
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>⚙️ ตั้งค่าการซ่อม</h2>
+      <div class="slider-row"><label>Denoise (ลด noise)</label><input type="range" id="restore-denoise" min="0" max="100" value="50"><span class="value" id="restore-denoise-val">50</span></div>
+      <div class="slider-row"><label>Sharpen (คมชัด)</label><input type="range" id="restore-sharpen" min="0" max="100" value="50"><span class="value" id="restore-sharpen-val">50</span></div>
+      <div class="form-group" style="margin-top:12px;">
+        <label>Upscale (ขยาย)</label>
+        <select id="restore-upscale">
+          <option value="1">1x (เท่าเดิม)</option>
+          <option value="2">2x</option>
+          <option value="4">4x</option>
+        </select>
+      </div>
+      <div class="checkbox-group">
+        <label><input type="checkbox" id="restore-inpaint" checked> ซ่อมรอยขีด/รอยพับ</label>
+        <label><input type="checkbox" id="restore-color" checked> ปรับสีอัตโนมัติ</label>
+        <label><input type="checkbox" id="restore-face"> เพิ่มความคมเฉพาะใบหน้า</label>
+      </div>
+    </div>
+
+    <div class="text-center">
+      <button class="btn btn-primary" onclick="processRestore()" id="restore-btn" disabled>
+        🔧 ประมวลผลซ่อมแซม
+      </button>
+    </div>
+
+    <div id="restore-result" class="hidden">
+      <div class="card">
+        <h2>✅ ผลลัพธ์</h2>
+        <div class="preview-area">
+          <div class="preview-box">
+            <img id="restore-preview" alt="Restored">
+            <div class="label">🛠️ ภาพที่ซ่อมแล้ว</div>
+          </div>
+        </div>
+        <div id="restore-info" style="font-size:13px;color:#64748b;margin-top:12px;"></div>
+        <div class="result-actions">
+          <a id="restore-download-link" class="btn btn-success" download>⬇️ ดาวน์โหลด</a>
+        </div>
+      </div>
+    </div>
+
+    <div id="restore-error" class="error-msg hidden"></div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════
+// State
+// ══════════════════════════════════════════════════
+const API = '/api/passport';
+let currentTab = 'passport';
+let capturedImage = null;  // base64
+let passportSessionId = null;
+let lastTemplateCode = 'us_passport';
+
+// ══════════════════════════════════════════════════
+// Init
+// ══════════════════════════════════════════════════
+loadTemplates();
+
+// ── Slider live values ───────────────────────────
+['denoise','sharpen'].forEach(id => {
+  const el = document.getElementById(`restore-${id}`);
+  if (!el) return;
+  el.addEventListener('input', () => {
+    document.getElementById(`restore-${id}-val`).textContent = el.value;
+  });
+});
+
+// ══════════════════════════════════════════════════
+// Tab Switching
+// ══════════════════════════════════════════════════
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.getElementById('tab-passport').classList.toggle('hidden', tab !== 'passport');
+  document.getElementById('tab-restore').classList.toggle('hidden', tab !== 'restore');
+  if (tab === 'restore') stopCamera();
+}
+
+// ══════════════════════════════════════════════════
+// Templates
+// ══════════════════════════════════════════════════
+async function loadTemplates() {
+  try {
+    const r = await fetch(`${API}/templates`);
+    const data = await r.json();
+    if (!data.ok) throw new Error(data.error);
+    const sel = document.getElementById('template-select');
+    data.templates.forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t.code || t.code;
+      opt.textContent = `${t.country} — ${t.name}`;
+      sel.appendChild(opt);
+    });
+    onTemplateChange();
+  } catch(e) {
+    console.error('Load templates:', e);
+  }
+}
+
+function onTemplateChange() {
+  const sel = document.getElementById('template-select');
+  lastTemplateCode = sel.value;
+  const opt = sel.selectedOptions[0];
+  const detail = document.getElementById('template-detail');
+  if (opt) {
+    detail.textContent = `📐 ${opt.textContent}`;
+    detail.classList.remove('hidden');
+  }
+}
+
+// ══════════════════════════════════════════════════
+// Camera
+// ══════════════════════════════════════════════════
+let stream = null;
+
+async function startCamera() {
+  try {
+    if (stream) { stopCamera(); }
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 1280 } } });
+    document.getElementById('video').srcObject = stream;
+    document.getElementById('capture-btn').disabled = false;
+  } catch(e) {
+    alert('ไม่สามารถเปิดกล้องได้: ' + e.message);
+  }
+}
+
+function stopCamera() {
+  if (stream) {
+    stream.getTracks().forEach(t => t.stop());
+    stream = null;
+  }
+  document.getElementById('capture-btn').disabled = true;
+}
+
+function capturePhoto() {
+  if (!stream) return;
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('canvas');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  capturedImage = canvas.toDataURL('image/jpeg', 0.92);
+  document.getElementById('process-btn').disabled = false;
+  stopCamera();
+
+  // Show preview
+  const previewArea = document.querySelector('#tab-passport .preview-area');
+  if (previewArea) {
+    previewArea.innerHTML = `
+      <div class="preview-box">
+        <img src="${capturedImage}" style="max-width:280px;max-height:320px;border-radius:8px;border:2px solid var(--border);">
+        <div class="label">📷 รูปที่ถ่าย</div>
+      </div>`;
+  }
+}
+
+function onFileUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    capturedImage = e.target.result;
+    document.getElementById('process-btn').disabled = false;
+
+    const previewArea = document.querySelector('#tab-passport .preview-area');
+    if (previewArea) {
+      previewArea.innerHTML = `
+        <div class="preview-box">
+          <img src="${capturedImage}" style="max-width:280px;max-height:320px;border-radius:8px;border:2px solid var(--border);">
+          <div class="label">📂 รูปที่อัปโหลด</div>
+        </div>`;
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+// ══════════════════════════════════════════════════
+// Process Passport
+// ══════════════════════════════════════════════════
+async function processPassport() {
+  if (!capturedImage) { alert('กรุณาถ่ายรูปหรืออัปโหลดรูปก่อน'); return; }
+
+  const btn = document.getElementById('process-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> กำลังประมวลผล...';
+
+  document.getElementById('passport-result').classList.add('hidden');
+  document.getElementById('passport-error').classList.add('hidden');
+
+  try {
+    // Convert base64 to blob
+    const blob = dataURLToBlob(capturedImage);
+    const form = new FormData();
+    form.append('file', blob, 'photo.jpg');
+    form.append('template_code', lastTemplateCode);
+    form.append('auto_crop', document.getElementById('opt-auto-crop').checked ? 'true' : 'false');
+    form.append('enhance', document.getElementById('opt-enhance').checked ? 'true' : 'false');
+
+    const r = await fetch(`${API}/process`, { method: 'POST', body: form });
+    const data = await r.json();
+    if (!data.ok) throw new Error(data.error || 'Processing failed');
+
+    passportSessionId = data.session_id;
+    const dlUrl = `${API}/download/${data.session_id}.jpg`;
+    document.getElementById('passport-preview').src = dlUrl;
+    document.getElementById('passport-download-link').href = dlUrl;
+    document.getElementById('passport-download-link').download = `passport_${data.session_id}.jpg`;
+
+    const info = data.info || {};
+    const infoHtml = `📐 ${data.template?.name || lastTemplateCode} | ${info.dimensions_px?.w || '?'}x${info.dimensions_px?.h || '?'}px | ${info.dimensions_mm?.w || '?'}x${info.dimensions_mm?.h || '?'}mm`;
+    document.getElementById('passport-info').textContent = infoHtml;
+
+    document.getElementById('passport-result').classList.remove('hidden');
+    document.getElementById('print-result').classList.add('hidden');
+
+  } catch(e) {
+    const err = document.getElementById('passport-error');
+    err.textContent = '❌ ' + e.message;
+    err.classList.remove('hidden');
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '✨ ประมวลผล Passport Photo';
+}
+
+async function generatePrintSheet() {
+  if (!passportSessionId) return;
+
+  const btn = document.querySelector('#passport-result .btn-secondary');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> กำลังสร้าง...';
+
+  try {
+    const r = await fetch(`${API}/print-sheet`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: passportSessionId, print_size: '4x6' }),
+    });
+    const data = await r.json();
+    if (!data.ok) throw new Error(data.error || 'Print sheet failed');
+
+    const dlUrl = `${API}/download/${passportSessionId}_print.jpg`;
+    document.getElementById('print-preview').src = dlUrl;
+    document.getElementById('print-download-link').href = dlUrl;
+    document.getElementById('print-download-link').download = `passport_print_${passportSessionId}.jpg`;
+    document.getElementById('print-result').classList.remove('hidden');
+  } catch(e) {
+    alert('❌ ' + e.message);
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '🖨️ สร้าง Print Sheet';
+}
+
+// ══════════════════════════════════════════════════
+// Restore (Upload + Process)
+// ══════════════════════════════════════════════════
+let restoreBase64 = null;
+
+function onRestoreFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    restoreBase64 = e.target.result;
+    document.getElementById('restore-source-img').src = restoreBase64;
+    document.getElementById('restore-source-preview').classList.remove('hidden');
+    document.getElementById('restore-btn').disabled = false;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function processRestore() {
+  if (!restoreBase64) { alert('กรุณาเลือกรูปภาพก่อน'); return; }
+
+  const btn = document.getElementById('restore-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> กำลังซ่อมแซม...';
+
+  document.getElementById('restore-result').classList.add('hidden');
+  document.getElementById('restore-error').classList.add('hidden');
+
+  try {
+    // Strip data: prefix for API
+    const base64data = restoreBase64.includes(',') ? restoreBase64.split(',')[1] : restoreBase64;
+
+    const payload = {
+      image_base64: base64data,
+      denoise_strength: parseInt(document.getElementById('restore-denoise').value) / 100,
+      sharpen_strength: parseInt(document.getElementById('restore-sharpen').value) / 100,
+      inpaint_scratches: document.getElementById('restore-inpaint').checked,
+      color_restore: document.getElementById('restore-color').checked,
+      upscale_factor: parseInt(document.getElementById('restore-upscale').value),
+      enhance_face: document.getElementById('restore-face').checked,
+    };
+
+    const r = await fetch(`${API}/restore`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await r.json();
+    if (!data.ok) throw new Error(data.error || 'Restore failed');
+
+    const dlUrl = `${API}/download/${data.session_id}_restored.jpg`;
+    document.getElementById('restore-preview').src = dlUrl;
+    document.getElementById('restore-download-link').href = dlUrl;
+    document.getElementById('restore-download-link').download = `restored_${data.session_id}.jpg`;
+
+    const info = data.info || {};
+    const infoParts = [];
+    if (info.denoise) infoParts.push(`Denoise ${Math.round(info.denoise*100)}%`);
+    if (info.inpaint) infoParts.push('ซ่อมรอย');
+    if (info.color_restored) infoParts.push('ปรับสี');
+    if (info.upscaled) infoParts.push(`ขยาย ${info.upscaled}x`);
+    if (info.face_enhanced) infoParts.push('Face enhance');
+    const dims = info.dimensions || {};
+    infoParts.push(`${dims.w || '?'}x${dims.h || '?'}px`);
+    document.getElementById('restore-info').textContent = '🛠️ ' + infoParts.join(' | ');
+
+    document.getElementById('restore-result').classList.remove('hidden');
+  } catch(e) {
+    const err = document.getElementById('restore-error');
+    err.textContent = '❌ ' + e.message;
+    err.classList.remove('hidden');
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '🔧 ประมวลผลซ่อมแซม';
+}
+
+// ══════════════════════════════════════════════════
+// Helpers
+// ══════════════════════════════════════════════════
+function dataURLToBlob(dataURL) {
+  const parts = dataURL.split(',');
+  const mime = parts[0].match(/:(.*?);/)[1];
+  const bytes = atob(parts[1]);
+  const arr = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+</script>
+</body>
+</html>

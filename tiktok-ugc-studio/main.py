@@ -598,6 +598,19 @@ async def generate_video(req: VideoRequest):
             final_video_path = VIDEOS_DIR / f"final_{job_id}.mp4"
             shutil.copy2(final_path, final_video_path)
 
+            # ── Copy generated image to permanent storage ──
+            image_url = ""
+            img_path = result.get("image_path", "")
+            if img_path and os.path.exists(img_path):
+                IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+                perm_img_path = IMAGES_DIR / f"image_{job_id}.png"
+                try:
+                    shutil.copy2(img_path, perm_img_path)
+                    image_url = f"/api/tiktok/static/images/image_{job_id}.png"
+                    logger.info(f"  Image saved: {perm_img_path}")
+                except Exception as e:
+                    logger.warning(f"  Failed to save image: {e}")
+
             # Store final rich result
             video_web_url = f"/api/tiktok/static/videos/final_{job_id}.mp4"
             
@@ -615,6 +628,7 @@ async def generate_video(req: VideoRequest):
                 "hashtags": json.dumps(result.get("hashtags", [])),
                 "video_url": video_web_url,
                 "video_path": str(final_path),
+                "image_url": image_url,
                 "cost_estimate": result.get("cost_estimate", 0),
                 "duration": req.duration,
                 "ugc_style": req.ugc_style or "",
@@ -643,6 +657,7 @@ async def generate_video(req: VideoRequest):
                     "image_prompt": img_prompt or "",
                     "video_prompts": video_prompts or [],
                     "negative_prompt": neg_prompt or "",
+                    "image_url": image_url,
                 },
                 "job_id": job_id,
             }

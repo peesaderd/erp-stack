@@ -305,8 +305,447 @@ async def update_profile(
 
 
 # ──────────────────────────────────────────────
-# Entry
+# WebAuthn / Biometric (Passkeys)
 # ──────────────────────────────────────────────
+"""
+WebAuthn (Passkeys) — ใช้ Face ID / Touch ID / Fingerprint เข้าสู่ระบบ
+ทำงานได้ทั้ง iOS Safari และ Android Chrome
+
+Flow:
+  Register: login → register/begin → browser creates credential → register/complete
+  Login:    login/begin → browser gets assertion → login/complete → JWT
+"""
+
+import base64
+import json
+import time
+
+from webauthn import (
+    generate_registration_options,
+    verify_registration_response,
+    generate_authentication_options,
+    verify_authentication_response,
+)
+from webauthn.helpers.structs import (
+    AuthenticatorSelectionCriteria,
+    UserVerificationRequirement,
+    PublicKeyCredentialDescriptor,
+    COSEAlgorithmIdentifier,
+    PublicKeyCredentialType,
+    PublicKeyCredentialHint,
+)
+
+from shared.models import WebAuthnCredential as WebAuthnCredentialModel
+
+# ── RP (Relying Party) info ──
+RP_ID = os.environ.get("WEBAUTHN_RP_ID", "m2igen.com")
+RP_NAME = "M2I App Store"
+ORIGIN = os.environ.get("WEBAUTHN_ORIGIN", "https://m2igen.com")
+
+# ── In-memory challenge store (short-lived) ──
+# { state_token: { "challenge": bytes, "user_id": str, "expires_at": float } }
+_challenge_store: dict = {}
+
+def _clean_expired_challenges():
+    now = time.time()
+    expired = [k for k, v in _challenge_store.items() if v.get("expires_at", 0) < now]
+    for k in expired:
+        _challenge_store.pop(k, None)
+
+
+def _make_state_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def _base64url_encode(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
+
+
+def _base64url_decode(s: str) -> bytes:
+    # Add padding back
+    padding = 4 - len(s) % 4
+    if padding != 4:
+        s += "=" * padding
+    return base64.urlsafe_b64decode(s)
+
+
+# ── DB helpers ──
+
+async def _get_user_credentials(user_id: str, db: AsyncSession) -> list:
+    result = await db.execute(
+        select(WebAuthnCredentialModel).where(WebAuthnCredentialModel.user_id == user_id)
+    )
+    return result.scalars().all()
+
+
+def _credential_to_dict(c: WebAuthnCredentialModel) -> dict:
+    return {
+        "id": c.id,
+        "credential_id": c.credential_id,
+        "device_name": c.device_name,
+        "transports": c.transports or [],
+        "created_at": c.created_at.isoformat() if c.created_at else None,
+        "last_used_at": c.last_used_at.isoformat() if c.last_used_at else None,
+    }
+
+
+# ──────────────────────────────────────────────
+# 1. REGISTER — เริ่มต้น (ต้อง login ก่อน)
+# ──────────────────────────────────────────────
+
+@app.post("/api/v1/auth/biometric/register/begin")
+async def biometric_register_begin(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """สร้าง challenge สำหรับ register device ใหม่"""
+    _clean_expired_challenges()
+
+    # Get existing credentials to exclude them
+    existing = await _get_user_credentials(user.id, db)
+    exclude_creds = []
+    for c in existing:
+        cid_bytes = _base64url_decode(c.credential_id)
+        exclude_creds.append(
+            PublicKeyCredentialDescriptor(id=cid_bytes, type=PublicKeyCredentialType.PUBLIC_KEY)
+        )
+
+    challenge = os.urandom(32)
+
+    options = generate_registration_options(
+        rp_id=RP_ID,
+        rp_name=RP_NAME,
+        user_name=user.email,
+        user_id=user.id.encode(),
+        user_display_name=user.name,
+        challenge=challenge,
+        timeout=60000,  # 60s
+        authenticator_selection=AuthenticatorSelectionCriteria(
+            user_verification=UserVerificationRequirement.REQUIRED,
+        ),
+        exclude_credentials=exclude_creds if exclude_creds else None,
+        supported_pub_key_algs=[
+            COSEAlgorithmIdentifier.ECDSA_SHA_256,       # -7  P-256
+            COSEAlgorithmIdentifier.RSASSA_PKCS1_v1_5_SHA_256,  # -257 RSA
+        ],
+    )
+
+    # Store challenge
+    state_token = _make_state_token()
+    _challenge_store[state_token] = {
+        "challenge": challenge,
+        "user_id": user.id,
+        "expires_at": time.time() + 120,  # 2 min
+    }
+
+    # Build the PublicKeyCredentialCreationOptions dict in camelCase for browser
+    exclude_creds_list = []
+    if options.exclude_credentials:
+        for ec in options.exclude_credentials:
+            exclude_creds_list.append({
+                "id": _base64url_encode(ec.id),
+                "type": "public-key",
+            })
+
+    opt_dict = {
+        "rp": {"id": RP_ID, "name": RP_NAME},
+        "user": {
+            "id": _base64url_encode(user.id.encode()),
+            "name": user.email,
+            "displayName": user.name,
+        },
+        "challenge": _base64url_encode(challenge),
+        "pubKeyCredParams": [
+            {"type": "public-key", "alg": p.alg.value}
+            for p in (options.pub_key_cred_params or [])
+        ] if options.pub_key_cred_params else [
+            {"type": "public-key", "alg": -7},
+            {"type": "public-key", "alg": -257},
+        ],
+        "timeout": options.timeout or 60000,
+        "excludeCredentials": exclude_creds_list,
+        "authenticatorSelection": {
+            "userVerification": options.authenticator_selection.user_verification.value
+            if options.authenticator_selection and options.authenticator_selection.user_verification
+            else "required",
+        },
+        "attestation": options.attestation.value if options.attestation else "none",
+    }
+
+    return {
+        "ok": True,
+        "state_token": state_token,
+        "options": opt_dict,
+    }
+
+
+# ──────────────────────────────────────────────
+# 2. REGISTER — ยืนยัน
+# ──────────────────────────────────────────────
+
+class BiometricRegisterCompleteRequest(BaseModel):
+    state_token: str
+    credential: dict  # The PublicKeyCredential from browser
+    device_name: str = ""
+
+
+@app.post("/api/v1/auth/biometric/register/complete")
+async def biometric_register_complete(
+    req: BiometricRegisterCompleteRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """ตรวจสอบและบันทึก credential"""
+    _clean_expired_challenges()
+
+    stored = _challenge_store.pop(req.state_token, None)
+    if not stored:
+        raise HTTPException(status_code=400, detail="Challenge expired or invalid. Please try again.")
+    if stored["user_id"] != user.id:
+        raise HTTPException(status_code=403, detail="State token does not match current user")
+
+    expected_challenge = stored["challenge"]
+
+    try:
+        verification = verify_registration_response(
+            credential=req.credential,
+            expected_challenge=expected_challenge,
+            expected_rp_id=RP_ID,
+            expected_origin=ORIGIN,
+            require_user_verification=True,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Verification failed: {str(e)}")
+
+    # Store credential
+    credential_id_b64 = _base64url_encode(verification.credential_id)
+    public_key_b64 = _base64url_encode(verification.credential_public_key)
+    transports = [t.value for t in (verification.transports or [])]
+
+    # Check for duplicate
+    existing = await db.execute(
+        select(WebAuthnCredentialModel).where(
+            WebAuthnCredentialModel.credential_id == credential_id_b64
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="Credential already registered")
+
+    cred = WebAuthnCredentialModel(
+        user_id=user.id,
+        credential_id=credential_id_b64,
+        public_key=public_key_b64,
+        sign_count=verification.sign_count,
+        device_name=req.device_name or "อุปกรณ์ของฉัน",
+        transports=transports,
+    )
+    db.add(cred)
+    await db.commit()
+    await db.refresh(cred)
+
+    return {
+        "ok": True,
+        "credential": _credential_to_dict(cred),
+        "message": "✅ ลงทะเบียน biometric สำเร็จ",
+    }
+
+
+# ──────────────────────────────────────────────
+# 3. LOGIN — เริ่มต้น (ไม่ต้อง login)
+# ──────────────────────────────────────────────
+
+class BiometricLoginBeginRequest(BaseModel):
+    email: Optional[str] = None  # ถ้ารู้ email จะส่งมา filter credential
+
+
+@app.post("/api/v1/auth/biometric/login/begin")
+async def biometric_login_begin(
+    req: BiometricLoginBeginRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """สร้าง challenge สำหรับ login ด้วย biometric"""
+    _clean_expired_challenges()
+
+    # Find user credentials
+    user_id = None
+    if req.email:
+        result = await db.execute(select(User).where(User.email == req.email))
+        user = result.scalar_one_or_none()
+        if user:
+            user_id = user.id
+
+    allow_creds = []
+    if user_id:
+        existing = await _get_user_credentials(user_id, db)
+        for c in existing:
+            cid_bytes = _base64url_decode(c.credential_id)
+            allow_creds.append(
+                PublicKeyCredentialDescriptor(
+                    id=cid_bytes,
+                    type=PublicKeyCredentialType.PUBLIC_KEY,
+                    transports=c.transports or [],
+                )
+            )
+
+    challenge = os.urandom(32)
+
+    options = generate_authentication_options(
+        rp_id=RP_ID,
+        challenge=challenge,
+        timeout=60000,
+        allow_credentials=allow_creds if allow_creds else None,
+        user_verification=UserVerificationRequirement.REQUIRED,
+    )
+
+    state_token = _make_state_token()
+    _challenge_store[state_token] = {
+        "challenge": challenge,
+        "preferred_user_id": user_id,  # เพื่อ map กลับตอน complete
+        "expires_at": time.time() + 120,
+    }
+
+    # Build PublicKeyCredentialRequestOptions in camelCase
+    allow_creds_list = []
+    if options.allow_credentials:
+        for ac in options.allow_credentials:
+            allow_creds_list.append({
+                "id": _base64url_encode(ac.id),
+                "type": "public-key",
+                "transports": [t.value for t in ac.transports] if ac.transports else [],
+            })
+
+    opt_dict = {
+        "challenge": _base64url_encode(challenge),
+        "timeout": options.timeout or 60000,
+        "rpId": RP_ID,
+        "allowCredentials": allow_creds_list,
+        "userVerification": options.user_verification.value
+        if options.user_verification else "required",
+    }
+
+    return {
+        "ok": True,
+        "state_token": state_token,
+        "options": opt_dict,
+    }
+
+
+# ──────────────────────────────────────────────
+# 4. LOGIN — ยืนยัน
+# ──────────────────────────────────────────────
+
+class BiometricLoginCompleteRequest(BaseModel):
+    state_token: str
+    credential: dict  # The PublicKeyCredential from browser
+
+
+@app.post("/api/v1/auth/biometric/login/complete")
+async def biometric_login_complete(
+    req: BiometricLoginCompleteRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """ตรวจสอบ assertion และออก JWT token"""
+    _clean_expired_challenges()
+
+    stored = _challenge_store.pop(req.state_token, None)
+    if not stored:
+        raise HTTPException(status_code=400, detail="Challenge expired or invalid. Please try again.")
+
+    expected_challenge = stored["challenge"]
+
+    # Get credential_id from response
+    raw_id = req.credential.get("rawId") or req.credential.get("id", "")
+    if not raw_id:
+        raise HTTPException(status_code=400, detail="Missing credential ID")
+
+    credential_id_b64 = raw_id if isinstance(raw_id, str) else str(raw_id)
+
+    # Look up stored credential
+    result = await db.execute(
+        select(WebAuthnCredentialModel).where(
+            WebAuthnCredentialModel.credential_id == credential_id_b64
+        )
+    )
+    stored_cred = result.scalar_one_or_none()
+    if not stored_cred:
+        raise HTTPException(status_code=404, detail="Credential not found. Please register first.")
+
+    # Get user
+    user_result = await db.execute(select(User).where(User.id == stored_cred.user_id))
+    user = user_result.scalar_one_or_none()
+    if not user or not user.is_active:
+        raise HTTPException(status_code=403, detail="Account is disabled or not found")
+
+    try:
+        verification = verify_authentication_response(
+            credential=req.credential,
+            expected_challenge=expected_challenge,
+            expected_rp_id=RP_ID,
+            expected_origin=ORIGIN,
+            credential_public_key=_base64url_decode(stored_cred.public_key),
+            credential_current_sign_count=stored_cred.sign_count,
+            require_user_verification=True,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Verification failed: {str(e)}")
+
+    # Update sign count + last used
+    stored_cred.sign_count = verification.new_sign_count
+    stored_cred.last_used_at = datetime.now(timezone.utc)
+    await db.commit()
+
+    # Issue JWT
+    token = _create_token(user.id)
+
+    return {
+        "ok": True,
+        "token": token,
+        "user": _user_to_dict(user),
+        "message": "✅ Biometric login สำเร็จ",
+    }
+
+
+# ──────────────────────────────────────────────
+# 5. LIST — แสดง credentials ของ user
+# ──────────────────────────────────────────────
+
+@app.get("/api/v1/auth/biometric/credentials")
+async def biometric_list_credentials(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    existing = await _get_user_credentials(user.id, db)
+    return {
+        "ok": True,
+        "credentials": [_credential_to_dict(c) for c in existing],
+    }
+
+
+# ──────────────────────────────────────────────
+# 6. DELETE — ลบ credential
+# ──────────────────────────────────────────────
+
+@app.delete("/api/v1/auth/biometric/credentials/{credential_id}")
+async def biometric_delete_credential(
+    credential_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(WebAuthnCredentialModel).where(
+            WebAuthnCredentialModel.id == credential_id,
+            WebAuthnCredentialModel.user_id == user.id,
+        )
+    )
+    cred = result.scalar_one_or_none()
+    if not cred:
+        raise HTTPException(status_code=404, detail="Credential not found")
+
+    await db.delete(cred)
+    await db.commit()
+    return {"ok": True, "message": "ลบ credential สำเร็จ"}
+
 
 # ──────────────────────────────────────────────
 # OAuth Routes (Google, Facebook, Line Redirect Flow)

@@ -170,6 +170,42 @@ async def auth_me(request: Request):
             return {"ok": False, "status": resp.status_code, "error": resp.text[:300], "data": None}
         return {"ok": True, "status": resp.status_code, "data": resp.json()}
 
+# ─── Biometric (WebAuthn / Passkeys) ──────────────────────────────────
+
+@app.post("/api/auth/biometric/register/begin")
+async def auth_biometric_register_begin(req: dict):
+    return await _proxy("POST", "auth", "/api/v1/auth/biometric/register/begin", req)
+
+@app.post("/api/auth/biometric/register/complete")
+async def auth_biometric_register_complete(req: dict):
+    return await _proxy("POST", "auth", "/api/v1/auth/biometric/register/complete", req)
+
+@app.post("/api/auth/biometric/login/begin")
+async def auth_biometric_login_begin(req: dict):
+    return await _proxy("POST", "auth", "/api/v1/auth/biometric/login/begin", req)
+
+@app.post("/api/auth/biometric/login/complete")
+async def auth_biometric_login_complete(req: dict):
+    return await _proxy("POST", "auth", "/api/v1/auth/biometric/login/complete", req)
+
+@app.get("/api/auth/biometric/credentials")
+async def auth_biometric_list_credentials(request: Request):
+    base = MODULE_URLS["auth"]
+    url = f"{base}/api/v1/auth/biometric/credentials"
+    headers = {"Authorization": request.headers.get("authorization", "")}
+    async with httpx.AsyncClient(timeout=30, verify=False) as cl:
+        resp = await cl.get(url, headers=headers)
+        return resp.json()
+
+@app.delete("/api/auth/biometric/credentials/{credential_id}")
+async def auth_biometric_delete_credential(credential_id: str, request: Request):
+    base = MODULE_URLS["auth"]
+    url = f"{base}/api/v1/auth/biometric/credentials/{credential_id}"
+    headers = {"Authorization": request.headers.get("authorization", "")}
+    async with httpx.AsyncClient(timeout=30, verify=False) as cl:
+        resp = await cl.delete(url, headers=headers)
+        return resp.json()
+
 @app.get("/api/auth/{provider}/login")
 async def auth_oauth_login(provider: str):
     return await _proxy("GET", "auth", f"/api/v1/auth/{provider}/login")

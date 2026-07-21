@@ -77,6 +77,7 @@ class VideoRequest(BaseModel):
     image_url: Optional[str] = None
     script: Optional[str] = None
     negative_prompt: Optional[str] = None
+    bgm_style: Optional[str] = None
 
 
 class VideoPostRequest(BaseModel):

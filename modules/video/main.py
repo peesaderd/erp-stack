@@ -13,6 +13,7 @@ import json
 import uuid
 import time
 import asyncio
+import random
 import logging
 import tempfile
 from pathlib import Path
@@ -120,6 +121,7 @@ class VideoRequest(BaseModel):
     image_url: Optional[str] = None
     script: Optional[str] = None
     negative_prompt: Optional[str] = None
+    bgm_style: Optional[str] = None
     product_description: Optional[str] = None
     recipe: Optional[str] = None
     job_id: Optional[str] = None  # external job_id from caller — used to keep pipeline_logs.db in sync
@@ -304,7 +306,7 @@ async def generate_video(req: VideoRequest):
             product_image=product_image if product_image else None,
             recipe_name=req.recipe or "tus",
             voice="Aoede",
-            bgm_style="chill_loft",
+            bgm_style=req.bgm_style or random.choice(["chill_loft", "luxury_jazz", "upbeat_pop", "energetic_edm", "informative_jazz", "asmr"]),
             description=req.product_description or "",
             ugc_style=req.ugc_style or "holding",
             external_job_id=req.job_id,

@@ -576,6 +576,7 @@ async def generate_video(req: VideoRequest):
                 "ugc_style": req.ugc_style or "product_usage",
                 "aspect_ratio": req.aspect_ratio or "9:16",
                 "negative_prompt": req.negative_prompt,
+                "bgm_style": req.bgm_style or "",
                 "job_id": job_id,
             }, timeout=300.0)  # Video pipeline takes 90-180s
 

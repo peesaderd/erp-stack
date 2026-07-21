@@ -24,6 +24,7 @@ from gemini_client import (
 from persona_engine import (
     PERSONA_TEMPLATES, _select_persona, _apply_persona_to_profile,
 )
+from model_casting import select_model_cast
 from router_agent import router_decide
 
 logger = logging.getLogger("prompt-builder-service")
@@ -119,12 +120,21 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         "unisex": "person", "person": "person"
     }.get(model_gender, "woman")
 
-    scene_desc = image_description or f"Thai {gender_en}, {model_age} years old, pretty face, professional model quality"
+    # Use model casting for varied appearance (always — Gemini descriptions are too similar)
+    # This ensures every video has a different-looking model
+    model_cast = select_model_cast(profile.get("category", ""), product_name)
+    model_age = model_cast.get("model_age", model_age)
+    scene_desc = model_cast.get("image_description", 
+        f"Thai {gender_en}, {model_age} years old, pretty face, professional model quality")
+    profile["_model_cast_id"] = model_cast.get("id", "clean_girl")
 
     data = {
         "scene_description": scene_desc,
         "model_gender": gender_en,
         "model_age": model_age,
+        "model_style": model_cast.get("model_style", ""),
+        "model_appearance": model_cast.get("model_appearance_th", ""),
+        "model_clothing": model_cast.get("model_clothing_th", ""),
         "style": ugc_style,
         "tone": "casual",
         "composition": "natural composition, eye-level angle",
@@ -217,8 +227,17 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     video_motion = PACKAGING_VIDEO_MOTIONS.get(packaging_action, style_info['video_motion'])
     gender_en = {"female": "woman", "male": "man", "unisex": "person"}.get(model_gender, "person")
     
+    # Use model casting age if available
+    model_age_str = "25"
+    if profile.get("_model_cast_id"):
+        from model_casting import MODEL_CASTS
+        for mc in MODEL_CASTS:
+            if mc["id"] == profile["_model_cast_id"]:
+                model_age_str = mc["age"]
+                break
+    
     video_prompt = (
-        f"Thai {gender_en} 25, {video_motion}. "
+        f"Thai {gender_en} {model_age_str}, {video_motion}. "
         f"The product is visible in frame throughout. "
         f"Setting: {model_setting}. "
         f"soft natural lighting, warm atmosphere. "

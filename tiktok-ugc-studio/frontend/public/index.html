@@ -441,11 +441,11 @@ select.input { cursor: pointer; }
 }
 
 /* Side navigation slider */
-.side-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 2100; }
+.side-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 40; }
 .side-overlay.open { display: block; }
 .side-nav {
   position: fixed; top: 0; left: 0; bottom: 0; width: min(290px, 80vw);
-  background: var(--bg-secondary) !important; z-index: 70;
+  background: var(--bg-secondary) !important; z-index: 50;
   transform: translateX(-100%); transition: transform .25s cubic-bezier(.4,0,.2,1);
   display: flex; flex-direction: column; border-right: 1px solid var(--border-primary) !important;
   box-shadow: var(--shadow-xl) !important;

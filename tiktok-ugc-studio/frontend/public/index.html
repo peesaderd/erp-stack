@@ -2236,92 +2236,64 @@ function goContentStep(step) {
 }
 
 async function autoGenerateAll() {
-  // One-click: script → image → video
+  // One-click: background pipeline — runs server-side via /video/generate (can close tab!)
   const url = document.getElementById('productUrl').value;
   const title = document.getElementById('productTitle').value.trim();
   const details = document.getElementById('productDetails').value.trim();
   const style = document.getElementById('selectedStyleLabel')?.textContent?.split(' —')[0]?.trim()?.toLowerCase().replace(/ /g,'_') || 'holding';
   if (!url && !title && !details) { showToast('ใส่ชื่อสินค้าหรือ URL ก่อน','error'); return; }
 
-  showLoadingOverlay('📝 กำลังสร้างสคริปต์...');
+  const dur = parseInt(sessionStorage.getItem('selectedDuration')) || 8;
+  
+  showLoadingOverlay('🚀 กำลังเริ่ม Pipeline ฝั่ง Server...');
   setButtonLoading('autoGenBtn', true);
-  var partialResults = [];
   try {
-    // Step 1: Generate script
-    const body = { ugc_style: style, duration: sessionStorage.getItem('selectedDuration') || '8' };
-    if (url) body.product_url = url;
-    if (title) body.product_title = title;
-    if (details) body.product_details = details;
-    if (!body.product_name && title) body.product_name = title;
-    if (!body.product_name && url) body.product_name = url.split('/').pop() || url;
-
-    const scriptRes = await fetch(window.location.origin + '/api/tiktok/ugc/scripts/generate', {
-      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
-    });
-    if (!scriptRes.ok) throw new Error('Script generation failed');
-    const scriptData = await scriptRes.json();
-    partialResults.push('✅ สคริปต์');
-
-    // Fill hook/value/cta fields (keep existing if API returns empty)
-    if (scriptData.hook) document.getElementById('scriptHook').value = scriptData.hook;
-    if (scriptData.value_proposition) document.getElementById('scriptValue').value = scriptData.value_proposition;
-    if (scriptData.cta) document.getElementById('scriptCta').value = scriptData.cta;
-    localStorage.setItem('lastScript', JSON.stringify(scriptData));
+    const imageUrl = uploadedImages.product || '';
     
-    // Step 2: Go to Step 3 (summary/confirm)
-    goToStep3();
-    await new Promise(r => setTimeout(r, 500));
-    
-    // Step 3: Build image prompt + generate image
-    showLoadingOverlay('📷 กำลังสร้างรูปภาพ...');
-    const builderRes = await fetch(window.location.origin + '/api/tiktok/ugc/images/build-prompt', {
+    // /video/generate runs the FULL pipeline server-side (script+prompt+image+video)
+    // Already runs as async task via asyncio.create_task — no browser needed after this call!
+    const res = await fetch(window.location.origin + '/api/tiktok/video/generate', {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
-        product_name: title || url?.split('/').pop() || 'สินค้า',
-        description: details,
+        product_title: title || url?.split('/').pop() || '',
+        product_url: url,
+        product_description: details,
+        product_image: imageUrl,
+        hook: document.getElementById('scriptHook')?.value || '',
+        value: document.getElementById('scriptValue')?.value || '',
+        cta: document.getElementById('scriptCta')?.value || '',
+        duration: dur,
         ugc_style: style,
-        use_mistral: false
+        content_type: sessionStorage.getItem('selectedContentType') || 'affiliate',
+        aspect_ratio: sessionStorage.getItem('aspectRatio') || '9:16',
+        negative_prompt: document.getElementById('negativePrompt')?.value?.trim() || 'text, subtitle, caption, emoji, icon, logo, watermark, UI, overlay, graphic',
+        recipe: document.querySelector('#recipePicker .style-card.selected')?.getAttribute('data-recipe') || undefined,
       })
     });
-    if (!builderRes.ok) throw new Error('Build prompt failed');
-    const builderData = await builderRes.json();
-    const prompt = builderData.prompt || '';
-    if (!prompt) throw new Error('No prompt built');
-
-    const productImageUrl = uploadedImages.product || '';
-    const imgRes = await fetch(window.location.origin + '/api/tiktok/ugc/images/generate', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({prompt, count: 1, image_url: productImageUrl})
-    });
-    if (!imgRes.ok) throw new Error('Image generation failed');
-    const imgData = await imgRes.json();
-    const images = imgData.data?.data?.images || imgData.data?.images || imgData.images || [];
-    let imgUrl = images[0]?.url || '';
-    if (imgUrl.startsWith('http://localhost:8110/storage/images/')) {
-      imgUrl = window.location.origin + '/storage/images/' + imgUrl.split('/').pop();
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error('Pipeline start failed: ' + (errText || res.statusText));
     }
-    partialResults.push('✅ รูปภาพ');
-
-    setButtonLoading('autoGenBtn', false);
-
-    // Store for video step
-    sessionStorage.setItem('autoGenImageUrl', imgUrl);
-    sessionStorage.setItem('autoGenPrompt', prompt);
-
-    // Step 4: Auto-trigger video pipeline with loading overlay
-    goContentStep(4);
-    await new Promise(r => setTimeout(r, 600));
-    showLoadingOverlay('🚀 AI กำลังสร้างวิดีโอ...');
-    await startGeneration();
-    partialResults.push('✅ วิดีโอ');
-    showToast('✅ All steps done!','success');
-  } catch(e) {
-    var partialMsg = partialResults.length ? ' (สำเร็จ: ' + partialResults.join(', ') + ')' : '';
-    showToast('❌ ' + e.message + partialMsg, 'error');
-    console.error('autoGenerateAll error:', e, 'partialResults:', partialResults);
-  } finally {
+    const data = await res.json();
+    const jobId = data.job_id || '';
+    
     setButtonLoading('autoGenBtn', false);
     hideLoadingOverlay();
+    
+    showToast('✅ Pipeline เริ่มทำงานแล้ว! Job ID: ' + jobId + ' (ออกจาก page หรือปิด browser ได้เลย)', 'success');
+    sessionStorage.setItem('lastPipelineJobId', jobId);
+    
+    // Redirect to Pipeline tab to monitor
+    setTimeout(function() {
+      switchTab('pipeline');
+      loadPipelineList();
+    }, 1500);
+    
+  } catch(e) {
+    setButtonLoading('autoGenBtn', false);
+    hideLoadingOverlay();
+    showToast('❌ ' + e.message, 'error');
+    console.error('autoGenerateAll error:', e);
   }
 }
 

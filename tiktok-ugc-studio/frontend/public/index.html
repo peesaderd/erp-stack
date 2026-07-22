@@ -1954,6 +1954,9 @@ function switchTab(name) {
   }
 
   // Load specific tab data
+  // Stop pipeline polling when leaving pipeline tab
+  if (name !== 'pipeline') stopPipelinePoll();
+
   if (name === 'dashboard') loadDashboard();
   if (name === 'pipeline') {
     loadPipelineJobs();
@@ -2283,10 +2286,11 @@ async function autoGenerateAll() {
     showToast('✅ Pipeline เริ่มทำงานแล้ว! Job ID: ' + jobId + ' (ออกจาก page หรือปิด browser ได้เลย)', 'success');
     sessionStorage.setItem('lastPipelineJobId', jobId);
     
-    // Redirect to Pipeline tab to monitor
+    // Redirect to Pipeline tab to monitor — auto-refresh every 8s
     setTimeout(function() {
       switchTab('pipeline');
-      loadPipelineList();
+      loadPipelineJobs();
+      startPipelinePoll(jobId);
     }, 1500);
     
   } catch(e) {
@@ -2309,6 +2313,43 @@ function hideLoadingOverlay() {
 }
 
 // ─── Auto Pipeline ─────────────────────────────────────────
+
+// Polling state for pipeline job completion auto-refresh
+var _pipelinePollInterval = null;
+var _pipelinePollJobId = null;
+
+function startPipelinePoll(jobId) {
+  _pipelinePollJobId = jobId;
+  stopPipelinePoll();
+  _pipelinePollInterval = setInterval(function() {
+    if (!_pipelinePollJobId) { stopPipelinePoll(); return; }
+    var el = document.getElementById('pipelineJobList');
+    if (!el || el.offsetParent === null) { stopPipelinePoll(); return; } // tab not visible
+    loadPipelineJobs().then(function() {
+      // Check if job completed
+      fetch(API + '/pipeline/list?limit=50').then(function(r) { return r.json(); }).then(function(d) {
+        var jobs = d.jobs || [];
+        var found = jobs.find(function(j) { return j.job_id === _pipelinePollJobId; });
+        if (found) {
+          if (found.status === 'completed' || found.status === 'success') {
+            stopPipelinePoll();
+            showToast('✅ Pipeline เสร็จแล้ว! Job: ' + _pipelinePollJobId.slice(0,12) + '...', 'success');
+          } else if (found.status === 'error' || found.status === 'failed') {
+            stopPipelinePoll();
+            showToast('❌ Pipeline failed: ' + _pipelinePollJobId.slice(0,12) + '...', 'error');
+          }
+        }
+      }).catch(function(){});
+    }).catch(function(){});
+  }, 8000); // every 8 seconds
+}
+
+function stopPipelinePoll() {
+  if (_pipelinePollInterval) {
+    clearInterval(_pipelinePollInterval);
+    _pipelinePollInterval = null;
+  }
+}
 
 function selectAutoMode(el) {
   document.querySelectorAll('.auto-pipeline-modes .mode-card').forEach(function(c){ 

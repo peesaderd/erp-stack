@@ -15,11 +15,11 @@ RECIPES_DIR = BASE_DIR / "recipes"
 
 STYLE_MAP = {
     "holding": {
-        "model_action": "holding the product in both hands, product packaging facing camera, smiling naturally",
-        "camera": "mid shot, waist up, product visible at chest level",
-        "vibe": "friendly, approachable, product-focused",
-        "keywords": "both hands holding product, product clearly visible and in focus",
-        "video_motion": "model holding product, gentle hand movement showing product tube, natural breathing motion, slight head tilt",
+        "model_action": "both hands holding the product gently, product packaging facing camera, NOT applying or using product, NOT opening product, just holding and showing to camera, smiling",
+        "camera": "mid shot, waist up, product centered at chest level, product clearly in frame",
+        "vibe": "friendly, approachable, product-focused, simple",
+        "keywords": "both hands holding product gently, showing to camera, not using, product front and center",
+        "video_motion": "model quietly holding product, minimal motion, product stays visible throughout, gentle breathing, no product opening or applying",
     },
     "usage": {
         "model_action": "actively using the product in a natural daily setting, candid moment, product in use",

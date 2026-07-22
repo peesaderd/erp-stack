@@ -153,9 +153,13 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         image_prompt = fill_template(templates["master"], data)
         negative = templates.get("negative", "")
     else:
+        # Holding style: extra emphasis on NOT using product
+        hold_extra = ""
+        if ugc_style == "holding":
+            hold_extra = " NOT squeezing or pumping or opening. The product is held gently, not used."
         image_prompt = (
             f"{scene_desc}. "
-            f"{style_info['model_action']}. "
+            f"{style_info['model_action']}{hold_extra}. "
             f"{style_info['camera']}, {style_info['vibe']}. "
             f"natural composition, warm inviting atmosphere. "
             f"The product is clearly in frame. "
@@ -186,7 +190,10 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     name_lower = product_name.lower()
     mistral_was_generic = packaging_action in ("", "generic_hold")
     
-    if mistral_was_generic:
+    # Holding style: NEVER infer packaging actions — just hold and show
+    if ugc_style == "holding":
+        packaging_action = "generic_hold"
+    elif mistral_was_generic:
         if any(w in name_lower for w in ["click", "คลิก", "กดกิ๊ก"]):
             packaging_action = "click_to_release"
         elif any(w in name_lower for w in ["pump", "ปั๊ม"]):
@@ -221,7 +228,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         "blend": "blending product into skin with circular motion",
         "dab_press": "dabbing cushion puff on face with gentle pressing motion",
         "blush_swirl": "swirling brush in blush compact, dusting on cheeks",
-        "generic_hold": style_info['video_motion'],
+        "generic_hold": "model gently holding the product in both hands, showing product to camera, NOT opening or applying the product, just keeping product visible, calm minimal movement",
     }
     
     video_motion = PACKAGING_VIDEO_MOTIONS.get(packaging_action, style_info['video_motion'])
@@ -236,9 +243,14 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
                 model_age_str = mc["age"]
                 break
     
+    # For holding style, add extra emphasis to prevent Wan 2.7 from inventing usage actions
+    holding_emphasis = ""
+    if ugc_style == "holding":
+        holding_emphasis = " IMPORTANT: Do NOT open or apply the product. Just hold and show it. No squeezing, no pumping, no spraying."
+
     video_prompt = (
         f"Thai {gender_en} {model_age_str}, {video_motion}. "
-        f"The product is visible in frame throughout. "
+        f"The product is visible in frame throughout.{holding_emphasis} "
         f"Setting: {model_setting}. "
         f"soft natural lighting, warm atmosphere. "
         f"9:16 portrait, smooth natural motion, no text, no watermark"
@@ -288,12 +300,9 @@ async def analyze_and_build_prompts(
     # Step 1: Analyze (includes Router Agent call)
     profile = analyze_product(product_name, description, keywords)
 
-    # Override ugc_style if Router Agent suggested a different one
+    # Router Agent is advisory — NEVER override explicit user style
+    # The caller (frontend) dictates ugc_style, Router Agent suggestions are ignored for style
     router_config = profile.get("router_config", {})
-    effective_style = router_config.get("visual_style", ugc_style)
-    # Only override if user didn't explicitly set ugc_style
-    if ugc_style == "holding" and effective_style != "holding":
-        ugc_style = effective_style
 
     # Step 2: If product_image provided, run vision analysis to enrich profile
     vision_profile = None

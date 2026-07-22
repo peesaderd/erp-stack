@@ -107,7 +107,7 @@ def concat_videos(video_paths: list, output_path: Path) -> Path:
 # STEP 1: Analyze Product (Mistral)
 # ═══════════════════════════════════════════════════════════════════════════
 
-def analyze_product(product_name: str, product_image: str = None, description: str = "") -> dict:
+def analyze_product(product_name: str, product_image: str = None, description: str = "", ugc_style: str = "holding") -> dict:
     """
     Step 1: Analyze product via Mistral → product_profile
 
@@ -134,7 +134,7 @@ def analyze_product(product_name: str, product_image: str = None, description: s
             "product_name": product_name,
             "description": description,
             "product_image": product_image or "",
-            "ugc_style": "holding",  # default
+            "ugc_style": ugc_style,
         }
 
         resp = requests.post(url, json=payload, timeout=60)
@@ -369,6 +369,7 @@ def build_video_prompts(
     product_profile: dict,
     recipe: dict,
     image_path: str,
+    ugc_style: str = "holding",
 ) -> list:
     """
     Step 6: Build video prompts from recipe + image context
@@ -377,11 +378,12 @@ def build_video_prompts(
         product_profile: ผลจาก analyze_product()
         recipe: ผลจาก load_recipe()
         image_path: path ของ image ที่สร้างแล้ว (Step 5)
+        ugc_style: สไตล์ UGC ที่เลือก (holding, usage, review, talking)
 
     Returns:
         list: video_prompts (1 prompt per scene)
     """
-    logger.info(f"Step 6/9: Build video prompts (from recipe + image)")
+    logger.info(f"Step 6/9: Build video prompts (from recipe + image, style={ugc_style})")
 
     scenes = recipe.get("scenes", [])
     video_prompts = []
@@ -401,6 +403,10 @@ def build_video_prompts(
     }
     lighting = lighting_map.get(category, "soft natural lighting")
 
+    # For holding style: ALL scenes are just "hold product" — no usage/demonstration
+    is_holding = ugc_style == "holding"
+    hold_prompt = "Person gently holding the product in both hands, showing product to camera, NOT using or opening or applying the product"
+
     for scene in scenes:
         scene_name = scene.get("name", "Scene")
         scene_prompt = scene.get("prompt", "")
@@ -408,19 +414,23 @@ def build_video_prompts(
         # Enhance prompt with image context + recipe
         enhanced = f"{scene_prompt}. Setting: {setting}. {lighting}. 9:16 portrait, smooth natural motion."
 
-        # Add scene-specific details
-        if scene_name == "Hook":
-            enhanced += " Beautiful opening shot, product clearly visible"
-        elif scene_name == "Problem":
-            enhanced += " Person showing concern, relatable emotion"
-        elif scene_name == "Discovery":
-            enhanced += " Excited expression, discovering product"
-        elif scene_name == "Features":
-            enhanced += " Close-up texture, product in use"
-        elif scene_name == "Transformation":
-            enhanced += " Before-after comparison, clear improvement"
-        elif scene_name == "CTA":
-            enhanced += " Final product shot, encouraging purchase"
+        # Create a holding-focused version regardless of scene type
+        if is_holding:
+            enhanced += f" {hold_prompt}. Product must be clearly visible in frame at all times."
+        else:
+            # Add scene-specific details for non-holding styles
+            if scene_name == "Hook":
+                enhanced += " Beautiful opening shot, product clearly visible"
+            elif scene_name == "Problem":
+                enhanced += " Person showing concern, relatable emotion"
+            elif scene_name == "Discovery":
+                enhanced += " Excited expression, discovering product"
+            elif scene_name == "Features":
+                enhanced += " Close-up texture, product in use"
+            elif scene_name == "Transformation":
+                enhanced += " Before-after comparison, clear improvement"
+            elif scene_name == "CTA":
+                enhanced += " Final product shot, encouraging purchase"
 
         video_prompts.append(enhanced)
 
@@ -805,7 +815,7 @@ def run_pipeline(
     try:
         # ── STEP 1: Analyze ──
         step_start = time.time()
-        product_profile = analyze_product(product_name, product_image, description)
+        product_profile = analyze_product(product_name, product_image, description, ugc_style)
         analyze_duration = int((time.time() - step_start) * 1000)
 
         try:
@@ -888,7 +898,7 @@ def run_pipeline(
 
         # ── STEP 6: Build Video Prompts ──
         step_start = time.time()
-        video_prompts = build_video_prompts(product_profile, recipe, str(img_path))
+        video_prompts = build_video_prompts(product_profile, recipe, str(img_path), ugc_style)
         vid_prompt_duration = int((time.time() - step_start) * 1000)
 
         try:

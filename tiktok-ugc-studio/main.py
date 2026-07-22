@@ -837,6 +837,7 @@ def list_completed_videos():
                 "hashtags": htags,
                 "duration": meta.get("duration", DEFAULT_VIDEO_DURATION),
                 "style": meta.get("ugc_style", ""),
+                "created": meta.get("created", result.get("created", datetime.utcnow().isoformat())),
             })
 
     # 2) Filesystem scan — find videos stored on disk (survives PM2 restart)
@@ -847,7 +848,7 @@ def list_completed_videos():
             continue
         seen.add(job_id)
         size_mb = mp4.stat().st_size / (1024 * 1024)
-        mtime = datetime.fromtimestamp(mp4.stat().st_mtime).strftime("%Y-%m-%d")
+        mtime = datetime.fromtimestamp(mp4.stat().st_mtime).isoformat()
         pname = mp4.stem.replace("final_vid_", "Video ").replace("final_", "")
         jobs.append({
             "job_id": job_id,
@@ -925,6 +926,9 @@ def list_completed_videos():
             conn.close()
         except Exception:
             pass
+
+    # Sort: newest first by created (or job_id descending as tiebreaker)
+    jobs.sort(key=lambda j: (j.get("created", "") or "", j.get("job_id", "") or ""), reverse=True)
 
     return {"jobs": jobs, "total": len(jobs)}
 

@@ -523,6 +523,7 @@ select.input { cursor: pointer; }
 .mobile-menu-btn {
   display: none; align-items: center; justify-content: center; width: 38px; height: 38px;
   border: none; background: transparent; color: var(--text-primary); cursor: pointer; font-size: 20px; border-radius: var(--radius);
+  margin-left: -10px;
 }
 .mobile-menu-btn:hover { background: var(--bg-tertiary); }
 
@@ -925,8 +926,7 @@ select.input { cursor: pointer; }
         </svg>
       </button>
     </div>
-    <span class="status-dot online" id="connStatus" title="Connected"></span>
-    <button class="btn btn-ghost btn-icon" onclick="refreshAll()" title="Refresh all">⟳</button>
+    <!-- Removed status dot + refresh per user request -->
   </div>
 </div>
 

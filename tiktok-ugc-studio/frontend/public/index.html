@@ -1101,6 +1101,8 @@ select.input { cursor: pointer; }
     </div>
     <div id="productSearchResults" class="text-xs text-secondary mt-1"></div>
   </div>
+  <!-- Stats & Sheets Import — hidden temporarily -->
+  <!--
   <div class="stats-grid" id="productStats">
     <div class="stat-card"><div class="stat-value" id="prodTotal">-</div><div class="stat-label">Total Products</div></div>
     <div class="stat-card"><div class="stat-value" id="prodAvgComm">-</div><div class="stat-label">Avg Commission</div></div>
@@ -1114,14 +1116,12 @@ select.input { cursor: pointer; }
       <span id="sheetsStatusBadge" class="badge" style="background:var(--bg-tertiary);color:var(--text-secondary);font-size:11px">ตรวจสอบ...</span>
     </div>
 
-    <!-- Step 1: เลือก Spreadsheet + Open -->
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
       <input class="input" id="sheetsSpreadsheetId" placeholder="Spreadsheet ID (จาก URL .../d/{ID}/edit)" value="" style="flex:1;min-width:200px">
       <button class="btn btn-secondary btn-sm" onclick="window.open('https://docs.google.com/spreadsheets/d/'+document.getElementById('sheetsSpreadsheetId').value,'_blank')" title="เปิด Google Sheet">🔗 Open Sheet</button>
       <button class="btn btn-secondary btn-sm" id="sheetsConnectBtn" onclick="connectSheet()">🔄 เชื่อมต่อ</button>
     </div>
 
-    <!-- Step 2: เลือก Sheet name + Map columns (แสดงหลังเชื่อมต่อ) -->
     <div id="sheetsConfigArea" style="display:none;margin-top:8px;padding:10px;background:var(--bg-tertiary);border-radius:var(--radius-lg)">
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
         <label style="font-size:12px;font-weight:500;min-width:60px">📄 Sheet:</label>
@@ -1143,6 +1143,7 @@ select.input { cursor: pointer; }
 
     <div id="sheetsResult" class="text-xs text-secondary mt-2"></div>
   </div>
+  -->
 
   <div id="productGrid" class="product-grid">
     <div class="skeleton skeleton-line"></div>
@@ -4282,14 +4283,18 @@ async function searchProducts() {
     const analyzed = d1.products || [];
     const scraped = d2.products || [];
     
-    // Update stats for analyzed
-    document.getElementById("prodTotal").textContent = analyzed.length;
+    // Update stats for analyzed (components may be hidden)
+    const elProdTotal = document.getElementById("prodTotal");
+    if (elProdTotal) elProdTotal.textContent = analyzed.length;
     const avg = analyzed.length ? Math.round(analyzed.reduce((a,p) => a + (p.commission_rate||0), 0) / analyzed.length) : 0;
-    document.getElementById("prodAvgComm").textContent = avg + "%";
+    const elAvg = document.getElementById("prodAvgComm");
+    if (elAvg) elAvg.textContent = avg + "%";
     const maxc = analyzed.length ? Math.max(...analyzed.map(p => p.commission_rate||0)) : 0;
-    document.getElementById("prodTopComm").textContent = maxc + "%";
+    const elMax = document.getElementById("prodTopComm");
+    if (elMax) elMax.textContent = maxc + "%";
     const ts = analyzed.length ? analyzed.reduce((a,p) => a + (p.sold_total||0), 0).toLocaleString() : "0";
-    document.getElementById("prodTotalSold").textContent = ts;
+    const elSold = document.getElementById("prodTotalSold");
+    if (elSold) elSold.textContent = ts;
     
     resultInfo.textContent = '🔍 พบ ' + (analyzed.length + scraped.length) + ' รายการ สำหรับ "' + q + '"';
     
@@ -4355,13 +4360,18 @@ async function loadAnalyzedProducts() {
     if (!r.ok) throw new Error("API Error");
     const d = await r.json();
     const products = d.products || [];
-    document.getElementById("prodTotal").textContent = products.length;
+    // Update stats (components may be hidden)
+    const elProdTotal = document.getElementById("prodTotal");
+    if (elProdTotal) elProdTotal.textContent = products.length;
     const avg = products.length ? Math.round(products.reduce((a,p) => a + (p.commission_rate||0), 0) / products.length) : 0;
-    document.getElementById("prodAvgComm").textContent = avg + "%";
+    const elAvg = document.getElementById("prodAvgComm");
+    if (elAvg) elAvg.textContent = avg + "%";
     const maxc = products.length ? Math.max(...products.map(p => p.commission_rate||0)) : 0;
-    document.getElementById("prodTopComm").textContent = maxc + "%";
+    const elMax = document.getElementById("prodTopComm");
+    if (elMax) elMax.textContent = maxc + "%";
     const ts = products.length ? products.reduce((a,p) => a + (p.sold_total||0), 0).toLocaleString() : "0";
-    document.getElementById("prodTotalSold").textContent = ts;
+    const elSold = document.getElementById("prodTotalSold");
+    if (elSold) elSold.textContent = ts;
     if (!products.length) { grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">No products</div>'; return; }
     grid.innerHTML = products.map(p => {
       const img = (p.images && p.images[0]) || "";

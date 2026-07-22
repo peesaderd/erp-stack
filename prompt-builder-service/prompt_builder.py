@@ -128,6 +128,22 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         f"Thai {gender_en}, {model_age} years old, pretty face, professional model quality")
     profile["_model_cast_id"] = model_cast.get("id", "clean_girl")
 
+    # MERGE: Keep model appearance from CAST (variety!) but ADD product physical
+    # details from Gemini's image_description (packaging, cap type, texture, color)
+    raw_image_desc = profile.get("image_description", "")
+    if raw_image_desc:
+        import re
+        # Extract product packaging sentence from Gemini's analysis output
+        # e.g. "holding a clear plastic bottle of Naturista Tea Tree Facial Toner
+        #       with a green label and a white twist cap at chest level."
+        held_match = re.search(r'(?:holding|showing)\s+a\s+(.*?)(?:\.|$)', raw_image_desc)
+        if held_match:
+            pkg_phrase = held_match.group(1).strip()
+            # Remove trailing location like " at chest level" — keep just packaging details
+            pkg_phrase = re.sub(r'\s+at\s+.*$', '', pkg_phrase)
+            scene_desc += f" The product is a {pkg_phrase}."
+            scene_desc = re.sub(r'\s+', ' ', scene_desc).strip()
+
     data = {
         "scene_description": scene_desc,
         "model_gender": gender_en,
@@ -243,13 +259,28 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
                 model_age_str = mc["age"]
                 break
     
+    # Build natural-language product physical description from Gemini analysis
+    # Gemini's image_description includes packaging details (cap type, bottle shape, color)
+    product_physical = ""
+    raw_image_desc = profile.get("image_description", "")
+    if raw_image_desc:
+        import re
+        pkg_match = re.search(r'(?:holding|showing)\s+a\s+(.*?)(?:\.|$)', raw_image_desc)
+        if pkg_match:
+            pkg_phrase = pkg_match.group(1).strip()
+            pkg_phrase = re.sub(r'\s+at\s+.*$', '', pkg_phrase)
+            product_physical = f" showing a {pkg_phrase}"
+
     # For holding style, add extra emphasis to prevent Wan 2.7 from inventing usage actions
     holding_emphasis = ""
     if ugc_style == "holding":
         holding_emphasis = " IMPORTANT: Do NOT open or apply the product. Just hold and show it. No squeezing, no pumping, no spraying."
 
+    # Capitalize first letter of video_motion since it starts a new clause
+    video_motion_cap = video_motion[0].upper() + video_motion[1:]
     video_prompt = (
-        f"Thai {gender_en} {model_age_str}, {video_motion}. "
+        f"Thai {gender_en} {model_age_str}{product_physical}. "
+        f"{video_motion_cap}. "
         f"The product is visible in frame throughout.{holding_emphasis} "
         f"Setting: {model_setting}. "
         f"soft natural lighting, warm atmosphere. "

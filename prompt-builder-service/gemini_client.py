@@ -157,14 +157,17 @@ JSON ที่ต้องตอบ:
 - ต้องตรงกับท่าเริ่มต้นของ Video Prompt Scene แรกเป๊ะๆ
 - สำหรับ Holding/UGC Style: นางแบบต้อง "ถือสินค้าที่ระดับอก" (holding at chest level) — ยังไม่เริ่มใช้
 - ห้ามระบุว่านางแบบกำลังใช้สินค้า (กำลังทา, กำลังปั๊ม, กำลังฉีด) ใน image_description
-- การทำงานที่ถูกต้อง:
-  • Image (First Frame): ถือสินค้าที่ระดับอกเฉยๆ
-  • Video Scene 1: เริ่มขยับจากท่าถือ → เริ่มใช้สินค้า
-  • Video Scene 2+: ใช้สินค้าจริง
 
-Include: model appearance (Thai woman/man, age 25, glowing skin), pose (HOLDING product at chest level — NOT applying yet), expression (confident smile / happy), setting (vanity room, cafe), lighting (soft natural window light), mood (warm, inviting). Focus on product being clearly visible and in focus. Do NOT describe the product being used/applied — that happens in the video.
+🔴 CRITICAL — Product Physical Description:
+You MUST describe the product's physical packaging in image_description:
+- Container type (plastic bottle / glass jar / squeeze tube / lipstick bullet / cushion compact / dropper bottle / spray bottle / pump bottle)
+- Closure type (twist cap / flip-top / pump / dropper / spray nozzle / click pen / rollerball)
+- Product color/texture (clear liquid / white cream / pink gel)
+- Label/design features (color, text, pattern)
 
-Example (correct for Holding style): 'A beautiful Thai woman, 25 years old, glowing skin, happy smile, holding a lip product at chest level, product visible and in focus, in a vanity room with soft natural window lighting, warm and inviting atmosphere'",
+Natural example: 'A beautiful Thai woman holding a white plastic bottle with a green leaf label and black twist cap at chest level'
+
+Include: model appearance, PRODUCT PACKAGING (container, cap, colors), pose (holding at chest level), expression, setting, lighting, mood.",
 }"""
 
 
@@ -188,7 +191,16 @@ JSON format:
   "estimated_product_size": "small/medium/large",
   "customer_problem": "specific problem this product solves (in Thai for script)",
   "main_benefit": "specific main benefit (in Thai for script)",
-  "image_description": "ENGLISH ONLY — absolutely NO Thai. Describe the ideal scene for AI image gen. Include: model appearance (Thai woman/man, age 25, glowing skin), pose (how they hold/use product, e.g. applying on lips showing glossy texture), expression, setting, lighting, mood. Focus on product texture/usage. Example: 'A beautiful Thai woman, 25 years old, glowing skin, happy smile, applying product on lips, vanity room, soft natural window lighting, glossy texture visible, warm atmosphere'
+  "image_description": "ENGLISH ONLY — absolutely NO Thai. Describe the ideal scene for AI image gen.
+
+CRITICAL — You SEE the actual product image. In image_description you MUST include:
+- Product physical packaging details (container shape: bottle/jar/tube; closure type: twist cap/pump/spray/flip-top; material: plastic/glass; colors)
+- Model appearance (Thai woman/man, age, skin)
+- Pose (how they hold the product at chest level for holding style)
+- Expression, setting, lighting, mood
+
+Example: 'A beautiful Thai woman, 25 years old, glowing skin, holding a square white glass bottle with a gold pump top and green liquid visible inside, product label facing camera, in a vanity room with soft natural window lighting, warm atmosphere'
+"
 }"""
 
 

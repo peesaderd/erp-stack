@@ -1093,7 +1093,7 @@ async def profile_tier(user_id: str):
 # ─── Products List ───────────────────────────────────────────────────────
 
 @app.get("/products/list")
-def list_products(limit: int = 50, preset: str = "all"):
+def list_products(limit: int = 50, preset: str = "all", search: str = ""):
     """List products from tus_products.db for the frontend product grid."""
     db_path = os.path.join(os.path.dirname(__file__), "tus_products.db")
     if not os.path.exists(db_path):
@@ -1101,9 +1101,17 @@ def list_products(limit: int = 50, preset: str = "all"):
     
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
-    rows = conn.execute(
-        "SELECT * FROM tus_products ORDER BY viral_score DESC LIMIT ?", (limit,)
-    ).fetchall()
+    
+    if search:
+        like = f"%{search}%"
+        rows = conn.execute(
+            "SELECT * FROM tus_products WHERE title LIKE ? ORDER BY viral_score DESC LIMIT ?",
+            (like, limit)
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM tus_products ORDER BY viral_score DESC LIMIT ?", (limit,)
+        ).fetchall()
     conn.close()
     
     products = []
@@ -1121,41 +1129,57 @@ def list_products(limit: int = 50, preset: str = "all"):
         row_dict["image_count"] = len(row_dict["images"])
         products.append(row_dict)
     
-    return {"products": products}
+    return {"products": products, "total": len(products)}
 
 
 PRODUCTDB_DSN = os.environ.get("PRODUCTDB_DSN", "postgresql://openhands:OpenHands%40ERP2026@127.0.0.1:5432/erp_stack")
 
 @app.get("/products/scraped")
-async def list_scraped_products(limit: int = 100):
-    """List products from PostgreSQL productdb.products (Gemini-scraped)."""
+async def list_scraped_products(limit: int = 100, search: str = ""):
+    """List products from PostgreSQL productdb.products (Gemini-scraped).
+    
+    Uses ai_analysis JSON column for container/closure details.
+    """
     try:
         conn = await asyncpg.connect(PRODUCTDB_DSN)
-        rows = await conn.fetch(
-            "SELECT id, name, data FROM products ORDER BY id ASC LIMIT $1", limit
-        )
+        if search:
+            like = f"%{search}%"
+            rows = await conn.fetch(
+                "SELECT id, name, description, price, category, tags, ai_analysis, image_urls, source_url "
+                "FROM products WHERE name ILIKE $1 ORDER BY id ASC LIMIT $2",
+                like, limit
+            )
+        else:
+            rows = await conn.fetch(
+                "SELECT id, name, description, price, category, tags, ai_analysis, image_urls, source_url "
+                "FROM products ORDER BY id ASC LIMIT $1", limit
+            )
         await conn.close()
         products = []
         for r in rows:
-            data = json.loads(r["data"]) if isinstance(r["data"], str) else (r["data"] or {})
+            aa = r["ai_analysis"] or {}
+            if isinstance(aa, str):
+                aa = json.loads(aa)
+            imgs = r["image_urls"] or []
+            if isinstance(imgs, str):
+                imgs = json.loads(imgs)
             products.append({
                 "id": r["id"],
                 "title": r["name"],
-                "category": r.get("category", "General"),
-                "container_type": data.get("container_type", "ขวด/ภาชนะทรงมาตรฐาน"),
-                "closure_type": data.get("closure_type", "ฝาปิดมาตรฐาน"),
-                "label_colors": data.get("label_colors", "สีบรรจุภัณฑ์ตามภาพ"),
-                "product_color": data.get("product_color", "เนื้อสัมผัสธรรมชาติ"),
-                "price_thb": float(data.get("price", 0)),
-                "commission": data.get("commission_rate", ""),
-                "category": data.get("category", ""),
-                "product_id": data.get("product_id", ""),
-                "product_url": data.get("product_url", ""),
-                "hook_concept": data.get("hook_concept", ""),
-                "image_filename": data.get("image_filename", ""),
-                "source": "tiktok",
-                "images": [],
-                "image_count": 0,
+                "description": r["description"] or "",
+                "category": r["category"] or "General",
+                "price_thb": float(r["price"] or 0),
+                "commission": aa.get("commission_rate", ""),
+                "source_url": r["source_url"] or "",
+                "hook_concept": aa.get("script", ""),
+                "container_type": aa.get("container_type", "ขวด/ภาชนะทรงมาตรฐาน"),
+                "closure_type": aa.get("closure_type", "ฝาปิดมาตรฐาน"),
+                "label_colors": aa.get("label_colors", "สีบรรจุภัณฑ์ตามภาพ"),
+                "product_color": aa.get("product_color", "เนื้อสัมผัสธรรมชาติ"),
+                "tags": r["tags"] if isinstance(r["tags"], list) else [],
+                "images": imgs if isinstance(imgs, list) else [],
+                "image_count": len(imgs) if isinstance(imgs, list) else 0,
+                "source": "scraped",
             })
         return {"success": True, "products": products, "total": len(products)}
     except Exception as e:

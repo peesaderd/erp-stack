@@ -1088,7 +1088,18 @@ select.input { cursor: pointer; }
 <div id="page-products" class="page">
   <div class="page-header">
     <div><h2>Product Recommendations</h2><p>TikTok Shop products with affiliate commission</p></div>
-    <button class="btn btn-primary btn-sm" onclick="loadAnalyzedProducts()">🔄 Refresh</button>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary btn-sm" onclick="loadAnalyzedProducts()">🔄 Refresh</button>
+    </div>
+  </div>
+  <!-- Search Bar -->
+  <div class="card mb-3" style="padding:12px">
+    <div style="display:flex;gap:8px;align-items:center">
+      <input class="input" id="productSearchInput" placeholder="🔍 ค้นหาสินค้า... พิมพ์ชื่อสินค้า แล้วกด Enter" value="" style="flex:1" onkeydown="if(event.key==='Enter') searchProducts()">
+      <button class="btn btn-secondary btn-sm" onclick="document.getElementById('productSearchInput').value='';searchProducts()">✕ ล้าง</button>
+      <button class="btn btn-primary btn-sm" onclick="searchProducts()">🔍 ค้นหา</button>
+    </div>
+    <div id="productSearchResults" class="text-xs text-secondary mt-1"></div>
   </div>
   <div class="stats-grid" id="productStats">
     <div class="stat-card"><div class="stat-value" id="prodTotal">-</div><div class="stat-label">Total Products</div></div>
@@ -4240,6 +4251,101 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 /* Products (Analyzer) */
+
+/** Search products by name — queries both tus_products.db and scraped products */
+async function searchProducts() {
+  const q = document.getElementById('productSearchInput').value.trim();
+  const grid = document.getElementById("productGrid");
+  const scrapedGrid = document.getElementById("scrapedProductGrid");
+  const resultInfo = document.getElementById("productSearchResults");
+  
+  if (!q) {
+    // No query = load all
+    resultInfo.textContent = '';
+    loadAnalyzedProducts();
+    return;
+  }
+  
+  grid.innerHTML = '<div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line"></div>';
+  scrapedGrid.innerHTML = '<div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line"></div>';
+  resultInfo.textContent = '🔍 กำลังค้นหา "' + q + '"...';
+  
+  try {
+    const encQ = encodeURIComponent(q);
+    // Query both APIs in parallel
+    const [r1, r2] = await Promise.all([
+      fetch(API + '/products/list?limit=50&search=' + encQ),
+      fetch(API + '/products/scraped?limit=50&search=' + encQ),
+    ]);
+    const [d1, d2] = await Promise.all([r1.json(), r2.json()]);
+    
+    const analyzed = d1.products || [];
+    const scraped = d2.products || [];
+    
+    // Update stats for analyzed
+    document.getElementById("prodTotal").textContent = analyzed.length;
+    const avg = analyzed.length ? Math.round(analyzed.reduce((a,p) => a + (p.commission_rate||0), 0) / analyzed.length) : 0;
+    document.getElementById("prodAvgComm").textContent = avg + "%";
+    const maxc = analyzed.length ? Math.max(...analyzed.map(p => p.commission_rate||0)) : 0;
+    document.getElementById("prodTopComm").textContent = maxc + "%";
+    const ts = analyzed.length ? analyzed.reduce((a,p) => a + (p.sold_total||0), 0).toLocaleString() : "0";
+    document.getElementById("prodTotalSold").textContent = ts;
+    
+    resultInfo.textContent = '🔍 พบ ' + (analyzed.length + scraped.length) + ' รายการ สำหรับ "' + q + '"';
+    
+    // Render analyzed
+    if (!analyzed.length) {
+      grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">😕 ไม่พบสินค้าใน TUS Products</div>';
+    } else {
+      grid.innerHTML = analyzed.map(p => {
+        const img = (p.images && p.images[0]) || "";
+        const comm = p.commission_rate || 0;
+        const sold = p.sold_total || 0;
+        const price = p.price_thb || 0;
+        const enc = encodeURIComponent(JSON.stringify(p));
+        const imgHtml = img ? `<img class="product-card-img" src="${img}" alt="" loading="lazy" onerror="this.style.display='none'">` : '<div class="product-card-img" style="display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);font-size:32px">📦</div>';
+        const pUrl = p.url || "";
+        return `<div class="product-card" onclick="useProduct('${enc}')">${imgHtml}<div class="product-card-body"><div class="product-card-title">${p.title || "Unknown"}</div><div class="product-card-meta"><span class="product-card-price">฿${Number(price).toLocaleString()}</span><span class="product-card-comm">💰 ${comm}%</span><span class="product-card-platform">${p.source || "tiktok"}</span></div><div class="product-card-sold">🔥 Sold ${sold.toLocaleString()} pcs</div><div class="product-card-footer"><span class="text-xs text-secondary truncate" style="max-width:140px">${pUrl}</span><button class="btn btn-primary btn-sm">🎬 Create Video</button></div></div></div>`;
+      }).join("");
+    }
+    
+    // Render scraped
+    const scrapedSection = document.getElementById('scrapedSection');
+    scrapedSection.style.display = 'block';
+    document.getElementById('scrapedTotalBadge').textContent = scraped.length + ' รายการ';
+    
+    if (!scraped.length) {
+      scrapedGrid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">😕 ไม่พบใน Scraped Products</div>';
+    } else {
+      scrapedGrid.innerHTML = scraped.map(function(p) {
+        var price = p.price_thb || 0;
+        var comm = p.commission || '';
+        var cat = p.category || '';
+        var hook = p.hook_concept || '';
+        var enc = encodeURIComponent(JSON.stringify(p));
+        return '<div class="product-card" onclick="useScrapedProduct(\'' + enc.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')">' +
+          '<div class="product-card-img" style="display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);font-size:32px;background:var(--bg-tertiary)">📦</div>' +
+          '<div class="product-card-body">' +
+          '<div class="product-card-title">' + (p.title || 'Unknown').slice(0,60) + '</div>' +
+          '<div class="product-card-meta">' +
+          '<span class="product-card-price">฿' + Number(price).toLocaleString() + '</span>' +
+          (comm ? '<span class="product-card-comm">💰 ' + comm + '</span>' : '') +
+          (cat ? '<span class="product-card-platform">' + cat.slice(0,20) + '</span>' : '') +
+          '</div>' +
+          (hook ? '<div class="text-xs text-secondary" style="margin-top:4px;line-height:1.3">💡 ' + hook.slice(0,80) + '</div>' : '') +
+          '<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px"><span class="badge" style="font-size:10px;background:rgba(255,255,255,0.06)">🧴 ' + (p.container_type||"ภาชนะทรงมาตรฐาน").slice(0,18) + '</span><span class="badge" style="font-size:10px;background:rgba(255,255,255,0.06)">🔒 ' + (p.closure_type||"ฝามาตรฐาน").slice(0,14) + '</span></div>' +
+          '<div class="product-card-footer" style="margin-top:6px">' +
+          '<button class="btn btn-primary btn-sm">🎬 Create Video</button>' +
+          '</div></div></div>';
+      }).join('');
+    }
+  } catch(e) {
+    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">Error: ' + e.message + '</div>';
+    scrapedGrid.innerHTML = '';
+    resultInfo.textContent = '❌ Error: ' + e.message;
+  }
+}
+
 async function loadAnalyzedProducts() {
   const grid = document.getElementById("productGrid");
   if (!grid) return;

@@ -628,6 +628,7 @@ def compose_video(
     voice_path: Optional[str] = None,
     run_id: str = "",
     bgm_style: str = "chill_loft",
+    target_duration: int = 0,
 ) -> str:
     """
     Step 9: Compose final video (merge voice + BGM + concat scenes)
@@ -944,7 +945,8 @@ def run_pipeline(
             pass
 
         # ── STEP 9: Compose ──
-        final_path = compose_video(video_paths, voice_path, run_id, bgm_style)
+        final_duration = recipe.get("total_duration", 0)
+        final_path = compose_video(video_paths, voice_path, run_id, bgm_style, target_duration=final_duration)
 
         # Cost summary
         cost_total = cost_image + cost_voice + cost_video

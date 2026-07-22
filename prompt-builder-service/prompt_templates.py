@@ -5,7 +5,6 @@
 import os
 import json
 import re
-import logging
 from typing import Optional, List, Dict, Any
 from pathlib import Path
 
@@ -13,13 +12,42 @@ BASE_DIR = Path(__file__).parent
 UGC_DIR = BASE_DIR / "UGC_prompts"
 RECIPES_DIR = BASE_DIR / "recipes"
 
+# ─── Schema Engine Style Sync ────────────────────────────────────
+def _sync_style_map_from_engine():
+    """Overwrite STYLE_MAP entries with data from Schema Engine (port 8100).
+    Falls back to local STYLE_MAP if Engine unreachable."""
+    try:
+        import urllib.request
+        import json as _json
+        req = urllib.request.Request(
+            "http://localhost:8100/api/v1/data/ugc_style",
+            method="GET",
+            headers={"Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            result = _json.loads(resp.read().decode())
+        records = result.get("data", [])
+        for rec in records:
+            d = rec.get("data", {})
+            key = d.get("style_key")
+            if key and key in STYLE_MAP:
+                # Merge: Schema Engine fields override local defaults
+                for schema_field in ("model_action", "camera", "vibe", "keywords", "video_motion"):
+                    if d.get(schema_field):
+                        STYLE_MAP[key][schema_field] = d[schema_field]
+                if d.get("negative_emphasis"):
+                    STYLE_MAP[key]["negative_emphasis"] = d["negative_emphasis"]
+        print(f"[prompt_templates] Synced {len(records)} styles from Schema Engine")
+    except Exception as e:
+        print(f"[prompt_templates] Schema Engine sync skipped ({e})")
+
 STYLE_MAP = {
     "holding": {
-        "model_action": "both hands holding the product gently, product packaging facing camera, NOT applying or using product, NOT opening product, just holding and showing to camera, smiling",
-        "camera": "mid shot, waist up, product centered at chest level, product clearly in frame",
-        "vibe": "friendly, approachable, product-focused, simple",
-        "keywords": "both hands holding product gently, showing to camera, not using, product front and center",
-        "video_motion": "model quietly holding product, minimal motion, product stays visible throughout, gentle breathing, no product opening or applying",
+        "model_action": "Ethnic Thai woman with porcelain white glowing skin, monolid eyes, Southeast Asian features, holding the product in both hands, product packaging facing camera, smiling naturally, NOT applying or using product, NOT opening product, just holding and showing",
+        "camera": "mid shot, waist up, product visible at chest level",
+        "vibe": "friendly, approachable, product-focused",
+        "keywords": "ethnic Thai features, porcelain white skin, monolid eyes, both hands holding product, product clearly visible and in focus, NOT using product, NOT opening container",
+        "video_motion": "ethnic Thai woman with white glowing skin holding product gently in both hands, slight head tilt, natural breathing motion, product packaging facing camera, hands not opening or squeezing product",
     },
     "usage": {
         "model_action": "actively using the product in a natural daily setting, candid moment, product in use",
@@ -101,54 +129,12 @@ UGC_STYLE_FOLDER = {
 }
 
 
-# ─── Style Config (from style_config.json) ────────────────────────────────
-# ถ้า style ไหน disabled = true → fallback ไป UGC_Review
-
-_STYLE_CONFIG_CACHE = None
-
-
-def _load_style_config() -> dict:
-    """โหลด style_config.json ครั้งเดียว แล้ว cache ไว้"""
-    global _STYLE_CONFIG_CACHE
-    if _STYLE_CONFIG_CACHE is not None:
-        return _STYLE_CONFIG_CACHE
-    config_path = BASE_DIR / "style_config.json"
-    if config_path.exists():
-        try:
-            with open(config_path, "r", encoding="utf-8") as f:
-                _STYLE_CONFIG_CACHE = json.load(f)
-            logger = logging.getLogger("prompt-templates")
-            logger.info(f"Loaded style config: {config_path}")
-        except Exception as e:
-            _STYLE_CONFIG_CACHE = {}
-    else:
-        _STYLE_CONFIG_CACHE = {}
-    return _STYLE_CONFIG_CACHE
-
-
-def _get_active_style(style: str) -> str:
-    """เช็คว่า style ถูก enable อยู่มั้ย ถ้าไม่ → fallback กลับ 'review'"""
-    config = _load_style_config()
-    styles = config.get("styles", {})
-    meta = styles.get(style, {})
-    if meta.get("enabled", True):
-        return style
-    # Fallback
-    logger = logging.getLogger("prompt-templates")
-    logger.warning(f"Style '{style}' is disabled in style_config.json, falling back to 'review'")
-    return "review"
-
-
 def load_ugc_templates(style: str) -> dict:
     """Load UGC_prompts/{style}/ template files into a dict.
 
-    เช็ค style_config.json ก่อน — ถ้า style ไหนถูกปิด จะ fallback ไป 'review'
-
     Returns: { 'system': str, 'master': str, 'user.template': str, 'negative': str }
     """
-    # ใช้ active style (fallback ถ้าถูกปิดใน style_config.json)
-    active_style = _get_active_style(style)
-    folder_name = UGC_STYLE_FOLDER.get(active_style, "UGC_Review")
+    folder_name = UGC_STYLE_FOLDER.get(style, "UGC_Review")
     base = UGC_DIR / folder_name
     result = {}
     for name in ["system", "master", "user.template", "negative"]:
@@ -190,4 +176,6 @@ def _extract_json(text: str) -> Optional[dict]:
     return None
 
 
+# ── Auto-sync STYLE_MAP from Schema Engine at import time ──────────
+_sync_style_map_from_engine()
 # ═══════════════════════════════════════════════════════════════════════

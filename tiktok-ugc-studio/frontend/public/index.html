@@ -891,6 +891,42 @@ select.input { cursor: pointer; }
   font-size: 15px; font-weight: 700; color: #fff; flex-shrink: 0;
 }
 </style>
+
+  <script>
+    // PWA & Browser Desktop Notification System for TUS
+    window._notifiedJobs = window._notifiedJobs || new Set();
+
+    function requestNotificationPermission() {
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission().then(perm => {
+          if (perm === 'granted') console.log('🔔 Notification permission granted!');
+        });
+      }
+    }
+
+    function sendJobNotification(title, body, jobId) {
+      if (!jobId || window._notifiedJobs.has(jobId)) return;
+      window._notifiedJobs.add(jobId);
+
+      if ('Notification' in window && Notification.permission === 'granted') {
+        try {
+          new Notification(title, {
+            body: body,
+            icon: '/icon-192.png',
+            badge: '/icon-192.png',
+            tag: jobId
+          });
+        } catch (e) { console.error('Notification error:', e); }
+      }
+    }
+
+    // Auto-request permission on first user click anywhere
+    document.addEventListener('click', function _reqPerm() {
+      requestNotificationPermission();
+      document.removeEventListener('click', _reqPerm);
+    }, { once: true });
+  </script>
+
 </head>
 <body>
 <div class="app">

@@ -50,7 +50,7 @@ if str(_erp_stack) not in sys.path:
 from shared_config import PRODIA_TOKEN, GEMINI_API_KEY
 
 # ─── Schema Engine UGC Style Client ─────────────────────────────────
-_ugc_client_dir = os.path.join(str(_erp_stack), "prompt-builder-service")
+_ugc_client_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "prompt-builder-service")
 if _ugc_client_dir not in sys.path:
     sys.path.insert(0, _ugc_client_dir)
 from ugc_schema_client import get_default_style, get_style_config, validate_ugc_style, is_valid_style
@@ -212,18 +212,15 @@ def load_recipe(recipe_name: str = "tus") -> dict:
 
     record = records[0]
     row = record.get("data", record)
-    # Schema Engine stores with double nesting: data.data.config
-    inner = row.get("data", row) if isinstance(row, dict) and "config" not in row else row
-    config = inner.get("config", row.get("config", {}))
+    config = row.get("config", {})
 
-    # Use `inner` for recipe-level fields (unwrap double-nesting)
     recipe = {
-        "name": inner.get("name", recipe_name),
-        "description": inner.get("description", ""),
-        "version": inner.get("version", "1.0"),
-        "total_duration": inner.get("total_duration", 15),
-        "language": inner.get("language", "th"),
-        "default_style": inner.get("default_style", "holding"),
+        "name": row.get("name", recipe_name),
+        "description": row.get("description", ""),
+        "version": row.get("version", "1.0"),
+        "total_duration": row.get("total_duration", 15),
+        "language": row.get("language", "th"),
+        "default_style": row.get("default_style", "holding"),
         "scenes": config.get("scenes", []),
         "video_model": config.get("video_model", "wan2.7"),
         "video_count": config.get("video_count", 1),
@@ -358,39 +355,30 @@ def generate_image(
         payload["provider"] = "prodia"
         payload["thaiModel"] = True
 
-    last_exc = None
-    for attempt in range(3):
-        try:
-            resp = requests.post(IMAGE_GEN_URL, json=payload, timeout=300)
-            resp.raise_for_status()
-            data = resp.json()
+    try:
+        resp = requests.post(IMAGE_GEN_URL, json=payload, timeout=300)
+        resp.raise_for_status()
+        data = resp.json()
 
-            if not (data.get("success") or data.get("ok")) or not data.get("images"):
-                raise RuntimeError(f"Image-gen service failed: {data}")
+        if not (data.get("success") or data.get("ok")) or not data.get("images"):
+            raise RuntimeError(f"Image-gen service failed: {data}")
 
-            img_info = data["images"][0]
-            url = img_info.get("full_url") or img_info.get("url")
+        img_info = data["images"][0]
+        url = img_info.get("full_url") or img_info.get("url")
 
-            if not url:
-                raise RuntimeError(f"No URL in response: {data}")
+        if not url:
+            raise RuntimeError(f"No URL in response: {data}")
 
-            # Extract cost from image service response (real pricing from prodia_pricing)
-            cost_data = data.get("cost", {}) or img_info.get("cost", {})
-            cost_usd = float(cost_data.get("dollars", 0.039) if isinstance(cost_data, dict) else 0.039)
+        # Extract cost from image service response (real pricing from prodia_pricing)
+        cost_data = data.get("cost", {}) or img_info.get("cost", {})
+        cost_usd = float(cost_data.get("dollars", 0.039) if isinstance(cost_data, dict) else 0.039)
 
-            logger.info(f"  Image OK: {url[:60]}... | cost=${cost_usd:.4f}")
-            return url, cost_usd
+        logger.info(f"  Image OK: {url[:60]}... | cost=${cost_usd:.4f}")
+        return url, cost_usd
 
-        except Exception as e:
-            last_exc = e
-            logger.warning(f"  Image gen attempt {attempt+1}/3 failed: {e}")
-            if attempt < 2:
-                logger.info(f"  Retrying image gen...")
-                import time
-                time.sleep(2)
-
-    logger.error(f"Image generation failed after 3 attempts: {last_exc}")
-    raise RuntimeError(f"Image generation failed after 3 attempts: {last_exc}")
+    except Exception as e:
+        logger.error(f"Image generation failed: {e}")
+        raise
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -497,39 +485,39 @@ def build_video_prompts(
 
 def generate_voice(
     text: str,
-    voice: str = "th-TH-PremwadeeNeural",
+    voice: str = "Aoede",
     run_id: str = "",
 ) -> str:
-    """Step 7: Generate Thai voice via EdgeTTS."""
-    logger.info(f"Step 7/9: TTS (Thai EdgeTTS)")
-    logger.info(f"  Text: {text[:50]}...")
+    """
+    Step 7: Generate voice via Gemini TTS
 
-    output_path = str(TMP_DIR / f"voice_{run_id}.mp3")
-    
-    # Try EdgeTTS first for high quality Thai voice
-    try:
-        import asyncio, edge_tts
-        tts_voice = voice if voice and "th-TH" in voice else "th-TH-PremwadeeNeural"
-        async def _run_edge_tts():
-            comm = edge_tts.Communicate(text, tts_voice)
-            await comm.save(output_path)
-        asyncio.run(_run_edge_tts())
-        if Path(output_path).exists() and Path(output_path).stat().st_size > 1000:
-            logger.info(f"  EdgeTTS OK: {output_path}")
-            return output_path
-    except Exception as e:
-        logger.warning(f"EdgeTTS failed ({e}), trying fallback Gemini TTS")
+    Args:
+        text: script จาก Step 3
+        voice: ชื่อเสียง (Aoede, Wise_Woman, etc.)
+        run_id: สําหรับสร้าง filename
+
+    Returns:
+        str: path ของไฟล์เสียง
+    """
+    logger.info(f"Step 7/9: TTS (Gemini)")
+    logger.info(f"  Text: {text[:50]}...")
 
     try:
         from gemini_tts import gemini_text_to_speech
-        tts_path = gemini_text_to_speech(text, output_path=output_path, voice=voice)
-        if tts_path and Path(tts_path).exists():
-            logger.info(f"  Gemini TTS OK: {tts_path}")
-            return tts_path
-    except Exception as e:
-        logger.error(f"Gemini TTS fallback failed: {e}")
 
-    return ""
+        output_path = str(TMP_DIR / f"voice_{run_id}.mp3")
+        tts_path = gemini_text_to_speech(text, output_path=output_path, voice=voice)
+
+        if tts_path and Path(tts_path).exists():
+            logger.info(f"  TTS OK: {tts_path}")
+            return tts_path
+        else:
+            raise RuntimeError(f"TTS returned invalid path: {tts_path}")
+
+    except Exception as e:
+        logger.error(f"TTS failed: {e}")
+        raise
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # STEP 8: Generate Video (Prodia Wan 2.7 Sync API)
@@ -660,19 +648,16 @@ def compose_video(
     if voice_path:
         logger.info(f"  9b: Merge voiceover")
         voiced_path = STORAGE_DIR / f"affiliate_{run_id}.mp4"
-        # Loop video to match target duration if needed (no -shortest, no atempo rush)
         cmd = [
             "ffmpeg", "-y",
-            "-stream_loop", "2",
             "-i", str(concat_path),
             "-i", str(voice_path),
-            "-c:v", "libx264",
-            "-preset", "fast",
-            "-crf", "22",
+            "-c:v", "copy",
             "-c:a", "aac",
+            "-af", "atempo=1.3",
             "-map", "0:v:0",
             "-map", "1:a:0",
-            "-t", str(target_duration),
+            "-shortest",
             str(voiced_path),
         ]
         try:
@@ -713,7 +698,6 @@ def compose_video(
                 cmd_mix = [
                     "ffmpeg", "-y",
                     "-i", str(final_path),
-                    "-stream_loop", "-1",
                     "-i", str(bgm_path),
                     "-filter_complex",
                     "[1:a]volume=0.15[bg];[0:a][bg]amix=inputs=2:duration=first[out]",
@@ -721,7 +705,7 @@ def compose_video(
                     "-map", "[out]",
                     "-c:v", "copy",
                     "-c:a", "aac",
-                    "-t", str(target_duration),
+                    "-shortest",
                     str(bgm_output),
                 ]
                 subprocess.run(cmd_mix, check=True, capture_output=True, timeout=60)
@@ -764,7 +748,6 @@ def run_pipeline(
     bgm_style: str = "chill_loft",
     description: str = "",
     ugc_style: str = "holding",
-    duration: int = 0,
     external_job_id: Optional[str] = None,
 ) -> dict:
     """
@@ -837,7 +820,7 @@ def run_pipeline(
         recipe = load_recipe(recipe_name)
         recipe_duration = int((time.time() - step_start) * 1000)
         num_scenes = len(recipe.get("scenes", []))
-        total_duration = duration if duration > 0 else recipe.get("total_duration", 8)
+        total_duration = recipe.get("total_duration", 8)
 
         try:
             update_step(job_id, 'recipe', {'duration_ms': recipe_duration, 'scenes': num_scenes})
@@ -900,7 +883,8 @@ def run_pipeline(
             logger.warning(f"Logger update_prompts failed: {e}")
 
         # ── STEP 7: TTS (ข้ามถ้าไม่มี voice หรือ recipe ไม่ได้ตั้งค่า tts) ──
-        if script:
+        has_tts_config = bool(recipe.get("tts"))
+        if voice and has_tts_config:
             step_start = time.time()
             voice_path = generate_voice(script, voice=voice, run_id=run_id)
             tts_duration = int((time.time() - step_start) * 1000)

@@ -7,6 +7,7 @@ services:
       - "54511:6806"
     volumes:
       - /opt/project-mgmt/siyuan/data:/siyuan/workspace
+    command: serve
     environment:
       - SIYUAN_ACCESS_AUTH_CODE=Noteforge@2026
     networks:

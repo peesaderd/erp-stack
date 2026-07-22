@@ -90,7 +90,8 @@ class TemplateEngine:
     def get_all(self):
         if not self._loaded:
             self.load()
-        return list(self._templates.values())
+        # Return templates with their code key
+        return [{"code": k, **v} for k, v in self._templates.items()]
 
     def get(self, code: str):
         if not self._loaded:

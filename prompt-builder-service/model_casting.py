@@ -22,15 +22,15 @@ _HISTORY_MAX: int = 3  # avoid last 3 models
 
 _CAT_PREFS: Dict[str, List[str]] = {
     "beauty": [
-        "clean_girl", "korean_trendy", "chic_minimal", "casual_cool",
+        "clean_girl", "thai_trendy", "chic_minimal", "casual_cool",
         "soft_romantic", "fashion_forward", "sporty_fresh", "campus_babe",
         "mature_elegant", "grungy_city", "preppy_university", "luxe_aspirational",
     ],
     "fashion": [
-        "fashion_forward", "chic_minimal", "casual_cool", "korean_trendy",
+        "fashion_forward", "chic_minimal", "casual_cool", "thai_trendy",
         "sporty_fresh", "mature_elegant", "luxe_aspirational", "grungy_city",
     ],
-    "electronics": ["casual_cool", "campus_babe", "sporty_fresh", "korean_trendy", "grungy_city"],
+    "electronics": ["casual_cool", "campus_babe", "sporty_fresh", "thai_trendy", "grungy_city"],
     "food": ["campus_babe", "casual_cool", "clean_girl", "soft_romantic", "preppy_university"],
     "home": ["soft_romantic", "clean_girl", "chic_minimal", "mature_elegant"],
     "health": ["sporty_fresh", "clean_girl", "chic_minimal", "fashion_forward", "mature_elegant"],

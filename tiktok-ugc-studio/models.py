@@ -67,7 +67,7 @@ class VideoRequest(BaseModel):
     value: str = ""
     cta: str = ""
     content_type: str = "affiliate"
-    ugc_style: str = "product_usage"
+    ugc_style: str = "holding"
     aspect_ratio: str = "9:16"
     duration: int = DEFAULT_VIDEO_DURATION
     scenes: list[SceneBlock] = []

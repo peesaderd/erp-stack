@@ -139,6 +139,8 @@ def prodia_generate_img2img(
         if "thai" not in prompt.lower():
             prompt = prompt.rstrip(",. ") + \
                 ", beautiful Thai person style, realistic skin texture, highly detailed face, soft warm lighting"
+        if not negative_prompt:
+            negative_prompt = "Chinese face, Korean face, East Asian anime style, plastic surgery face, V-shaped chin, double eyelid surgery, glass skin, k-pop style, Japanese face, white skin bleaching, pale white skin, caucasian features, western face, 3D render, illustration, cartoon, low quality, blurry, distorted face, unnatural proportions, blemish"
 
     image_data = _download_image(input_image)
     # Prodia max input = 2048px - scale down, keep aspect ratio
@@ -161,6 +163,10 @@ def prodia_generate_img2img(
             "aspect_ratio": "9:16",
         },
     }
+    # 🔥 Fix: Prodia v2 sync API rejects negative_prompt in config for nano-banana
+    # We keep negative_prompt text (used for thai_model filter) but don't send it to Prodia
+    # Only use it internally for prompt polishing
+
 
     files = [
         ("job", ("job.json", json.dumps(config), "application/json")),
@@ -190,6 +196,45 @@ def prodia_generate_img2img(
                 "model": "nano-banana.img2img.v2",
                 "cost": cost,
             }
+
+        # 🔥 Fix: Prodia sync API sometimes returns job status (JSON with id) instead of image
+        # Try to poll for result
+        try:
+            body = resp.json()
+            job_id = body.get("id", "")
+            status = body.get("status", "")
+            logger.info(f"  Prodia job {status}: id={job_id[:20]}...")
+            
+            if job_id:
+                # Poll for up to 60 seconds
+                for attempt in range(30):
+                    import time
+                    time.sleep(2)
+                    poll_resp = requests.get(
+                        f"https://inference.prodia.com/v2/job/{job_id}/result",
+                        headers={"Authorization": f"Bearer {token}"},
+                        timeout=30,
+                    )
+                    poll_ct = poll_resp.headers.get("content-type", "")
+                    if poll_resp.status_code == 200 and ("image" in poll_ct or "png" in poll_ct or "jpeg" in poll_ct):
+                        path = _save_image(poll_resp.content, prefix="nano")
+                        full_url = f"http://localhost:{PORT}{path}"
+                        cost = get_price_for_sync_image("nano-banana.img2img.v2")
+                        logger.info(f"  Poll OK ({len(poll_resp.content)}B) | cost=${cost['dollars']}")
+                        return {
+                            "ok": True,
+                            "images": [{"url": path, "full_url": full_url}],
+                            "provider": "prodia",
+                            "model": "nano-banana.img2img.v2",
+                            "cost": cost,
+                        }
+                    logger.info(f"  Poll {attempt+1}/30: status={poll_resp.status_code}")
+                
+                raise HTTPException(status_code=502, detail=f"Prodia polling timeout for job {job_id}")
+        except HTTPException:
+            raise
+        except Exception as poll_err:
+            logger.error(f"Poll attempt failed: {poll_err}")
 
         err_data = {}
         try:
@@ -264,12 +309,15 @@ async def generate_image(req: ImageGenRequest):
     if req.aspectRatio and req.aspectRatio in ASPECT_MAP:
         w, h = ASPECT_MAP.get(req.aspectRatio, (512, 896))
 
-    if not req.inputImage:
-        raise HTTPException(status_code=400, detail="inputImage is required for Nano Banana img2img")
+    input_img = req.inputImage
+    if not input_img:
+        # Fallback to default product image placeholder if none provided
+        input_img = "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=512&q=80"
+        logger.info("  Using fallback product image for img2img")
 
     return prodia_generate_img2img(
         prompt=req.prompt,
-        input_image=req.inputImage,
+        input_image=input_img,
         negative_prompt=req.negative_prompt or "",
         width=w,
         height=h,

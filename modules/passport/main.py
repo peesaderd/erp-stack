@@ -7,10 +7,10 @@ Endpoints:
   GET  /api/passport/health
   GET  /api/passport/templates
   GET  /api/passport/templates/{code}
-  POST /api/passport/process       (upload image → passport photo)
-  POST /api/passport/restore       (upload image → restoration)
+  POST /api/passport/process       (JSON base64 → passport photo)
+  POST /api/passport/restore       (JSON base64 photo restoration)
   POST /api/passport/print-sheet   (generate print sheet)
-  GET  /api/passport/download/{session_id}.jpg  (download result)
+  GET  /api/passport/download/{filename}  (download result)
 """
 
 import os
@@ -25,9 +25,11 @@ from pathlib import Path
 import cv2
 import numpy as np
 from PIL import Image
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
-from fastapi.responses import FileResponse, Response
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
+from fastapi.responses import FileResponse, Response, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from pydantic import BaseModel
 from typing import Optional
 import uvicorn
@@ -45,6 +47,30 @@ logger = logging.getLogger("passport")
 app = FastAPI(title="Passport Photo Module", version="1.0.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
+# ── Safe exception handler to avoid FastAPI crash on bytes serialization ──
+@app.exception_handler(RequestValidationError)
+async def validation_handler(request: Request, exc: RequestValidationError):
+    errors = []
+    for err in exc.errors():
+        e = {"loc": err.get("loc", []), "msg": str(err.get("msg", "")), "type": err.get("type", "")}
+        errors.append(e)
+    return JSONResponse(status_code=422, content={"detail": errors})
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exc_handler(request: Request, exc: StarletteHTTPException):
+    detail = str(exc.detail)[:500] if exc.detail else "Unknown error"
+    # Clean up any binary content
+    if isinstance(detail, bytes):
+        detail = detail.decode("utf-8", errors="replace")
+    return JSONResponse(status_code=exc.status_code, content={"detail": detail})
+
+@app.exception_handler(Exception)
+async def generic_handler(request: Request, exc: Exception):
+    msg = str(exc)[:500] if str(exc) else "Internal server error"
+    if isinstance(msg, bytes):
+        msg = msg.decode("utf-8", errors="replace")
+    return JSONResponse(status_code=500, content={"detail": f"Internal server error: {msg}"})
+
 PORT = int(os.environ.get("PORT", 8122))
 STORAGE_DIR = Path(__file__).parent / "storage"
 STORAGE_DIR.mkdir(parents=True, exist_ok=True)
@@ -57,9 +83,9 @@ def _get_template_engine():
     engine.load()
     return engine
 
-def _process_passport(img, code, auto_crop=True, enhance=True):
+def _process_passport(img, code, auto_crop=True, enhance=True, auto_align=True):
     from .passport_engine import process_passport_photo
-    return process_passport_photo(img, code, auto_crop, enhance)
+    return process_passport_photo(img, code, auto_crop, enhance, auto_align)
 
 def _restore_photo(img, denoise=0.5, sharpen=0.5, inpaint=True, color=True, upscale=1, face=False):
     from .restoration_engine import restore_photo
@@ -84,10 +110,19 @@ def _encode_image(img: np.ndarray, fmt: str = ".jpg") -> bytes:
     if fmt == ".png":
         ok, buf = cv2.imencode(".png", cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
     else:
-        ok, buf = cv2.imencode(".jpg", cv2.cvtColor(img, cv2.COLOR_RGB2BGR), [int(cv2.IMWRITE_JPEG_QUALITY), 95])
+        ok, buf = cv2.imencode(".jpg", cv2.cvtColor(img, cv2.COLOR_RGB2BGR),
+                               [int(cv2.IMWRITE_JPEG_QUALITY), 95])
     if not ok:
         raise HTTPException(500, "Failed to encode image")
     return buf.tobytes()
+
+def _decode_base64_image(b64: str) -> np.ndarray:
+    """Decode base64 string to RGB numpy array."""
+    try:
+        img_data = base64.b64decode(b64)
+    except Exception:
+        raise HTTPException(400, "Invalid base64 image data")
+    return _decode_image(img_data)
 
 def _save_session(session_id: str, data: dict):
     """Save session to Schema Engine."""
@@ -99,6 +134,33 @@ def _save_session(session_id: str, data: dict):
         )
     except Exception as e:
         logger.warning(f"Failed to save session: {e}")
+
+# ═══════════════════════════════════════════════════════════════════
+# Pydantic Models
+# ═══════════════════════════════════════════════════════════════════
+
+class ProcessPassportRequest(BaseModel):
+    image_base64: str
+    template_code: str = "us_passport"
+    auto_crop: bool = True
+    enhance: bool = True
+    auto_align: bool = True
+
+class RestoreRequest(BaseModel):
+    image_base64: str
+    denoise_strength: float = 0.5
+    sharpen_strength: float = 0.5
+    inpaint_scratches: bool = True
+    color_restore: bool = True
+    upscale_factor: int = 1
+    enhance_face: bool = False
+
+class PrintSheetRequest(BaseModel):
+    session_id: str
+    print_size: str = "4x6"
+    dpi: int = 300
+    margin_mm: float = 3.0
+    add_guidelines: bool = True
 
 # ═══════════════════════════════════════════════════════════════════
 # API Endpoints
@@ -132,45 +194,33 @@ def get_template(code: str):
     pixels = engine.pixel_dimensions(code)
     return {"ok": True, "template": tpl, "pixels": pixels}
 
-# ── Process Passport Photo ──────────────────────────────────────────
+# ── Process Passport Photo (JSON base64) ────────────────────────────
 
 @app.post("/api/passport/process")
-async def process_passport(
-    file: UploadFile = File(...),
-    template_code: str = Form("us_passport"),
-    auto_crop: bool = Form(True),
-    enhance: bool = Form(True),
-):
+async def process_passport(req: ProcessPassportRequest):
     """
-    Upload a photo → convert to passport photo.
-
-    - file: image file (jpg/png)
-    - template_code: e.g. "us_passport", "thai_passport"
-    - auto_crop: auto-detect face and crop
-    - enhance: apply color/contrast enhancement
+    Process passport photo — accepts JSON with base64 image.
+    (Uses JSON body instead of multipart to avoid Cloudflare proxy issues)
     """
     session_id = uuid.uuid4().hex[:12]
-    logger.info(f"[{session_id}] Process passport: template={template_code}")
+    logger.info(f"[{session_id}] Process passport: template={req.template_code}")
 
-    data = await file.read()
-    img = _decode_image(data)
+    img = _decode_base64_image(req.image_base64)
     logger.info(f"  Input: {img.shape[1]}x{img.shape[0]}")
 
-    result = _process_passport(img, template_code, auto_crop, enhance)
+    result = _process_passport(img, req.template_code, req.auto_crop, req.enhance, req.auto_align)
     if not result["ok"]:
         raise HTTPException(400, result.get("error", "Processing failed"))
 
     output = result["result"]
     out_bytes = _encode_image(output)
 
-    # Save to storage
     out_path = STORAGE_DIR / f"{session_id}.jpg"
     with open(out_path, "wb") as f:
         f.write(out_bytes)
 
-    # Save session
     _save_session(session_id, {
-        "template_code": template_code,
+        "template_code": req.template_code,
         "mode": "passport",
         "status": "processed",
         "result_path": str(out_path),
@@ -186,37 +236,13 @@ async def process_passport(
 
 # ── Restore Photo ──────────────────────────────────────────────────
 
-class RestoreRequest(BaseModel):
-    image_base64: str
-    denoise_strength: float = 0.5
-    sharpen_strength: float = 0.5
-    inpaint_scratches: bool = True
-    color_restore: bool = True
-    upscale_factor: int = 1
-    enhance_face: bool = False
-
 @app.post("/api/passport/restore")
 async def restore_photo_endpoint(req: RestoreRequest):
-    """
-    ซ่อมแซมภาพถ่ายเก่า — อัปโหลดรูป → restore + enhance
-
-    - image_base64: base64 encoded image
-    - denoise_strength: 0.0-1.0
-    - sharpen_strength: 0.0-1.0
-    - inpaint_scratches: auto detect + repair
-    - color_restore: white balance + contrast
-    - upscale_factor: 1, 2, or 4
-    - enhance_face: local face enhancement
-    """
+    """Restore old/damaged photos."""
     session_id = uuid.uuid4().hex[:12]
     logger.info(f"[{session_id}] Restore photo: denoise={req.denoise_strength} sharpen={req.sharpen_strength}")
 
-    try:
-        img_data = base64.b64decode(req.image_base64)
-    except Exception:
-        raise HTTPException(400, "Invalid base64 image data")
-
-    img = _decode_image(img_data)
+    img = _decode_base64_image(req.image_base64)
     logger.info(f"  Input: {img.shape[1]}x{img.shape[0]}")
 
     result = _restore_photo(
@@ -249,48 +275,11 @@ async def restore_photo_endpoint(req: RestoreRequest):
         "info": result["info"],
     }
 
-# ── Restore via Upload ──────────────────────────────────────────────
-
-@app.post("/api/passport/restore/upload")
-async def restore_photo_upload(
-    file: UploadFile = File(...),
-    denoise_strength: float = Form(0.5),
-    sharpen_strength: float = Form(0.5),
-    inpaint_scratches: bool = Form(True),
-    color_restore: bool = Form(True),
-    upscale_factor: int = Form(1),
-    enhance_face: bool = Form(False),
-):
-    """Restore photo via file upload instead of base64."""
-    session_id = uuid.uuid4().hex[:12]
-    data = await file.read()
-    img = _decode_image(data)
-
-    result = _restore_photo(img, denoise_strength, sharpen_strength, inpaint_scratches, color_restore, upscale_factor, enhance_face)
-    output = result["result"]
-    out_bytes = _encode_image(output)
-
-    out_path = STORAGE_DIR / f"{session_id}_restored.jpg"
-    with open(out_path, "wb") as f:
-        f.write(out_bytes)
-
-    _save_session(session_id, {"mode": "restore", "status": "processed", "result_path": str(out_path)})
-
-    return {"ok": True, "session_id": session_id, "download_url": f"/api/passport/download/{session_id}_restored.jpg", "info": result["info"]}
-
 # ── Print Sheet ────────────────────────────────────────────────────
-
-class PrintSheetRequest(BaseModel):
-    session_id: str
-    print_size: str = "4x6"
-    dpi: int = 300
-    margin_mm: float = 3.0
-    add_guidelines: bool = True
 
 @app.post("/api/passport/print-sheet")
 async def print_sheet(req: PrintSheetRequest):
     """Generate a print sheet from a processed passport photo."""
-    # Find source image
     src_path = STORAGE_DIR / f"{req.session_id}.jpg"
     if not src_path.exists():
         raise HTTPException(404, f"Session not found: {req.session_id}")
@@ -301,7 +290,6 @@ async def print_sheet(req: PrintSheetRequest):
     img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
     h, w = img_rgb.shape[:2]
 
-    # Calculate mm from pixels (assume 300 DPI if session unknown)
     dpi = req.dpi
     mm_w = w / dpi * 25.4
     mm_h = h / dpi * 25.4
@@ -337,13 +325,6 @@ def download_by_session(session_id: str):
     if path2.exists():
         return FileResponse(str(path2), media_type="image/jpeg")
     raise HTTPException(404, "Session file not found")
-
-# ── Static files (for frontend) ─────────────────────────────────────
-
-FRONTEND_DIR = Path(__file__).parent.parent.parent / "frontend" / "passport"
-if FRONTEND_DIR.exists():
-    from fastapi.staticfiles import StaticFiles
-    app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="passport_frontend")
 
 # ═══════════════════════════════════════════════════════════════════
 # Main

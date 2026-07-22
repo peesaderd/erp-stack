@@ -1488,3 +1488,117 @@ async def api_run_watch(watch_id: str):
     """Execute a keyword watch immediately. Returns new products found."""
     result = await _run_watch(watch_id)
     return result
+
+
+# ──────────────────────────────────────────────
+# Product Lifecycle & Post Lock API Endpoints
+# ──────────────────────────────────────────────
+
+class LifecycleTransitionRequest(BaseModel):
+    product_id: str
+    new_stage: str
+    is_analyzed_product: bool = True
+
+class ProductClaimRequest(BaseModel):
+    product_id: str
+    user_id: str
+
+class PostLockCheckRequest(BaseModel):
+    content_id: str
+    platform: str
+    account_id: str
+
+class RecordPostRequest(BaseModel):
+    content_id: str
+    product_id: str
+    user_id: str
+    platform: str
+    account_id: str
+
+class RepostRequest(BaseModel):
+    content_id: str
+    platform: str
+    account_id: str
+    reason: str = ""
+    content_reedited: bool = False
+
+
+@app.post("/api/v1/product/lifecycle/transition")
+def api_lifecycle_transition(req: LifecycleTransitionRequest):
+    """Transition a product's lifecycle stage."""
+    from shared.database import SessionLocal
+    from modules.product.lifecycle_service import ProductLifecycleManager
+
+    db = SessionLocal()
+    try:
+        success, msg = ProductLifecycleManager.transition_stage(
+            db, req.product_id, req.new_stage, req.is_analyzed_product
+        )
+        return {"success": success, "message": msg}
+    finally:
+        db.close()
+
+
+@app.post("/api/v1/product/lifecycle/claim")
+def api_lifecycle_claim(req: ProductClaimRequest):
+    """Claim a product for production under user quota rules."""
+    from shared.database import SessionLocal
+    from modules.product.lifecycle_service import ProductLifecycleManager
+
+    db = SessionLocal()
+    try:
+        success, msg, claim_info = ProductLifecycleManager.claim_product_for_user(
+            db, req.product_id, req.user_id
+        )
+        return {"success": success, "message": msg, "claim": claim_info}
+    finally:
+        db.close()
+
+
+@app.post("/api/v1/product/post-lock/check")
+def api_post_lock_check(req: PostLockCheckRequest):
+    """Check if content can be posted to target (Platform, Account)."""
+    from shared.database import SessionLocal
+    from modules.product.lifecycle_service import ProductLifecycleManager
+
+    db = SessionLocal()
+    try:
+        allowed, reason, lock_record = ProductLifecycleManager.check_post_lock(
+            db, req.content_id, req.platform, req.account_id
+        )
+        return {"allowed": allowed, "reason": reason, "lock": lock_record}
+    finally:
+        db.close()
+
+
+@app.post("/api/v1/product/post-lock/record")
+def api_post_lock_record(req: RecordPostRequest):
+    """Record a successful post in the lock matrix."""
+    from shared.database import SessionLocal
+    from modules.product.lifecycle_service import ProductLifecycleManager
+
+    db = SessionLocal()
+    try:
+        lock = ProductLifecycleManager.record_post(
+            db, req.content_id, req.product_id, req.user_id, req.platform, req.account_id
+        )
+        return {"success": True, "lock_id": lock.id, "post_status": lock.post_status}
+    finally:
+        db.close()
+
+
+@app.post("/api/v1/product/post-lock/repost-request")
+def api_repost_request(req: RepostRequest):
+    """Request permission to repost content on a previously used account."""
+    from shared.database import SessionLocal
+    from modules.product.lifecycle_service import ProductLifecycleManager
+
+    db = SessionLocal()
+    try:
+        approved, msg, lock_info = ProductLifecycleManager.request_repost_permission(
+            db, req.content_id, req.platform, req.account_id, req.reason, req.content_reedited
+        )
+        return {"approved": approved, "message": msg, "lock_info": lock_info}
+    finally:
+        db.close()
+

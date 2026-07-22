@@ -62,6 +62,10 @@ class ScrapedProduct(Base):
     method = Column(String(20), default="")             # http, playwright, api_intercept
     proxy_used = Column(String(100), default="")
     duration_ms = Column(Integer, default=0)
+    lifecycle_stage = Column(String(30), default="SCRAPED_STAGING", index=True) # LOCAL_RAW, SCRAPED_STAGING, ANALYZED, TUS_READY, IN_PRODUCTION, PUBLISHED, COOLDOWN
+    usage_count = Column(Integer, default=0)
+    max_usage_limit = Column(Integer, default=5)
+    cooldown_until = Column(DateTime(timezone=True), nullable=True)
     scraped_at = Column(DateTime(timezone=True), default=_utcnow)
     expires_at = Column(DateTime(timezone=True), nullable=True)  # cache TTL
 
@@ -260,6 +264,10 @@ class AnalyzedProduct(Base):
     keywords = Column(JSON, default=list)
     enriched = Column(Boolean, default=False)
     variants = Column(JSON, default=list, nullable=True)
+    lifecycle_stage = Column(String(30), default="ANALYZED", index=True) # LOCAL_RAW, SCRAPED_STAGING, ANALYZED, TUS_READY, IN_PRODUCTION, PUBLISHED, COOLDOWN
+    usage_count = Column(Integer, default=0)
+    max_usage_limit = Column(Integer, default=5)
+    cooldown_until = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(String(50), default="")
     updated_at = Column(String(50), default="")
 
@@ -287,3 +295,27 @@ class ProductWatch(Base):
     active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), default=_utcnow)
     updated_at = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+
+
+# ──────────────────────────────────────────────
+# Platform Post Lock Matrix & Repost Permissions
+# ──────────────────────────────────────────────
+
+class PlatformPostLock(Base):
+    """Tracks content publishing per platform/account to prevent duplicate posts and manage repost permissions."""
+    __tablename__ = "platform_post_locks"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    content_id = Column(String, nullable=False, index=True)      # Video/Script ID
+    product_id = Column(String, nullable=False, index=True)      # Product ID
+    user_id = Column(String, nullable=False, index=True)         # User ID
+    platform = Column(String(50), nullable=False, index=True)     # tiktok, facebook_reels, shopee_video
+    account_id = Column(String(100), nullable=False, index=True)  # Social Account ID / Handle
+    post_status = Column(String(30), default="POSTED", index=True) # POSTED, LOCKED, REPOST_REQUESTED, REPOST_APPROVED
+    posted_at = Column(DateTime(timezone=True), default=_utcnow)
+    repost_requested_at = Column(DateTime(timezone=True), nullable=True)
+    repost_approved_at = Column(DateTime(timezone=True), nullable=True)
+    repost_count = Column(Integer, default=0)
+    repost_reason = Column(Text, default="")
+    content_reedited = Column(Boolean, default=False)
+

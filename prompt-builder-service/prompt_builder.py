@@ -470,7 +470,8 @@ async def analyze_and_build_prompts(
 
     if vision_profile:
         for key in ["category", "target_gender", "target_age", "target_audience", "setting",
-                     "customer_problem", "main_benefit", "image_description"]:
+                     "customer_problem", "main_benefit", "image_description", "container_type",
+                     "closure_type", "label_colors", "product_color", "texture"]:
             if key in vision_profile and vision_profile[key]:
                 profile[key] = vision_profile[key]
         if "product_type" in vision_profile and vision_profile["product_type"]:

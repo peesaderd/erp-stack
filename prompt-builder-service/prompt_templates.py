@@ -179,3 +179,21 @@ def _extract_json(text: str) -> Optional[dict]:
 # ── Auto-sync STYLE_MAP from Schema Engine at import time ──────────
 _sync_style_map_from_engine()
 # ═══════════════════════════════════════════════════════════════════════
+
+
+# ─── Style Key Alias Normalization ─────────────────────────────────
+STYLE_ALIASES = {
+    "unbox": "usage",
+    "unboxing": "usage",
+    "product_usage": "usage",
+    "ugc_review": "review",
+    "product_review": "review",
+    "tabletop_demo": "tabletop_demo",
+    "tabletop": "tabletop_demo",
+    "demo": "tabletop_demo",
+    "holding_product": "holding",
+}
+
+def normalize_style_key(style_key: str) -> str:
+    k = (style_key or "holding").lower().strip()
+    return STYLE_ALIASES.get(k, k)

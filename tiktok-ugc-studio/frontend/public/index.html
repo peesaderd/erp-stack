@@ -4173,7 +4173,11 @@ async function rawPost(path, data) {
 }
 function closeModal() {
   const el = document.getElementById('modalOverlay');
-  if (el) el.remove();
+  if (el) {
+    const media = el.querySelectorAll('video, audio');
+    media.forEach(m => { try { m.pause(); m.currentTime = 0; m.src = ''; } catch(e){} });
+    el.remove();
+  }
 }
 function showModal(title, bodyHtml) {
   const existing = document.getElementById('modalOverlay');
@@ -4185,7 +4189,7 @@ function showModal(title, bodyHtml) {
     <div style="background:var(--bg-primary);border-radius:var(--radius-xl);padding:24px;max-width:560px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
         <h3 style="font-size:16px">${title}</h3>
-        <button onclick="this.closest('#modalOverlay').remove()" style="border:none;background:none;font-size:20px;cursor:pointer;padding:4px 8px">✕</button>
+        <button onclick="closeModal()" style="border:none;background:none;font-size:20px;cursor:pointer;padding:4px 8px">✕</button>
       </div>
       <div>${bodyHtml}</div>
     </div>

@@ -9,15 +9,15 @@
             "appearance": "สาวไทยผิวสองสี หน้าเด้ง ปากหนาธรรมชาติ",
             "clothing": "เสื้อยืดคอกลมสีขาว สบายๆ",
             "style": "clean girl aesthetic, minimal makeup, dewy skin",
-            "image_desc": "Authentic beautiful young Thai woman, 22 years old, Southeast Asian facial features, tan honey skin, monolid eyes, naturally full lips, high cheekbones, glowing dewy skin, minimal makeup, clean girl aesthetic, wearing a simple white crew neck tee, holding the product bottle centered at chest level with both hands, product label facing camera clearly visible with a relaxed bright smile, soft natural window lighting coming from the side, warm home atmosphere, mirror selfie angle, upper body shot facing camera"
+            "image_desc": "Authentic Thai woman exclusively, 22 years old, Southeast Asian round face with wide prominent cheekbones, naturally glowing honey-tan skin, large round deep-set eyes with thick natural lashes, full lips with defined upper lip line, thick natural arched eyebrows, a beauty look unique to Thai women not Chinese or Korean, wearing a simple white crew neck cotton tee, holding product centered at chest level with both hands, product label facing camera, relaxed genuine Thai smile showing teeth, natural window light in a typical Thai home, mirror selfie angle, upper body shot"
         },
         {
             "id": "korean_trendy",
             "age": "23",
-            "appearance": "สาวไทยผิวขาว หน้าจีนหวาน สไตล์เกาหลี",
-            "clothing": "เสื้อกันหนาว oversized ตัวใหญ่ น่ารัก",
-            "style": "Korean street fashion, trendy, youthful",
-            "image_desc": "A young ethnic Thai woman, 23 years old, fair clear skin with warm undertones, East Asian eyes with double eyelids, small straight nose, heart-shaped face, Korean-inspired dewy glass skin makeup, wearing an oversized cozy cream-colored sweater, holding toner bottle with both hands in front of chest, product label facing camera, showing product to camera, playful bright expression, trendy Korean-style cafe background with warm string lights, soft warm candle-like lighting, trendy youthful atmosphere, head-and-shoulders vertical composition"
+            "appearance": "สาวไทยผิวขาว หน้าหวาน แต่งตัวเก๋",
+            "clothing": "เสื้อครอปสีพาสเทล กระโปรงยีนส์",
+            "style": "Thai trendy street fashion, youthful, cute",
+            "image_desc": "A young distinctly Thai woman, 23 years old, fair warm skin with yellow undertone specific to Thai skin, naturally big round eyes not Korean-style, full lips, heart-shaped face with soft jawline, thick natural brows, wearing a pastel pink cropped knit top with high-waisted denim skirt, holding the product with both hands in presenting gesture at chest level, playful bright expression, trendy Bangkok cafe with neon sign and tropical plants background, warm golden cafe lighting, Thai youth street fashion atmosphere, head-and-shoulders"
         },
         {
             "id": "chic_minimal",
@@ -25,47 +25,79 @@
             "appearance": "สาวไทยผิวขาวเหลือง หน้าเรียว หรูหราสไตล์ชิค",
             "clothing": "เสื้อเชิ้ตสีเนื้อคอวี เรียบหรู",
             "style": "minimal chic, sophisticated, elegant",
-            "image_desc": "An elegant ethnic Thai woman, 25 years old, Southeast Asian oval face, golden fair skin, straight sleek black hair, sophisticated minimal style, wearing a neutral silk blouse held closed at the throat, minimal delicate gold jewelry, holding product bottle at chest level with both hands in a presenting gesture, product packaging clearly visible and facing camera, calm confident gaze directly at camera, modern minimalist white room with soft diffused overhead lighting, clean premium elegant atmosphere, three-quarter body shot"
+            "image_desc": "An elegant Thai woman specifically, 25 years old, oval face shape common among Thai women, fair golden skin with natural warm Thai undertone, large eyes, defined cheekbones, full bowed lips, naturally straight dark hair worn sleek, wearing a neutral silk camisole with delicate gold pendant necklace, holding product bottle at chest level with both hands in a presenting gesture, product label clearly facing camera, confident relaxed gaze, modern Bangkok condo with floor-to-ceiling city view, natural diffused daylight, clean premium Thai casual elegance atmosphere, three-quarter body shot"
         },
         {
             "id": "casual_cool",
             "age": "21",
-            "appearance": "สาวไทยลูกครึ่งหน้าเข้ม ผิวแทน สายแคชชวล",
+            "appearance": "สาวไทยผิวแทน หน้าเข้ม คิ้วดก",
             "clothing": "เสื้อยืดสีดำ กางเกงขายาว ดูสบาย",
             "style": "casual cool, relaxed, street style",
-            "image_desc": "A cool Thai woman, 21 years old, midday tan skin, naturally thick eyebrows, strong Southeast Asian features, wearing a black cotton tee and loose pants, holding the product with both hands at chest level in front of body, product visible and centered in frame like a casual vlog shot, genuine friendly half-smile, authentic everyday room setting with morning side daylight, relaxed genuine atmosphere, casual selfie angle"
+            "image_desc": "A cool looking Thai woman, 21 years old, distinct Thai sun-kissed tan skin, strong Thai facial features with rounded face and prominent cheekbones, naturally thick eyebrows a signature Thai beauty trait, full lips, deep brown eyes, wearing a loose black graphic tee and relaxed fit pants, holding the product with both hands at chest level product facing camera, genuine half-smile, casual authentic room in a Thai townhouse setting with morning daylight coming through wood-trimmed windows, relaxed comfortable Thai lifestyle atmosphere, casual selfie angle"
         },
         {
             "id": "soft_romantic",
             "age": "22",
-            "appearance": "สาวไทยผิวขาวอมชมพู หน้านุ่ม ขนตายาว",
-            "clothing": "ชุดลูกไม้สีพาสเทล ดูสุภาพอ่อนหวาน",
+            "appearance": "สาวไทยผิวขาวอมชมพู หน้ากลม ตาโต",
+            "clothing": "ชุดลูกไม้สีขาว ดูสุภาพอ่อนหวาน",
             "style": "romantic soft, feminine, dreamy",
-            "image_desc": "A lovely young ethnic Thai woman, 22 years old, fair light skin with pinkish undertone, big round eyes, soft romantic style, wearing a delicate pastel off-shoulder blouse with lace trim, gently holding the toner bottle with both hands at chest level, product packaging clearly visible, NOT pressing against skin while looking aside with a sweet soft smile, natural fluffy hair texture, bedroom with warm golden sunset lighting coming through sheer curtains, dreamy romantic atmosphere, close-up beauty shot"
+            "image_desc": "A lovely distinctly Thai young woman, 22 years old, fair skin with soft pink undertone characteristic of some Thai women, round face with full cheeks, big expressive round eyes, full pink lips, soft wavy black hair, wearing a white lace-trimmed off-shoulder blouse, gently holding the toner bottle with both hands at chest level product visible NOT touching product to skin, looking aside with a sweet soft smile, bedroom with warm golden sunset streaming through sheer white curtains typical of Thai tropical evening light, dreamy romantic Thai-style atmosphere, close-up beauty shot"
         },
         {
             "id": "fashion_forward",
             "age": "24",
-            "appearance": "สาวไทยผิวขาว หน้าเรียวสวย โครงหน้าชัดเจน",
+            "appearance": "สาวไทยผิวขาวเหลือง โครงหน้าชัด ปากกระจับ",
             "clothing": "เบลเซอร์สีครีม ดูดีมีสไตล์",
             "style": "modern chic, fashion forward, polished",
-            "image_desc": "A sophisticated ethnic Thai woman, 24 years old, golden-ivory skin, defined high cheekbones, straight sharp nose bridge, Southeast Asian but striking features, fashion-forward look, wearing a tailored cream blazer over a simple camisole, holding the facial toner bottle at chest level with both hands, product label facing camera, natural sophisticated confident smile with direct eye contact, modern loft with floor-to-ceiling windows and soft morning light reflecting off white walls, chic polished editorial-style atmosphere, three-quarter length shot"
+            "image_desc": "A sophisticated Thai woman, 24 years old, tan-warm skin tone, strong Thai bone structure with wide cheekbones, prominent jawline, lips with defined cupid bow, thick eyebrows, straight dark hair, fashion-forward Thai style wearing a tailored cream blazer over camisole, holding the product at chest level with both hands product label facing camera, confident natural smile making eye contact, modern Thai condo with tropical city backdrop, warm soft daylight reflecting off white walls, chic polished Thai editorial atmosphere, three-quarter length shot"
         },
         {
             "id": "sporty_fresh",
             "age": "23",
-            "appearance": "สาวไทยผิวแทนสุขภาพดี หน้าเด้งๆ",
-            "clothing": "เสื้อกีฬาสีสันสดใส ดูมีพลัง",
+            "appearance": "สาวไทยผิวแทนสุขภาพดี คิ้วเข้ม ตาโต",
+            "clothing": "เสื้อกีฬาสีสันสดใส เลกกิ้ง",
             "style": "athleisure, fresh, energetic",
-            "image_desc": "A fresh vibrant ethnic Thai woman, 23 years old, sun-kissed tan skin glowing, naturally thick dark eyebrows, wide bright eyes, healthy athletic build, wearing a bright pastel pink sports top, holding the product with both hands centered at chest level, product clearly visible and facing camera, energetic bright smile showing teeth, bright airy room with monstera plants, morning natural daylight streaming in, fresh vibrant healthy atmosphere, selfie angle upper body shot"
+            "image_desc": "A fresh vibrant Thai woman, 23 years old, sun-kissed tan skin glowing with healthy Thai skin tone, naturally thick well-defined eyebrows, wide bright eyes, healthy athletic build, wearing a bright coral athletic tank top and leggings, holding the product with both hands centered at chest level product clearly visible facing camera, energetic bright Thai smile, room with lush tropical monstera plants in ceramic pots, morning natural daylight streaming in through sliding glass door, fresh vibrant Thai healthy atmosphere, selfie angle upper body shot"
         },
         {
             "id": "campus_babe",
             "age": "20",
-            "appearance": "สาวมหาลัยวัยรุ่น หน้าใส ผิวขาวเหลือง",
+            "appearance": "สาวมหาลัยวัยรุ่น หน้าใส ผิวขาวเหลือง ผมดำ",
             "clothing": "เสื้อโปโลสีพาสเทล กระโปรง ดูสุภาพสดใส",
             "style": "campus fresh, youthful, bright",
-            "image_desc": "A cheerful young ethnic Thai college student, 20 years old, fair yellowish warm skin, soft round face, innocent youthful features, wearing a light pastel pink polo shirt, smiling while holding the product bottle with both hands centered in front of chest in a presenting pose, product clearly visible, bright fresh expression, university outdoor walkway background with greenery, natural bright daylight, youthful fresh authentic vibe, head-and-shoulders shot"
+            "image_desc": "A cheerful young Thai university student, 20 years old, fair yellowish warm skin common among Thai women, soft round youthful face with full cheeks, bright wide eyes, natural pink lips, straight black hair typical of Thai youth, wearing a light pastel pink polo shirt with neat collar, smiling while holding the product with both hands centered in front of chest product clearly visible, bright fresh expression, outdoor Thai university walkway with tropical trees and morning light, natural bright daylight, youthful fresh authentic Thai campus vibe, head-and-shoulders shot"
+        },
+        {
+            "id": "mature_elegant",
+            "age": "30",
+            "appearance": "สาวไทยวัยทำงาน ผิวขาวเหลือง ดูแพง",
+            "clothing": "เสื้อเบลาส์ผ้าไหม สร้อยไข่มุก",
+            "style": "mature elegant, sophisticated, professional",
+            "image_desc": "A sophisticated Thai woman in her 30s, graceful mature Thai beauty, golden fair skin, refined oval face, elegant cheekbones, naturally well-maintained eyebrows, subtle makeup with defined lips, dark hair styled in a sleek low bun, wearing a cream silk blouse with a string of pearls and small gold earrings, holding the product with both hands at chest level presenting to camera with a warm professional smile, tasteful Thai-style home with traditional Thai silk cushions and wooden decor, soft warm indoor lighting, elegant premium mature Thai woman atmosphere, three-quarter body shot"
+        },
+        {
+            "id": "grungy_city",
+            "age": "24",
+            "appearance": "สาวไทยผิวสองสี ไว้ผมสั้น สายเปรี้ยว",
+            "clothing": "เสื้อคลุมสีดำ กางเกงขากระบอก",
+            "style": "edgy urban, alternative, bold",
+            "image_desc": "An edgy Thai woman, 24 years old, tan two-tone skin, round Thai face with strong features, thick eyebrows, bold dark eyes, full lips with dark lipstick, wearing a black oversized jacket and straight-leg pants with chunky boots, short black bob haircut urban Thai style, holding the product with both hands in front of chest not using it, confident direct gaze, Bangkok city rooftop background at golden hour with skyscrapers visible, dramatic evening city lighting, urban edgy Thai aesthetic, upper body shot"
+        },
+        {
+            "id": "preppy_university",
+            "age": "19",
+            "appearance": "น้องสาววัยรุ่น ผิวสองสี หน้าหมวย ผมเปีย",
+            "clothing": "เสื้อเชิ้ตลายสก๊อต กระโปรงพลีท",
+            "style": "preppy, youthful, cute student",
+            "image_desc": "A young cheerful Thai high school or early university student, 19 years old, naturally tanned skin, round baby face, wide curious eyes, full lips with natural pink tint, wearing a neatly buttoned plaid shirt and pleated skirt, hair in braided pigtails Thai school style, holding the product with both hands in front of chest smiling eagerly, sunny outdoor Thai school courtyard with frangipani trees and warm tropical light, youthful fresh Thai student atmosphere, head-and-shoulders shot"
+        },
+        {
+            "id": "luxe_aspirational",
+            "age": "28",
+            "appearance": "สาวไทยไฮโซ ผิวขาว ดูแพงหรู",
+            "clothing": "เดรสผ้าไหมสีขาว เครื่องประดับทอง",
+            "style": "luxury, aspirational, high-end Thai lifestyle",
+            "image_desc": "A high-society Thai woman, 28 years old, fair porcelain skin with golden undertone, heart-shaped face with elegant bone structure, stunning natural beauty of a Thai socialite, almond-shaped eyes with natural double lid, full lips, wearing an elegant white silk dress with a gold chain belt and tasteful gold jewelry, holding the product with both hands centered at chest level like a brand ambassador, poised elegant smile, luxury Bangkok hotel suite with infinity pool view and tropical skyline, warm sunset golden hour lighting, ultra-premium Thai luxury brand ambassador atmosphere, three-quarter body shot"
         }
     ]
 }

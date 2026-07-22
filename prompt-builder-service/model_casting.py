@@ -16,13 +16,24 @@ _CASTS_FILE = os.path.join(_CASTS_DIR, "model_casts.json")
 
 # Cache
 _MODEL_CASTS: List[Dict] = []
+# History file for draw-without-replacement
+_HISTORY_FILE: str = os.environ.get("MODEL_CAST_HISTORY", os.path.join(_CASTS_DIR, "model_cast_history.json"))
+_HISTORY_MAX: int = 3  # avoid last 3 models
+
 _CAT_PREFS: Dict[str, List[str]] = {
-    "beauty": ["clean_girl", "soft_romantic", "chic_minimal", "korean_trendy", "fashion_forward"],
-    "fashion": ["fashion_forward", "chic_minimal", "casual_cool", "korean_trendy", "sporty_fresh"],
-    "electronics": ["casual_cool", "campus_babe", "sporty_fresh", "korean_trendy"],
-    "food": ["campus_babe", "casual_cool", "clean_girl", "soft_romantic"],
-    "home": ["soft_romantic", "clean_girl", "chic_minimal"],
-    "health": ["sporty_fresh", "clean_girl", "chic_minimal", "fashion_forward"],
+    "beauty": [
+        "clean_girl", "korean_trendy", "chic_minimal", "casual_cool",
+        "soft_romantic", "fashion_forward", "sporty_fresh", "campus_babe",
+        "mature_elegant", "grungy_city", "preppy_university", "luxe_aspirational",
+    ],
+    "fashion": [
+        "fashion_forward", "chic_minimal", "casual_cool", "korean_trendy",
+        "sporty_fresh", "mature_elegant", "luxe_aspirational", "grungy_city",
+    ],
+    "electronics": ["casual_cool", "campus_babe", "sporty_fresh", "korean_trendy", "grungy_city"],
+    "food": ["campus_babe", "casual_cool", "clean_girl", "soft_romantic", "preppy_university"],
+    "home": ["soft_romantic", "clean_girl", "chic_minimal", "mature_elegant"],
+    "health": ["sporty_fresh", "clean_girl", "chic_minimal", "fashion_forward", "mature_elegant"],
     "tools": ["casual_cool", "campus_babe", "sporty_fresh"],
 }
 
@@ -56,8 +67,29 @@ def _load_casts() -> List[Dict]:
     return _MODEL_CASTS
 
 
+def _load_history() -> list:
+    """Load recently-used model IDs from history file to avoid repeats."""
+    try:
+        if os.path.exists(_HISTORY_FILE):
+            with open(_HISTORY_FILE, "r") as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return []
+
+
+def _save_history(history: list):
+    """Save recently-used model IDs."""
+    try:
+        with open(_HISTORY_FILE, "w") as f:
+            json.dump(history[-_HISTORY_MAX:], f)
+    except Exception as e:
+        logger.warning(f"Failed to save model cast history: {e}")
+
+
 def select_model_cast(category: str = "", product_name: str = "") -> Dict:
-    """สุ่มเลือกนางแบบตามหมวดหมู่สินค้า
+    """สุ่มเลือกนางแบบตามหมวดหมู่สินค้า — draw without replacement
+        ใช้ history file เพื่อไม่ให้ซ้ำ 3 ตัวล่าสุด
 
     Args:
         category: หมวดสินค้า (beauty, fashion, food, electronics ฯลฯ)
@@ -72,8 +104,21 @@ def select_model_cast(category: str = "", product_name: str = "") -> Dict:
     if not pool:
         pool = casts
 
-    chosen = random.choice(pool)
-    logger.info(f"Selected model cast '{chosen['id']}' for '{product_name}' (cat={category})")
+    # Draw without replacement: exclude recently-used models
+    history = _load_history()
+    available = [c for c in pool if c["id"] not in history]
+    if not available:
+        # All used up — reset history
+        available = pool
+        history = []
+
+    chosen = random.choice(available)
+
+    # Update history
+    history.append(chosen["id"])
+    _save_history(history)
+
+    logger.info(f"Selected model cast '{chosen['id']}' for '{product_name}' (cat={category}, history={history})")
     return {
         "model_age": chosen["age"],
         "model_appearance_th": chosen.get("appearance", ""),

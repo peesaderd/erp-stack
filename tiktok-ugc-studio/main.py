@@ -1124,7 +1124,7 @@ def list_products(limit: int = 50, preset: str = "all"):
     return {"products": products}
 
 
-PRODUCTDB_DSN = "postgresql://openhands:OpenHands%40ERP2026@127.0.0.1:5435/productdb"
+PRODUCTDB_DSN = "postgresql://openhands:OpenHands%40ERP2026@127.0.0.1:5432/erp_stack"
 
 @app.get("/products/scraped")
 async def list_scraped_products(limit: int = 100):
@@ -1132,7 +1132,17 @@ async def list_scraped_products(limit: int = 100):
     try:
         conn = await asyncpg.connect(PRODUCTDB_DSN)
         rows = await conn.fetch(
-            "SELECT id, name, data FROM products ORDER BY id ASC LIMIT $1", limit
+            "SELECT id, name, "
+            "json_build_object("
+            "  'product_id', id,"
+            "  'price', price,"
+            "  'commission_rate', COALESCE((ai_analysis->>'commission_rate')::text, '15'),"
+            "  'category', COALESCE(category, ''),"
+            "  'product_url', COALESCE(source_url, ''),"
+            "  'hook_concept', COALESCE(ai_analysis->>'script', description),"
+            "  'image_filename', ''"
+            ")::text as data "
+            "FROM products ORDER BY id ASC LIMIT $1", limit
         )
         await conn.close()
         products = []
@@ -1168,7 +1178,20 @@ async def analyze_scraped_products():
     try:
         conn = await asyncpg.connect(PRODUCTDB_DSN)
         rows = await conn.fetch(
-            "SELECT id, name, data::text FROM products ORDER BY id ASC"
+            "SELECT id, name, "
+            "json_build_object("
+            "  'product_id', id,"
+            "  'commission_rate', COALESCE((ai_analysis->>'commission_rate')::text, '15'),"
+            "  'price', price,"
+            "  'image_filename', COALESCE(NULLIF(source_url, ''), '') || '.jpg',"
+            "  'category', COALESCE(category, 'Beauty & Personal Care'),"
+            "  'seller_name', COALESCE(ai_analysis->>'seller_name', ''),"
+            "  'seller_id', COALESCE(ai_analysis->>'seller_id', ''),"
+            "  'product_url', COALESCE(source_url, ''),"
+            "  'hook_concept', COALESCE(ai_analysis->>'script', description),"
+            "  'product_type', COALESCE(category, 'beauty')"
+            ")::text as data "
+            "FROM products ORDER BY id ASC"
         )
         await conn.close()
     except Exception as e:
@@ -1457,8 +1480,14 @@ async def ugc_images_generate(req: dict):
         "model": "nano-banana",
     }
     # Pass image_url as inputImage for img2img (Nano Banana)
-    if req.get("image_url"):
-        gen_req["inputImage"] = req["image_url"]
+    image_url = req.get("image_url", "")
+    if image_url:
+        # Resolve relative URLs (e.g. /tiktok/storage/...) against public domain
+        if not image_url.startswith("http"):
+            base_url = os.environ.get("PUBLIC_URL", "https://m2igen.com")
+            image_url = base_url.rstrip("/") + "/" + image_url.lstrip("/")
+            logger.info(f"Resolved relative image URL → {image_url}")
+        gen_req["inputImage"] = image_url
     result = await _proxy("POST", "image-gen", "/api/v1/image/generate", gen_req)
     if result.get("ok"):
         return result.get("data", {})

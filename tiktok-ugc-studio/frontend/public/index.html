@@ -2408,8 +2408,9 @@ async function startAutoPipelineNow() {
     document.getElementById('productDetails').value = desc;
     if (images.length) {
       var url = images[0];
-      document.getElementById('productImgPlaceholder').innerHTML = '<img src="'+url+'" style="max-width:100%;max-height:120px;border-radius:8px">';
-      uploadedImages.product = url;
+      var fullUrl = url.startsWith('http') ? url : window.location.origin + url;
+      document.getElementById('productImgPlaceholder').innerHTML = '<img src="'+fullUrl+'" style="max-width:100%;max-height:120px;border-radius:8px">';
+      uploadedImages.product = fullUrl;
     }
     
     showToast('✅ Selected: ' + title.slice(0,40), 'success');
@@ -4305,15 +4306,16 @@ async function openProductPicker() {
   modal.classList.add('open');
   grid.innerHTML = '<div class="skeleton skeleton-line"></div>';
   try {
-    const r = await fetch(API + '/products/list?limit=50&preset=all');
+    const r = await fetch(API + '/products/list?limit=100&preset=all');
     if (!r.ok) throw new Error('API Error');
     const d = await r.json();
     const products = d.products || [];
+
     if (!products.length) {
       grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;text-align:center;padding:40px">😕 ยังไม่มีสินค้าที่วิเคราะห์<br><span class="text-xs text-secondary">ไปที่หน้าสินค้าเพื่อวิเคราะห์ก่อน</span></div>';
       return;
     }
-    grid.innerHTML = products.slice(0, 20).map(p => {
+    grid.innerHTML = products.slice(0, 50).map(p => {
       const img = (p.images && p.images[0]) || '';
       const comm = p.commission_rate || 0;
       const price = p.price_thb || 0;

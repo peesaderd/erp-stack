@@ -230,8 +230,8 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     # Use model casting age if available
     model_age_str = "25"
     if profile.get("_model_cast_id"):
-        from model_casting import MODEL_CASTS
-        for mc in MODEL_CASTS:
+        from model_casting import _load_casts
+        for mc in _load_casts():
             if mc["id"] == profile["_model_cast_id"]:
                 model_age_str = mc["age"]
                 break

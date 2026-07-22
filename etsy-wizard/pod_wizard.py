@@ -341,12 +341,16 @@ def handle_step_variant(session: WizardSession, colors: list = None, sizes: list
     # Accept both multi-select (colors/sizes arrays) and legacy single-select
     if colors:
         session.variant_colors = colors
+        session.variant_color = ', '.join(colors)
     elif color:
         session.variant_colors = [color]
+        session.variant_color = color
     if sizes:
         session.variant_sizes = sizes
+        session.variant_size = ', '.join(sizes)
     elif size:
         session.variant_sizes = [size]
+        session.variant_size = size
     
     return {
         "ok": True,

@@ -27,7 +27,7 @@ RICH_MENU_FULL = {
     "size": {"width": 2500, "height": 1686},
     "selected": True,
     "name": "Restaurant POS - Full",
-    "chatBarText": "🍽️ สั่งอาหาร | 📋 เมนู | 🛒 ตะกร้า | ❓ Help",
+    "chatBarText": "🍽️ สั่งอาหาร | 📋 เมนู",
     "areas": [
         # Row 1 — Col 1: Menu
         {

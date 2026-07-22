@@ -60,13 +60,13 @@ class LineClient:
 
     async def verify(self) -> dict:
         """Check if access token is valid."""
-        resp = await self._client.get(
+        resp = await self._client.post(
             "https://api.line.me/v2/oauth/verify",
-            headers={"Authorization": f"Bearer {CHANNEL_ACCESS_TOKEN}"},
+            data={"access_token": CHANNEL_ACCESS_TOKEN},
         )
         if resp.status_code == 200:
             return resp.json()
-        return {"error": resp.text}
+        return {"error": resp.text, "status": resp.status_code}
 
     # ── Reply ────────────────────────────────────────────────────────────
 

@@ -158,7 +158,7 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         "atmosphere": "warm, inviting, authentic",
         "color_palette": "natural tones, neutral background",
         "background": "clean minimal background",
-        "model_action": "",
+        "model_action": style_info['model_action'],
         "camera": style_info["camera"],
         "vibe": style_info["vibe"],
         "keywords": style_info.get("keywords", ""),
@@ -168,6 +168,9 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     if templates.get("master"):
         image_prompt = fill_template(templates["master"], data)
         negative = templates.get("negative", "")
+        # Holding: append NOT-using emphasis AFTER template fill
+        if ugc_style == "holding":
+            image_prompt += " NOT squeezing or pumping or opening. The product is held gently to camera, not used on skin."
     else:
         # Holding style: extra emphasis on NOT using product
         hold_extra = ""

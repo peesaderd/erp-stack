@@ -111,7 +111,7 @@ def feed_single(
     
     result = run_pipeline(
         product_name=product_name,
-        product_image="",  # ไม่ต้องใช้ reference image
+        product_image=image_url,  # ใช้ store สำหรับ pipeline_logs enrichment
         recipe_name=recipe,
         voice="Aoede",
         bgm_style="chill_loft",

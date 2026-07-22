@@ -407,18 +407,27 @@ def build_video_prompts(
     is_holding = ugc_style == "holding"
     hold_prompt = "Person gently holding the product in both hands, showing product to camera, NOT using or opening or applying the product"
 
-    for scene in scenes:
+    for i, scene in enumerate(scenes):
         scene_name = scene.get("name", "Scene")
         scene_prompt = scene.get("prompt", "")
 
-        # Enhance prompt with image context + recipe
-        enhanced = f"{scene_prompt}. Setting: {setting}. {lighting}. 9:16 portrait, smooth natural motion."
-
-        # Create a holding-focused version regardless of scene type
         if is_holding:
-            enhanced += f" {hold_prompt}. Product must be clearly visible in frame at all times."
+            # ⚠️ CRITICAL: For holding style, REPLACE recipe scene text entirely
+            # (recipe prompts always describe usage — APPENDING hold_prompt creates
+            # contradictory prompts like "hands applying product... NOT using product")
+            # Instead, build a simple holding-only prompt for EVERY scene.
+            base = f"Close-up shot, product centered in frame. A Thai woman gently holding the product in both hands at chest level, showing product label to camera."
+            # Slight variation by scene position to avoid identical prompts
+            if i == 0:
+                base += f" Opening shot, product enters frame smoothly."
+            elif i == len(scenes) - 1:
+                base += f" final smile, product still in hands."
+            else:
+                base += f" Natural slight breathing motion, product stays at chest level."
+            enhanced = f"{base} Setting: {setting}. {lighting}. 9:16 portrait, smooth natural motion. IMPORTANT: Do NOT open, do NOT pump, do NOT squeeze, do NOT apply product to skin. ONLY hold and show the product. Product must stay visible at chest level at ALL times."
         else:
-            # Add scene-specific details for non-holding styles
+            # Original recipe-based prompt + scene-specific details
+            enhanced = f"{scene_prompt}. Setting: {setting}. {lighting}. 9:16 portrait, smooth natural motion."
             if scene_name == "Hook":
                 enhanced += " Beautiful opening shot, product clearly visible"
             elif scene_name == "Problem":

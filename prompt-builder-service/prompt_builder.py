@@ -328,6 +328,19 @@ async def analyze_and_build_prompts(
       4. Build image prompt, video prompt, negative prompt
       5. Return everything in one dict
     """
+    # Normalize frontend style values (holding_product → holding, product_usage → usage, etc.)
+    _STYLE_NORMALIZE = {
+        "holding_product": "holding",
+        "holding": "holding",
+        "product_usage": "usage",
+        "usage": "usage",
+        "ugc_review": "review",
+        "review": "review",
+        "talking_head": "talking",
+        "talking": "talking",
+    }
+    ugc_style = _STYLE_NORMALIZE.get(ugc_style, "holding")
+
     # Step 1: Analyze (includes Router Agent call)
     profile = analyze_product(product_name, description, keywords)
 

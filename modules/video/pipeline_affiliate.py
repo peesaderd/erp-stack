@@ -751,6 +751,23 @@ def compose_video(
 # MAIN: Run Full Pipeline v6
 # ═══════════════════════════════════════════════════════════════════════════
 
+def _normalize_ugc_style(style: str) -> str:
+    """Normalize frontend style values to backend keys.
+    Frontend sends holding_product/product_usage/ugc_review/talking_head
+    but backend expects holding/usage/review/talking."""
+    _MAP = {
+        "holding_product": "holding",
+        "holding": "holding",
+        "product_usage": "usage",
+        "usage": "usage",
+        "ugc_review": "review",
+        "review": "review",
+        "talking_head": "talking",
+        "talking": "talking",
+    }
+    return _MAP.get(style, "holding")
+
+
 def run_pipeline(
     product_name: str,
     product_image: str,
@@ -783,6 +800,9 @@ def run_pipeline(
             product_profile, recipe, script, image_path, video_paths
         }
     """
+    # Normalize frontend style (holding_product → holding, etc.)
+    ugc_style = _normalize_ugc_style(ugc_style)
+
     run_id = uuid.uuid4().hex[:8]
     job_id = external_job_id or f"vid_{run_id}"
 
@@ -792,6 +812,7 @@ def run_pipeline(
     logger.info(f"Product: {product_name}")
     logger.info(f"Image: {product_image}")
     logger.info(f"Recipe: {recipe_name}")
+    logger.info(f"UGC Style: {ugc_style}")
     logger.info(f"{'='*60}")
 
     # Initialize pipeline logger

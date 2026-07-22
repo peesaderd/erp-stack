@@ -1124,7 +1124,7 @@ def list_products(limit: int = 50, preset: str = "all"):
     return {"products": products}
 
 
-PRODUCTDB_DSN = "postgresql://openhands:OpenHands%40ERP2026@127.0.0.1:5435/productdb"
+PRODUCTDB_DSN = os.environ.get("PRODUCTDB_DSN", "postgresql://openhands:OpenHands%40ERP2026@127.0.0.1:5432/erp_stack")
 
 @app.get("/products/scraped")
 async def list_scraped_products(limit: int = 100):
@@ -1141,6 +1141,11 @@ async def list_scraped_products(limit: int = 100):
             products.append({
                 "id": r["id"],
                 "title": r["name"],
+                "category": r.get("category", "General"),
+                "container_type": data.get("container_type", "ขวด/ภาชนะทรงมาตรฐาน"),
+                "closure_type": data.get("closure_type", "ฝาปิดมาตรฐาน"),
+                "label_colors": data.get("label_colors", "สีบรรจุภัณฑ์ตามภาพ"),
+                "product_color": data.get("product_color", "เนื้อสัมผัสธรรมชาติ"),
                 "price_thb": float(data.get("price", 0)),
                 "commission": data.get("commission_rate", ""),
                 "category": data.get("category", ""),

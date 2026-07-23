@@ -138,20 +138,22 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             pa_clean = re.sub(r'^(The\s+)?product\s+(is\s+)?', '', pa_clean, flags=re.IGNORECASE).strip()
             pa_clean = pa_clean[0].lower() + pa_clean[1:] if pa_clean else ""
         if pa_clean:
-            scene_desc = f"{env_context or 'A clean modern space'}. Fixed to the wall/surface is a {pa_clean[:250]}."
+            # Use "an" for vowel-starting words, "a" for consonants
+            article = "an" if pa_clean[:1].lower() in "aeiou" else "a"
+            scene_desc = f"{env_context or 'A clean modern space'}. Fixed to the wall/surface is {article} {pa_clean[:250]}."
         elif image_description:
             scene_desc = image_description[:250]
         else:
             scene_desc = f"{env_context or 'A modern living space with soft evening lighting'}. The product is installed and visible."
-        # Person naturally in scene
+        # Person interacts naturally as product activates — UGC reaction style
         if persona_clothing:
-            scene_desc += f" An ethnic Thai {gender_en} aged {model_age}, {thai_features}, wearing {persona_clothing} walks past naturally."
+            scene_desc += " An ethnic Thai {gender} aged {age}, {features}, wearing {clothes} stands naturally near the product.".format(
+                gender=gender_en, age=model_age, features=thai_features, clothes=persona_clothing)
         else:
-            scene_desc += f" An ethnic Thai {gender_en} aged {model_age}, {thai_features}, walks past naturally, casual pose."
-        if persona_clothing:
-            scene_desc += f" Wearing {persona_clothing}."
+            scene_desc += " An ethnic Thai {gender} aged {age}, {features}, glancing naturally toward the product.".format(
+                gender=gender_en, age=model_age, features=thai_features)
         if persona_hair:
-            scene_desc += f" {persona_hair}."
+            scene_desc += " " + persona_hair + "." 
     else:
         # Beauty/fashion/food: model holding/using product
         scene_desc = image_description or f"{thai_model}, pretty face, professional model quality"
@@ -263,17 +265,18 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
 
     # ── Category-aware video_motion ────────────────────────────────
     if category in ("home", "electronics", "tools"):
-        # Use case: product installed, person interacting naturally
+        # Product auto-activates in environment — no person needed
         env_context = profile.get("env_context", "a hallway")
         features = profile.get("features", [])
         if isinstance(features, str):
             features = [features]
-        feature_str = ", ".join(features[:3]) if features else "automatic operation"
+        feature_str = ", ".join(features[:3]) if features else "automatic on/off"
         
         video_motion = (
-            f"walking naturally in {env_context}, product visible and installed. "
-            f"Person passes by naturally — product activates automatically: {feature_str}. "
-            f"No staring at camera, no artificial posing, natural everyday movement"
+            f"person walks into scene, product detects movement and "
+            f"{feature_str}. Person reacts naturally with slight smile of approval. "
+            f"Product glows softly illuminating the space. "
+            f"Person glances at product then continues naturally"
         )
     elif ugc_style == "holding":
         # Holding style: just show product (for beauty primarily)
@@ -332,10 +335,13 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     if category in ("home", "electronics", "tools"):
         env_context = profile.get("env_context", "a hallway")
         product_appearance = profile.get("product_appearance", "the product")
-        product_desc = f"installed in {env_context}. Product: {product_appearance[:200]}"
-        model_intro = f"Ethnic Thai {gender_en} {model_age} years old, {thai_face}{clothing_str}{hair_str}"
+        # Clean prefix
+        pa_clean = re.sub(r'^(The\s+)?product\s+(is\s+)?', '', product_appearance, flags=re.IGNORECASE).strip()
+        pa_clean = pa_clean[0].lower() + pa_clean[1:] if pa_clean else product_appearance
+        product_desc = f"installed in {env_context}. Product: {pa_clean[:200]}"
+        # No person in scene — pure product environment shot
         video_prompt = (
-            f"{model_intro}, {video_motion}. "
+            f"{video_motion}. "
             f"The product is {product_desc}. "
         )
     else:
@@ -493,7 +499,7 @@ async def analyze_and_build_prompts(
         negative_prompt = build_negative_prompt(profile, ugc_style)
     
     # Step 5: Validate script timing
-    timing_validation = _build_timing_validated_script(product_name, profile.get("category", "other"))
+    timing_validation = _build_timing_validated_script(product_name, profile.get("category", "other"), profile)
     
     result = {
         "product_id": product_id,
@@ -605,8 +611,11 @@ def _estimate_speech_duration(text: str) -> float:
     return thai_sec + non_thai_sec + (switches * 0.1)
 
 
-def _build_timing_validated_script(product_name: str, category: str = "beauty") -> dict:
-    """Build script segments with timing validation."""
+def _build_timing_validated_script(product_name: str, category: str = "beauty", profile: dict = None) -> dict:
+    """Build script segments with timing validation.
+    Uses customer_problem + main_benefit from Gemini analysis when available.
+    Gender-aware: female register (คะ/ค่ะ) for female target_gender.
+    """
     product_short = product_name
     full_name_chars = len(product_name)
     
@@ -632,26 +641,42 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty") 
     if len(product_short) < 5:
         product_short = product_name[:30]
     
-    # Script segments
-    if "blush" in category.lower() or "cheek" in category.lower():
-        hook_text = f"หน้าแบน ไม่มีมิติ แต่งหน้ายังไงก็ไม่ปัง?"
-        value_text = f"{product_short} บลัชออน เพิ่มความสดใส วิ้งเบาๆ เป็นธรรมชาติ"
+    # Gender-aware Thai register
+    target_gender = profile.get("target_gender", "female") if profile else "female"
+    is_female = target_gender in ("female", "woman")
+    reg_hook = "คะ" if is_female else "ครับ"
+    reg_val = "ค่ะ" if is_female else "ครับ"
+    
+    # Use customer_problem + main_benefit from Gemini analysis when available
+    customer_problem = profile.get("customer_problem", "") if profile else ""
+    main_benefit = profile.get("main_benefit", "") if profile else ""
+    
+    if customer_problem and main_benefit and len(customer_problem) > 5:
+        # Use Gemini-generated problem/benefit (already includes register)
+        hook_text = customer_problem
+        value_text = f"{product_short} {main_benefit}"
+    elif category in ("home", "electronics", "tools"):
+        hook_text = f"ต้องเดินคลำทางในที่มืดใช่ไหม{reg_hook}"
+        value_text = f"{product_short} ให้แสงสว่างทันที ช่วยเพิ่มความสะดวกและปลอดภัย{reg_val}"
+    elif "blush" in category.lower() or "cheek" in category.lower():
+        hook_text = f"หน้าแบน ไม่มีมิติ แต่งหน้ายังไงก็ไม่ปัง{reg_hook}"
+        value_text = f"{product_short} บลัชออน เพิ่มความสดใส วิ้งเบาๆ เป็นธรรมชาติ{reg_val}"
     elif "lip" in category.lower():
-        hook_text = f"ใครปากแห้ง ปากหมองคล้ำบ้าง?"
-        value_text = f"{product_short} ให้ปากฉ่ำวาว ไม่เหนอะ ติดทนตลอดวัน"
+        hook_text = f"ใครปากแห้ง ปากหมองคล้ำบ้าง{reg_hook}"
+        value_text = f"{product_short} ให้ปากฉ่ำวาว ไม่เหนอะ ติดทนตลอดวัน{reg_val}"
     elif "mask" in category.lower() or "facial" in category.lower():
-        hook_text = f"ผิวแห้ง หมองคล้ำ ไม่สดใส ต้องลอง!"
-        value_text = f"{product_short} บำรุงล้ำลึก ให้ผิวชุ่มชื้น กระจ่างใส"
+        hook_text = f"ผิวแห้ง หมองคล้ำ ไม่สดใส ต้องลอง{reg_hook}"
+        value_text = f"{product_short} บำรุงล้ำลึก ให้ผิวชุ่มชื้น กระจ่างใส{reg_val}"
     elif "serum" in category.lower() or "moisturizer" in category.lower():
-        hook_text = f"ผิวพังจากมลภาวะ อายุที่เพิ่มขึ้น หมดกังวล!"
-        value_text = f"{product_short} บำรุงเข้มข้น ซึมไว ไม่เหนอะหนะ"
+        hook_text = f"ผิวพังจากมลภาวะ อายุที่เพิ่มขึ้น หมดกังวล{reg_hook}"
+        value_text = f"{product_short} บำรุงเข้มข้น ซึมไว ไม่เหนอะหนะ{reg_val}"
     elif "concealer" in category.lower() or "corrector" in category.lower():
-        hook_text = f"ใต้ตาดำคล้ำ นอนดึกทุกวัน หมดปัญหา!"
-        value_text = f"{product_short} ปกปิดเนียนกริบ ไม่ตกร่อง ไม่เป็นคราบ"
+        hook_text = f"ใต้ตาดำคล้ำ นอนดึกทุกวัน หมดปัญหา{reg_hook}"
+        value_text = f"{product_short} ปกปิดเนียนกริบ ไม่ตกร่อง ไม่เป็นคราบ{reg_val}"
     else:
-        hook_text = f"ต้องลอง! สินค้าดีบอกต่อ"
-        value_text = f"{product_short} คุณภาพเยี่ยม ใช้งานง่าย เห็นผลจริง"
-    cta_text = f"กดลิงก์หน้าโปรไฟล์เลย รับส่วนลดทันที"
+        hook_text = f"ต้องลอง! สินค้าดีบอกต่อ{reg_hook}"
+        value_text = f"{product_short} คุณภาพเยี่ยม ใช้งานง่าย เห็นผลจริง{reg_val}"
+    cta_text = f"กดดูในตะกร้าเลย{reg_val}"
     
     segments = [
         {"key": "hook", "text": hook_text, "duration_sec": 2, "timing": "0-2"},

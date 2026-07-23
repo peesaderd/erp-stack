@@ -634,6 +634,7 @@ async def generate_video(req: VideoRequest):
                 "ugc_style": req.ugc_style or "holding",
                 "product_id": job_id,
                 "price": float(req.product_price) if req.product_price else 0.0,
+                "product_image": req.product_image or "",
             })
 
             if pb_result.get("ok") and pb_result.get("data"):
@@ -681,8 +682,11 @@ async def generate_video(req: VideoRequest):
                 "content_type": req.content_type or "affiliate",
                 "ugc_style": req.ugc_style or "holding",
                 "aspect_ratio": req.aspect_ratio or "9:16",
-                "negative_prompt": req.negative_prompt,
+                "negative_prompt": neg_prompt or req.negative_prompt,
                 "bgm_style": req.bgm_style or "",
+                "image_prompt": img_prompt or "",
+                "video_prompt": (video_prompts or [""])[0],
+                "video_prompts": video_prompts or [],
                 "job_id": job_id,
             }, timeout=300.0)  # Video pipeline takes 90-180s
 

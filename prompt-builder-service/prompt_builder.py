@@ -141,45 +141,9 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
 
     scene_desc = image_description or f"Ethnic Thai {gender_en}, {model_age}, {thai_features}, pretty face, professional model quality"
 
-    # 🔥 Holding style: SANITIZE scene_desc — strip ALL usage/application language
-    # Flux/Nano Banana ignore negation like "NOT applying" if "applying" appears earlier
-    if ugc_style == "holding":
-        # Remove any usage verbs that would cause the model to draw applying/using
-        usage_patterns = [
-            (r'\bapplying\b', 'holding'),
-            (r'\bapply\b', 'hold'),
-            (r'\buses\b', 'holds'),
-            (r'\busing\b', 'holding'),
-            (r'\bsqueez(e|ing)\b', ''),
-            (r'\bpump(ing|s|ed)?\b', ''),
-            (r'\bspray(ing|s|ed)?\b', ''),
-            (r'\bopen(ing|s|ed)?\b', ''),
-            (r'\bremove(ing|s|d)? the (cap|lid|top|closure)\b', ''),
-            (r'(\bnear|\bclose to) (her|his|their) (lips|mouth|face|skin)\b', 'at chest level'),
-            (r'(demonstrat|showcas)(ing|es|ed)? (the )?(ease of use|ease of application|use|application|product in use)\b', 'presenting the product'),
-            (r'\bapplied to\b', 'held in front of'),
-            (r'\benhanc(e|ing) the (lips|skin|face|look)\b', 'showing the'),
-            (r'\b(glossy|smooth|moist).*?texture .*?lips\b', 'glossy smooth texture on the product'),
-            (r'\bnatural flush of color\b', 'natural color'),
-            # More usage verbs that Mistral might output
-            (r'\b(patt|dabb?|wip|rubb?|massag)(ing|es|ed|s)?\b', 'holding'),
-            (r'\b(cleanse|tone|moisturize|exfoliate|refresh)(s|ing|ed|d)?\b', ''),
-            (r'\b(cotton pad|cotton ball|sponge|tissue|towel)\b', ''),
-            (r'\bsoaked with\b', 'with'),
-            (r'\bsoaked in\b', 'next to'),
-            # Packaging closure words that imply product can open
-            (r'\bflip.?top\b', 'screw cap'),
-            (r'\btwist.?cap\b', 'cap'),
-            (r'\bpump.?top\b', 'cap'),
-            (r'\bclick.?closure\b', 'closed'),
-            (r'\bflip.?closure\b', 'cap'),
-        ]
-        for pattern, replacement in usage_patterns:
-            if replacement:
-                scene_desc = re.sub(pattern, replacement, scene_desc, flags=re.IGNORECASE)
-            else:
-                scene_desc = re.sub(pattern, '', scene_desc, flags=re.IGNORECASE)
-        scene_desc = re.sub(r'\s+', ' ', scene_desc).strip()
+    # จำกัดการใช้งานสำหรับ holding style beauty เท่านั้น
+    # ไม่ใช้ regex blanket — ปล่อยให้ template + product analysis ทำงาน
+    category = profile.get("category", "other")
 
     # Replace generic "Thai woman" with ethnic-specific description
     if "Thai" in scene_desc and "ethnic" not in scene_desc.lower() and "Southeast" not in scene_desc:
@@ -220,9 +184,10 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         else:
             scene_desc = f"{scene_desc}. {pkg_str}"  # fallback original
 
-    # 🔥 Holding style: add explicit positive instruction about cap being closed
-    # Flux/etc interpret "holding" as about-to-apply/open. Must say "cap is CLOSED"
-    if ugc_style == "holding":
+    # For beauty products: add explicit instruction about cap being closed
+    # Flux/etc interpret "holding" as about-to-apply/open for beauty products
+    # Non-beauty products (electronics/home/tools/food/fashion): ไม่ต้องมี restriction นี้
+    if ugc_style == "holding" and category in ("beauty", "health"):
         scene_desc += " CRITICAL: The cap is CLOSED and sealed. Both hands hold the closed product only. Not opening, not using."
 
     data = {
@@ -265,9 +230,9 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     image_prompt = re.sub(r'\s+', ' ', image_prompt)
     image_prompt = image_prompt.strip()
 
-    # 🔥 Final sanitization for HOLDING style: remove any remaining "her lips" / "his lips" / "on lips" / "on skin"
-    # These cause the image model to draw usage even when prompt says NOT
-    if ugc_style == "holding":
+    # Final sanitization for beauty products: remove application references
+    # Non-beauty products (electronics/home/tools): ไม่จำเป็น
+    if ugc_style == "holding" and category in ("beauty", "health"):
         image_prompt = re.sub(r"her\s+(own\s+)?lips?\b", "the product", image_prompt, flags=re.IGNORECASE)
         image_prompt = re.sub(r"his\s+(own\s+)?lips?\b", "the product", image_prompt, flags=re.IGNORECASE)
         image_prompt = re.sub(r"\bon (their|her|his) (lips?|skin|face)\b", " ", image_prompt, flags=re.IGNORECASE)
@@ -371,14 +336,12 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         if not product_pkg and len(image_desc) > 40:
             product_pkg = image_desc[:120]
 
+    category = profile.get("category", "other")
     neg_emphasis = ""
-    if ugc_style == "holding":
+    # Only beauty/health products need "cap is CLOSED" restriction
+    # Electronics/home/tools/food: ใช้ product_type กำหนด action ที่เหมาะสม
+    if ugc_style == "holding" and category in ("beauty", "health"):
         neg_emphasis = "CRITICAL: Do NOT open or apply the product. Cap is CLOSED and sealed. No squeezing, no pumping, no spraying."
-    
-    # 🔥 Sanitize product_pkg for holding style — remove any closure/opening words
-    if ugc_style == "holding" and product_pkg:
-        product_pkg = re.sub(r'\b(flip.?top|twist.?cap|pump.?top|click.?closure|flip.?closure)\b', 'cap', product_pkg, flags=re.IGNORECASE)
-        product_pkg = re.sub(r'\b(pump|twist|click|flip)\b', 'sealed', product_pkg, flags=re.IGNORECASE)
 
     # Build video prompt with Thai-specific ethnicity + packaging detail
     model_intro = f"Ethnic Thai {gender_en} 25 years old, {thai_face}{clothing_str}{hair_str}"
@@ -404,12 +367,8 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         f"9:16 portrait, smooth natural motion, no text, no watermark"
     )
     
-    # 🔥 Final sanitization for video prompt
+    # Final sanitization for video prompt
     video_prompt = re.sub(r'\s+', ' ', video_prompt).strip()
-    if ugc_style == "holding":
-        # Remove any remaining bad patterns
-        video_prompt = re.sub(r'\b(patt|dab|wipe|rub|massage)\w*\b', 'hold', video_prompt, flags=re.IGNORECASE)
-        video_prompt = re.sub(r'\s+', ' ', video_prompt).strip()
     
     return video_prompt
 

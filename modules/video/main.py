@@ -130,6 +130,9 @@ class VideoRequest(BaseModel):
     product_description: Optional[str] = None
     recipe: Optional[str] = None
     job_id: Optional[str] = None  # external job_id from caller — used to keep pipeline_logs.db in sync
+    image_prompt: str = ""
+    video_prompt: str = ""
+    video_prompts: list[str] = []
 
 class AffiliateScriptRequest(ScriptRequest):
     platforms: list[str] = []
@@ -276,6 +279,12 @@ async def generate_video(req: VideoRequest):
             ugc_style=validate_ugc_style(req.ugc_style),
             external_job_id=req.job_id,
             duration=req.duration,
+            # Pre-computed prompts (bypass auto-gen if provided)
+            image_prompt=req.image_prompt or "",
+            video_prompt=req.video_prompt or "",
+            video_prompts=req.video_prompts or [],
+            negative_prompt=req.negative_prompt or "",
+            script=req.script or "",
         )
         return {"success": True, "result": result}
     except Exception as e:

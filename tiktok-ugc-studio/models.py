@@ -78,6 +78,9 @@ class VideoRequest(BaseModel):
     script: Optional[str] = None
     negative_prompt: Optional[str] = None
     bgm_style: Optional[str] = None
+    image_prompt: str = ""
+    video_prompt: str = ""
+    video_prompts: list[str] = []
 
 
 class VideoPostRequest(BaseModel):

@@ -410,7 +410,7 @@ def build_video_prompts(
         product_profile: ผลจาก analyze_product()
         recipe: ผลจาก load_recipe()
         image_path: path ของ image ที่สร้างแล้ว (Step 5)
-        ugc_style: UGC style — "holding" uses generic hold for ALL scenes
+        ugc_style: UGC style — ใช้ product_type/category กำหนด action ที่เหมาะสม
 
     Returns:
         list: video_prompts (1 prompt per scene)
@@ -422,6 +422,8 @@ def build_video_prompts(
 
     setting = product_profile.get("setting", "clean modern lifestyle")
     category = product_profile.get("category", "other")
+    product_type = product_profile.get("product_type", "").lower()
+    product_name = product_profile.get("product_name", "") or product_profile.get("_product_name", "")
 
     # Lighting map (simple version)
     lighting_map = {
@@ -434,61 +436,128 @@ def build_video_prompts(
         "other": "soft natural lighting",
     }
     lighting = lighting_map.get(category, "soft natural lighting")
-
-    # ── For "holding" style: ALL scenes use video_prompt from prompt-builder ──
-    # IMPORTANT: Use the _video_prompt from prompt-builder-service (has packaging, clothing, hair, age)
-    # Not the hardcoded hold_base — prompt builder has all the rich details
-    model_age = random.randint(18, 25)
     
-    if ugc_style == "holding":
-        # Try to use prompt builder's video prompt (more detailed than hardcoded)
-        prompt_builder_vp = product_profile.get("_video_prompt", "")
-        if prompt_builder_vp and len(prompt_builder_vp) > 50:
-            # Replace hardcoded 25 with randomized age
-            vp_fixed_age = re.sub(r'\b25\s+years?\s+old\b', f'{model_age} years old', prompt_builder_vp)
-            enhanced = vp_fixed_age
-        else:
-            # Fallback: simple hold prompt
-            thai_face = "Ethnic Thai woman with porcelain white glowing skin, monolid eyes, Southeast Asian features"
-            enhanced = (
-                f"{thai_face}, {model_age} years old, holding product gently in both hands, product packaging facing camera, "
-                f"slight head tilt, natural breathing motion. "
-                f"Do NOT open or apply the product. No squeezing, no pumping, no spraying. "
-                f"Setting: {setting}. {lighting}. "
-                f"9:16 portrait, smooth natural motion, no text, no watermark"
+    # Use target_age from Mistral analysis instead of hardcoded random
+    try:
+        target_age = int(product_profile.get("target_age", "25"))
+    except (ValueError, TypeError):
+        target_age = 25
+    # เล็กน้อย randomize ให้ธรรมชาติ
+    model_age = max(18, min(45, target_age + random.randint(-2, 2)))
+
+    # ── Scene descriptions ตาม product_type/category ──
+    # แทนที่จะใช้ "hold only, cap CLOSED" เดียวกันทุก product
+    # ใช้ product_type กำหนด action ที่เหมาะสมต่อ scene
+    scene_descriptions = _scene_descriptions_for_category(category, product_type, product_name)
+
+    # ── Model look (จาก profile, ไม่ hardcode) ──
+    model_gender = product_profile.get("target_gender", "female")
+    gender_en = {"female": "woman", "male": "man", "unisex": "person"}.get(model_gender, "person")
+    
+    # ── Build per-scene prompts ──
+    for i, scene in enumerate(scenes):
+        scene_name = scene.get("name", f"Scene{i+1}")
+        scene_dur = scene.get("duration", 2)
+        
+        # Get scene-specific description or default
+        scene_action = scene_descriptions.get(scene_name, "product visible in frame, natural setting")
+        
+        # Build the full prompt
+        enhanced = (
+            f"Ethnic Thai {gender_en} {model_age} years old, porcelain white glowing skin, "
+            f"monolid eyes, Southeast Asian ethnic Thai features. "
+            f"{scene_action} "
+            f"Setting: {setting}. {lighting}. "
+            f"9:16 portrait, smooth natural motion, no text, no watermark"
+        )
+        
+        # For beauty products: keep "not opening" restriction
+        # For electronics/home/tools: allow natural product interaction
+        if category in ("beauty", "health") and ugc_style == "holding":
+            enhanced += (
+                " CRITICAL: Product cap is CLOSED and sealed. "
+                "Model is NOT opening or applying the product. "
+                "Just holding and showing to camera."
             )
         
-        # Same prompt for all scenes — no scene-specific usage action
-        for scene in scenes:
-            video_prompts.append(enhanced)
-        logger.info(f"  Generated {len(video_prompts)} video prompts")
-        return video_prompts
-
-    # ── Non-holding styles: scene-specific prompts ──
-    for scene in scenes:
-        scene_name = scene.get("name", "Scene")
-        scene_prompt = scene.get("prompt", "")
-        enhanced = f"{scene_prompt}. Setting: {setting}. {lighting}. 9:16 portrait, smooth natural motion."
-
-        # Add scene-specific details for non-holding styles
-        if scene_name == "Hook":
-            enhanced += " Beautiful opening shot, product clearly visible"
-        elif scene_name == "Problem":
-            enhanced += " Person showing concern, relatable emotion"
-        elif scene_name == "Discovery":
-            enhanced += " Excited expression, discovering product"
-        elif scene_name == "Features":
-            enhanced += " Close-up texture, product in use"
-        elif scene_name == "Transformation":
-            enhanced += " Before-after comparison, clear improvement"
-        elif scene_name == "CTA":
-            enhanced += " Final product shot, encouraging purchase"
-
         video_prompts.append(enhanced)
 
-    logger.info(f"  Generated {len(video_prompts)} video prompts")
-
+    logger.info(f"  Generated {len(video_prompts)} video prompts for category={category}")
     return video_prompts
+
+
+def _scene_descriptions_for_category(category: str, product_type: str, product_name: str) -> dict:
+    """Generate scene descriptions based on product category/type.
+    
+    Returns dict {scene_name: action_description} ใช้ใน build_video_prompts()
+    """
+    pn = product_name or "product"
+    
+    # ── Electronics ──
+    if category == "electronics":
+        return {
+            "Hook": f"Model walking toward {pn} installed on wall/counter, product clearly visible in the setting",
+            "Problem": f"Close-up of {pn} in off/inactive state, showing need for activation",
+            "Discovery": f"Hand reaching for {pn}, finger pressing button or switch, product activating with subtle indicator glow",
+            "Features": f"{pn} in active use, feature demonstration, product functionality visible and working",
+            "Transformation": f"Wide shot showing {pn} improving the space or solving the problem, room/area visibly better",
+            "CTA": f"Model with satisfied expression, {pn} in focus in the background, final product showcase",
+        }
+    
+    # ── Home / Tools ──
+    elif category in ("home", "tools"):
+        return {
+            "Hook": f"Model entering frame holding {pn}, product clearly visible and recognizable",
+            "Problem": f"Close-up showing problem or need before using {pn}, relatable struggle",
+            "Discovery": f"Model beginning to use {pn}, natural action, product solving the immediate issue",
+            "Features": f"Product detail close-up, key features of {pn} visible, texture and build quality shown",
+            "Transformation": f"Result visible after using {pn}, improved situation, problem solved",
+            "CTA": f"Model satisfied, {pn} in focus, final encouraging shot",
+        }
+    
+    # ── Food ──
+    elif category == "food":
+        return {
+            "Hook": f"{pn} packaging visible, appetizing presentation on table or counter",
+            "Problem": f"Opening or preparing {pn}, anticipation visible",
+            "Discovery": f"{pn} being revealed, poured, or displayed, texture and color visible",
+            "Features": f"Close-up of {pn} texture, ingredients or details visible, mouth-watering shot",
+            "Transformation": f"Final prepared state of {pn}, ready to enjoy, appetizing result",
+            "CTA": f"Final shot of {pn}, encouraging viewer to try it",
+        }
+    
+    # ── Fashion ──
+    elif category == "fashion":
+        return {
+            "Hook": f"Model holding {pn}, fashion-forward entrance, product clearly visible",
+            "Problem": f"Showing look without {pn}, neutral expression",
+            "Discovery": f"{pn} being shown or styled, model examining product",
+            "Features": f"Texture and detail close-up of {pn}, fabric or finish visible",
+            "Transformation": f"Complete look with {pn} styled, confident pose, full outfit visible",
+            "CTA": f"Final confident look, {pn} featured prominently",
+        }
+    
+    # ── Beauty — keep original holding restriction ──
+    elif category == "beauty":
+        return {
+            "Hook": f"Model holding {pn} in both hands, product packaging facing camera, smiling naturally, just showing",
+            "Problem": f"Model still holding {pn}, gentle expression, product clearly visible",
+            "Discovery": f"Model examining {pn}, slight head movement, product still in hands",
+            "Features": f"Close-up of {pn}, product texture and packaging detail visible",
+            "Transformation": f"Model presenting {pn} proudly, product in focus",
+            "CTA": f"Final product showcase, {pn} in frame, model smiling warmly",
+        }
+    
+    # ── Default: generic ──
+    else:
+        return {
+            "Hook": f"Model holding {pn}, product clearly visible, natural opening",
+            "Problem": f"{pn} shown in context, viewer attention drawn to product",
+            "Discovery": f"Model interacting with {pn}, natural movement",
+            "Features": f"Close-up details of {pn}, texture and build visible",
+            "Transformation": f"Result or benefit of {pn} shown, improvement visible",
+            "CTA": f"Final showcase, {pn} in focus, encouraging shot",
+        }
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -810,6 +879,12 @@ def run_pipeline(
     ugc_style: str = "holding",
     duration: int = 0,
     external_job_id: Optional[str] = None,
+    # Pre-computed prompts — bypass auto-gen if provided
+    image_prompt: str = "",
+    video_prompt: str = "",
+    video_prompts: list = None,
+    negative_prompt: str = "",
+    script: str = "",
 ) -> dict:
     """
     Run full Affiliate Pipeline v6 (9 Steps ตาม PIPELINE_STRUCTURE.md)
@@ -823,6 +898,11 @@ def run_pipeline(
         description: คําอธิบายสินค้า (optional)
         external_job_id: job_id จาก caller (ถ้ามี) — ใช้แทนการ gen เอง เพื่อให้ pipeline_logs.db
                          ตรงกับ pipeline.db ใน tiktok-ugc-studio
+        image_prompt: รูป prompt ที่เตรียมมาแล้ว (ถ้ามีจะไม่ gen ใหม่)
+        video_prompt: วิดีโอ prompt ที่เตรียมมาแล้ว (ใช้ fallback ถ้า video_prompts ไม่มี)
+        video_prompts: รายการวิดีโอ prompts ต่อ scene (ถ้ามีจะไม่ gen ใหม่)
+        negative_prompt: negative prompt ที่เตรียมมาแล้ว
+        script: script ที่เตรียมมาแล้ว (ถ้ามีจะไม่ gen ใหม่)
 
     Returns:
         dict: {
@@ -888,20 +968,28 @@ def run_pipeline(
         except Exception:
             pass
 
-        # ── STEP 3: Generate Script ──
-        step_start = time.time()
-        script = generate_script(product_name, product_profile, recipe)
-        script_duration = int((time.time() - step_start) * 1000)
+        # ── STEP 3: Generate Script (skip if pre-computed) ──
+        if not script:
+            step_start = time.time()
+            script = generate_script(product_name, product_profile, recipe)
+            script_duration = int((time.time() - step_start) * 1000)
+        else:
+            script_duration = 0
+            logger.info(f"Step 3/9: Skipped (using pre-computed script)")
 
         try:
             update_step(job_id, 'script', {'duration_ms': script_duration, 'script': script[:100]})
         except Exception:
             pass
 
-        # ── STEP 4: Build Image Prompt ──
-        step_start = time.time()
-        image_prompt = build_image_prompt(product_name, product_profile, recipe)
-        img_prompt_duration = int((time.time() - step_start) * 1000)
+        # ── STEP 4: Build Image Prompt (skip if pre-computed) ──
+        if not image_prompt:
+            step_start = time.time()
+            image_prompt = build_image_prompt(product_name, product_profile, recipe)
+            img_prompt_duration = int((time.time() - step_start) * 1000)
+        else:
+            img_prompt_duration = 0
+            logger.info(f"Step 4/9: Skipped (using pre-computed image_prompt)")
 
         try:
             update_step(job_id, 'image_prompt', {'duration_ms': img_prompt_duration})
@@ -921,10 +1009,15 @@ def run_pipeline(
         except Exception:
             pass
 
-        # ── STEP 6: Build Video Prompts ──
-        step_start = time.time()
-        video_prompts = build_video_prompts(product_profile, recipe, str(img_path), ugc_style=ugc_style)
-        vid_prompt_duration = int((time.time() - step_start) * 1000)
+        # ── STEP 6: Build Video Prompts (skip if pre-computed) ──
+        if not video_prompts:
+            step_start = time.time()
+            video_prompts = build_video_prompts(product_profile, recipe, str(img_path), ugc_style=ugc_style)
+            vid_prompt_duration = int((time.time() - step_start) * 1000)
+        else:
+            vid_prompt_duration = 0
+            # video_prompt เป็น single string สำหรับ Fallback ถ้า video_prompts ยังว่าง
+            logger.info(f"Step 6/9: Skipped (using pre-computed video_prompts)")
 
         try:
             update_step(job_id, 'video_prompts', {'duration_ms': vid_prompt_duration, 'count': len(video_prompts)})
@@ -937,7 +1030,7 @@ def run_pipeline(
                 'image_prompt': image_prompt,
                 'video_prompts': video_prompts,
                 'script': script,
-                'negative_prompt': '',
+                'negative_prompt': negative_prompt if negative_prompt else '',
                 'hashtags': product_profile.get('hashtags', []),
             })
         except Exception as e:
@@ -960,13 +1053,16 @@ def run_pipeline(
             voice_path = None
             cost_voice = 0.0
 
-        # ── STEP 8: Generate 1 Video (Wan 2.7 Sync, 1 scene) ──
+        # ── STEP 8: Generate 1 Video (Wan 2.7 Sync, 1 clip full duration) ──
+        # WHY 1 clip: Wan 2.7 img2vid generates from a SINGLE image reference.
+        # Multiple independent clips from the same static image = jarring cuts,
+        # same product angle every scene, zero visual continuity.
+        # 1 continuous generation = smooth motion, natural flow.
         step_start = time.time()
         video_paths = []
         
-        # 1 scene only — ใช้ prompt แรก (Hook) + duration เต็ม
-        vprompt = video_prompts[0] if video_prompts else "Product showcase, smooth motion"
-        logger.info(f"  Generating 1 video ({total_duration}s): {vprompt[:60]}...")
+        vprompt = video_prompts[0] if video_prompts else "Product showcase, smooth motion, elegant presentation"
+        logger.info(f"  Generating 1 continuous video ({total_duration}s): {vprompt[:80]}...")
         
         vid_path, cost_video = generate_video(
             image_path=str(img_path),

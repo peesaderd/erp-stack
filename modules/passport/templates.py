@@ -17,7 +17,7 @@ FALLBACK_TEMPLATES = {
     "us_passport": {"name": "US Passport", "country": "United States", "doc_type": "passport", "width_mm": 51, "height_mm": 51, "bg_color": "#FFFFFF", "dpi": 300, "head_height_pct": 0.7},
     "uk_passport": {"name": "UK Passport", "country": "United Kingdom", "doc_type": "passport", "width_mm": 35, "height_mm": 45, "bg_color": "#FFFFFF", "dpi": 300, "head_height_pct": 0.65},
     "eu_passport": {"name": "EU Passport", "country": "European Union", "doc_type": "passport", "width_mm": 35, "height_mm": 45, "bg_color": "#FFFFFF", "dpi": 300, "head_height_pct": 0.65},
-    "thai_passport": {"name": "หนังสือเดินทางไทย", "country": "Thailand", "doc_type": "passport", "width_mm": 45, "height_mm": 35, "bg_color": "#FFFFFF", "dpi": 300, "head_height_pct": 0.65},
+    "thai_passport": {"name": "หนังสือเดินทางไทย", "country": "Thailand", "doc_type": "passport", "width_mm": 35, "height_mm": 45, "bg_color": "#FFFFFF", "dpi": 300, "head_height_pct": 0.65},
     "thai_id": {"name": "บัตรประชาชนไทย", "country": "Thailand", "doc_type": "id_card", "width_mm": 86, "height_mm": 54, "bg_color": "#FFFFFF", "dpi": 300, "head_height_pct": 0.6},
     "china_visa": {"name": "China Visa", "country": "China", "doc_type": "visa", "width_mm": 33, "height_mm": 48, "bg_color": "#FFFFFF", "dpi": 300, "head_height_pct": 0.6},
     "japan_visa": {"name": "Japan Visa", "country": "Japan", "doc_type": "visa", "width_mm": 45, "height_mm": 45, "bg_color": "#FFFFFF", "dpi": 300, "head_height_pct": 0.65},

@@ -190,12 +190,14 @@ JSON format:
   "colors": ["color1", "color2", "color3"],
   "customer_problem": "what problem this product solves (Thai natural, female register คะ/ค่ะ) เช่น ต้องเดินคลำทางในที่มืด, ปั่นผลไม้ยากลำบาก",
   "main_benefit": "key benefit (Thai natural, use ค่ะ/คะ female register) เช่น เปิดไฟอัตโนมัติเมื่อเดินผ่าน, ปั่นละเอียดแรงสูงพกพาสะดวก",
-  "product_appearance": "ENGLISH ONLY. Physical description of the product ONLY (no person). What it looks like: shape, color, material, size, any visible features."
+  "product_appearance": "ENGLISH ONLY. Physical description of the product ONLY (no person). What it looks like: shape, color, material, size, any visible features.",
+  "features": "ENGLISH ONLY. Key product properties/benefits visible or implied (e.g. portable USB rechargeable, powerful motor, BPA-free, measurement markings, one-button operation, motion sensor, automatic on/off). 1-3 short phrases."
 }
 RULES:
 - target_gender MUST be "female" or "male" — image gen NEEDS a specific gender
 - target_age: SINGLE number (e.g. 25), not a range
 - product_appearance describes the product PHYSICALLY — not a scene, not a person
+- features describes PROPERTIES you can confirm from the image or label (not made up claims)
 - setting = general location type. env_context = specific spot"""
 
 

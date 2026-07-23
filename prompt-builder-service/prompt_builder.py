@@ -318,7 +318,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         # PERSON ACTIVELY USING the product, not holding still
         # Category-aware modifier: different use actions per product type
         is_wall_mounted = any(w in pa_clean.lower() for w in ["wall", "mount", "ceiling", "flush", "recessed", "sensor"])
-        is_kitchen = any(w in pa_clean.lower() for w in ["blender", "juicer", "mixer", "kettle", "cook"])
+        is_kitchen = any(w in pa_clean.lower() for w in ["blender", "blend", "juicer", "mixer", "kettle", "cook", "grinder", "chopper"])
         
         if is_wall_mounted:
             action = (
@@ -329,12 +329,20 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
                 f"Natural motion, person using the product, product in action"
             )
         elif is_kitchen:
+            features_raw = profile.get("features", "")
+            if isinstance(features_raw, list):
+                features_str = ', '.join(features_raw[:3])
+            else:
+                features_str = str(features_raw)[:120] if features_raw else ""
+            feat_closeup = f" {features_str} visible in sharp detail." if features_str else ""
             action = (
                 f"{model_intro} stands in {env_context} placing ingredients into {prod_desc_vid}. "
                 f"Closes the lid with a gentle click. "
-                f"Presses the button once — the product activates, blending smoothly. "
-                f"She lifts the cup, satisfied with the result. "
-                f"Single button press, product in action, person using product"
+                f"Presses the button once — the motor runs, blades spin at high speed. "
+                f"Camera zooms to sharp close-up: the blending action, crushed ingredients, "
+                f"powerful vortex.{feat_closeup}"
+                f"She lifts the full cup, satisfied with the result. "
+                f"Sharp focus close-up on product, crisp details, high definition"
             )
         else:
             action = (
@@ -473,7 +481,8 @@ async def analyze_and_build_prompts(
 
     if vision_profile:
         for key in ["category", "target_gender", "target_age", "target_audience", "setting",
-                     "customer_problem", "main_benefit", "env_context", "product_appearance"]:
+                     "customer_problem", "main_benefit", "env_context", "product_appearance",
+                     "features"]:
             if key in vision_profile and vision_profile[key]:
                 profile[key] = vision_profile[key]
         # product_type from vision overwrites text analysis

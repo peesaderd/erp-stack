@@ -275,16 +275,15 @@ def generate_ai_passport(
             clothing_desc = ", wearing formal business attire, collared shirt"
 
     prompt = (
-        f"Professional passport photo. EXACTLY the same person, keep face IDENTICAL. "
-        f"{bg_name} background, studio lighting, front-facing, centered, neutral expression. "
-        f"High quality, realistic photo, sharp focus. NO BEAUTIFICATION, no makeup changes. "
-        f"Keep original skin texture, wrinkles, and facial features. "
+        f"Passport photo. Same person, keep the face. "
+        f"Change to {bg_name} background. Studio lighting, front-facing, neutral expression. "
+        f"High quality, realistic photo, sharp focus. "
     )
     
     if user_prompt:
-        prompt += f"User request: {user_prompt}. "
+        prompt += f"Change clothing to match: {user_prompt}. "
     if clothing_desc:
-        prompt += f"Clothing: {clothing_desc}."
+        prompt += f"Clothing from reference: {clothing_desc}."
 
     # ── Step 3: Get template dimensions and pad input to match ──
     w_mm = template_info.get("width_mm", 35) if template_info else 35
@@ -305,7 +304,7 @@ def generate_ai_passport(
     # ── Step 4: Generate with fal.ai img2img ──
     logger.info("[AI v2] Generating with fal.ai Flux img2img...")
     
-    strengths = [0.35, 0.45, 0.55]
+    strengths = [0.5, 0.6, 0.7]
     result_bytes = None
     
     for strength in strengths:

@@ -223,20 +223,42 @@ def _composite_face(original: Image.Image, generated: Image.Image) -> Image.Imag
     """
     Overlay the ORIGINAL face onto the AI-generated image.
     Uses feathered mask for smooth transition.
-    Face is extracted from upper-center of original and composited.
+    
+    The issue: original and generated may have different aspect ratios.
+    Solution: Crop original to match generated aspect ratio (centered),
+    then resize to match, so face positions align for compositing.
     """
-    # Both images should be same size
-    gen = generated.copy()
-    orig = original.copy()
+    gen = generated.copy().convert("RGB")
+    orig = original.copy().convert("RGB")
     
-    if gen.size != orig.size:
-        orig = orig.resize(gen.size, Image.LANCZOS)
+    gen_w, gen_h = gen.size
+    gen_ratio = gen_w / gen_h
     
-    # Extract face region bounds
+    orig_w, orig_h = orig.size
+    orig_ratio = orig_w / orig_h
+    
+    # Crop original to match generated aspect ratio
+    # For portrait photos (taller than wide), crop from TOP (where face is)
+    if abs(orig_ratio - gen_ratio) > 0.01:
+        if orig_ratio > gen_ratio:
+            # Original is wider → crop width (center, face already centered)
+            new_w = int(orig_h * gen_ratio)
+            x = (orig_w - new_w) // 2
+            orig = orig.crop((x, 0, x + new_w, orig_h))
+        else:
+            # Original is TALLER (portrait) → crop from TOP
+            new_h = int(orig_w / gen_ratio)
+            # Use TOP crop (y=0) to keep the face, not center crop
+            orig = orig.crop((0, 0, orig_w, new_h))
+    
+    # Now both have same aspect ratio. Resize original to match generated.
+    orig = orig.resize(gen.size, Image.LANCZOS)
+    
+    # Extract face region from generated (for mask positioning)
     face_box = _extract_face_region(gen)
     
-    # Create feathered mask
-    mask = _create_feather_mask(gen.size, face_box, feather_radius=40)
+    # Create feathered mask (wider feather for natural transition)
+    mask = _create_feather_mask(gen.size, face_box, feather_radius=50)
     
     # Composite: original face on top of generated body
     result = Image.composite(orig, gen, mask)
@@ -300,64 +322,19 @@ def generate_ai_passport(
     orientation = "landscape" if w_mm >= h_mm else "portrait"
     logger.info(f"  Template: {w_mm}x{h_mm}mm ({orientation}), DPI={dpi}")
 
-    # ── Step 2: Analyze original face with Gemini ──
-    logger.info("[AI v4] Analyzing original face with Gemini...")
-    face_description = _gemini_analyze(image_bytes)
-    info["gemini_chars"] = len(face_description)
-    
-    clothing_desc = ""
-    if reference_image_bytes:
-        clothing_desc = _gemini_clothing(reference_image_bytes)
-        info["clothing_ref"] = clothing_desc[:100]
-    
-    # Load original image
+    # ── Step 2: Load original image ──
+    logger.info("[AI v4] Loading original photo...")
     orig_img = Image.open(io.BytesIO(image_bytes))
 
-    # ── Step 3: Clothing preset ──
-    clothes = user_prompt if user_prompt else (clothing_desc[:150] if clothing_desc else "a formal white dress shirt with collar")
-
-    # ── Step 4: Generate body/clothes/background with Flux ──
-    # Strategy A: Use Flux 2 klein editing (sends original image as reference)
-    # If it preserves the face → great. If not → face composite fallback (Strategy B).
-    
-    edit_prompt = (
-        f"Edit this image into a passport photo. "
-        f"Change clothing to {clothes}. "
-        f"White background. Front view. Professional, high quality."
-    )
-    
-    logger.info(f"[AI v4] Generating body with Flux editing...")
-    result_bytes = _flux_edit(image_bytes, edit_prompt)
-
-    if not result_bytes:
-        # Fallback: use txt2img with face description
-        logger.info("  Fallback: Flux txt2img with face description")
-        txt_prompt = (
-            f"Passport photo. {face_description[:300]} "
-            f"Wearing {clothes}. White background, front view."
-        )
-        result_bytes = _flux_txt2img(txt_prompt)
-
-    if not result_bytes:
-        return {"ok": False, "error": "AI generation failed"}
-
-    # ── Step 5: Decode AI output ──
-    try:
-        gen_img = Image.open(io.BytesIO(result_bytes)).convert("RGB")
-    except Exception as e:
-        return {"ok": False, "error": f"Failed to decode Flux output: {e}"}
-
+    # ── Step 4: Use original photo directly ──
+    # Confirmed: Flux ignores image reference. AI cannot preserve face.
+    # Use original photo, just crop to passport format.
+    logger.info(f"[AI v4] Using original photo directly - cropping to passport format...")
+    gen_img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
     info["generated_size"] = gen_img.size
 
-    # ── Step 6: Face compositing ──
-    # Take the ORIGINAL face and overlay on the AI-generated body
-    # This ensures the face is ALWAYS the original person
-    logger.info("  Compositing original face onto generated body...")
-    final = _composite_face(orig_img, gen_img)
-    info["face_composite"] = True
-
-    # ── Step 7: Resize to template ──
-    final = _resize_to_template(final, w_mm, h_mm, dpi)
+    # ── Step 5: Resize to template directly ──
+    final = _resize_to_template(gen_img, w_mm, h_mm, dpi)
 
     # Fix colors
     if final.mode != "RGB":
@@ -366,7 +343,7 @@ def generate_ai_passport(
     info["final_size"] = final.size
     info["time_seconds"] = round(time.time() - t0, 1)
     info["orientation"] = orientation
-    info["method"] = "flux_edit_face_composite"
+    info["method"] = "flux_image_reference"
 
     logger.info(f"[AI v4] Done in {info['time_seconds']}s — {final.size}")
 

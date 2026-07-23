@@ -143,26 +143,21 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     
     # ── Style-driven scene (ugc_style is PRIMARY) ─────────────────
     if ugc_style in ("usage", "product_usage"):
-        # Person actively using the product — actual USE, not holding
-        is_beauty = category in ("beauty", "health") or any(w in (pa_clean+" "+product_name).lower() for w in ["serum", "cream", "lotion", "toner", "oil", "moisturizer", "skincare", "essence", "ampoule", "mask", "sunscreen", "spf", "spray", "mist"])
-        is_mist_sprayer = is_beauty and any(w in (pa_clean+" "+product_name).lower() for w in [
-            "spray", "mist", "mister", "atomizer", "fogger", "sprayer",
-            "nano spray", "facial mist", "toner mist"
-        ])
-        if is_mist_sprayer:
-            scene_desc = (
-                f"{thai_base}{clothing_str}{hair_str} holding a spray mister, "
-                f"arm extended, pressing nozzle — fine mist spraying outward. "
-                f"Product in hand, skincare spray routine. "
-                f"{env_str}."
-            )
-        elif is_beauty:
-            scene_desc = (
-                f"{thai_base}{clothing_str}{hair_str} sitting at a vanity table, "
-                f"applying {prod_str or product_name} to face with gentle fingertips. "
-                f"Product on table, skincare routine. "
-                f"{env_str}."
-            )
+        # Try Gemini for natural product usage scene
+        gemini_image, _ = _gemini_generate_prompts(
+            product_name=product_name,
+            product_appearance=pa_clean or product_name,
+            features=profile.get("features", ""),
+            env_context=env_context,
+            category=category,
+            model_age=model_age,
+            model_gender=gender_en,
+            clothing=clothing_str.lstrip(", wearing "),
+            hair=hair_str.lstrip(", "),
+            ugc_style=ugc_style,
+        )
+        if gemini_image:
+            scene_desc = gemini_image
         elif pa_clean:
             prod_str = f"{article} {pa_clean[:200]}"
             scene_desc = (
@@ -245,9 +240,7 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             )
     
     # ── Category modifiers (SECONDARY) ───────────────────────────────
-    _is_mist_img = any(w in (product_appearance+" "+product_name).lower() for w in ["spray", "mist", "mister", "atomizer", "fogger", "sprayer", "nano spray", "facial mist"])
-    if category in ("beauty", "health") and not _is_mist_img:
-        scene_desc += " The cap is CLOSED and sealed. Not opening, not using."
+    # No hardcoded beauty restrictions — Gemini handles appropriateness
     
     # ── Build final prompt ──
     data = {
@@ -335,76 +328,29 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     
     # ── Style-driven video_motion (ugc_style is PRIMARY) ──────────
     if ugc_style in ("usage", "product_usage"):
-        # PERSON ACTIVELY USING the product, not holding still
-        # Category-aware modifier: different use actions per product type
-        is_wall_mounted = any(w in pa_clean.lower() for w in ["wall", "mount", "ceiling", "flush", "recessed", "sensor"])
-        is_kitchen = any(w in pa_clean.lower() for w in ["blender", "blend", "juicer", "mixer", "kettle", "cook", "grinder", "chopper"])
-        is_beauty = category in ("beauty", "health") or any(w in (pa_clean+" "+product_name).lower() for w in ["serum", "cream", "lotion", "toner", "oil", "moisturizer", "skincare", "essence", "ampoule", "mask", "sunscreen", "spf", "spray", "mist"])
-        
-        if is_wall_mounted:
-            action = (
-                f"{model_intro} walks into the frame as {prod_desc_vid} "
-                f"detects presence and activates. She turns to look as it responds, "
-                f"reaches out to touch it with appreciation. "
-                f"The product glows or shifts as she interacts. "
-                f"Natural motion, person using the product, product in action"
-            )
-        elif is_kitchen:
-            features_raw = profile.get("features", "")
-            if isinstance(features_raw, list):
-                features_str = ', '.join(features_raw[:3])
-            else:
-                features_str = str(features_raw)[:120] if features_raw else ""
-            feat_closeup = f" {features_str} visible in sharp detail." if features_str else ""
-            action = (
-                f"{model_intro} stands in {env_context} placing ingredients into {prod_desc_vid}. "
-                f"Closes the lid with a gentle click. "
-                f"Presses the button once — the motor runs, blades spin at high speed. "
-                f"Camera zooms to sharp close-up: the blending action, crushed ingredients, "
-                f"powerful vortex.{feat_closeup}"
-                f"She lifts the full cup, satisfied with the result. "
-                f"Sharp focus close-up on product, crisp details, high definition"
-            )
-        elif is_beauty:
-            # Check if it's a spray/mist product (facial mist sprayer, nano mister, etc.)
-            is_mist_sprayer = any(w in (pa_clean+" "+product_name+" "+str(profile.get("features",""))).lower() for w in [
-                "spray", "mist", "mister", "atomizer", "fogger", "sprayer",
-                "nano spray", "facial mist", "toner mist", "ミスト", "スプレー"
-            ])
-            
-            if is_mist_sprayer:
-                features_raw = profile.get("features", "")
-                if isinstance(features_raw, list):
-                    features_str = ', '.join(features_raw[:3])
-                else:
-                    features_str = str(features_raw)[:120] if features_raw else ""
-                feat_detail = f" {features_str} visible on device." if features_str else ""
-                action = (
-                    f"{model_intro} holding {prod_desc_vid or product_name} in hand. "
-                    f"Extends arm forward, points sprayer nozzle away from face. "
-                    f"Presses button — fine mist sprays outward in a soft cloud. "
-                    f"Fanning motion across open palm. "
-                    f"Brings hand to nose, inhales gently, slight smile of satisfaction. "
-                    f"Camera zooms to sharp close-up: spray droplets in light, nozzle detail.{feat_detail}"
-                    f"Mist settles on skin. She looks pleased with the fresh feel. "
-                    f"Beauty spray mist, product in use, fine mist visible"
-                )
-            else:
-                action = (
-                    f"{model_intro} sitting at vanity with {prod_desc_vid or product_name}. "
-                    f"Dispenses a small amount onto fingertips. "
-                    f"Gently applies to face with upward strokes — cheeks, forehead, neck. "
-                    f"Patting motion, product absorbing into skin. "
-                    f"Camera zooms to close-up: skin texture, product blending in. "
-                    f"She looks in mirror, touches skin gently, satisfied with glow. "
-                    f"Beauty routine, skincare application, product in use"
-                )
+        # Try Gemini for natural product usage description
+        gemini_image, gemini_video = _gemini_generate_prompts(
+            product_name=product_name,
+            product_appearance=pa_clean or product_name,
+            features=profile.get("features", ""),
+            env_context=env_context,
+            category=category,
+            model_age=model_age,
+            model_gender=gender_en,
+            clothing=clothing_str.lstrip(", wearing "),
+            hair=hair_str.lstrip(", "),
+            ugc_style=ugc_style,
+        )
+        if gemini_video:
+            action = gemini_video
         else:
+            # Fallback: simple generic prompt — no is_* branches
             action = (
-                f"{model_intro} actively using {prod_desc_vid or product_name} — "
-                f"hands handling product with purpose, demonstrating its function. "
-                f"The product responds as she uses it naturally. "
-                f"Product in motion, person engaged with product"
+                f"{model_intro} in {env_context} with {prod_desc_vid or product_name}. "
+                f"She naturally demonstrates how to use the product — "
+                f"the key function is shown. "
+                f"Product features are visible as she uses it. "
+                f"Natural product usage demonstration"
             )
     elif ugc_style == "review":
         # Person holding product + looking at camera, review-style
@@ -450,11 +396,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     
     # ── Category-specific restrictions (SECONDARY) ──
     video_prompt = action
-    # Detect mist sprayers — these need to SHOW spraying, not block it
-    comb = (pa_clean+" "+product_name+" "+str(profile.get("features",""))).lower()
-    _is_mist = any(w in comb for w in ["spray", "mist", "mister", "atomizer", "fogger", "sprayer", "nano spray", "facial mist"])
-    if category in ("beauty", "health") and not _is_mist:
-        video_prompt += " CRITICAL: Do NOT open or apply the product. Cap is CLOSED and sealed. No squeezing, no pumping, no spraying."
+    # No more hardcoded beauty restrictions — Gemini handles appropriateness
     
     video_prompt += (
         f" Setting: {model_setting}. "
@@ -788,3 +730,83 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
         "product_short_for_tts": product_short,
         "all_segments_fit": total_ok,
     }
+
+# ─── Gemini Prompt Generation (for product_usage style) ──────────
+def _gemini_generate_prompts(
+    product_name: str,
+    product_appearance: str,
+    features: str,
+    env_context: str,
+    category: str,
+    model_age: int,
+    model_gender: str,
+    clothing: str,
+    hair: str,
+    ugc_style: str = "product_usage",
+) -> tuple:
+    """Generate image + video prompts via Gemini for product_usage style.
+    
+    Returns (image_prompt, video_prompt) — falls back to ("", "") on error.
+    """
+    # Build a concise product info block
+    gender_en = {"female": "woman", "woman": "woman", "male": "man", "man": "man"}.get(model_gender, "woman")
+    
+    # Clean appearance
+    pa = product_appearance or ""
+    if pa:
+        pa = re.sub(r'^(The\s+)?product\s+(is\s+)?', '', pa, flags=re.IGNORECASE).strip()
+        pa = re.sub(r'^(a|an)\s+', '', pa, flags=re.IGNORECASE).strip()
+    
+    feat_str = ""
+    if isinstance(features, list):
+        feat_str = "; ".join(f.strip() for f in features if f.strip())
+    elif isinstance(features, str) and features:
+        feat_str = features[:200]
+    
+    system_prompt = (
+        "Generate IMAGE_PROMPT and VIDEO_PROMPT for AI video generation.\n"
+        "ALWAYS include model details naturally in the first sentence:\n"
+        f"  Age {model_age}, Thai {gender_en}, porcelain white glowing skin, "
+        "monolid eyes, Southeast Asian Thai features, small nose bridge.\n"
+        "Also include clothing and hair style.\n\n"
+        "IMAGE_PROMPT (under 80 words): Still scene. The woman is with the product.\n"
+        "VIDEO_PROMPT (under 120 words): Natural product usage action. "
+        "Weave product features into what she does — don't list them separately.\n"
+        "For beauty/health: show application naturally.\n"
+        "For electronics/home: show automatic/sensor/plug-in features naturally.\n"
+        "Do NOT add negative instructions (no 'no text, no watermark, no logo').\n"
+        "Do NOT add aspect ratios or tech specs like 9:16, 720P.\n"
+        "Output format:\n"
+        "IMAGE_PROMPT: ...\n"
+        "VIDEO_PROMPT: ..."
+    )
+    
+    # Build the product description block
+    product_block = f"Product: {product_name}\nAppearance: {pa[:300]}\n"
+    if feat_str:
+        product_block += f"Features: {feat_str[:200]}\n"
+    product_block += f"Setting: {env_context[:100]}\n"
+    product_block += f"Style: {ugc_style} — show the person using this product with natural hands-on demonstration.\n"
+    product_block += (f"Model: {model_age}yo {gender_en}, {clothing}, {hair}\n")
+    
+    user_text = f"{product_block}\nGenerate IMAGE_PROMPT and VIDEO_PROMPT:"
+    
+    try:
+        result = _call_gemini(system_prompt, user_text, temperature=0.4)
+        if not result:
+            return ("", "")
+        
+        image_prompt = ""
+        video_prompt = ""
+        
+        for line in result.strip().split("\n"):
+            line_lower = line.lower().strip()
+            if line_lower.startswith("image_prompt:") or line_lower.startswith("**image_prompt:**"):
+                image_prompt = line.split(":", 1)[1].strip().lstrip("*").strip()
+            elif line_lower.startswith("video_prompt:") or line_lower.startswith("**video_prompt:**"):
+                video_prompt = line.split(":", 1)[1].strip().lstrip("*").strip()
+        
+        return (image_prompt, video_prompt)
+    except Exception as e:
+        logger.error(f"Gemini prompt generation failed: {e}")
+        return ("", "")

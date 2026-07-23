@@ -206,8 +206,8 @@ def prodia_generate_img2img(
             logger.info(f"  Prodia job {status}: id={job_id[:20]}...")
             
             if job_id:
-                # Poll for up to 60 seconds
-                for attempt in range(30):
+                # Poll for up to 180 seconds
+                for attempt in range(90):
                     import time
                     time.sleep(2)
                     poll_resp = requests.get(

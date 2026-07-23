@@ -1,0 +1,12 @@
+INFO:     Will watch for changes in these directories: ['/home/openhands/erp-stack/services/ai-stream']
+INFO:     Uvicorn running on http://0.0.0.0:8150 (Press CTRL+C to quit)
+INFO:     Started reloader process [1953966] using WatchFiles
+INFO:     Started server process [1954108]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+[AI-Stream] Server starting on 0.0.0.0:8150
+INFO:     127.0.0.1:37544 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43760 - "POST /api/rag/sync/bookstack HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50460 - "GET /api/rag/search?q=wizard+pod+printful&k=3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50464 - "POST /api/ask HTTP/1.1" 200 OK
+INFO:     45.148.10.200:0 - "GET /api/.env HTTP/1.1" 404 Not Found

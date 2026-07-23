@@ -15,6 +15,38 @@ SCHEMA_ENGINE_URL = os.getenv("SCHEMA_ENGINE_URL", "http://localhost:8100")
 
 # ── Local fallback (used when Schema Engine is unreachable) ─────────
 _FALLBACK_STYLES: Dict[str, Dict[str, Any]] = {
+
+    "warehouse_vlog": {
+        "model_action": "Ethnic Thai presenter standing inside an authentic warehouse/stockroom surrounded by shelves stacked with inventory boxes, holding the product and pointing to warehouse stock",
+        "camera": "medium shot, warehouse aisle framing, shelves with stock boxes in background",
+        "vibe": "high-trust, direct-from-factory, authentic seller, warehouse stockroom",
+        "keywords": "warehouse, stockroom, inventory shelves, direct from factory, authentic seller",
+        "video_motion": "presenter holding product inside warehouse, gesturing towards stock shelves behind, confident seller presentation",
+        "negative_emphasis": "no studio, no bedroom, no fake background",
+        "video_resolution": "720P",
+        "aspect_ratio": "9:16",
+    },
+    "product_only": {
+        "model_action": "Product resting on a clean aesthetic minimalist podium, NO people, NO hands in frame, product front and center",
+        "camera": "close-up macro shot, eye-level angled down, product-only framing",
+        "vibe": "aesthetic, minimalist, premium, product focus",
+        "keywords": "product only, NO hands, NO person, minimalist podium, clean background",
+        "video_motion": "slow 360-degree rotation of product on podium, subtle light shimmer across product surface, smooth macro pan",
+        "negative_emphasis": "no hands, no person, no human model, no body parts",
+        "video_resolution": "720P",
+        "aspect_ratio": "9:16",
+    },
+    "tabletop_demo": {
+        "model_action": "Product placed neatly on clean tabletop or kitchen countertop, model standing or sitting beside product, gesturing to product features and smiling naturally, product resting on surface",
+        "camera": "medium shot, angled eye-level with tabletop, product front and center on table",
+        "vibe": "informative, clean studio, lifestyle review",
+        "keywords": "product on table, clean countertop, model gesturing to product, product resting on surface",
+        "video_motion": "product sitting on clean table, model gesturing gracefully towards product, camera subtle pan across tabletop",
+        "negative_emphasis": "NOT holding product in air, NOT lifting product off table",
+        "video_resolution": "720P",
+        "aspect_ratio": "9:16",
+    },
+
     "holding": {
         "model_action": "Ethnic Thai woman with porcelain white glowing skin, monolid eyes, Southeast Asian features. NOT applying or using product, NOT opening product, just holding and showing the product gently in both hands at chest level, packaging facing camera. CRITICAL: The cap is CLOSED and sealed. Both hands hold the closed product only.",
         "camera": "medium shot, chest-up framing, product visible in hands, shallow depth of field",
@@ -152,8 +184,35 @@ def get_style_config(style_key: str) -> Dict[str, Any]:
     return _FALLBACK_STYLES.get(style_key, {})
 
 
+
+STYLE_ALIASES = {
+    "unbox": "usage",
+    "unboxing": "usage",
+    "product_usage": "usage",
+    "ugc_review": "review",
+    "product_review": "review",
+    "tabletop_demo": "tabletop_demo",
+    "tabletop": "tabletop_demo",
+    "demo": "tabletop_demo",
+    "holding_product": "holding",
+    "warehouse": "warehouse_vlog",
+    "warehouse_stock": "warehouse_vlog",
+    "warehouse_pack": "warehouse_vlog",
+    "product_only": "product_only",
+    "no_model": "product_only",
+    "broll": "product_only",
+}
+
+def normalize_style_key(style_key: Optional[str]) -> str:
+    if not style_key:
+        return "holding"
+    k = str(style_key).lower().strip()
+    return STYLE_ALIASES.get(k, k)
+
 def validate_ugc_style(style_key: Optional[str]) -> str:
     """Return valid style key (or default if invalid)."""
-    if not style_key or not is_valid_style(style_key):
+    norm = normalize_style_key(style_key)
+    if not norm or not is_valid_style(norm):
         return get_default_style()
-    return style_key
+    return norm
+

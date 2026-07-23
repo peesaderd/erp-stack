@@ -874,7 +874,7 @@ def list_completed_videos():
             conn.row_factory = sqlite3.Row
             for j in jobs:
                 row = conn.execute(
-                    "SELECT product_title, product_description, ugc_style, total_duration_seconds, cost_total, hashtags, script FROM pipeline_jobs WHERE job_id = ?",
+                    "SELECT product_title, product_description, ugc_style, total_duration_seconds, cost_total, hashtags, script, timestamp FROM pipeline_jobs WHERE job_id = ?",
                     (j["job_id"],)
                 ).fetchone()
                 if row:
@@ -886,6 +886,8 @@ def list_completed_videos():
                         j["duration"] = int(row["total_duration_seconds"])
                     if row["cost_total"] is not None:
                         j["cost"] = round(row["cost_total"], 4)
+                    if row["timestamp"]:
+                        j["created"] = row["timestamp"]
                     # Enrich hashtags
                     if row["hashtags"]:
                         try:
@@ -921,15 +923,24 @@ def list_completed_videos():
                 if pn and not pn.startswith("Video ") and not pn.startswith("final_") and not pn.startswith("http"):
                     continue
                 row = conn.execute(
-                    "SELECT product_url FROM pipeline_jobs WHERE job_id = ?",
+                    "SELECT product_url, created_at FROM pipeline_jobs WHERE job_id = ?",
                     (j["job_id"],)
                 ).fetchone()
-                if row and row["product_url"]:
-                    j["product_name"] = row["product_url"][:60]
+                if row:
+                    if row["product_url"]:
+                        j["product_name"] = row["product_url"][:60]
+                    if row["created_at"] and not j.get("created"):
+                        j["created"] = row["created_at"]
             conn.close()
         except Exception:
             pass
 
+    # Sort: newest first (reverse chronological)
+    def _job_sort_key(j):
+        ts = j.get("created", "") or j.get("created_at", "") or ""
+        return ts
+    jobs.sort(key=_job_sort_key, reverse=True)
+    
     return {"jobs": jobs, "total": len(jobs)}
 
 @app.get("/active-model")

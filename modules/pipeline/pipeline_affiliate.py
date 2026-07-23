@@ -608,7 +608,50 @@ def generate_video(
     except ProdiaValidationError as e:
         raise RuntimeError(f"Wan 2.7 config rejected: {e}")
     except ProdiaV2Error as e:
-        raise RuntimeError(f"Wan 2.7 failed: {e}")
+        # Auto-retry for transient errors (rate limit, timeout)
+        import time as _time
+        _retry_delays = [45, 90, 180]
+        _max_video_retries = 3
+        _last_err = e
+        for _vr in range(_max_video_retries):
+            _delay = _retry_delays[_vr] if _vr < len(_retry_delays) else _retry_delays[-1]
+            logger.warning(f"  Video gen failed ({e}), retry {_vr+1}/{_max_video_retries} in {_delay}s...")
+            _time.sleep(_delay)
+            try:
+                _retry_client = ProdiaV2Client(token=PRODIA_TOKEN())
+                _retry_result = _retry_client.generate_video(
+                    prompt=prompt,
+                    input_image=image_data,
+                    duration=duration,
+                    resolution=resolution,
+                    audio_bytes=audio_bytes,
+                    job_type="inference.wan2-7.img2vid.v1",
+                    negative_prompt="low resolution, error, worst quality, deformed",
+                )
+                output_url = _retry_result.get("output_url", "")
+                price = _retry_result.get("price", {})
+                cost_video = float(price.get("dollars", 0))
+                if not output_url:
+                    raise RuntimeError(f"No output URL in retry result")
+                auth_headers = {"Authorization": f"Bearer {PRODIA_TOKEN()}"} if "prodia.com" in (output_url or "") else {}
+                video_resp = requests.get(output_url, headers=auth_headers, timeout=60)
+                video_resp.raise_for_status()
+                result_path = TMP_DIR / f"img2vid_{uuid.uuid4().hex[:8]}.mp4"
+                with open(result_path, "wb") as f:
+                    f.write(video_resp.content)
+                file_size = result_path.stat().st_size
+                logger.info(f"  Video OK on retry {_vr+1} ({file_size} bytes, {resolution}): {result_path}")
+                logger.info(f"  Cost: ${cost_video:.4f}")
+                return str(result_path), cost_video
+            except ProdiaValidationError as ve:
+                raise RuntimeError(f"Wan 2.7 config rejected on retry: {ve}")
+            except Exception as re:
+                _last_err = re
+                if _vr == _max_video_retries - 1:
+                    logger.error(f"  Video gen failed after {_max_video_retries} retries")
+                    raise RuntimeError(f"Wan 2.7 failed after {_max_video_retries} retries: {_last_err}")
+                continue
+        raise RuntimeError(f"Wan 2.7 failed: {_last_err}")
     except Exception as e:
         raise RuntimeError(f"Wan 2.7 error: {e}")
 def compose_video(

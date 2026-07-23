@@ -188,8 +188,8 @@ JSON format:
   "setting": "where this product is typically used/installed (English, general location)",
   "env_context": "specific environment: hallway entrance, bathroom sink, bedroom vanity, kitchen counter",
   "colors": ["color1", "color2", "color3"],
-  "customer_problem": "what problem this product solves (Thai natural, female register คะ/ค่ะ)",
-  "main_benefit": "key benefit (Thai natural, use ค่ะ/คะ female register)",
+  "customer_problem": "what problem this product solves (Thai natural, female register คะ/ค่ะ) เช่น ต้องเดินคลำทางในที่มืด, ปั่นผลไม้ยากลำบาก",
+  "main_benefit": "key benefit (Thai natural, use ค่ะ/คะ female register) เช่น เปิดไฟอัตโนมัติเมื่อเดินผ่าน, ปั่นละเอียดแรงสูงพกพาสะดวก",
   "product_appearance": "ENGLISH ONLY. Physical description of the product ONLY (no person). What it looks like: shape, color, material, size, any visible features."
 }
 RULES:

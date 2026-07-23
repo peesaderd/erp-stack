@@ -1792,8 +1792,44 @@ async def posts_scheduled():
 
 @app.post("/pipeline/{job_id}/retry")
 async def pipeline_retry(job_id: str):
-    """Retry a failed pipeline job."""
-    return {"success": False, "error": "Not implemented yet"}
+    """Retry a failed pipeline job by re-triggering execution."""
+    conn = sqlite3.connect(str(PIPELINE_DB_PATH))
+    row = conn.execute("SELECT product_url, steps_data FROM pipeline_jobs WHERE job_id = ?", (job_id,)).fetchone()
+    if not row:
+        conn.close()
+        return {"success": False, "error": "Job not found"}
+    
+    # Reset status to pending
+    conn.execute("UPDATE pipeline_jobs SET status = 'pending' WHERE job_id = ?", (job_id,))
+    conn.commit()
+    conn.close()
+
+    # Also update pipeline_logs.db if present
+    try:
+        lconn = sqlite3.connect(str(LOGS_DB_PATH))
+        lconn.execute("UPDATE pipeline_jobs SET status = 'pending', error_message = NULL WHERE job_id = ?", (job_id,))
+        lconn.commit()
+        lconn.close()
+    except Exception:
+        pass
+
+    # Trigger async execution
+    import asyncio, httpx
+    async def _async_trigger():
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                await client.post("http://localhost:8111/api/v1/video/generate", json={
+                    "product_name": "สินค้า TikTok",
+                    "product_url": row[0] or "",
+                    "recipe": "tus",
+                    "job_id": job_id
+                })
+        except Exception:
+            pass
+    
+    asyncio.create_task(_async_trigger())
+    return {"success": True, "message": "Job retry triggered"}
+
 
 @app.post("/pipeline/{job_id}/cancel")
 async def pipeline_cancel(job_id: str):

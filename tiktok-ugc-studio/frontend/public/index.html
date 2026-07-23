@@ -3109,7 +3109,7 @@ async function loadPipelineJobs() {
             <span style="white-space:nowrap">🕐 ${timeAgo}</span>
             <span style="margin-left:auto"></span>
             <button class="btn btn-primary btn-sm" onclick="loadPipelineDetail('${j.job_id}')" style="padding:3px 10px;font-size:11px">📋 ดู</button>
-            ${j.status === 'error' || j.status === 'restarted' ? `<button class="btn btn-sm" onclick="retryJob('${j.job_id}')" style="padding:3px 8px;font-size:11px">🔄</button>` : ''}
+            ${j.status !== 'completed' ? `<button class="btn btn-sm" onclick="retryJob('${j.job_id}')" style="padding:3px 8px;font-size:11px" title="Retry Job">🔄 ลองใหม่</button>` : ''}
             ${j.status === 'running' || j.status === 'pending' ? `<button class="btn btn-sm" onclick="cancelJobFromList('${j.job_id}')" style="padding:3px 8px;font-size:11px;color:var(--color-red-500)">✖</button>` : ''}
           </div>
           <div style="font-size:11px;color:var(--text-secondary)">📋 ${j.job_id}</div>

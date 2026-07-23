@@ -16,7 +16,7 @@ import io
 import logging
 from typing import Optional
 
-from .line_client import line_client
+from line_client import line_client
 
 logger = logging.getLogger("line-bot.richmenu")
 
@@ -26,69 +26,36 @@ logger = logging.getLogger("line-bot.richmenu")
 RICH_MENU_FULL = {
     "size": {"width": 2500, "height": 1686},
     "selected": True,
-    "name": "Restaurant POS - Full",
-    "chatBarText": "🍽️ สั่งอาหาร | 📋 เมนู",
+    "name": "TUS Video Studio",
+    "chatBarText": "🎬 UGC Studio",
     "areas": [
-        # Row 1 — Col 1: Menu
+        # Row 1 — Col 1: Products
         {
-            "bounds": {"x": 0, "y": 0, "width": 833, "height": 843},
+            "bounds": {"x": 0, "y": 0, "width": 1250, "height": 843},
             "action": {
-                "type": "postback",
-                "data": "show_menu",
-                "label": "เมนู",
-                "displayText": "📋 ดูเมนู",
+                "type": "message",
+                "text": "📦 สินค้า",
+                "label": "รายการสินค้า"
             },
         },
-        # Row 1 — Col 2: Cart
+        # Row 1 — Col 2: Jobs Status
         {
-            "bounds": {"x": 833, "y": 0, "width": 834, "height": 843},
+            "bounds": {"x": 1250, "y": 0, "width": 1250, "height": 843},
             "action": {
-                "type": "postback",
-                "data": "view_cart",
-                "label": "ตะกร้า",
-                "displayText": "🛒 ดูตะกร้า",
+                "type": "message",
+                "text": "🎬 สถานะงาน",
+                "label": "สถานะงาน"
             },
         },
-        # Row 1 — Col 3: Help
+        # Row 2 — Col 1: Open TUS web (LIFF or direct link)
         {
-            "bounds": {"x": 1667, "y": 0, "width": 833, "height": 843},
+            "bounds": {"x": 0, "y": 843, "width": 2500, "height": 843},
             "action": {
-                "type": "postback",
-                "data": "show_help",
-                "label": "ช่วยเหลือ",
-                "displayText": "❓ วิธีใช้",
+                "type": "uri",
+                "uri": "https://m2igen.com",
+                "label": "เปิดเว็บ TUS Studio"
             },
-        },
-        # Row 2 — Col 1: Tables
-        {
-            "bounds": {"x": 0, "y": 843, "width": 833, "height": 843},
-            "action": {
-                "type": "postback",
-                "data": "show_tables",
-                "label": "โต๊ะ",
-                "displayText": "🪑 ดูโต๊ะ",
-            },
-        },
-        # Row 2 — Col 2: Categories
-        {
-            "bounds": {"x": 833, "y": 843, "width": 834, "height": 843},
-            "action": {
-                "type": "postback",
-                "data": "show_categories",
-                "label": "หมวดหมู่",
-                "displayText": "📂 ดูหมวดหมู่",
-            },
-        },
-        # Row 2 — Col 3: Checkout
-        {
-            "bounds": {"x": 1667, "y": 843, "width": 833, "height": 843},
-            "action": {
-                "type": "postback",
-                "data": "checkout",
-                "label": "สั่งเลย",
-                "displayText": "✅ ยืนยันออเดอร์",
-            },
-        },
+        }
     ],
 }
 
@@ -172,12 +139,9 @@ def _generate_rich_menu_image() -> bytes:
 
         # ── Layout: 3 columns × 2 rows ──
         boxes = [
-            {"label": "📋 เมนู", "color": "#E8F5E9", "x": 0, "y": 0, "w": 833, "h": 843},
-            {"label": "🛒 ตะกร้า", "color": "#FFF3E0", "x": 833, "y": 0, "w": 834, "h": 843},
-            {"label": "❓ Help", "color": "#E3F2FD", "x": 1667, "y": 0, "w": 833, "h": 843},
-            {"label": "🪑 โต๊ะ", "color": "#F3E5F5", "x": 0, "y": 843, "w": 833, "h": 843},
-            {"label": "📂 หมวดหมู่", "color": "#FBE9E7", "x": 833, "y": 843, "w": 834, "h": 843},
-            {"label": "✅ สั่งเลย", "color": "#E8F5E9", "x": 1667, "y": 843, "w": 833, "h": 843},
+            {"label": "📦 TUS สินค้า", "color": "#E8F5E9", "x": 0, "y": 0, "w": 1250, "h": 843},
+            {"label": "🎬 สถานะงาน", "color": "#FFF3E0", "x": 1250, "y": 0, "w": 1250, "h": 843},
+            {"label": "🔗 เปิด TUS Web Studio", "color": "#E3F2FD", "x": 0, "y": 843, "w": 2500, "h": 843},
         ]
 
         for box in boxes:

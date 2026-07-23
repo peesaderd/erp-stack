@@ -29,10 +29,24 @@ CHANNEL_SECRET = os.environ.get("LINE_BOT_CHANNEL_SECRET", "")
 API_BASE = "https://api.line.me/v2/bot"
 DATA_BASE = "https://api-data.line.me/v2/bot"
 
-HEADERS = {
-    "Authorization": f"Bearer {CHANNEL_ACCESS_TOKEN}",
-    "Content-Type": "application/json",
-}
+# Token and headers will be loaded dynamically to ensure .env values are correctly loaded
+def get_headers():
+    token = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN", "")
+    if not token:
+        # Fallback to check parent .env file
+        try:
+            with open("/home/openhands/erp-stack/.env", "r") as f:
+                for line in f:
+                    if "LINE_CHANNEL_ACCESS_TOKEN=" in line:
+                        token = line.split("=", 1)[1].strip()
+                        os.environ["LINE_CHANNEL_ACCESS_TOKEN"] = token
+                        break
+        except Exception:
+            pass
+    return {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+    }
 
 
 # ── Models ───────────────────────────────────────────────────────────────
@@ -75,7 +89,7 @@ class LineClient:
         payload = {"replyToken": reply_token, "messages": messages}
         resp = await self._client.post(
             f"{API_BASE}/message/reply",
-            headers=HEADERS,
+            headers=get_headers(),
             json=payload,
         )
         if resp.status_code != 200:
@@ -89,7 +103,7 @@ class LineClient:
         payload = {"to": user_id, "messages": messages}
         resp = await self._client.post(
             f"{API_BASE}/message/push",
-            headers=HEADERS,
+            headers=get_headers(),
             json=payload,
         )
         if resp.status_code != 200:
@@ -103,7 +117,7 @@ class LineClient:
         payload = {"to": user_ids, "messages": messages}
         resp = await self._client.post(
             f"{API_BASE}/message/multicast",
-            headers=HEADERS,
+            headers=get_headers(),
             json=payload,
         )
         if resp.status_code != 200:
@@ -115,7 +129,7 @@ class LineClient:
         """Get user profile from LINE."""
         resp = await self._client.get(
             f"{API_BASE}/profile/{user_id}",
-            headers=HEADERS,
+            headers=get_headers(),
         )
         if resp.status_code == 200:
             data = resp.json()
@@ -134,7 +148,7 @@ class LineClient:
         """Create a rich menu. Returns richMenuId."""
         resp = await self._client.post(
             f"{API_BASE}/richmenu",
-            headers=HEADERS,
+            headers=get_headers(),
             json=body,
         )
         if resp.status_code == 200:
@@ -144,13 +158,11 @@ class LineClient:
 
     async def upload_rich_menu_image(self, rich_menu_id: str, image_path: str):
         """Upload a rich menu image (2500x1686 or 2500x843 PNG)."""
-        headers = {
-            "Authorization": f"Bearer {CHANNEL_ACCESS_TOKEN}",
-            "Content-Type": "image/png",
-        }
+        headers = get_headers().copy()
+        headers["Content-Type"] = "image/png"
         with open(image_path, "rb") as f:
             resp = await self._client.post(
-                f"{API_BASE}/richmenu/{rich_menu_id}/content",
+                f"{DATA_BASE}/richmenu/{rich_menu_id}/content",
                 headers=headers,
                 content=f.read(),
             )
@@ -162,7 +174,7 @@ class LineClient:
         """Set rich menu as default for all users."""
         resp = await self._client.post(
             f"{API_BASE}/richmenu/{rich_menu_id}/default",
-            headers=HEADERS,
+            headers=get_headers(),
         )
         if resp.status_code != 200:
             logger.error(f"Set default rich menu failed ({resp.status_code}): {resp.text}")
@@ -172,7 +184,7 @@ class LineClient:
         """List all rich menus."""
         resp = await self._client.get(
             f"{API_BASE}/richmenu/list",
-            headers=HEADERS,
+            headers=get_headers(),
         )
         if resp.status_code == 200:
             return resp.json().get("richmenus", [])
@@ -182,7 +194,7 @@ class LineClient:
         """Delete a rich menu."""
         resp = await self._client.delete(
             f"{API_BASE}/richmenu/{rich_menu_id}",
-            headers=HEADERS,
+            headers=get_headers(),
         )
         if resp.status_code != 200:
             logger.error(f"Delete rich menu failed ({resp.status_code}): {resp.text}")
@@ -191,7 +203,7 @@ class LineClient:
         """Link a rich menu to a specific user."""
         resp = await self._client.post(
             f"{API_BASE}/user/{user_id}/richmenu/{rich_menu_id}",
-            headers=HEADERS,
+            headers=get_headers(),
         )
         if resp.status_code != 200:
             logger.error(f"Link rich menu failed ({resp.status_code}): {resp.text}")
@@ -200,7 +212,7 @@ class LineClient:
         """Unlink rich menu from a user."""
         resp = await self._client.delete(
             f"{API_BASE}/user/{user_id}/richmenu",
-            headers=HEADERS,
+            headers=get_headers(),
         )
         if resp.status_code != 200:
             logger.error(f"Unlink rich menu failed ({resp.status_code}): {resp.text}")

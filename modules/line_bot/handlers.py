@@ -16,7 +16,7 @@ from typing import Optional
 
 import httpx
 
-from .line_client import line_client, LineProfile
+from line_client import line_client, LineProfile
 
 logger = logging.getLogger("line-bot.handlers")
 
@@ -201,6 +201,19 @@ async def _handle_text(text: str, session: dict, reply_token: str, user_id: str)
     """Handle text message — commands and natural language."""
     text_lower = text.lower().strip()
 
+    
+    # ── TUS UGC Studio Commands ────────────────────────────────────────
+    if text_lower in ("tus", "ugc", "studio", "สินค้า", "products"):
+        await _show_tus_products(reply_token)
+        return
+    if text_lower.startswith("create ") or text_lower.startswith("สร้าง "):
+        product_id_or_title = text.split(" ", 1)[1].strip()
+        await _trigger_tus_video_gen(reply_token, product_id_or_title)
+        return
+    if text_lower in ("jobs", "สถานะ", "status"):
+        await _show_tus_jobs(reply_token)
+        return
+
     # ── Cart commands ──────────────────────────────────────────────────
     if text_lower in ("ยืนยัน", "ยีนยัน", "confirm", "สั่งเลย", "checkout"):
         await _handle_checkout(session, reply_token, user_id)
@@ -339,6 +352,12 @@ async def _search_and_show(reply_token: str, keyword: str):
 # ═══════════════════════════════════════════════════════════════════════════
 
 async def _handle_postback(event: dict, reply_token: str, user_id: str):
+    postback = event.get("postback", {})
+    data = postback.get("data", "")
+    if data.startswith("create_video:"):
+        pid = data.split(":", 1)[1]
+        await _trigger_tus_video_gen(reply_token, pid)
+        return
     postback = event.get("postback", {})
     data = postback.get("data", "")
     params = postback.get("params", {})

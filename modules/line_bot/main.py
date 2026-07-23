@@ -23,9 +23,9 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from .line_client import line_client, CHANNEL_SECRET, CHANNEL_ACCESS_TOKEN
-from .handlers import handle_webhook
-from .line_richmenu import setup_rich_menus
+from line_client import line_client, CHANNEL_SECRET, CHANNEL_ACCESS_TOKEN
+from handlers import handle_webhook
+from line_richmenu import setup_rich_menus
 
 logger = logging.getLogger("line-bot")
 
@@ -149,7 +149,7 @@ async def admin_setup_richmenu():
 @app.get("/admin/richmenu/list")
 async def admin_list_richmenu():
     """List all rich menus."""
-    from .line_richmenu import list_and_cleanup
+    from line_richmenu import list_and_cleanup
     menus = await list_and_cleanup()
     return {"ok": True, "richmenus": menus}
 

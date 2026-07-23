@@ -138,8 +138,11 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             scene_desc = image_description[:250]
         else:
             scene_desc = f"{env_context or 'A modern living space with soft evening lighting'}. The product is installed and visible."
-        # Add person naturally in scene (not holding product)
-        scene_desc += f" {thai_model} is in the scene, moving naturally through the space."
+        # Person naturally in scene
+        if persona_clothing:
+            scene_desc += f" A {gender_en} aged {model_age} wearing {persona_clothing} walks past naturally."
+        else:
+            scene_desc += f" A {gender_en} aged {model_age} walks past naturally, casual pose."
         if persona_clothing:
             scene_desc += f" Wearing {persona_clothing}."
         if persona_hair:
@@ -376,7 +379,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
 
 
 def _normalize_age(raw_age) -> int:
-    """Normalize age from profile to 18-25 range."""
+    """Normalize age from profile to 18-25 range with real randomness."""
     import random
     try:
         if isinstance(raw_age, (int, float)):
@@ -388,7 +391,11 @@ def _normalize_age(raw_age) -> int:
             age = nums[0] if nums else 22
     except (ValueError, TypeError):
         age = 22
-    return max(18, min(25, age + random.randint(-1, 1)))
+    upper = min(25, age)
+    lower = max(18, upper - 3)
+    if lower > upper:
+        return 18
+    return random.randint(lower, upper)
 
 
 def build_negative_prompt(profile: dict, ugc_style: str = "holding") -> str:

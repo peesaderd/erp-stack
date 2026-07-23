@@ -13,3 +13,8 @@ INFO:     45.148.10.200:0 - "GET /api/.env HTTP/1.1" 404 Not Found
 INFO:     165.1.78.209:0 - "GET /ws/vendor/phpunit/phpunit/src/Util/PHP/eval-stdin.php HTTP/1.1" 404 Not Found
 INFO:     165.1.78.209:0 - "GET /ws/ec/vendor/phpunit/phpunit/src/Util/PHP/eval-stdin.php HTTP/1.1" 404 Not Found
 INFO:     165.1.78.209:0 - "GET /api/vendor/phpunit/phpunit/src/Util/PHP/eval-stdin.php HTTP/1.1" 404 Not Found
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1954108]
+INFO:     Stopping reloader process [1953966]

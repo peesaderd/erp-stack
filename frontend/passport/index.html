@@ -2,391 +2,414 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>📸 Passport Photo</title>
-<meta name="description" content="AI ปรับแต่งรูปถ่ายให้เป็น Passport Photo พร้อมพิมพ์">
-<meta name="theme-color" content="#2563eb">
-<link rel="manifest" href="/manifest.json">
-<link rel="icon" href="/icons/icon-192.png">
-<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Passport Photo AI</title>
+<script>// ล้าง Service Worker เก่า — cache หน้าเก่าทิ้ง
+if('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(function(rs) {
+    for(var r of rs) r.unregister();
+  });
+  navigator.serviceWorker.register('/sw.js?v='+Date.now());
+}
+// force reload หน้าเว็บถ้ามาจาก cache
+window.addEventListener('pageshow', function(e) {
+  if(e.persisted) window.location.reload();
+});
+</script>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f8fafc;color:#1e293b;min-height:100vh}
-.container{max-width:1000px;margin:0 auto;padding:12px}
-header{text-align:center;padding:16px 0 8px}
-header h1{font-size:1.4em;background:linear-gradient(135deg,#2563eb,#7c3aed);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-header p{color:#64748b;font-size:12px;margin-top:2px}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0f172a; --surface: #1e293b; --surface2: #334155;
+  --border: #475569; --text: #f1f5f9; --dim: #94a3b8;
+  --accent: #6366f1; --accent-hover: #818cf8;
+  --radius: 12px; --sm: 8px;
+}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans Thai', sans-serif;
+  background: var(--bg); color: var(--text); min-height: 100vh;
+}
+header {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 14px 20px; display: flex; align-items: center; gap: 10px;
+}
+header h1 { font-size: 1.15rem; font-weight: 700; }
+header h1 span { color: var(--accent); }
+header .badge {
+  font-size: .65rem; background: var(--accent); color: #fff;
+  padding: 2px 8px; border-radius: 10px; font-weight: 600;
+}
+main { max-width: 700px; margin: 0 auto; padding: 20px 16px 60px; }
 
-.tabs{display:flex;gap:6px;justify-content:center;margin-bottom:12px}
-.tab{padding:7px 16px;border:2px solid #e2e8f0;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;background:white;transition:all .15s}
-.tab.active{border-color:#2563eb;color:#2563eb;background:#eff6ff}
+.card {
+  background: var(--surface); border-radius: var(--radius);
+  padding: 20px; margin-bottom: 16px;
+}
+.card-title { font-size: .85rem; color: var(--dim); margin-bottom: 12px; font-weight: 600; }
 
-.card{background:white;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:10px}
-.card h2{font-size:14px;margin-bottom:8px;display:flex;align-items:center;gap:4px}
+/* Upload */
+.upload-box {
+  border: 2px dashed var(--border); border-radius: var(--radius);
+  padding: 32px 20px; text-align: center; cursor: pointer;
+  transition: all .2s; position: relative;
+}
+.upload-box:hover { border-color: var(--accent); background: rgba(99,102,241,.08); }
+.upload-box .icon { font-size: 2.5rem; margin-bottom: 6px; }
+.upload-box .label { font-weight: 600; }
+.upload-box .hint { font-size: .8rem; color: var(--dim); margin-top: 4px; }
+.upload-box input { display: none; }
+.upload-box.has-img { border-style: solid; padding: 12px; }
+.upload-preview {
+  max-width: 200px; max-height: 200px; border-radius: var(--sm);
+  margin: 0 auto; display: block; object-fit: contain;
+}
+.upload-box .remove-btn {
+  margin-top: 8px; background: none; border: 1px solid var(--border);
+  color: var(--dim); padding: 4px 14px; border-radius: var(--sm);
+  cursor: pointer; font-size: .8rem;
+}
+.upload-box .remove-btn:hover { border-color: #ef4444; color: #ef4444; }
 
-select{width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:white}
-.info{font-size:11px;color:#64748b;margin-top:4px}
+/* Select */
+select, textarea {
+  width: 100%; padding: 10px 12px; border-radius: var(--sm);
+  border: 1px solid var(--border); background: var(--surface2);
+  color: var(--text); font-size: .9rem; outline: none;
+  transition: border .2s;
+}
+select:focus, textarea:focus { border-color: var(--accent); }
+textarea {
+  resize: vertical; min-height: 60px; font-family: inherit;
+}
 
-.upload-zone{border:2px dashed #cbd5e1;border-radius:12px;padding:16px;text-align:center;cursor:pointer;transition:all .2s}
-.upload-zone:hover{border-color:#2563eb;background:#f8faff}
-.upload-zone.done{border-style:solid;border-color:#86efac;background:#f0fdf4;padding:6px}
-.upload-zone img{max-width:100%;max-height:260px;border-radius:6px;display:block;margin:0 auto}
+/* Grid 2 col */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 500px) { .grid-2 { grid-template-columns: 1fr; } }
 
-.camera-preview{width:100%;max-width:400px;margin:8px auto;background:#000;border-radius:8px;overflow:hidden}
-.camera-preview video,.camera-preview canvas{width:100%;display:block}
+/* Button */
+.btn {
+  width: 100%; padding: 14px; border: none; border-radius: var(--sm);
+  font-size: 1.05rem; font-weight: 700; cursor: pointer;
+  transition: all .2s; display: flex; align-items: center;
+  justify-content: center; gap: 8px;
+}
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+.btn-success { background: #22c55e; color: #fff; }
+.btn-success:hover:not(:disabled) { filter: brightness(1.1); }
+.spinner {
+  width: 20px; height: 20px; border: 2px solid rgba(255,255,255,.3);
+  border-top-color: #fff; border-radius: 50%;
+  animation: spin .6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 
-.btn-group{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:8px}
-.btn{display:inline-flex;align-items:center;gap:5px;padding:8px 18px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s}
-.btn-blue{background:#2563eb;color:white}
-.btn-blue:hover{background:#1d4ed8}
-.btn-blue:disabled{opacity:.4;cursor:not-allowed}
-.btn-green{background:#059669;color:white}
-.btn-green:hover{background:#047857}
-.btn-gray{background:#f1f5f9;color:#475569}
-.btn-gray:hover{background:#e2e8f0}
-.btn-block{width:100%;justify-content:center}
-.btn-lg{padding:12px 20px;font-size:15px}
+/* Result */
+.result { display: none; }
+.result.show { display: block; }
+.result img {
+  width: 100%; max-height: 340px; object-fit: contain;
+  border-radius: var(--sm); background: var(--bg);
+}
+.result-actions { display: flex; gap: 10px; margin-top: 12px; }
+.result-actions .btn { flex: 1; }
+.result-info {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 8px; margin: 12px 0;
+}
+.result-info div {
+  background: var(--surface2); border-radius: var(--sm);
+  padding: 10px; text-align: center;
+}
+.result-info .val { font-size: 1rem; font-weight: 700; color: var(--accent); }
+.result-info .lbl { font-size: .7rem; color: var(--dim); margin-top: 2px; }
 
-.options{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
-.options label{display:flex;align-items:center;gap:3px;font-size:12px;cursor:pointer;padding:4px 10px;border:1px solid #e2e8f0;border-radius:6px;background:#fafafa}
-.options label:has(input:checked){border-color:#2563eb;background:#eff6ff}
+/* Steps indicator */
+.steps {
+  display: flex; gap: 8px; margin-bottom: 20px; font-size: .75rem;
+}
+.steps span {
+  flex: 1; text-align: center; padding: 6px; border-radius: var(--sm);
+  background: var(--surface2); color: var(--dim);
+}
+.steps span.active { background: var(--accent); color: #fff; }
+.steps span.done { background: #22c55e; color: #fff; }
 
-.tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600}
-.tag-b{background:#dbeafe;color:#1d4ed8}
-.tag-g{background:#d1fae5;color:#059669}
-.tag-p{background:#fce7f3;color:#be185d}
+/* Toast */
+.toast {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px 20px;
+  display: none; z-index: 999; max-width: 90%;
+}
+.toast.show { display: flex; align-items: center; gap: 8px; }
+.toast.error { border-color: #ef4444; }
 
-.spinner{display:inline-block;width:16px;height:16px;border:3px solid rgba(255,255,255,.3);border-radius:50%;border-top-color:white;animation:s .6s linear infinite}
-@keyframes s{to{transform:rotate(360deg)}}
-
-.result-img{max-width:300px;margin:8px auto}
-.result-img img{width:100%;border-radius:8px;border:2px solid #e2e8f0}
-
-.error{background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px;font-size:12px;color:#dc2626;margin-top:8px}
-.hidden{display:none!important}
-.mt-8{margin-top:8px}
-.tc{text-align:center}
-
-.print-grid{display:flex;gap:4px;justify-content:center;flex-wrap:wrap}
-.print-grid button{padding:5px 14px;border:2px solid #e2e8f0;border-radius:6px;cursor:pointer;font-size:12px;font-weight:500;background:white}
-.print-grid button.on{border-color:#2563eb;color:#2563eb;background:#eff6ff}
-
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1e293b;color:white;padding:8px 20px;border-radius:8px;font-size:12px;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none}
-.toast.show{opacity:1}
-
-@media(min-width:768px){.two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px}}
+/* Overlay */
+.overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(15,23,42,.85); z-index: 998;
+  justify-content: center; align-items: center; flex-direction: column; gap: 16px;
+}
+.overlay.show { display: flex; }
+.overlay .spinner-lg { width: 44px; height: 44px; border-width: 4px; }
 </style>
 </head>
 <body>
 
-<div class="container">
-  <header>
-    <h1>📸 Passport Photo</h1>
-    <p>ถ่ายหรืออัปโหลดรูป → AI ปรับหน้า ตัดแสง Crop ลง Template + พิมพ์</p>
-  </header>
+<header>
+  <h1><span>AI</span> Passport Photo</h1>
+  <span class="badge">AI</span>
+</header>
 
-  <div class="tabs">
-    <div class="tab active" onclick="switchTab('p')">📷 Passport</div>
-    <div class="tab" onclick="switchTab('r')">🛠️ ซ่อม</div>
-  </div>
-
-  <!-- ══════ PASSPORT ══════ -->
-  <div id="tabP">
-    <div class="card">
-      <h2>📋 แบบ</h2>
-      <select id="tsel" onchange="onTplChange()"></select>
-      <div id="tdetail" class="info"></div>
-    </div>
-
-    <div class="card">
-      <h2>📸 รูป</h2>
-
-      <!-- Upload zone (visible by default) -->
-      <div id="uploadZone" class="upload-zone" onclick="pickFile()">
-        <div id="uploadPlaceholder">
-          <div style="font-size:32px">📂</div>
-          <div style="font-size:13px;font-weight:600;margin-top:4px">เลือกรูปภาพ</div>
-          <div style="font-size:11px;color:#94a3b8">JPG / PNG</div>
-        </div>
-        <div id="uploadPreview" class="hidden"></div>
-      </div>
-      <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="onFilePick(event)">
-
-      <!-- Camera -->
-      <div id="cameraBox" class="camera-preview hidden">
-        <video id="cam" autoplay playsinline muted></video>
-      </div>
-
-      <!-- Buttons -->
-      <div class="btn-group">
-        <button class="btn btn-gray" onclick="startCam()">📷 เปิดกล้อง</button>
-        <button class="btn btn-blue" id="captureBtn" onclick="capture()" disabled>📸 ถ่าย</button>
-        <button class="btn btn-gray" onclick="pickFile()">📂 อัปโหลด</button>
-      </div>
-
-      <div class="options">
-        <label><input type="checkbox" id="oc" checked> Crop ใบหน้า</label>
-        <label><input type="checkbox" id="oe" checked> ปรับแสง/สี</label>
-        <label><input type="checkbox" id="oa" checked> 🤖 ปรับตรง+สวย</label>
-      </div>
-
-      <button class="btn btn-blue btn-block btn-lg" id="procBtn" onclick="process()" disabled>
-        ✨ ประมวลผล Passport Photo
-      </button>
-
-      <div id="perror" class="error hidden"></div>
-    </div>
-
-    <!-- Result -->
-    <div id="presult" class="hidden">
-      <div class="card" style="border-color:#86efac">
-        <h2 style="color:#059669">✅ เสร็จ</h2>
-        <div class="result-img"><img id="pimg" alt="result"></div>
-        <div id="ptags" class="tc" style="margin:6px 0"></div>
-        <div class="btn-group">
-          <a class="btn btn-green" id="pdl" download>⬇️ ดาวน์โหลด</a>
-          <button class="btn btn-gray" onclick="showPrint()">🖨️ พิมพ์ Sheet</button>
-          <button class="btn btn-gray" onclick="resetP()">🔄 ใหม่</button>
-        </div>
-        <div id="printSec" class="hidden" style="margin-top:10px;padding-top:10px;border-top:1px solid #e2e8f0">
-          <div class="print-grid">
-            <button class="on" data-s="4x6" onclick="setPS('4x6')">4×6"</button>
-            <button data-s="5x7" onclick="setPS('5x7')">5×7"</button>
-            <button data-s="a4" onclick="setPS('a4')">A4</button>
-            <button data-s="a6" onclick="setPS('a6')">A6</button>
-          </div>
-          <button class="btn btn-blue btn-block mt-8" onclick="genPrint()">🖨️ สร้าง</button>
-          <div id="printRes" class="hidden mt-8 tc">
-            <img id="printImg" style="max-width:280px;border-radius:6px;border:1px solid #e2e8f0">
-            <div id="printInfo" style="font-size:11px;color:#64748b;margin-top:4px"></div>
-            <a class="btn btn-green mt-8" id="printDl" download>⬇️ ดาวน์โหลด</a>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ══════ RESTORE ══════ -->
-  <div id="tabR" class="hidden">
-    <div class="card">
-      <h2>🖼️ เลือกรูปเก่า</h2>
-      <div class="upload-zone" onclick="document.getElementById('rfile').click()">
-        <div id="rplace">
-          <div style="font-size:32px">🖼️</div>
-          <div style="font-size:13px;font-weight:600;margin-top:4px">คลิกเลือกรูป</div>
-        </div>
-        <div id="rpreview" class="hidden"></div>
-      </div>
-      <input type="file" id="rfile" accept="image/*" class="hidden" onchange="onRPick(event)">
-    </div>
-
-    <div class="card">
-      <h2>⚙️ ตั้งค่า</h2>
-      <div style="display:grid;gap:6px">
-        <div><label style="font-size:12px;font-weight:500">Denoise: <span id="rdv" style="color:#2563eb">50</span></label>
-        <input type="range" id="rden" min="0" max="100" value="50" oninput="document.getElementById('rdv').textContent=this.value"></div>
-        <div><label style="font-size:12px;font-weight:500">Sharpen: <span id="rsv" style="color:#2563eb">50</span></label>
-        <input type="range" id="rsh" min="0" max="100" value="50" oninput="document.getElementById('rsv').textContent=this.value"></div>
-        <select id="rup">
-          <option value="1">1x</option>
-          <option value="2">2x</option>
-          <option value="4">4x</option>
-        </select>
-      </div>
-      <div class="options mt-8">
-        <label><input type="checkbox" id="rin" checked> ซ่อมรอย</label>
-        <label><input type="checkbox" id="rco" checked> ปรับสี</label>
-        <label><input type="checkbox" id="rfa"> คมเฉพาะหน้า</label>
-      </div>
-    </div>
-
-    <button class="btn btn-blue btn-block btn-lg" id="rbtn" onclick="doRestore()" disabled>🔧 ซ่อมแซม</button>
-    <div id="rerr" class="error hidden"></div>
-    <div id="rres" class="hidden mt-8">
-      <div class="card" style="border-color:#86efac">
-        <h2 style="color:#059669">✅ ซ่อมเสร็จ</h2>
-        <div class="result-img"><img id="rimg" alt="restored"></div>
-        <div id="rtags" class="tc" style="margin:6px 0"></div>
-        <div class="btn-group">
-          <a class="btn btn-green" id="rdl" download>⬇️ ดาวน์โหลด</a>
-          <button class="btn btn-gray" onclick="resetR()">🔄 ใหม่</button>
-        </div>
-      </div>
-    </div>
-  </div>
+<div class="overlay" id="overlay">
+  <div class="spinner spinner-lg"></div>
+  <div id="overlayText" style="color:var(--text);font-size:1rem;">กำลังสร้างรูปด้วย AI...</div>
 </div>
 
-<div id="toast" class="toast"></div>
+<div class="toast" id="toast"></div>
+
+<main>
+  <div class="steps">
+    <span id="s1" class="active">1. รูป</span>
+    <span id="s2">2. เลือกประเทศ</span>
+    <span id="s3">3. AI สร้าง</span>
+    <span id="s4">4. เสร็จ</span>
+  </div>
+
+  <!-- Step 1: Upload photo -->
+  <div class="card">
+    <div class="card-title">📸 อัปโหลดรูปถ่ายของคุณ</div>
+    <div class="upload-box" id="photoUpload">
+      <div id="photoEmpty">
+        <div class="icon">🙋</div>
+        <div class="label">เลือกรูปถ่าย</div>
+        <div class="hint">ถ่ายรูปตรงๆ ไม่ต้องมีพื้นหลังพิเศษ</div>
+      </div>
+      <div id="photoPreview" style="display:none">
+        <img class="upload-preview" id="photoImg" alt="photo">
+        <button class="remove-btn" id="photoRemove">เปลี่ยนรูป</button>
+      </div>
+      <input type="file" id="photoInput" accept="image/jpeg,image/png">
+    </div>
+  </div>
+
+  <!-- Step 2: Template + Prompt + Reference -->
+  <div class="card">
+    <div class="card-title">🌍 ขนาดประเทศ</div>
+    <select id="templateSelect"></select>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">💬 Prompt (ไม่ใส่ก็ได้)</div>
+      <textarea id="promptInput" placeholder="เช่น ใส่สูทสีดำ, ไว้หนวด, ยิ้มเล็กน้อย"></textarea>
+    </div>
+    <div class="card">
+      <div class="card-title">👔 รูปชุดตัวอย่าง (ไม่ใส่ก็ได้)</div>
+      <div class="upload-box" id="refUpload">
+        <div id="refEmpty">
+          <div class="icon">👕</div>
+          <div class="hint">เลือกรูปชุดที่อยากใส่</div>
+        </div>
+        <div id="refPreview" style="display:none">
+          <img class="upload-preview" id="refImg" alt="reference" style="max-height:100px">
+          <button class="remove-btn" id="refRemove">ลบ</button>
+        </div>
+        <input type="file" id="refInput" accept="image/jpeg,image/png">
+      </div>
+    </div>
+  </div>
+
+  <!-- Generate button -->
+  <button class="btn btn-primary" id="genBtn" disabled>
+    ✨ AI Generate
+  </button>
+
+  <!-- Result -->
+  <div class="card result" id="resultCard">
+    <div class="card-title">✅ ผลลัพธ์</div>
+    <div class="result-info" id="resultInfo"></div>
+    <img id="resultImg" alt="Passport Photo">
+    <div class="result-actions">
+      <button class="btn btn-success" id="dlPassport">⬇️ รูป</button>
+      <button class="btn btn-success" id="dlPrint">🖨️ แผ่นพิมพ์</button>
+    </div>
+  </div>
+</main>
 
 <script>
-if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{})
+const API = '/api/passport';
+const $ = id => document.getElementById(id);
+let state = { photo: null, ref: null, templates: [], sessionId: null };
 
-const A='/api/passport'
-let b64=null, sid=null, ps='4x6', rb64=null, stream=null
-let camReady=false
-
-function q(s){return document.getElementById(s)}
-
-function toasty(m){const t=q('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500)}
-
-function switchTab(t){q('tabP').classList.toggle('hidden',t!=='p');q('tabR').classList.toggle('hidden',t!=='r');document.querySelectorAll('.tab').forEach(e=>e.classList.toggle('active',e.textContent.includes(t==='p'?'📷':'🛠')))}
-
-// ══ Templates ══
-async function loadTpl(){
-  try{
-    const r=await fetch(A+'/templates');const d=await r.json()
-    if(!d.ok)return
-    const sel=q('tsel')
-    d.templates.sort((a,b)=>a.country.localeCompare(b.country)).forEach(t=>{const o=document.createElement('option');o.value=t.code;o.textContent=t.country+' — '+t.name;sel.appendChild(o)})
-    if([...sel.options].find(o=>o.value==='thai_id'))sel.value='thai_id'
-    onTplChange()
-  }catch(e){console.error(e)}
-}
-loadTpl()
-function onTplChange(){const o=q('tsel').selectedOptions[0];q('tdetail').textContent=o?'📐 '+o.textContent:''}
-
-// ══ Upload ══
-function pickFile(){q('fileInput').click()}
-function onFilePick(e){
-  const f=e.target.files[0];if(!f)return
-  const r=new FileReader()
-  r.onload=ev=>{b64=ev.target.result.split(',')[1];showUploadPreview(ev.target.result);q('procBtn').disabled=false;toasty('📂 '+f.name)}
-  r.readAsDataURL(f)
-}
-function showUploadPreview(url){
-  q('uploadPlaceholder').classList.add('hidden')
-  const p=q('uploadPreview');p.classList.remove('hidden');p.innerHTML='<img src="'+url+'">'
-  q('uploadZone').classList.add('done')
+async function init() {
+  await loadTemplates();
+  setupUploads();
+  setupGen();
 }
 
-// ══ Camera ══
-async function startCam(){
-  try{
-    if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
-    camReady=false;q('captureBtn').disabled=true
-    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:1280},height:{ideal:1280}}})
-    const v=q('cam');v.srcObject=stream
-    // Wait for camera to adjust exposure
-    await new Promise(r=>{
-      if(v.videoWidth>0)r()
-      else v.onloadedmetadata=()=>{v.play();setTimeout(r,1200)}
-    })
-    q('cameraBox').classList.remove('hidden')
-    camReady=true;q('captureBtn').disabled=false
-    toasty('📷 กล้องพร้อม')
-  }catch(e){toasty('❌ '+e.message)}
+async function loadTemplates() {
+  try {
+    const r = await fetch(`${API}/templates`);
+    const d = await r.json();
+    state.templates = d.templates || [];
+    const sel = $('templateSelect');
+    const groups = {};
+    for (const t of state.templates) {
+      const g = t.country || 'Other';
+      if (!groups[g]) groups[g] = [];
+      groups[g].push(t);
+    }
+    const order = ['Thailand','United States','United Kingdom','China','Japan','South Korea'];
+    for (const c of order) {
+      if (groups[c]) { addGroup(sel, c, groups[c]); delete groups[c]; }
+    }
+    for (const [c, ts] of Object.entries(groups).sort()) addGroup(sel, c, ts);
+    sel.value = 'thai_passport';
+  } catch(e) {
+    showToast('โหลดประเทศไม่สำเร็จ', 'error');
+  }
 }
-function capture(){
-  if(!camReady){toasty('⚠️ กล้องยังไม่พร้อม');return}
-  const v=q('cam'),c=document.createElement('canvas')
-  c.width=v.videoWidth;c.height=v.videoHeight
-  const ctx=c.getContext('2d')
-  // Draw with slight brightening
-  ctx.drawImage(v,0,0)
-  const url=c.toDataURL('image/jpeg',0.95)
-  b64=url.split(',')[1]
-  showUploadPreview(url)
-  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
-  q('cameraBox').classList.add('hidden')
-  q('procBtn').disabled=false
-  toasty('📸 ถ่ายแล้ว')
+function addGroup(sel, country, templates) {
+  const og = document.createElement('optgroup');
+  og.label = country === 'Thailand' ? '🇹🇭 ไทย' : country;
+  for (const t of templates.sort((a,b) => a.name.localeCompare(b.name, 'th'))) {
+    const opt = document.createElement('option');
+    opt.value = t.code;
+    opt.textContent = `${t.name} (${t.width_mm}×${t.height_mm}mm)`;
+    og.appendChild(opt);
+  }
+  sel.appendChild(og);
 }
 
-// ══ Process ══
-async function process(){
-  if(!b64){toasty('⚠️ เลือกรูปก่อน');return}
-  const btn=q('procBtn');btn.disabled=true;btn.innerHTML='<span class="spinner"></span> กำลังทำ...'
-  q('presult').classList.add('hidden');q('perror').classList.add('hidden')
-  try{
-    const r=await fetch(A+'/process',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        image_base64:b64,
-        template_code:q('tsel').value,
-        auto_crop:q('oc').checked,
-        enhance:q('oe').checked,
-        auto_align:q('oa').checked,
+function setupUploads() {
+  // Main photo
+  setupUpload('photo', (file) => state.photo = file);
+  setupUpload('ref', (file) => state.ref = file);
+}
+function setupUpload(prefix, onFile) {
+  const zone = $(`${prefix}Upload`);
+  const input = $(`${prefix}Input`);
+  const preview = $(`${prefix}Preview`);
+  const img = $(`${prefix}Img`);
+  const remove = $(`${prefix}Remove`);
+  const empty = $(`${prefix}Empty`);
+
+  zone.addEventListener('click', (e) => {
+    if (!e.target.closest('button')) input.click();
+  });
+  input.addEventListener('change', () => {
+    if (input.files[0]) handleUpload(input.files[0]);
+  });
+  if (remove) remove.addEventListener('click', (e) => {
+    e.stopPropagation();
+    state[prefix] = null; input.value = '';
+    empty.style.display = 'block'; preview.style.display = 'none';
+    zone.classList.remove('has-img');
+    updateGenBtn();
+  });
+
+  function handleUpload(file) {
+    if (!file.type.match(/^image\/(jpeg|png)$/)) {
+      showToast('เฉพาะ JPG/PNG', 'error'); return;
+    }
+    if (file.size > 10*1024*1024) { showToast('ไฟล์ใหญ่เกิน 10MB','error'); return; }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      onFile(e.target.result);
+      if (img) img.src = e.target.result;
+      if (prefix === 'photo') {
+        $('s1').className = 'done';
+        $('s2').className = 'active';
+      }
+      empty.style.display = 'none'; preview.style.display = 'block';
+      zone.classList.add('has-img');
+      updateGenBtn();
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+function updateGenBtn() {
+  $('genBtn').disabled = !state.photo;
+}
+
+function setupGen() {
+  $('genBtn').addEventListener('click', generate);
+  $('dlPassport').addEventListener('click', () => dl('passport'));
+  $('dlPrint').addEventListener('click', () => dl('print'));
+}
+
+async function generate() {
+  if (!state.photo) return;
+  const b64 = state.photo.split(',')[1];
+  const refB64 = state.ref ? state.ref.split(',')[1] : '';
+  const prompt = $('promptInput').value.trim();
+
+  showOverlay('🤖 AI กำลังวิเคราะห์รูปและสร้างพาสปอร์ต...');
+  $('s2').className = 'done';
+  $('s3').className = 'active';
+
+  try {
+    const r = await fetch(`${API}/ai-generate`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        image_base64: b64,
+        template_code: $('templateSelect').value,
+        prompt: prompt,
+        reference_image_base64: refB64
       })
-    })
-    const d=await r.json()
-    if(!d.ok)throw new Error(d.error||d.detail||'Error')
-    sid=d.session_id
-    const dl=A+'/download/'+d.session_id+'.jpg'
-    q('pimg').src=dl+'?t='+Date.now()
-    q('pdl').href=dl;q('pdl').download='passport_'+(d.template?.country||'photo')+'.jpg'
-    const i=d.info||{},t=d.template||{}
-    const tags=[]
-    tags.push('<span class="tag tag-b">'+(t.country||q('tsel').value)+'</span>')
-    if(i.dimensions_px)tags.push('<span class="tag tag-b">'+(i.dimensions_px.w||'?')+'×'+(i.dimensions_px.h||'?')+'px</span>')
-    if(i.align?.rotated)tags.push('<span class="tag tag-g">🔄 เอียง '+i.align.angle+'°</span>')
-    if(i.beauty)tags.push('<span class="tag tag-p">✨ สวย</span>')
-    if(i.bg_removed)tags.push('<span class="tag tag-g">🔵 ตัดพื้น</span>')
-    q('ptags').innerHTML=tags.join('')
-    q('presult').classList.remove('hidden');q('printSec').classList.add('hidden')
-    toasty('✅ เสร็จ!')
-  }catch(e){
-    q('perror').textContent='❌ '+e.message;q('perror').classList.remove('hidden')
+    });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.detail || 'Error');
+
+    state.sessionId = d.session_id;
+    const info = d.info || {};
+
+    $('resultInfo').innerHTML = `
+      <div><div class="val">${info.time_seconds || '?'}s</div><div class="lbl">⏱ เวลา</div></div>
+      <div><div class="val">${d.dimensions?.w || '?'}×${d.dimensions?.h || '?'}</div><div class="lbl">📐 mm</div></div>
+      <div><div class="val">${info.final_size?.[0] || '?'}×${info.final_size?.[1] || '?'}</div><div class="lbl">🖼 px</div></div>
+      <div><div class="val">300</div><div class="lbl">🔲 DPI</div></div>
+    `;
+    $('resultImg').src = `${API}/download/${d.session_id}_passport.jpg?t=${Date.now()}`;
+
+    $('s3').className = 'done';
+    $('s4').className = 'active';
+    $('resultCard').classList.add('show');
+    $('resultCard').scrollIntoView({behavior:'smooth'});
+    showToast('✅ เสร็จแล้ว!');
+  } catch(e) {
+    showToast(`❌ ${e.message || 'Error'}`, 'error');
+    $('s3').className = '';
+  } finally {
+    hideOverlay();
   }
-  btn.disabled=false;btn.innerHTML='✨ ประมวลผล Passport Photo'
-}
-function resetP(){
-  b64=null;sid=null;q('presult').classList.add('hidden');q('procBtn').disabled=true
-  q('uploadPreview').innerHTML='';q('uploadPreview').classList.add('hidden');q('uploadPlaceholder').classList.remove('hidden')
-  q('uploadZone').classList.remove('done');q('fileInput').value=''
 }
 
-// ══ Print ══
-function showPrint(){q('printSec').classList.toggle('hidden')}
-function setPS(s){ps=s;document.querySelectorAll('.print-grid button').forEach(b=>b.classList.toggle('on',b.dataset.s===s))}
-async function genPrint(){
-  if(!sid)return
-  const btn=q('#printSec .btn-blue');btn.disabled=true;btn.innerHTML='<span class="spinner"></span>...'
-  try{
-    const r=await fetch(A+'/print-sheet',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:sid,print_size:ps})})
-    const d=await r.json();if(!d.ok)throw new Error(d.error)
-    const dl=A+'/download/'+sid+'_print.jpg?t='+Date.now()
-    q('printImg').src=dl;q('printDl').href=dl;q('printDl').download='passport_print_'+ps+'.jpg'
-    q('printRes').classList.remove('hidden')
-    const pi=d.info||{};q('printInfo').textContent=(pi.print_size||ps)+' | '+(pi.cols||'?')+'×'+(pi.rows||'?')+' = '+(pi.count||'?')+' รูป'
-    toasty('🖨️ พร้อม')
-  }catch(e){q('perror').textContent='❌ '+e.message;q('perror').classList.remove('hidden')}
-  btn.disabled=false;btn.innerHTML='🖨️ สร้าง Print Sheet'
+function dl(type) {
+  if (!state.sessionId) return;
+  const suffix = type === 'passport' ? 'passport' : 'print';
+  const a = document.createElement('a');
+  a.href = `${API}/download/${state.sessionId}_${suffix}.jpg`;
+  a.download = `passport_${state.sessionId}.jpg`;
+  a.click();
 }
 
-// ══ Restore ══
-function onRPick(e){
-  const f=e.target.files[0];if(!f)return
-  const r=new FileReader()
-  r.onload=ev=>{
-    rb64=ev.target.result.split(',')[1]
-    q('rplace').classList.add('hidden')
-    const p=q('rpreview');p.classList.remove('hidden');p.innerHTML='<img src="'+ev.target.result+'">'
-    q('rbtn').disabled=false
-  }
-  r.readAsDataURL(f)
+let toastTimeout;
+function showToast(msg, type='') {
+  clearTimeout(toastTimeout);
+  const t = $('toast');
+  t.className = `toast show ${type}`;
+  t.innerHTML = `<span>${msg}</span>`;
+  toastTimeout = setTimeout(() => t.classList.remove('show'), 4000);
 }
-async function doRestore(){
-  if(!rb64){toasty('⚠️ เลือกรูปก่อน');return}
-  const btn=q('rbtn');btn.disabled=true;btn.innerHTML='<span class="spinner"></span> กำลังซ่อม...'
-  q('rres').classList.add('hidden');q('rerr').classList.add('hidden')
-  try{
-    const r=await fetch(A+'/restore',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-      image_base64:rb64,denoise_strength:parseInt(q('rden').value)/100,sharpen_strength:parseInt(q('rsh').value)/100,
-      inpaint_scratches:q('rin').checked,color_restore:q('rco').checked,upscale_factor:parseInt(q('rup').value),enhance_face:q('rfa').checked,
-    })})
-    const d=await r.json();if(!d.ok)throw new Error(d.error||d.detail)
-    const dl=A+'/download/'+d.session_id+'_restored.jpg?t='+Date.now()
-    q('rimg').src=dl;q('rdl').href=dl;q('rdl').download='restored_'+d.session_id+'.jpg'
-    const i=d.info||{},p=[];if(i.denoise)p.push('ลด noise');if(i.inpaint)p.push('ซ่อมรอย');if(i.color_restored)p.push('ปรับสี');if(i.upscaled)p.push('x'+i.upscaled)
-    q('rtags').innerHTML=p.map(x=>'<span class="tag tag-g">'+x+'</span>').join('')
-    q('rres').classList.remove('hidden');toasty('✅ ซ่อมเสร็จ')
-  }catch(e){q('rerr').textContent='❌ '+e.message;q('rerr').classList.remove('hidden')}
-  btn.disabled=false;btn.innerHTML='🔧 ซ่อมแซม'
-}
-function resetR(){
-  rb64=null;q('rres').classList.add('hidden');q('rbtn').disabled=true
-  q('rpreview').innerHTML='';q('rpreview').classList.add('hidden');q('rplace').classList.remove('hidden');q('rfile').value=''
-}
+function showOverlay(t) { $('overlayText').textContent = t; $('overlay').classList.add('show'); }
+function hideOverlay() { $('overlay').classList.remove('show'); }
+
+init();
 </script>
 </body>
 </html>

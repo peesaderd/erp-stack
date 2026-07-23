@@ -3006,6 +3006,59 @@ function stepStatusIcon(status) {
   return map[status] || '❓';
 }
 
+
+function getStepProgressHtml(job) {
+  const stepsMap = [
+    { num: 1, name: 'Analyze Product' },
+    { num: 2, name: 'Load Recipe' },
+    { num: 3, name: 'Generate Script' },
+    { num: 4, name: 'Build Image Prompt' },
+    { num: 5, name: 'Generate Image' },
+    { num: 6, name: 'Build Video Prompts' },
+    { num: 7, name: 'TTS Voice Gen' },
+    { num: 8, name: 'Wan 2.7 Video Gen' },
+    { num: 9, name: 'Final Compose' }
+  ];
+  const circledNums = ['❶','❷','❸','❹','❺','❻','❼','❽','❾'];
+  let currentStep = 1;
+  let currentName = 'Analyze Product';
+
+  if (job.status === 'completed') {
+    currentStep = 9;
+  } else if (job.steps_data) {
+    try {
+      const s = typeof job.steps_data === 'string' ? JSON.parse(job.steps_data) : job.steps_data;
+      if (s.pipeline?.status === 'success' || s.compose?.status === 'success') { currentStep = 9; currentName = 'Final Compose'; }
+      else if (s.video_gen?.status === 'processing' || s.video_generation?.status === 'error') { currentStep = 8; currentName = 'Wan 2.7 Video Gen'; }
+      else if (s.tts?.status === 'success') { currentStep = 8; currentName = 'Wan 2.7 Video Gen'; }
+      else if (s.tts?.status === 'processing') { currentStep = 7; currentName = 'TTS Voice Gen'; }
+      else if (s.video_prompts) { currentStep = 7; currentName = 'TTS Voice Gen'; }
+      else if (s.image?.status === 'success' || s.generate_image) { currentStep = 6; currentName = 'Build Video Prompts'; }
+      else if (s.prompt_builder?.status === 'success' || s.image_prompt) { currentStep = 5; currentName = 'Generate Image'; }
+      else if (s.script) { currentStep = 4; currentName = 'Build Image Prompt'; }
+      else if (s.recipe) { currentStep = 3; currentName = 'Generate Script'; }
+      else if (s.analyze) { currentStep = 2; currentName = 'Load Recipe'; }
+    } catch(e) {}
+  }
+
+  let passedCircles = '';
+  for (let i = 0; i < currentStep - 1; i++) {
+    passedCircles += `<span style="color:var(--accent-purple);font-size:12px;margin-right:2px">${circledNums[i]}</span>`;
+  }
+
+  let activeBadge = '';
+  if (job.status === 'completed') {
+    passedCircles = circledNums.map(n => `<span style="color:#10b981;font-size:12px;margin-right:2px">${n}</span>`).join('');
+    activeBadge = `<span class="badge badge-green" style="font-size:10.5px;padding:2px 8px">✅ 9/9 Completed</span>`;
+  } else if (job.status === 'error') {
+    activeBadge = `<span class="badge" style="background:rgba(239,68,68,0.15);color:#ef4444;font-size:10.5px;padding:2px 8px">❌ ${currentStep}/9 ${currentName} Failed</span>`;
+  } else {
+    activeBadge = `<span class="badge" style="background:rgba(139,92,246,0.15);color:var(--accent-purple);font-size:10.5px;padding:2px 8px">⏳ ${currentStep}/9 ${currentName}</span>`;
+  }
+
+  return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;width:100%">${passedCircles} ${activeBadge}</div>`;
+}
+
 async function loadPipelineJobs() {
   const el = document.getElementById('pipelineJobList');
   const filter = document.getElementById('pipelineFilter')?.value || 'all';
@@ -3034,9 +3087,11 @@ async function loadPipelineJobs() {
       const hasGen = genImg ? true : false;
       const hasBoth = hasProd && hasGen;
       const imgW = hasBoth ? 96 : 48;
+      const progressHtml = getStepProgressHtml(j);
       return `<div class="pipeline-job-card" style="flex-wrap:wrap">
+        ${progressHtml}
         <div style="width:100%;display:flex;align-items:center;gap:8px;margin-bottom:6px">
-          <div class="job-id" style="flex:1;font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${title || j.job_id}</div>
+          <div class="job-id" style="flex:1;font-weight:700;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${title || j.job_id}</div>
           <span class="badge ${badgeCls}" style="flex-shrink:0;font-size:11px">${icon} ${j.status}</span>
         </div>
         <div style="width:${imgW}px;height:48px;min-width:${imgW}px;border-radius:10px;overflow:hidden;border:1px solid var(--border-primary);display:flex;align-items:center;justify-content:center;background:var(--bg-tertiary);flex-shrink:0">

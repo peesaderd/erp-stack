@@ -111,7 +111,7 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     templates = load_ugc_templates(ugc_style)
     style_info = STYLE_MAP.get(ugc_style, STYLE_MAP["holding"])
     model_gender = profile.get("target_gender", "female")
-    model_age = _normalize_age(profile.get("target_age", "20-35"))
+    model_age = profile.get("_normalized_age") or _normalize_age(profile.get("target_age", "20-35"))
     category = profile.get("category", "other")
 
     gender_en = {
@@ -132,17 +132,22 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     # ── Category-specific scene description ──────────────────────────
     # For home/electronics/tools: product IN ENVIRONMENT, not held
     if category in ("home", "electronics", "tools"):
-        if product_appearance:
-            scene_desc = f"{env_context or 'A clean modern space'}. Fixed to the wall/surface is a {product_appearance[:250]}."
+        # Clean product_appearance prefix to avoid "is a The product is"
+        pa_clean = product_appearance
+        if pa_clean:
+            pa_clean = re.sub(r'^(The\s+)?product\s+(is\s+)?', '', pa_clean, flags=re.IGNORECASE).strip()
+            pa_clean = pa_clean[0].lower() + pa_clean[1:] if pa_clean else ""
+        if pa_clean:
+            scene_desc = f"{env_context or 'A clean modern space'}. Fixed to the wall/surface is a {pa_clean[:250]}."
         elif image_description:
             scene_desc = image_description[:250]
         else:
             scene_desc = f"{env_context or 'A modern living space with soft evening lighting'}. The product is installed and visible."
         # Person naturally in scene
         if persona_clothing:
-            scene_desc += f" A {gender_en} aged {model_age} wearing {persona_clothing} walks past naturally."
+            scene_desc += f" An ethnic Thai {gender_en} aged {model_age}, {thai_features}, wearing {persona_clothing} walks past naturally."
         else:
-            scene_desc += f" A {gender_en} aged {model_age} walks past naturally, casual pose."
+            scene_desc += f" An ethnic Thai {gender_en} aged {model_age}, {thai_features}, walks past naturally, casual pose."
         if persona_clothing:
             scene_desc += f" Wearing {persona_clothing}."
         if persona_hair:
@@ -254,7 +259,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     hair_str = f", {persona_hair}" if persona_hair else ""
     thai_face = "porcelain white glowing skin, monolid eyes, Southeast Asian ethnic Thai features"
 
-    model_age = _normalize_age(profile.get("target_age", "20-35"))
+    model_age = profile.get("_normalized_age") or _normalize_age(profile.get("target_age", "20-35"))
 
     # ── Category-aware video_motion ────────────────────────────────
     if category in ("home", "electronics", "tools"):
@@ -477,6 +482,9 @@ async def analyze_and_build_prompts(
     persona = _select_persona(profile.get("category", "other"), product_name)
     profile = _apply_persona_to_profile(profile, persona)
     logger.info(f"Persona: {persona.get('vibe', '')} | Env: {persona.get('environment', '')}")
+
+    # Sync age — normalize once so image + video prompt ages match
+    profile["_normalized_age"] = _normalize_age(profile.get("target_age", "20-35"))
 
     # Step 4: Build prompts
     image_prompt, negative_prompt = build_image_prompt(profile, product_name, ugc_style)

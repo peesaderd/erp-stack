@@ -614,6 +614,7 @@ def generate_video(
     duration: int = 8,
     resolution: str = "720P",
     audio_path: Optional[str] = None,
+    negative_prompt: str = "",
 ) -> tuple:
     """
     Step 8: Generate video via Wan 2.7 Async API (shared ProdiaV2Client)
@@ -661,7 +662,7 @@ def generate_video(
             resolution=resolution,
             audio_bytes=audio_bytes,
             job_type="inference.wan2-7.img2vid.v1",
-            negative_prompt="low resolution, error, worst quality, deformed",
+            negative_prompt=negative_prompt or "low resolution, error, worst quality, deformed",
         )
 
         output_url = result.get("output_url", "")
@@ -707,7 +708,7 @@ def generate_video(
                     resolution=resolution,
                     audio_bytes=audio_bytes,
                     job_type="inference.wan2-7.img2vid.v1",
-                    negative_prompt="low resolution, error, worst quality, deformed",
+                    negative_prompt=negative_prompt or "low resolution, error, worst quality, deformed",
                 )
                 output_url = _retry_result.get("output_url", "")
                 price = _retry_result.get("price", {})
@@ -1069,6 +1070,7 @@ def run_pipeline(
             prompt=vprompt,
             duration=total_duration,
             audio_path=voice_path,
+            negative_prompt=negative_prompt or "",
         )
         video_paths.append(vid_path)
         

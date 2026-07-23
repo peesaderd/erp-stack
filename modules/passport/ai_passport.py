@@ -177,6 +177,15 @@ def _fal_img2img(image_bytes: bytes, prompt: str, strength: float = 0.4, image_s
 
 # ── Post-processing ───────────────────────────────────────
 
+def _parse_hex_color(hex_str: str) -> tuple:
+    """Parse '#FFFFFF' to (255, 255, 255)."""
+    h = hex_str.lstrip("#")
+    try:
+        return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
+    except:
+        return (255, 255, 255)
+
+
 def _composite_background(img: Image.Image, bg_color: str = "#FFFFFF") -> Image.Image:
     if img.mode == "RGBA":
         bg = Image.new("RGB", img.size, bg_color)
@@ -187,23 +196,44 @@ def _composite_background(img: Image.Image, bg_color: str = "#FFFFFF") -> Image.
     return img
 
 
+def _pad_to_aspect(img: Image.Image, target_w_mm: float, target_h_mm: float, bg_color: str = "#FFFFFF") -> Image.Image:
+    """
+    Pad image to match template aspect ratio before AI generation.
+    This way fal.ai generates at the correct aspect ratio.
+    """
+    target_ratio = target_w_mm / target_h_mm
+    w, h = img.size
+    current_ratio = w / h
+    
+    if abs(current_ratio - target_ratio) < 0.01:
+        return img
+    
+    bg_rgb = _parse_hex_color(bg_color)
+    
+    if current_ratio > target_ratio:
+        # Image is too wide → pad top/bottom
+        new_h = int(w / target_ratio)
+        canvas = Image.new("RGB", (w, new_h), bg_rgb)
+        y = (new_h - h) // 2
+        canvas.paste(img, (0, y))
+    else:
+        # Image is too tall → pad left/right
+        new_w = int(h * target_ratio)
+        canvas = Image.new("RGB", (new_w, h), bg_rgb)
+        x = (new_w - w) // 2
+        canvas.paste(img, (x, 0))
+    
+    return canvas
+
+
 def _fit_to_template(img: Image.Image, w_mm: float, h_mm: float, dpi: int = 300, bg_color: str = "#FFFFFF") -> Image.Image:
     """
-    Scale image to fit INSIDE template (preserve full image = NO CROP).
-    Letterbox/pad with bg_color if aspect ratio doesn't match.
+    Scale to exact template pixel dimensions (assumes img already has correct ratio).
     """
     target_w = int(round(w_mm / 25.4 * dpi))
     target_h = int(round(h_mm / 25.4 * dpi))
-
-    # Scale to fit, keeping aspect ratio
-    img.thumbnail((target_w, target_h), Image.LANCZOS)
-
-    # Paste onto center of target-size canvas
-    canvas = Image.new("RGB", (target_w, target_h), bg_color)
-    x = (target_w - img.size[0]) // 2
-    y = (target_h - img.size[1]) // 2
-    canvas.paste(img, (x, y))
-    return canvas
+    img = img.resize((target_w, target_h), Image.LANCZOS)
+    return img
 
 
 # ═══════════════════════════════════════════════════════════
@@ -256,18 +286,21 @@ def generate_ai_passport(
     if clothing_desc:
         prompt += f"Clothing: {clothing_desc}."
 
-    # ── Step 3: Pick best image_size for template orientation ──
+    # ── Step 3: Get template dimensions and pad input to match ──
     w_mm = template_info.get("width_mm", 35) if template_info else 35
     h_mm = template_info.get("height_mm", 45) if template_info else 45
-    ratio = w_mm / h_mm
+    dpi = template_info.get("dpi", 300) if template_info else 300
+    logger.info(f"  Template {w_mm}x{h_mm}mm @ {dpi}dpi")
+
+    # Pad input image to template aspect ratio before AI gen
+    input_img = Image.open(io.BytesIO(image_bytes))
+    padded = _pad_to_aspect(input_img, w_mm, h_mm, bg_hex)
+    logger.info(f"  Padded input: {input_img.size} → {padded.size}")
     
-    if 0.9 <= ratio <= 1.1:
-        imgsize = "square_hd"
-    elif ratio > 1:
-        imgsize = "landscape_4_3"
-    else:
-        imgsize = "portrait_4_3"
-    logger.info(f"  Template {w_mm}x{h_mm}mm ratio={ratio:.3f} → {imgsize}")
+    # Re-encode padded image for fal.ai
+    pad_buf = io.BytesIO()
+    padded.save(pad_buf, format="JPEG", quality=95)
+    padded_bytes = pad_buf.getvalue()
 
     # ── Step 4: Generate with fal.ai img2img ──
     logger.info("[AI v2] Generating with fal.ai Flux img2img...")
@@ -277,14 +310,14 @@ def generate_ai_passport(
     
     for strength in strengths:
         logger.info(f"  Trying strength={strength}...")
-        result_bytes = _fal_img2img(image_bytes, prompt, strength, imgsize)
+        result_bytes = _fal_img2img(padded_bytes, prompt, strength)
         if result_bytes:
             break
     
     if not result_bytes:
         return {"ok": False, "error": "AI image generation failed"}
 
-    # ── Step 4: Decode + post-process ──
+    # ── Step 5: Decode + resize to exact template ──
     try:
         img = Image.open(io.BytesIO(result_bytes))
     except Exception as e:
@@ -293,7 +326,6 @@ def generate_ai_passport(
     img = _composite_background(img, bg_hex)
     original_size = img.size
 
-    dpi = template_info.get("dpi", 300) if template_info else 300
     img = _fit_to_template(img, w_mm, h_mm, dpi, bg_hex)
 
     info["prompt"] = prompt[:200]

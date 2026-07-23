@@ -422,19 +422,15 @@ def _normalize_age(raw_age) -> int:
 
 
 def build_negative_prompt(profile: dict, ugc_style: str = "holding") -> str:
-    """Build negative prompt — merge template + defaults."""
-    templates = load_ugc_templates(ugc_style)
-    default = (
+    """Build negative prompt — just the defaults (text/watermark/hands/distortion).
+    Caller merges with template negatives."""
+    return (
         "no text, no watermark, no logo, no UI overlay, "
         "no blurred face, no distorted hands, no extra fingers, "
         "no manga, no cartoon, no illustration, no 3D render, "
         "no low resolution, no pixelation, no artifacts, "
         "no cluttered background, no messy room"
     )
-    tpl_neg = templates.get("negative", "")
-    if tpl_neg:
-        return f"{tpl_neg}, {default}"
-    return default
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -505,10 +501,14 @@ async def analyze_and_build_prompts(
     profile["_normalized_age"] = _normalize_age(profile.get("target_age", "20-35"))
 
     # Step 4: Build prompts
-    image_prompt, negative_prompt = build_image_prompt(profile, product_name, ugc_style)
+    image_prompt, neg_from_template = build_image_prompt(profile, product_name, ugc_style)
     video_prompt = build_video_prompt(profile, product_name, ugc_style)
-    if not negative_prompt:
-        negative_prompt = build_negative_prompt(profile, ugc_style)
+    # Merge: template neg (text/watermark) + default neg (fingers/hands/distortion)
+    default_neg = build_negative_prompt(profile, ugc_style)
+    if neg_from_template:
+        negative_prompt = f"{neg_from_template}, {default_neg}"
+    else:
+        negative_prompt = default_neg
     
     # Step 5: Validate script timing
     timing_validation = _build_timing_validated_script(product_name, profile.get("category", "other"), profile)

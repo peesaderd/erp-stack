@@ -402,7 +402,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         f" Setting: {model_setting}. "
         f"{env_context}. "
         f"soft natural lighting, warm atmosphere. "
-        f"9:16 portrait, smooth natural motion, no text, no watermark"
+        f"9:16 portrait, smooth natural motion"
     )
     
     video_prompt = re.sub(r'\s+', ' ', video_prompt).strip()

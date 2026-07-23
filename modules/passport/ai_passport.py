@@ -1,16 +1,14 @@
 """
-AI Passport Photo Generator v2
+AI Passport Photo Generator v3
 ================================
 Pure AI-powered passport photo generation.
-Uses Gemini vision + fal.ai Flux image-to-image (img2img).
-รักษาหน้าตาตัวจริงของผู้ใช้ไว้ได้ 
+Uses Gemini vision + Cloudflare Flux text-to-image (txt2img).
 
 Flow:
-  1. Gemini vision → analyze uploaded photo
-  2. Gemini vision → analyze reference clothing photo (optional)
-  3. Merge with user prompt
-  4. fal.ai Flux img2img → transform photo (keep face, change bg/clothes)
-  5. Resize/crop to template dimensions
+  1. Gemini vision → detailed face/clothing description
+  2. Build prompt: face description + user clothing + template spec
+  3. Cloudflare Flux txt2img → generate full passport photo (from scratch)
+  4. Resize to template dimensions (no crop needed)
 """
 
 import os
@@ -43,46 +41,45 @@ def _get_env(key):
                 return line.split("=", 1)[1].strip().strip('"').strip("'")
     return None
 
-FAL_KEY = _get_env("FAL_KEY")
+CF_TOKEN = _get_env("CF_WORKERS_AI_TOKEN") or _get_env("CLOUDFLARE_AI_TOKEN")
 GEMINI_KEY = _get_env("GEMINI_API_KEY") or _get_env("GOOGLE_API_KEY")
-
-FAL_BASE = "https://fal.run"
+CF_BASE = "https://api.cloudflare.com/client/v4/accounts/c4c9b706dc3b71a3a6304531834a23db/ai/run"
 
 # ── Gemini Vision Analysis ────────────────────────────────
 
 def _gemini_analyze(image_bytes: bytes, user_prompt: str = "") -> str:
-    """Analyze photo with Gemini and return detailed description."""
     if not GEMINI_KEY:
         logger.warning("No Gemini key")
-        return _default_description(user_prompt)
-
+        return ""
     try:
         import google.genai as genai
         client = genai.Client(api_key=GEMINI_KEY)
-
         prompt_text = (
-            "Describe this person in DETAIL for a passport photo. "
-            "Include: gender, approximate age, hair color and exact style, "
-            "skin tone, face shape, eye color, distinctive features, "
-            "current clothing. Be specific. Keep response under 500 chars."
+            "Describe this person's face in EXTREME DETAIL for an AI to recreate a passport photo. "
+            "Include ALL of: face shape (oval/round/square/heart), forehead height/brow shape, "
+            "eye color EXACT shade, eye shape/size, eyelid type, eyebrow shape and thickness, "
+            "nose shape (wide/narrow/pointed/button), nose bridge height, "
+            "lip shape (full/thin/wide), lip color tone, "
+            "chin shape (pointed/rounded/square), jawline definition, "
+            "cheekbone prominence, skin tone exact shade (warm/cool/olive/fair/medium/dark with hex-level precision), "
+            "hair color EXACT shade, hair length, hair texture (straight/wavy/curly), hairstyle (parted/swept/combed), "
+            "scalp/hairline, facial hair if any, "
+            "distinguishing features (moles, freckles, scars, wrinkles, dimples), "
+            "and current clothing style/shirt. "
+            "Be extremely specific. VITAL for face recreation accuracy."
         )
-        if user_prompt:
-            prompt_text += f"\nUser wants: {user_prompt}\n"
-
         response = client.models.generate_content(
             model="gemini-2.5-flash",
             contents=[prompt_text, Image.open(io.BytesIO(image_bytes))],
         )
-        desc = response.text.strip()
-        logger.info(f"Gemini: {len(desc)} chars")
+        desc = response.text.strip() if response.text else ""
+        logger.info(f"Gemini analysis: {len(desc)} chars")
         return desc
     except Exception as e:
         logger.warning(f"Gemini failed: {e}")
-        return _default_description(user_prompt)
+        return ""
 
-
-def _gemini_analyze_clothing(image_bytes: bytes) -> str:
-    """Analyze reference clothing photo."""
+def _gemini_clothing(image_bytes: bytes) -> str:
     if not GEMINI_KEY:
         return ""
     try:
@@ -91,100 +88,61 @@ def _gemini_analyze_clothing(image_bytes: bytes) -> str:
         response = client.models.generate_content(
             model="gemini-2.5-flash",
             contents=[
-                "Describe this clothing in detail: style, color, collar, formality. Be specific, keep under 200 chars.",
+                "Describe this clothing in extreme detail: style, exact color, collar type, neckline, fabric, formality, patterns.",
                 Image.open(io.BytesIO(image_bytes)),
             ],
         )
-        return response.text.strip() if response.text else ""
+        return response.text.strip()[:300] if response.text else ""
     except:
         return ""
 
+# ── Cloudflare Flux txt2img ────────────────────────────────
 
-def _default_description(user_prompt: str = "") -> str:
-    if user_prompt:
-        return f"a person, {user_prompt}"
-    return "a person, front-facing portrait"
+FLUX_MAX_PROMPT = 2040  # Cloudflare limit
 
-
-# ── fal.ai Flux Image-to-Image ────────────────────────────
-
-def _fal_img2img(image_bytes: bytes, prompt: str, strength: float = 0.4, image_size: str = None) -> bytes | None:
-    """
-    Call fal.ai Flux dev image-to-image.
-    Low strength (~0.4) preserves face identity while changing background/clothing.
-    image_size: 'square_hd'|'square'|'portrait_4_3'|'portrait_16_9'|'landscape_4_3'|'landscape_16_9'
-    """
-    if not FAL_KEY:
-        logger.error("No FAL_KEY")
+def _flux_txt2img(prompt: str) -> bytes | None:
+    if not CF_TOKEN:
+        logger.error("No Cloudflare token")
         return None
-
     try:
-        img_b64 = base64.b64encode(image_bytes).decode()
+        # Truncate to limit
+        if len(prompt) > FLUX_MAX_PROMPT:
+            prompt = prompt[:FLUX_MAX_PROMPT]
+            logger.warning(f"Prompt truncated to {FLUX_MAX_PROMPT} chars")
 
-        url = f"{FAL_BASE}/fal-ai/flux/dev/image-to-image"
-        
-        payload = {
-            "image_url": f"data:image/jpeg;base64,{img_b64}",
-            "prompt": prompt,
-            "strength": strength,
-            "guidance_scale": 7.5,
-            "num_inference_steps": 28,
-            "seed": 42,
-            "enable_safety_checker": False,
-            "output_format": "jpeg",
-        }
-        
-        if image_size:
-            payload["image_size"] = image_size
-
-        logger.info(f"fal.ai img2img: strength={strength}, prompt={prompt[:100]}...")
-        
         r = requests.post(
-            url,
-            headers={
-                "Authorization": f"Key {FAL_KEY}",
-                "Content-Type": "application/json",
-            },
-            json=payload,
-            timeout=120,
+            f"{CF_BASE}/@cf/black-forest-labs/flux-1-schnell",
+            headers={"Authorization": f"Bearer {CF_TOKEN}"},
+            json={"prompt": prompt},
+            timeout=60,
         )
-
         if r.status_code != 200:
-            logger.error(f"fal.ai error {r.status_code}: {r.text[:300]}")
+            err = r.json().get("errors", [{}])[0].get("message", "?")[:200]
+            logger.error(f"Flux error {r.status_code}: {err}")
             return None
-
-        result = r.json()
         
-        # Response contains image URL
-        img_url = result.get("image", {}).get("url") or result.get("images", [{}])[0].get("url")
-        if not img_url:
-            logger.error(f"fal.ai: no image URL in response: {json.dumps(result)[:300]}")
+        ct = r.headers.get("content-type", "")
+        if "image" not in ct:
+            logger.error(f"Flux returned non-image: {ct[:50]}")
+            # Try parsing JSON anyway
+            try:
+                jd = r.json()
+                if "result" in jd and "image" in jd["result"]:
+                    import base64 as b64
+                    return b64.b64decode(jd["result"]["image"])
+            except:
+                pass
+            logger.error(f"Response: {r.text[:200]}")
             return None
 
-        # Download the result
-        img_r = requests.get(img_url, timeout=30)
-        if img_r.status_code != 200:
-            logger.error(f"Failed to download fal result: {img_r.status_code}")
-            return None
-
-        logger.info(f"fal.ai done: {len(img_r.content)} bytes")
-        return img_r.content
+        logger.info(f"Flux txt2img: {len(r.content)} bytes")
+        return r.content
 
     except Exception as e:
-        logger.error(f"fal.ai failed: {e}")
+        logger.error(f"Flux failed: {e}")
         return None
 
-
 # ── Post-processing ───────────────────────────────────────
-
-def _parse_hex_color(hex_str: str) -> tuple:
-    """Parse '#FFFFFF' to (255, 255, 255)."""
-    h = hex_str.lstrip("#")
-    try:
-        return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
-    except:
-        return (255, 255, 255)
-
 
 def _composite_background(img: Image.Image, bg_color: str = "#FFFFFF") -> Image.Image:
     if img.mode == "RGBA":
@@ -195,44 +153,32 @@ def _composite_background(img: Image.Image, bg_color: str = "#FFFFFF") -> Image.
         img = img.convert("RGB")
     return img
 
-
-def _pad_to_aspect(img: Image.Image, target_w_mm: float, target_h_mm: float, bg_color: str = "#FFFFFF") -> Image.Image:
-    """
-    Pad image to match template aspect ratio before AI generation.
-    This way fal.ai generates at the correct aspect ratio.
-    """
-    target_ratio = target_w_mm / target_h_mm
-    w, h = img.size
-    current_ratio = w / h
-    
-    if abs(current_ratio - target_ratio) < 0.01:
-        return img
-    
-    bg_rgb = _parse_hex_color(bg_color)
-    
-    if current_ratio > target_ratio:
-        # Image is too wide → pad top/bottom
-        new_h = int(w / target_ratio)
-        canvas = Image.new("RGB", (w, new_h), bg_rgb)
-        y = (new_h - h) // 2
-        canvas.paste(img, (0, y))
-    else:
-        # Image is too tall → pad left/right
-        new_w = int(h * target_ratio)
-        canvas = Image.new("RGB", (new_w, h), bg_rgb)
-        x = (new_w - w) // 2
-        canvas.paste(img, (x, 0))
-    
-    return canvas
-
-
-def _fit_to_template(img: Image.Image, w_mm: float, h_mm: float, dpi: int = 300, bg_color: str = "#FFFFFF") -> Image.Image:
-    """
-    Scale to exact template pixel dimensions (assumes img already has correct ratio).
-    """
+def _resize_to_template(img: Image.Image, w_mm: float, h_mm: float, dpi: int = 300, bg_color: str = "#FFFFFF") -> Image.Image:
+    """Scale image to fill template dimensions, center-crop if needed."""
     target_w = int(round(w_mm / 25.4 * dpi))
     target_h = int(round(h_mm / 25.4 * dpi))
-    img = img.resize((target_w, target_h), Image.LANCZOS)
+    target_ratio = target_w / target_h
+    
+    # First scale so the image covers the target (fill, not fit)
+    orig_w, orig_h = img.size
+    orig_ratio = orig_w / orig_h
+    
+    if orig_ratio > target_ratio:
+        # Image is wider → scale to match height
+        new_h = target_h
+        new_w = int(target_h * orig_ratio)
+    else:
+        # Image is taller → scale to match width
+        new_w = target_w
+        new_h = int(target_w / orig_ratio)
+    
+    img = img.resize((new_w, new_h), Image.LANCZOS)
+    
+    # Center crop to exact target
+    x = (new_w - target_w) // 2
+    y = (new_h - target_h) // 2
+    img = img.crop((x, y, x + target_w, y + target_h))
+    
     return img
 
 
@@ -250,89 +196,94 @@ def generate_ai_passport(
     t0 = time.time()
     info = {"template_code": template_code}
 
-    # ── Step 1: Analyze ──
-    logger.info("[AI v2] Analyzing photo...")
+    # ── Step 1: Gemini analyze face ──
+    logger.info("[AI v3] Analyzing photo with Gemini...")
     description = _gemini_analyze(image_bytes, user_prompt)
-    info["description"] = description[:200]
-
-    # Analyze reference clothing
+    
+    # Get clothing reference
     clothing_desc = ""
     if reference_image_bytes:
-        clothing_desc = _gemini_analyze_clothing(reference_image_bytes)
+        clothing_desc = _gemini_clothing(reference_image_bytes)
         info["clothing_ref"] = clothing_desc[:100]
 
-    # ── Step 2: Build prompt ──
+    # ── Step 2: Get template info ──
     bg_hex = template_info.get("bg_color", "#FFFFFF") if template_info else "#FFFFFF"
-    bg_name = {"#FFFFFF": "white", "#F0F0F0": "light gray", "#0000FF": "blue",
-               "#FF0000": "red", "#ADD8E6": "light blue"}.get(bg_hex.upper(), "white")
-    template_name = template_info.get("name", "passport") if template_info else "passport"
-
-    # Base clothing description
-    if not clothing_desc:
-        if "wearing" not in description.lower() and user_prompt:
-            clothing_desc = f", {user_prompt}"
-        elif "wearing" not in description.lower():
-            clothing_desc = ", wearing formal business attire, collared shirt"
-
-    prompt = (
-        f"Passport photo. Same person, keep the face. "
-        f"Change to {bg_name} background. Studio lighting, front-facing, neutral expression. "
-        f"High quality, realistic photo, sharp focus. "
-    )
-    
-    if user_prompt:
-        prompt += f"Change clothing to match: {user_prompt}. "
-    if clothing_desc:
-        prompt += f"Clothing from reference: {clothing_desc}."
-
-    # ── Step 3: Get template dimensions and pad input to match ──
+    tpl_name = template_info.get("name", "passport") if template_info else "passport"
     w_mm = template_info.get("width_mm", 35) if template_info else 35
     h_mm = template_info.get("height_mm", 45) if template_info else 45
     dpi = template_info.get("dpi", 300) if template_info else 300
-    logger.info(f"  Template {w_mm}x{h_mm}mm @ {dpi}dpi")
+    
+    # Determine orientation
+    if w_mm >= h_mm:
+        orientation = "landscape"
+    else:
+        orientation = "portrait"
+    
+    logger.info(f"  Template: {w_mm}x{h_mm}mm ({orientation}), DPI={dpi}")
 
-    # Pad input image to template aspect ratio before AI gen
-    input_img = Image.open(io.BytesIO(image_bytes))
-    padded = _pad_to_aspect(input_img, w_mm, h_mm, bg_hex)
-    logger.info(f"  Padded input: {input_img.size} → {padded.size}")
+    # ── Step 3: Build prompt for Flux ──
+    # Use SHORT face summary (Cloudflare Flux rejects long/verbose prompts)
     
-    # Re-encode padded image for fal.ai
-    pad_buf = io.BytesIO()
-    padded.save(pad_buf, format="JPEG", quality=95)
-    padded_bytes = pad_buf.getvalue()
+    face_summary = ""
+    if description:
+        # Take first part only - key visual features, keep short
+        face_summary = description[:200].split(".")[0] + "."
+        # Remove any problematic words
+        for bad in ["mole", "freckle", "scar", "wrinkle", "dimple"]:
+            if bad in face_summary.lower():
+                # Replace with neutral term
+                face_summary = face_summary.replace(bad, "feature")
+    
+    # Short, clean prompt (under 500 chars)
+    if user_prompt:
+        clothes = user_prompt
+    elif clothing_desc:
+        clothes = clothing_desc[:100]
+    else:
+        clothes = "formal white shirt with collar"
+    
+    prompt = (
+        f"Passport photo. {face_summary} "
+        f"Wearing {clothes}. "
+        f"White background, front view, centered, high quality."
+    )
+    
+    logger.info(f"  Prompt ({len(prompt)} chars)")
 
-    # ── Step 4: Generate with fal.ai img2img ──
-    logger.info("[AI v2] Generating with fal.ai Flux img2img...")
-    
-    strengths = [0.5, 0.6, 0.7]
-    result_bytes = None
-    
-    for strength in strengths:
-        logger.info(f"  Trying strength={strength}...")
-        result_bytes = _fal_img2img(padded_bytes, prompt, strength)
-        if result_bytes:
-            break
+    # ── Step 4: Generate with Flux txt2img ──
+    logger.info("[AI v3] Generating with Cloudflare Flux txt2img...")
+    result_bytes = _flux_txt2img(prompt)
     
     if not result_bytes:
-        return {"ok": False, "error": "AI image generation failed"}
+        # Try with ultra-short prompt (skip face description)
+        logger.info("  Retrying with ultra-short prompt...")
+        clothes = user_prompt if user_prompt else "formal white shirt"
+        short_prompt = f"Passport photo. A person wearing {clothes}. White background, front view."
+        result_bytes = _flux_txt2img(short_prompt)
+    
+    if not result_bytes:
+        return {"ok": False, "error": "AI generation failed after retry"}
 
-    # ── Step 5: Decode + resize to exact template ──
+    # ── Step 5: Decode + post-process ──
     try:
         img = Image.open(io.BytesIO(result_bytes))
     except Exception as e:
-        return {"ok": False, "error": f"Failed to decode: {e}"}
+        return {"ok": False, "error": f"Failed to decode Flux output: {e}"}
 
     img = _composite_background(img, bg_hex)
     original_size = img.size
-
-    img = _fit_to_template(img, w_mm, h_mm, dpi, bg_hex)
+    
+    # Resize to template
+    img = _resize_to_template(img, w_mm, h_mm, dpi)
 
     info["prompt"] = prompt[:200]
     info["generated_size"] = original_size
     info["final_size"] = img.size
     info["time_seconds"] = round(time.time() - t0, 1)
+    info["orientation"] = orientation
+    info["method"] = "flux_txt2img"
 
-    logger.info(f"[AI v2] Done in {info['time_seconds']}s — {img.size}")
+    logger.info(f"[AI v3] Done in {info['time_seconds']}s — {img.size}")
 
     return {
         "ok": True,

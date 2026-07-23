@@ -144,7 +144,15 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     # ── Style-driven scene (ugc_style is PRIMARY) ─────────────────
     if ugc_style in ("usage", "product_usage"):
         # Person actively using the product — actual USE, not holding
-        if pa_clean:
+        is_beauty = category in ("beauty", "health") or any(w in (pa_clean+" "+product_name).lower() for w in ["serum", "cream", "lotion", "toner", "oil", "moisturizer", "skincare", "essence", "ampoule", "mask", "sunscreen", "spf"])
+        if is_beauty:
+            scene_desc = (
+                f"{thai_base}{clothing_str}{hair_str} sitting at a vanity table, "
+                f"applying {prod_str or product_name} to face with gentle fingertips. "
+                f"Product on table, skincare routine. "
+                f"{env_str}."
+            )
+        elif pa_clean:
             prod_str = f"{article} {pa_clean[:200]}"
             scene_desc = (
                 f"{env_str}. {thai_base}{clothing_str}{hair_str} beside {prod_str or product_name} — "
@@ -319,6 +327,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         # Category-aware modifier: different use actions per product type
         is_wall_mounted = any(w in pa_clean.lower() for w in ["wall", "mount", "ceiling", "flush", "recessed", "sensor"])
         is_kitchen = any(w in pa_clean.lower() for w in ["blender", "blend", "juicer", "mixer", "kettle", "cook", "grinder", "chopper"])
+        is_beauty = category in ("beauty", "health") or any(w in (pa_clean+" "+product_name).lower() for w in ["serum", "cream", "lotion", "toner", "oil", "moisturizer", "skincare", "essence", "ampoule", "mask", "sunscreen", "spf"])
         
         if is_wall_mounted:
             action = (
@@ -343,6 +352,16 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
                 f"powerful vortex.{feat_closeup}"
                 f"She lifts the full cup, satisfied with the result. "
                 f"Sharp focus close-up on product, crisp details, high definition"
+            )
+        elif is_beauty:
+            action = (
+                f"{model_intro} sitting at vanity with {prod_desc_vid or product_name}. "
+                f"Dispenses a small amount onto fingertips. "
+                f"Gently applies to face with upward strokes — cheeks, forehead, neck. "
+                f"Patting motion, product absorbing into skin. "
+                f"Camera zooms to close-up: skin texture, product blending in. "
+                f"She looks in mirror, touches skin gently, satisfied with glow. "
+                f"Beauty routine, skincare application, product in use"
             )
         else:
             action = (

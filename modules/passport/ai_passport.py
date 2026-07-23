@@ -108,18 +108,17 @@ def _default_description(user_prompt: str = "") -> str:
 
 # ── fal.ai Flux Image-to-Image ────────────────────────────
 
-def _fal_img2img(image_bytes: bytes, prompt: str, strength: float = 0.4) -> bytes | None:
+def _fal_img2img(image_bytes: bytes, prompt: str, strength: float = 0.4, image_size: str = None) -> bytes | None:
     """
     Call fal.ai Flux dev image-to-image.
     Low strength (~0.4) preserves face identity while changing background/clothing.
+    image_size: 'square_hd'|'square'|'portrait_4_3'|'portrait_16_9'|'landscape_4_3'|'landscape_16_9'
     """
     if not FAL_KEY:
         logger.error("No FAL_KEY")
         return None
 
     try:
-        # Upload image to get a URL that fal can use
-        # fal accepts base64 directly in newer API versions
         img_b64 = base64.b64encode(image_bytes).decode()
 
         url = f"{FAL_BASE}/fal-ai/flux/dev/image-to-image"
@@ -134,6 +133,9 @@ def _fal_img2img(image_bytes: bytes, prompt: str, strength: float = 0.4) -> byte
             "enable_safety_checker": False,
             "output_format": "jpeg",
         }
+        
+        if image_size:
+            payload["image_size"] = image_size
 
         logger.info(f"fal.ai img2img: strength={strength}, prompt={prompt[:100]}...")
         
@@ -185,25 +187,23 @@ def _composite_background(img: Image.Image, bg_color: str = "#FFFFFF") -> Image.
     return img
 
 
-def _resize_to_template(img: Image.Image, w_mm: float, h_mm: float, dpi: int = 300) -> Image.Image:
+def _fit_to_template(img: Image.Image, w_mm: float, h_mm: float, dpi: int = 300, bg_color: str = "#FFFFFF") -> Image.Image:
+    """
+    Scale image to fit INSIDE template (preserve full image = NO CROP).
+    Letterbox/pad with bg_color if aspect ratio doesn't match.
+    """
     target_w = int(round(w_mm / 25.4 * dpi))
     target_h = int(round(h_mm / 25.4 * dpi))
-    target_ratio = target_w / target_h
-    orig_w, orig_h = img.size
-    orig_ratio = orig_w / orig_h
 
-    if abs(orig_ratio - target_ratio) > 0.01:
-        if orig_ratio > target_ratio:
-            new_w = int(orig_h * target_ratio)
-            x = (orig_w - new_w) // 2
-            img = img.crop((x, 0, x + new_w, orig_h))
-        else:
-            new_h = int(orig_w / target_ratio)
-            y = (orig_h - new_h) // 2
-            img = img.crop((0, y, orig_w, y + new_h))
+    # Scale to fit, keeping aspect ratio
+    img.thumbnail((target_w, target_h), Image.LANCZOS)
 
-    img = img.resize((target_w, target_h), Image.LANCZOS)
-    return img
+    # Paste onto center of target-size canvas
+    canvas = Image.new("RGB", (target_w, target_h), bg_color)
+    x = (target_w - img.size[0]) // 2
+    y = (target_h - img.size[1]) // 2
+    canvas.paste(img, (x, y))
+    return canvas
 
 
 # ═══════════════════════════════════════════════════════════
@@ -256,16 +256,28 @@ def generate_ai_passport(
     if clothing_desc:
         prompt += f"Clothing: {clothing_desc}."
 
-    # ── Step 3: Generate with fal.ai img2img ──
+    # ── Step 3: Pick best image_size for template orientation ──
+    w_mm = template_info.get("width_mm", 35) if template_info else 35
+    h_mm = template_info.get("height_mm", 45) if template_info else 45
+    ratio = w_mm / h_mm
+    
+    if 0.9 <= ratio <= 1.1:
+        imgsize = "square_hd"
+    elif ratio > 1:
+        imgsize = "landscape_4_3"
+    else:
+        imgsize = "portrait_4_3"
+    logger.info(f"  Template {w_mm}x{h_mm}mm ratio={ratio:.3f} → {imgsize}")
+
+    # ── Step 4: Generate with fal.ai img2img ──
     logger.info("[AI v2] Generating with fal.ai Flux img2img...")
     
-    # Try with progressive strength
     strengths = [0.35, 0.45, 0.55]
     result_bytes = None
     
     for strength in strengths:
         logger.info(f"  Trying strength={strength}...")
-        result_bytes = _fal_img2img(image_bytes, prompt, strength)
+        result_bytes = _fal_img2img(image_bytes, prompt, strength, imgsize)
         if result_bytes:
             break
     
@@ -282,9 +294,7 @@ def generate_ai_passport(
     original_size = img.size
 
     dpi = template_info.get("dpi", 300) if template_info else 300
-    w_mm = template_info.get("width_mm", 35) if template_info else 35
-    h_mm = template_info.get("height_mm", 45) if template_info else 45
-    img = _resize_to_template(img, w_mm, h_mm, dpi)
+    img = _fit_to_template(img, w_mm, h_mm, dpi, bg_hex)
 
     info["prompt"] = prompt[:200]
     info["generated_size"] = original_size

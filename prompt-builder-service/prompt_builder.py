@@ -147,14 +147,14 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         if pa_clean:
             prod_str = f"{article} {pa_clean[:200]}"
             scene_desc = (
-                f"{env_str}. {thai_base}{clothing_str}{hair_str} is actively using {prod_str or product_name} — "
-                f"hands-on interaction, demonstrating how the product works, product in motion and action. "
-                f"The person is engaged with the product, not just holding it still."
+                f"{env_str}. {thai_base}{clothing_str}{hair_str} beside {prod_str or product_name} — "
+                f"ingredients nearby on counter, about to use the product. "
+                f"Ready to blend, product and person in frame, casual preparation moment."
             )
         else:
             scene_desc = (
-                f"{thai_base}{clothing_str}{hair_str} actively using {product_name} — "
-                f"hands-on demonstration, product in action, person engaged. "
+                f"{thai_base}{clothing_str}{hair_str} beside {product_name} — "
+                f"ingredients and product on counter, about to use it. "
                 f"{env_str}."
             )
         
@@ -330,11 +330,11 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             )
         elif is_kitchen:
             action = (
-                f"{model_intro} stands in {env_context} placing ingredients into {prod_desc_vid}, "
-                f"pressing buttons and operating the product with purpose. "
-                f"The product activates, blending and mixing with satisfying movement. "
-                f"She watches and reaches for the result. "
-                f"Active product demonstration, person using product"
+                f"{model_intro} stands in {env_context} placing ingredients into {prod_desc_vid}. "
+                f"Closes the lid with a gentle click. "
+                f"Presses the button once — the product activates, blending smoothly. "
+                f"She lifts the cup, satisfied with the result. "
+                f"Single button press, product in action, person using product"
             )
         else:
             action = (

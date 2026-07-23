@@ -51,6 +51,29 @@ def run_pipeline(job_id, batch_item):
     style = batch_item.get("style", "holding")
     duration = batch_item.get("duration", 15)
 
+    # 1. Dynamic Auto Style Allocation based on product type
+    if style == "auto":
+        title_lower = title.lower()
+        if any(w in title_lower for w in ["cream", "serum", "gel", "lotion", "moisturizer", "sunscreen", "สกินแคร์", "เซรั่ม", "ครีม"]):
+            style = "usage"  # Demonstration of product application
+        elif any(w in title_lower for w in ["unboxing", "unbox", "แกะกล่อง", "กล่อง"]):
+            style = "unbox"
+        elif any(w in title_lower for w in ["review", "รีวิว", "pantip"]):
+            style = "review"
+        else:
+            # Default style distribution
+            style = "holding"
+
+    # 2. Dynamic Auto Duration Allocation
+    if duration == "auto":
+        # Determine based on complexity of selected style
+        if style in ["unbox", "review"]:
+            duration = 15
+        elif style == "usage":
+            duration = 8  # Quick usage demo
+        else:
+            duration = 15
+
     # Resolve packaging details (container_type, closure_type, label_colors, product_color)
     # Check PostgreSQL database (erp_stack) on port 5432 first for caches
     desc = ""

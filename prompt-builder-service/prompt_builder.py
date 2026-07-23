@@ -509,7 +509,8 @@ async def analyze_and_build_prompts(
     # Sync age — normalize once so image + video prompt ages match
     profile["_normalized_age"] = _normalize_age(profile.get("target_age", "20-35"))
 
-    # Step 4: Build prompts
+    # Step 4: Clear Gemini cache for fresh prompts, then build
+    _gemini_prompt_cache.clear()
     image_prompt, neg_from_template = build_image_prompt(profile, product_name, ugc_style)
     video_prompt = build_video_prompt(profile, product_name, ugc_style)
     # Merge: template neg (text/watermark) + default neg (fingers/hands/distortion)
@@ -732,6 +733,9 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
     }
 
 # ─── Gemini Prompt Generation (for product_usage style) ──────────
+# Cache: same product+age within same request returns cached result
+_gemini_prompt_cache = {}
+
 def _gemini_generate_prompts(
     product_name: str,
     product_appearance: str,
@@ -751,6 +755,12 @@ def _gemini_generate_prompts(
     # Build a concise product info block
     gender_en = {"female": "woman", "woman": "woman", "male": "man", "man": "man"}.get(model_gender, "woman")
     
+    # Cache by product name + age — avoid duplicate calls within same request
+    _cache_key = (product_name, model_age)
+    cached = _gemini_prompt_cache.get(_cache_key)
+    if cached is not None:
+        return cached
+    
     # Clean appearance
     pa = product_appearance or ""
     if pa:
@@ -763,33 +773,47 @@ def _gemini_generate_prompts(
     elif isinstance(features, str) and features:
         feat_str = features[:200]
     
+    # Wan 2.7 is a diffusion model — it ONLY understands literal visual descriptions
     system_prompt = (
-        "Generate IMAGE_PROMPT and VIDEO_PROMPT for AI video generation.\n"
-        "ALWAYS include model details naturally in the first sentence:\n"
-        f"  Age {model_age}, Thai {gender_en}, porcelain white glowing skin, "
-        "monolid eyes, Southeast Asian Thai features, small nose bridge.\n"
-        "Also include clothing and hair style.\n\n"
-        "IMAGE_PROMPT (under 80 words): Still scene. The woman is with the product.\n"
-        "VIDEO_PROMPT (under 120 words): Natural product usage action. "
-        "Weave product features into what she does — don't list them separately.\n"
-        "For beauty/health: show application naturally.\n"
-        "For electronics/home: show automatic/sensor/plug-in features naturally.\n"
-        "Do NOT add negative instructions (no 'no text, no watermark, no logo').\n"
-        "Do NOT add aspect ratios or tech specs like 9:16, 720P.\n"
+        "You write prompts for Wan 2.7, a DIFFUSION video model.\n"
+        "Wan 2.7 CANNOT understand abstract concepts, product mechanics, or cause/effect.\n"
+        "Describe ONLY what is VISUALLY seen — no concepts like 'sensor detects' or 'automatically'.\n\n"
+        "CRITICAL RULES:\n"
+        "1. Describe ONLY concrete visual actions (moves, stops, places, lifts, presses, turns)\n"
+        "2. Be EXTREMELY specific about hand/body POSITION relative to product:\n"
+        "   - Use BELOW the nozzle, ABOVE the button, BESIDE the product, IN FRONT OF the camera\n"
+        "3. Product is FIXED/MOUNTED on wall or table — DO NOT have person hold the product\n"
+        "   unless it's a handheld product (phone, bottle, tool)\n"
+        "4. NO: detects, automatically, intelligently, senses, recognizes, responds\n"
+        "5. YES: clear liquid appears on palm, button moves down, mist appears below nozzle\n"
+        "6. Include model details in first sentence:\n"
+        f"   Age {model_age}, Thai {gender_en}, porcelain white glowing skin, "
+        "monolid eyes, Southeast Asian Thai features, small nose bridge, clothing, hair\n\n"
+        "IMAGE_PROMPT (under 80 words): Still scene. Product is visible, woman is positioned near it.\n"
+        "VIDEO_PROMPT (under 130 words): Step-by-step visual actions. Use BELOW/ABOVE/BESIDE.\n"
+        "Do NOT add negative instructions or aspect ratios.\n"
         "Output format:\n"
         "IMAGE_PROMPT: ...\n"
         "VIDEO_PROMPT: ..."
     )
     
-    # Build the product description block
-    product_block = f"Product: {product_name}\nAppearance: {pa[:300]}\n"
+    # Build the product description block — emphasize physical placement
+    mount_hint = ""
+    # Check for wall/table mount indicators
+    pa_lower = (pa + " " + product_name + " " + feat_str).lower() if pa else product_name.lower()
+    if any(w in pa_lower for w in ["wall", "mount", "sensor", "dispenser", "mounted"]):
+        mount_hint = "\nIMPORTANT: This product is FIXED on wall or table. Person does NOT hold it. Describe it in place."
+    elif any(w in pa_lower for w in ["bottle", "jar", "tube", "dropper"]):
+        mount_hint = "\nThis product is HANDHELD. Person picks it up from a surface to use it."
+    
+    product_block = f"Product: {product_name}\nAppearance: {pa[:350]}\n"
     if feat_str:
         product_block += f"Features: {feat_str[:200]}\n"
-    product_block += f"Setting: {env_context[:100]}\n"
-    product_block += f"Style: {ugc_style} — show the person using this product with natural hands-on demonstration.\n"
-    product_block += (f"Model: {model_age}yo {gender_en}, {clothing}, {hair}\n")
+    product_block += f"Setting: {env_context[:120]}\n"
+    product_block += mount_hint
+    product_block += f"\nModel: {model_age}yo {gender_en}, {clothing}, {hair}\n"
     
-    user_text = f"{product_block}\nGenerate IMAGE_PROMPT and VIDEO_PROMPT:"
+    user_text = f"{product_block}\nGenerate prompts for Wan 2.7:"
     
     try:
         result = _call_gemini(system_prompt, user_text, temperature=0.4)
@@ -806,7 +830,10 @@ def _gemini_generate_prompts(
             elif line_lower.startswith("video_prompt:") or line_lower.startswith("**video_prompt:**"):
                 video_prompt = line.split(":", 1)[1].strip().lstrip("*").strip()
         
+        # Cache result
+        _gemini_prompt_cache[_cache_key] = (image_prompt, video_prompt)
         return (image_prompt, video_prompt)
     except Exception as e:
         logger.error(f"Gemini prompt generation failed: {e}")
+        _gemini_prompt_cache[_cache_key] = ("", "")
         return ("", "")

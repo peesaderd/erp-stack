@@ -364,6 +364,34 @@ select.input { cursor: pointer; }
   border-top: 1px solid var(--border-primary);
 }
 
+/* ── Batch Select ── */
+.product-card { position: relative; }
+.product-card.batch-selected { border-color: var(--accent-purple) !important; box-shadow: 0 0 0 2px rgba(139,92,246,0.3) !important; }
+.product-card-checkbox { position: absolute; top: 10px; left: 10px; z-index: 10; }
+.product-card-checkbox input[type=checkbox] { width: 20px; height: 20px; cursor: pointer; accent-color: var(--accent-purple); border-radius: 4px; }
+#batchBar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: var(--bg-secondary);
+  border-top: 2px solid var(--accent-purple);
+  padding: 12px 24px;
+  display: none;
+  z-index: 1000;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+  align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 10px;
+}
+#batchBar .batch-info { display: flex; align-items: center; gap: 12px; }
+#batchBar .batch-info .count { font-size: 18px; font-weight: 700; color: var(--accent-purple); }
+#batchBar .batch-config { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+#batchBar .batch-config label { font-size: 12px; color: var(--text-secondary); }
+#batchBar .batch-config select, #batchBar .batch-config input { padding: 6px 10px; font-size: 13px; border-radius: 8px; border: 1px solid var(--border-primary); background: var(--bg-tertiary); color: var(--text-primary); }
+#batchBar .batch-config input { width: 60px; }
+/* ── Batch History ── */
+.batch-card { padding: 14px; border-radius: var(--radius-lg); background: var(--bg-secondary); border: 1px solid var(--border-primary); margin-bottom: 10px; }
+.batch-card .batch-header { display: flex; justify-content: space-between; align-items: center; }
+.batch-card .batch-progress { margin-top: 8px; height: 6px; background: var(--bg-tertiary); border-radius: 3px; overflow: hidden; }
+.batch-card .batch-progress .bar { height: 100%; border-radius: 3px; transition: width 0.5s; background: linear-gradient(90deg, var(--accent-purple), var(--accent-magenta)); }
+
 /* Asset Grid Cards */
 .asset-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
 @media (max-width: 768px) { .asset-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; } }
@@ -1098,6 +1126,16 @@ select.input { cursor: pointer; }
     </div>
     <div id="productSearchResults" class="text-xs text-secondary mt-1"></div>
   </div>
+
+  <!-- Batch History -->
+  <div id="batchHistorySection" style="display:none;margin-bottom:16px">
+    <div class="card-header" style="cursor:pointer" onclick="const e=document.getElementById('batchHistoryList'); e.style.display=e.style.display==='none'?'block':'none'">
+      <span class="card-title">📋 Batch Generator History</span>
+      <span class="text-xs text-secondary">คลิกเพื่อดู</span>
+    </div>
+    <div id="batchHistoryList" style="display:none;margin-top:8px"></div>
+  </div>
+
   <!-- Stats & Sheets Import — hidden temporarily -->
   <!--
   <div class="stats-grid" id="productStats">
@@ -1164,11 +1202,60 @@ select.input { cursor: pointer; }
       <div class="empty-state" style="grid-column:1/-1;text-align:center;padding:24px">กด Refresh เพื่อโหลดสินค้าจาก PostgreSQL</div>
     </div>
   </div>
+
+  <!-- Floating Batch Bar -->
+  <div id="batchBar">
+    <div class="batch-info">
+      <span style="font-size:24px">📦</span>
+      <span>Selected: <span class="count" id="batchCount">0</span> products</span>
+    </div>
+    <div class="batch-config">
+      <label>Style:</label>
+      <select id="batchStyle">
+        <option value="holding">Holding</option>
+        <option value="usage">Usage</option>
+        <option value="review">Review</option>
+        <option value="unbox">Unbox</option>
+        <option value="talking">Talking Head</option>
+      </select>
+      <label>Duration:</label>
+      <input type="number" id="batchDuration" value="15" min="5" max="30">
+      <label>Concurrency:</label>
+      <input type="number" id="batchConcurrency" value="3" min="1" max="10">
+      <button class="btn btn-primary" onclick="openBatchModal()" style="background:linear-gradient(135deg,#8b5cf6,#f43f5e)!important;border:none!important">🚀 Generate Batch</button>
+      <button class="btn btn-ghost btn-sm" onclick="clearBatchSelection()">✕</button>
+    </div>
+  </div>
+</div>
+
+<!-- Batch Config Modal -->
+<div class="modal-overlay" id="batchModal">
+  <div class="modal" style="max-width:560px;padding:24px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3 style="margin:0">🚀 Batch Generator</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeBatchModal()">✕</button>
+    </div>
+    <div id="batchProductList" style="max-height:200px;overflow-y:auto;margin-bottom:16px;font-size:13px"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
+      <div><label style="font-size:12px;color:var(--text-secondary)">Style</label><select id="batchModalStyle" class="input"><option value="holding">Holding</option><option value="usage">Usage</option><option value="review">Review</option><option value="unbox">Unbox</option><option value="talking">Talking Head</option></select></div>
+      <div><label style="font-size:12px;color:var(--text-secondary)">⏱ Duration (s)</label><input type="number" id="batchModalDuration" class="input" value="15" min="5" max="30"></div>
+      <div><label style="font-size:12px;color:var(--text-secondary)">⚡ Concurrency</label><input type="number" id="batchModalConcurrency" class="input" value="3" min="1" max="10"></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="closeBatchModal()">Cancel</button>
+      <button class="btn btn-primary" id="startBatchBtn" onclick="startBatch()" style="background:linear-gradient(135deg,#8b5cf6,#f43f5e)!important;border:none!important">🚀 Start Batch</button>
+    </div>
+  </div>
 </div>
 
 <!-- ═══ Content ═══ -->
 <div id="page-content" class="page">
-  <div class="page-header"><div><h2>Video Wizard</h2><p>สร้างสคริปต์และวิดีโอ UGC</p></div></div>
+  <div class="page-header">
+    <div><h2>Video Wizard</h2><p>สร้างสคริปต์และวิดีโอ UGC</p></div>
+    <div>
+      <button class="btn btn-primary btn-sm" onclick="switchTab('products')" style="background:linear-gradient(135deg,#8b5cf6,#f43f5e)!important;border:none!important">📦 Bash Generator</button>
+    </div>
+  </div>
 
   <div class="steps" id="contentSteps">
     <div class="step active" data-step="1"><div class="step-num">1</div><span class="step-label">Product</span></div>
@@ -2005,6 +2092,7 @@ function switchTab(name) {
   if (name === 'dashboard') loadDashboard();
   if (name === 'pipeline') {
     loadPipelineJobs();
+    loadBatches();
   }
   if (name === 'products') loadAnalyzedProducts();
   if (name === 'assets') loadAssets();
@@ -4307,7 +4395,8 @@ async function searchProducts() {
         const enc = encodeURIComponent(JSON.stringify(p));
         const imgHtml = img ? `<img class="product-card-img" src="${img}" alt="" loading="lazy" onerror="this.style.display='none'">` : '<div class="product-card-img" style="display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);font-size:32px">📦</div>';
         const pUrl = p.url || "";
-        return `<div class="product-card" onclick="useProduct('${enc}')">${imgHtml}<div class="product-card-body"><div class="product-card-title">${p.title || "Unknown"}</div><div class="product-card-meta"><span class="product-card-price">฿${Number(price).toLocaleString()}</span><span class="product-card-comm">💰 ${comm}%</span><span class="product-card-platform">${p.source || "tiktok"}</span></div><div class="product-card-sold">🔥 Sold ${sold.toLocaleString()} pcs</div><div class="product-card-footer"><span class="text-xs text-secondary truncate" style="max-width:140px">${pUrl}</span><button class="btn btn-primary btn-sm">🎬 Create Video</button></div></div></div>`;
+        var batchData = {enc:enc, title:p.title||'Unknown', image:img, url:p.url||''};
+        return `<div class="product-card"><div class="product-card-checkbox"><input type="checkbox" onchange="toggleBatchSelect(this, ${JSON.stringify(batchData).replace(/'/g,"\\'")})"></div>${imgHtml}<div class="product-card-body" onclick="useProduct('${enc}')"><div class="product-card-title">${p.title || "Unknown"}</div><div class="product-card-meta"><span class="product-card-price">฿${Number(price).toLocaleString()}</span><span class="product-card-comm">💰 ${comm}%</span><span class="product-card-platform">${p.source || "tiktok"}</span></div><div class="product-card-sold">🔥 Sold ${sold.toLocaleString()} pcs${imgCount ? ' · 📸 ' + imgCount + ' รูป' : ''}</div><div class="product-card-footer"><span class="text-xs text-secondary truncate" style="max-width:140px">${pUrl}</span><button class="btn btn-primary btn-sm" onclick="event.stopPropagation();useProduct('${enc}')">🎬 Create Video</button></div></div></div>`;
       }).join("");
     }
     
@@ -4325,21 +4414,22 @@ async function searchProducts() {
         var cat = p.category || '';
         var hook = p.hook_concept || '';
         var enc = encodeURIComponent(JSON.stringify(p));
-        return '<div class="product-card" onclick="useScrapedProduct(\'' + enc.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')">' +
-          '<div class="product-card-img" style="display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);font-size:32px;background:var(--bg-tertiary)">📦</div>' +
-          '<div class="product-card-body">' +
+        var batchEnc = enc.replace(/'/g,"%27");
+        var batchEnc = enc.replace(/'/g,"%27");
+        return '<div class="product-card"><div class="product-card-checkbox"><input type="checkbox" data-enc="' + batchEnc + '" onchange="toggleBatchSelect(this)"></div>' +
+          '<div class="product-card-img" style="display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);font-size:32px;background:var(--bg-tertiary)">\U0001f4e6</div>' +
+          '<div class="product-card-body" onclick="useScrapedProduct(\'' + enc.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')">' +
           '<div class="product-card-title">' + (p.title || 'Unknown').slice(0,60) + '</div>' +
           '<div class="product-card-meta">' +
-          '<span class="product-card-price">฿' + Number(price).toLocaleString() + '</span>' +
-          (comm ? '<span class="product-card-comm">💰 ' + comm + '</span>' : '') +
+          '<span class="product-card-price">\u0e3f' + Number(price).toLocaleString() + '</span>' +
+          (comm ? '<span class="product-card-comm">\U0001f4b0 ' + comm + '</span>' : '') +
           (cat ? '<span class="product-card-platform">' + cat.slice(0,20) + '</span>' : '') +
           '</div>' +
-          (hook ? '<div class="text-xs text-secondary" style="margin-top:4px;line-height:1.3">💡 ' + hook.slice(0,80) + '</div>' : '') +
-          '<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px"><span class="badge" style="font-size:10px;background:rgba(255,255,255,0.06)">🧴 ' + (p.container_type||"ภาชนะทรงมาตรฐาน").slice(0,18) + '</span><span class="badge" style="font-size:10px;background:rgba(255,255,255,0.06)">🔒 ' + (p.closure_type||"ฝามาตรฐาน").slice(0,14) + '</span></div>' +
+          (hook ? '<div class="text-xs text-secondary" style="margin-top:4px;line-height:1.3">\U0001f4a1 ' + hook.slice(0,80) + '</div>' : '') +
+          '<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px"><span class="badge" style="font-size:10px;background:rgba(255,255,255,0.06)">\U0001f9f4 ' + (p.container_type||"\u0e20\u0e32\u0e0a\u0e19\u0e30\u0e17\u0e23\u0e07\u0e21\u0e32\u0e15\u0e23\u0e10\u0e32\u0e19").slice(0,18) + '</span><span class="badge" style="font-size:10px;background:rgba(255,255,255,0.06)">\U0001f512 ' + (p.closure_type||"\u0e1d\u0e32\u0e21\u0e32\u0e15\u0e23\u0e10\u0e32\u0e19").slice(0,14) + '</span></div>' +
           '<div class="product-card-footer" style="margin-top:6px">' +
-          '<button class="btn btn-primary btn-sm">🎬 Create Video</button>' +
-          '</div></div></div>';
-      }).join('');
+          '<button class="btn btn-primary btn-sm">\U0001f3ac Create Video</button>' +
+          '</div></div></div>';      }).join('');
     }
   } catch(e) {
     grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">Error: ' + e.message + '</div>';
@@ -4379,7 +4469,7 @@ async function loadAnalyzedProducts() {
       const imgHtml = img ? `<img class="product-card-img" src="${img}" alt="" loading="lazy" onerror="this.style.display=\'none\'">` : '<div class="product-card-img" style="display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);font-size:32px">\ud83d\udce6</div>';
       const pUrl = p.url || "";
       const imgCount = p.image_count || (p.images ? p.images.length : 0);
-      return `<div class="product-card" onclick="useProduct('${enc}')">${imgHtml}<div class="product-card-body"><div class="product-card-title">${p.title || "Unknown"}</div><div class="product-card-meta"><span class="product-card-price">฿${Number(price).toLocaleString()}</span><span class="product-card-comm">💰 ${comm}%</span><span class="product-card-platform">${p.source || "tiktok"}</span></div><div class="product-card-sold">🔥 Sold ${sold.toLocaleString()} pcs ${imgCount ? '· 📸 ' + imgCount + ' รูป' : ''}</div><div class="product-card-footer"><span class="text-xs text-secondary truncate" style="max-width:140px">${pUrl}</span><button class="btn btn-primary btn-sm">🎬 Create Video</button></div></div></div>`;
+      return `<div class="product-card"><div class="product-card-checkbox"><input type="checkbox" data-enc="${enc}" onchange="toggleBatchSelect(this)"></div>${imgHtml}<div class="product-card-body" onclick="useProduct('${enc}')"><div class="product-card-title">${p.title || "Unknown"}</div><div class="product-card-meta"><span class="product-card-price">฿${Number(price).toLocaleString()}</span><span class="product-card-comm">💰 ${comm}%</span><span class="product-card-platform">${p.source || "tiktok"}</span></div><div class="product-card-sold">🔥 Sold ${sold.toLocaleString()} pcs ${imgCount ? '· 📸 ' + imgCount + ' รูป' : ''}</div><div class="product-card-footer"><span class="text-xs text-secondary truncate" style="max-width:140px">${pUrl}</span><button class="btn btn-primary btn-sm" onclick="event.stopPropagation();useProduct('${enc}')">🎬 Create Video</button></div></div></div>`;
     }).join("");
   } catch(e) { grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">Error: ' + e.message + '</div>'; }
   // Also load scraped products
@@ -4429,8 +4519,11 @@ async function loadScrapedProducts() {
       var cat = p.category || '';
       var hook = p.hook_concept || '';
       var enc = encodeURIComponent(JSON.stringify(p));
+        var batchEnc = enc.replace(/'/g,"%27");
       var imgUrl = p.image_filename ? '' : ''; // images on server, not accessible via URL yet
-      return '<div class="product-card" onclick="useScrapedProduct(\'' + enc.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')">' +
+      return '<div class="product-card"><div class="product-card-checkbox"><input type="checkbox" data-enc="' + batchEnc + '" onchange="toggleBatchSelect(this)"></div>' +
+        '<div class="product-card-img" style="display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);font-size:32px;background:var(--bg-tertiary)">\ud83d\udce6</div>' +
+        '<div class="product-card-body" onclick="useScrapedProduct(\'' + enc.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')">' +
         '<div class="product-card-img" style="display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);font-size:32px;background:var(--bg-tertiary)">\ud83d\udce6</div>' +
         '<div class="product-card-body">' +
         '<div class="product-card-title">' + (p.title || 'Unknown').slice(0,60) + '</div>' +
@@ -6003,6 +6096,133 @@ async function scoutQuickClone() {
   } catch(e) {
     el.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ ' + e.message + '</div>';
   }
+}
+
+/* ═══ Batch Generator Functions ═══ */
+let _batchSelected = new Map(); // key -> { title, image, enc }
+
+function toggleBatchSelect(cb) {
+  const card = cb.closest('.product-card');
+  const enc = cb.getAttribute('data-enc');
+  if (!enc) return;
+  // Decode product info from enc
+  var info;
+  try { 
+    info = JSON.parse(decodeURIComponent(enc));
+    info = {enc: enc, title: info.title || info.name || 'Unknown', image: (info.images && info.images[0]) || (info.image_urls && info.image_urls[0]) || '', url: info.url || ''};
+  } catch(e) { 
+    info = {enc: enc, title: 'Unknown', image: '', url: ''};
+  }
+  if (cb.checked) {
+    _batchSelected.set(enc, info);
+    card.classList.add('batch-selected');
+  } else {
+    _batchSelected.delete(enc);
+    card.classList.remove('batch-selected');
+  }
+  updateBatchBar();
+}
+
+function updateBatchBar() {
+  const bar = document.getElementById('batchBar');
+  const count = document.getElementById('batchCount');
+  const n = _batchSelected.size;
+  count.textContent = n;
+  bar.style.display = n > 0 ? 'flex' : 'none';
+}
+
+function clearBatchSelection() {
+  document.querySelectorAll('.product-card.batch-selected').forEach(function(c) { c.classList.remove('batch-selected'); });
+  document.querySelectorAll('.product-card-checkbox input').forEach(function(c) { c.checked = false; });
+  _batchSelected.clear();
+  updateBatchBar();
+}
+
+function openBatchModal() {
+  const list = document.getElementById('batchProductList');
+  const modal = document.getElementById('batchModal');
+  let html = '';
+  let i = 0;
+  _batchSelected.forEach(function(v) {
+    i++;
+    html += '<div style="padding:4px 0;border-bottom:1px solid var(--border-primary)">' + i + '. ' + (v.title || 'Unknown').slice(0, 60) + '</div>';
+  });
+  list.innerHTML = html || '<div class="text-secondary">No products selected</div>';
+  // Copy config from batch bar
+  document.getElementById('batchModalStyle').value = document.getElementById('batchStyle').value;
+  document.getElementById('batchModalDuration').value = document.getElementById('batchDuration').value;
+  document.getElementById('batchModalConcurrency').value = document.getElementById('batchConcurrency').value;
+  modal.classList.add('open');
+}
+
+function closeBatchModal() {
+  document.getElementById('batchModal').classList.remove('open');
+}
+
+async function startBatch() {
+  const btn = document.getElementById('startBatchBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Starting...';
+  
+  const products = [];
+  _batchSelected.forEach(function(v) { products.push(v); });
+  
+  try {
+    const payload = {
+      products: products.map(function(p) { return { title: p.title, image: p.image, url: p.url }; }),
+      style: document.getElementById('batchModalStyle').value,
+      duration: parseInt(document.getElementById('batchModalDuration').value) || 15,
+      concurrency: parseInt(document.getElementById('batchModalConcurrency').value) || 3,
+    };
+    
+    const r = await fetch(API + '/batch/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const d = await r.json();
+    
+    if (d.success) {
+      showToast('✅ Batch ' + d.batch_id + ' started! Generating ' + products.length + ' videos with ' + payload.concurrency + ' concurrent workers...', 'success');
+      closeBatchModal();
+      clearBatchSelection();
+      switchTab('pipeline');
+      loadBatches();
+      loadPipelineJobs();
+    } else {
+      showToast('❌ ' + (d.error || 'Failed'), 'error');
+    }
+  } catch(e) {
+    showToast('❌ Error: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🚀 Start Batch';
+  }
+}
+
+async function loadBatches() {
+  const section = document.getElementById('batchHistorySection');
+  const list = document.getElementById('batchHistoryList');
+  if (!section) return;
+  try {
+    const r = await fetch(API + '/batch/list');
+    const d = await r.json();
+    const batches = d.batches || [];
+    if (batches.length) {
+      section.style.display = 'block';
+      list.innerHTML = batches.map(function(b) {
+        var pct = b.total > 0 ? Math.round((b.completed + b.failed) / b.total * 100) : 0;
+        return '<div class="batch-card">' +
+          '<div class="batch-header">' +
+          '<div><strong>' + (b.name || b.id) + '</strong> <span class="text-xs text-secondary">' + b.created_at + '</span></div>' +
+          '<span class="badge" style="background:' + (b.status==='running'?'rgba(139,92,246,0.1);color:var(--accent-purple)':b.status==='completed'?'rgba(16,185,129,0.1);color:var(--accent-green)':'rgba(244,63,94,0.1);color:var(--accent-magenta)') + '">' + b.status + '</span>' +
+          '</div>' +
+          '<div style="margin-top:4px;font-size:12px;color:var(--text-secondary)">✅ ' + b.completed + ' ❌ ' + b.failed + ' / ' + b.total + '</div>' +
+          '<div class="batch-progress"><div class="bar" style="width:' + pct + '%"></div></div>' +
+          '</div>';
+      }).join('');
+    }
+  } catch(e) { /* ignore */ }
 }
 
 </script>

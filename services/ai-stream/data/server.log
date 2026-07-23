@@ -10,3 +10,6 @@ INFO:     127.0.0.1:43760 - "POST /api/rag/sync/bookstack HTTP/1.1" 200 OK
 INFO:     127.0.0.1:50460 - "GET /api/rag/search?q=wizard+pod+printful&k=3 HTTP/1.1" 200 OK
 INFO:     127.0.0.1:50464 - "POST /api/ask HTTP/1.1" 200 OK
 INFO:     45.148.10.200:0 - "GET /api/.env HTTP/1.1" 404 Not Found
+INFO:     165.1.78.209:0 - "GET /ws/vendor/phpunit/phpunit/src/Util/PHP/eval-stdin.php HTTP/1.1" 404 Not Found
+INFO:     165.1.78.209:0 - "GET /ws/ec/vendor/phpunit/phpunit/src/Util/PHP/eval-stdin.php HTTP/1.1" 404 Not Found
+INFO:     165.1.78.209:0 - "GET /api/vendor/phpunit/phpunit/src/Util/PHP/eval-stdin.php HTTP/1.1" 404 Not Found

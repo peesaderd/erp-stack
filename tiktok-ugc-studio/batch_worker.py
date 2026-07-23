@@ -40,30 +40,65 @@ def create_pipeline_job(batch_item):
     return job_id
 
 def run_pipeline(job_id, batch_item):
-    """Run the pipeline for one product."""
-    from modules.pipeline.main import run_full_pipeline as pipeline_run
-    
-    product_data = {
-        "title": batch_item.get("product_title", ""),
-        "image": batch_item.get("product_image", ""),
-        "url": batch_item.get("product_url", ""),
-    }
-    
+    """Run the pipeline for one product utilizing the local DB cache for packaging details if available."""
+    from modules.video.pipeline_affiliate import run_pipeline as pipeline_run
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+
+    title = batch_item.get("product_title", "")
+    image = batch_item.get("product_image", "")
+    url = batch_item.get("product_url", "")
+    style = batch_item.get("style", "holding")
+    duration = batch_item.get("duration", 15)
+
+    # Resolve packaging details (container_type, closure_type, label_colors, product_color)
+    # Check PostgreSQL database (erp_stack) on port 5432 first for caches
+    desc = ""
     try:
-        result = pipeline_run(
-            product_title=product_data["title"],
-            product_image=product_data["image"],
-            product_url=product_data["url"],
-            ugc_style=batch_item.get("style", "holding"),
-            duration=batch_item.get("duration", 15),
-            aspect_ratio="9:16",
-            run_tts=True,
-            run_video_gen=True,
-            run_compose=True,
+        pg_conn = psycopg2.connect("dbname=erp_stack user=openhands password=OpenHands@ERP2026 host=127.0.0.1 port=5432")
+        cursor = pg_conn.cursor(cursor_factory=RealDictCursor)
+        cursor.execute("SELECT name, description, ai_analysis FROM products WHERE image_urls @> %s::jsonb OR name = %s LIMIT 1", (json.dumps([image]), title))
+        row = cursor.fetchone()
+        if row:
+            if row.get("ai_analysis"):
+                analysis = row["ai_analysis"]
+                if isinstance(analysis, str):
+                    analysis = json.loads(analysis)
+                # Form description incorporating the analyzed packaging specs
+                specs = []
+                if analysis.get("container_type"): specs.append(f"Container: {analysis['container_type']}")
+                if analysis.get("closure_type"): specs.append(f"Closure: {analysis['closure_type']}")
+                if analysis.get("label_colors"): specs.append(f"Label Colors: {analysis['label_colors']}")
+                if analysis.get("product_color"): specs.append(f"Cream Color: {analysis['product_color']}")
+                if specs:
+                    desc = f"Visual Packaging Specs: {', '.join(specs)}."
+            if not desc and row.get("description"):
+                desc = row["description"]
+        cursor.close()
+        pg_conn.close()
+    except Exception as db_err:
+        log(f"Database cache resolve warning: {db_err}")
+
+    # Fallback to plain description if empty
+    if not desc:
+        desc = title
+
+    try:
+        # Import and execute the run_pipeline with correct arguments matching pipeline_affiliate.py
+        result_path = pipeline_run(
+            product_name=title,
+            product_image=image,
+            recipe_name="tus",
+            voice="Aoede",
+            description=desc,
+            ugc_style=style,
+            duration=duration,
+            external_job_id=job_id
         )
-        return result
+        # Parse output path
+        return {"success": True, "final_video": result_path}
     except Exception as e:
-        log(f"Pipeline error for {job_id}: {e}")
+        log(f"Pipeline execution failed for job {job_id}: {e}")
         traceback.print_exc()
         return {"success": False, "error": str(e)}
 

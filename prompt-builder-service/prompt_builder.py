@@ -144,8 +144,19 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     # ── Style-driven scene (ugc_style is PRIMARY) ─────────────────
     if ugc_style in ("usage", "product_usage"):
         # Person actively using the product — actual USE, not holding
-        is_beauty = category in ("beauty", "health") or any(w in (pa_clean+" "+product_name).lower() for w in ["serum", "cream", "lotion", "toner", "oil", "moisturizer", "skincare", "essence", "ampoule", "mask", "sunscreen", "spf"])
-        if is_beauty:
+        is_beauty = category in ("beauty", "health") or any(w in (pa_clean+" "+product_name).lower() for w in ["serum", "cream", "lotion", "toner", "oil", "moisturizer", "skincare", "essence", "ampoule", "mask", "sunscreen", "spf", "spray", "mist"])
+        is_mist_sprayer = is_beauty and any(w in (pa_clean+" "+product_name).lower() for w in [
+            "spray", "mist", "mister", "atomizer", "fogger", "sprayer",
+            "nano spray", "facial mist", "toner mist"
+        ])
+        if is_mist_sprayer:
+            scene_desc = (
+                f"{thai_base}{clothing_str}{hair_str} holding a spray mister, "
+                f"arm extended, pressing nozzle — fine mist spraying outward. "
+                f"Product in hand, skincare spray routine. "
+                f"{env_str}."
+            )
+        elif is_beauty:
             scene_desc = (
                 f"{thai_base}{clothing_str}{hair_str} sitting at a vanity table, "
                 f"applying {prod_str or product_name} to face with gentle fingertips. "
@@ -234,7 +245,8 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             )
     
     # ── Category modifiers (SECONDARY) ───────────────────────────────
-    if category in ("beauty", "health"):
+    _is_mist_img = any(w in (product_appearance+" "+product_name).lower() for w in ["spray", "mist", "mister", "atomizer", "fogger", "sprayer", "nano spray", "facial mist"])
+    if category in ("beauty", "health") and not _is_mist_img:
         scene_desc += " The cap is CLOSED and sealed. Not opening, not using."
     
     # ── Build final prompt ──
@@ -327,7 +339,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         # Category-aware modifier: different use actions per product type
         is_wall_mounted = any(w in pa_clean.lower() for w in ["wall", "mount", "ceiling", "flush", "recessed", "sensor"])
         is_kitchen = any(w in pa_clean.lower() for w in ["blender", "blend", "juicer", "mixer", "kettle", "cook", "grinder", "chopper"])
-        is_beauty = category in ("beauty", "health") or any(w in (pa_clean+" "+product_name).lower() for w in ["serum", "cream", "lotion", "toner", "oil", "moisturizer", "skincare", "essence", "ampoule", "mask", "sunscreen", "spf"])
+        is_beauty = category in ("beauty", "health") or any(w in (pa_clean+" "+product_name).lower() for w in ["serum", "cream", "lotion", "toner", "oil", "moisturizer", "skincare", "essence", "ampoule", "mask", "sunscreen", "spf", "spray", "mist"])
         
         if is_wall_mounted:
             action = (
@@ -354,15 +366,39 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
                 f"Sharp focus close-up on product, crisp details, high definition"
             )
         elif is_beauty:
-            action = (
-                f"{model_intro} sitting at vanity with {prod_desc_vid or product_name}. "
-                f"Dispenses a small amount onto fingertips. "
-                f"Gently applies to face with upward strokes — cheeks, forehead, neck. "
-                f"Patting motion, product absorbing into skin. "
-                f"Camera zooms to close-up: skin texture, product blending in. "
-                f"She looks in mirror, touches skin gently, satisfied with glow. "
-                f"Beauty routine, skincare application, product in use"
-            )
+            # Check if it's a spray/mist product (facial mist sprayer, nano mister, etc.)
+            is_mist_sprayer = any(w in (pa_clean+" "+product_name+" "+str(profile.get("features",""))).lower() for w in [
+                "spray", "mist", "mister", "atomizer", "fogger", "sprayer",
+                "nano spray", "facial mist", "toner mist", "ミスト", "スプレー"
+            ])
+            
+            if is_mist_sprayer:
+                features_raw = profile.get("features", "")
+                if isinstance(features_raw, list):
+                    features_str = ', '.join(features_raw[:3])
+                else:
+                    features_str = str(features_raw)[:120] if features_raw else ""
+                feat_detail = f" {features_str} visible on device." if features_str else ""
+                action = (
+                    f"{model_intro} holding {prod_desc_vid or product_name} in hand. "
+                    f"Extends arm forward, points sprayer nozzle away from face. "
+                    f"Presses button — fine mist sprays outward in a soft cloud. "
+                    f"Fanning motion across open palm. "
+                    f"Brings hand to nose, inhales gently, slight smile of satisfaction. "
+                    f"Camera zooms to sharp close-up: spray droplets in light, nozzle detail.{feat_detail}"
+                    f"Mist settles on skin. She looks pleased with the fresh feel. "
+                    f"Beauty spray mist, product in use, fine mist visible"
+                )
+            else:
+                action = (
+                    f"{model_intro} sitting at vanity with {prod_desc_vid or product_name}. "
+                    f"Dispenses a small amount onto fingertips. "
+                    f"Gently applies to face with upward strokes — cheeks, forehead, neck. "
+                    f"Patting motion, product absorbing into skin. "
+                    f"Camera zooms to close-up: skin texture, product blending in. "
+                    f"She looks in mirror, touches skin gently, satisfied with glow. "
+                    f"Beauty routine, skincare application, product in use"
+                )
         else:
             action = (
                 f"{model_intro} actively using {prod_desc_vid or product_name} — "
@@ -414,7 +450,10 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     
     # ── Category-specific restrictions (SECONDARY) ──
     video_prompt = action
-    if category in ("beauty", "health"):
+    # Detect mist sprayers — these need to SHOW spraying, not block it
+    comb = (pa_clean+" "+product_name+" "+str(profile.get("features",""))).lower()
+    _is_mist = any(w in comb for w in ["spray", "mist", "mister", "atomizer", "fogger", "sprayer", "nano spray", "facial mist"])
+    if category in ("beauty", "health") and not _is_mist:
         video_prompt += " CRITICAL: Do NOT open or apply the product. Cap is CLOSED and sealed. No squeezing, no pumping, no spraying."
     
     video_prompt += (

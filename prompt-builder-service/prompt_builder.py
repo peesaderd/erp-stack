@@ -103,20 +103,16 @@ Keywords: {kw_str}"""
 def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holding") -> str:
     """Generate image prompt using profile + UGC templates.
     
-    Product name is NOT injected into the prompt — Nano Banana sees the product
-    via the reference image (img2img), so text descriptions of the product name
-    only cause text rendering artifacts.
-    
     Strategy:
-    - Model cast = model appearance variety (age, skin, clothes, style)
-    - Gemini analysis = product packaging details (container, cap, color, label)
-    - They MERGE: scene_description from model_cast + product_pkg from Gemini
+    - Category-aware: home/electronics/tools → scene in environment, not person holding
+    - Beauty/fashion → model holding product (current behavior)
+    - Product details from product_appearance (Mistral Vision) or image_description (Gemini text)
     """
     templates = load_ugc_templates(ugc_style)
     style_info = STYLE_MAP.get(ugc_style, STYLE_MAP["holding"])
     model_gender = profile.get("target_gender", "female")
-    model_age = profile.get("target_age", "20-35")
-    image_description = profile.get("image_description", "")
+    model_age = _normalize_age(profile.get("target_age", "20-35"))
+    category = profile.get("category", "other")
 
     gender_en = {
         "female": "woman", "woman": "woman",
@@ -124,140 +120,159 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         "unisex": "person", "person": "person"
     }.get(model_gender, "woman")
 
-    # ── Build Thai ethnic face description ───────────────────────────
-    # Key: specific Southeast Asian Thai features so AI doesn't generate
-    # Chinese/Korean/Indian-looking face
     thai_features = "porcelain white glowing skin, monolid eyes, Southeast Asian ethnic Thai features, small nose bridge"
+    thai_model = f"An ethnic Thai {gender_en}, {model_age} years old, {thai_features}"
 
-    # Inject clothing + hair variety from persona if available
     persona_clothing = profile.get("persona_clothing", "")
     persona_hair = profile.get("persona_hair", "")
-    style_info_model_action = style_info.get("model_action", "holding product")
+    env_context = profile.get("env_context", "")
+    product_appearance = profile.get("product_appearance", "")
+    image_description = profile.get("image_description", "")
 
-    if persona_clothing:
-        style_info_model_action += f", wearing {persona_clothing}"
-    if persona_hair:
-        style_info_model_action += f", {persona_hair}"
-
-    scene_desc = image_description or f"Ethnic Thai {gender_en}, {model_age}, {thai_features}, pretty face, professional model quality"
-
-    # จำกัดการใช้งานสำหรับ holding style beauty เท่านั้น
-    # ไม่ใช้ regex blanket — ปล่อยให้ template + product analysis ทำงาน
-    category = profile.get("category", "other")
-
-    # Replace generic "Thai woman" with ethnic-specific description
-    if "Thai" in scene_desc and "ethnic" not in scene_desc.lower() and "Southeast" not in scene_desc:
-        scene_desc = scene_desc.replace("Thai", f"Ethnic Thai with {thai_features}", 1)
-        scene_desc = scene_desc.replace("glowing skin", f"porcelain white glowing skin")
-
-    # Extract product packaging details from Gemini/Mistral's image_description
-    # Filter: only sentences about the PHYSICAL CONTAINER, not model appearance
-    # Sentence like "An ethnic Thai woman... applying the lip product" has "product"
-    # but is about the MODEL, not the packaging. Skip those.
-    product_pkg_sentences = []
-    if image_description:
-        for sentence in scene_desc.split("."):
-            s = sentence.strip().lower()
-            # Skip model appearance sentences (contain 'woman'/'man'/'model' before packaging words)
-            first_part = s[:40]
-            if any(w in first_part for w in ["thai woman", "thai man", "model", "ethnic thai"]):
-                continue
-            # Only keep sentences about the physical container/packaging
-            container_words = ["bottle", "tube", "jar", "container", "packaging", "cap", "label",
-                             "twist", "pump", "spray", "flip-top", "click", "mechanism",
-                             "carton", "box", "wrapper", "applicator"]
-            # Match if sentence starts with "the product" OR has a container word
-            is_about_packaging = s.startswith("the product ") or s.startswith("the packaging ")
-            is_about_packaging = is_about_packaging or any(w in s for w in container_words)
-            if is_about_packaging:
-                product_pkg_sentences.append(sentence.strip())
-
-    # Append product packaging detail after scene_desc if found
-    # Strip leading "The product" / "The packaging" prefix to avoid redundancy
-    if product_pkg_sentences:
-        pkg_str = ". ".join(product_pkg_sentences[:2])
-        # Remove leading "The product is a" / "The packaging is a" if present
-        pkg_clean = re.sub(r'^(The\s+)?product\s+(is\s+)?', '', pkg_str, flags=re.IGNORECASE).strip()
-        pkg_clean = re.sub(r'^(The\s+)?packaging\s+(is\s+)?', '', pkg_clean, flags=re.IGNORECASE).strip()
-        if pkg_clean:
-            scene_desc = f"{scene_desc}. The packaging: {pkg_clean}"
+    # ── Category-specific scene description ──────────────────────────
+    # For home/electronics/tools: product IN ENVIRONMENT, not held
+    if category in ("home", "electronics", "tools"):
+        if product_appearance:
+            scene_desc = f"{env_context or 'A clean modern space'}. Fixed to the wall/surface is a {product_appearance[:250]}."
+        elif image_description:
+            scene_desc = image_description[:250]
         else:
-            scene_desc = f"{scene_desc}. {pkg_str}"  # fallback original
-
-    # For beauty products: add explicit instruction about cap being closed
-    # Flux/etc interpret "holding" as about-to-apply/open for beauty products
-    # Non-beauty products (electronics/home/tools/food/fashion): ไม่ต้องมี restriction นี้
-    if ugc_style == "holding" and category in ("beauty", "health"):
-        scene_desc += " CRITICAL: The cap is CLOSED and sealed. Both hands hold the closed product only. Not opening, not using."
-
-    data = {
-        "scene_description": scene_desc,
-        "model_gender": gender_en,
-        "model_age": model_age,
-        "style": ugc_style,
-        "tone": "casual",
-        "composition": "natural composition, eye-level angle",
-        "lighting": "soft natural lighting",
-        "atmosphere": "warm, inviting, authentic",
-        "color_palette": "natural tones, neutral background",
-        "background": "clean minimal background",
-        "model_action": style_info_model_action,
-        "camera": style_info["camera"],
-        "vibe": style_info["vibe"],
-        "keywords": style_info.get("keywords", ""),
-        "hashtags": ", ".join(profile.get("hashtags", [])),
-    }
-
-    if templates.get("master"):
-        image_prompt = fill_template(templates["master"], data)
-        negative = templates.get("negative", "")
+            scene_desc = f"{env_context or 'A modern living space with soft evening lighting'}. The product is installed and visible."
+        # Add person naturally in scene (not holding product)
+        scene_desc += f" {thai_model} is in the scene, moving naturally through the space."
+        if persona_clothing:
+            scene_desc += f" Wearing {persona_clothing}."
+        if persona_hair:
+            scene_desc += f" {persona_hair}."
     else:
-        image_prompt = (
-            f"{scene_desc}. "
-            f"{style_info['model_action']}. "
-            f"{style_info['camera']}, {style_info['vibe']}. "
-            f"natural composition, warm inviting atmosphere. "
-            f"The product is clearly in frame. "
-            f"soft natural lighting. "
-            f"--ar 9:16"
-        )
-        negative = templates.get("negative", "")
+        # Beauty/fashion/food: model holding/using product
+        scene_desc = image_description or f"{thai_model}, pretty face, professional model quality"
+        if "Thai" in scene_desc and "ethnic" not in scene_desc.lower() and "Southeast" not in scene_desc:
+            scene_desc = scene_desc.replace("Thai", f"Ethnic Thai with {thai_features}", 1)
+            scene_desc = scene_desc.replace("glowing skin", "porcelain white glowing skin")
+        # Add clothing/hair from persona
+        if persona_clothing:
+            scene_desc += f" Wearing {persona_clothing}."
+        if persona_hair:
+            scene_desc += f" {persona_hair}."
+        # Extract product_pkg from image_description for beauty
+        if image_description:
+            for sentence in img_desc_sentences(image_description):
+                # Append if it's about packaging
+                s = sentence.strip().lower()
+                if any(w in s for w in ["bottle", "tube", "jar", "container", "tube", "packaging", "cap"]):
+                    if "thai woman" not in s[:40] and "thai man" not in s[:40]:
+                        scene_desc += f" {sentence.strip()}."
+                        break
 
-    # Clean up section markers
+    # ── Use template or build directly ──
+    if category in ("home", "electronics", "tools"):
+        # Don't use beauty-biased "Holding Product" template for non-beauty
+        image_prompt = (
+            f"{scene_desc} "
+            f"Natural ambient {style_info.get('lighting', 'soft natural lighting')}, warm atmosphere. "
+            f"Cinematic natural composition, eye-level angle. "
+            f"The product is visible and in focus. "
+            f"9:16 portrait, high quality photography"
+        )
+        negative = templates.get("negative", "text, watermark, logo, ui, caption")
+    else:
+        # Use standard template for beauty/fashion/etc
+        data = {
+            "scene_description": scene_desc,
+            "model_gender": gender_en,
+            "model_age": model_age,
+            "style": ugc_style,
+            "tone": "casual",
+            "composition": "natural composition, eye-level angle",
+            "lighting": "soft natural lighting",
+            "atmosphere": "warm, inviting, authentic",
+            "color_palette": "natural tones, neutral background",
+            "background": "clean minimal background",
+            "model_action": style_info.get("model_action", "holding product"),
+            "camera": style_info.get("camera", ""),
+            "vibe": style_info.get("vibe", ""),
+            "keywords": style_info.get("keywords", ""),
+            "hashtags": ", ".join(profile.get("hashtags", [])),
+        }
+        if templates.get("master"):
+            image_prompt = fill_template(templates["master"], data)
+            negative = templates.get("negative", "")
+        else:
+            image_prompt = (
+                f"{scene_desc}. "
+                f"{style_info.get('model_action', '')}. "
+                f"{style_info.get('camera', '')}, {style_info.get('vibe', '')}. "
+                f"natural composition, warm inviting atmosphere. "
+                f"The product is clearly in frame. "
+                f"soft natural lighting. "
+                f"--ar 9:16"
+            )
+            negative = templates.get("negative", "")
+    
+    # ── Beauty-specific restrictions ──
+    if category in ("beauty", "health"):
+        image_prompt += " CRITICAL: The cap is CLOSED and sealed. Both hands hold the closed product only. Not opening, not using."
+        image_prompt = re.sub(r"her\s+(own\s+)?lips?\b", "the product", image_prompt, flags=re.IGNORECASE)
+        image_prompt = re.sub(r"his\s+(own\s+)?lips?\b", "the product", image_prompt, flags=re.IGNORECASE)
+        image_prompt = re.sub(r"\bon (their|her|his) (lips?|skin|face)\b", " ", image_prompt, flags=re.IGNORECASE)
+
+    # Clean up
     image_prompt = re.sub(r'\[.*?\]\s*', '', image_prompt)
     image_prompt = re.sub(r'\.\.+', '.', image_prompt)
     image_prompt = re.sub(r',\s*,', ',', image_prompt)
     image_prompt = re.sub(r'\s+', ' ', image_prompt)
     image_prompt = image_prompt.strip()
 
-    # Final sanitization for beauty products: remove application references
-    # Non-beauty products (electronics/home/tools): ไม่จำเป็น
-    if ugc_style == "holding" and category in ("beauty", "health"):
-        image_prompt = re.sub(r"her\s+(own\s+)?lips?\b", "the product", image_prompt, flags=re.IGNORECASE)
-        image_prompt = re.sub(r"his\s+(own\s+)?lips?\b", "the product", image_prompt, flags=re.IGNORECASE)
-        image_prompt = re.sub(r"\bon (their|her|his) (lips?|skin|face)\b", " ", image_prompt, flags=re.IGNORECASE)
-        image_prompt = re.sub(r"\b(glossy|texture|color).*?lips?\b", "glossy product surface", image_prompt, flags=re.IGNORECASE)
-        image_prompt = re.sub(r'\s+', ' ', image_prompt).strip()
-
     return image_prompt, negative
+
+
+def img_desc_sentences(text: str) -> list:
+    """Split image_description into sentences."""
+    return [s.strip() for s in text.split(".") if s.strip()]
 
 
 def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holding") -> str:
     """Generate video prompt for Wan 2.7 img2vid.
-    Uses product packaging action from analysis.
-
-    For "holding" style: strictly "hold and show" only — no usage actions.
+    Category-aware: home/electronics/tools → use case in environment
+    Beauty/fashion → packaging action + holding product
     """
     style_info = STYLE_MAP.get(ugc_style, STYLE_MAP["holding"])
-    model_gender = profile.get("target_gender", "unisex")
+    model_gender = profile.get("target_gender", "female")
     model_setting = profile.get("setting", "clean modern lifestyle setting")
+    category = profile.get("category", "other")
 
-    # ── For "holding" style: skip ALL packaging inference ──────────────
-    # Wan 2.7 invents usage motions even when prompt says "holding"
-    # Solution: explicit "NOT using" instructions + generic_hold directly
-    if ugc_style == "holding":
-        video_motion = style_info['video_motion']
+    gender_en = {"female": "woman", "male": "man", "unisex": "person"}.get(model_gender, "person")
+
+    # ── Thai ethnic face + clothing/hair variety ───────────────────
+    persona_clothing = profile.get("persona_clothing", "")
+    persona_hair = profile.get("persona_hair", "")
+    clothing_str = f", wearing {persona_clothing}" if persona_clothing else ""
+    hair_str = f", {persona_hair}" if persona_hair else ""
+    thai_face = "porcelain white glowing skin, monolid eyes, Southeast Asian ethnic Thai features"
+
+    model_age = _normalize_age(profile.get("target_age", "20-35"))
+
+    # ── Category-aware video_motion ────────────────────────────────
+    if category in ("home", "electronics", "tools"):
+        # Use case: product installed, person interacting naturally
+        env_context = profile.get("env_context", "a hallway")
+        features = profile.get("features", [])
+        if isinstance(features, str):
+            features = [features]
+        feature_str = ", ".join(features[:3]) if features else "automatic operation"
+        
+        video_motion = (
+            f"walking naturally in {env_context}, product visible and installed. "
+            f"Person passes by naturally — product activates automatically: {feature_str}. "
+            f"No staring at camera, no artificial posing, natural everyday movement"
+        )
+    elif ugc_style == "holding":
+        # Holding style: just show product (for beauty primarily)
+        video_motion = style_info.get('video_motion', 
+            "gently holding product in both hands, slight slow rotation, showing to camera")
     else:
+        # Non-holding styles: packaging action inference
         packaging_action = profile.get("packaging_action", "")
         name_lower = product_name.lower()
         mistral_was_generic = packaging_action in ("", "generic_hold")
@@ -271,10 +286,6 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
                 packaging_action = "spray"
             elif any(w in name_lower for w in ["roll", "โรล"]):
                 packaging_action = "roll"
-            elif any(w in name_lower for w in ["glossy", "ฉ่ำ", "วาว", "ชุ่มชื้น"]):
-                packaging_action = "glossy_shine"
-            elif any(w in name_lower for w in ["blush", "บลัช", "บลัชออน"]):
-                packaging_action = "blush_swirl"
             elif any(w in name_lower for w in ["cushion", "คุชชั่น"]):
                 packaging_action = "dab_press"
             elif any(w in name_lower for w in ["pen", "ปากกา"]):
@@ -283,6 +294,10 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
                 packaging_action = "blend"
             elif any(w in name_lower for w in ["matte", "แมทท์"]):
                 packaging_action = "smooth_application"
+            elif any(w in name_lower for w in ["glossy", "ฉ่ำ", "วาว"]):
+                packaging_action = "glossy_shine"
+            elif any(w in name_lower for w in ["blush", "บลัช", "บลัชออน"]):
+                packaging_action = "blush_swirl"
             else:
                 packaging_action = "generic_hold"
 
@@ -297,80 +312,83 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             "blend": "blending product into skin with circular motion",
             "dab_press": "dabbing cushion puff on face with gentle pressing motion",
             "blush_swirl": "swirling brush in blush compact, dusting on cheeks",
-            "generic_hold": style_info['video_motion'],
+            "generic_hold": style_info.get('video_motion', 'holding product gently at chest level'),
         }
-        video_motion = PACKAGING_VIDEO_MOTIONS.get(packaging_action, style_info['video_motion'])
-
-    gender_en = {"female": "woman", "male": "man", "unisex": "person"}.get(model_gender, "person")
-
-    # ── Thai ethnic face + clothing/hair variety ───────────────────
-    persona_clothing = profile.get("persona_clothing", "")
-    persona_hair = profile.get("persona_hair", "")
-    clothing_str = f", wearing {persona_clothing}" if persona_clothing else ""
-    hair_str = f", {persona_hair}" if persona_hair else ""
-
-    # Specific Thai descriptors so AI doesn't generate non-Thai face
-    thai_face = "porcelain white glowing skin, monolid eyes, Southeast Asian ethnic Thai features"
-
-    # Extract product physical description from Mistral/Gemini analysis
-    image_desc = profile.get("image_description", "")
-    product_pkg = ""
-    if image_desc:
-        # Extract product-specific packaging sentence — NOT model appearance
-        # "An ethnic Thai woman... applying the lip product" contains "product"
-        # but describes the MODEL, not the packaging. Skip those.
-        for sentence in image_desc.split("."):
-            s = sentence.strip().lower()
-            first_part = s[:40]
-            # Skip model appearance sentences
-            if any(w in first_part for w in ["thai woman", "thai man", "model", "ethnic thai"]):
-                continue
-            container_words = ["bottle", "tube", "jar", "container", "packaging", "cap", "label",
-                             "twist", "pump", "spray", "flip-top", "click", "mechanism",
-                             "carton", "box", "wrapper", "applicator"]
-            is_about_packaging = s.startswith("the product ") or s.startswith("the packaging ")
-            is_about_packaging = is_about_packaging or any(w in s for w in container_words)
-            if is_about_packaging:
-                product_pkg = sentence.strip()
-                break
-        if not product_pkg and len(image_desc) > 40:
-            product_pkg = image_desc[:120]
+        video_motion = PACKAGING_VIDEO_MOTIONS.get(packaging_action, style_info.get('video_motion', ''))
 
     category = profile.get("category", "other")
-    neg_emphasis = ""
-    # Only beauty/health products need "cap is CLOSED" restriction
-    # Electronics/home/tools/food: ใช้ product_type กำหนด action ที่เหมาะสม
-    if ugc_style == "holding" and category in ("beauty", "health"):
-        neg_emphasis = "CRITICAL: Do NOT open or apply the product. Cap is CLOSED and sealed. No squeezing, no pumping, no spraying."
 
-    # Build video prompt with Thai-specific ethnicity + packaging detail
-    model_intro = f"Ethnic Thai {gender_en} 25 years old, {thai_face}{clothing_str}{hair_str}"
-
-    if product_pkg:
-        # Clean redundant prefix
-        pkg_clean = re.sub(r'^(The\s+)?product\s+(is\s+)?', '', product_pkg, flags=re.IGNORECASE).strip()
-        pkg_clean = re.sub(r'^(The\s+)?packaging\s+(is\s+)?', '', pkg_clean, flags=re.IGNORECASE).strip()
+    # ── Build product description ──────────────────────────────────
+    # For home/electronics/tools: use product_appearance from Mistral Vision
+    # For beauty/fashion: extract packaging from image_description
+    if category in ("home", "electronics", "tools"):
+        env_context = profile.get("env_context", "a hallway")
+        product_appearance = profile.get("product_appearance", "the product")
+        product_desc = f"installed in {env_context}. Product: {product_appearance[:200]}"
+        model_intro = f"Ethnic Thai {gender_en} {model_age} years old, {thai_face}{clothing_str}{hair_str}"
         video_prompt = (
             f"{model_intro}, {video_motion}. "
-            f"The packaging: {pkg_clean}. "
+            f"The product is {product_desc}. "
         )
     else:
-        video_prompt = f"{model_intro}, {video_motion}. "
+        # Beauty/fashion: extract packaging details from image_description
+        image_desc = profile.get("image_description", "")
+        product_pkg = ""
+        if image_desc:
+            for sentence in image_desc.split("."):
+                s = sentence.strip().lower()
+                first_part = s[:40]
+                if any(w in first_part for w in ["thai woman", "thai man", "model", "ethnic thai"]):
+                    continue
+                container_words = ["bottle", "tube", "jar", "container", "packaging", "cap", "label",
+                                 "twist", "pump", "spray", "flip-top", "click", 
+                                 "carton", "box", "wrapper", "applicator"]
+                is_about_packaging = s.startswith("the product ") or s.startswith("the packaging ")
+                is_about_packaging = is_about_packaging or any(w in s for w in container_words)
+                if is_about_packaging:
+                    product_pkg = sentence.strip()
+                    break
+            if not product_pkg and len(image_desc) > 40:
+                product_pkg = image_desc[:120]
 
-    if neg_emphasis:
-        video_prompt += f" {neg_emphasis}"
+        model_intro = f"Ethnic Thai {gender_en} {model_age} years old, {thai_face}{clothing_str}{hair_str}"
+        if product_pkg:
+            pkg_clean = re.sub(r'^(The\s+)?product\s+(is\s+)?', '', product_pkg, flags=re.IGNORECASE).strip()
+            pkg_clean = re.sub(r'^(The\s+)?packaging\s+(is\s+)?', '', pkg_clean, flags=re.IGNORECASE).strip()
+            video_prompt = f"{model_intro}, {video_motion}. The packaging: {pkg_clean}. "
+        else:
+            video_prompt = f"{model_intro}, {video_motion}. "
+
+    # ── Beauty-specific restrictions ──
+    if category in ("beauty", "health"):
+        video_prompt += " CRITICAL: Do NOT open or apply the product. Cap is CLOSED and sealed. No squeezing, no pumping, no spraying."
 
     video_prompt += (
-        f" The product is visible in frame throughout. "
-        f"Setting: {model_setting}. "
+        f" Setting: {model_setting}. "
         f"soft natural lighting, warm atmosphere. "
         f"9:16 portrait, smooth natural motion, no text, no watermark"
     )
     
-    # Final sanitization for video prompt
+    # Clean up
     video_prompt = re.sub(r'\s+', ' ', video_prompt).strip()
     
     return video_prompt
+
+
+def _normalize_age(raw_age) -> int:
+    """Normalize age from profile to 18-25 range."""
+    import random
+    try:
+        if isinstance(raw_age, (int, float)):
+            age = int(raw_age)
+        else:
+            # Handle "25-35" or "20-35" range strings
+            parts = str(raw_age).replace(" ", "").split("-")
+            nums = [int(p) for p in parts if p.isdigit()]
+            age = nums[0] if nums else 22
+    except (ValueError, TypeError):
+        age = 22
+    return max(18, min(25, age + random.randint(-1, 1)))
 
 
 def build_negative_prompt(profile: dict, ugc_style: str = "holding") -> str:
@@ -429,16 +447,18 @@ async def analyze_and_build_prompts(
 
     if vision_profile:
         for key in ["category", "target_gender", "target_age", "target_audience", "setting",
-                     "customer_problem", "main_benefit", "image_description", "container_type",
-                     "closure_type", "label_colors", "product_color", "texture"]:
+                     "customer_problem", "main_benefit", "env_context", "product_appearance"]:
             if key in vision_profile and vision_profile[key]:
                 profile[key] = vision_profile[key]
+        # product_type from vision overwrites text analysis
         if "product_type" in vision_profile and vision_profile["product_type"]:
             profile["product_type"] = vision_profile["product_type"]
         if "colors" in vision_profile and vision_profile["colors"]:
             profile["colors"] = vision_profile["colors"]
-        if "packaging_style" in vision_profile and vision_profile["packaging_style"]:
-            profile["packaging_style"] = vision_profile["packaging_style"]
+
+    # Fallback: ensure target_gender is specific for image gen
+    if profile.get("target_gender", "") in ("unisex", "", None):
+        profile["target_gender"] = "female"
 
     # Override with explicit params if provided
     if category:
@@ -473,6 +493,8 @@ async def analyze_and_build_prompts(
             "main_benefit": profile.get("main_benefit", ""),
             "hashtags": profile.get("hashtags", []),
             "image_description": profile.get("image_description", ""),
+            "env_context": profile.get("env_context", ""),
+            "product_appearance": profile.get("product_appearance", ""),
         },
         "timing_validation": {
             "segments": {

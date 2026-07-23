@@ -177,30 +177,26 @@ Example (correct for Holding style): 'An ethnic Thai woman with porcelain white 
 }"""
 
 
-PRODUCT_VISION_SYSTEM = """You are a product image analyst for TikTok Shop (Gemini-powered).
-Analyze the product image and return JSON ONLY (no other text).
-
-CRITICAL RULES:
-- target_gender MUST be "male" or "female" — NEVER "unisex"
-- image_description must be 100% English with NO Thai language
-- 🔴 ต้องอธิบายรายละเอียดบรรจุภัณฑ์: container type (bottle/jar/tube/compact/pen),
-  closure (twist cap/pump/spray/flip-top/click), สีและดีไซน์ของฉลาก, เนื้อผลิตภัณฑ์ที่เห็นผ่านบรรจุภัณฑ์
+PRODUCT_VISION_SYSTEM = """You are a product and environment analyst. Analyze the product image and return JSON ONLY.
 
 JSON format:
 {
-  "category": "beauty/fashion/electronics/food/home/tools/health/other",
-  "product_type": "lipstick/cream/headphones/etc.",
-  "target_gender": "male/female",
+  "category": "home/electronics/beauty/fashion/food/tools/health/other",
+  "product_type": "what this product is (e.g. wall-mounted motion sensor light, electric toothbrush)",
+  "target_gender": "female/male",
   "target_age": "25",
-  "target_audience": "primary target audience (specific, in Thai for script)",
-  "setting": "suggested video setting (English, e.g. vanity room, bathroom, cafe)",
-  "colors": ["dominant color 1", "dominant color 2", "dominant color 3"],
-  "packaging_style": "luxury/minimal/colorful/modern",
-  "estimated_product_size": "small/medium/large",
-  "customer_problem": "specific problem this product solves (in Thai for script)",
-  "main_benefit": "specific main benefit (in Thai for script)",
-  "image_description": "ENGLISH ONLY — absolutely NO Thai. Describe the ideal scene for AI image gen. Include: model appearance MUST be 'Ethnic Thai woman' with porcelain white glowing skin, monolid eyes, Southeast Asian features. Pose: how they hold/use product. Expression, setting, lighting, mood. Focus on product texture/usage. **MANDATORY — describe actual packaging details from the product image: container type (bottle/jar/tube/compact), closure (twist cap/pump/spray/flip-top), label colors, product color/texture visible in packaging.** Example: 'An ethnic Thai woman with porcelain white glowing skin, 25 years old, monolid eyes, happy smile, applying product on lips — the product is a clear glass jar with a silver twist cap containing pale pink cream — vanity room, soft natural window lighting, glossy texture visible, warm atmosphere'
-}"""
+  "setting": "where this product is typically used/installed (English, general location)",
+  "env_context": "specific environment: hallway entrance, bathroom sink, bedroom vanity, kitchen counter",
+  "colors": ["color1", "color2", "color3"],
+  "customer_problem": "what problem this product solves (Thai, concise)",
+  "main_benefit": "key benefit of using it (Thai, concise)",
+  "product_appearance": "ENGLISH ONLY. Physical description of the product ONLY (no person). What it looks like: shape, color, material, size, any visible features."
+}
+RULES:
+- target_gender MUST be "female" or "male" — image gen NEEDS a specific gender
+- target_age: SINGLE number (e.g. 25), not a range
+- product_appearance describes the product PHYSICALLY — not a scene, not a person
+- setting = general location type. env_context = specific spot"""
 
 
 

@@ -398,13 +398,13 @@ def pipeline_status(job_id: str):
 def pipeline_list(limit: int = 20):
     conn = sqlite3.connect(PIPELINE_DB_PATH)
     rows = conn.execute(
-        "SELECT job_id, account_id, status, product_url, created_at, updated_at FROM pipeline_jobs ORDER BY REPLACE(created_at, ' ', 'T') DESC LIMIT ?",
+        "SELECT job_id, account_id, status, product_url, created_at, updated_at, steps_data FROM pipeline_jobs ORDER BY REPLACE(created_at, ' ', 'T') DESC LIMIT ?",
         (limit,)
     ).fetchall()
     conn.close()
     jobs = []
     for r in rows:
-        job = {"job_id": r[0], "account_id": r[1], "status": r[2], "product_url": r[3], "created_at": r[4], "updated_at": r[5], "product_image": "", "generated_image": "", "product_title": ""}
+        job = {"job_id": r[0], "account_id": r[1], "status": r[2], "product_url": r[3], "created_at": r[4], "updated_at": r[5], "steps_data": r[6] if len(r) > 6 else "{}", "product_image": "", "generated_image": "", "product_title": ""}
         # Try to enrich with images + title from pipeline_logs.db
         try:
             lconn = sqlite3.connect(str(LOGS_DB_PATH))

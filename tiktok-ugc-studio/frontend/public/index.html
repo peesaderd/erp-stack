@@ -1232,11 +1232,12 @@ select.input { cursor: pointer; }
     <div class="batch-config">
       <label>Style:</label>
       <select id="batchStyle">
-        <option value="holding">Holding</option>
-        <option value="usage">Usage</option>
-        <option value="review">Review</option>
-        <option value="unbox">Unbox</option>
-        <option value="talking">Talking Head</option>
+        <option value="auto">🤖 AI Auto-Select</option>
+        <option value="holding">Holding (ถือสินค้า)</option>
+        <option value="usage">Usage (การใช้งาน)</option>
+        <option value="review">Review (รีวิว)</option>
+        <option value="unbox">Unbox (แกะกล่อง)</option>
+        <option value="talking">Talking Head (คนพูด)</option>
       </select>
       <label>Duration:</label>
       <input type="number" id="batchDuration" value="15" min="5" max="30">
@@ -1257,8 +1258,8 @@ select.input { cursor: pointer; }
     </div>
     <div id="batchProductList" style="max-height:200px;overflow-y:auto;margin-bottom:16px;font-size:13px"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
-      <div><label style="font-size:12px;color:var(--text-secondary)">Style</label><select id="batchModalStyle" class="input"><option value="holding">Holding</option><option value="usage">Usage</option><option value="review">Review</option><option value="unbox">Unbox</option><option value="talking">Talking Head</option></select></div>
-      <div><label style="font-size:12px;color:var(--text-secondary)">⏱ Duration (s)</label><input type="number" id="batchModalDuration" class="input" value="15" min="5" max="30"></div>
+      <div><label style="font-size:12px;color:var(--text-secondary)">Style</label><select id="batchModalStyle" class="input"><option value="auto">🤖 AI Auto-Select</option><option value="holding">Holding (ถือสินค้า)</option><option value="usage">Usage (การใช้งาน)</option><option value="review">Review (รีวิว)</option><option value="unbox">Unbox (แกะกล่อง)</option><option value="talking">Talking Head (คนพูด)</option></select></div>
+      <div><label style="font-size:12px;color:var(--text-secondary)">⏱ Duration</label><select id="batchModalDuration" class="input"><option value="auto">🤖 AI Auto-Duration</option><option value="15">15 Seconds</option><option value="8">8 Seconds</option><option value="30">30 Seconds</option></select></div>
       <div><label style="font-size:12px;color:var(--text-secondary)">⚡ Concurrency</label><input type="number" id="batchModalConcurrency" class="input" value="3" min="1" max="10"></div>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
@@ -6191,7 +6192,7 @@ async function startBatch() {
     const payload = {
       products: products.map(function(p) { return { title: p.title, image: p.image, url: p.url }; }),
       style: document.getElementById('batchModalStyle').value,
-      duration: parseInt(document.getElementById('batchModalDuration').value) || 15,
+      duration: document.getElementById('batchModalDuration').value === 'auto' ? 'auto' : (parseInt(document.getElementById('batchModalDuration').value) || 15),
       concurrency: parseInt(document.getElementById('batchModalConcurrency').value) || 3,
     };
     

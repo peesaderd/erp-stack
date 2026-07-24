@@ -92,6 +92,21 @@ RECIPES = [
         "duration": 8,
         "bgm_style": "energetic_edm",
     },
+    {
+        "name": "product_demo",
+        "label": "📦 Product Demo",
+        "description": "No person, just product on table, feature demo",
+        "ugc_style": "product_demo",
+        "sound_style": "none",
+        "mood": "clean",
+        "duration": 8,
+        "bgm_style": "none",
+        "prompt_context": {
+            "category": "general",
+            "vibe": "clean minimal",
+            "lighting_preference": "bright even",
+        },
+    },
 ]
 
 

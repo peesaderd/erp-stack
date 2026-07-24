@@ -106,11 +106,19 @@ STYLE_MAP = {
         "video_motion": "model pointing and gesturing at content, head turns, reaction expressions",
     },
     "aesthetic_vlog": {
+    "product_demo": "Product_Demo",
         "model_action": "model going through routine naturally, product appears organically in scene, GRWM energy",
         "camera": "variety of angles, fast cuts, cinematic b-roll, sometimes model not looking at camera",
         "vibe": "cinematic, aesthetic, aspirational, premium",
         "keywords": "vlog, daily routine, GRWM, aesthetic lifestyle, cinematic",
         "video_motion": "fast paced cuts, product smoothly appearing in frame, slow motion segments, smooth transitions",
+    },
+    "product_demo": {
+        "model_action": "product on table or surface, no person visible, product centered and clearly shown, demonstration focus",
+        "camera": "top-down or eye-level, product centered, clean background",
+        "vibe": "clean, minimal, product-focused, demonstration",
+        "keywords": "product demo, no people, product-centered, clean background, product features visible",
+        "video_motion": "product sitting on clean surface, hands entering frame to demonstrate features, no person face visible, product rotating or being operated, camera panning around product"
     },
 }
 

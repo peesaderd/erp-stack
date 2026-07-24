@@ -142,7 +142,14 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     thai_base = f"An ethnic Thai {gender_en}, {model_age} years old, porcelain white glowing skin, monolid eyes, Southeast Asian ethnic Thai features, small nose bridge"
     
     # ── Style-driven scene (ugc_style is PRIMARY) ─────────────────
-    if ugc_style in ("usage", "product_usage"):
+    if ugc_style == "product_demo":
+        prod_desc = product_appearance or product_name
+        scene_desc = (
+            f"Product placed on {env_str}. {prod_desc[:200]} — "
+            f"clean surface, product centered in frame. "
+            f"Product features clearly visible. No people in frame."
+        )
+    elif ugc_style in ("usage", "product_usage"):
         # Try Gemini for natural product usage scene
         gemini_image, _ = _gemini_generate_prompts(
             product_name=product_name,
@@ -327,7 +334,15 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     model_intro = f"Ethnic Thai {gender_en} {model_age} years old, porcelain white glowing skin, monolid eyes, Southeast Asian ethnic Thai features{clothing_str}{hair_str}"
     
     # ── Style-driven video_motion (ugc_style is PRIMARY) ──────────
-    if ugc_style in ("usage", "product_usage"):
+    if ugc_style == "product_demo":
+        action = (
+            f"{prod_desc_vid or product_name} on {env_context}. "
+            f"Product sits centered on clean surface. "
+            f"Camera slowly pans around the product — front, side, detail. "
+            f"Product features visible: controls, branding, design details. "
+            f"No people in frame. Product-only demonstration."
+        )
+    elif ugc_style in ("usage", "product_usage"):
         # Try Gemini for natural product usage description
         gemini_image, gemini_video = _gemini_generate_prompts(
             product_name=product_name,

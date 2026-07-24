@@ -1733,6 +1733,16 @@ def get_pipeline_recipes():
             "duration": 8,
             "bgm_style": "energetic_edm",
         },
+        {
+            "name": "product_demo",
+            "label": "📦 Product Demo",
+            "description": "No person, just product on table, feature showcase",
+            "ugc_style": "product_demo",
+            "sound_style": "none",
+            "mood": "clean",
+            "duration": 8,
+            "bgm_style": "none",
+        },
     ]
     return {"recipes": recipes}
 

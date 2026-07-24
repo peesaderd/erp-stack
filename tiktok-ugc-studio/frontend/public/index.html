@@ -3367,6 +3367,14 @@ async function loadPipelineJobs(force = false) {
       el.innerHTML = '<div class="text-sm text-secondary" style="text-align:center;padding:32px">📭 ไม่มีงานที่ตรงกับเงื่อนไข</div>';
       return;
     }
+
+    // Trigger Notification for newly completed jobs
+    jobs.forEach(function(job) {
+      if (job.status === 'completed') {
+        var jTitle = job.product_title || job.job_id || 'วิดีโอ';
+        sendJobNotification('🎬 วิดีโอสร้างเสร็จสมบูรณ์แล้ว!', jTitle + ' พร้อมใช้งานและโพสต์ลงโซเชียลมีเดียแล้วครับ', job.job_id);
+      }
+    });
     // Use product_url from DB as product name (no per-job detail fetch to avoid flicker)
     // Cache-busting: only re-render when data actually changes (reduce flicker)
   var _cacheKey = JSON.stringify(jobs.map(function(j){return j.job_id+j.status+j.created_at;}));

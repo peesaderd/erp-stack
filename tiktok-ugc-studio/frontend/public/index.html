@@ -1127,6 +1127,94 @@ body {
   box-shadow: 0 -10px 30px rgba(0,0,0,0.08) !important;
 }
 
+
+/* ══════════════════════════════════════════════════════════════
+   HIGH-END ULTRA MODERN SAAS OVERHAUL
+   ══════════════════════════════════════════════════════════════ */
+:root {
+  --brand-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #d946ef 100%) !important;
+  --brand-glow: 0 10px 25px -5px rgba(124, 58, 237, 0.4) !important;
+}
+
+body {
+  background: #f8fafc !important;
+}
+
+.page-header h2 {
+  font-size: 28px !important;
+  font-weight: 900 !important;
+  letter-spacing: -1px !important;
+  background: var(--brand-gradient) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+.stat-card {
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 20px !important;
+  padding: 20px !important;
+  box-shadow: 0 10px 30px -10px rgba(99, 102, 241, 0.12), 0 1px 3px rgba(0,0,0,0.05) !important;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.stat-card:hover {
+  transform: translateY(-4px) scale(1.01) !important;
+  border-color: #a855f7 !important;
+  box-shadow: 0 20px 40px -10px rgba(168, 85, 247, 0.25) !important;
+}
+
+.stat-card .stat-value {
+  font-size: 34px !important;
+  font-weight: 900 !important;
+  line-height: 1.1 !important;
+  background: var(--brand-gradient) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+.stat-card .stat-label {
+  font-size: 11.5px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.8px !important;
+  color: #64748b !important;
+  text-transform: uppercase !important;
+  margin-top: 8px !important;
+}
+
+#page-dashboard .card:first-of-type {
+  background: var(--brand-gradient) !important;
+  border: none !important;
+  border-radius: 24px !important;
+  padding: 24px !important;
+  box-shadow: var(--brand-glow) !important;
+}
+
+.btn-primary, .btn-submit, #btn-topbar-login {
+  background: var(--brand-gradient) !important;
+  border: none !important;
+  border-radius: 14px !important;
+  padding: 12px 24px !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  color: #ffffff !important;
+  box-shadow: var(--brand-glow) !important;
+  transition: all 0.25s ease !important;
+}
+
+.mobile-tab-bar, .mobile-bottom-nav {
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(25px) !important;
+  border-top: 2px solid #e2e8f0 !important;
+  padding: 8px 0 !important;
+  box-shadow: 0 -10px 30px rgba(0,0,0,0.08) !important;
+}
+
+.mobile-tab-item.active {
+  color: #7c3aed !important;
+  font-weight: 800 !important;
+}
+
 </style>
 
   <script>
@@ -3249,11 +3337,12 @@ function getStepProgressHtml(job) {
     passedCircles += `<span style="color:var(--accent-purple);font-size:12px;margin-right:2px">${circledNums[i]}</span>`;
   }
 
-  let activeBadge = '';
   if (job.status === 'completed') {
-    passedCircles = circledNums.map(n => `<span style="color:#10b981;font-size:12px;margin-right:2px">${n}</span>`).join('');
-    activeBadge = `<span class="badge badge-green" style="font-size:10.5px;padding:2px 8px">✅ 9/9 Completed</span>`;
-  } else if (job.status === 'error') {
+    return ''; // Hide step progress bar for completed jobs
+  }
+
+  let activeBadge = '';
+  if (job.status === 'error') {
     activeBadge = `<span class="badge" style="background:rgba(239,68,68,0.15);color:#ef4444;font-size:10.5px;padding:2px 8px">❌ ${currentStep}/9 ${currentName} Failed</span>`;
   } else {
     activeBadge = `<span class="badge" style="background:rgba(139,92,246,0.15);color:var(--accent-purple);font-size:10.5px;padding:2px 8px">⏳ ${currentStep}/9 ${currentName}</span>`;

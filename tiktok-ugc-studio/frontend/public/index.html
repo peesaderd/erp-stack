@@ -1901,7 +1901,7 @@ body {
         <option value="cancelled">🚫 Cancelled</option>
         <option value="restarted">🔄 Restarted</option>
       </select>
-      <button class="btn btn-secondary btn-sm" onclick="loadPipelineJobs()">⟳ Refresh</button>
+      <button class="btn btn-secondary btn-sm" onclick="this.disabled=true;this.innerText='⏳ Refreshing...';loadPipelineJobs(true).finally(()=>{this.disabled=false;this.innerText='⟳ Refresh';})">⟳ Refresh</button>
     </div>
   </div>
   <div id="pipelineJobList"><div class="text-sm text-secondary" style="text-align:center;padding:32px">Loading...</div></div>
@@ -3351,7 +3351,8 @@ function getStepProgressHtml(job) {
   return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;width:100%">${passedCircles} ${activeBadge}</div>`;
 }
 
-async function loadPipelineJobs() {
+async function loadPipelineJobs(force = false) {
+  if (force) { window._pipelinePollCache = null; }
   const el = document.getElementById('pipelineJobList');
   const filter = document.getElementById('pipelineFilter')?.value || 'all';
   try {

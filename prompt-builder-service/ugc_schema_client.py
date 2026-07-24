@@ -120,6 +120,15 @@ _FALLBACK_STYLES: Dict[str, Dict[str, Any]] = {
         "keywords": "aesthetic, vlog, lifestyle, slow living, daily routine, cinematic",
         "video_motion": "slow motion, smooth transitions, product in lifestyle context, cinematic pans",
     },
+    "product_demo": {
+        "model_action": "Product on clean surface, no person visible, product clearly centered",
+        "camera": "eye-level on product, product centered, clean background",
+        "vibe": "clean, minimal, product-focused",
+        "keywords": "product demo, no people, product-centered, features visible",
+        "video_motion": "product on clean surface, camera pans around product",
+        "video_resolution": "720P",
+        "aspect_ratio": "9:16",
+    },
 }
 
 VALID_STYLES = list(_FALLBACK_STYLES.keys())
@@ -201,6 +210,7 @@ STYLE_ALIASES = {
     "product_only": "product_only",
     "no_model": "product_only",
     "broll": "product_only",
+    "product_demo": "product_demo",
 }
 
 def normalize_style_key(style_key: Optional[str]) -> str:

@@ -1386,6 +1386,9 @@ select.input { cursor: pointer; }
           <div class="style-card" data-style="talking" onclick="selectStyleFromModal(this,'talking')">
             <div class="style-card-emoji">🎤</div><div class="font-medium">Talking Head</div><div class="text-xs text-secondary">พูดหน้ากล้อง</div>
           </div>
+          <div class="style-card" data-style="product_demo" onclick="selectStyleFromModal(this,'product_demo')">
+            <div class="style-card-emoji">📦</div><div class="font-medium">Product Demo</div><div class="text-xs text-secondary">โชว์สินค้า ไม่มีคน</div>
+          </div>
         </div>
       </div>
     </div>
@@ -2401,7 +2404,7 @@ async function autoGenerateAll() {
   const url = document.getElementById('productUrl').value;
   const title = document.getElementById('productTitle').value.trim();
   const details = document.getElementById('productDetails').value.trim();
-  const style = document.getElementById('selectedStyleLabel')?.textContent?.split(' —')[0]?.trim()?.toLowerCase().replace(/ /g,'_') || 'holding';
+  const style = sessionStorage.getItem('selectedStyle') || 'holding';
   if (!url && !title && !details) { showToast('ใส่ชื่อสินค้าหรือ URL ก่อน','error'); return; }
 
   const dur = parseInt(sessionStorage.getItem('selectedDuration')) || 8;
@@ -2651,7 +2654,7 @@ async function generateScript() {
   const url = document.getElementById('productUrl').value;
   const title = document.getElementById('productTitle').value.trim();
   const details = document.getElementById('productDetails').value.trim();
-  const style = document.getElementById('selectedStyleLabel')?.textContent?.split(' —')[0]?.trim()?.toLowerCase().replace(/ /g,'_') || 'holding';
+  const style = sessionStorage.getItem('selectedStyle') || 'holding';
   if (!url && !title && !details) { showToast('ใส่ชื่อสินค้าหรือ URL ก่อน','error'); return; }
 
   setButtonLoading('genScriptBtn', true);
@@ -2725,7 +2728,7 @@ async function generateImageFromStep3() {
   setButtonLoading('genImageBtn', true);
   const productName = document.getElementById('productTitle').value || document.getElementById('productName').value || 'สินค้า';
   const productDetails = document.getElementById('productDetails').value || '';
-  const style = document.getElementById('selectedStyleLabel')?.textContent?.split(' —')[0]?.trim()?.toLowerCase().replace(/ /g,'_') || 'holding';
+  const style = sessionStorage.getItem('selectedStyle') || 'holding';
   const productImageUrl = uploadedImages.product || '';
   
   try {
@@ -2805,6 +2808,7 @@ function selectRecipe(name) {
     'holding_product': ['🤳', 'Holding Product — ถือสินค้าพูด'],
     'ugc_review': ['⭐', 'UGC Review — รีวิวสินค้า'],
     'talking_head': ['🎤', 'Talking Head — พูดหน้ากล้อง'],
+    'product_demo': ['📦', 'Product Demo — โชว์สินค้า ไม่มีคน'],
   };
   const s = styleMap[recipe.ugc_style] || ['🤳', 'Holding Product'];
   document.getElementById('selectedStyleIcon').textContent = s[0];

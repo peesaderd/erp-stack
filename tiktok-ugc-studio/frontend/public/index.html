@@ -3412,8 +3412,8 @@ async function loadPipelineJobs(force = false) {
           <div style="display:flex;align-items:center;font-size:11px;color:var(--text-secondary);gap:8px">
             <span style="white-space:nowrap">🕐 ${timeAgo}</span>
             <span style="margin-left:auto"></span>
-            <button class="btn btn-primary btn-sm" onclick="loadPipelineDetail('${j.job_id}')" style="padding:3px 10px;font-size:11px">📋 ดู</button>
-            ${j.status === 'running' || j.status === 'pending' ? `<button class="btn btn-sm" onclick="cancelJobFromList('${j.job_id}')" style="padding:3px 8px;font-size:11px;color:var(--color-red-500)">✖</button>` : ''}
+            <button class="btn btn-primary btn-sm" onclick="loadPipelineDetail('${j.job_id}')" style="padding:2px 7px;font-size:10.5px;margin:0 2px">📋 ดู</button>
+            ${j.status === 'running' || j.status === 'pending' ? `<button class="btn btn-sm" onclick="cancelJobFromList('${j.job_id}')" style="padding:2px 6px;font-size:10.5px;margin:0 2px;color:var(--color-red-500)">✖</button>` : ''}
           </div>
           <div style="display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--text-secondary)">
             <span>📋 ${j.job_id}</span>

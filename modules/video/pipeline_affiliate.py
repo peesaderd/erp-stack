@@ -758,6 +758,7 @@ def compose_video(
     run_id: str = "",
     bgm_style: str = "chill_loft",
     target_duration: int = 0,
+    voice_speed: float = 1.3,
 ) -> str:
     """
     Step 9: Compose final video (merge voice + BGM + concat scenes)
@@ -767,6 +768,7 @@ def compose_video(
         voice_path: path ของ voice จาก Step 7 (None = ไม่มี voiceover)
         run_id: สำหรับสร้าง filename
         bgm_style: สไตล์เพลงพื้นหลัง
+        voice_speed: ความเร็วเสียง 1.0=ปกติ 1.3=เร่งสปีด (default ASMR/Sale voice)
 
     Returns:
         str: path ของ final video
@@ -790,7 +792,8 @@ def compose_video(
     if voice_path:
         logger.info(f"  9b: Merge voiceover")
         voiced_path = STORAGE_DIR / f"affiliate_{run_id}.mp4"
-        # Loop video to match target duration if needed (no -shortest, no atempo rush)
+        # Voice speed adjustment (default 1.3x for natural feel)
+        speed_filter = f"atempo={voice_speed}" if voice_speed != 1.0 else None
         cmd = [
             "ffmpeg", "-y",
             "-stream_loop", "2",
@@ -803,8 +806,11 @@ def compose_video(
             "-map", "0:v:0",
             "-map", "1:a:0",
             "-t", str(target_duration),
-            str(voiced_path),
         ]
+        if speed_filter:
+            cmd.insert(-1, "-af")
+            cmd.insert(-1, speed_filter)
+        cmd.append(str(voiced_path))
         try:
             subprocess.run(cmd, check=True, capture_output=True, timeout=60)
             # Verify output has video stream (Gemini TTS raw audio can break merge)

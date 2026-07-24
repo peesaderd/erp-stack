@@ -18,6 +18,29 @@ import httpx
 
 from line_client import line_client, LineProfile
 
+# ── Reward Module Integration ─────────────────────────────────────────
+REWARD_BASE = os.environ.get("REWARD_BASE", "http://localhost:8121")
+REWARD_ENABLED = True  # set False to disable reward features
+
+# Lazy import reward handler
+_reward_handler = None
+async def _get_reward_handler():
+    global _reward_handler
+    if _reward_handler is None:
+        try:
+            import sys
+            from pathlib import Path
+            _modules_dir = Path(__file__).parent.parent  # modules/
+            if str(_modules_dir) not in sys.path:
+                sys.path.insert(0, str(_modules_dir))
+            from reward.line_handler import handle_reward_commands, auto_earn_from_order
+            _reward_handler = (handle_reward_commands, auto_earn_from_order)
+        except Exception as e:
+            logger.warning(f"Reward module not available: {e}")
+            return None, None
+    return _reward_handler
+
+
 logger = logging.getLogger("line-bot.handlers")
 
 # ── Config ───────────────────────────────────────────────────────────────
@@ -213,6 +236,27 @@ async def _handle_text(text: str, session: dict, reply_token: str, user_id: str)
     if text_lower in ("jobs", "สถานะ", "status"):
         await _show_tus_jobs(reply_token)
         return
+
+    # ── Reward / Points commands ────────────────────────────────────
+    if REWARD_ENABLED and text_lower in (
+        "แต้มฉัน", "my points", "balance", "points", "แต้ม", "คะแนน",
+        "แต้มสะสม", "history", "ประวัติ", "ประวัติแต้ม",
+        "แลกแต้ม", "redeem", "แลก", "รางวัล", "rewards", "catalog",
+    ):
+        handler, _ = await _get_reward_handler()
+        if handler:
+            messages, handled = await handler(text, user_id, "")
+            if handled and messages:
+                await line_client.reply(reply_token, messages)
+                return
+
+    if REWARD_ENABLED and (text_lower.startswith("แต้ม ") or text_lower.startswith("แลก ")):
+        handler, _ = await _get_reward_handler()
+        if handler:
+            messages, handled = await handler(text, user_id, "")
+            if handled and messages:
+                await line_client.reply(reply_token, messages)
+                return
 
     # ── Cart commands ──────────────────────────────────────────────────
     if text_lower in ("ยืนยัน", "ยีนยัน", "confirm", "สั่งเลย", "checkout"):
@@ -700,13 +744,27 @@ async def _handle_checkout(session: dict, reply_token: str, user_id: str):
     order_id = result.get("order_id", result.get("id", f"ORD-{datetime.now().strftime('%y%m%d%H%M%S')}"))
     table_str = f"ที่โต๊ะ {session.get('table_id', '')}" if table_id else "(ไม่ระบุโต๊ะ)"
 
+    # ── Auto-earn points ────────────────────────────────────────────
+    points_earned = 0
+    if REWARD_ENABLED:
+        try:
+            _, earn_func = await _get_reward_handler()
+            if earn_func:
+                earn_result = await earn_func(user_id, total, order_id)
+                if earn_result and earn_result.get("success"):
+                    points_earned = earn_result.get("points_earned", 0)
+        except Exception as e:
+            logger.warning(f"Auto-earn points failed: {e}")
+
     if "error" not in result:
+        pts_line = f"\n⭐ **ได้รับ {points_earned} แต้มสะสม!**" if points_earned > 0 else ""
         confirm_text = (
             f"✅ **สั่งอาหารสำเร็จ!**\n\n"
             f"📄 เลขออเดอร์: `{order_id}`\n"
             f"{table_str}\n"
-            f"\n💵 รวมทั้งหมด: **{total:.0f} บาท**\n"
-            f"⏳ รอเชฟทำให้ก่อนนะครับ 🧑‍🍳\n"
+            f"\n💵 รวมทั้งหมด: **{total:.0f} บาท**"
+            f"{pts_line}\n"
+            f"\n⏳ รอเชฟทำให้ก่อนนะครับ 🧑‍🍳\n"
             f"\nพิมพ์ `เช็คออเดอร์ {order_id}` เพื่อดูสถานะ"
         )
     else:
@@ -719,12 +777,73 @@ async def _handle_checkout(session: dict, reply_token: str, user_id: str):
         )
 
     # Clear cart after order
+    item_rows = []
+    for it in items:
+        item_rows.append({
+            "type": "box",
+            "layout": "horizontal",
+            "contents": [
+                {"type": "text", "text": f"{it['name']} x{it['quantity']}", "size": "sm", "color": "#555555", "flex": 4, "wrap": True},
+                {"type": "text", "text": f"฿{it['price'] * it['quantity']:.0f}", "size": "sm", "color": "#111111", "align": "end", "flex": 2, "weight": "bold"}
+            ]
+        })
+
+    receipt_bubble = {
+        "type": "bubble",
+        "styles": {"header": {"backgroundColor": "#4f46e5"}},
+        "header": {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {"type": "text", "text": "🧾 ใบเสร็จรับเงิน / สรุปออเดอร์", "weight": "bold", "color": "#ffffff", "size": "lg"},
+                {"type": "text", "text": f"เลขออเดอร์: {order_id}", "color": "#c7d2fe", "size": "xs", "margin": "xs"}
+            ]
+        },
+        "body": {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {"type": "text", "text": f"📍 {table_str}", "size": "sm", "weight": "bold", "color": "#4338ca"},
+                {"type": "separator", "margin": "md"},
+                {"type": "box", "layout": "vertical", "margin": "md", "spacing": "sm", "contents": item_rows},
+                {"type": "separator", "margin": "md"},
+                {
+                    "type": "box",
+                    "layout": "horizontal",
+                    "margin": "md",
+                    "contents": [
+                        {"type": "text", "text": "ยอดรวมสุทธิ", "weight": "bold", "size": "md", "color": "#111111"},
+                        {"type": "text", "text": f"฿{total:.0f}", "weight": "bold", "size": "xl", "color": "#4f46e5", "align": "end"}
+                    ]
+                },
+                {"type": "text", "text": f"⭐ ได้รับแต้มสะสม +{points_earned} แต้ม" if points_earned > 0 else "⭐ สะสมแต้มกับสมาชิก POS", "size": "xs", "color": "#059669", "margin": "md"}
+            ]
+        },
+        "footer": {
+            "type": "box",
+            "layout": "vertical",
+            "spacing": "sm",
+            "contents": [
+                {
+                    "type": "button",
+                    "action": {"type": "postback", "label": "💳 สแกนจ่าย (PromptPay)", "data": f"pay_promptpay|{order_id}|{total}"},
+                    "style": "primary",
+                    "color": "#4f46e5"
+                },
+                {
+                    "type": "button",
+                    "action": {"type": "message", "label": "🔍 เช็คสถานะออเดอร์", "text": f"เช็คออเดอร์ {order_id}"},
+                    "style": "secondary"
+                }
+            ]
+        }
+    }
+
     session["cart"] = []
     session["state"] = "idle"
 
     await line_client.reply(reply_token, [
-        line_client.text(confirm_text),
-        line_client.sticker("446", "1991"),  # OK sticker
+        line_client.flex(f"สรุปออเดอร์ {order_id}", receipt_bubble)
     ])
 
 

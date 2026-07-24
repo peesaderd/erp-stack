@@ -368,17 +368,9 @@ class AitoEarnClient:
             "platforms": [t.get("platform") for t in tasks],
         }
 
-        # 4. Publish immediately if requested (all tasks)
-        if publish_immediately:
-            for task in tasks:
-                task_id = task.get("id", "")
-                if task_id:
-                    pub = await self.publish_now(task_id)
-                    if pub["ok"]:
-                        logger.info(f"Published {task.get('platform')} ({task_id})")
-                    else:
-                        logger.warning(f"publishNow {task.get('platform')} failed: {pub['error']}")
-            result["published_now"] = True
+        # 4. Publish flow created — AitoEarn auto-executes task at publishAt
+        result["published_now"] = True
+        logger.info(f"✅ Created publish flow {flow_data.get('flowId')} for {len(tasks)} platforms")
 
         return result
 

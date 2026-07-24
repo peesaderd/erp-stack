@@ -3758,13 +3758,15 @@ async function retryJob(jobId) {
 }
 
 async function cancelJobFromList(jobId) {
-  if (!confirm('Cancel job ' + jobId + '?')) return;
+  if (!confirm('⚠️ คุณแน่ใจหรือไม่ว่าต้องการยกเลิกงานนี้? (Job: ' + jobId + ')')) return;
+  if (!confirm('‼️ ยืนยันการยกเลิกงานอีกครั้ง? การกระทำนี้ไม่สามารถย้อนกลับได้')) return;
   await cancelJobApi(jobId);
   loadPipelineJobs();
 }
 
 async function cancelJobFromDetail(jobId) {
-  if (!confirm('Cancel job ' + jobId + '?')) return;
+  if (!confirm('⚠️ คุณแน่ใจหรือไม่ว่าต้องการยกเลิกงานนี้? (Job: ' + jobId + ')')) return;
+  if (!confirm('‼️ ยืนยันการยกเลิกงานอีกครั้ง? การกระทำนี้ไม่สามารถย้อนกลับได้')) return;
   await cancelJobApi(jobId);
   loadPipelineDetail(jobId);
   loadPipelineJobs();

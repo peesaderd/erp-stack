@@ -69,6 +69,9 @@ Keywords: {kw_str}"""
             "action_desc": "ถือสินค้าและใช้งานทั่วไป",
             "hashtags": keywords[:5] if len(keywords) >= 5 else [product_name.replace(" ", "")[:20]] * 5,
             "image_description": f"An ethnic Thai {gender_en}, 25-35 years old, porcelain white glowing skin, monolid eyes, Southeast Asian features, holding a product at chest level, in a clean modern setting",
+            # Extract basic features from description when Gemini fails
+            "features": _extract_features_from_description(description) if description else "",
+            "product_appearance": _extract_appearance_from_description(description) if description else "",
         }
     else:
         profile = gemini_profile
@@ -98,6 +101,48 @@ Keywords: {kw_str}"""
 # ═══════════════════════════════════════════════════════════════════════
 # ─── Image & Video Prompt Generation ──────────────────────────────────
 # ═══════════════════════════════════════════════════════════════════════
+
+
+def _extract_features_from_description(description: str) -> str:
+    """Extract key product features from plaintext description when Gemini fails.
+    Returns full phrases instead of isolated keywords.
+    """
+    desc = description.strip()
+    if not desc:
+        return ""
+    # Try to extract meaningful feature phrases from the description
+    # Look for number+unit combos, key tech specs
+    spec_patterns = []
+    # Find capacity/volume specs
+    import re
+    ml_match = re.search(r'\d+\s*ml', desc, re.IGNORECASE)
+    if ml_match:
+        spec_patterns.append(ml_match.group())
+    # Find battery/power specs
+    for kw in ['ไร้สาย', 'ชาร์จ USB', 'USB-C', 'แบตในตัว', 'rechargeable', 'wireless']:
+        if kw.lower() in desc.lower():
+            spec_patterns.append(kw)
+    # Find tech features
+    for kw in ['เซนเซอร์', 'sensor', 'อัตโนมัติ', 'automatic', 'LED', 'digital', 'smart', 'Bluetooth']:
+        if kw.lower() in desc.lower() and kw not in spec_patterns:
+            spec_patterns.append(kw)
+    if spec_patterns:
+        return ", ".join(spec_patterns[:6])
+    # Last resort: first sentence
+    return desc[:80]
+
+def _extract_appearance_from_description(description: str) -> str:
+    """Extract physical appearance from plaintext description."""
+    desc = description.strip()
+    if not desc:
+        return ""
+    # Try full sentences about appearance
+    for kw in ['ดีไซน์', 'design', 'สี', 'รูปทรง', 'ลักษณะ', 'material', 'plastic', 'glass', 'metal',
+               'white', 'black', 'pink', 'bottle', 'spray', 'nozzle', 'ขนาด', 'น้ำหนัก']:
+        if kw.lower() in desc.lower():
+            # Return first 100 chars that contain appearance context
+            return desc[:100]
+    return desc[:60]
 
 
 def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holding") -> str:
@@ -144,10 +189,20 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     # ── Style-driven scene (ugc_style is PRIMARY) ─────────────────
     if ugc_style == "product_demo":
         prod_desc = product_appearance or product_name
+        try:
+            from ugc_config import auto_select_preset
+            cat = profile.get("category", "other")
+            selection = auto_select_preset(cat)
+            preset_mood = selection["preset"].get("mood", "clean, informative")
+            preset_light = selection["preset"].get("lighting", "clean studio light")
+        except ImportError:
+            preset_mood = "clean, informative"
+            preset_light = "clean studio light"
         scene_desc = (
             f"Product placed on {env_str}. {prod_desc[:200]} — "
             f"clean surface, product centered in frame. "
-            f"Product features clearly visible. No people in frame."
+            f"Product features clearly visible. No people in frame. "
+            f"Lighting: {preset_light}. Mood: {preset_mood}."
         )
     elif ugc_style in ("usage", "product_usage"):
         # Try Gemini for natural product usage scene
@@ -335,13 +390,27 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     
     # ── Style-driven video_motion (ugc_style is PRIMARY) ──────────
     if ugc_style == "product_demo":
-        action = (
-            f"{prod_desc_vid or product_name} on {env_context}. "
-            f"Product sits centered on clean surface. "
-            f"Camera slowly pans around the product — front, side, detail. "
-            f"Product features visible: controls, branding, design details. "
-            f"No people in frame. Product-only demonstration."
-        )
+        # Import preset config for mood/lighting
+        try:
+            from ugc_config import auto_select_preset, build_shot_prompts
+            cat = profile.get("category", "other")
+            selection = auto_select_preset(cat)
+            preset = selection["preset"]
+            p_lighting = preset.get("lighting", "clean studio light")
+            p_mood = preset.get("mood", "clean, informative")
+            p_bgm = preset.get("bgm_style", "informative_jazz")
+        except ImportError:
+            p_lighting = "clean studio light, evenly diffused"
+            p_mood = "clean, informative"
+            p_bgm = "informative_jazz"
+        
+        # Build 3-shot prompt for product demo
+        prod = prod_desc_vid or product_name
+        shot1 = f"Shot1/0-5s: Establishing wide shot of {prod} on {env_context}. Product centered, clean surface, minimal composition. Camera slow push in. {p_lighting}."
+        shot2 = f"Shot2/5-10s: Close-up of infrared sensor on {prod}. A hand enters frame, reaches toward sensor. Sensor triggers, fine mist spray bursts from nozzle. Backlit highlighting mist particles drifting in air. Cinematic slow motion. Static camera."
+        shot3 = f"Shot3/10-15s: Wide lifestyle shot of {prod} placed on {env_context} with natural ambient setting. Product in use context — warm atmosphere, depth of field. Camera slow pan right to reveal full scene."
+        
+        action = f"{shot1} {shot2} {shot3} No people except hand in shot2. 9:16 portrait, smooth natural motion. Mood: {p_mood}. BGM: {p_bgm}."
     elif ugc_style in ("usage", "product_usage"):
         # Try Gemini for natural product usage description
         gemini_image, gemini_video = _gemini_generate_prompts(
@@ -553,6 +622,7 @@ async def analyze_and_build_prompts(
             "image_description": profile.get("image_description", ""),
             "env_context": profile.get("env_context", ""),
             "product_appearance": profile.get("product_appearance", ""),
+            "features": profile.get("features", ""),
         },
         "timing_validation": {
             "segments": {

@@ -590,6 +590,12 @@ async def generate_video(req: VideoRequest):
         full_script = req.script
     elif req.prompt:
         full_script = req.prompt
+    elif req.ugc_style == "product_demo" and _product_title:
+        # Product Demo: spec narration from Gemini Vision analysis, not review hook/value/cta
+        # The product specs come from Vision analysis (features + product_appearance)
+        # or fallback to raw product_description if no vision analysis yet
+        desc = req.product_description or ""
+        full_script = f"{_product_title}: {desc}" if desc else f"{_product_title}"
     elif _product_title:
         full_script = f"Check out this {_product_title}! Amazing quality, great value! Link in bio! 🛍️"
     else:
@@ -599,11 +605,15 @@ async def generate_video(req: VideoRequest):
     if req.scenes:
         scenes = req.scenes
     elif req.duration <= 15:  # single scene for wan2.7 (max 15s)
+        if req.ugc_style == "product_demo":
+            mood, snd = "clean", "none"
+        else:
+            mood, snd = "energetic", "upbeat_pop"
         scenes = [SceneBlock(
             script=full_script,
             duration=req.duration,
-            mood="energetic",
-            sound_style="upbeat_pop",
+            mood=mood,
+            sound_style=snd,
             style=req.ugc_style,
         )]
     else:
@@ -639,6 +649,27 @@ async def generate_video(req: VideoRequest):
 
             if pb_result.get("ok") and pb_result.get("data"):
                 pb_data = pb_result["data"]
+                
+                # Product Demo: override scene script with Gemini Vision analysis
+                # features + product_appearance มาจาก Vision analysis (Mistral/Gemini on product image)
+                # เป็น data จริงจาก AI vision — ไม่ hardcode
+                if req.ugc_style == "product_demo" and scenes:
+                    analysis = pb_data.get("analysis", {}) or {}
+                    feat_raw = analysis.get("features", "")
+                    feat_str = feat_raw if isinstance(feat_raw, str) else \
+                        ", ".join(f.strip() for f in feat_raw if f.strip()) if isinstance(feat_raw, list) else ""
+                    product_appearance = (analysis.get("product_appearance", "") or "")
+                    
+                    # Priority: features > product_appearance > raw product_description
+                    parts = [f"{_product_title}"]
+                    if feat_str:
+                        parts.append(feat_str)
+                    elif product_appearance:
+                        parts.append(product_appearance[:200])
+                    elif req.product_description:
+                        parts.append(req.product_description[:200])
+                    scenes[0].script = ": ".join(parts)
+                
                 img_prompt = pb_data.get("image_prompt", "")
                 video_prompts = [pb_data.get("video_prompt", "")] * len(scenes)
                 neg_prompt = pb_data.get("negative_prompt", req.negative_prompt)
@@ -688,6 +719,7 @@ async def generate_video(req: VideoRequest):
                 "video_prompt": (video_prompts or [""])[0],
                 "video_prompts": video_prompts or [],
                 "job_id": job_id,
+                "script": (scenes[0].script if scenes and req.ugc_style == "product_demo" else "") or "",
             }, timeout=300.0)  # Video pipeline takes 90-180s
 
             if not affiliate_result.get("ok"):
@@ -1372,6 +1404,10 @@ async def ugc_scripts_generate(req: dict):
         "cta": req.get("cta", ""),
         "duration": req.get("duration", "8s"),
         "extra_rules": req.get("extra_rules", ""),
+        "features": req.get("features", ""),
+        "product_appearance": req.get("product_appearance", ""),
+        "style": req.get("style", "review"),
+        "category": req.get("category", "other"),
     }
     result = await _proxy("POST", "video", "/api/v1/scripts/generate", script_body)
     if not result.get("ok"):

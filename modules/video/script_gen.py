@@ -85,8 +85,10 @@ def build_script_system_prompt(persona: dict, duration: str = f"{DEFAULT_DURATIO
     )
     
     # ─── Append duration timing constraints ──────────────────────────
-    if duration in ("15s", "16s"):
-        base += adjust_prompt_for_duration(duration)
+    # Normalize: "15" → "15s", "16" → "16s", "30" → "30s"
+    dur_normalized = duration if duration.endswith("s") else f"{duration}s"
+    if dur_normalized in ("15s", "16s", "30s"):
+        base += adjust_prompt_for_duration(dur_normalized)
     
     return base
 
@@ -101,6 +103,7 @@ def adjust_prompt_for_duration(duration_type: str = "15s") -> str:
         return (
             "\\n[TIMING CONSTRAINT for 15 วินาที]"
             "\\n- สคริปต์ทั้งหมดต้องมีความยาวรวมกันประมาณ 45-55 คำ (ภาษาไทย) เพื่อให้พูดจบภายใน 15 วินาที"
+            "\\n- ระยะเวลา 15 วินาทีให้ใช้คำพูด 45-55 คำเท่านั้น"
             "\\n- แบ่งเวลาเป็น 3-4 ช่วง ช่วงละ 3-5 วินาที"
             "\\n- ห้ามน้ำท่วมทุ่ง ให้เข้าประเด็นตามโครงสร้างที่กำหนด"
             "\\n- ห้ามมีเนื้อหาซ้ำหรืออธิบายยืดเยื้อ"
@@ -110,6 +113,7 @@ def adjust_prompt_for_duration(duration_type: str = "15s") -> str:
         return (
             "\n[TIMING CONSTRAINT for 30 วินาที]"
             "\n- สคริปต์ทั้งหมดต้องมีความยาวรวมกันประมาณ 90-110 คำ (ภาษาไทย)"
+            "\n- ระยะเวลา 30 วินาทีให้ใช้คำพูด 90-110 คำเท่านั้น"
             "\n- แบ่งเวลาเป็น 4-5 ช่วง ช่วงละ 5-7 วินาที"
             "\n- Hook 3-4 วินาทีแรก ติดเบ็ดให้อยู่"
             "\n- Content 18-20 วินาที อธิบายละเอียดกว่า 15s"
@@ -120,6 +124,7 @@ def adjust_prompt_for_duration(duration_type: str = "15s") -> str:
         return (
             "\\n[TIMING CONSTRAINT for 16 วินาที]"
             "\\n- สคริปต์ทั้งหมดต้องมีความยาวรวมกันประมาณ 48-60 คำ (ภาษาไทย)"
+            "\\n- ระยะเวลา 16 วินาทีให้ใช้คำพูด 48-60 คำเท่านั้น"
             "\\n- แบ่งเป็น Hook (3s), Value (10s), CTA (3s)"
             "\\n- ห้ามน้ำท่วมทุ่ง ให้เข้าประเด็นตามโครงสร้างที่กำหนด"
         )
@@ -186,6 +191,9 @@ def generate_tiktok_review_script(
     extra_rules: str = "",
     persona: Optional[dict] = None,
     persona_category: str = "beauty",
+    features: str = "",
+    product_appearance: str = "",
+    style: str = "review",
 ) -> dict:
     """Generate a TikTok UGC review script using AiBot prompts
     
@@ -207,19 +215,21 @@ def generate_tiktok_review_script(
     persona_name = persona.get("vibe", "ทั่วไป").split(",")[0].strip()
     
     # ─── Load prompts ─────────────────────────────────────────────────
-    if duration == "16s":
+    #      system_script_gen.prompt.txt = clean script-only rules
+    #      system.prompt.txt (legacy)   = bloated (video rules mixed) — kept only for 16s
+    #      master.prompt.txt            = video gen rules only — NOT loaded for script gen
+    if style == "product_demo":
+        # Product demo — เน้นอธิบายฟังก์ชัน ไม่มีโครงสร้าง CTA
+        system = load_prompt("system_script_gen.prompt.txt")
+        user_tpl = load_prompt("user_product_demo.prompt.txt")
+    elif duration == "16s":
+        # 16s still uses legacy prompts (separate fix later)
         system = load_prompt("system_16s.prompt.txt")
-        master = load_prompt("master_16s_3step.prompt.txt")
         user_tpl = load_prompt("user_16s.prompt.txt")
-    elif duration == "15s":
-        # 15s uses same base prompts as 8s but with timing addendum
-        system = load_prompt("system.prompt.txt")
-        master = load_prompt("master.prompt.txt")
-        user_tpl = load_prompt("user.template.prompt.txt")
     else:
-        system = load_prompt("system.prompt.txt")
-        master = load_prompt("master.prompt.txt")
-        user_tpl = load_prompt("user.template.prompt.txt")
+        # Review/UGC styles — user_review has timing structure for Hook/Value/CTA flow
+        system = load_prompt("system_script_gen.prompt.txt")
+        user_tpl = load_prompt("user_review.template.prompt.txt")
 
     # ─── Build user data ──────────────────────────────────────────────
     # tone จาก persona ถ้าไม่ override
@@ -233,6 +243,8 @@ def generate_tiktok_review_script(
         "tone": effective_tone,
         "cta": cta or "กดดูในตะกร้าเลย",
         "extra_rules": extra_rules or "-",
+        "features": features or "-",
+        "product_appearance": product_appearance or "-",
     }
 
     user_prompt = fill_template(user_tpl, user_data)
@@ -242,7 +254,7 @@ def generate_tiktok_review_script(
     combined_system = f"{persona_layer}\n\n{system}" if system else persona_layer
 
     # ─── Try LLM with persona injection ───────────────────────────────
-    raw = _call_gemini(combined_system, f"{master}\n\n{user_prompt}")
+    raw = _call_gemini(combined_system, user_prompt)
 
     if raw:
         return {

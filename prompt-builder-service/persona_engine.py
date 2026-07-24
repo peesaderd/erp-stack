@@ -92,9 +92,12 @@ def _select_persona(category: str, product_name: str = "") -> dict:
         "fashion": ["energetic_young", "minimalist_zen", "calm_professional"],
         "home": ["mom_at_home", "minimalist_zen", "calm_professional"],
         "tools": ["calm_professional", "tech_enthusiast", "mom_at_home"],
-        "health": ["calm_professional", "minimalist_zen", "energetic_young"],
+        "health": ["calm_professional", "minimalist_zen", "mom_at_home"],
+        "health_hygiene": ["calm_professional", "minimalist_zen", "mom_at_home"],
+        "home_appliance": ["mom_at_home", "minimalist_zen", "calm_professional"],
     }
-    pool = cat_persona_map.get(category, list(PERSONA_TEMPLATES.keys()))
+    fallback_safe = ["calm_professional", "minimalist_zen", "mom_at_home"]
+    pool = cat_persona_map.get(category, fallback_safe)
     chosen = random.choice(pool)
     return PERSONA_TEMPLATES[chosen]
 

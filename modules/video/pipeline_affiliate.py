@@ -248,6 +248,7 @@ def generate_script(
     product_name: str,
     product_profile: dict,
     recipe: dict,
+    ugc_style: str = "holding",
 ) -> str:
     """
     Step 3: Generate script via Gemini
@@ -256,16 +257,20 @@ def generate_script(
         product_name: ชื่อสินค้า
         product_profile: ผลจาก analyze_product()
         recipe: ผลจาก load_recipe()
+        ugc_style: สไตล์ UGC (holding, review, product_demo, ...)
 
     Returns:
         str: full_script
     """
-    logger.info(f"Step 3/9: Generate script (Gemini)")
+    logger.info(f"Step 3/9: Generate script (Gemini, style={ugc_style})")
 
     try:
-        # Import script_gen จาก modules/video
         sys.path.insert(0, str(Path(__file__).parent))
         from script_gen import generate_tiktok_review_script
+
+        # product_demo style → use natural Thai narration template
+        # other styles → use review template (Hook/Value/CTA)
+        style = "product_demo" if ugc_style == "product_demo" else "review"
 
         result = generate_tiktok_review_script(
             product_name=product_name,
@@ -274,17 +279,33 @@ def generate_script(
             target_audience=product_profile.get("target_audience", ""),
             tone="เป็นกันเอง พูดเร็ว",
             duration=f"{recipe.get('total_duration', 8)}s",
+            features=product_profile.get("features", ""),
+            product_appearance=product_profile.get("product_appearance", ""),
+            style=style,
         )
 
         script = result.get("script", "")
-        logger.info(f"  Script: {script[:50]}... (uses_llm={result.get('uses_llm')})")
-
+        logger.info(f"  Script: {script[:100]}... (uses_llm={result.get('uses_llm')})")
         return script
 
     except Exception as e:
         logger.error(f"Script generation failed: {e}")
-        # Fallback: template script
-        return f"{product_profile.get('customer_problem', 'ปัญหาที่เจอบ่อย')} ใช่ไหมคะ? วันนี้เรามี {product_name} มาบอกต่อ {product_profile.get('main_benefit', 'คุณภาพดี')} ค่ะ กดตะกร้าเลย!"
+        # Fallback: natural Thai narration for product_demo
+        if ugc_style == "product_demo":
+            feat = product_profile.get("features", "")
+            appear = product_profile.get("product_appearance", "")
+            if feat:
+                return f"{product_name} ตัวนี้ {feat} ใช้งานง่ายมาก"
+            elif appear:
+                return f"{product_name} ตัวนี้{appear[:100]} ใช้งานดี"
+            return f"{product_name} ตัวนี้ใช้งานดีมาก"
+        # Default: template review script
+        base = f"{product_profile.get('customer_problem', 'ปัญหาที่เจอบ่อย')} ใช่ไหมคะ? วันนี้เรามี {product_name}"
+        feat = product_profile.get("features", "")
+        if feat:
+            base += f" มี {feat}"
+        base += f" {product_profile.get('main_benefit', 'คุณภาพดี')} ค่ะ กดตะกร้าเลย!"
+        return base
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -614,7 +635,6 @@ def generate_video(
     duration: int = 8,
     resolution: str = "720P",
     audio_path: Optional[str] = None,
-    negative_prompt: str = "",
 ) -> tuple:
     """
     Step 8: Generate video via Wan 2.7 Async API (shared ProdiaV2Client)
@@ -644,12 +664,12 @@ def generate_video(
         with open(image_path, "rb") as f:
             image_data = f.read()
 
-    # Read audio bytes if provided
+    # NOTE: ไม่ส่ง audio ไป Prodia Wan 2.7
+    # Wan 2.7 lip-sync = +60-120s processing (600-800KB voiceover)
+    # Step 9 (compose) จะ merge voiceover ทับวิดีโออยู่แล้ว
     audio_bytes = None
     if audio_path:
-        with open(audio_path, "rb") as f:
-            audio_bytes = f.read()
-        logger.info(f"  Audio: {len(audio_bytes)} bytes")
+        logger.info(f"  Audio: {Path(audio_path).stat().st_size} bytes (skipping Prodia — will compose in Step 9)")
 
     # ── Generate via shared client ──
     client = ProdiaV2Client(token=PRODIA_TOKEN())
@@ -660,9 +680,7 @@ def generate_video(
             input_image=image_data,
             duration=duration,
             resolution=resolution,
-            audio_bytes=audio_bytes,
             job_type="inference.wan2-7.img2vid.v1",
-            negative_prompt=negative_prompt or "low resolution, error, worst quality, deformed",
         )
 
         output_url = result.get("output_url", "")
@@ -706,9 +724,7 @@ def generate_video(
                     input_image=image_data,
                     duration=duration,
                     resolution=resolution,
-                    audio_bytes=audio_bytes,
                     job_type="inference.wan2-7.img2vid.v1",
-                    negative_prompt=negative_prompt or "low resolution, error, worst quality, deformed",
                 )
                 output_url = _retry_result.get("output_url", "")
                 price = _retry_result.get("price", {})
@@ -972,7 +988,7 @@ def run_pipeline(
         # ── STEP 3: Generate Script (skip if pre-computed) ──
         if not script:
             step_start = time.time()
-            script = generate_script(product_name, product_profile, recipe)
+            script = generate_script(product_name, product_profile, recipe, ugc_style=ugc_style)
             script_duration = int((time.time() - step_start) * 1000)
         else:
             script_duration = 0
@@ -1069,8 +1085,7 @@ def run_pipeline(
             image_path=str(img_path),
             prompt=vprompt,
             duration=total_duration,
-            audio_path=voice_path,
-            negative_prompt=negative_prompt or "",
+            # NOTE: ไม่ส่ง audio_path — Step 9 compose เอาไว้จัดการ
         )
         video_paths.append(vid_path)
         

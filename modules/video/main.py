@@ -84,6 +84,10 @@ class ScriptRequest(BaseModel):
     cta: str = ""
     duration: str = f"{DEFAULT_DURATION}s"
     extra_rules: str = ""
+    features: str = ""
+    product_appearance: str = ""
+    style: str = "review"
+    category: str = "other"
 
 class UGCRequest(BaseModel):
     style: str = "ugc_review"
@@ -159,6 +163,10 @@ async def generate_script(req: ScriptRequest):
         cta=req.cta,
         duration=req.duration,
         extra_rules=req.extra_rules,
+        features=req.features,
+        product_appearance=req.product_appearance,
+        style=req.style,
+        persona_category=req.category,
     )
     return {"success": True, "script": result}
 
@@ -284,7 +292,8 @@ async def generate_video(req: VideoRequest):
             video_prompt=req.video_prompt or "",
             video_prompts=req.video_prompts or [],
             negative_prompt=req.negative_prompt or "",
-            script=req.script or "",
+            script=script or "",
+
         )
         return {"success": True, "result": result}
     except Exception as e:

@@ -1020,6 +1020,113 @@ select.input { cursor: pointer; }
   box-shadow: 0 -5px 25px rgba(0,0,0,0.05) !important;
 }
 
+
+/* ══════════════════════════════════════════════════════════════
+   HIGH IMPACT ULTRA MODERN SAAS REDESIGN (NEON GLASS + VIBRANT NAV)
+   ══════════════════════════════════════════════════════════════ */
+:root {
+  --brand: #6366f1 !important;
+  --brand-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #d946ef 100%) !important;
+  --brand-glow: 0 10px 30px -5px rgba(124, 58, 237, 0.4) !important;
+  --bg-primary: #f1f5f9 !important;
+}
+
+body {
+  background: #f1f5f9 !important;
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+}
+
+/* Modern Topbar */
+.topbar {
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(20px) !important;
+  border-bottom: 2px solid #e2e8f0 !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.04) !important;
+}
+
+.topbar-brand {
+  font-size: 22px !important;
+  font-weight: 900 !important;
+  letter-spacing: -1px !important;
+}
+
+.topbar-brand span {
+  background: var(--brand-gradient) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+/* Modern Nav Pills */
+.topbar-nav button {
+  padding: 10px 18px !important;
+  border-radius: 14px !important;
+  font-weight: 700 !important;
+  font-size: 14px !important;
+  transition: all 0.25s ease !important;
+}
+
+.topbar-nav button.active {
+  background: var(--brand-gradient) !important;
+  color: #ffffff !important;
+  box-shadow: var(--brand-glow) !important;
+}
+
+.topbar-nav button.active .nav-icon {
+  stroke: #ffffff !important;
+  color: #ffffff !important;
+}
+
+/* High Impact Glassmorphic Cards */
+.card, .stat-card, .table-wrap, .modal-content {
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 20px !important;
+  box-shadow: 0 20px 40px -15px rgba(99, 102, 241, 0.08), 0 1px 3px rgba(0,0,0,0.05) !important;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.card:hover, .stat-card:hover {
+  transform: translateY(-4px) scale(1.008) !important;
+  border-color: #818cf8 !important;
+  box-shadow: 0 25px 50px -12px rgba(124, 58, 237, 0.2) !important;
+}
+
+.stat-card .stat-value {
+  font-size: 32px !important;
+  font-weight: 900 !important;
+  background: var(--brand-gradient) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+/* Gradient Floating Action Buttons */
+.btn-primary, .btn-submit, #btn-topbar-login {
+  background: var(--brand-gradient) !important;
+  border: none !important;
+  border-radius: 14px !important;
+  padding: 12px 24px !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  color: #ffffff !important;
+  box-shadow: var(--brand-glow) !important;
+  transition: all 0.25s ease !important;
+}
+
+.btn-primary:hover, .btn-submit:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.1);
+  box-shadow: 0 15px 35px -5px rgba(124, 58, 237, 0.5) !important;
+}
+
+/* Mobile Bottom Navigation Redesign */
+.mobile-bottom-nav, .side-nav-mobile {
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(25px) !important;
+  border-top: 2px solid #e2e8f0 !important;
+  padding: 8px 0 !important;
+  box-shadow: 0 -10px 30px rgba(0,0,0,0.08) !important;
+}
+
 </style>
 
   <script>

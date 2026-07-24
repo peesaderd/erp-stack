@@ -2404,7 +2404,7 @@ async function autoGenerateAll() {
   const url = document.getElementById('productUrl').value;
   const title = document.getElementById('productTitle').value.trim();
   const details = document.getElementById('productDetails').value.trim();
-  const style = sessionStorage.getItem('selectedStyle') || 'holding';
+  const style = sessionStorage.getItem('selectedStyle');
   if (!url && !title && !details) { showToast('ใส่ชื่อสินค้าหรือ URL ก่อน','error'); return; }
 
   const dur = parseInt(sessionStorage.getItem('selectedDuration')) || 8;
@@ -2654,7 +2654,7 @@ async function generateScript() {
   const url = document.getElementById('productUrl').value;
   const title = document.getElementById('productTitle').value.trim();
   const details = document.getElementById('productDetails').value.trim();
-  const style = sessionStorage.getItem('selectedStyle') || 'holding';
+  const style = sessionStorage.getItem('selectedStyle');
   if (!url && !title && !details) { showToast('ใส่ชื่อสินค้าหรือ URL ก่อน','error'); return; }
 
   setButtonLoading('genScriptBtn', true);
@@ -2728,7 +2728,7 @@ async function generateImageFromStep3() {
   setButtonLoading('genImageBtn', true);
   const productName = document.getElementById('productTitle').value || document.getElementById('productName').value || 'สินค้า';
   const productDetails = document.getElementById('productDetails').value || '';
-  const style = sessionStorage.getItem('selectedStyle') || 'holding';
+  const style = sessionStorage.getItem('selectedStyle');
   const productImageUrl = uploadedImages.product || '';
   
   try {
@@ -2810,10 +2810,14 @@ function selectRecipe(name) {
     'talking_head': ['🎤', 'Talking Head — พูดหน้ากล้อง'],
     'product_demo': ['📦', 'Product Demo — โชว์สินค้า ไม่มีคน'],
   };
-  const s = styleMap[recipe.ugc_style] || ['🤳', 'Holding Product'];
+  const s = styleMap[recipe.ugc_style] || ['📦', 'Product Demo'];
   document.getElementById('selectedStyleIcon').textContent = s[0];
   document.getElementById('selectedStyleLabel').textContent = s[1];
   sessionStorage.setItem('selectedStyle', recipe.ugc_style);
+  // Sync UGC dropdown highlight to match recipe
+  document.querySelectorAll('#styleModalGrid .style-card').forEach(c => c.classList.remove('selected'));
+  const modalCard = document.querySelector('#styleModalGrid [data-style="' + recipe.ugc_style + '"]');
+  if (modalCard) modalCard.classList.add('selected');
 
   // Duration
   const durChips = document.querySelectorAll('.duration-chip');
@@ -2842,6 +2846,8 @@ function selectStyleFromModal(el, style) {
   document.getElementById('selectedStyleIcon').textContent = icon;
   document.getElementById('selectedStyleLabel').textContent = label + ' — ' + sub;
   document.getElementById('styleModal').classList.remove('open');
+  // Deselect recipe card — user is doing custom style, not following a preset
+  document.querySelectorAll('#recipePicker .style-card').forEach(c => c.classList.remove('selected'));
 }
 
 function selectDuration(el, dur) {
@@ -2945,7 +2951,7 @@ async function startGeneration() {
       value: value,
       cta: cta,
       content_type: sessionStorage.getItem('selectedContentType') || 'affiliate',
-      ugc_style: sessionStorage.getItem('selectedStyle') || 'product_usage',
+      ugc_style: sessionStorage.getItem('selectedStyle'),
       aspect_ratio: sessionStorage.getItem('aspectRatio') || '9:16',
       duration: duration,
       negative_prompt: document.getElementById('negativePrompt').value.trim() || undefined,

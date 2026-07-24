@@ -5356,10 +5356,10 @@ async function loadPublisherVideos() {
         if (htags.length > 5) inner += ' ...';
         inner += '</div>';
       }
-      // Action buttons
-      inner += '<div style="display:flex;gap:6px">';
-      inner += '<button class="btn btn-primary btn-sm" onclick="pubPostNow(' + JSON.stringify(jobId).replace(/"/g,'&quot;') + ', ' + JSON.stringify(name).replace(/"/g,'&quot;') + ')" style="flex:1;font-size:12px">🚀 Post Now</button>';
-      inner += '<button class="btn btn-secondary btn-sm" onclick="pubSchedule(' + JSON.stringify(jobId).replace(/"/g,'&quot;') + ', ' + JSON.stringify(name).replace(/"/g,'&quot;') + ')" style="flex:1;font-size:12px">📅 Schedule</button>';
+      // Action buttons (wrap safely, compact padding)
+      inner += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:auto;padding-top:4px">';
+      inner += '<button class="btn btn-primary btn-sm" onclick="pubPostNow(' + JSON.stringify(jobId).replace(/"/g,'&quot;') + ', ' + JSON.stringify(name).replace(/"/g,'&quot;') + ')" style="flex:1;min-width:90px;font-size:11px;padding:4px 8px;white-space:nowrap">🚀 Post Now</button>';
+      inner += '<button class="btn btn-secondary btn-sm" onclick="pubSchedule(' + JSON.stringify(jobId).replace(/"/g,'&quot;') + ', ' + JSON.stringify(name).replace(/"/g,'&quot;') + ')" style="flex:1;min-width:90px;font-size:11px;padding:4px 8px;white-space:nowrap">📅 Schedule</button>';
       inner += '</div>';
       inner += '</div>';
       

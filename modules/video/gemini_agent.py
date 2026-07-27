@@ -308,13 +308,7 @@ These elements are IMMUTABLE - never alter or hallucinate these details:
  - For electronics, describe a desk or table surface with lifestyle elements.
 
 # REQUIREMENTS FOR VIDEO PROMPT:
-- Provide a highly detailed, comprehensive video prompt.
-- description: Overview of the vertical video concept.
-- movement: Detailed array of camera movements for each scene transition (e.g. ["Slow dolly zoom into product", "Smooth pan across countertop", "Close-up tilt showing bottle cap"]).
-- lighting: Detailed description of lighting and mood (e.g., warm afternoon sun, diffused side-lighting with soft shadows).
-- storytelling: Complete step-by-step scene-by-scene script breakdown, explaining what happens in each second of the video.
-- transitions: Detailed creative video transitions (e.g., ["Whip pan transition to lifestyle setting", "Seamless overlay cut"]).
-- product_interaction: Detailed actions involving the product (e.g., ["Unscrewing the dropper cap", "Dispensing product texture onto a flat surface", "Placing the bottle back down"]).
+- Provide a concise 15-30s vertical video concept including visual theme, camera movements, and key product shots.
 
 # REQUIREMENTS FOR HOOKS (3 hooks):
 - THAI language, product-specific (NOT generic), attention-grabbing.

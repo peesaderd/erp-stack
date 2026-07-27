@@ -2276,6 +2276,11 @@ async function autoGenerateAll() {
     if (!prompt) throw new Error('No prompt built');
 
     const productImageUrl = uploadedImages.product || '';
+    if (!productImageUrl) {
+        showToast('⚠️ กรุณาอัปโหลดรูปสินค้า (image_url) ก่อนสร้างภาพ', 'warning');
+        setButtonLoading('autoGenBtn', false);
+        return;
+    }
     const imgRes = await fetch(window.location.origin + '/api/tiktok/ugc/images/generate', {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({prompt, count: 1, image_url: productImageUrl})

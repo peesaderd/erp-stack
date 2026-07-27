@@ -335,13 +335,33 @@ select.input { cursor: pointer; }
 .table-wrap tr:last-child td { border-bottom: none; }
 
 /* Product Grid Cards */
-.product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+.product-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
 .product-card {
   background: var(--bg-secondary) !important;
   border: 1px solid var(--border-primary) !important;
   border-radius: var(--radius-xl) !important;
   overflow: hidden; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: var(--shadow-md) !important;
+  display: flex !important;
+  align-items: center !important;
+  padding: 12px 16px !important;
+  gap: 16px !important;
+  height: 96px !important;
+  position: relative;
+}
+.product-card:hover {
+  border-color: var(--brand) !important;
+  box-shadow: var(--shadow-xl) !important;
+  transform: translateY(-2px);
+}
+.product-card-img {
+  width: 72px !important;
+  height: 72px !important;
+  min-width: 72px !important;
+  border-radius: var(--radius-lg) !important;
+  object-fit: cover;
+  background: var(--bg-tertiary);
+  flex-shrink: 0 !important;
 }
 .product-card:hover {
   border-color: var(--brand) !important;
@@ -349,7 +369,7 @@ select.input { cursor: pointer; }
   transform: translateY(-4px);
 }
 .product-card-img { width: 100%; height: 190px; object-fit: cover; background: var(--bg-tertiary); }
-.product-card-body { padding: 18px; }
+.product-card-body { padding: 0 !important; flex: 1 !important; min-width: 0 !important; display: flex !important; flex-direction: column !important; gap: 4px !important; }
 .product-card-title { font-size: 14px; font-weight: 700; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 10px; }
 .product-card-price { font-size: 20px; font-weight: 800; color: var(--brand); }
 .product-card-comm {
@@ -364,8 +384,38 @@ select.input { cursor: pointer; }
   border-top: 1px solid var(--border-primary);
 }
 
+/* ── Batch Select ── */
+.product-card { position: relative; }
+.product-card.batch-selected { border-color: var(--accent-purple) !important; box-shadow: 0 0 0 2px rgba(139,92,246,0.3) !important; }
+.product-card-checkbox { position: absolute; top: 8px; left: 8px; z-index: 10; background: var(--bg-primary); border-radius: 4px; padding: 2px; box-shadow: var(--shadow-sm); }
+.product-card-checkbox input[type=checkbox] { width: 20px; height: 20px; cursor: pointer; accent-color: var(--accent-purple); border-radius: 4px; }
+#batchBar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: var(--bg-secondary);
+  border-top: 2px solid var(--accent-purple);
+  padding: 12px 24px;
+  display: none;
+  z-index: 1000;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+  align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 10px;
+}
+#batchBar .batch-info { display: flex; align-items: center; gap: 12px; }
+#batchBar .batch-info .count { font-size: 18px; font-weight: 700; color: var(--accent-purple); }
+#batchBar .batch-config { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+#batchBar .batch-config label { font-size: 12px; color: var(--text-secondary); }
+#batchBar .batch-config select, #batchBar .batch-config input { padding: 6px 10px; font-size: 13px; border-radius: 8px; border: 1px solid var(--border-primary); background: var(--bg-tertiary); color: var(--text-primary); }
+#batchBar .batch-config input { width: 60px; }
+/* ── Batch History ── */
+.batch-card { padding: 14px; border-radius: var(--radius-lg); background: var(--bg-secondary); border: 1px solid var(--border-primary); margin-bottom: 10px; }
+.batch-card .batch-header { display: flex; justify-content: space-between; align-items: center; }
+.batch-card .batch-progress { margin-top: 8px; height: 6px; background: var(--bg-tertiary); border-radius: 3px; overflow: hidden; }
+.batch-card .batch-progress .bar { height: 100%; border-radius: 3px; transition: width 0.5s; background: linear-gradient(90deg, var(--accent-purple), var(--accent-magenta)); }
+
 /* Asset Grid Cards */
-.asset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 20px; }
+.asset-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+@media (max-width: 768px) { .asset-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; } }
+@media (max-width: 480px) { .asset-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; } }
 .asset-card {
   border-radius: var(--radius-xl) !important;
   border: 1px solid var(--border-primary) !important;
@@ -419,7 +469,7 @@ select.input { cursor: pointer; }
 
 /* Modals & Glassmorphic Sheets */
 .modal-overlay {
-  display: none; position: fixed; inset: 0; background: rgba(2, 6, 23, 0.4); z-index: 50;
+  display: none; position: fixed; inset: 0; background: rgba(2, 6, 23, 0.4); z-index: 2000;
   align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
 }
@@ -439,11 +489,11 @@ select.input { cursor: pointer; }
 }
 
 /* Side navigation slider */
-.side-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 60; }
+.side-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 40; }
 .side-overlay.open { display: block; }
 .side-nav {
   position: fixed; top: 0; left: 0; bottom: 0; width: min(290px, 80vw);
-  background: var(--bg-secondary) !important; z-index: 70;
+  background: var(--bg-secondary) !important; z-index: 50;
   transform: translateX(-100%); transition: transform .25s cubic-bezier(.4,0,.2,1);
   display: flex; flex-direction: column; border-right: 1px solid var(--border-primary) !important;
   box-shadow: var(--shadow-xl) !important;
@@ -485,7 +535,10 @@ select.input { cursor: pointer; }
 .mobile-tab-bar { display: none; }
 
 @media (max-width: 768px) {
-  .page { padding: 20px 20px 120px; }
+  .page { padding: 20px 20px calc(140px + env(safe-area-inset-bottom, 0px)); }
+  .main { scroll-padding-bottom: 160px; }
+  #pipelineJobList { padding-bottom: 80px; }
+  #pub-videos-grid { padding-bottom: 80px; }
   .step-content { padding-bottom: 20px; }
   .step-content .btn-primary:last-child { margin-bottom: 10px; }
   .topbar-nav { display: none !important; }
@@ -502,6 +555,7 @@ select.input { cursor: pointer; }
     z-index: 1000; justify-content: space-around; align-items: center;
     padding-bottom: env(safe-area-inset-bottom);
   }
+  .modal-overlay { z-index: 2000 !important; }
   .dark-mode .mobile-tab-bar {
     background: rgba(15, 23, 42, 0.92) !important;
     border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
@@ -517,6 +571,7 @@ select.input { cursor: pointer; }
 .mobile-menu-btn {
   display: none; align-items: center; justify-content: center; width: 38px; height: 38px;
   border: none; background: transparent; color: var(--text-primary); cursor: pointer; font-size: 20px; border-radius: var(--radius);
+  margin-left: -10px;
 }
 .mobile-menu-btn:hover { background: var(--bg-tertiary); }
 
@@ -526,9 +581,9 @@ select.input { cursor: pointer; }
 }
 
 .toast {
-  position: fixed; bottom: 24px; right: 24px; padding: 14px 22px; border-radius: var(--radius);
+  position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); padding: 14px 22px; border-radius: var(--radius);
   font-size: 14px; font-weight: 700; z-index: 100; animation: slideUp 0.3s ease; max-width: 380px;
-  box-shadow: var(--shadow-xl);
+  box-shadow: var(--shadow-xl); text-align: center;
 }
 .toast.success { background: rgba(16, 185, 129, 0.15) !important; color: #065f46 !important; border: 0.5px solid rgba(16, 185, 129, 0.25) !important; }
 .dark-mode .toast.success { color: #34d399 !important; }
@@ -883,7 +938,320 @@ select.input { cursor: pointer; }
   width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
   font-size: 15px; font-weight: 700; color: #fff; flex-shrink: 0;
 }
+
+/* ══════════════════════════════════════════
+   CLEAN & FAST MODERN UI ENHANCEMENTS
+   ══════════════════════════════════════════ */
+.card, .stat-card, .table-wrap, .modal-content {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-primary) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 20px -4px rgba(0, 0, 0, 0.05) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.card:hover, .stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px -4px rgba(99, 102, 241, 0.12) !important;
+}
+
+.btn-primary, .btn-submit {
+  background: linear-gradient(135deg, #6366f1, #4f46e5) !important;
+  border: none !important;
+  border-radius: 10px !important;
+  font-weight: 600 !important;
+  box-shadow: 0 4px 14px 0 rgba(79, 70, 229, 0.35) !important;
+}
+
+.topbar-nav button.active {
+  background: rgba(79, 70, 229, 0.12) !important;
+  color: #4f46e5 !important;
+  font-weight: 700 !important;
+}
+
+.dark-mode .topbar-nav button.active {
+  background: rgba(99, 102, 241, 0.25) !important;
+  color: #818cf8 !important;
+}
+
+
+/* ══════════════════════════════════════════
+   ULTRA MODERN MOBILE & DESKTOP SAAS STYLING
+   ══════════════════════════════════════════ */
+:root {
+  --brand-gradient: linear-gradient(135deg, #6366f1, #8b5cf6, #d946ef);
+  --brand-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.4);
+}
+
+/* Card Modernization */
+.card, .stat-card, .table-wrap, .modal-content {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 16px !important;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05), 0 0 1px rgba(0,0,0,0.1) !important;
+  transition: transform 0.25s ease, box-shadow 0.25s ease !important;
+}
+
+.stat-card .stat-value {
+  font-size: 28px !important;
+  font-weight: 800 !important;
+  background: var(--brand-gradient) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+/* Modern Gradient Action Buttons */
+.btn-primary, .btn-submit, #btn-topbar-login {
+  background: var(--brand-gradient) !important;
+  border: none !important;
+  border-radius: 12px !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+  box-shadow: var(--brand-shadow) !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* Bottom Nav bar enhancement for Mobile */
+.mobile-bottom-nav, .side-nav-mobile {
+  background: rgba(255, 255, 255, 0.92) !important;
+  backdrop-filter: blur(20px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(190%) !important;
+  border-top: 1px solid #e2e8f0 !important;
+  box-shadow: 0 -5px 25px rgba(0,0,0,0.05) !important;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   HIGH IMPACT ULTRA MODERN SAAS REDESIGN (NEON GLASS + VIBRANT NAV)
+   ══════════════════════════════════════════════════════════════ */
+:root {
+  --brand: #6366f1 !important;
+  --brand-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #d946ef 100%) !important;
+  --brand-glow: 0 10px 30px -5px rgba(124, 58, 237, 0.4) !important;
+  --bg-primary: #f1f5f9 !important;
+}
+
+body {
+  background: #f1f5f9 !important;
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+}
+
+/* Modern Topbar */
+.topbar {
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(20px) !important;
+  border-bottom: 2px solid #e2e8f0 !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.04) !important;
+}
+
+.topbar-brand {
+  font-size: 22px !important;
+  font-weight: 900 !important;
+  letter-spacing: -1px !important;
+}
+
+.topbar-brand span {
+  background: var(--brand-gradient) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+/* Modern Nav Pills */
+.topbar-nav button {
+  padding: 10px 18px !important;
+  border-radius: 14px !important;
+  font-weight: 700 !important;
+  font-size: 14px !important;
+  transition: all 0.25s ease !important;
+}
+
+.topbar-nav button.active {
+  background: var(--brand-gradient) !important;
+  color: #ffffff !important;
+  box-shadow: var(--brand-glow) !important;
+}
+
+.topbar-nav button.active .nav-icon {
+  stroke: #ffffff !important;
+  color: #ffffff !important;
+}
+
+/* High Impact Glassmorphic Cards */
+.card, .stat-card, .table-wrap, .modal-content {
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 20px !important;
+  box-shadow: 0 20px 40px -15px rgba(99, 102, 241, 0.08), 0 1px 3px rgba(0,0,0,0.05) !important;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.card:hover, .stat-card:hover {
+  transform: translateY(-4px) scale(1.008) !important;
+  border-color: #818cf8 !important;
+  box-shadow: 0 25px 50px -12px rgba(124, 58, 237, 0.2) !important;
+}
+
+.stat-card .stat-value {
+  font-size: 32px !important;
+  font-weight: 900 !important;
+  background: var(--brand-gradient) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+/* Gradient Floating Action Buttons */
+.btn-primary, .btn-submit, #btn-topbar-login {
+  background: var(--brand-gradient) !important;
+  border: none !important;
+  border-radius: 14px !important;
+  padding: 12px 24px !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  color: #ffffff !important;
+  box-shadow: var(--brand-glow) !important;
+  transition: all 0.25s ease !important;
+}
+
+.btn-primary:hover, .btn-submit:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.1);
+  box-shadow: 0 15px 35px -5px rgba(124, 58, 237, 0.5) !important;
+}
+
+/* Mobile Bottom Navigation Redesign */
+.mobile-bottom-nav, .side-nav-mobile {
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(25px) !important;
+  border-top: 2px solid #e2e8f0 !important;
+  padding: 8px 0 !important;
+  box-shadow: 0 -10px 30px rgba(0,0,0,0.08) !important;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   HIGH-END ULTRA MODERN SAAS OVERHAUL
+   ══════════════════════════════════════════════════════════════ */
+:root {
+  --brand-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #d946ef 100%) !important;
+  --brand-glow: 0 10px 25px -5px rgba(124, 58, 237, 0.4) !important;
+}
+
+body {
+  background: #f8fafc !important;
+}
+
+.page-header h2 {
+  font-size: 28px !important;
+  font-weight: 900 !important;
+  letter-spacing: -1px !important;
+  background: var(--brand-gradient) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+.stat-card {
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 20px !important;
+  padding: 20px !important;
+  box-shadow: 0 10px 30px -10px rgba(99, 102, 241, 0.12), 0 1px 3px rgba(0,0,0,0.05) !important;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.stat-card:hover {
+  transform: translateY(-4px) scale(1.01) !important;
+  border-color: #a855f7 !important;
+  box-shadow: 0 20px 40px -10px rgba(168, 85, 247, 0.25) !important;
+}
+
+.stat-card .stat-value {
+  font-size: 34px !important;
+  font-weight: 900 !important;
+  line-height: 1.1 !important;
+  background: var(--brand-gradient) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+.stat-card .stat-label {
+  font-size: 11.5px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.8px !important;
+  color: #64748b !important;
+  text-transform: uppercase !important;
+  margin-top: 8px !important;
+}
+
+#page-dashboard .card:first-of-type {
+  background: var(--brand-gradient) !important;
+  border: none !important;
+  border-radius: 24px !important;
+  padding: 24px !important;
+  box-shadow: var(--brand-glow) !important;
+}
+
+.btn-primary, .btn-submit, #btn-topbar-login {
+  background: var(--brand-gradient) !important;
+  border: none !important;
+  border-radius: 14px !important;
+  padding: 12px 24px !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  color: #ffffff !important;
+  box-shadow: var(--brand-glow) !important;
+  transition: all 0.25s ease !important;
+}
+
+.mobile-tab-bar, .mobile-bottom-nav {
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(25px) !important;
+  border-top: 2px solid #e2e8f0 !important;
+  padding: 8px 0 !important;
+  box-shadow: 0 -10px 30px rgba(0,0,0,0.08) !important;
+}
+
+.mobile-tab-item.active {
+  color: #7c3aed !important;
+  font-weight: 800 !important;
+}
+
 </style>
+
+  <script>
+    // PWA & Browser Desktop Notification System for TUS
+    window._notifiedJobs = window._notifiedJobs || new Set();
+
+    function requestNotificationPermission() {
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission().then(perm => {
+          if (perm === 'granted') console.log('🔔 Notification permission granted!');
+        });
+      }
+    }
+
+    function sendJobNotification(title, body, jobId) {
+      if (!jobId || window._notifiedJobs.has(jobId)) return;
+      window._notifiedJobs.add(jobId);
+
+      if ('Notification' in window && Notification.permission === 'granted') {
+        try {
+          new Notification(title, {
+            body: body,
+            icon: '/icon-192.png',
+            badge: '/icon-192.png',
+            tag: jobId
+          });
+        } catch (e) { console.error('Notification error:', e); }
+      }
+    }
+
+    // Auto-request permission on first user click anywhere
+    document.addEventListener('click', function _reqPerm() {
+      requestNotificationPermission();
+      document.removeEventListener('click', _reqPerm);
+    }, { once: true });
+  </script>
+
 </head>
 <body>
 <div class="app">
@@ -919,8 +1287,7 @@ select.input { cursor: pointer; }
         </svg>
       </button>
     </div>
-    <span class="status-dot online" id="connStatus" title="Connected"></span>
-    <button class="btn btn-ghost btn-icon" onclick="refreshAll()" title="Refresh all">⟳</button>
+    <!-- Removed status dot + refresh per user request -->
   </div>
 </div>
 
@@ -931,9 +1298,13 @@ select.input { cursor: pointer; }
     <div class="mobile-tab-icon"><svg class="nav-icon" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
     <div>Dashboard</div>
   </button>
-  <button class="mobile-tab-item" onclick="switchTab('scout')">
-    <div class="mobile-tab-icon"><svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg></div>
-    <div>Scout</div>
+  <button class="mobile-tab-item" onclick="switchTab('products')">
+    <div class="mobile-tab-icon"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></div>
+    <div>Products</div>
+  </button>
+  <button class="mobile-tab-item" onclick="switchTab('pipeline')">
+    <div class="mobile-tab-icon"><svg class="nav-icon" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+    <div>Pipeline</div>
   </button>
   <button class="mobile-tab-item" onclick="switchTab('content')">
     <div class="mobile-tab-icon"><svg class="nav-icon" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/></svg></div>
@@ -950,6 +1321,15 @@ select.input { cursor: pointer; }
 </div>
 
 <div class="side-overlay" id="sideOverlay" onclick="toggleSideNav()"></div>
+
+<!-- Loading Overlay -->
+<div class="modal-overlay" id="loadingOverlay">
+  <div class="modal" style="text-align:center;padding:40px">
+    <div class="spinner" style="width:48px;height:48px;border-width:4px;margin:0 auto 20px"></div>
+    <div id="loadingText" style="font-size:16px;font-weight:600">🚀 AI กำลังทำงาน...</div>
+    <div class="text-sm text-secondary" style="margin-top:12px">กรุณารอสักครู่ ระบบกำลังสร้างคอนเทนต์</div>
+  </div>
+</div>
 <div class="side-nav" id="sideNav">
   <div class="side-nav-header">
     <div class="side-nav-brand"><svg class="nav-icon" style="width:20px;height:20px;color:var(--brand)" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/></svg><span>TikTok Studio</span></div>
@@ -1037,8 +1417,28 @@ select.input { cursor: pointer; }
 <div id="page-products" class="page">
   <div class="page-header">
     <div><h2>Product Recommendations</h2><p>TikTok Shop products with affiliate commission</p></div>
-    <button class="btn btn-primary btn-sm" onclick="loadAnalyzedProducts()">🔄 Refresh</button>
   </div>
+  <!-- Search Bar -->
+  <div class="card mb-3" style="padding:12px">
+    <div style="display:flex;gap:8px;align-items:center">
+      <input class="input" id="productSearchInput" placeholder="🔍 ค้นหาสินค้า... พิมพ์ชื่อสินค้า แล้วกด Enter" value="" style="flex:1" onkeydown="if(event.key==='Enter') searchProducts()">
+      <button class="btn btn-secondary btn-sm" onclick="document.getElementById('productSearchInput').value='';searchProducts()">✕ ล้าง</button>
+      <button class="btn btn-primary btn-sm" onclick="searchProducts()">🔍 ค้นหา</button>
+    </div>
+    <div id="productSearchResults" class="text-xs text-secondary mt-1"></div>
+  </div>
+
+  <!-- Batch History -->
+  <div id="batchHistorySection" style="display:none;margin-bottom:16px">
+    <div class="card-header" style="cursor:pointer" onclick="const e=document.getElementById('batchHistoryList'); e.style.display=e.style.display==='none'?'block':'none'">
+      <span class="card-title">📋 Batch Generator History</span>
+      <span class="text-xs text-secondary">คลิกเพื่อดู</span>
+    </div>
+    <div id="batchHistoryList" style="display:none;margin-top:8px"></div>
+  </div>
+
+  <!-- Stats & Sheets Import — hidden temporarily -->
+  <!--
   <div class="stats-grid" id="productStats">
     <div class="stat-card"><div class="stat-value" id="prodTotal">-</div><div class="stat-label">Total Products</div></div>
     <div class="stat-card"><div class="stat-value" id="prodAvgComm">-</div><div class="stat-label">Avg Commission</div></div>
@@ -1052,14 +1452,12 @@ select.input { cursor: pointer; }
       <span id="sheetsStatusBadge" class="badge" style="background:var(--bg-tertiary);color:var(--text-secondary);font-size:11px">ตรวจสอบ...</span>
     </div>
 
-    <!-- Step 1: เลือก Spreadsheet + Open -->
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
       <input class="input" id="sheetsSpreadsheetId" placeholder="Spreadsheet ID (จาก URL .../d/{ID}/edit)" value="" style="flex:1;min-width:200px">
       <button class="btn btn-secondary btn-sm" onclick="window.open('https://docs.google.com/spreadsheets/d/'+document.getElementById('sheetsSpreadsheetId').value,'_blank')" title="เปิด Google Sheet">🔗 Open Sheet</button>
       <button class="btn btn-secondary btn-sm" id="sheetsConnectBtn" onclick="connectSheet()">🔄 เชื่อมต่อ</button>
     </div>
 
-    <!-- Step 2: เลือก Sheet name + Map columns (แสดงหลังเชื่อมต่อ) -->
     <div id="sheetsConfigArea" style="display:none;margin-top:8px;padding:10px;background:var(--bg-tertiary);border-radius:var(--radius-lg)">
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
         <label style="font-size:12px;font-weight:500;min-width:60px">📄 Sheet:</label>
@@ -1081,6 +1479,7 @@ select.input { cursor: pointer; }
 
     <div id="sheetsResult" class="text-xs text-secondary mt-2"></div>
   </div>
+  -->
 
   <div id="productGrid" class="product-grid">
     <div class="skeleton skeleton-line"></div>
@@ -1104,11 +1503,61 @@ select.input { cursor: pointer; }
       <div class="empty-state" style="grid-column:1/-1;text-align:center;padding:24px">กด Refresh เพื่อโหลดสินค้าจาก PostgreSQL</div>
     </div>
   </div>
+
+  <!-- Floating Batch Bar -->
+  <div id="batchBar">
+    <div class="batch-info">
+      <span style="font-size:24px">📦</span>
+      <span>Selected: <span class="count" id="batchCount">0</span> products</span>
+    </div>
+    <div class="batch-config">
+      <label>Style:</label>
+      <select id="batchStyle">
+        <option value="auto">🤖 AI Auto-Select</option>
+        <option value="holding">Holding (ถือสินค้า)</option>
+        <option value="usage">Usage (การใช้งาน)</option>
+        <option value="review">Review (รีวิว)</option>
+        <option value="unbox">Unbox (แกะกล่อง)</option>
+        <option value="talking">Talking Head (คนพูด)</option>
+      </select>
+      <label>Duration:</label>
+      <input type="number" id="batchDuration" value="15" min="5" max="30">
+      <label>Concurrency:</label>
+      <input type="number" id="batchConcurrency" value="3" min="1" max="10">
+      <button class="btn btn-primary" onclick="openBatchModal()" style="background:linear-gradient(135deg,#8b5cf6,#f43f5e)!important;border:none!important">🚀 Generate Batch</button>
+      <button class="btn btn-ghost btn-sm" onclick="clearBatchSelection()">✕</button>
+    </div>
+  </div>
+</div>
+
+<!-- Batch Config Modal -->
+<div class="modal-overlay" id="batchModal">
+  <div class="modal" style="max-width:560px;padding:24px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3 style="margin:0">🚀 Batch Generator</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeBatchModal()">✕</button>
+    </div>
+    <div id="batchProductList" style="max-height:200px;overflow-y:auto;margin-bottom:16px;font-size:13px"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
+      <div><label style="font-size:12px;color:var(--text-secondary)">Style</label><select id="batchModalStyle" class="input"><option value="auto">🤖 AI Auto-Select</option><option value="holding">Holding (ถือสินค้า)</option><option value="usage">Usage (การใช้งาน)</option><option value="review">Review (รีวิว)</option><option value="unbox">Unbox (แกะกล่อง)</option><option value="talking">Talking Head (คนพูด)</option></select></div>
+      <div><label style="font-size:12px;color:var(--text-secondary)">⏱ Duration</label><select id="batchModalDuration" class="input"><option value="auto">🤖 AI Auto-Duration</option><option value="15">15 Seconds</option><option value="8">8 Seconds</option><option value="30">30 Seconds</option></select></div>
+      <div><label style="font-size:12px;color:var(--text-secondary)">⚡ Concurrency</label><input type="number" id="batchModalConcurrency" class="input" value="3" min="1" max="10"></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="closeBatchModal()">Cancel</button>
+      <button class="btn btn-primary" id="startBatchBtn" onclick="startBatch()" style="background:linear-gradient(135deg,#8b5cf6,#f43f5e)!important;border:none!important">🚀 Start Batch</button>
+    </div>
+  </div>
 </div>
 
 <!-- ═══ Content ═══ -->
 <div id="page-content" class="page">
-  <div class="page-header"><div><h2>Video Wizard</h2><p>สร้างสคริปต์และวิดีโอ UGC</p></div></div>
+  <div class="page-header">
+    <div><h2>Video Wizard</h2><p>สร้างสคริปต์และวิดีโอ UGC</p></div>
+    <div>
+      <button class="btn btn-primary btn-sm" onclick="switchTab('products')" style="background:linear-gradient(135deg,#8b5cf6,#f43f5e)!important;border:none!important">📦 Bash Generator</button>
+    </div>
+  </div>
 
   <div class="steps" id="contentSteps">
     <div class="step active" data-step="1"><div class="step-num">1</div><span class="step-label">Product</span></div>
@@ -1214,12 +1663,15 @@ select.input { cursor: pointer; }
           <div class="style-card" data-style="talking" onclick="selectStyleFromModal(this,'talking')">
             <div class="style-card-emoji">🎤</div><div class="font-medium">Talking Head</div><div class="text-xs text-secondary">พูดหน้ากล้อง</div>
           </div>
+          <div class="style-card" data-style="product_demo" onclick="selectStyleFromModal(this,'product_demo')">
+            <div class="style-card-emoji">📦</div><div class="font-medium">Product Demo</div><div class="text-xs text-secondary">โชว์สินค้า ไม่มีคน</div>
+          </div>
         </div>
       </div>
     </div>
     <!-- ═══ Product Picker Modal ═══ -->
     <div class="modal-overlay" id="productPickerModal">
-      <div class="modal" style="max-width:640px;max-height:80vh;overflow-y:auto">
+      <div class="modal" style="max-width:640px;max-height:80vh;overflow-y:auto;padding-bottom:calc(80px + env(safe-area-inset-bottom, 0px))">
         <div class="modal-header" style="border:none;padding:16px 0 8px">
           <div class="font-medium">📦 เลือกสินค้าที่วิเคราะห์แล้ว</div>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('productPickerModal').classList.remove('open')" style="font-size:18px">✕</button>
@@ -1236,9 +1688,9 @@ select.input { cursor: pointer; }
       <label class="text-sm text-secondary mb-2" style="display:block">ความยาววิดีโอ</label>
       <div class="duration-chips">
         <span class="duration-chip selected" onclick="selectDuration(this,'8')">8 วิ ~$0.09</span>
-        <span class="duration-chip" onclick="selectDuration(this,'16')">16 วิ ~$0.16 (2 scenes)</span>
+        <span class="duration-chip" onclick="selectDuration(this,'15')">15 วิ ~$0.15 (1 scene)</span>
       </div>
-      <div class="text-xs text-secondary mt-1" id="durationHint">8 วิ = 1 scene, 16 วิ = 2 scenes (รูป + วิดีโออัตโนมัติ)</div>
+      <div class="text-xs text-secondary mt-1" id="durationHint">8 วิ = 1 scene, 15 วิ = 1 scene</div>
     </div>
 
     <button class="btn btn-primary" id="genScriptBtn" onclick="generateScript()">⚡ Generate Script →</button>
@@ -1332,7 +1784,7 @@ select.input { cursor: pointer; }
       <label class="text-sm text-secondary mb-2" style="display:block">Duration (ตั้งจาก Step 1)</label>
       <div class="duration-chips">
         <span class="duration-chip selected" onclick="selectDuration(this,'8')">8s ~$0.09</span>
-        <span class="duration-chip" onclick="selectDuration(this,'16')">16s ~$0.16 (2 scenes)</span>
+        <span class="duration-chip" onclick="selectDuration(this,'15')">15s ~$0.15 (1 scene)</span>
       </div>
       <div class="text-xs text-secondary mt-1" id="durationHint4">ตั้งค่าจาก Step 1 หรือกดเปลี่ยนที่นี่</div>
     </div>
@@ -1440,7 +1892,7 @@ select.input { cursor: pointer; }
   <div class="page-header">
     <div><h2>Pipeline Monitor</h2><p>ติดตามสถานะและจัดการงานทั้งหมด</p></div>
     <div class="flex gap-2">
-      <select id="pipelineFilter" class="input" style="width:auto;padding:6px 10px;font-size:13px" onchange="loadPipelineJobs()">
+      <select id="pipelineFilter" class="input" style="width:auto;padding:6px 10px;font-size:13px" onchange="window._pipelinePollCache='';loadPipelineJobs()">
         <option value="all">All Jobs</option>
         <option value="running">⏳ Running</option>
         <option value="completed">✅ Completed</option>
@@ -1449,95 +1901,92 @@ select.input { cursor: pointer; }
         <option value="cancelled">🚫 Cancelled</option>
         <option value="restarted">🔄 Restarted</option>
       </select>
-      <button class="btn btn-secondary btn-sm" onclick="loadPipelineJobs()">⟳ Refresh</button>
+      <button class="btn btn-secondary btn-sm" onclick="this.disabled=true;this.innerText='⏳ Refreshing...';loadPipelineJobs(true).finally(()=>{this.disabled=false;this.innerText='⟳ Refresh';})">⟳ Refresh</button>
     </div>
   </div>
   <div id="pipelineJobList"><div class="text-sm text-secondary" style="text-align:center;padding:32px">Loading...</div></div>
 </div>
 
 <!-- Pipeline Detail Modal -->
-<div class="modal-overlay" id="pipelineDetailModal" style="z-index:100">
-  <div class="modal" style="max-width:820px;max-height:95vh;overflow-y:auto;padding:20px">
-    <!-- Header -->
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;position:sticky;top:0;background:var(--bg-primary);z-index:2;padding-bottom:8px">
-      <div>
-        <h3 style="margin:0;font-size:16px">📦 <span id="pdJobId">—</span></h3>
-        <div style="margin-top:4px">
-          <span id="pdStatusBadge" class="badge"></span>
-          <span class="text-xs text-secondary ml-2" id="pdCreatedAt"></span>
-        </div>
+<div class="modal-overlay" id="pipelineDetailModal">
+  <div class="modal" style="max-width:820px;max-height:95vh;overflow-y:auto;padding:20px;padding-bottom:calc(100px + env(safe-area-inset-bottom, 0px))">
+    <!-- Sticky Header -->
+    <div style="display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--bg-primary);z-index:2;padding:12px 0 12px;border-bottom:1px solid var(--border-primary);margin-bottom:16px">
+      <div style="min-width:0">
+        <div class="card-title" style="font-size:17px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📦 <span id="pdJobId">—</span></div>
       </div>
-      <div class="flex gap-2">
-        <button class="btn btn-primary btn-sm" id="pdRetryBtn" onclick="retryJob(currentDetailJobId)" style="display:none">🔄 Retry</button>
-        <button class="btn btn-danger btn-sm" id="pdCancelBtn" onclick="cancelJobFromDetail(currentDetailJobId)" style="display:none">✖ Cancel</button>
-        <button class="btn btn-ghost btn-sm" onclick="closePipelineDetail()">✕</button>
+      <div style="display:flex;gap:6px;flex-shrink:0;margin-left:12px">
+        <span id="pdStatusBadge" class="badge" style="font-size:12px;padding:4px 10px;align-self:center"></span>
+        <button class="btn btn-ghost btn-sm" onclick="closePipelineDetail()" style="width:34px;height:34px;padding:0;font-size:18px;border-radius:50%">✕</button>
       </div>
     </div>
-    <div id="pdAccountInfo" class="text-sm text-secondary mb-4"></div>
+    <div id="pdAccountInfo" style="font-size:12px;color:var(--text-secondary);margin-bottom:16px"></div>
+    <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:16px" id="pdCreatedAt"></div>
 
     <!-- ── Product Info Section ── -->
-    <div id="pdInfoSection" class="card mb-4" style="display:none;border:1px solid var(--border-primary);border-radius:12px;padding:16px;background:var(--bg-secondary)">
+    <div id="pdInfoSection" class="card mb-3" style="display:none;border:1px solid var(--border-primary);border-radius:14px;padding:20px;background:var(--bg-secondary);box-shadow:0 1px 4px rgba(0,0,0,.06)">
+      <div class="card-title" style="font-size:13px;font-weight:700;letter-spacing:1px;color:var(--text-tertiary);margin-bottom:16px">สินค้า</div>
       <div style="display:flex;gap:16px">
-        <div style="width:120px;height:120px;border-radius:10px;overflow:hidden;background:var(--bg-tertiary);flex-shrink:0">
+        <div style="width:100px;height:100px;border-radius:14px;overflow:hidden;background:var(--bg-tertiary);flex-shrink:0;border:1px solid var(--border-primary)">
           <img id="pdProductImg" src="" alt="Product" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">
         </div>
-        <div style="flex:1">
-          <div class="card-title" id="pdProductName" style="font-size:15px;font-weight:700"></div>
-          <div id="pdProductDesc" class="text-xs text-secondary mt-1" style="line-height:1.4"></div>
-          <div id="pdProductPrice" class="text-sm" style="font-weight:600;color:var(--accent-green);margin-top:4px"></div>
-          <div id="pdProductTags" class="mt-2" style="display:flex;gap:4px;flex-wrap:wrap"></div>
+        <div style="flex:1;min-width:0">
+          <div id="pdProductName" style="font-size:16px;font-weight:700;color:var(--text-primary);line-height:1.3"></div>
+          <div id="pdProductDesc" style="font-size:12px;color:var(--text-secondary);margin-top:6px;line-height:1.5"></div>
+          <div id="pdProductPrice" style="font-size:17px;font-weight:700;color:var(--accent-green);margin-top:8px"></div>
+          <div id="pdProductTags" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px"></div>
         </div>
       </div>
     </div>
 
     <!-- ── Video Section ── -->
-    <div id="pdVideoSection" class="card mb-4" style="display:none;border:1px solid var(--border-primary);border-radius:12px;padding:16px;background:#0a0a0a">
-      <div class="card-title mb-2" style="font-size:14px;color:white">🎬 Generated Video</div>
-      <video id="pdVideoPlayer" controls style="width:100%;border-radius:10px;max-height:500px" preload="metadata"></video>
-      <div style="margin-top:8px;text-align:center">
-        <a id="pdVideoLink" href="" target="_blank" class="btn btn-sm">⬇ ดาวน์โหลดวิดีโอ</a>
+    <div id="pdVideoSection" class="card mb-3" style="display:none;border:1px solid var(--border-primary);border-radius:14px;padding:20px;background:#0a0a0a;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+      <div class="card-title" style="font-size:13px;font-weight:700;letter-spacing:1px;color:rgba(255,255,255,.4);margin-bottom:12px">วีดีโอ</div>
+      <video id="pdVideoPlayer" controls style="width:100%;border-radius:12px;max-height:500px" preload="metadata"></video>
+      <div style="margin-top:12px;text-align:center">
+        <a id="pdVideoLink" href="" target="_blank" class="btn btn-sm" style="padding:10px 24px;font-size:13px;border-radius:10px">⬇ ดาวน์โหลดวิดีโอ</a>
       </div>
     </div>
 
     <!-- ── Generated Image Section ── -->
-    <div id="pdImageSection" class="card mb-4" style="display:none;border:1px solid var(--border-primary);border-radius:12px;padding:16px">
-      <div class="card-title mb-2" style="font-size:14px">🖼 Generated Image</div>
+    <div id="pdImageSection" class="card mb-3" style="display:none;border:1px solid var(--border-primary);border-radius:14px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+      <div class="card-title" style="font-size:13px;font-weight:700;letter-spacing:1px;color:var(--text-tertiary);margin-bottom:12px">รูปที่สร้าง</div>
       <div id="pdGenImgContainer" style="display:flex;justify-content:center">
-        <img id="pdGeneratedImg" alt="Generated" style="max-width:100%;max-height:300px;border-radius:10px;object-fit:contain">
+        <img id="pdGeneratedImg" alt="Generated" style="max-width:100%;max-height:320px;border-radius:12px;object-fit:contain">
       </div>
     </div>
 
     <!-- ── Script Section ── -->
-    <div id="pdScriptSection" class="card mb-4" style="display:none;border:1px solid var(--border-primary);border-radius:12px;padding:16px">
-      <div class="card-title mb-2" style="font-size:14px">📝 Script / Voiceover</div>
-      <div id="pdScript" style="background:var(--bg-tertiary);padding:12px;border-radius:8px"></div>
+    <div id="pdScriptSection" class="card mb-3" style="display:none;border:1px solid var(--border-primary);border-radius:14px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+      <div class="card-title" style="font-size:13px;font-weight:700;letter-spacing:1px;color:var(--text-tertiary);margin-bottom:12px">สคริปต์ / เสียงพากย์</div>
+      <div id="pdScript" style="background:var(--bg-tertiary);padding:16px 18px;border-radius:12px;font-size:13px;line-height:1.7;color:var(--text-primary)"></div>
     </div>
 
     <!-- ── Prompts Section ── -->
-    <div id="pdPromptsSection" class="card mb-4" style="display:none;border:1px solid var(--border-primary);border-radius:12px;padding:16px">
-      <div class="card-title mb-2" style="font-size:14px">🤖 AI Prompts</div>
-      <div id="pdPrompts"></div>
+    <div id="pdPromptsSection" class="card mb-3" style="display:none;border:1px solid var(--border-primary);border-radius:14px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+      <div class="card-title" style="font-size:13px;font-weight:700;letter-spacing:1px;color:var(--text-tertiary);margin-bottom:12px">พรอมต์ AI</div>
+      <div id="pdPrompts" style="font-size:12px;color:var(--text-secondary);line-height:1.7"></div>
     </div>
 
     <!-- ── Hashtags Section ── -->
-    <div id="pdHashtagsSection" class="card mb-4" style="display:none;border:1px solid var(--border-primary);border-radius:12px;padding:16px">
-      <div class="card-title mb-2" style="font-size:14px">🏷️ Hashtags</div>
-      <div id="pdHashtags" style="display:flex;gap:4px;flex-wrap:wrap"></div>
+    <div id="pdHashtagsSection" class="card mb-3" style="display:none;border:1px solid var(--border-primary);border-radius:14px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+      <div class="card-title" style="font-size:13px;font-weight:700;letter-spacing:1px;color:var(--text-tertiary);margin-bottom:12px">แฮชแท็ก</div>
+      <div id="pdHashtags" style="display:flex;gap:8px;flex-wrap:wrap"></div>
     </div>
 
     <!-- ── Costs Section ── -->
-    <div id="pdCostsSection" class="card mb-4" style="display:none;border:1px solid var(--border-primary);border-radius:12px;padding:16px">
-      <div class="card-title mb-2" style="font-size:14px">💰 Cost Summary</div>
-      <div class="flex gap-4" style="flex-wrap:wrap">
-        <div class="badge" style="background:rgba(16,185,129,0.15);color:var(--accent-green);font-size:12px;padding:4px 10px" id="pdCostTotal"></div>
-        <div class="badge" style="background:rgba(99,102,241,0.1);color:var(--brand);font-size:11px" id="pdCostImage"></div>
-        <div class="badge" style="background:rgba(245,158,11,0.1);color:var(--accent-amber);font-size:11px" id="pdCostVoice"></div>
-        <div class="badge" style="background:rgba(239,68,68,0.1);color:var(--accent-red);font-size:11px" id="pdCostVideo"></div>
+    <div id="pdCostsSection" class="card mb-3" style="display:none;border:1px solid var(--border-primary);border-radius:14px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+      <div class="card-title" style="font-size:13px;font-weight:700;letter-spacing:1px;color:var(--text-tertiary);margin-bottom:12px">ต้นทุน</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div class="badge" style="background:rgba(16,185,129,0.12);color:var(--accent-green);font-size:12px;padding:8px 14px;font-weight:700;border-radius:10px" id="pdCostTotal"></div>
+        <div class="badge" style="background:rgba(99,102,241,0.08);color:var(--brand);font-size:11px;padding:8px 14px;border-radius:10px" id="pdCostImage"></div>
+        <div class="badge" style="background:rgba(245,158,11,0.08);color:var(--accent-amber);font-size:11px;padding:8px 14px;border-radius:10px" id="pdCostVoice"></div>
+        <div class="badge" style="background:rgba(239,68,68,0.08);color:var(--accent-red);font-size:11px;padding:8px 14px;border-radius:10px" id="pdCostVideo"></div>
       </div>
     </div>
 
     <!-- ── Timeline ── -->
-    <div id="pdTimeline" class="mb-3"></div>
+    <div id="pdTimeline" class="mb-4"></div>
 
     <!-- ── Bottom Assets ── -->
     <div id="pdAssets"></div>
@@ -1545,8 +1994,8 @@ select.input { cursor: pointer; }
 </div>
 
 <!-- Asset Library Modal -->
-<div class="modal-overlay" id="assetLibraryModal" style="z-index:100">
-  <div class="modal" style="max-width:900px;max-height:90vh;overflow-y:auto">
+<div class="modal-overlay" id="assetLibraryModal">
+  <div class="modal" style="max-width:900px;max-height:90vh;overflow-y:auto;padding-bottom:calc(80px + env(safe-area-inset-bottom, 0px))">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
       <h3 style="margin:0">🖼 Asset Library</h3>
       <div class="flex gap-2">
@@ -1755,23 +2204,19 @@ select.input { cursor: pointer; }
 <div id="page-assets" class="page">
   <div class="page-header">
     <div><h2>Asset Library</h2><p>Browse generated images, videos, and audio assets</p></div>
-    <div class="flex gap-2">
+  </div>
+
+  <!-- Filter tabs + Total (inline) -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:8px">
+    <div class="filter-tabs" style="margin-bottom:0" id="assetFilterTabs">
+      <span class="filter-tab active" data-asset-type="all" onclick="filterAssets('all')">All</span>
+      <span class="filter-tab" data-asset-type="images" onclick="filterAssets('images')">📷 Images <span id="assetImgCount" style="font-weight:600;margin-left:4px;font-size:12px;opacity:0.7">-</span></span>
+      <span class="filter-tab" data-asset-type="videos" onclick="filterAssets('videos')">🎬 Videos <span id="assetVidCount" style="font-weight:600;margin-left:4px;font-size:12px;opacity:0.7">-</span></span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:13px;font-weight:700;color:var(--text-secondary)">📦 Total: <span id="assetTotalCount">-</span></span>
       <button class="btn btn-primary btn-sm" onclick="loadAssets(currentAssetFilter)">🔄 Refresh</button>
     </div>
-  </div>
-
-  <!-- Stats row -->
-  <div class="stats-grid mb-4" id="assetStats">
-    <div class="stat-card"><div class="stat-value" id="assetImgCount">-</div><div class="stat-label">Images</div></div>
-    <div class="stat-card"><div class="stat-value" id="assetVidCount">-</div><div class="stat-label">Videos</div></div>
-    <div class="stat-card"><div class="stat-value" id="assetTotalCount">-</div><div class="stat-label">Total Assets</div></div>
-  </div>
-
-  <!-- Filter tabs -->
-  <div class="filter-tabs" id="assetFilterTabs">
-    <span class="filter-tab active" data-asset-type="all" onclick="filterAssets('all')">All</span>
-    <span class="filter-tab" data-asset-type="images" onclick="filterAssets('images')">📷 Images</span>
-    <span class="filter-tab" data-asset-type="videos" onclick="filterAssets('videos')">🎬 Videos</span>
   </div>
 
   <!-- Gallery grid -->
@@ -1784,12 +2229,12 @@ select.input { cursor: pointer; }
 </div>
 
 <!-- ═══ Lightbox Modal ═══ -->
-<div class="modal-overlay" id="assetLightbox" style="background:rgba(0,0,0,.92);z-index:1000" onclick="closeAssetLightbox(event)">
+<div class="modal-overlay" id="assetLightbox" style="background:rgba(0,0,0,.92);z-index:3000" onclick="closeAssetLightbox(event)">
   <button class="btn btn-ghost" style="position:absolute;top:20px;right:20px;font-size:28px;color:#fff;background:rgba(255,255,255,.1);border:none;border-radius:50%;width:44px;height:44px;cursor:pointer;z-index:10;display:flex;align-items:center;justify-content:center" onclick="closeAssetLightbox()">✕</button>
   <button id="lightboxPrev" class="btn btn-ghost" style="position:absolute;left:20px;top:50%;transform:translateY(-50%);font-size:32px;color:#fff;background:rgba(255,255,255,.1);border:none;border-radius:50%;width:48px;height:48px;cursor:pointer;z-index:10;display:none;align-items:center;justify-content:center" onclick="navigateLightbox(-1)">‹</button>
   <button id="lightboxNext" class="btn btn-ghost" style="position:absolute;right:20px;top:50%;transform:translateY(-50%);font-size:32px;color:#fff;background:rgba(255,255,255,.1);border:none;border-radius:50%;width:48px;height:48px;cursor:pointer;z-index:10;display:none;align-items:center;justify-content:center" onclick="navigateLightbox(1)">›</button>
-  <div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;padding:60px">
-    <div id="lightboxContent" style="max-width:90vw;max-height:85vh;border-radius:var(--radius-xl);overflow:hidden"></div>
+  <div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;padding:20px 80px">
+    <div id="lightboxContent" style="max-width:95vw;max-height:92vh;border-radius:var(--radius-xl);display:flex;align-items:center;justify-content:center"></div>
   </div>
   <div style="position:absolute;bottom:20px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,.7);font-size:13px;text-align:center" id="lightboxCaption"></div>
 </div>
@@ -1946,9 +2391,13 @@ function switchTab(name) {
   }
 
   // Load specific tab data
+  // Stop pipeline polling when leaving pipeline tab
+  if (name !== 'pipeline') stopPipelinePoll();
+
   if (name === 'dashboard') loadDashboard();
   if (name === 'pipeline') {
     loadPipelineJobs();
+    loadBatches();
   }
   if (name === 'products') loadAnalyzedProducts();
   if (name === 'assets') loadAssets();
@@ -2091,7 +2540,8 @@ async function profileLocalRegister() {
 function showToast(msg, type='info') {
   const el = document.createElement('div'); el.className = 'toast '+type; el.textContent = msg;
   document.body.appendChild(el);
-  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; setTimeout(() => el.remove(),300); }, 3000);
+  const duration = type === 'error' ? 5000 : type === 'info' ? 4000 : 3500;
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; setTimeout(() => el.remove(),300); }, duration);
 }
 
 /* ═══ Button loading state helper ═══ */
@@ -2192,7 +2642,9 @@ async function loadDashboard() {
 function timeSince(dateStr) {
   if (!dateStr) return '';
   const now = new Date();
-  const d = new Date(dateStr);
+  // DB stores UTC, append Z so browser treats it as UTC
+  const utcStr = dateStr.includes('Z') ? dateStr : dateStr.replace(' ', 'T') + 'Z';
+  const d = new Date(utcStr);
   const sec = Math.floor((now - d) / 1000);
   if (sec < 60) return 'just now';
   const min = Math.floor(sec / 60);
@@ -2225,91 +2677,117 @@ function goContentStep(step) {
 }
 
 async function autoGenerateAll() {
-  // One-click: script → image → video
+  // One-click: background pipeline — runs server-side via /video/generate (can close tab!)
   const url = document.getElementById('productUrl').value;
   const title = document.getElementById('productTitle').value.trim();
   const details = document.getElementById('productDetails').value.trim();
-  const style = document.getElementById('selectedStyleLabel')?.textContent?.split(' —')[0]?.trim()?.toLowerCase().replace(/ /g,'_') || 'holding';
+  const style = sessionStorage.getItem('selectedStyle');
   if (!url && !title && !details) { showToast('ใส่ชื่อสินค้าหรือ URL ก่อน','error'); return; }
 
+  const dur = parseInt(sessionStorage.getItem('selectedDuration')) || 8;
+  
+  showLoadingOverlay('🚀 กำลังเริ่ม Pipeline ฝั่ง Server...');
   setButtonLoading('autoGenBtn', true);
   try {
-    // Step 1: Generate script
-    showToast('📝 Step 1/3: กำลังสร้างสคริปต์...','info');
-    const body = { ugc_style: style, duration: sessionStorage.getItem('selectedDuration') || '8' };
-    if (url) body.product_url = url;
-    if (title) body.product_title = title;
-    if (details) body.product_details = details;
-    if (!body.product_name && title) body.product_name = title;
-    if (!body.product_name && url) body.product_name = url.split('/').pop() || url;
-
-    const scriptRes = await fetch(window.location.origin + '/api/tiktok/ugc/scripts/generate', {
-      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
-    });
-    if (!scriptRes.ok) throw new Error('Script generation failed');
-    const scriptData = await scriptRes.json();
-
-    // Fill hook/value/cta fields
-    document.getElementById('scriptHook').value = scriptData.hook || '';
-    document.getElementById('scriptValue').value = scriptData.value_proposition || '';
-    document.getElementById('scriptCta').value = scriptData.cta || '';
-    localStorage.setItem('lastScript', JSON.stringify(scriptData));
+    const imageUrl = uploadedImages.product || '';
     
-    // Step 2: Go to Step 3 (summary/confirm)
-    goToStep3();
-    await new Promise(r => setTimeout(r, 500));
-    
-    // Step 3: Build image prompt + generate image
-    showToast('📷 Step 2/3: กำลังสร้างรูปภาพ...','info');
-    const builderRes = await fetch(window.location.origin + '/api/tiktok/ugc/images/build-prompt', {
+    // /video/generate runs the FULL pipeline server-side (script+prompt+image+video)
+    // Already runs as async task via asyncio.create_task — no browser needed after this call!
+    const res = await fetch(window.location.origin + '/api/tiktok/video/generate', {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
-        product_name: title || url?.split('/').pop() || 'สินค้า',
-        description: details,
+        product_title: title || url?.split('/').pop() || '',
+        product_url: url,
+        product_description: details,
+        product_image: imageUrl,
+        hook: document.getElementById('scriptHook')?.value || '',
+        value: document.getElementById('scriptValue')?.value || '',
+        cta: document.getElementById('scriptCta')?.value || '',
+        duration: dur,
         ugc_style: style,
-        use_mistral: false
+        content_type: sessionStorage.getItem('selectedContentType') || 'affiliate',
+        aspect_ratio: sessionStorage.getItem('aspectRatio') || '9:16',
+        negative_prompt: document.getElementById('negativePrompt')?.value?.trim() || 'text, subtitle, caption, emoji, icon, logo, watermark, UI, overlay, graphic',
+        recipe: document.querySelector('#recipePicker .style-card.selected')?.getAttribute('data-recipe') || undefined,
       })
     });
-    if (!builderRes.ok) throw new Error('Build prompt failed');
-    const builderData = await builderRes.json();
-    const prompt = builderData.prompt || '';
-    if (!prompt) throw new Error('No prompt built');
-
-    const productImageUrl = uploadedImages.product || '';
-    if (!productImageUrl) {
-        showToast('⚠️ กรุณาอัปโหลดรูปสินค้า (image_url) ก่อนสร้างภาพ', 'warning');
-        setButtonLoading('autoGenBtn', false);
-        return;
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error('Pipeline start failed: ' + (errText || res.statusText));
     }
-    const imgRes = await fetch(window.location.origin + '/api/tiktok/ugc/images/generate', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({prompt, count: 1, image_url: productImageUrl})
-    });
-    if (!imgRes.ok) throw new Error('Image generation failed');
-    const imgData = await imgRes.json();
-    const images = imgData.data?.data?.images || imgData.data?.images || imgData.images || [];
-    let imgUrl = images[0]?.url || '';
-    if (imgUrl.startsWith('http://localhost:8110/storage/images/')) {
-      imgUrl = window.location.origin + '/storage/images/' + imgUrl.split('/').pop();
-    }
-
+    const data = await res.json();
+    const jobId = data.job_id || '';
+    
     setButtonLoading('autoGenBtn', false);
-
-    // Store for video step
-    sessionStorage.setItem('autoGenImageUrl', imgUrl);
-    sessionStorage.setItem('autoGenPrompt', prompt);
-
-    // Step 4: Go to Step 4 for video generation
-    showToast('✅ รูปสร้างเสร็จ! ไปต่อที่วิดีโอ','success');
-    document.getElementById('genBtn')?.click();
-    setButtonLoading('autoGenBtn', false);
+    hideLoadingOverlay();
+    
+    showToast('✅ Pipeline เริ่มทำงานแล้ว! Job ID: ' + jobId + ' (ออกจาก page หรือปิด browser ได้เลย)', 'success');
+    sessionStorage.setItem('lastPipelineJobId', jobId);
+    
+    // Redirect to Pipeline tab to monitor — auto-refresh every 8s
+    setTimeout(function() {
+      switchTab('pipeline');
+      loadPipelineJobs();
+      startPipelinePoll(jobId);
+    }, 1500);
+    
   } catch(e) {
     setButtonLoading('autoGenBtn', false);
-    showToast('❌ Auto Generate Failed: '+e.message,'error');
+    hideLoadingOverlay();
+    showToast('❌ ' + e.message, 'error');
+    console.error('autoGenerateAll error:', e);
   }
 }
 
+function showLoadingOverlay(msg) {
+  const o = document.getElementById('loadingOverlay');
+  if(!o) return;
+  document.getElementById('loadingText').textContent = msg;
+  o.classList.add('open');
+}
+function hideLoadingOverlay() {
+  const o = document.getElementById('loadingOverlay');
+  if(o) o.classList.remove('open');
+}
+
 // ─── Auto Pipeline ─────────────────────────────────────────
+
+// Polling state for pipeline job completion auto-refresh
+var _pipelinePollInterval = null;
+var _pipelinePollJobId = null;
+
+function startPipelinePoll(jobId) {
+  _pipelinePollJobId = jobId;
+  stopPipelinePoll();
+  _pipelinePollInterval = setInterval(function() {
+    if (!_pipelinePollJobId) { stopPipelinePoll(); return; }
+    var el = document.getElementById('pipelineJobList');
+    if (!el || el.offsetParent === null) { stopPipelinePoll(); return; } // tab not visible
+    loadPipelineJobs().then(function() {
+      // Check if job completed
+      fetch(API + '/pipeline/list?limit=50').then(function(r) { return r.json(); }).then(function(d) {
+        var jobs = d.jobs || [];
+        var found = jobs.find(function(j) { return j.job_id === _pipelinePollJobId; });
+        if (found) {
+          if (found.status === 'completed' || found.status === 'success') {
+            stopPipelinePoll();
+            showToast('✅ Pipeline เสร็จแล้ว! Job: ' + _pipelinePollJobId.slice(0,12) + '...', 'success');
+          } else if (found.status === 'error' || found.status === 'failed') {
+            stopPipelinePoll();
+            showToast('❌ Pipeline failed: ' + _pipelinePollJobId.slice(0,12) + '...', 'error');
+          }
+        }
+      }).catch(function(){});
+    }).catch(function(){});
+  }, 15000); // every 15 seconds (reduced from 8s to reduce flicker)
+}
+
+function stopPipelinePoll() {
+  if (_pipelinePollInterval) {
+    clearInterval(_pipelinePollInterval);
+    _pipelinePollInterval = null;
+  }
+}
 
 function selectAutoMode(el) {
   document.querySelectorAll('.auto-pipeline-modes .mode-card').forEach(function(c){ 
@@ -2381,8 +2859,9 @@ async function startAutoPipelineNow() {
     document.getElementById('productDetails').value = desc;
     if (images.length) {
       var url = images[0];
-      document.getElementById('productImgPlaceholder').innerHTML = '<img src="'+url+'" style="max-width:100%;max-height:120px;border-radius:8px">';
-      uploadedImages.product = url;
+      var fullUrl = url.startsWith('http') ? url : window.location.origin + url;
+      document.getElementById('productImgPlaceholder').innerHTML = '<img src="'+fullUrl+'" style="max-width:100%;max-height:120px;border-radius:8px">';
+      uploadedImages.product = fullUrl;
     }
     
     showToast('✅ Selected: ' + title.slice(0,40), 'success');
@@ -2452,7 +2931,7 @@ async function generateScript() {
   const url = document.getElementById('productUrl').value;
   const title = document.getElementById('productTitle').value.trim();
   const details = document.getElementById('productDetails').value.trim();
-  const style = document.getElementById('selectedStyleLabel')?.textContent?.split(' —')[0]?.trim()?.toLowerCase().replace(/ /g,'_') || 'holding';
+  const style = sessionStorage.getItem('selectedStyle');
   if (!url && !title && !details) { showToast('ใส่ชื่อสินค้าหรือ URL ก่อน','error'); return; }
 
   setButtonLoading('genScriptBtn', true);
@@ -2470,9 +2949,14 @@ async function generateScript() {
     if (!res.ok) throw new Error('Generate failed');
     const data = await res.json();
 
-    document.getElementById('scriptHook').value = data.hook || '';
-    document.getElementById('scriptValue').value = data.value_proposition || '';
-    document.getElementById('scriptCta').value = data.cta || '';
+    // Keep existing values if API returns empty (don't clear pre-filled data)
+    if (data.hook) document.getElementById('scriptHook').value = data.hook;
+    if (data.value_proposition) document.getElementById('scriptValue').value = data.value_proposition;
+    if (data.cta) document.getElementById('scriptCta').value = data.cta;
+    if (data.hashtags) {
+      const tagField = document.getElementById('scriptHashtags');
+      if (tagField) tagField.value = Array.isArray(data.hashtags) ? data.hashtags.join(', ') : data.hashtags;
+    }
     localStorage.setItem('lastScript', JSON.stringify(data));
     setButtonLoading('genScriptBtn', false);
     goContentStep(2);
@@ -2489,7 +2973,7 @@ function goToStep3() {
   document.getElementById('step3Cta').textContent = document.getElementById('scriptCta').value || '-';
   
   const duration = sessionStorage.getItem('selectedDuration') || '8';
-  document.getElementById('step3Duration').textContent = duration + ' วิ' + (duration >= 16 ? ' (2 scenes)' : ' (1 scene)');
+  document.getElementById('step3Duration').textContent = duration + ' วิ' + (duration >= 15 ? ' (1 scene)' : ' (1 scene)');
   
   const lastScript = JSON.parse(localStorage.getItem('lastScript') || '{}');
   document.getElementById('step3Scene').textContent = lastScript.scene || lastScript.scenes?.join(', ') || lastScript.script?.scene || 'UGC ถือสินค้าหน้าฉากหลังเรียบ';
@@ -2521,7 +3005,7 @@ async function generateImageFromStep3() {
   setButtonLoading('genImageBtn', true);
   const productName = document.getElementById('productTitle').value || document.getElementById('productName').value || 'สินค้า';
   const productDetails = document.getElementById('productDetails').value || '';
-  const style = document.getElementById('selectedStyleLabel')?.textContent?.split(' —')[0]?.trim()?.toLowerCase().replace(/ /g,'_') || 'holding';
+  const style = sessionStorage.getItem('selectedStyle');
   const productImageUrl = uploadedImages.product || '';
   
   try {
@@ -2601,11 +3085,16 @@ function selectRecipe(name) {
     'holding_product': ['🤳', 'Holding Product — ถือสินค้าพูด'],
     'ugc_review': ['⭐', 'UGC Review — รีวิวสินค้า'],
     'talking_head': ['🎤', 'Talking Head — พูดหน้ากล้อง'],
+    'product_demo': ['📦', 'Product Demo — โชว์สินค้า ไม่มีคน'],
   };
-  const s = styleMap[recipe.ugc_style] || ['🤳', 'Holding Product'];
+  const s = styleMap[recipe.ugc_style] || ['📦', 'Product Demo'];
   document.getElementById('selectedStyleIcon').textContent = s[0];
   document.getElementById('selectedStyleLabel').textContent = s[1];
   sessionStorage.setItem('selectedStyle', recipe.ugc_style);
+  // Sync UGC dropdown highlight to match recipe
+  document.querySelectorAll('#styleModalGrid .style-card').forEach(c => c.classList.remove('selected'));
+  const modalCard = document.querySelector('#styleModalGrid [data-style="' + recipe.ugc_style + '"]');
+  if (modalCard) modalCard.classList.add('selected');
 
   // Duration
   const durChips = document.querySelectorAll('.duration-chip');
@@ -2634,6 +3123,8 @@ function selectStyleFromModal(el, style) {
   document.getElementById('selectedStyleIcon').textContent = icon;
   document.getElementById('selectedStyleLabel').textContent = label + ' — ' + sub;
   document.getElementById('styleModal').classList.remove('open');
+  // Deselect recipe card — user is doing custom style, not following a preset
+  document.querySelectorAll('#recipePicker .style-card').forEach(c => c.classList.remove('selected'));
 }
 
 function selectDuration(el, dur) {
@@ -2641,10 +3132,10 @@ function selectDuration(el, dur) {
   el.classList.add('selected');
   sessionStorage.setItem('selectedDuration', dur);
   [document.getElementById('durationHint'), document.getElementById('durationHint4')].forEach(h => {
-    if (h) h.textContent = dur == 16 ? '🎬 16 วิ = 2 scenes (รูป + วิดีโออัตโนมัติ) ต้นทุน ~$0.16' : '8 วิ = 1 scene ต้นทุน ~$0.09';
+    if (h) h.textContent = dur == 15 ? '🎬 15 วิ = 1 scene ต้นทุน ~$0.15' : '8 วิ = 1 scene ต้นทุน ~$0.09';
   });
   const costHint = document.getElementById('costHint');
-  if (costHint) costHint.textContent = dur == 16 ? 'ต้นทุน ~$0.16 (2 scenes)' : 'ต้นทุน ~$0.09/clip';
+  if (costHint) costHint.textContent = dur == 15 ? 'ต้นทุน ~$0.15 (1 scene)' : 'ต้นทุน ~$0.09/clip';
 }
 
 /* ═══ Image Upload Handlers ═══ */
@@ -2717,14 +3208,14 @@ async function startGeneration() {
   document.getElementById('progressBar').style.width = '20%';
 
   const duration = parseInt(sessionStorage.getItem('selectedDuration') || '8');
-  const totalScenes = duration >= 16 ? 2 : 1;
+  const totalScenes = duration >= 15 ? 2 : 1;
 
   try {
     const basePrompt = hook + '. ' + value + (cta ? '. ' + cta : '');
     const title = document.getElementById('productTitle').value.trim();
     const imageUrl = uploadedImages.product || null;
     
-      // Single request — backend handles 8s (1 scene) or 16s (2 scenes + concat)
+      // Single request — backend handles 8s or 15s (1 scene)
     const label = duration + ' วิ';
     document.getElementById('progressText').textContent = '🎬 กำลังสร้างวิดีโอ ' + label + '...';
     document.getElementById('progressBar').style.width = '40%';
@@ -2737,7 +3228,7 @@ async function startGeneration() {
       value: value,
       cta: cta,
       content_type: sessionStorage.getItem('selectedContentType') || 'affiliate',
-      ugc_style: sessionStorage.getItem('selectedStyle') || 'product_usage',
+      ugc_style: sessionStorage.getItem('selectedStyle'),
       aspect_ratio: sessionStorage.getItem('aspectRatio') || '9:16',
       duration: duration,
       negative_prompt: document.getElementById('negativePrompt').value.trim() || undefined,
@@ -2777,10 +3268,11 @@ async function startGeneration() {
       }
       throw new Error('Timeout waiting for video');
     };
-    pollJob();
+    await pollJob();
   } catch(e) {
     document.getElementById('progressText').textContent = '❌ ล้มเหลว: ' + e.message;
-    showToast('Generation failed: ' + e.message,'error');
+    document.getElementById('progressBar').style.width = '0%';
+    throw e;
   } finally {
     btn.disabled = false; btn.style.opacity = '1';
   }
@@ -2805,10 +3297,64 @@ function stepStatusIcon(status) {
   return map[status] || '❓';
 }
 
-async function loadPipelineJobs() {
+
+function getStepProgressHtml(job) {
+  const stepsMap = [
+    { num: 1, name: 'Analyze Product' },
+    { num: 2, name: 'Load Recipe' },
+    { num: 3, name: 'Generate Script' },
+    { num: 4, name: 'Build Image Prompt' },
+    { num: 5, name: 'Generate Image' },
+    { num: 6, name: 'Build Video Prompts' },
+    { num: 7, name: 'TTS Voice Gen' },
+    { num: 8, name: 'Wan 2.7 Video Gen' },
+    { num: 9, name: 'Final Compose' }
+  ];
+  const circledNums = ['❶','❷','❸','❹','❺','❻','❼','❽','❾'];
+  let currentStep = 1;
+  let currentName = 'Analyze Product';
+
+  if (job.status === 'completed') {
+    currentStep = 9;
+  } else if (job.steps_data) {
+    try {
+      const s = typeof job.steps_data === 'string' ? JSON.parse(job.steps_data) : job.steps_data;
+      if (s.pipeline?.status === 'success' || s.compose?.status === 'success') { currentStep = 9; currentName = 'Final Compose'; }
+      else if (s.video_gen?.status === 'processing' || s.video_generation?.status === 'error') { currentStep = 8; currentName = 'Wan 2.7 Video Gen'; }
+      else if (s.tts?.status === 'success') { currentStep = 8; currentName = 'Wan 2.7 Video Gen'; }
+      else if (s.tts?.status === 'processing') { currentStep = 7; currentName = 'TTS Voice Gen'; }
+      else if (s.video_prompts) { currentStep = 7; currentName = 'TTS Voice Gen'; }
+      else if (s.image?.status === 'success' || s.generate_image) { currentStep = 6; currentName = 'Build Video Prompts'; }
+      else if (s.prompt_builder?.status === 'success' || s.image_prompt) { currentStep = 5; currentName = 'Generate Image'; }
+      else if (s.script) { currentStep = 4; currentName = 'Build Image Prompt'; }
+      else if (s.recipe) { currentStep = 3; currentName = 'Generate Script'; }
+      else if (s.analyze) { currentStep = 2; currentName = 'Load Recipe'; }
+    } catch(e) {}
+  }
+
+  let passedCircles = '';
+  for (let i = 0; i < currentStep - 1; i++) {
+    passedCircles += `<span style="color:var(--accent-purple);font-size:12px;margin-right:2px">${circledNums[i]}</span>`;
+  }
+
+  if (job.status === 'completed') {
+    return ''; // Hide step progress bar for completed jobs
+  }
+
+  let activeBadge = '';
+  if (job.status === 'error') {
+    activeBadge = `<span class="badge" style="background:rgba(239,68,68,0.15);color:#ef4444;font-size:10.5px;padding:2px 8px">❌ ${currentStep}/9 ${currentName} Failed</span>`;
+  } else {
+    activeBadge = `<span class="badge" style="background:rgba(139,92,246,0.15);color:var(--accent-purple);font-size:10.5px;padding:2px 8px">⏳ ${currentStep}/9 ${currentName}</span>`;
+  }
+
+  return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;width:100%">${passedCircles} ${activeBadge}</div>`;
+}
+
+async function loadPipelineJobs(force = false) {
+  if (force) { window._pipelinePollCache = null; }
   const el = document.getElementById('pipelineJobList');
   const filter = document.getElementById('pipelineFilter')?.value || 'all';
-  el.innerHTML = '<div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line"></div>';
   try {
     const res = await fetch(API + '/pipeline/list?limit=100');
     if (!res.ok) throw new Error('Failed');
@@ -2821,27 +3367,58 @@ async function loadPipelineJobs() {
       el.innerHTML = '<div class="text-sm text-secondary" style="text-align:center;padding:32px">📭 ไม่มีงานที่ตรงกับเงื่อนไข</div>';
       return;
     }
+
+    // Trigger Notification for newly completed jobs
+    jobs.forEach(function(job) {
+      if (job.status === 'completed') {
+        var jTitle = job.product_title || job.job_id || 'วิดีโอ';
+        sendJobNotification('🎬 วิดีโอสร้างเสร็จสมบูรณ์แล้ว!', jTitle + ' พร้อมใช้งานและโพสต์ลงโซเชียลมีเดียแล้วครับ', job.job_id);
+      }
+    });
     // Use product_url from DB as product name (no per-job detail fetch to avoid flicker)
-    el.innerHTML = jobs.map(j => {
+    // Cache-busting: only re-render when data actually changes (reduce flicker)
+  var _cacheKey = JSON.stringify(jobs.map(function(j){return j.job_id+j.status+j.created_at;}));
+  if (_cacheKey === window._pipelinePollCache) { return; }
+  window._pipelinePollCache = _cacheKey;
+  el.innerHTML = jobs.map(j => {
       const badgeCls = statusBadgeClass(j.status);
       const icon = statusIcon(j.status);
       const timeAgo = timeSince(j.created_at);
-      const prodName = (j.product_url || '').replace(/^https?:\/\//i, '').slice(0, 45);
-      const hasProdName = prodName && !prodName.includes('...') && prodName.length > 5;
-      return `<div class="pipeline-job-card">
-        <div style="width:40px;height:40px;min-width:40px;border-radius:50%;background:var(--bg-tertiary);display:flex;align-items:center;justify-content:center;font-size:20px;border:1px solid var(--border-primary)">${icon}</div>
-        <div class="job-info" style="min-width:0;padding-left:4px">
-          <div class="job-id" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px">${hasProdName ? prodName : j.job_id}</div>
-          <div class="job-meta" style="font-size:11px;color:var(--text-secondary)">
-            <span class="badge ${badgeCls}">${j.status}</span>
-            <span style="margin-left:8px">🕐 ${timeAgo}</span>
-            <span style="margin-left:8px">📋 ${j.job_id}</span>
-          </div>
+      const title = j.product_title || '';
+      const prodImg = j.product_image || '';
+      const genImg = j.generated_image || '';
+      const hasProd = prodImg ? true : false;
+      const hasGen = genImg ? true : false;
+      const hasBoth = hasProd && hasGen;
+      const imgW = hasBoth ? 96 : 48;
+      const progressHtml = getStepProgressHtml(j);
+      return `<div class="pipeline-job-card" style="flex-wrap:wrap">
+        ${progressHtml}
+        <div style="width:100%;display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <div class="job-id" style="flex:1;font-weight:700;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${title || j.job_id}</div>
+          <span class="badge ${badgeCls}" style="flex-shrink:0;font-size:11px">${icon} ${j.status}</span>
         </div>
-        <div class="job-actions" style="flex-shrink:0;display:flex;gap:4px">
-          <button class="btn btn-primary btn-sm" onclick="loadPipelineDetail('${j.job_id}')" style="padding:5px 12px;font-size:12px">📋 ดู</button>
-          ${j.status === 'error' || j.status === 'restarted' ? `<button class="btn btn-sm" onclick="retryJob('${j.job_id}')" style="padding:5px 10px;font-size:11px">🔄</button>` : ''}
-          ${j.status === 'running' || j.status === 'pending' ? `<button class="btn btn-sm" onclick="cancelJobFromList('${j.job_id}')" style="padding:5px 10px;font-size:11px;color:var(--color-red-500)">✖</button>` : ''}
+        <div style="width:${imgW}px;height:48px;min-width:${imgW}px;border-radius:10px;overflow:hidden;border:1px solid var(--border-primary);display:flex;align-items:center;justify-content:center;background:var(--bg-tertiary);flex-shrink:0">
+          ${hasBoth
+            ? `<div style="width:48px;height:48px;min-width:48px;display:flex;align-items:center;justify-content:center;overflow:hidden"><img src="${prodImg}" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'"></div><div style="width:1px;height:40px;background:var(--border-primary);flex-shrink:0"></div><div style="width:48px;height:48px;min-width:48px;display:flex;align-items:center;justify-content:center;overflow:hidden"><img src="${genImg}" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'"></div>`
+            : hasProd
+              ? `<img src="${prodImg}" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none';this.parentElement.innerHTML='${icon}'">`
+              : hasGen
+                ? `<img src="${genImg}" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none';this.parentElement.innerHTML='${icon}'">`
+                : `<span style="font-size:20px">${icon}</span>`
+          }
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:4px;min-width:0;padding-left:10px">
+          <div style="display:flex;align-items:center;font-size:11px;color:var(--text-secondary);gap:8px">
+            <span style="white-space:nowrap">🕐 ${timeAgo}</span>
+            <span style="margin-left:auto"></span>
+            <button class="btn btn-primary btn-sm" onclick="loadPipelineDetail('${j.job_id}')" style="padding:2px 7px;font-size:10.5px;margin:0 2px">📋 ดู</button>
+            ${j.status === 'running' || j.status === 'pending' ? `<button class="btn btn-sm" onclick="cancelJobFromList('${j.job_id}')" style="padding:2px 6px;font-size:10.5px;margin:0 2px;color:var(--color-red-500)">✖</button>` : ''}
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--text-secondary)">
+            <span>📋 ${j.job_id}</span>
+            ${j.status !== 'completed' ? `<button class="btn btn-sm" onclick="retryJob('${j.job_id}')" style="padding:2px 8px;font-size:10.5px;margin-top:2px" title="Retry Job">🔄 ลองใหม่</button>` : ''}
+          </div>
         </div>
       </div>`;
     }).join('');
@@ -2882,8 +3459,8 @@ async function loadPipelineDetail(jobId) {
   promptsSection.style.display = 'block';
   hashtagsSection.style.display = 'block';
   costsSection.style.display = 'block';
-  retryBtn.style.display = 'none';
-  cancelBtn.style.display = 'none';
+  if (retryBtn) retryBtn.style.display = 'none';
+  if (cancelBtn) cancelBtn.style.display = 'none';
 
   try {
     const res = await fetch(API + '/pipeline/detail/' + jobId);
@@ -2898,6 +3475,7 @@ async function loadPipelineDetail(jobId) {
       if (sdata.product_name) logs.product_title = logs.product_title || sdata.product_name;
       if (sdata.product_image) logs.product_img_web_url = logs.product_img_web_url || toWebUrl(sdata.product_image);
       if (sdata.generated_image_path || sdata.image_path) logs.image_web_url = logs.image_web_url || toWebUrl(sdata.generated_image_path || sdata.image_path);
+      if (sdata.image_url && !logs.image_web_url) logs.image_web_url = sdata.image_url;
       if (sdata.image_prompt) logs.image_prompt = logs.image_prompt || sdata.image_prompt;
       if (sdata.video_prompt) logs.video_prompts = logs.video_prompts || sdata.video_prompt;
       if (sdata.script) logs.script = logs.script || sdata.script;
@@ -2931,6 +3509,7 @@ async function loadPipelineDetail(jobId) {
       if (m.negative_prompt) logs.negative_prompt = logs.negative_prompt || m.negative_prompt;
       if (m.aspect_ratio) logs.aspect_ratio = logs.aspect_ratio || m.aspect_ratio;
       if (m.ugc_style) logs.ugc_style = logs.ugc_style || m.ugc_style;
+      if (m.image_url) logs.image_web_url = logs.image_web_url || m.image_url;
     }
     // Also try metadata.product_url as product image
     if (!logs.product_img_web_url && job.product_url && job.product_url.match(/\.(jpg|jpeg|png|gif|webp)/i)) {
@@ -2944,14 +3523,17 @@ async function loadPipelineDetail(jobId) {
     idEl.textContent = job.job_id;
     statusEl.textContent = statusIcon(job.status) + ' ' + job.status;
     statusEl.className = 'badge ' + statusBadgeClass(job.status);
-    createdEl.textContent = '🕐 ' + (job.created_at ? timeSince(job.created_at) : 'just now');
+    const ctStr = job.created_at ? (job.created_at.includes('Z') ? job.created_at : job.created_at.replace(' ', 'T') + 'Z') : null;
+    const ctDate = ctStr ? new Date(ctStr) : null;
+    const thTime = ctDate ? ctDate.toLocaleString('th-TH', {timeZone:'Asia/Bangkok', hour12:false, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'}) : '';
+    createdEl.innerHTML = '🕐 ' + (job.created_at ? timeSince(job.created_at) : 'just now') + (thTime ? ' <span class="text-xs text-secondary">(' + thTime + ' น.)</span>' : '');
     accountEl.innerHTML = '👤 ' + (job.account_id || '—') + (job.product_url ? ' · 📦 ' + job.product_url.slice(0, 60) : '');
 
     // Retry / Cancel buttons
-    if (job.status === 'error' || job.status === 'restarted') {
+    if ((job.status === 'error' || job.status === 'restarted') && retryBtn) {
       retryBtn.style.display = 'inline-flex';
     }
-    if (job.status === 'running' || job.status === 'pending') {
+    if ((job.status === 'running' || job.status === 'pending') && cancelBtn) {
       cancelBtn.style.display = 'inline-flex';
     }
 
@@ -3014,7 +3596,7 @@ async function loadPipelineDetail(jobId) {
     // Parse from script text if empty
     if (script && !hookFromLogs && !valueFromLogs && !ctaFromLogs) {
       const scriptText = script;
-      // Match [Hook] ... [Value] ... [CTA] pattern (16s format)
+      // Match [Hook] ... [Value] ... [CTA] pattern
       const hookMatch = scriptText.match(/\[Hook\]\s*([^\[]+)/i);
       const valueMatch = scriptText.match(/\[Value\]\s*([^\[]+)/i);
       const ctaMatch = scriptText.match(/\[CTA\]\s*([^\[]+)/i);
@@ -3185,13 +3767,15 @@ async function retryJob(jobId) {
 }
 
 async function cancelJobFromList(jobId) {
-  if (!confirm('Cancel job ' + jobId + '?')) return;
+  if (!confirm('⚠️ คุณแน่ใจหรือไม่ว่าต้องการยกเลิกงานนี้? (Job: ' + jobId + ')')) return;
+  if (!confirm('‼️ ยืนยันการยกเลิกงานอีกครั้ง? การกระทำนี้ไม่สามารถย้อนกลับได้')) return;
   await cancelJobApi(jobId);
   loadPipelineJobs();
 }
 
 async function cancelJobFromDetail(jobId) {
-  if (!confirm('Cancel job ' + jobId + '?')) return;
+  if (!confirm('⚠️ คุณแน่ใจหรือไม่ว่าต้องการยกเลิกงานนี้? (Job: ' + jobId + ')')) return;
+  if (!confirm('‼️ ยืนยันการยกเลิกงานอีกครั้ง? การกระทำนี้ไม่สามารถย้อนกลับได้')) return;
   await cancelJobApi(jobId);
   loadPipelineDetail(jobId);
   loadPipelineJobs();
@@ -4070,7 +4654,11 @@ async function rawPost(path, data) {
 }
 function closeModal() {
   const el = document.getElementById('modalOverlay');
-  if (el) el.remove();
+  if (el) {
+    const media = el.querySelectorAll('video, audio');
+    media.forEach(m => { try { m.pause(); m.currentTime = 0; m.src = ''; } catch(e){} });
+    el.remove();
+  }
 }
 function showModal(title, bodyHtml) {
   const existing = document.getElementById('modalOverlay');
@@ -4082,7 +4670,7 @@ function showModal(title, bodyHtml) {
     <div style="background:var(--bg-primary);border-radius:var(--radius-xl);padding:24px;max-width:560px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
         <h3 style="font-size:16px">${title}</h3>
-        <button onclick="this.closest('#modalOverlay').remove()" style="border:none;background:none;font-size:20px;cursor:pointer;padding:4px 8px">✕</button>
+        <button onclick="closeModal()" style="border:none;background:none;font-size:20px;cursor:pointer;padding:4px 8px">✕</button>
       </div>
       <div>${bodyHtml}</div>
     </div>
@@ -4133,6 +4721,107 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 /* Products (Analyzer) */
+
+/** Search products by name — queries both tus_products.db and scraped products */
+async function searchProducts() {
+  const q = document.getElementById('productSearchInput').value.trim();
+  const grid = document.getElementById("productGrid");
+  const scrapedGrid = document.getElementById("scrapedProductGrid");
+  const resultInfo = document.getElementById("productSearchResults");
+  
+  if (!q) {
+    // No query = load all
+    resultInfo.textContent = '';
+    loadAnalyzedProducts();
+    return;
+  }
+  
+  grid.innerHTML = '<div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line"></div>';
+  scrapedGrid.innerHTML = '<div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line"></div>';
+  resultInfo.textContent = '🔍 กำลังค้นหา "' + q + '"...';
+  
+  try {
+    const encQ = encodeURIComponent(q);
+    // Query both APIs in parallel
+    const [r1, r2] = await Promise.all([
+      fetch(API + '/products/list?limit=50&search=' + encQ),
+      fetch(API + '/products/scraped?limit=50&search=' + encQ),
+    ]);
+    const [d1, d2] = await Promise.all([r1.json(), r2.json()]);
+    
+    const analyzed = d1.products || [];
+    const scraped = d2.products || [];
+    
+    // Update stats for analyzed (components may be hidden)
+    const elProdTotal = document.getElementById("prodTotal");
+    if (elProdTotal) elProdTotal.textContent = analyzed.length;
+    const avg = analyzed.length ? Math.round(analyzed.reduce((a,p) => a + (p.commission_rate||0), 0) / analyzed.length) : 0;
+    const elAvg = document.getElementById("prodAvgComm");
+    if (elAvg) elAvg.textContent = avg + "%";
+    const maxc = analyzed.length ? Math.max(...analyzed.map(p => p.commission_rate||0)) : 0;
+    const elMax = document.getElementById("prodTopComm");
+    if (elMax) elMax.textContent = maxc + "%";
+    const ts = analyzed.length ? analyzed.reduce((a,p) => a + (p.sold_total||0), 0).toLocaleString() : "0";
+    const elSold = document.getElementById("prodTotalSold");
+    if (elSold) elSold.textContent = ts;
+    
+    resultInfo.textContent = '🔍 พบ ' + (analyzed.length + scraped.length) + ' รายการ สำหรับ "' + q + '"';
+    
+    // Render analyzed
+    if (!analyzed.length) {
+      grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">😕 ไม่พบสินค้าใน TUS Products</div>';
+    } else {
+      grid.innerHTML = analyzed.map(p => {
+        const img = (p.images && p.images[0]) || "";
+        const comm = p.commission_rate || 0;
+        const sold = p.sold_total || 0;
+        const price = p.price_thb || 0;
+        const enc = encodeURIComponent(JSON.stringify(p));
+        const imgHtml = img ? `<img class="product-card-img" src="${img}" alt="" loading="lazy" onerror="this.style.display='none'">` : '<div class="product-card-img" style="display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);font-size:32px">📦</div>';
+        const pUrl = p.url || "";
+        var batchData = {enc:enc, title:p.title||'Unknown', image:img, url:p.url||''};
+        return `<div class="product-card"><div class="product-card-checkbox" style="left:5px;top:5px"><input type="checkbox" onchange="toggleBatchSelect(this, ${JSON.stringify(batchData).replace(/'/g,"\\'")})"></div><div style="margin-left:14px">${imgHtml}</div><div class="product-card-body" onclick="useProduct('${enc}')" style="margin-left:4px;cursor:pointer"><div class="product-card-title" style="margin-bottom:4px;font-size:13.5px;font-weight:700">${p.title || "Unknown"}</div><div style="display:flex;align-items:center;gap:12px;font-size:12px;color:var(--text-secondary)"><span style="font-weight:800;color:var(--brand);font-size:14.5px">฿${Number(price).toLocaleString()}</span><span class="badge badge-green" style="font-size:10px">💰 ${comm}%</span><span style="font-size:11px">🔥 ขายแล้ว ${sold.toLocaleString()} ชิ้น</span></div><div style="display:flex;align-items:center;gap:6px;margin-top:2px"><span class="badge" style="font-size:10px;background:rgba(255,255,255,0.06)">🥫 ${p.container_type||"ขวดมาตรฐาน"}</span><span class="badge" style="font-size:10px;background:rgba(255,255,255,0.06)">🔒 ${p.closure_type||"ฝามาตรฐาน"}</span></div></div><div class="product-card-actions" style="margin-left:auto"><button class="btn btn-primary btn-sm" style="background:linear-gradient(135deg, var(--brand), var(--accent-purple));border:none" onclick="event.stopPropagation();useProduct('${enc}')">🎬 สร้างคลิป</button></div></div>`;
+      }).join("");
+    }
+    
+    // Render scraped
+    const scrapedSection = document.getElementById('scrapedSection');
+    scrapedSection.style.display = 'block';
+    document.getElementById('scrapedTotalBadge').textContent = scraped.length + ' รายการ';
+    
+    if (!scraped.length) {
+      scrapedGrid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">😕 ไม่พบใน Scraped Products</div>';
+    } else {
+      scrapedGrid.innerHTML = scraped.map(function(p) {
+        var price = p.price_thb || 0;
+        var comm = p.commission || '';
+        var cat = p.category || '';
+        var hook = p.hook_concept || '';
+        var enc = encodeURIComponent(JSON.stringify(p));
+        var batchEnc = enc.replace(/'/g,"%27");
+        var batchEnc = enc.replace(/'/g,"%27");
+        return '<div class="product-card"><div class="product-card-checkbox"><input type="checkbox" data-enc="' + batchEnc + '" onchange="toggleBatchSelect(this)"></div>' +
+          '<div class="product-card-img" style="display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);font-size:32px;background:var(--bg-tertiary)">\U0001f4e6</div>' +
+          '<div class="product-card-body" onclick="useScrapedProduct(\'' + enc.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')">' +
+          '<div class="product-card-title">' + (p.title || 'Unknown').slice(0,60) + '</div>' +
+          '<div class="product-card-meta">' +
+          '<span class="product-card-price">\u0e3f' + Number(price).toLocaleString() + '</span>' +
+          (comm ? '<span class="product-card-comm">\U0001f4b0 ' + comm + '</span>' : '') +
+          (cat ? '<span class="product-card-platform">' + cat.slice(0,20) + '</span>' : '') +
+          '</div>' +
+          (hook ? '<div class="text-xs text-secondary" style="margin-top:4px;line-height:1.3">\U0001f4a1 ' + hook.slice(0,80) + '</div>' : '') +
+          '<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px"><span class="badge" style="font-size:10px;background:rgba(255,255,255,0.06)">\U0001f9f4 ' + (p.container_type||"\u0e20\u0e32\u0e0a\u0e19\u0e30\u0e17\u0e23\u0e07\u0e21\u0e32\u0e15\u0e23\u0e10\u0e32\u0e19").slice(0,18) + '</span><span class="badge" style="font-size:10px;background:rgba(255,255,255,0.06)">\U0001f512 ' + (p.closure_type||"\u0e1d\u0e32\u0e21\u0e32\u0e15\u0e23\u0e10\u0e32\u0e19").slice(0,14) + '</span></div>' +
+          '<div class="product-card-footer" style="margin-top:6px">' +
+          '<button class="btn btn-primary btn-sm">\U0001f3ac Create Video</button>' +
+          '</div></div></div>';      }).join('');
+    }
+  } catch(e) {
+    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">Error: ' + e.message + '</div>';
+    scrapedGrid.innerHTML = '';
+    resultInfo.textContent = '❌ Error: ' + e.message;
+  }
+}
+
 async function loadAnalyzedProducts() {
   const grid = document.getElementById("productGrid");
   if (!grid) return;
@@ -4142,13 +4831,18 @@ async function loadAnalyzedProducts() {
     if (!r.ok) throw new Error("API Error");
     const d = await r.json();
     const products = d.products || [];
-    document.getElementById("prodTotal").textContent = products.length;
+    // Update stats (components may be hidden)
+    const elProdTotal = document.getElementById("prodTotal");
+    if (elProdTotal) elProdTotal.textContent = products.length;
     const avg = products.length ? Math.round(products.reduce((a,p) => a + (p.commission_rate||0), 0) / products.length) : 0;
-    document.getElementById("prodAvgComm").textContent = avg + "%";
+    const elAvg = document.getElementById("prodAvgComm");
+    if (elAvg) elAvg.textContent = avg + "%";
     const maxc = products.length ? Math.max(...products.map(p => p.commission_rate||0)) : 0;
-    document.getElementById("prodTopComm").textContent = maxc + "%";
+    const elMax = document.getElementById("prodTopComm");
+    if (elMax) elMax.textContent = maxc + "%";
     const ts = products.length ? products.reduce((a,p) => a + (p.sold_total||0), 0).toLocaleString() : "0";
-    document.getElementById("prodTotalSold").textContent = ts;
+    const elSold = document.getElementById("prodTotalSold");
+    if (elSold) elSold.textContent = ts;
     if (!products.length) { grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">No products</div>'; return; }
     grid.innerHTML = products.map(p => {
       const img = (p.images && p.images[0]) || "";
@@ -4159,7 +4853,7 @@ async function loadAnalyzedProducts() {
       const imgHtml = img ? `<img class="product-card-img" src="${img}" alt="" loading="lazy" onerror="this.style.display=\'none\'">` : '<div class="product-card-img" style="display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);font-size:32px">\ud83d\udce6</div>';
       const pUrl = p.url || "";
       const imgCount = p.image_count || (p.images ? p.images.length : 0);
-      return `<div class="product-card" onclick="useProduct('${enc}')">${imgHtml}<div class="product-card-body"><div class="product-card-title">${p.title || "Unknown"}</div><div class="product-card-meta"><span class="product-card-price">฿${Number(price).toLocaleString()}</span><span class="product-card-comm">💰 ${comm}%</span><span class="product-card-platform">${p.source || "tiktok"}</span></div><div class="product-card-sold">🔥 Sold ${sold.toLocaleString()} pcs ${imgCount ? '· 📸 ' + imgCount + ' รูป' : ''}</div><div class="product-card-footer"><span class="text-xs text-secondary truncate" style="max-width:140px">${pUrl}</span><button class="btn btn-primary btn-sm">🎬 Create Video</button></div></div></div>`;
+      return `<div class="product-card"><div class="product-card-checkbox"><input type="checkbox" data-enc="${enc}" onchange="toggleBatchSelect(this)"></div>${imgHtml}<div class="product-card-body" onclick="useProduct('${enc}')"><div class="product-card-title">${p.title || "Unknown"}</div><div class="product-card-meta"><span class="product-card-price">฿${Number(price).toLocaleString()}</span><span class="product-card-comm">💰 ${comm}%</span><span class="product-card-platform">${p.source || "tiktok"}</span></div><div class="product-card-sold">🔥 Sold ${sold.toLocaleString()} pcs ${imgCount ? '· 📸 ' + imgCount + ' รูป' : ''}</div><div class="product-card-footer"><span class="text-xs text-secondary truncate" style="max-width:140px">${pUrl}</span><button class="btn btn-primary btn-sm" onclick="event.stopPropagation();useProduct('${enc}')">🎬 Create Video</button></div></div></div>`;
     }).join("");
   } catch(e) { grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">Error: ' + e.message + '</div>'; }
   // Also load scraped products
@@ -4209,8 +4903,11 @@ async function loadScrapedProducts() {
       var cat = p.category || '';
       var hook = p.hook_concept || '';
       var enc = encodeURIComponent(JSON.stringify(p));
+        var batchEnc = enc.replace(/'/g,"%27");
       var imgUrl = p.image_filename ? '' : ''; // images on server, not accessible via URL yet
-      return '<div class="product-card" onclick="useScrapedProduct(\'' + enc.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')">' +
+      return '<div class="product-card"><div class="product-card-checkbox"><input type="checkbox" data-enc="' + batchEnc + '" onchange="toggleBatchSelect(this)"></div>' +
+        '<div class="product-card-img" style="display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);font-size:32px;background:var(--bg-tertiary)">\ud83d\udce6</div>' +
+        '<div class="product-card-body" onclick="useScrapedProduct(\'' + enc.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')">' +
         '<div class="product-card-img" style="display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);font-size:32px;background:var(--bg-tertiary)">\ud83d\udce6</div>' +
         '<div class="product-card-body">' +
         '<div class="product-card-title">' + (p.title || 'Unknown').slice(0,60) + '</div>' +
@@ -4220,7 +4917,7 @@ async function loadScrapedProducts() {
         (cat ? '<span class="product-card-platform">' + cat.slice(0,20) + '</span>' : '') +
         '</div>' +
         (hook ? '<div class="text-xs text-secondary" style="margin-top:4px;line-height:1.3">\ud83d\udca1 ' + hook.slice(0,80) + '</div>' : '') +
-        '<div class="product-card-footer" style="margin-top:6px">' +
+        '<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px"><span class="badge" style="font-size:10px;background:rgba(255,255,255,0.06)">🧴 ' + (p.container_type||"ภาชนะทรงมาตรฐาน").slice(0,18) + '</span><span class="badge" style="font-size:10px;background:rgba(255,255,255,0.06)">🔒 ' + (p.closure_type||"ฝามาตรฐาน").slice(0,14) + '</span></div>' + '\n' + '<div class="product-card-footer" style="margin-top:6px">' +
         '<button class="btn btn-primary btn-sm">\ud83c\udfac Create Video</button>' +
         '</div></div></div>';
     }).join('');
@@ -4252,15 +4949,16 @@ async function openProductPicker() {
   modal.classList.add('open');
   grid.innerHTML = '<div class="skeleton skeleton-line"></div>';
   try {
-    const r = await fetch(API + '/products/list?limit=50&preset=all');
+    const r = await fetch(API + '/products/list?limit=100&preset=all');
     if (!r.ok) throw new Error('API Error');
     const d = await r.json();
     const products = d.products || [];
+
     if (!products.length) {
       grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;text-align:center;padding:40px">😕 ยังไม่มีสินค้าที่วิเคราะห์<br><span class="text-xs text-secondary">ไปที่หน้าสินค้าเพื่อวิเคราะห์ก่อน</span></div>';
       return;
     }
-    grid.innerHTML = products.slice(0, 20).map(p => {
+    grid.innerHTML = products.slice(0, 50).map(p => {
       const img = (p.images && p.images[0]) || '';
       const comm = p.commission_rate || 0;
       const price = p.price_thb || 0;
@@ -4384,7 +5082,10 @@ function renderAssets(type) {
 
     return '<div class="asset-card" onclick="openAssetLightbox(' + idx + ')">'
       + '<div class="asset-thumb">'
-      + '<img src="' + url + '" alt="' + (item.name || '') + '" loading="lazy" onerror="this.style.display=\'none\'" crossorigin="anonymous">'
+      + (showPlay
+        ? '<video src="' + url + '" muted preload="metadata" style="width:100%;height:100%;object-fit:cover;pointer-events:none"></video>'
+        : '<img src="' + url + '" alt="' + (item.name || '') + '" loading="lazy" onerror="this.style.display=\'none\'" crossorigin="anonymous">'
+      )
       + (showPlay ? '<div class="asset-play-overlay">▶️</div>' : '')
       + '<span class="asset-type-badge">' + badgeIcon + '</span>'
       + '</div>'
@@ -4407,9 +5108,9 @@ function openAssetLightbox(idx) {
 
   const content = document.getElementById('lightboxContent');
   if (isVideo) {
-    content.innerHTML = '<video src="' + url + '" controls autoplay style="max-width:90vw;max-height:85vh;border-radius:var(--radius-xl)"></video>';
+    content.innerHTML = '<video src="' + url + '" controls autoplay style="max-width:100%;max-height:90vh;border-radius:var(--radius-xl);display:block"></video>';
   } else {
-    content.innerHTML = '<img src="' + url + '" alt="' + (item.name || '') + '" style="max-width:90vw;max-height:85vh;border-radius:var(--radius-xl);object-fit:contain">';
+    content.innerHTML = '<img src="' + url + '" alt="' + (item.name || '') + '" style="max-width:100%;max-height:90vh;object-fit:contain;display:block">';
   }
 
   document.getElementById('lightboxCaption').textContent = (item.name || '') + ' · ' + formatSize(item.size);
@@ -4553,8 +5254,8 @@ function pubOpenVideoModal(videoUrl, jobId, productName, title, description, has
     descHtml +
     htagsHtml +
     '<div style="display:flex;gap:6px;margin-top:10px">' +
-    '<button class="btn btn-primary btn-sm" onclick="pubPostNow(\'' + escapeHtml(jobId) + '\', \'' + escapeHtml(productName) + '\')" style="flex:1;font-size:12px">🚀 Post Now</button>' +
-    '<button class="btn btn-secondary btn-sm" onclick="pubSchedule(\'' + escapeHtml(jobId) + '\', \'' + escapeHtml(productName) + '\')" style="flex:1;font-size:12px">📅 Schedule</button>' +
+    '<button class="btn btn-primary btn-sm" onclick="pubPostNow(' + JSON.stringify(jobId).replace(/"/g,'&quot;') + ', ' + JSON.stringify(productName).replace(/"/g,'&quot;') + ')" style="flex:1;font-size:12px">🚀 Post Now</button>' +
+    '<button class="btn btn-secondary btn-sm" onclick="pubSchedule(' + JSON.stringify(jobId).replace(/"/g,'&quot;') + ', ' + JSON.stringify(productName).replace(/"/g,'&quot;') + ')" style="flex:1;font-size:12px">📅 Schedule</button>'
     '</div>';
   overlay.style.display = 'flex';
 }
@@ -4627,7 +5328,9 @@ async function loadPublisherVideos() {
       var thumbW = 100;
       var titleSafe = job.title || '';
       var descSafe = job.description || '';
-      var onclickModal = "pubOpenVideoModal('" + escapeHtml(vidSrc) + "','" + escapeHtml(jobId) + "','" + escapeHtml(name) + "','" + escapeHtml(titleSafe) + "','" + escapeHtml(descSafe) + "'," + JSON.stringify(htags) + ",'" + escapeHtml(style) + "'," + dur + ")";
+      var onclickModal = "pubOpenVideoModal(" + JSON.stringify(vidSrc) + "," + JSON.stringify(jobId) + "," + JSON.stringify(name) + "," + JSON.stringify(titleSafe) + "," + JSON.stringify(descSafe) + "," + JSON.stringify(htags) + "," + JSON.stringify(style) + "," + dur + ")";
+      // Escape "!important" -> &quot; for HTML attribute safety
+      onclickModal = onclickModal.replace(/"/g, '&quot;');
       inner += '<div style="width:' + thumbW + 'px;flex-shrink:0;border-radius:8px;overflow:hidden;aspect-ratio:9/16;background:var(--bg-tertiary);cursor:pointer;position:relative" onclick="' + onclickModal + '">';
       if (vid) {
         inner += '<video src="' + vid + '" muted preload="metadata" style="width:100%;height:100%;object-fit:cover;pointer-events:none"></video>';
@@ -4661,10 +5364,10 @@ async function loadPublisherVideos() {
         if (htags.length > 5) inner += ' ...';
         inner += '</div>';
       }
-      // Action buttons
-      inner += '<div style="display:flex;gap:6px">';
-      inner += '<button class="btn btn-primary btn-sm" onclick="pubPostNow(\'' + escapeHtml(jobId) + '\', \'' + escapeHtml(name) + '\')" style="flex:1;font-size:12px">🚀 Post Now</button>';
-      inner += '<button class="btn btn-secondary btn-sm" onclick="pubSchedule(\'' + escapeHtml(jobId) + '\', \'' + escapeHtml(name) + '\')" style="flex:1;font-size:12px">📅 Schedule</button>';
+      // Action buttons (wrap safely, compact padding)
+      inner += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:auto;padding-top:4px">';
+      inner += '<button class="btn btn-primary btn-sm" onclick="pubPostNow(' + JSON.stringify(jobId).replace(/"/g,'&quot;') + ', ' + JSON.stringify(name).replace(/"/g,'&quot;') + ')" style="flex:1;min-width:90px;font-size:11px;padding:4px 8px;white-space:nowrap">🚀 Post Now</button>';
+      inner += '<button class="btn btn-secondary btn-sm" onclick="pubSchedule(' + JSON.stringify(jobId).replace(/"/g,'&quot;') + ', ' + JSON.stringify(name).replace(/"/g,'&quot;') + ')" style="flex:1;min-width:90px;font-size:11px;padding:4px 8px;white-space:nowrap">📅 Schedule</button>';
       inner += '</div>';
       inner += '</div>';
       
@@ -5753,57 +6456,7 @@ async function scoutClone(idx, mode) {
   }
 }
 
-async function autoGenerateAll() {
-  const btn = document.getElementById('autoGenBtn');
-  if (!btn) return;
-  setButtonLoading('autoGenBtn', true);
-  showToast('🚀 Auto Generate เริ่มแล้ว!','info');
-  try {
-    // Step 1: Generate script
-    await generateScript();
-    showToast('✅ Script พร้อมแล้ว! กำลังสร้างรูป...','success');
-    // Step 2: Go to Step 3 (summary) - use goToStep3() which populates fields
-    goToStep3();
-    goContentStep(3);
-    await new Promise(r => setTimeout(r, 600));
-    // Step 3: Ensure product image exists (scrape from URL if missing)
-    if (!uploadedImages.product) {
-      const url = document.getElementById('productUrl')?.value.trim();
-      if (url) {
-        showToast('🔍 กำลังดึงรูปสินค้า...','info');
-        try {
-          const scrapeRes = await fetch(API + '/product/scrape-and-generate', {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({url, use_vision: false, duration: '8', tone: ''})
-          });
-          if (scrapeRes.ok) {
-            const sd = await scrapeRes.json();
-            if (sd.images?.[0]) {
-              uploadedImages.product = sd.images[0].startsWith('http') ? sd.images[0] : window.location.origin + sd.images[0];
-              showToast('✅ ได้รูปสินค้าแล้ว!','success');
-            }
-          }
-        } catch(e) { console.warn('Scrape image failed:', e.message); }
-      }
-    }
-    // Step 4: Generate image
-    if (uploadedImages.product) {
-      await generateImageFromStep3();
-      showToast('✅ รูปสร้างเสร็จ!','success');
-    } else {
-      showToast('⚠️ ไม่มีรูปสินค้า — ใส่ URL สินค้าหรืออัปโหลดรูปก่อน','warning');
-    }
-    // Step 5: Go to Step 4 for video
-    goContentStep(4);
-    await new Promise(r => setTimeout(r, 600));
-    showToast('🎬 ไปที่ขั้นตอนวิดีโอแล้ว กด "Generate Video" ได้เลย','info');
-  } catch(e) {
-    showToast('❌ Auto Generate Failed: '+e.message,'error');
-    console.error('autoGenerateAll error:', e);
-  } finally {
-    setButtonLoading('autoGenBtn', false);
-  }
-}
+
 
 async function scoutQuickClone() {
   const productName = document.getElementById('scout-clone-product')?.value.trim();
@@ -5829,8 +6482,182 @@ async function scoutQuickClone() {
   }
 }
 
+/* ═══ Batch Generator Functions ═══ */
+let _batchSelected = new Map(); // key -> { title, image, enc }
+
+function toggleBatchSelect(cb) {
+  const card = cb.closest('.product-card');
+  const enc = cb.getAttribute('data-enc');
+  if (!enc) return;
+  // Decode product info from enc
+  var info;
+  try { 
+    info = JSON.parse(decodeURIComponent(enc));
+    info = {enc: enc, title: info.title || info.name || 'Unknown', image: (info.images && info.images[0]) || (info.image_urls && info.image_urls[0]) || '', url: info.url || ''};
+  } catch(e) { 
+    info = {enc: enc, title: 'Unknown', image: '', url: ''};
+  }
+  if (cb.checked) {
+    _batchSelected.set(enc, info);
+    card.classList.add('batch-selected');
+  } else {
+    _batchSelected.delete(enc);
+    card.classList.remove('batch-selected');
+  }
+  updateBatchBar();
+}
+
+function updateBatchBar() {
+  const bar = document.getElementById('batchBar');
+  const count = document.getElementById('batchCount');
+  const n = _batchSelected.size;
+  count.textContent = n;
+  bar.style.display = n > 0 ? 'flex' : 'none';
+}
+
+function clearBatchSelection() {
+  document.querySelectorAll('.product-card.batch-selected').forEach(function(c) { c.classList.remove('batch-selected'); });
+  document.querySelectorAll('.product-card-checkbox input').forEach(function(c) { c.checked = false; });
+  _batchSelected.clear();
+  updateBatchBar();
+}
+
+function openBatchModal() {
+  const list = document.getElementById('batchProductList');
+  const modal = document.getElementById('batchModal');
+  let html = '';
+  let i = 0;
+  _batchSelected.forEach(function(v) {
+    i++;
+    html += '<div style="padding:4px 0;border-bottom:1px solid var(--border-primary)">' + i + '. ' + (v.title || 'Unknown').slice(0, 60) + '</div>';
+  });
+  list.innerHTML = html || '<div class="text-secondary">No products selected</div>';
+  // Copy config from batch bar
+  document.getElementById('batchModalStyle').value = document.getElementById('batchStyle').value;
+  document.getElementById('batchModalDuration').value = document.getElementById('batchDuration').value;
+  document.getElementById('batchModalConcurrency').value = document.getElementById('batchConcurrency').value;
+  modal.classList.add('open');
+}
+
+function closeBatchModal() {
+  document.getElementById('batchModal').classList.remove('open');
+}
+
+async function startBatch() {
+  const btn = document.getElementById('startBatchBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Starting...';
+  
+  const products = [];
+  _batchSelected.forEach(function(v) { products.push(v); });
+  
+  try {
+    const payload = {
+      products: products.map(function(p) { return { title: p.title, image: p.image, url: p.url }; }),
+      style: document.getElementById('batchModalStyle').value,
+      duration: document.getElementById('batchModalDuration').value === 'auto' ? 'auto' : (parseInt(document.getElementById('batchModalDuration').value) || 15),
+      concurrency: parseInt(document.getElementById('batchModalConcurrency').value) || 3,
+    };
+    
+    const r = await fetch(API + '/batch/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const d = await r.json();
+    
+    if (d.success) {
+      showToast('✅ Batch ' + d.batch_id + ' started! Generating ' + products.length + ' videos with ' + payload.concurrency + ' concurrent workers...', 'success');
+      closeBatchModal();
+      clearBatchSelection();
+      switchTab('pipeline');
+      loadBatches();
+      loadPipelineJobs();
+    } else {
+      showToast('❌ ' + (d.error || 'Failed'), 'error');
+    }
+  } catch(e) {
+    showToast('❌ Error: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🚀 Start Batch';
+  }
+}
+
+async function loadBatches() {
+  const section = document.getElementById('batchHistorySection');
+  const list = document.getElementById('batchHistoryList');
+  if (!section) return;
+  try {
+    const r = await fetch(API + '/batch/list');
+    const d = await r.json();
+    const batches = d.batches || [];
+    if (batches.length) {
+      section.style.display = 'block';
+      list.innerHTML = batches.map(function(b) {
+        var pct = b.total > 0 ? Math.round((b.completed + b.failed) / b.total * 100) : 0;
+        return '<div class="batch-card">' +
+          '<div class="batch-header">' +
+          '<div><strong>' + (b.name || b.id) + '</strong> <span class="text-xs text-secondary">' + b.created_at + '</span></div>' +
+          '<span class="badge" style="background:' + (b.status==='running'?'rgba(139,92,246,0.1);color:var(--accent-purple)':b.status==='completed'?'rgba(16,185,129,0.1);color:var(--accent-green)':'rgba(244,63,94,0.1);color:var(--accent-magenta)') + '">' + b.status + '</span>' +
+          '</div>' +
+          '<div style="margin-top:4px;font-size:12px;color:var(--text-secondary)">✅ ' + b.completed + ' ❌ ' + b.failed + ' / ' + b.total + '</div>' +
+          '<div class="batch-progress"><div class="bar" style="width:' + pct + '%"></div></div>' +
+          '</div>';
+      }).join('');
+    }
+  } catch(e) { /* ignore */ }
+}
+
 </script>
 <script>
+// ── Pull-to-Refresh for Mobile ──
+// ใช้ gesture swipe down ที่ขอบบนเพื่อ refresh หน้าปัจจุบัน
+(function() {
+  var ptr = document.createElement('div');
+  ptr.id = 'ptr-indicator';
+  ptr.style.cssText = 'position:fixed;top:-50px;left:0;right:0;z-index:9999;display:flex;align-items:center;justify-content:center;height:50px;background:var(--bg-primary);color:var(--text-secondary);font-size:13px;font-weight:600;transition:top .2s;border-bottom:1px solid var(--border-primary);-webkit-user-select:none;user-select:none';
+  ptr.textContent = '↓ ดึงเพื่อรีเฟรช';
+  document.body.appendChild(ptr);
+
+  var main = document.querySelector('.main');
+  if (!main) return;
+
+  var sy = 0, pulling = false, firstMoved = false;
+  main.addEventListener('touchstart', function(e) {
+    if (main.scrollTop <= 0) { sy = e.touches[0].clientY; pulling = true; firstMoved = false; }
+  }, {passive:true});
+
+  main.addEventListener('touchmove', function(e) {
+    if (!pulling) return;
+    var dy = e.touches[0].clientY - sy;
+    if (dy > 80 && !firstMoved) firstMoved = true;
+    if (firstMoved && dy > 80) {
+      ptr.style.top = Math.min(Math.max(dy - 50, -50), 0) + 'px';
+      ptr.textContent = dy >= 200 ? '↻ ปล่อยเพื่อรีเฟรช' : '↓ ดึงเพื่อรีเฟรช';
+    }
+  }, {passive:true});
+
+  main.addEventListener('touchend', function(e) {
+    if (!pulling) return;
+    var dy = e.changedTouches[0].clientY - sy;
+    pulling = false;
+    if (firstMoved && dy >= 200) {
+      ptr.textContent = '↻ กำลังรีเฟรช...';
+      ptr.style.top = '0';
+      var active = document.querySelector('.page.active');
+      if (active) {
+        var id = active.id;
+        if (id === 'page-publisher') { loadPublisherVideos(); loadPublisherQueue(); }
+        else if (typeof window['switchTab'] === 'function') { location.reload(); }
+      }
+      setTimeout(function() { ptr.style.top = '-50px'; }, 1200);
+    } else {
+      ptr.style.top = '-50px';
+    }
+  }, {passive:true});
+})();
+
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/tiktok/sw.js')

@@ -154,3 +154,32 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+@mcp.tool()
+async def get_line_login_url() -> dict:
+    """Get official LINE Login authorization URL for users."""
+    login_url = "https://m2igen.com/api/auth/line/login"
+    return {
+        "ok": True,
+        "line_login_url": login_url,
+        "description": "Send this URL to users to login via LINE OAuth"
+    }
+
+@mcp.tool()
+async def check_line_webhook_status() -> dict:
+    """Check status of LINE Webhook and Auth API endpoints."""
+    endpoints = [
+        "https://m2igen.com/line/webhook",
+        "https://openhands.m2igen.com/line/webhook",
+        "https://m2igen.com/api/auth/line/login"
+    ]
+    results = {}
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        for ep in endpoints:
+            try:
+                resp = await client.get(ep, follow_redirects=False)
+                results[ep] = {"status_code": resp.status_code, "ok": resp.status_code in (200, 301, 302, 307)}
+            except Exception as e:
+                results[ep] = {"error": str(e), "ok": False}
+    return {"ok": True, "endpoints": results}

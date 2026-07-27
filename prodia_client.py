@@ -177,8 +177,39 @@ class ProdiaV2Client:
             except requests.exceptions.ConnectionError as e:
                 raise ProdiaV2Error(f"Prodia connection failed: {e}")
 
-        # ── Handle status codes ──
-        return self._handle_job_response(resp, job_type)
+        # ── Handle status codes (with 429 retry) ──
+        try:
+            return self._handle_job_response(resp, job_type)
+        except ProdiaRateLimitError:
+            # Auto-retry on 429 with exponential backoff
+            import time as _time
+            _retry_delays = [30, 60, 120]  # seconds between retries
+            _max_retries = 3
+            for _attempt in range(_max_retries):
+                _delay = _retry_delays[_attempt] if _attempt < len(_retry_delays) else _retry_delays[-1]
+                logger.warning(f"[Prodia] Rate limited (429), retry {_attempt+1}/{_max_retries} in {_delay}s...")
+                _time.sleep(_delay)
+                # Re-send the request
+                try:
+                    if has_inputs or has_audio:
+                        # Rebuild files tuple (original may be consumed)
+                        _files = [("job", ("job.json", json.dumps(job_payload), "application/json"))]
+                        if has_inputs:
+                            for _i, _img in enumerate(inputs):
+                                _files.append(("input", (f"input_{_i}.png", _img, "image/png")))
+                        if has_audio:
+                            _files.append(("audio", ("audio.wav", audio, "audio/wav")))
+                        resp = self._session.post(endpoint, files=_files, timeout=120)
+                    else:
+                        resp = self._session.post(endpoint, json=job_payload, timeout=60)
+                    return self._handle_job_response(resp, job_type)
+                except ProdiaRateLimitError:
+                    if _attempt == _max_retries - 1:
+                        logger.error(f"[Prodia] Rate limited (429) after {_max_retries} retries, giving up")
+                        raise
+                    continue
+                except Exception:
+                    raise
 
     # ────────────────────────────────────────────────────────────────────────
 

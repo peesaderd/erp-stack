@@ -6,6 +6,8 @@ Extracted from main.py for cleaner separation.
 from typing import Optional
 from pydantic import BaseModel
 
+from config import DEFAULT_VIDEO_DURATION
+
 
 class ScriptRequest(BaseModel):
     product_name: str = ""
@@ -14,8 +16,12 @@ class ScriptRequest(BaseModel):
     target_audience: str = ""
     tone: str = ""
     cta: str = ""
-    duration: str = "8s"
+    duration: str = f"{DEFAULT_VIDEO_DURATION}s"
     extra_rules: str = ""
+    features: str = ""
+    product_appearance: str = ""
+    style: str = "review"
+    category: str = "other"
     product_url: str = ""
     product_title: str = ""
     product_details: str = ""
@@ -47,7 +53,7 @@ class ScriptTTSRequest(BaseModel):
 
 class SceneBlock(BaseModel):
     script: str
-    duration: int = 8
+    duration: int = DEFAULT_VIDEO_DURATION
     mood: str = "energetic"
     sound_style: str = "upbeat_pop"
     style: str = "product_usage"
@@ -65,9 +71,9 @@ class VideoRequest(BaseModel):
     value: str = ""
     cta: str = ""
     content_type: str = "affiliate"
-    ugc_style: str = "product_usage"
+    ugc_style: str = "holding"
     aspect_ratio: str = "9:16"
-    duration: int = 8
+    duration: int = DEFAULT_VIDEO_DURATION
     scenes: list[SceneBlock] = []
     prompt: str = ""
     provider: str = "prodia"
@@ -75,6 +81,10 @@ class VideoRequest(BaseModel):
     image_url: Optional[str] = None
     script: Optional[str] = None
     negative_prompt: Optional[str] = None
+    bgm_style: Optional[str] = None
+    image_prompt: str = ""
+    video_prompt: str = ""
+    video_prompts: list[str] = []
 
 
 class VideoPostRequest(BaseModel):
@@ -110,7 +120,7 @@ class FullPipelineRequest(BaseModel):
     value_proposition: Optional[str] = ""
     cta: Optional[str] = ""
     provider: str = "prodia"
-    duration: int = 8
+    duration: int = DEFAULT_VIDEO_DURATION
     aspect_ratio: str = "9:16"
     negative_prompt: Optional[str] = ""
     tts_lang: str = "th"
@@ -126,7 +136,7 @@ class FullPipelineRequest(BaseModel):
 
 class ScrapeAndGenerateRequest(BaseModel):
     url: str
-    duration: str = "8s"
+    duration: str = f"{DEFAULT_VIDEO_DURATION}s"
     tone: str = ""
     cta: str = ""
     ugc_style: str = "ugc_review"

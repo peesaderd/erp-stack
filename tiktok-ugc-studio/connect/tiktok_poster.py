@@ -8,6 +8,7 @@ import json
 import asyncio
 import logging
 from pathlib import Path
+from typing import List, Dict, Any, Optional
 from typing import Optional, Dict, Any
 
 logger = logging.getLogger("social-poster")
@@ -63,6 +64,7 @@ class SocialPoster:
         self,
         video_path: str,
         caption: str,
+        items: List[Dict] = None,
         platform: str = "tiktok",
         account_id: str = "",
         title: str = "",
@@ -70,18 +72,25 @@ class SocialPoster:
         hashtags: list = None,
         schedule_at: str = None,
     ) -> Dict[str, Any]:
-        """Post via AitoEarn REST API — any platform. Uses central client."""
+        """Post via AitoEarn REST API — any platform. Uses central client.
+        
+        Supports multi-platform via items=[{platform, accountId}, ...]
+        Falls back to legacy single platform if items is None.
+        """
         if not self.aitoearn.configured:
             return {"success": False, "error": "AITOEARN_API_KEY not configured", "method": "aitoearn"}
+
+        # If items not provided, build from legacy platform+account_id
+        if items is None:
+            items = [{"platform": platform, "accountId": account_id}] if account_id else None
 
         result = await self.aitoearn.publish_video(
             video_path=video_path,
             caption=caption,
+            items=items,
             title=title,
             description=description,
             hashtags=hashtags,
-            platform=platform,
-            account_id=account_id,
             schedule_at=schedule_at,
             publish_immediately=True,
         )
@@ -158,20 +167,25 @@ class SocialPoster:
         caption: str,
         platform: str = "tiktok",
         account_id: str = "",
+        items: List[Dict] = None,
         title: str = "",
         description: str = "",
         hashtags: list = None,
         schedule_at: str = None,
     ) -> Dict[str, Any]:
-        """Post to any platform via AitoEarn, with TikTok cookie fallback."""
-        platform_label = platform.title()
-        logger.info(f"📤 Posting to {platform_label}: {Path(video_path).name} — {caption[:60]}...")
+        """Post to platform(s) via AitoEarn, with TikTok cookie fallback.
+        
+        Supports multi-platform via items=[{platform, accountId}, ...]
+        """
+        plat_label = "multi" if items else platform.title()
+        logger.info(f"📤 Posting to {plat_label}: {Path(video_path).name} — {caption[:60]}...")
 
         # 1. Try AitoEarn (primary — supports all platforms)
         if self.aitoearn.configured:
             result = await self.post_via_aitoearn(
                 video_path=video_path,
                 caption=caption,
+                items=items,
                 platform=platform,
                 account_id=account_id,
                 title=title,
@@ -181,17 +195,17 @@ class SocialPoster:
             )
             if result.get("success"):
                 return result
-            logger.info(f"AitoEarn {platform_label} failed: {result.get('error')}")
+            logger.info(f"AitoEarn {plat_label} failed: {result.get('error')}")
         else:
             logger.info("AitoEarn not configured")
 
-        # 2. Cookie fallback (TikTok only)
-        if platform == "tiktok" and self.has_cookies():
+        # 2. Cookie fallback (TikTok only, single platform)
+        if (items is None or platform == "tiktok") and platform == "tiktok" and self.has_cookies():
             result = await self.post_via_cookie(video_path, caption, hashtags)
             if result.get("success"):
                 return result
 
-        return {"success": False, "error": f"All methods failed for {platform_label}", "method": "all_failed"}
+        return {"success": False, "error": f"All methods failed for {plat_label}", "method": "all_failed"}
 
 
 # Singleton (backward compat aliases)

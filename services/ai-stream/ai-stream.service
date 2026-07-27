@@ -1,0 +1,24 @@
+[Unit]
+Description=AI Live Stream Backend (RAG + Q&A + TTS)
+After=network.target docker.service
+Wants=docker.service
+
+[Service]
+Type=simple
+User=openhands
+WorkingDirectory=/home/openhands/erp-stack/services/ai-stream
+ExecStart=/usr/bin/python3 /home/openhands/erp-stack/services/ai-stream/server.py
+Restart=always
+RestartSec=5
+StandardOutput=append:/home/openhands/erp-stack/services/ai-stream/data/server.log
+StandardError=append:/home/openhands/erp-stack/services/ai-stream/data/server.log
+
+# Security
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+ReadWritePaths=/home/openhands/erp-stack/services/ai-stream/data
+
+[Install]
+WantedBy=multi-user.target

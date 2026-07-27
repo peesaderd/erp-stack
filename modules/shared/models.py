@@ -38,6 +38,7 @@ class User(Base):
     auth_providers = relationship("AuthProvider", back_populates="user", cascade="all, delete-orphan")
     transactions = relationship("Transaction", back_populates="user", cascade="all, delete-orphan")
     products = relationship("Product", back_populates="user", cascade="all, delete-orphan")
+    webauthn_credentials = relationship("WebAuthnCredential", back_populates="user", cascade="all, delete-orphan")
 
 
 class Session(Base):
@@ -172,3 +173,23 @@ class GeneratedContent(Base):
     status = Column(String, default="completed")  # pending, processing, completed, failed
     metadata_json = Column(JSON, default=dict)
     created_at = Column(DateTime(timezone=True), default=_utcnow)
+
+
+# ──────────────────────────────────────────────
+# WebAuthn / Biometric (Passkeys)
+# ──────────────────────────────────────────────
+
+class WebAuthnCredential(Base):
+    __tablename__ = "webauthn_credentials"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    credential_id = Column(String, unique=True, nullable=False, index=True)  # base64url
+    public_key = Column(String, nullable=False)  # base64url-encoded COSE key
+    sign_count = Column(Integer, default=0)
+    device_name = Column(String, default="")
+    transports = Column(JSON, default=list)
+    created_at = Column(DateTime(timezone=True), default=_utcnow)
+    last_used_at = Column(DateTime(timezone=True), nullable=True)
+
+    user = relationship("User", back_populates="webauthn_credentials")

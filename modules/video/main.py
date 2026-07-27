@@ -13,10 +13,10 @@ import json
 import uuid
 import time
 import asyncio
+import random
 import logging
 import tempfile
 from pathlib import Path
-from datetime import datetime
 from typing import Optional, List
 
 from fastapi import FastAPI, HTTPException, Query
@@ -32,6 +32,12 @@ if _modules_dir not in sys.path:
 if _module_dir not in sys.path:
     sys.path.insert(0, _module_dir)
 
+# ─── Schema Engine UGC Style Client ─────────────────────────────────
+_ugc_client_dir = os.path.join(os.path.dirname(_modules_dir), "prompt-builder-service")
+if _ugc_client_dir not in sys.path:
+    sys.path.insert(0, _ugc_client_dir)
+from ugc_schema_client import get_default_style, validate_ugc_style
+
 # ─── Storage ──────────────────────────────────────────────────────────
 STORAGE_DIR = Path(__file__).parent / "storage"
 TTS_DIR = STORAGE_DIR / "tts"
@@ -39,6 +45,9 @@ VIDEOS_DIR = STORAGE_DIR / "videos"
 COMPOSED_DIR = STORAGE_DIR / "composed"
 for d in [TTS_DIR, VIDEOS_DIR, COMPOSED_DIR]:
     d.mkdir(parents=True, exist_ok=True)
+
+# Config ควบคุมค่า default — แก้ที่ config.py ที่เดียว
+from config import DEFAULT_DURATION
 
 # ─── Logging ──────────────────────────────────────────────────────────
 logging.basicConfig(level=logging.INFO)
@@ -73,8 +82,12 @@ class ScriptRequest(BaseModel):
     target_audience: str = ""
     tone: str = ""
     cta: str = ""
-    duration: str = "8s"
+    duration: str = f"{DEFAULT_DURATION}s"
     extra_rules: str = ""
+    features: str = ""
+    product_appearance: str = ""
+    style: str = "review"
+    category: str = "other"
 
 class UGCRequest(BaseModel):
     style: str = "ugc_review"
@@ -91,7 +104,7 @@ class ConcatRequest(BaseModel):
 
 class SceneBlock(BaseModel):
     script: str = ""
-    duration: int = 8
+    duration: int = DEFAULT_DURATION
     mood: str = "energetic"
     sound_style: str = "upbeat_pop"
     style: str = "product_usage"
@@ -107,9 +120,9 @@ class VideoRequest(BaseModel):
     value: str = ""
     cta: str = ""
     content_type: str = "affiliate"
-    ugc_style: str = "product_usage"
+    ugc_style: str = "holding"
     aspect_ratio: str = "9:16"
-    duration: int = 8
+    duration: int = DEFAULT_DURATION
     scenes: list[SceneBlock] = []
     prompt: str = ""
     provider: str = "prodia"
@@ -117,57 +130,18 @@ class VideoRequest(BaseModel):
     image_url: Optional[str] = None
     script: Optional[str] = None
     negative_prompt: Optional[str] = None
+    bgm_style: Optional[str] = None
     product_description: Optional[str] = None
     recipe: Optional[str] = None
     job_id: Optional[str] = None  # external job_id from caller — used to keep pipeline_logs.db in sync
-
-class FullPipelineRequest(BaseModel):
-    product_title: str = ""
-    product_description: str = ""
-    product_url: str = ""
-    product_image: str = ""
-    product_price: Optional[float] = None
-    hook: str = ""
-    value_proposition: str = ""
-    cta: str = ""
-    duration: int = 8
-    aspect_ratio: str = "9:16"
-    tts_lang: str = "th"
-    bg_music: Optional[str] = None
-    negative_prompt: Optional[str] = None
-    ugc_style: str = "product_usage"
-    recipe: Optional[str] = None
-    run_tts: bool = True
-    run_video_gen: bool = True
-    run_compose: bool = True
+    image_prompt: str = ""
+    video_prompt: str = ""
+    video_prompts: list[str] = []
 
 class AffiliateScriptRequest(ScriptRequest):
     platforms: list[str] = []
 
 # ─── Pipeline Job Store (in-memory) ────────────────────────────────────
-_pipeline_jobs: dict = {}
-
-def _create_job(account_id: str = "", product_url: str = "") -> str:
-    job_id = str(uuid.uuid4())[:8]
-    _pipeline_jobs[job_id] = {
-        "id": job_id,
-        "created_at": datetime.now().isoformat(),
-        "status": "created",
-        "steps": {},
-    }
-    return job_id
-
-def _update_step(job_id: str, step: str, status: str, result: dict = None):
-    if job_id in _pipeline_jobs:
-        _pipeline_jobs[job_id]["steps"][step] = {
-            "status": status,
-            "result": result or {},
-            "updated_at": datetime.now().isoformat(),
-        }
-
-def _get_job(job_id: str) -> dict:
-    return _pipeline_jobs.get(job_id, {})
-
 # ─── Health ────────────────────────────────────────────────────────────
 
 @app.get("/health")
@@ -189,6 +163,10 @@ async def generate_script(req: ScriptRequest):
         cta=req.cta,
         duration=req.duration,
         extra_rules=req.extra_rules,
+        features=req.features,
+        product_appearance=req.product_appearance,
+        style=req.style,
+        persona_category=req.category,
     )
     return {"success": True, "script": result}
 
@@ -301,10 +279,21 @@ async def generate_video(req: VideoRequest):
             product_image=product_image if product_image else None,
             recipe_name=req.recipe or "tus",
             voice="Aoede",
-            bgm_style="chill_loft",
+            bgm_style=req.bgm_style or random.choices(
+                ["chill_loft", "luxury_jazz", "upbeat_pop", "energetic_edm", "informative_jazz", "asmr", "relaxing"],
+                weights=[15, 15, 20, 12, 12, 4, 22], k=1
+            )[0],
             description=req.product_description or "",
-            ugc_style=req.ugc_style or "holding",
+            ugc_style=validate_ugc_style(req.ugc_style),
             external_job_id=req.job_id,
+            duration=req.duration,
+            # Pre-computed prompts (bypass auto-gen if provided)
+            image_prompt=req.image_prompt or "",
+            video_prompt=req.video_prompt or "",
+            video_prompts=req.video_prompts or [],
+            negative_prompt=req.negative_prompt or "",
+            script=script or "",
+
         )
         return {"success": True, "result": result}
     except Exception as e:
@@ -322,82 +311,11 @@ async def video_gallery():
             files.append({"name": f.name, "size": f.stat().st_size, "path": f"/static/videos/{f.name}"})
     return {"success": True, "videos": files}
 
-# ─── Pipeline ─────────────────────────────────────────────────────────
-
-@app.get("/api/v1/pipeline/{job_id}/status")
-async def pipeline_get_status(job_id: str):
-    """Get pipeline job status."""
-    job = _get_job(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    return {"success": True, "job": job}
-
-@app.get("/api/v1/pipeline/list")
-async def pipeline_list(limit: int = 20):
-    """List recent pipeline jobs."""
-    jobs = sorted(_pipeline_jobs.values(), key=lambda j: j.get("created_at", ""), reverse=True)[:limit]
-    return {"success": True, "jobs": jobs, "total": len(_pipeline_jobs)}
-
-@app.post("/api/v1/pipeline/run")
-async def run_full_pipeline(req: FullPipelineRequest):
-    """Run full UGC pipeline v6: Analyze → Recipe → Script → Image → Video → Compose."""
-    from video.pipeline_affiliate import run_pipeline
-    
-    product_name = req.product_title or "Product"
-    product_image = req.product_image or ""
-    recipe_name = req.recipe or ("etsy" if req.duration == 16 else "tus")
-    
-    try:
-        result = run_pipeline(
-            product_name=product_name,
-            product_image=product_image,
-            recipe_name=recipe_name,
-            description=req.product_description or "",
-            ugc_style=req.ugc_style or "holding",
-        )
-        
-        return {
-            "success": True,
-            "job_id": result["run_id"],
-            "final_video": result["final_path"],
-            "duration_seconds": result["duration"],
-            "cost_estimate": result["cost_estimate"],
-            "script": result["script"],
-            "scenes": len(result["video_paths"]),
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Pipeline failed: {str(e)}")
-
-# ─── Pipeline Logs ────────────────────────────────────────────────────
-
-@app.get("/api/v1/logs")
-async def list_pipeline_logs(limit: int = 100, status: Optional[str] = None, days: Optional[int] = None):
-    """List recent pipeline jobs with full details."""
-    from video.pipeline_logger import list_jobs
-    jobs = list_jobs(limit=limit, status=status, days=days)
-    return {"success": True, "jobs": jobs, "total": len(jobs)}
-
-@app.get("/api/v1/logs/{job_id}")
-async def get_pipeline_log(job_id: str):
-    """Get full details of a specific pipeline job."""
-    from video.pipeline_logger import get_job
-    job = get_job(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    return {"success": True, "job": job}
-
-@app.get("/api/v1/logs/stats/summary")
-async def pipeline_stats_summary(days: int = 7):
-    """Get aggregate statistics for pipeline jobs."""
-    from video.pipeline_logger import get_stats
-    stats = get_stats(days=days)
-    return {"success": True, "stats": stats}
-
-# ─── Product Analysis ─────────────────────────────────────────────────
+# ─── Product Analysis (delegated to pipeline service port 8118) ────
 
 @app.post("/api/v1/product/analyze")
 async def analyze_product(req: dict):
-    """Analyze product using AI (Gemini/Mistral)."""
+    """Analyze product using AI (Gemini/Mistral). Forward to pipeline service."""
     from video.gemini_agent import analyze_product
     result = analyze_product(
         product_name=req.get("product_name", ""),

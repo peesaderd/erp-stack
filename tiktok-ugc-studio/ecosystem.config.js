@@ -8,7 +8,7 @@ module.exports = {
     env: {
       PFM_API_KEY: 'pfm_live_4qR2sT7hvEo6qFKMQssker',
       AITOEARN_URL: 'https://aitoearn.ai',
-      AITOEARN_API_KEY: 'ai_wexpixpktm1RaXrFXtFkjnQIWTV9UX5or7RVKOyiOP8NJCT0',
+      AITOEARN_API_KEY: 'ai_oTEXRjq3OPouzJZn79lvuZqrYR94UX7tEQPn3F1IiHP214gl',
       TIKTOK_AITOEARN_ACCOUNT_ID: 'tiktok_-0002TMst9pSO4krFHlfvM8HTY7Jz999H32U',
     },
   }, {

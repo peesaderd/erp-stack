@@ -10,6 +10,8 @@ from typing import Optional, List, Dict, Any
 
 import requests
 
+from mistralai.client import Mistral
+
 logger = logging.getLogger("prompt-builder-service")
 
 from shared_config import GEMINI_API_KEY as _GEMINI_API_KEY_LAZY
@@ -65,9 +67,6 @@ def _call_gemini(system_prompt: str, user_text: str, temperature: float = 0.3) -
     except Exception as e:
         logger.error(f"Gemini call failed: {e}")
         return None
-
-
-import base64
 
 
 def _call_gemini_vision(system_prompt: str, user_text: str, image_url: str, temperature: float = 0.3) -> Optional[str]:
@@ -138,6 +137,12 @@ PRODUCT_ANALYSIS_SYSTEM = """คุณคือนักวิเคราะห
 - ถ้าไม่มีคำเหล่านี้เลย → packaging_action: "generic_hold" + action_desc: "ถือสินค้าและใช้งานทั่วไป"
 - action_desc ให้เขียนภาษาไทย สั้น กระชับ
 
+🔴 🏷️ ต้องระบุรายละเอียดบรรจุภัณฑ์ใน image_description:
+- container type: bottle/jar/tube/compact/pen
+- closure: twist cap/pump/spray/flip-top/click mechanism
+- product color/texture (visible through packaging if clear)
+- label colors and design elements
+
 JSON ที่ต้องตอบ:
 {
   "category": "beauty/fashion/electronics/food/home/tools/health/other",
@@ -149,6 +154,8 @@ JSON ที่ต้องตอบ:
   "main_benefit": "คุณประโยชน์หลักของสินค้า เช่น ให้ริมฝีปากชุ่มชื้น ฉ่ำวาว ตลอดวัน",
   "packaging_action": "click_to_release/pump/spray/roll/smooth_application/glossy_shine/blend/dab_press/click_pen/generic_hold",
   "action_desc": "คำอธิบายภาษาไทยสั้นๆ ว่าแพ็กเกจจิ้งทำงานยังไง",
+  "features": "ENGLISH ONLY — ALL product properties from description แยกเป็นรายการ เช่น USB rechargeable, 400ml capacity, wireless, motion sensor, one-button operation, adjustable speed, compact size, LED indicator, refillable, BPA-free, waterproof, dishwasher-safe (4-6 short phrases — extract EVERY spec in the description, do not skip any)",
+  "product_appearance": "ENGLISH ONLY — physical description from name/description เช่น white plastic bottle with spray nozzle, LED indicator (keep under 120 chars)",
   "hashtags": ["hashtag1", "hashtag2", "hashtag3", "hashtag4", "hashtag5"],
   "image_description": "ENGLISH ONLY — absolutely NO Thai language. Describe the scene for AI image generation.
 
@@ -162,45 +169,116 @@ JSON ที่ต้องตอบ:
   • Video Scene 1: เริ่มขยับจากท่าถือ → เริ่มใช้สินค้า
   • Video Scene 2+: ใช้สินค้าจริง
 
-Include: model appearance (Thai woman/man, age 25, glowing skin), pose (HOLDING product at chest level — NOT applying yet), expression (confident smile / happy), setting (vanity room, cafe), lighting (soft natural window light), mood (warm, inviting). Focus on product being clearly visible and in focus. Do NOT describe the product being used/applied — that happens in the video.
+🔴 ต้องระบุรายละเอียดบรรจุภัณฑ์: container type (bottle/jar/tube), closure (twist cap/pump/spray/flip-top), สีและดีไซน์ของฉลาก
 
-Example (correct for Holding style): 'A beautiful Thai woman, 25 years old, glowing skin, happy smile, holding a lip product at chest level, product visible and in focus, in a vanity room with soft natural window lighting, warm and inviting atmosphere'",
+Include: model appearance MUST say "Ethnic Thai woman" (not just "Thai woman") — with porcelain white glowing skin, monolid eyes, Southeast Asian features. Pose: HOLDING product at chest level — NOT applying yet. Expression: confident smile. Setting: vanity room, cafe. Lighting: soft natural window light. Mood: warm, inviting. Focus on product being clearly visible and in focus. Do NOT describe the product being used/applied — that happens in the video. ระบุ container type (bottle/jar/tube), closure (twist cap/pump/spray/flip-top) และสีของสินค้าใน image_description ด้วย.
+
+Example (correct for Holding style): 'An ethnic Thai woman with porcelain white glowing skin, 25 years old, monolid eyes, happy smile, holding a lip product at chest level — a clear plastic tube with a black twist cap — product visible and in focus, in a vanity room with soft natural window lighting, warm and inviting atmosphere'",
+
+🔴 image_description CRITICAL — ต้องแยก "model appearance" (Thai woman, features) ออกจาก "product packaging" (container, cap, color) ให้ชัดเจน
 }"""
 
 
-PRODUCT_VISION_SYSTEM = """You are a product image analyst for TikTok Shop (Gemini-powered).
-Analyze the product image and return JSON ONLY (no other text).
-
-CRITICAL RULES:
-- target_gender MUST be "male" or "female" — NEVER "unisex"
-- image_description must be 100% English with NO Thai language
+PRODUCT_VISION_SYSTEM = """You are a product and environment analyst. Analyze the product image and return JSON ONLY.
 
 JSON format:
 {
-  "category": "beauty/fashion/electronics/food/home/tools/health/other",
-  "product_type": "lipstick/cream/headphones/etc.",
-  "target_gender": "male/female",
+  "category": "home/electronics/beauty/fashion/food/tools/health/other",
+  "product_type": "what this product is (e.g. wall-mounted motion sensor light, electric toothbrush)",
+  "target_gender": "female/male",
   "target_age": "25",
-  "target_audience": "primary target audience (specific, in Thai for script)",
-  "setting": "suggested video setting (English, e.g. vanity room, bathroom, cafe)",
-  "colors": ["dominant color 1", "dominant color 2", "dominant color 3"],
-  "packaging_style": "luxury/minimal/colorful/modern",
-  "estimated_product_size": "small/medium/large",
-  "customer_problem": "specific problem this product solves (in Thai for script)",
-  "main_benefit": "specific main benefit (in Thai for script)",
-  "image_description": "ENGLISH ONLY — absolutely NO Thai. Describe the ideal scene for AI image gen. Include: model appearance (Thai woman/man, age 25, glowing skin), pose (how they hold/use product, e.g. applying on lips showing glossy texture), expression, setting, lighting, mood. Focus on product texture/usage. Example: 'A beautiful Thai woman, 25 years old, glowing skin, happy smile, applying product on lips, vanity room, soft natural window lighting, glossy texture visible, warm atmosphere'
-}"""
+  "setting": "where this product is typically used/installed (English, general location)",
+  "env_context": "specific environment: hallway entrance, bathroom sink, bedroom vanity, kitchen counter",
+  "colors": ["color1", "color2", "color3"],
+  "customer_problem": "what problem this product solves (Thai natural, female register คะ/ค่ะ) เช่น ต้องเดินคลำทางในที่มืด, ปั่นผลไม้ยากลำบาก",
+  "main_benefit": "key benefit (Thai natural, use ค่ะ/คะ female register) เช่น เปิดไฟอัตโนมัติเมื่อเดินผ่าน, ปั่นละเอียดแรงสูงพกพาสะดวก",
+  "product_appearance": "ENGLISH ONLY. Physical description of the product ONLY (no person). What it looks like: shape, color, material, size, any visible features.",
+  "features": "ENGLISH ONLY. Key product properties/benefits visible or implied (e.g. portable USB rechargeable, powerful motor, BPA-free, measurement markings, one-button operation, motion sensor, automatic on/off). 1-3 short phrases."
+}
+RULES:
+- target_gender MUST be "female" or "male" — image gen NEEDS a specific gender
+- target_age: SINGLE number (e.g. 25), not a range
+- product_appearance describes the product PHYSICALLY — not a scene, not a person
+- features describes PROPERTIES you can confirm from the image or label (not made up claims)
+- setting = general location type. env_context = specific spot"""
 
 
 
+
+
+# ─── Mistral Vision ──────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════
+
+MISTRAL_MODEL = "mistral-large-latest"  # Supports text + image input
+
+
+def _call_mistral_vision(system_prompt: str, user_text: str, image_url: str, temperature: float = 0.3) -> Optional[str]:
+    """Call Mistral Large with image input (vision capabilities).
+    
+    Downloads image locally and passes as base64 since Mistral's backend
+    can't reliably fetch from all image CDNs.
+    """
+    api_key = os.environ.get("MISTRAL_API_KEY", "")
+    if not api_key:
+        logger.warning("No MISTRAL_API_KEY set in environment")
+        return None
+    if not image_url:
+        return None
+    try:
+        # Download image locally first (Mistral's URL fetcher often blocked)
+        img_resp = requests.get(image_url, timeout=30)
+        img_resp.raise_for_status()
+        img_b64 = base64.b64encode(img_resp.content).decode("utf-8")
+        mime = img_resp.headers.get("content-type", "image/jpeg")
+        data_uri = f"data:{mime};base64,{img_b64}"
+        
+        client = Mistral(api_key=api_key)
+        response = client.chat.complete(
+            model=MISTRAL_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": [
+                    {"type": "text", "text": user_text},
+                    {"type": "image_url", "image_url": data_uri},
+                ]},
+            ],
+            temperature=temperature,
+            max_tokens=2048,
+        )
+        if response and response.choices:
+            return response.choices[0].message.content
+        else:
+            logger.warning("Mistral vision returned empty response")
+            return None
+    except Exception as e:
+        logger.error(f"Mistral vision call failed: {e}")
+        return None
 
 
 def analyze_product_image(product_image: str, product_name: str, description: str = "") -> Optional[dict]:
-    """Analyze product image via Mistral Pixtral Vision API."""
+    """Analyze product image via Mistral Large (vision-capable).
+    
+    Uses Mistral's built-in vision to accurately extract:
+    - Product type, category
+    - Container type (bottle/jar/tube/compact/pen)
+    - Closure type (twist cap/pump/spray/flip-top/click)
+    - Label colors and design
+    - Product color/texture visible through packaging
+    
+    Falls back to Gemini Vision if Mistral is unavailable.
+    """
     if not product_image:
         return None
     user_text = f"Analyze this product image. Product name: {product_name}. Description: {description if description else 'N/A'}"
-    raw = _call_gemini_vision(PRODUCT_VISION_SYSTEM, user_text, product_image, temperature=0.3)
+    
+    # Primary: Mistral vision
+    raw = _call_mistral_vision(PRODUCT_VISION_SYSTEM, user_text, product_image, temperature=0.3)
+    
+    # Fallback: Gemini vision if Mistral fails
+    if not raw:
+        logger.info("Mistral vision failed — trying Gemini vision fallback")
+        raw = _call_gemini_vision(PRODUCT_VISION_SYSTEM, user_text, product_image, temperature=0.3)
+    
     if raw:
         result = _extract_json(raw)
         if result:

@@ -1,0 +1,20 @@
+services:
+  # === SRS: RTMP + HLS Streaming Server ===
+  # CPU-only, lightweight (~50MB RAM)
+  srs:
+    image: ossrs/srs:5
+    container_name: ai-stream-srs
+    restart: unless-stopped
+    ports:
+      - "1935:1935"    # RTMP for OBS push
+      - "8083:8080"    # HTTP: HLS playback + API
+      - "1987:1985"    # HTTP API (internal)
+      - "8000:8000/udp" # WebRTC
+    volumes:
+      - ./srs.conf:/usr/local/srs/conf/srs.conf
+      - ./data/hls:/usr/local/srs/objs/nginx/html/hls
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:1985/api/v1/versions"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

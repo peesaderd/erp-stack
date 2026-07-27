@@ -66,7 +66,8 @@ def update_step(job_id: str, step_name: str, status: str, result: Optional[dict]
     steps = json.loads(row[0])
     steps[step_name] = {"status": status, **(result or {})}
     now = datetime.utcnow().isoformat()
-    all_done = all(s.get("status") in ("success", "error") for s in steps.values()) if steps else False
+    TERMINAL_STATUSES = {"success", "error", "skipped"}
+    all_done = all(s.get("status") in TERMINAL_STATUSES for s in steps.values()) if steps else False
     overall = "completed" if all_done else "running"
     conn.execute(
         "UPDATE pipeline_jobs SET steps_data = ?, status = ?, updated_at = ? WHERE job_id = ?",

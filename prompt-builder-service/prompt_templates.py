@@ -12,13 +12,42 @@ BASE_DIR = Path(__file__).parent
 UGC_DIR = BASE_DIR / "UGC_prompts"
 RECIPES_DIR = BASE_DIR / "recipes"
 
+# ─── Schema Engine Style Sync ────────────────────────────────────
+def _sync_style_map_from_engine():
+    """Overwrite STYLE_MAP entries with data from Schema Engine (port 8100).
+    Falls back to local STYLE_MAP if Engine unreachable."""
+    try:
+        import urllib.request
+        import json as _json
+        req = urllib.request.Request(
+            "http://localhost:8100/api/v1/data/ugc_style",
+            method="GET",
+            headers={"Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            result = _json.loads(resp.read().decode())
+        records = result.get("data", [])
+        for rec in records:
+            d = rec.get("data", {})
+            key = d.get("style_key")
+            if key and key in STYLE_MAP:
+                # Merge: Schema Engine fields override local defaults
+                for schema_field in ("model_action", "camera", "vibe", "keywords", "video_motion"):
+                    if d.get(schema_field):
+                        STYLE_MAP[key][schema_field] = d[schema_field]
+                if d.get("negative_emphasis"):
+                    STYLE_MAP[key]["negative_emphasis"] = d["negative_emphasis"]
+        print(f"[prompt_templates] Synced {len(records)} styles from Schema Engine")
+    except Exception as e:
+        print(f"[prompt_templates] Schema Engine sync skipped ({e})")
+
 STYLE_MAP = {
     "holding": {
-        "model_action": "holding the product in both hands, product packaging facing camera, smiling naturally",
+        "model_action": "Ethnic Thai woman with porcelain white glowing skin, monolid eyes, Southeast Asian features, holding the product in both hands, product packaging facing camera, smiling naturally, NOT applying or using product, NOT opening product, just holding and showing",
         "camera": "mid shot, waist up, product visible at chest level",
         "vibe": "friendly, approachable, product-focused",
-        "keywords": "both hands holding product, product clearly visible and in focus",
-        "video_motion": "model holding product, gentle hand movement showing product tube, natural breathing motion, slight head tilt",
+        "keywords": "ethnic Thai features, porcelain white skin, monolid eyes, both hands holding product, product clearly visible and in focus, NOT using product, NOT opening container",
+        "video_motion": "ethnic Thai woman with white glowing skin holding product gently in both hands, slight head tilt, natural breathing motion, product packaging facing camera, hands not opening or squeezing product",
     },
     "usage": {
         "model_action": "actively using the product in a natural daily setting, candid moment, product in use",
@@ -71,11 +100,19 @@ STYLE_MAP = {
         "video_motion": "model pointing and gesturing at content, head turns, reaction expressions",
     },
     "aesthetic_vlog": {
+    "product_demo": "Product_Demo",
         "model_action": "model going through routine naturally, product appears organically in scene, GRWM energy",
         "camera": "variety of angles, fast cuts, cinematic b-roll, sometimes model not looking at camera",
         "vibe": "cinematic, aesthetic, aspirational, premium",
         "keywords": "vlog, daily routine, GRWM, aesthetic lifestyle, cinematic",
         "video_motion": "fast paced cuts, product smoothly appearing in frame, slow motion segments, smooth transitions",
+    },
+    "product_demo": {
+        "model_action": "product on table or surface, no person visible, product centered and clearly shown, demonstration focus",
+        "camera": "top-down or eye-level, product centered, clean background",
+        "vibe": "clean, minimal, product-focused, demonstration",
+        "keywords": "product demo, no people, product-centered, clean background, product features visible",
+        "video_motion": "product sitting on clean surface, hands entering frame to demonstrate features, no person face visible, product rotating or being operated, camera panning around product"
     },
 }
 
@@ -145,4 +182,24 @@ def _extract_json(text: str) -> Optional[dict]:
     return None
 
 
+# ── Auto-sync STYLE_MAP from Schema Engine at import time ──────────
+_sync_style_map_from_engine()
 # ═══════════════════════════════════════════════════════════════════════
+
+
+# ─── Style Key Alias Normalization ─────────────────────────────────
+STYLE_ALIASES = {
+    "unbox": "usage",
+    "unboxing": "usage",
+    "product_usage": "usage",
+    "ugc_review": "review",
+    "product_review": "review",
+    "tabletop_demo": "tabletop_demo",
+    "tabletop": "tabletop_demo",
+    "demo": "tabletop_demo",
+    "holding_product": "holding",
+}
+
+def normalize_style_key(style_key: str) -> str:
+    k = (style_key or "holding").lower().strip()
+    return STYLE_ALIASES.get(k, k)

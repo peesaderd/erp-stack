@@ -77,6 +77,18 @@ app.get('/health', (req, res) => res.json({ status: 'ok' }));
 // JSON middleware for non-proxy routes
 app.use(express.json());
 
+// Proxy product images → calm-noether (8108) for HTTPS mixed-content fix
+app.get("/ugc/static/product_images/:filename", (req, res) => {
+  http.get("http://localhost:8108/product_images/" + req.params.filename, (proxyRes) => {
+    res.writeHead(proxyRes.statusCode, {
+      "Content-Type": proxyRes.headers["content-type"] || "image/jpeg",
+      "Content-Length": proxyRes.headers["content-length"],
+      "Cache-Control": "public, max-age=86400",
+    });
+    proxyRes.pipe(res);
+  }).on("error", () => res.status(404).json({ error: "image not found" }));
+});
+
 // Proxy TUS static files (videos) BEFORE static middleware
 // nginx sends /tiktok/static/videos/xxx without stripping /tiktok prefix
 app.use((req, res, next) => {

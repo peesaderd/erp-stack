@@ -150,19 +150,20 @@ def _strip_clothing_hair_from_desc(desc: str) -> str:
     """Remove clothing/hair from image_description so persona_clothing/hair takes priority."""
     if not desc:
         return desc
-    # Remove trailing ", wearing ..." or "wearing ..." clauses
+    # Remove ", wearing ..." clauses (any position in sentence)
     desc = re.sub(r',?\s*wearing\s+[^,]+', '', desc, flags=re.IGNORECASE)
-    # Remove trailing ", hair in ..." or "hair ..." clauses  
+    # Remove ", hair ..." or "straight dark hair worn sleek" style clauses
     desc = re.sub(r',?\s*hair\s+(in\s+)?[^,]+', '', desc, flags=re.IGNORECASE)
-    # Remove trailing ", sleek middle part down" style variants
+    desc = re.sub(r',?\s*straight\s+dark\s+hair\s+worn\s+\w+', '', desc, flags=re.IGNORECASE)
+    # Remove ", sleek middle part down" etc
     desc = re.sub(r',?\s*sleek\s+middle\s+part\s+down', '', desc, flags=re.IGNORECASE)
+    # Remove trailing camera/shot descriptors (can appear alongside clothing)
+    desc = re.sub(r',?\s*(full|half|three.quarter|head.and.shoulders)\s+(body\s+)?shot', '', desc, flags=re.IGNORECASE)
     # Clean up
     desc = re.sub(r',\s*,', ',', desc)
     desc = re.sub(r'\s{2,}', ' ', desc).strip()
     desc = re.sub(r',$', '', desc).strip()
     return desc
-
-
 
 def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holding") -> str:
     """Generate image prompt — style-driven, category-modulated.
@@ -821,10 +822,12 @@ def _gemini_generate_prompts(
     gender_en = {"female": "woman", "woman": "woman", "male": "man", "man": "man"}.get(model_gender, "woman")
     
     # Cache by product name + age — avoid duplicate calls within same request
-    _cache_key = (product_name, model_age)
-    cached = _gemini_prompt_cache.get(_cache_key)
-    if cached is not None:
-        return cached
+    _cache_key = (product_name, model_age, "image")
+    # Check both image and video cache — if either missing, regenerate both
+    cached_img = _gemini_prompt_cache.get((product_name, model_age, "image"))
+    cached_vid = _gemini_prompt_cache.get((product_name, model_age, "video"))
+    if cached_img is not None and cached_vid is not None:
+        return (cached_img[0], cached_vid[1])
     
     # Clean appearance
     pa = product_appearance or ""
@@ -839,27 +842,40 @@ def _gemini_generate_prompts(
         feat_str = features[:200]
     
     # Wan 2.7 is a diffusion model — it ONLY understands literal visual descriptions
-    system_prompt = (
-        "You write prompts for Wan 2.7, a DIFFUSION video model.\n"
-        "Wan 2.7 CANNOT understand abstract concepts, product mechanics, or cause/effect.\n"
-        "Describe ONLY what is VISUALLY seen — no concepts like 'sensor detects' or 'automatically'.\n\n"
+    system_prompt_image = (
+        "You write a SINGLE image prompt for an AI image generator.\n"
         "CRITICAL RULES:\n"
-        "1. Describe ONLY concrete visual actions (moves, stops, places, lifts, presses, turns)\n"
+        "1. Describe ONLY what is VISUALLY seen — no abstract concepts or product mechanics.\n"
+        "2. Model appearance: Age {model_age}, Thai {gender_en}, porcelain white glowing skin, "
+        "monolid eyes, Southeast Asian Thai features, small nose bridge.\n"
+        "3. Use EXACTLY the clothing and hair from the Model line below. Do NOT invent or modify them.\n"
+        "4. The model's clothing and hair must appear exactly ONCE in the prompt.\n"
+        "5. Describe the product and setting clearly.\n"
+        "6. Keep under 80 words. No negative instructions, no aspect ratios.\n"
+        "Output ONLY the prompt text, no label or prefix."
+        .format(model_age=model_age, gender_en=gender_en)
+    )
+
+    system_prompt_video = (
+        "You write a SINGLE video prompt for Wan 2.7, a DIFFUSION video model.\n"
+        "Wan 2.7 CANNOT understand abstract concepts or product mechanics.\n"
+        "Describe ONLY concrete, PHYSICAL, VISUAL movements step by step.\n\n"
+        "CRITICAL RULES:\n"
+        "1. Describe ONLY concrete visible actions (moves, stops, places, lifts, presses).\n"
         "2. Be EXTREMELY specific about hand/body POSITION relative to product:\n"
-        "   - Use BELOW the nozzle, ABOVE the button, BESIDE the product, IN FRONT OF the camera\n"
-        "3. Product is FIXED/MOUNTED on wall or table — DO NOT have person hold the product\n"
-        "   unless it's a handheld product (phone, bottle, tool)\n"
-        "4. NO: detects, automatically, intelligently, senses, recognizes, responds\n"
-        "5. YES: clear liquid appears on palm, button moves down, mist appears below nozzle\n"
-        "6. Include model details in first sentence:\n"
-        f"   Age {model_age}, Thai {gender_en}, porcelain white glowing skin, "
-        "monolid eyes, Southeast Asian Thai features, small nose bridge, clothing, hair\n\n"
-        "IMAGE_PROMPT (under 80 words): Still scene. Product is visible, woman is positioned near it.\n"
-        "VIDEO_PROMPT (under 130 words): Step-by-step visual actions. Use BELOW/ABOVE/BESIDE.\n"
-        "Do NOT add negative instructions or aspect ratios.\n"
-        "Output format:\n"
-        "IMAGE_PROMPT: ...\n"
-        "VIDEO_PROMPT: ..."
+        "   - Use BELOW the nozzle, ABOVE the button, BESIDE the product, IN FRONT OF camera.\n"
+        "3. NO: detects, automatically, intelligently, senses, recognizes, responds.\n"
+        "4. YES: clear liquid appears on palm, button moves down, mist appears below nozzle.\n"
+        "5. Model appearance: Age {model_age}, Thai {gender_en}, porcelain white glowing skin, "
+        "monolid eyes, Southeast Asian Thai features, small nose bridge.\n"
+        "6. Use EXACTLY the clothing and hair from the Model line below. Do NOT invent or modify.\n"
+        "7. Product is FIXED/MOUNTED on wall or table — DO NOT have person hold the product "
+        "unless it is a handheld product (phone, bottle, tool).\n"
+        "8. Do NOT describe camera shots (no 'head-and-shoulders shot', 'three-quarter body shot', etc).\n"
+        "9. Do NOT copy the image prompt. This is a DIFFERENT, action-focused description.\n"
+        "10. Keep under 130 words. No negative instructions, no aspect ratios.\n"
+        "Output ONLY the prompt text, no label or prefix."
+        .format(model_age=model_age, gender_en=gender_en)
     )
     
     # Build the product description block — emphasize physical placement
@@ -878,27 +894,30 @@ def _gemini_generate_prompts(
     product_block += mount_hint
     product_block += f"\nModel: {model_age}yo {gender_en}, {clothing}, {hair}\n"
     
-    user_text = f"{product_block}\nGenerate prompts for Wan 2.7:"
-    
     try:
-        result = _call_gemini(system_prompt, user_text, temperature=0.4)
-        if not result:
-            return ("", "")
-        
+        # Two separate Gemini calls: image + video (different system prompts, no cross-contamination)
         image_prompt = ""
         video_prompt = ""
-        
-        for line in result.strip().split("\n"):
-            line_lower = line.lower().strip()
-            if line_lower.startswith("image_prompt:") or line_lower.startswith("**image_prompt:**"):
-                image_prompt = line.split(":", 1)[1].strip().lstrip("*").strip()
-            elif line_lower.startswith("video_prompt:") or line_lower.startswith("**video_prompt:**"):
-                video_prompt = line.split(":", 1)[1].strip().lstrip("*").strip()
-        
-        # Cache result
-        _gemini_prompt_cache[_cache_key] = (image_prompt, video_prompt)
+
+        user_text_image = f"{product_block}\nGenerate ONLY the image prompt:"
+        result_image = _call_gemini(system_prompt_image, user_text_image, temperature=0.4)
+        if result_image:
+            image_prompt = result_image.strip().split("\n")[0].strip()
+            # Clean prefixes like "IMAGE_PROMPT:" if model hallucinates them
+            image_prompt = re.sub(r'^(IMAGE_PROMPT|image_prompt|Image Prompt)[:]\s*', '', image_prompt, flags=re.IGNORECASE).strip()
+
+        user_text_video = f"{product_block}\nGenerate ONLY the video prompt describing concrete physical actions step by step:"
+        result_video = _call_gemini(system_prompt_video, user_text_video, temperature=0.5)
+        if result_video:
+            video_prompt = result_video.strip().split("\n")[0].strip()
+            video_prompt = re.sub(r'^(VIDEO_PROMPT|video_prompt|Video Prompt)[:]\s*', '', video_prompt, flags=re.IGNORECASE).strip()
+
+        # Cache with separate keys for image/video
+        _gemini_prompt_cache[(_cache_key[0], _cache_key[1], "image")] = (image_prompt, video_prompt)
+        _gemini_prompt_cache[(_cache_key[0], _cache_key[1], "video")] = (image_prompt, video_prompt)
         return (image_prompt, video_prompt)
     except Exception as e:
         logger.error(f"Gemini prompt generation failed: {e}")
-        _gemini_prompt_cache[_cache_key] = ("", "")
+        _gemini_prompt_cache[(_cache_key[0], _cache_key[1], "image")] = ("", "")
+        _gemini_prompt_cache[(_cache_key[0], _cache_key[1], "video")] = ("", "")
         return ("", "")

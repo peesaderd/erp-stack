@@ -2857,13 +2857,17 @@ async function startAutoPipelineNow() {
     // Fill wizard fields with this product data
     document.getElementById('productTitle').value = title;
     document.getElementById('productDetails').value = desc;
-    if (images.length) {
+    var prodId = filtered[0].product_id;
+    var prodImgUrl = prodId ? "/ugc/static/product_images/" + prodId + ".jpg" : null;
+    if (prodImgUrl) {
+      uploadedImages.product = window.location.origin + prodImgUrl;
+      document.getElementById('productImgPlaceholder').innerHTML = '<img src="'+uploadedImages.product+'" style="max-width:100%;max-height:120px;border-radius:8px">';
+    } else if (images.length) {
       var url = images[0];
       var fullUrl = url.startsWith('http') ? url : window.location.origin + url;
       document.getElementById('productImgPlaceholder').innerHTML = '<img src="'+fullUrl+'" style="max-width:100%;max-height:120px;border-radius:8px">';
       uploadedImages.product = fullUrl;
     }
-    
     showToast('✅ Selected: ' + title.slice(0,40), 'success');
     
     if (settings.mode === 'manual') {
@@ -4987,12 +4991,19 @@ function useProduct(jsonEncoded) {
       const el = document.querySelector(`#styleModalGrid .style-card${p.ugc_style === 'holding' ? '.selected' : "[data-style='" + p.ugc_style + "']"}`);
       if (el) selectStyleFromModal(el, p.ugc_style);
     }
-    if (p.images && p.images[0]) {
+    var prodImg = p.product_id ? "/ugc/static/product_images/" + p.product_id + ".jpg" : null;
+    if (prodImg) {
+      uploadedImages.product = window.location.origin + prodImg;
+      const zone = document.getElementById("productImgZone");
+      const pl = document.getElementById("productImgPlaceholder");
+      zone.classList.add("has-image");
+      pl.innerHTML = `<img class="preview" src="${prodImg}" alt="product"><button class="remove-img" onclick="event.stopPropagation();removeImage('product')">✕</button>`;
+    } else if (p.images && p.images[0]) {
       uploadedImages.product = window.location.origin + p.images[0];
       const zone = document.getElementById("productImgZone");
       const pl = document.getElementById("productImgPlaceholder");
       zone.classList.add("has-image");
-      pl.innerHTML = `<img class="preview" src="${p.images[0]}" alt="product"><button class="remove-img" onclick="event.stopPropagation();removeImage(\'product\')">✕</button>`;
+      pl.innerHTML = `<img class="preview" src="${p.images[0]}" alt="product"><button class="remove-img" onclick="event.stopPropagation();removeImage('product')">✕</button>`;
     }
     switchTab("content");
     goContentStep(1);

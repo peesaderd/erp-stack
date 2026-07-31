@@ -644,6 +644,7 @@ def generate_video(
             duration=duration,
             resolution=resolution,
             audio_bytes=audio_bytes,
+            ratio="9:16",
             job_type="inference.wan2-7.img2vid.v1",
             negative_prompt=neg_p,
         )

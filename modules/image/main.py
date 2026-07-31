@@ -177,7 +177,7 @@ THAI_NEGATIVE = (
 )
 
 
-def nano_banana_img2img(prompt: str, input_image: str, negative_prompt: str = "") -> dict:
+def nano_banana_img2img(prompt: str, input_image: str, negative_prompt: str = "", aspect_ratio: str = "9:16") -> dict:
     """Generate Thai product image via Nano Banana img2img.
 
     Prodia sync model: POST /v2/job with multipart → image/png response.
@@ -197,7 +197,7 @@ def nano_banana_img2img(prompt: str, input_image: str, negative_prompt: str = ""
 
     result_bytes = _call_prodia(
         type_="inference.nano-banana.img2img.v2",
-        config={"prompt": prompt},
+        config={"prompt": prompt, "aspect_ratio": aspect_ratio},
         files=files,
     )
 
@@ -376,6 +376,7 @@ async def generate_image(req: ImageGenRequest):
         prompt=req.prompt,
         input_image=req.inputImage,
         negative_prompt=req.negative_prompt or "",
+        aspect_ratio=req.aspectRatio or "9:16",
     )
 
 

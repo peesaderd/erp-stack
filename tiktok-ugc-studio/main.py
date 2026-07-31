@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import logging
 import sqlite3
+import json
 import httpx
 from fastapi import FastAPI, HTTPException, Query, Request, File, Form, UploadFile
 import asyncpg

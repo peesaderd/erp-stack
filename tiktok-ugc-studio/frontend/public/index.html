@@ -3733,6 +3733,8 @@ function fmtCost(c) {
 }
 
 function closePipelineDetail() {
+  var vp = document.getElementById('pdVideoPlayer');
+  if (vp) { try { vp.pause(); vp.removeAttribute('src'); } catch(e) {} }
   document.getElementById('pipelineDetailModal').classList.remove('open');
   currentDetailJobId = '';
 }
@@ -5111,9 +5113,11 @@ function openAssetLightbox(idx) {
 
 function closeAssetLightbox(e) {
   if (e && e.target !== e.currentTarget) return;
+  var contentEl = document.getElementById('lightboxContent');
+  if (contentEl) { var vids = contentEl.querySelectorAll('video, audio'); vids.forEach(function(v) { try { v.pause(); v.removeAttribute('src'); } catch(e) {} }); }
   document.getElementById('assetLightbox').classList.remove('open');
   document.body.style.overflow = '';
-  document.getElementById('lightboxContent').innerHTML = '';
+  if (contentEl) { contentEl.innerHTML = ''; }
 }
 
 function navigateLightbox(dir) {

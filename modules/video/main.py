@@ -261,7 +261,7 @@ async def generate_video(req: VideoRequest):
     script = req.script or ""
     if not script:
         parts = [p for p in [req.hook, req.value, req.cta] if p]
-        script = " ".join(parts) if parts else req.product_title or "รีวิวสินค้า"
+        script = " ".join(parts) if parts else ""  # empty -> pipeline generates Thai script via Gemini
     
     # Build scene prompts from request
     scene_prompts = []
@@ -275,10 +275,10 @@ async def generate_video(req: VideoRequest):
     
     try:
         result = run_pipeline(
-            product_name=req.product_title or script[:60] if script else "สินค้า",
+            product_name=req.product_title or "สินค้า",
             product_image=product_image if product_image else None,
             recipe_name=req.recipe or "tus",
-            voice="Aoede",
+            voice=req.voice or "th-TH-PremwadeeNeural",
             bgm_style=req.bgm_style or random.choices(
                 ["chill_loft", "luxury_jazz", "upbeat_pop", "energetic_edm", "informative_jazz", "asmr", "relaxing"],
                 weights=[15, 15, 20, 12, 12, 4, 22], k=1

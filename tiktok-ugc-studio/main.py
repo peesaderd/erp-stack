@@ -76,6 +76,26 @@ MODULE_URLS = {
     "auth": "http://localhost:8101",
 }
 
+async def _proxy(method: str, service: str, path: str, body: dict = None, timeout: float = 300.0):
+    base = MODULE_URLS.get(service)
+    if not base:
+        return {"ok": False, "status": 0, "error": f"Unknown service: {service}", "data": None}
+    url = f"{base}{path}"
+    try:
+        async with httpx.AsyncClient(timeout=timeout, verify=False) as client:
+            if method == "GET":
+                resp = await client.get(url)
+            else:
+                resp = await client.post(url, json=body or {})
+            if resp.status_code >= 400:
+                return {"ok": False, "status": resp.status_code, "error": resp.text[:300], "data": None}
+            try:
+                return {"ok": True, "status": resp.status_code, "data": resp.json()}
+            except Exception:
+                return {"ok": True, "status": resp.status_code, "data": {"text": resp.text}}
+    except Exception as e:
+        return {"ok": False, "status": 0, "error": str(e), "data": None}
+
 async def proxy(request: Request, target_url: str):
     async with httpx.AsyncClient() as client:
         try:

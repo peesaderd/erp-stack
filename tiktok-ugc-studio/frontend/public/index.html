@@ -3734,10 +3734,11 @@ function toWebUrl(localPath) {
     }
     if (localPath.startsWith('/api/')) return localPath;
     // Convert local file paths
-    for (const prefix of ['/home/openhands/erp-stack/modules/video/storage', '/home/openhands/erp-stack/tiktok-ugc-studio/storage']) {
-      if (localPath.startsWith(prefix)) {
-        return '/api/tiktok/static/' + localPath.slice(prefix.length).replace(/^\//, '');
-      }
+    if (localPath.startsWith('/home/openhands/erp-stack/modules/video/storage')) {
+      return '/static/video/' + localPath.slice('/home/openhands/erp-stack/modules/video/storage/'.length);
+    }
+    if (localPath.startsWith('/home/openhands/erp-stack/tiktok-ugc-studio/storage')) {
+      return '/api/tiktok/static/' + localPath.slice('/home/openhands/erp-stack/tiktok-ugc-studio/storage/'.length);
     }
     if (localPath.startsWith('http://')) return localPath;
   }

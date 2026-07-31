@@ -146,6 +146,24 @@ def _extract_appearance_from_description(description: str) -> str:
     return desc[:60]
 
 
+def _strip_clothing_hair_from_desc(desc: str) -> str:
+    """Remove clothing/hair from image_description so persona_clothing/hair takes priority."""
+    if not desc:
+        return desc
+    # Remove trailing ", wearing ..." or "wearing ..." clauses
+    desc = re.sub(r',?\s*wearing\s+[^,]+', '', desc, flags=re.IGNORECASE)
+    # Remove trailing ", hair in ..." or "hair ..." clauses  
+    desc = re.sub(r',?\s*hair\s+(in\s+)?[^,]+', '', desc, flags=re.IGNORECASE)
+    # Remove trailing ", sleek middle part down" style variants
+    desc = re.sub(r',?\s*sleek\s+middle\s+part\s+down', '', desc, flags=re.IGNORECASE)
+    # Clean up
+    desc = re.sub(r',\s*,', ',', desc)
+    desc = re.sub(r'\s{2,}', ' ', desc).strip()
+    desc = re.sub(r',$', '', desc).strip()
+    return desc
+
+
+
 def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holding") -> str:
     """Generate image prompt — style-driven, category-modulated.
     
@@ -187,6 +205,9 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     env_str = (env_context or "a modern lifestyle setting")[:120]
     if image_description:
         thai_base = image_description
+        # Strip clothing/hair from image_description if persona provides them
+        if persona_clothing or persona_hair:
+            thai_base = _strip_clothing_hair_from_desc(thai_base)
     else:
         thai_base = f"An ethnic Thai {gender_en}, {model_age} years old, porcelain white glowing skin, monolid eyes, Southeast Asian ethnic Thai features, small nose bridge"
     
@@ -393,6 +414,9 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     img_desc = profile.get("image_description", "")
     if img_desc:
         model_intro = img_desc
+        # Strip clothing/hair from image_description if persona provides them
+        if persona_clothing or persona_hair:
+            model_intro = _strip_clothing_hair_from_desc(model_intro)
         if clothing_str:
             model_intro += f", wearing {persona_clothing}"
         if hair_str:

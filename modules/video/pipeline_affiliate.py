@@ -905,14 +905,16 @@ def run_pipeline(
         except Exception:
             pass
 
-        # ── STEP 3: Generate Script (skip if pre-computed) ──
-        if not script:
+        # ── STEP 3: Generate Script (force gen unless decent-length Thai script)
+        if script and len(script) >= 30 and script != product_name:
+            script_duration = 0
+            logger.info(f"Step 3/9: Skipped (using pre-computed script, {len(script)} chars)")
+        else:
+            if script:
+                logger.info(f"Step 3/9: Script too short or =product_title ({len(script)} chars), regenerating Thai")
             step_start = time.time()
             script = generate_script(product_name, product_profile, recipe, ugc_style=ugc_style)
             script_duration = int((time.time() - step_start) * 1000)
-        else:
-            script_duration = 0
-            logger.info(f"Step 3/9: Skipped (using pre-computed script)")
 
         try:
             update_step(job_id, 'script', {'duration_ms': script_duration, 'script': script[:100]})

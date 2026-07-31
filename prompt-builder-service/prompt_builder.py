@@ -389,14 +389,10 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     """
     style_info = STYLE_MAP.get(ugc_style, STYLE_MAP["holding"])
     model_gender = profile.get("target_gender", "female")
-    model_setting = profile.get("setting", "clean modern lifestyle setting")
+
     category = profile.get("category", "other")
 
     gender_en = {"female": "woman", "male": "man", "unisex": "person"}.get(model_gender, "person")
-    persona_clothing = profile.get("persona_clothing", "")
-    persona_hair = profile.get("persona_hair", "")
-    clothing_str = f", wearing {persona_clothing}" if persona_clothing else ""
-    hair_str = f", {persona_hair}" if persona_hair else ""
     model_age = profile.get("_normalized_age") or _normalize_age(profile.get("target_age", "20-35"))
     
     # ── Product description (common) ──
@@ -412,18 +408,9 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     else:
         prod_desc_vid = product_name
     
-    img_desc = profile.get("image_description", "")
-    if img_desc:
-        model_intro = img_desc
-        # Strip clothing/hair from image_description if persona provides them
-        if persona_clothing or persona_hair:
-            model_intro = _strip_clothing_hair_from_desc(model_intro)
-        if clothing_str:
-            model_intro += f", wearing {persona_clothing}"
-        if hair_str:
-            model_intro += f", {persona_hair}"
-    else:
-        model_intro = f"Ethnic Thai {gender_en} {model_age} years old, porcelain white glowing skin, monolid eyes, Southeast Asian ethnic Thai features{clothing_str}{hair_str}"
+    # Minimal subject reference — appearance is from reference image
+    # Video prompt describes ONLY motion, camera, and environment
+    subject = f"A Thai {gender_en}"
     
     # ── Style-driven video_motion (ugc_style is PRIMARY) ──────────
     if ugc_style == "product_demo":
@@ -465,65 +452,64 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         if gemini_video:
             action = gemini_video
         else:
-            # Fallback: simple generic prompt — no is_* branches
+            # Fallback: simple generic prompt — motion + camera only
             action = (
-                f"{model_intro} in {env_context} with {prod_desc_vid or product_name}. "
-                f"She naturally demonstrates how to use the product — "
-                f"the key function is shown. "
-                f"Product features are visible as she uses it. "
-                f"Natural product usage demonstration"
+                f"{subject} naturally demonstrates {prod_desc_vid or product_name} — "
+                f"the key product function shown in use. "
+                f"Natural hand movements, interacting with product. "
+                f"Camera follows the action with slow pan. "
+                f"{env_context}, soft natural light"
             )
     elif ugc_style == "review":
         # Person holding product + looking at camera, review-style
         action = (
-            f"{model_intro} holds {prod_desc_vid or product_name} in hand, "
+            f"{subject} holds {prod_desc_vid or product_name} in hand, "
             f"looking directly at camera with slight head tilt, casual reviewing pose. "
-            f"Slow gentle movement, showing product from slightly different angles. "
-            f"Lifestyle setting, product visible. "
-            f"Person speaking casually, product in hand"
+            f"Slow gentle rotation showing product from slightly different angles. "
+            f"Subtle hand movement, natural breathing. Camera static with subtle zoom in. "
+            f"Lifestyle setting, soft natural light"
         )
     elif ugc_style in ("tabletop", "tabletop_demo"):
         # Product on table, person's hands visible
         action = (
             f"{prod_desc_vid or product_name} sits on table. "
-            f"{model_intro} nearby points at it and gestures with hands. "
-            f"Camera pans slowly showing product on tabletop, hands visible in frame. "
-            f"Product-centered demonstration, person gesturing"
+            f"{subject} nearby points at it and gestures with hands. "
+            f"Camera pans slowly across tabletop, hands visible in frame gesturing toward product. "
+            f"Product-centered demonstration, clean studio lighting"
         )
     elif ugc_style in ("talking", "talking_head"):
         # Head/shoulders, talking about product
         action = (
-            f"{model_intro} in medium close-up, facing camera, "
+            f"{subject} in medium close-up, facing camera, "
             f"speaking naturally about {prod_desc_vid or product_name}. "
-            f"Gentle head movements, conversational tone. "
-            f"Product resting nearby, slightly blurred in foreground. "
-            f"Smooth natural motion, person talking to camera"
+            f"Gentle head movements, natural facial expressions, conversational tone. "
+            f"Product resting nearby slightly blurred in foreground. "
+            f"Camera static with subtle handheld feel. Natural daylight"
         )
     elif ugc_style == "unbox":
         action = (
-            f"{model_intro} unboxing {prod_desc_vid or product_name}, "
-            f"hands opening packaging, lifting product out. "
-            f"Slight excitement in movement. "
-            f"Product emerging from packaging, unboxing reveal motion"
+            f"{subject} unboxing {prod_desc_vid or product_name}, "
+            f"hands opening packaging, lifting product out with slight excitement. "
+            f"Product emerging from packaging — unboxing reveal motion. "
+            f"Camera slow push-in as product is revealed. "
+            f"Clean bright setting, natural light"
         )
     else:
         # Default: holding — show product, gentle rotation
         action = (
-            f"{model_intro} gently holding {prod_desc_vid or product_name} in both hands, "
+            f"{subject} gently holding {prod_desc_vid or product_name} in both hands at chest level, "
             f"showing product to camera with slight slow rotation. "
-            f"Warm natural motion, product centered. "
-            f"Person holding product gently at chest level"
+            f"Subtle smile, natural breathing motion, gentle hand movement. "
+            f"Camera slow push-in. Warm natural light"
         )
     
     # ── Category-specific restrictions (SECONDARY) ──
     video_prompt = action
     # No more hardcoded beauty restrictions — Gemini handles appropriateness
     
+    # Lighting + format tail (environment already in action)
     video_prompt += (
-        f" Setting: {model_setting}. "
-        f"{env_context}. "
-        f"soft natural lighting, warm atmosphere. "
-        f"9:16 portrait, smooth natural motion"
+        f" 9:16 portrait, smooth natural motion"
     )
     
     video_prompt = re.sub(r'\s+', ' ', video_prompt).strip()
@@ -866,14 +852,13 @@ def _gemini_generate_prompts(
         "   - Use BELOW the nozzle, ABOVE the button, BESIDE the product, IN FRONT OF camera.\n"
         "3. NO: detects, automatically, intelligently, senses, recognizes, responds.\n"
         "4. YES: clear liquid appears on palm, button moves down, mist appears below nozzle.\n"
-        "5. Model appearance: Age {model_age}, Thai {gender_en}, porcelain white glowing skin, "
-        "monolid eyes, Southeast Asian Thai features, small nose bridge.\n"
-        "6. Use EXACTLY the clothing and hair from the Model line below. Do NOT invent or modify.\n"
-        "7. Product is FIXED/MOUNTED on wall or table — DO NOT have person hold the product "
+        "5. The person\\'s appearance, face, skin, body, clothing, and hair are "
+        "ALREADY DEFINED in the reference image. Do NOT describe or modify them.\n"
+        "6. Product is FIXED/MOUNTED on wall or table — DO NOT have person hold the product "
         "unless it is a handheld product (phone, bottle, tool).\n"
-        "8. Do NOT describe camera shots (no 'head-and-shoulders shot', 'three-quarter body shot', etc).\n"
-        "9. Do NOT copy the image prompt. This is a DIFFERENT, action-focused description.\n"
-        "10. Keep under 130 words. No negative instructions, no aspect ratios.\n"
+        "7. Do NOT describe camera shots (no 'head-and-shoulders shot', 'three-quarter body shot', etc).\n"
+        "8. Do NOT copy the image prompt. This is a DIFFERENT, action-focused description.\n"
+        "9. Keep under 130 words. No negative instructions, no aspect ratios.\n"
         "Output ONLY the prompt text, no label or prefix."
         .format(model_age=model_age, gender_en=gender_en)
     )
@@ -892,7 +877,7 @@ def _gemini_generate_prompts(
         product_block += f"Features: {feat_str[:200]}\n"
     product_block += f"Setting: {env_context[:120]}\n"
     product_block += mount_hint
-    product_block += f"\nModel: {model_age}yo {gender_en}, {clothing}, {hair}\n"
+    # Model appearance is from reference image — video prompt does NOT need it
     
     try:
         # Two separate Gemini calls: image + video (different system prompts, no cross-contamination)

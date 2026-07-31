@@ -120,6 +120,7 @@ def select_model_cast(category: str = "", product_name: str = "") -> Dict:
 
     logger.info(f"Selected model cast '{chosen['id']}' for '{product_name}' (cat={category}, history={history})")
     return {
+        "model_id": chosen.get("id", ""),
         "model_age": chosen["age"],
         "model_appearance_th": chosen.get("appearance", ""),
         "model_clothing_th": chosen.get("clothing", ""),

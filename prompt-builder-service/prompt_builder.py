@@ -553,144 +553,82 @@ async def analyze_and_build_prompts(
     product_category: str = "",
 ) -> dict:
     """
-    Full pipeline:
-      1. Analyze product via Gemini → product profile
-      2. Run Router Agent to decide recipe/style/duration/persona
-      3. Optionally analyze product image via Gemini Vision for enrichment
-      4. Build image prompt, video prompt, negative prompt
-      5. Return everything in one dict
+    Full pipeline — now powered by PromptPipeline with 10 explicit steps.
+    See GET /api/v1/pipeline/steps for agent-readable step list.
     """
-    # Step 1: Analyze (includes Router Agent call)
-    profile = analyze_product(product_name, description, keywords)
+    from pipeline import Pipeline
+    from steps import ALL_STEPS
 
-    # Router Agent insights are purely advisory — NEVER override user's ugc_style choice
-    # The user's ugc_style selection is always authoritative
-    router_config = profile.get("router_config", {})
+    pipeline = Pipeline("prompt-builder", ALL_STEPS)
 
-    # Step 2: If product_image provided, run vision analysis to enrich profile
-    vision_profile = None
-    if product_image:
-        try:
-            vision_profile = analyze_product_image(product_image, product_name, description)
-        except Exception as e:
-            logger.warning(f"Vision analysis failed (non-fatal): {e}")
+    ctx = await pipeline.run({
+        "product_name": product_name,
+        "description": description,
+        "keywords": keywords,
+        "ugc_style": ugc_style,
+        "product_id": product_id,
+        "product_image": product_image,
+        "category": category,
+        "product_category": product_category,
+    })
 
-    if vision_profile:
-        for key in ["category", "target_gender", "target_age", "target_audience", "setting",
-                     "customer_problem", "main_benefit", "env_context", "product_appearance",
-                     "features"]:
-            if key in vision_profile and vision_profile[key]:
-                profile[key] = vision_profile[key]
-        # product_type from vision overwrites text analysis
-        if "product_type" in vision_profile and vision_profile["product_type"]:
-            profile["product_type"] = vision_profile["product_type"]
-        if "colors" in vision_profile and vision_profile["colors"]:
-            profile["colors"] = vision_profile["colors"]
+    # Build same response format as before (backward-compatible)
+    c = ctx.ctx
+    router_config = c.get("router_config", {})
 
-    # Fallback: ensure target_gender is specific for image gen
-    if profile.get("target_gender", "") in ("unisex", "", None):
-        profile["target_gender"] = "female"
-
-    # Override with explicit params if provided
-    if category:
-        profile["category"] = category
-    if product_category:
-        profile["product_category"] = product_category
-    
-    # Step 3: Inject persona for diversity
-    persona = _select_persona(profile.get("category", "other"), product_name)
-    profile = _apply_persona_to_profile(profile, persona)
-    logger.info(f"Persona: {persona.get('vibe', '')} | Env: {persona.get('environment', '')}")
-
-    # Step 3b: Inject diverse model appearance via model_casting (12 models, draw w/o replacement)
-    model_cast = select_model_cast(profile.get("category", "other"), product_name)
-    profile["image_description"] = model_cast.get("image_description", "")
-    profile["model_appearance"] = model_cast.get("model_appearance_th", "")
-    logger.info(f"Model cast: {model_cast.get('id', '')} | {model_cast.get('image_description', '')[:60]}...")
-
-    # Sync age — normalize once so image + video prompt ages match
-    profile["_normalized_age"] = _normalize_age(profile.get("target_age", "20-35"))
-
-    # Step 4: Clear Gemini cache for fresh prompts, then build
-    _gemini_prompt_cache.clear()
-    image_prompt, neg_from_template = build_image_prompt(profile, product_name, ugc_style)
-    video_prompt = build_video_prompt(profile, product_name, ugc_style)
-    # Merge: template neg (text/watermark) + default neg (fingers/hands/distortion)
-    default_neg = build_negative_prompt(profile, ugc_style)
-    if neg_from_template:
-        negative_prompt = f"{neg_from_template}, {default_neg}"
-    else:
-        negative_prompt = default_neg
-    
-    # Step 5: Validate script timing
-    timing_validation = _build_timing_validated_script(product_name, profile.get("category", "other"), profile)
-    
-    result = {
+    return {
         "product_id": product_id,
         "router_config": router_config,
+        "pipeline": ctx.snapshot(),
         "analysis": {
-            "category": profile.get("category", "other"),
-            "target_gender": profile.get("target_gender", "unisex"),
-            "target_age": profile.get("target_age", "20-35"),
-            "target_audience": profile.get("target_audience", ""),
-            "setting": profile.get("setting", ""),
-            "customer_problem": profile.get("customer_problem", ""),
-            "main_benefit": profile.get("main_benefit", ""),
-            "hashtags": profile.get("hashtags", []),
-            "image_description": profile.get("image_description", ""),
-            "env_context": profile.get("env_context", ""),
-            "product_appearance": profile.get("product_appearance", ""),
-            "features": profile.get("features", ""),
+            "category": c.get("category", "other"),
+            "target_gender": c.get("target_gender", "female"),
+            "target_age": c.get("target_age", "20-35"),
+            "target_audience": c.get("target_audience", ""),
+            "setting": c.get("setting", c.get("persona_environment", "")),
+            "customer_problem": c.get("customer_problem", ""),
+            "main_benefit": c.get("main_benefit", ""),
+            "hashtags": c.get("hashtags", []),
+            "image_description": c.get("image_description", ""),
+            "env_context": c.get("env_context", ""),
+            "product_appearance": c.get("product_appearance", ""),
+            "features": c.get("features", ""),
         },
-        "timing_validation": {
+            "timing_validation": {
             "segments": {
-                "hook": timing_validation["hook"],
-                "value": timing_validation["value"],
-                "cta": timing_validation["cta"],
+                "hook": c.get("timing_validation", {}).get("hook", {}),
+                "value": c.get("timing_validation", {}).get("value", {}),
+                "cta": c.get("timing_validation", {}).get("cta", {}),
             },
-            "tts_speed": timing_validation["tts_speed"],
-            "product_short_for_tts": timing_validation["product_short_for_tts"],
-            "all_segments_fit": timing_validation["all_segments_fit"],
+            "tts_speed": c.get("timing_validation", {}).get("tts_speed", 1.0),
+            "product_short_for_tts": c.get("timing_validation", {}).get("product_short_for_tts", product_name),
+            "all_segments_fit": c.get("timing_validation", {}).get("all_segments_fit", True),
             "total_duration": 8,
         },
         "scripts": {
-            "full_script": timing_validation["full_script"],
-            "tts_script": timing_validation["tts_script"],
-            "breakdown": {
-                "hook": timing_validation["hook"]["text"],
-                "value": timing_validation["value"]["text"],
-                "cta": timing_validation["cta"]["text"],
-            }
+            "full_script": c.get("full_script", ""),
+            "tts_script": c.get("tts_script", ""),
+            "breakdown": c.get("scripts_breakdown", {"hook": "", "value": "", "cta": ""}),
         },
-        "image_prompt": image_prompt,
-        "video_prompt": video_prompt,
-        "negative_prompt": negative_prompt,
+        "image_prompt": c.get("image_prompt", ""),
+        "video_prompt": c.get("video_prompt", ""),
+        "negative_prompt": c.get("negative_prompt", ""),
         "metadata": {
             "ugc_style": ugc_style,
             "used_gemini": True,
-            "image_analyzed": bool(vision_profile),
+            "image_analyzed": bool(product_image),
+            "model_id": c.get("model_id", ""),
             "route_reason": router_config.get("reason", ""),
             "persona": {
-                "vibe": profile.get("persona_vibe", persona.get("vibe", "")),
-                "environment": profile.get("setting", persona.get("environment", "")),
-                "lighting": profile.get("persona_lighting", persona.get("lighting_variation", "")),
-                "motion_speed": profile.get("persona_motion", persona.get("motion_speed", "")),
-                "clothing": persona.get("clothing", ""),
-                "hair": persona.get("hair_style", ""),
+                "vibe": c.get("persona_vibe", ""),
+                "environment": c.get("persona_environment", c.get("setting", "")),
+                "lighting": c.get("persona_lighting", ""),
+                "motion_speed": c.get("persona_motion", ""),
+                "clothing": c.get("persona_clothing", ""),
+                "hair": c.get("persona_hair", ""),
             }
-        },
-        "vision_enrichment": {
-            "product_type": profile.get("product_type", ""),
-            "colors": profile.get("colors", []),
-            "packaging_style": profile.get("packaging_style", ""),
-        } if vision_profile else None,
+        }
     }
-    
-    logger.info(f"Prompt built for [{product_name[:30]}]: img={len(image_prompt)}ch, vid={len(video_prompt)}ch")
-    return result
-
-
-# ─── Backward Compat APIs ────────────────────────────────────────────
 
 async def build_prompt(
     product_name: str,

@@ -42,6 +42,19 @@ from typing import Optional, List, Dict, Any
 
 import requests
 
+def get_bgm_path(bgm_style: str) -> Path:
+    """Helper to resolve BGM path from style name."""
+    bgm_map = {
+        "chill_loft": "bg_chill.mp3",
+        "informative_jazz": "bg_jazz.mp3",
+        "energetic_edm": "bg_edm.mp3",
+        "upbeat_pop": "bg_upbeat.mp3",
+        "luxury_jazz": "bg_jazz.mp3",
+        "asmr": "bg_ambient.mp3",
+    }
+    bgm_filename = bgm_map.get(bgm_style, "bg_chill.mp3")
+    return STORAGE_DIR / "sounds" / bgm_filename
+
 # Add erp-stack to path for shared_config
 _erp_stack = Path(__file__).parent.parent.parent
 if str(_erp_stack) not in sys.path:
@@ -159,20 +172,7 @@ def analyze_product(product_name: str, product_image: str = None, description: s
 
     except Exception as e:
         logger.error(f"Analyze failed: {e}")
-        # Fallback: basic profile
-        return {
-            "category": "other",
-            "target_gender": "unisex",
-            "target_age": "20-35",
-            "target_audience": "ทุกคน",
-            "customer_problem": "",
-            "main_benefit": "คุณภาพดี",
-            "hashtags": [product_name.replace(" ", "")[:20]],
-            "setting": "clean modern lifestyle",
-            "_image_prompt": f"{product_name}, product showcase, clean background",
-            "_video_prompt": f"{product_name} showcase, smooth motion",
-            "_negative_prompt": "no text, no watermark",
-        }
+        raise RuntimeError(f"Product analysis failed: {e}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -290,22 +290,7 @@ def generate_script(
 
     except Exception as e:
         logger.error(f"Script generation failed: {e}")
-        # Fallback: natural Thai narration for product_demo
-        if ugc_style == "product_demo":
-            feat = product_profile.get("features", "")
-            appear = product_profile.get("product_appearance", "")
-            if feat:
-                return f"{product_name} ตัวนี้ {feat} ใช้งานง่ายมาก"
-            elif appear:
-                return f"{product_name} ตัวนี้{appear[:100]} ใช้งานดี"
-            return f"{product_name} ตัวนี้ใช้งานดีมาก"
-        # Default: template review script
-        base = f"{product_profile.get('customer_problem', 'ปัญหาที่เจอบ่อย')} ใช่ไหมคะ? วันนี้เรามี {product_name}"
-        feat = product_profile.get("features", "")
-        if feat:
-            base += f" มี {feat}"
-        base += f" {product_profile.get('main_benefit', 'คุณภาพดี')} ค่ะ กดตะกร้าเลย!"
-        return base
+        raise RuntimeError(f"Script generation failed: {e}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -337,9 +322,7 @@ def build_image_prompt(
         logger.info(f"  Image prompt: {image_prompt[:60]}...")
         return image_prompt
 
-    # Fallback: basic prompt
-    logger.warning("  No image prompt from analyze, using fallback")
-    return f"{product_name}, product showcase, clean background, professional photography"
+    raise RuntimeError(f"No image prompt from analyze for product: {product_name}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -378,40 +361,28 @@ def generate_image(
         payload["modelTier"] = "nano.banana"
         payload["provider"] = "prodia"
         payload["thaiModel"] = True
+    else:
+        raise RuntimeError("No product_image provided — image-gen requires inputImage for img2img")
 
-    last_exc = None
-    for attempt in range(3):
-        try:
-            resp = requests.post(IMAGE_GEN_URL, json=payload, timeout=300)
-            resp.raise_for_status()
-            data = resp.json()
+    resp = requests.post(IMAGE_GEN_URL, json=payload, timeout=300)
+    resp.raise_for_status()
+    data = resp.json()
 
-            if not (data.get("success") or data.get("ok")) or not data.get("images"):
-                raise RuntimeError(f"Image-gen service failed: {data}")
+    if not (data.get("success") or data.get("ok")) or not data.get("images"):
+        raise RuntimeError(f"Image-gen service failed: {data}")
 
-            img_info = data["images"][0]
-            url = img_info.get("full_url") or img_info.get("url")
+    img_info = data["images"][0]
+    url = img_info.get("full_url") or img_info.get("url")
 
-            if not url:
-                raise RuntimeError(f"No URL in response: {data}")
+    if not url:
+        raise RuntimeError(f"No URL in response: {data}")
 
-            # Extract cost from image service response (real pricing from prodia_pricing)
-            cost_data = data.get("cost", {}) or img_info.get("cost", {})
-            cost_usd = float(cost_data.get("dollars", 0.039) if isinstance(cost_data, dict) else 0.039)
+    # Extract cost from image service response (real pricing from prodia_pricing)
+    cost_data = data.get("cost", {}) or img_info.get("cost", {})
+    cost_usd = float(cost_data.get("dollars", 0.039) if isinstance(cost_data, dict) else 0.039)
 
-            logger.info(f"  Image OK: {url[:60]}... | cost=${cost_usd:.4f}")
-            return url, cost_usd
-
-        except Exception as e:
-            last_exc = e
-            logger.warning(f"  Image gen attempt {attempt+1}/3 failed: {e}")
-            if attempt < 2:
-                logger.info(f"  Retrying image gen...")
-                import time
-                time.sleep(2)
-
-    logger.error(f"Image generation failed after 3 attempts: {last_exc}")
-    raise RuntimeError(f"Image generation failed after 3 attempts: {last_exc}")
+    logger.info(f"  Image OK: {url[:60]}... | cost=${cost_usd:.4f}")
+    return url, cost_usd
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -483,13 +454,13 @@ def build_video_prompts(
         # Get scene-specific description or default
         scene_action = scene_descriptions.get(scene_name, "product visible in frame, natural setting")
         
-        # Build the full prompt
+        # Build the full positive prompt (keep clean and focused on action and character)
         enhanced = (
             f"Ethnic Thai {gender_en} {model_age} years old, porcelain white glowing skin, "
             f"monolid eyes, Southeast Asian ethnic Thai features. "
             f"{scene_action} "
             f"Setting: {setting}. {lighting}. "
-            f"9:16 portrait, smooth natural motion, no text, no watermark"
+            f"9:16 portrait, smooth natural motion"
         )
         
         # For beauty products: keep "not opening" restriction
@@ -590,25 +561,11 @@ def generate_voice(
     voice: str = "th-TH-PremwadeeNeural",
     run_id: str = "",
 ) -> str:
-    """Step 7: Generate Thai voice via EdgeTTS."""
-    logger.info(f"Step 7/9: TTS (Thai EdgeTTS)")
+    """Step 7: Generate Thai voice via Gemini TTS."""
+    logger.info(f"Step 7/9: TTS (Gemini TTS)")
     logger.info(f"  Text: {text[:50]}...")
 
     output_path = str(TMP_DIR / f"voice_{run_id}.mp3")
-    
-    # Try EdgeTTS first for high quality Thai voice
-    try:
-        import asyncio, edge_tts
-        tts_voice = voice if voice and "th-TH" in voice else "th-TH-PremwadeeNeural"
-        async def _run_edge_tts():
-            comm = edge_tts.Communicate(text, tts_voice)
-            await comm.save(output_path)
-        asyncio.run(_run_edge_tts())
-        if Path(output_path).exists() and Path(output_path).stat().st_size > 1000:
-            logger.info(f"  EdgeTTS OK: {output_path}")
-            return output_path
-    except Exception as e:
-        logger.warning(f"EdgeTTS failed ({e}), trying fallback Gemini TTS")
 
     try:
         from gemini_tts import gemini_text_to_speech
@@ -617,7 +574,7 @@ def generate_voice(
             logger.info(f"  Gemini TTS OK: {tts_path}")
             return tts_path
     except Exception as e:
-        logger.error(f"Gemini TTS fallback failed: {e}")
+        logger.error(f"Gemini TTS failed: {e}")
 
     return ""
 
@@ -629,28 +586,37 @@ def generate_voice(
 from prodia_client import ProdiaV2Client, ProdiaV2Error, ProdiaValidationError
 
 
+def _convert_to_wav(audio_path: str) -> str:
+    """Convert TTS audio to 16kHz mono PCM WAV for accurate Prodia Lip-sync."""
+    if not audio_path or not os.path.exists(audio_path):
+        return audio_path
+    wav_path = str(Path(audio_path).parent / f"{Path(audio_path).stem}_16k.wav")
+    try:
+        import subprocess
+        cmd = [
+            "ffmpeg", "-y", "-i", audio_path,
+            "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le",
+            wav_path
+        ]
+        subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if os.path.exists(wav_path) and os.path.getsize(wav_path) > 500:
+            logger.info(f"Converted audio to 16kHz WAV for Lip-sync: {wav_path}")
+            return wav_path
+    except Exception as e:
+        logger.warning(f"Audio WAV conversion notice ({e}), using original file: {audio_path}")
+    return audio_path
+
+
 def generate_video(
     image_path: str,
     prompt: str,
     duration: int = 8,
     resolution: str = "720P",
     audio_path: Optional[str] = None,
+    negative_prompt: Optional[str] = None,
 ) -> tuple:
     """
     Step 8: Generate video via Wan 2.7 Async API (shared ProdiaV2Client)
-
-    Uses the shared prodia_client.ProdiaV2Client for job creation, polling,
-    and price tracking through /v2/job/async.
-
-    Args:
-        image_path: path หรือ URL ของ image จาก Step 5
-        prompt: video_prompt จาก Step 6
-        duration: ความยาวคลิป (default 8s)
-        resolution: 720P (per user spec)
-        audio_path: path ของ TTS audio สำหรับ lip-sync (optional)
-
-    Returns:
-        tuple: (video_path, cost_usd)
     """
     logger.info(f"Step 8/9: Generate video (Wan 2.7, {resolution})")
     logger.info(f"  Prompt: {prompt[:80]}...")
@@ -664,23 +630,27 @@ def generate_video(
         with open(image_path, "rb") as f:
             image_data = f.read()
 
-    # NOTE: ไม่ส่ง audio ไป Prodia Wan 2.7
-    # Wan 2.7 lip-sync = +60-120s processing (600-800KB voiceover)
-    # Step 9 (compose) จะ merge voiceover ทับวิดีโออยู่แล้ว
+    # Convert audio to clean 16kHz WAV for Prodia Lip Sync
     audio_bytes = None
     if audio_path:
-        logger.info(f"  Audio: {Path(audio_path).stat().st_size} bytes (skipping Prodia — will compose in Step 9)")
+        valid_wav_path = _convert_to_wav(audio_path)
+        logger.info(f"  Audio: {Path(valid_wav_path).stat().st_size} bytes (sending 16kHz WAV to Prodia for lip-sync)")
+        with open(valid_wav_path, "rb") as f:
+            audio_bytes = f.read()
 
     # ── Generate via shared client ──
     client = ProdiaV2Client(token=PRODIA_TOKEN())
 
     try:
+        neg_p = negative_prompt or "no text, no watermark, blurry, distorted, extra limbs, bad face, deformed"
         result = client.generate_video(
             prompt=prompt,
             input_image=image_data,
             duration=duration,
             resolution=resolution,
+            audio_bytes=audio_bytes,
             job_type="inference.wan2-7.img2vid.v1",
+            negative_prompt=neg_p,
         )
 
         output_url = result.get("output_url", "")
@@ -702,56 +672,38 @@ def generate_video(
         file_size = result_path.stat().st_size
         logger.info(f"  Video OK ({file_size} bytes, {resolution}): {result_path}")
         logger.info(f"  Cost: ${cost_video:.4f}")
+        # Verify that the generated video contains an audio stream for lip‑sync
+        if not has_audio_track(str(result_path)):
+            logger.error("Wan 2.7 returned video without audio track – lip sync failed")
+            raise RuntimeError("Lip sync failure: generated video lacks audio track")
 
         return str(result_path), cost_video
-
-    except ProdiaValidationError as e:
-        raise RuntimeError(f"Wan 2.7 config rejected: {e}")
-    except ProdiaV2Error as e:
-        # Auto-retry for transient errors (rate limit, timeout)
-        import time as _time
-        _retry_delays = [45, 90, 180]
-        _max_video_retries = 3
-        _last_err = e
-        for _vr in range(_max_video_retries):
-            _delay = _retry_delays[_vr] if _vr < len(_retry_delays) else _retry_delays[-1]
-            logger.warning(f"  Video gen failed ({e}), retry {_vr+1}/{_max_video_retries} in {_delay}s...")
-            _time.sleep(_delay)
-            try:
-                _retry_client = ProdiaV2Client(token=PRODIA_TOKEN())
-                _retry_result = _retry_client.generate_video(
-                    prompt=prompt,
-                    input_image=image_data,
-                    duration=duration,
-                    resolution=resolution,
-                    job_type="inference.wan2-7.img2vid.v1",
-                )
-                output_url = _retry_result.get("output_url", "")
-                price = _retry_result.get("price", {})
-                cost_video = float(price.get("dollars", 0))
-                if not output_url:
-                    raise RuntimeError(f"No output URL in retry result")
-                auth_headers = {"Authorization": f"Bearer {PRODIA_TOKEN()}"} if "prodia.com" in (output_url or "") else {}
-                video_resp = requests.get(output_url, headers=auth_headers, timeout=60)
-                video_resp.raise_for_status()
-                result_path = TMP_DIR / f"img2vid_{uuid.uuid4().hex[:8]}.mp4"
-                with open(result_path, "wb") as f:
-                    f.write(video_resp.content)
-                file_size = result_path.stat().st_size
-                logger.info(f"  Video OK on retry {_vr+1} ({file_size} bytes, {resolution}): {result_path}")
-                logger.info(f"  Cost: ${cost_video:.4f}")
-                return str(result_path), cost_video
-            except ProdiaValidationError as ve:
-                raise RuntimeError(f"Wan 2.7 config rejected on retry: {ve}")
-            except Exception as re:
-                _last_err = re
-                if _vr == _max_video_retries - 1:
-                    logger.error(f"  Video gen failed after {_max_video_retries} retries")
-                    raise RuntimeError(f"Wan 2.7 failed after {_max_video_retries} retries: {_last_err}")
-                continue
-        raise RuntimeError(f"Wan 2.7 failed: {_last_err}")
     except Exception as e:
-        raise RuntimeError(f"Wan 2.7 error: {e}")
+        logger.error(f"  Prodia Wan 2.7 Video generation failed: {e}")
+        raise RuntimeError(f"Prodia Wan 2.7 Video generation failed: {e}")
+
+def has_audio_track(video_path: str) -> bool:
+    """Check if video contains an audio stream using ffprobe.
+    Returns False on any error.
+    """
+    try:
+        cmd = [
+            "ffprobe",
+            "-v",
+            "error",
+            "-select_streams",
+            "a",
+            "-show_entries",
+            "stream=codec_type",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1",
+            video_path,
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        return bool(result.stdout.strip())
+    except Exception as e:
+        logger.warning(f"Failed to probe audio track for {video_path}: {e}")
+        return False
 def compose_video(
     video_paths: list,
     voice_path: Optional[str] = None,
@@ -788,58 +740,37 @@ def compose_video(
     else:
         shutil.copy2(valid_paths[0], concat_path)
 
-    # Step 9b: Merge voiceover with the concatenated video (ถ้ามี voice)
-    if voice_path:
-        logger.info(f"  9b: Merge voiceover")
-        voiced_path = STORAGE_DIR / f"affiliate_{run_id}.mp4"
-        # Voice speed adjustment (default 1.3x for natural feel)
-        speed_filter = f"atempo={voice_speed}" if voice_speed != 1.0 else None
-        cmd = [
+    # Step 9b: Force-merge Gemini TTS voiceover audio into the video
+    final_path = concat_path
+    if voice_path and Path(voice_path).exists():
+        logger.info(f"  9b: Merging TTS voiceover audio {voice_path} into final video")
+        voiced_path = STORAGE_DIR / f"affiliate_{run_id}_voiced.mp4"
+        cmd_voice = [
             "ffmpeg", "-y",
-            "-stream_loop", "2",
             "-i", str(concat_path),
             "-i", str(voice_path),
-            "-c:v", "libx264",
-            "-preset", "fast",
-            "-crf", "22",
+            "-c:v", "copy",
             "-c:a", "aac",
             "-map", "0:v:0",
             "-map", "1:a:0",
-            "-t", str(target_duration),
+            "-shortest",
+            str(voiced_path)
         ]
-        if speed_filter:
-            cmd.insert(-1, "-af")
-            cmd.insert(-1, speed_filter)
-        cmd.append(str(voiced_path))
         try:
-            subprocess.run(cmd, check=True, capture_output=True, timeout=60)
-            # Verify output has video stream (Gemini TTS raw audio can break merge)
-            vf_size = voiced_path.stat().st_size
-            if vf_size < 5000:  # < 5KB = broken
-                logger.warning(f"    Voiceover merge produced tiny file ({vf_size}B), using concat")
-                final_path = concat_path
-            else:
-                logger.info(f"    Voiceover merged")
+            subprocess.run(cmd_voice, check=True, capture_output=True, timeout=60)
+            if voiced_path.exists() and voiced_path.stat().st_size > 1000:
                 final_path = voiced_path
-        except Exception as e:
-            logger.warning(f"    Voiceover merge failed ({e}), using silent video")
-            final_path = concat_path
+                logger.info(f"  9b: Voiceover merged successfully -> {final_path}")
+        except Exception as ve:
+            logger.warning(f"  9b: Merging voiceover failed ({ve}), using concat video")
     else:
-        logger.info(f"  9b: No voiceover — using silent video")
         final_path = concat_path
+
 
     # Step 9c: Add BGM
     if bgm_style:
         logger.info(f"  9c: Add BGM ({bgm_style})")
-        bgm_map = {
-            "chill_loft": "bg_chill.mp3",
-            "informative_jazz": "bg_jazz.mp3",
-            "energetic_edm": "bg_edm.mp3",
-            "upbeat_pop": "bg_upbeat.mp3",
-            "luxury_jazz": "bg_jazz.mp3",
-            "asmr": "bg_ambient.mp3",
-        }
-        bgm_filename = bgm_map.get(bgm_style, "bg_chill.mp3")
+        bgm_filename = f"{bgm_style}.mp3" if not bgm_style.endswith((".mp3", ".wav")) else bgm_style
         bgm_path = STORAGE_DIR / "sounds" / bgm_filename
 
         if bgm_path.exists():
@@ -864,25 +795,7 @@ def compose_video(
                 logger.info(f"    BGM mixed")
                 final_path = bgm_output
             except Exception as e:
-                logger.warning(f"    BGM mix failed ({e}), trying BGM-only")
-                # Fallback: just copy video + BGM as sole audio
-                try:
-                    cmd_bgm = [
-                        "ffmpeg", "-y",
-                        "-i", str(concat_path),  # use original video with audio
-                        "-i", str(bgm_path),
-                        "-c:v", "copy",
-                        "-c:a", "aac",
-                        "-map", "0:v:0",
-                        "-map", "1:a:0",
-                        "-shortest",
-                        str(bgm_output),
-                    ]
-                    subprocess.run(cmd_bgm, check=True, capture_output=True, timeout=60)
-                    logger.info(f"    BGM-only added")
-                    final_path = bgm_output
-                except Exception as e2:
-                    logger.warning(f"    BGM-only also failed: {e2}")
+                logger.warning(f"    BGM mix failed ({e}), using video without BGM")
 
     logger.info(f"  Final: {final_path}")
     return str(final_path)
@@ -894,20 +807,20 @@ def compose_video(
 
 def run_pipeline(
     product_name: str,
-    product_image: str,
+    product_image: Optional[str] = None,
     recipe_name: str = "tus",
     voice: str = "Aoede",
     bgm_style: str = "chill_loft",
-    description: str = "",
+    description: Optional[str] = None,
     ugc_style: str = "holding",
-    duration: int = 0,
     external_job_id: Optional[str] = None,
-    # Pre-computed prompts — bypass auto-gen if provided
-    image_prompt: str = "",
-    video_prompt: str = "",
-    video_prompts: list = None,
-    negative_prompt: str = "",
-    script: str = "",
+    duration: int = 15,
+    image_prompt: Optional[str] = None,
+    video_prompt: Optional[str] = None,
+    video_prompts: Optional[list] = None,
+    negative_prompt: Optional[str] = None,
+    script: Optional[str] = None,
+    **kwargs,
 ) -> dict:
     """
     Run full Affiliate Pipeline v6 (9 Steps ตาม PIPELINE_STRUCTURE.md)
@@ -922,7 +835,7 @@ def run_pipeline(
         external_job_id: job_id จาก caller (ถ้ามี) — ใช้แทนการ gen เอง เพื่อให้ pipeline_logs.db
                          ตรงกับ pipeline.db ใน tiktok-ugc-studio
         image_prompt: รูป prompt ที่เตรียมมาแล้ว (ถ้ามีจะไม่ gen ใหม่)
-        video_prompt: วิดีโอ prompt ที่เตรียมมาแล้ว (ใช้ fallback ถ้า video_prompts ไม่มี)
+        video_prompt: วิดีโอ prompt ที่เตรียมมาแล้ว (ต้องมี — throw error ถ้าไม่มี)
         video_prompts: รายการวิดีโอ prompts ต่อ scene (ถ้ามีจะไม่ gen ใหม่)
         negative_prompt: negative prompt ที่เตรียมมาแล้ว
         script: script ที่เตรียมมาแล้ว (ถ้ามีจะไม่ gen ใหม่)
@@ -1033,13 +946,16 @@ def run_pipeline(
             pass
 
         # ── STEP 6: Build Video Prompts (skip if pre-computed) ──
-        if not video_prompts:
+        if not video_prompts and video_prompt:
+            video_prompts = [video_prompt]
+            vid_prompt_duration = 0
+            logger.info(f"Step 6/9: Skipped (using pre-computed video_prompt)")
+        elif not video_prompts:
             step_start = time.time()
             video_prompts = build_video_prompts(product_profile, recipe, str(img_path), ugc_style=ugc_style)
             vid_prompt_duration = int((time.time() - step_start) * 1000)
         else:
             vid_prompt_duration = 0
-            # video_prompt เป็น single string สำหรับ Fallback ถ้า video_prompts ยังว่าง
             logger.info(f"Step 6/9: Skipped (using pre-computed video_prompts)")
 
         try:
@@ -1091,7 +1007,8 @@ def run_pipeline(
             image_path=str(img_path),
             prompt=vprompt,
             duration=total_duration,
-            # NOTE: ไม่ส่ง audio_path — Step 9 compose เอาไว้จัดการ
+            audio_path=voice_path,
+            negative_prompt=negative_prompt,
         )
         video_paths.append(vid_path)
         

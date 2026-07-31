@@ -92,18 +92,39 @@ def _save_image(data: bytes, prefix: str = "prodia") -> str:
     return f"/storage/images/{filename}"
 
 def _download_image(url: str) -> bytes:
-    """Download image from URL, handling circular self-references"""
-    local_prefix = f"http://localhost:{PORT}/storage/images/"
-    if url.startswith(local_prefix):
-        local_path = str(STORAGE_DIR / url[len(local_prefix):])
-        logger.info(f"Circular ref detected! Using local path: {local_path}")
-        with open(local_path, "rb") as f:
+    """Download image from URL, handling circular self-references and local disk paths"""
+    if not url:
+        raise ValueError("Empty image URL provided")
+        
+    filename = os.path.basename(url)
+    
+    # 1. Direct file path check
+    if os.path.exists(url) and os.path.isfile(url):
+        logger.info(f"Loading image directly from file path: {url}")
+        with open(url, "rb") as f:
             return f.read()
-    if url.startswith("/storage/images/"):
-        local_path = str(STORAGE_DIR / os.path.basename(url))
-        with open(local_path, "rb") as f:
-            return f.read()
-    resp = requests.get(url, timeout=30)
+            
+    # 2. Local storage directories check
+    search_dirs = [
+        STORAGE_DIR,
+        Path("/home/openhands/erp-stack/tiktok-ugc-studio/storage/product_images"),
+        Path("/home/openhands/erp-stack/tiktok-ugc-studio/storage"),
+        Path("/home/openhands/erp-stack/modules/image/storage/images"),
+        Path("/home/openhands/calm-noether/product_images"),
+    ]
+    for d in search_dirs:
+        p = d / filename
+        if p.exists() and p.is_file():
+            logger.info(f"Found image file on local disk: {p}")
+            with open(p, "rb") as f:
+                return f.read()
+                
+    # 3. Not a full HTTP URL and not found locally — fail
+    if url.startswith("/") or not (url.startswith("http://") or url.startswith("https://")):
+        raise ValueError(f"Cannot resolve image URL: {url} — not a local file or full HTTP(S) URL")
+        
+    logger.info(f"Downloading image from HTTP URL: {url}")
+    resp = requests.get(url, timeout=30, verify=False)
     resp.raise_for_status()
     return resp.content
 
@@ -184,6 +205,7 @@ def prodia_generate_img2img(
         )
 
         ct = resp.headers.get("content-type", "")
+        logger.info(f"Prodia response status: {resp.status_code}, content-type: {ct}, text: {resp.text[:300]}")
         if resp.status_code == 200 and ("image" in ct or "png" in ct or "jpeg" in ct):
             path = _save_image(resp.content, prefix="nano")
             full_url = f"http://localhost:{PORT}{path}"
@@ -242,12 +264,17 @@ def prodia_generate_img2img(
         except Exception:
             pass
         err_msg = err_data.get("error", resp.text[:200])
+        logger.error(f"Prodia image gen failed ({resp.status_code}): {err_msg}")
+        raise HTTPException(status_code=502, detail=f"Prodia error: {err_msg}")
         raise HTTPException(status_code=502, detail=f"Prodia error: {err_msg}")
 
     except HTTPException:
         raise
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Image generation failed: {e}")
+        raise HTTPException(status_code=502, detail=f"Image generation failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -311,9 +338,7 @@ async def generate_image(req: ImageGenRequest):
 
     input_img = req.inputImage
     if not input_img:
-        # Fallback to default product image placeholder if none provided
-        input_img = "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=512&q=80"
-        logger.info("  Using fallback product image for img2img")
+        raise HTTPException(status_code=400, detail="Missing input image for img2img")
 
     return prodia_generate_img2img(
         prompt=req.prompt,

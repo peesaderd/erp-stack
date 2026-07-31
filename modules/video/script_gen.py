@@ -133,8 +133,8 @@ def _call_gemini(system_prompt: str, user_prompt: str) -> Optional[str]:
     """Call Gemini API for script generation."""
     api_key = GEMINI_API_KEY()
     if not api_key:
-        logger.warning("No GEMINI_API_KEY configured — using template fallback")
-        return None
+        logger.error("No GEMINI_API_KEY configured — cannot generate script")
+        raise RuntimeError("No GEMINI_API_KEY configured")
 
     try:
         import httpx
@@ -223,8 +223,8 @@ def generate_tiktok_review_script(
         system = load_prompt("system_script_gen.prompt.txt")
         user_tpl = load_prompt("user_product_demo.prompt.txt")
     elif duration == "16s":
-        # 16s still uses legacy prompts (separate fix later)
-        system = load_prompt("system_16s.prompt.txt")
+        # 16s: use unified script gen prompt (cleaned of video gen pollution)
+        system = load_prompt("system_script_gen.prompt.txt")
         user_tpl = load_prompt("user_16s.prompt.txt")
     else:
         # Review/UGC styles — user_review has timing structure for Hook/Value/CTA flow
@@ -265,141 +265,7 @@ def generate_tiktok_review_script(
             "persona": persona_name,
         }
 
-    # Fallback: template-based script
-    script = _template_script(user_data, duration)
-    return {
-        "script": script,
-        "uses_llm": False,
-        "duration": duration,
-        "product": product_name,
-        "persona": persona_name,
-    }
+    # No fallback — fail fast
+    raise RuntimeError("Script generation failed: no content returned from Gemini")
 
 
-def _template_script(data: dict, duration: str) -> str:
-    """Template fallback for TikTok review script"""
-    pname = data.get("product_name", "สินค้านี้")
-    problem = data.get("customer_problem", "ปัญหาที่เจอ")
-    benefit = data.get("main_benefit", "คุณภาพดี")
-    tone = data.get("tone", "เป็นกันเอง")
-
-    variations = json.loads(load_prompt("variation.json") or "{}")
-    hooks = variations.get("hooks", ["แนะนำสินค้าดี"])
-    ctas = variations.get("ctas", ["กดตะกร้าเลย"])
-
-    hook = random.choice(hooks)
-    cta_phrase = random.choice(ctas)
-
-    if duration == "16s":
-        return (
-            f"[Hook] {hook}! {pname} {problem} ต้องดู!\n\n"
-            f"[Value] {pname} {benefit} ใช้งานง่าย ได้ผลจริง "
-            f"ลองใช้แล้วประทับใจมาก\n\n"
-            f"[CTA] {cta_phrase} {pname} ราคาพิเศษวันนี้เท่านั้น!"
-        )
-    else:
-        return (
-            f"[สคริปต์ 8 วินาที]\n"
-            f"{hook}! {pname} {problem} ต้องดู!\n"
-            f"{pname} {benefit} ลองใช้แล้วดีมาก\n"
-            f"{cta_phrase}!"
-        )
-
-
-def generate_ugc_script(
-    style: str,
-    product_name: str,
-    gender: str = "female",
-    age: str = "25-35",
-    scene: str = "home",
-    custom_negative_prompt: Optional[str] = None,
-    persona: Optional[dict] = None,
-) -> dict:
-    """
-    Generate UGC video prompt by style.
-    If persona provided, also pass persona name in result for traceability.
-    """
-    style_map = {
-        "holding_product": "Holding_Product",
-        "product_usage": "Product_Usage",
-        "ugc_review": "UGC_Review",
-        "talking": "UGC_Review",
-        "pov_lifehack": "POV_Lifehack",
-        "asmr_texture": "ASMR_Texture",
-        "split_comparison": "Split_Comparison",
-        "street_interview": "Street_Interview",
-        "greenscreen_react": "Greenscreen_React",
-        "aesthetic_vlog": "Aesthetic_Vlog",
-    }
-
-    folder = style_map.get(style)
-    if not folder:
-        return {"error": f"Unknown style: {style}"}
-
-    system = load_prompt(f"UGC_prompts/{folder}/system.prompt")
-    master = load_prompt(f"UGC_prompts/{folder}/master.prompt")
-    user_tpl = load_prompt(f"UGC_prompts/{folder}/user.template.prompt")
-    file_negative = load_prompt(f"UGC_prompts/{folder}/negative.prompt")
-    if custom_negative_prompt:
-        negative = custom_negative_prompt + ", " + file_negative if file_negative else custom_negative_prompt
-    else:
-        negative = file_negative
-
-    user_data = {
-        "product": product_name,
-        "gender": gender,
-        "age": age,
-        "scene": scene,
-        "background": "clean",
-    }
-
-    user_prompt = fill_template(user_tpl, user_data)
-    system_full = f"{system}\n\n{negative}" if negative else system
-
-    raw = _call_gemini(system_full, f"{master}\n\n{user_prompt}")
-
-    result = {
-        "style": style,
-        "prompt": raw or f"{system_full}\n\n{master}\n\n{user_prompt}",
-        "negative_prompt": negative,
-        "merged_negative_prompt": negative,
-        "product": product_name,
-        "uses_llm": raw is not None,
-    }
-    if persona:
-        persona_name = persona.get("vibe", "").split(",")[0].strip()
-        result["persona"] = persona_name
-    return result
-
-
-def get_script_variations() -> dict:
-    """Get available script variations from AiBot config"""
-    var = load_prompt("variation.json")
-    try:
-        return json.loads(var) if var else {}
-    except json.JSONDecodeError:
-        return {
-            "hooks": ["แนะนำสินค้าดี", "ของดีมาแล้ว"],
-            "tones": ["เป็นกันเอง", "จริงใจ"],
-            "ctas": ["กดตะกร้าเลย", "สั่งเลยวันนี้"],
-            "benefits": ["คุณภาพดี", "คุ้มค่า"],
-        }
-
-
-SCRIPT_TEMPLATES = {
-    "8s": {
-        "hook": ["เปิดด้วยปัญหา", "เปิดด้วยคำถาม", "เปิดด้วยความว้าว"],
-        "value": ["บอกประโยชน์หลัก", "บอกจุดเด่น"],
-        "cta": ["เชิญชวนซื้อ", "บอกให้กดลิงก์"],
-    },
-    "15s": {
-        "hook": ["เปิดด้วยคำถามลึก", "หยุดก่อนซื้อ", "ทำไมคนถึงเปลี่ยน"],
-        "value": ["ขยายปัญหา", "อธิบายจุดต่าง", "เหตุผลที่เหนือกว่า"],
-        "cta": ["เปลี่ยนเลยวันนี้", "ได้สิทธิพิเศษ", "กดลิงก์เลย"],
-    },
-    "16s": {
-        "hook": ["เปิดเรื่อง", "ดึงดูดความสนใจ"],
-        "value": ["อธิบายรายละเอียด", "บอกประโยชน์"],
-        "cta": ["สรุป + เชิญชวน"],
-    },
-}

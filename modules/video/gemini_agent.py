@@ -20,7 +20,7 @@ logger = logging.getLogger("product-analyzer")
 TEXT_MODEL = "gemini-2.5-flash"
 VISION_MODEL = "gemini-2.5-flash"
 
-# Fallback Mistral config just in case
+# Only Gemini AI is used — no fallback
 MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY", "")
 
 PRESET_IMAGE_STYLES = [
@@ -308,7 +308,13 @@ These elements are IMMUTABLE - never alter or hallucinate these details:
  - For electronics, describe a desk or table surface with lifestyle elements.
 
 # REQUIREMENTS FOR VIDEO PROMPT:
-- Provide a concise 15-30s vertical video concept including visual theme, camera movements, and key product shots.
+- Provide a highly detailed, comprehensive video prompt.
+- description: Overview of the vertical video concept.
+- movement: Detailed array of camera movements for each scene transition (e.g. ["Slow dolly zoom into product", "Smooth pan across countertop", "Close-up tilt showing bottle cap"]).
+- lighting: Detailed description of lighting and mood (e.g., warm afternoon sun, diffused side-lighting with soft shadows).
+- storytelling: Complete step-by-step scene-by-scene script breakdown, explaining what happens in each second of the video.
+- transitions: Detailed creative video transitions (e.g., ["Whip pan transition to lifestyle setting", "Seamless overlay cut"]).
+- product_interaction: Detailed actions involving the product (e.g., ["Unscrewing the dropper cap", "Dispensing product texture onto a flat surface", "Placing the bottle back down"]).
 
 # REQUIREMENTS FOR HOOKS (3 hooks):
 - THAI language, product-specific (NOT generic), attention-grabbing.
@@ -378,8 +384,8 @@ Target Audience: {target_audience or 'General TikTok users'}{model_hint}
         )
         return result
     except Exception as e:
-        logger.warning(f"Gemini failed, using fallback: {e}")
-        return _fallback_analysis(product_name, description, category)
+        logger.error(f"Gemini analysis failed: {e}")
+        raise RuntimeError(f"Gemini analysis failed: {e}")
 
 
 def _placeholder_term_for_category(category: str = "") -> str:
@@ -545,38 +551,3 @@ Output ONLY the video prompt as a single paragraph (no JSON, no markdown):"""
     )
 
 
-def _fallback_analysis(product_name: str, description: str, category: str) -> dict:
-    """Fallback analysis when AI fails - generate Thai content with product appearance"""
-    image_prompts = []
-    for style in PRESET_IMAGE_STYLES:
-        image_prompts.append({
-            "id": style["id"],
-            "name": style["name"],
-            "bbox": {"x": 0.35, "y": 0.25, "width": 0.3, "height": 0.5, "angle": 0.0},
-            "prompt": f"ภาพถ่ายสินค้า {product_name} ในสไตล์ {style['name']} "
-                      f"วางบนพื้นผิวเรียบสวยงาม แสงธรรมชาติ โทนอบอุ่น สไตล์ไทย",
-        })
-
-    return {
-        "image_prompts": image_prompts,
-        "video_prompt": {
-            "description": f"วิดีโอรีวิวสินค้า {product_name} แสดงการใช้งานจริงในสถานที่แบบไทย",
-            "movement": ["Slow pan", "Close-up zoom"],
-            "lighting": "แสงสว่างธรรมชาติ โทนสีอบอุ่น",
-            "storytelling": f"แสดงรายละเอียดสินค้า {product_name} ในชีวิตประจำวัน",
-            "transitions": ["Cross dissolve"],
-            "product_interaction": ["Picking up the product", "Showing features"]
-        },
-        "hook_suggestions": [
-            f"กำลังมองหาสินค้าแบบนี้อยู่เหรอ?",
-            f"สินค้า {product_name} แบบนี้หายากเลย!",
-            f"อยากได้ของดีๆ แบบนี้ต้องรีบจัดไปเลย",
-        ],
-        "marketing_copy": f"รีวิวสินค้า {product_name} ที่คุณต้องรู้! {description[:100]}",
-        "hashtags": [
-            "#" + product_name.replace(" ", ""),
-            "#รีวิวสินค้า",
-            "#TikTokUGC",
-            "#" + category.replace(" ", "") if category else "#สินค้า",
-        ],
-    }

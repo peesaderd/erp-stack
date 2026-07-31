@@ -1,18 +1,20 @@
 """
 Image Generation Module — Microservice
 =======================================
-Nano Banana img2img (Prodia SYNC API) + Mistral Pixtral Vision
+Nano Banana img2img + Wan 2.7 Lip Sync + Mistral Pixtral Vision
 Port: 8110
 
-Sync endpoint POST /v2/job returns image/png directly.
-nano-banana DOES NOT support async — use sync only.
+Prodia API is simple — all jobs use the same endpoint.
+  POST /v2/job  with JSON body {type, config}
+  Sync models:  set Accept: image/png → get image bytes directly
+  Async models: response JSON has job ID → poll /v2/job/async/{id}/job.state.current
 """
 
-import os, sys, json, uuid, logging, requests, io
-from typing import Optional, List, Dict, Any
+import os, sys, json, uuid, logging, requests, io, time
+from typing import Optional
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -29,18 +31,19 @@ from prodia_pricing import get_price_for_sync_image
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
 logger = logging.getLogger("image-module")
 
-app = FastAPI(title="Image Generation Module", version="4.0.0")
+app = FastAPI(title="Image Generation Module", version="4.1.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 PORT = int(os.environ.get("PORT", 8110))
 STORAGE_DIR = Path(__file__).parent / "storage" / "images"
 STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
-ASPECT_MAP = {
-    "1:1": (1024, 1024), "9:16": (512, 896), "16:9": (896, 512),
-    "4:5": (768, 960), "3:4": (768, 1024), "4:3": (1024, 768),
-}
+PRODIA_BASE = "https://inference.prodia.com"
+PRODIA_ASYNC = f"{PRODIA_BASE}/v2/job/async"
+PRODIA_SYNC = f"{PRODIA_BASE}/v2/job"
 
+
+# ─── Models ───────────────────────────────────────────────────────
 
 class ImageGenRequest(BaseModel):
     prompt: str
@@ -53,9 +56,25 @@ class ImageGenRequest(BaseModel):
     aspectRatio: Optional[str] = "9:16"
 
 
-# ─── Helpers ─────────────────────────────────────────────────────────
+class LipSyncRequest(BaseModel):
+    """Wan 2.7 Lip Sync — animate portrait with audio-driven speech"""
+    imageUrl: str
+    audioUrl: Optional[str] = None
+    prompt: str = ""
+    duration: int = 5
+    aspectRatio: str = "9:16"
 
-def _save_image(data: bytes, prefix: str = "nano") -> str:
+
+# ─── Helpers ──────────────────────────────────────────────────────
+
+def _token() -> str:
+    t = PRODIA_TOKEN()
+    if not t:
+        raise ValueError("PRODIA_TOKEN not configured")
+    return t
+
+
+def _save(data: bytes, prefix: str = "prodia") -> str:
     filename = f"{prefix}_{uuid.uuid4().hex[:12]}.png"
     path = STORAGE_DIR / filename
     with open(path, "wb") as f:
@@ -63,13 +82,12 @@ def _save_image(data: bytes, prefix: str = "nano") -> str:
     return f"/storage/images/{filename}"
 
 
-def _download_image(url: str) -> bytes:
+def _load_image(url: str) -> bytes:
     if not url:
-        raise ValueError("Empty image URL provided")
+        raise ValueError("Empty image URL")
     filename = os.path.basename(url)
 
     if os.path.exists(url) and os.path.isfile(url):
-        logger.info(f"Loading image from file: {url}")
         with open(url, "rb") as f:
             return f.read()
 
@@ -78,7 +96,6 @@ def _download_image(url: str) -> bytes:
         Path("/home/openhands/erp-stack/tiktok-ugc-studio/storage/product_images"),
         Path("/home/openhands/erp-stack/tiktok-ugc-studio/storage"),
         Path("/home/openhands/erp-stack/modules/image/storage/images"),
-        Path("/home/openhands/calm-noether/product_images"),
     ]
     for d in search_dirs:
         p = d / filename
@@ -87,17 +104,14 @@ def _download_image(url: str) -> bytes:
             with open(p, "rb") as f:
                 return f.read()
 
-    if url.startswith("/") or not (url.startswith("http://") or url.startswith("https://")):
-        raise ValueError(f"Cannot resolve image URL: {url}")
-
     logger.info(f"Downloading: {url}")
     resp = requests.get(url, timeout=30, verify=False)
     resp.raise_for_status()
     return resp.content
 
 
-def _resize_for_prodia(image_data: bytes, max_px: int = 2048) -> bytes:
-    img = Image.open(io.BytesIO(image_data))
+def _resize(data: bytes, max_px: int = 2048) -> bytes:
+    img = Image.open(io.BytesIO(data))
     if img.width > max_px or img.height > max_px:
         ratio = min(max_px / img.width, max_px / img.height)
         new_w, new_h = int(img.width * ratio), int(img.height * ratio)
@@ -106,153 +120,195 @@ def _resize_for_prodia(image_data: bytes, max_px: int = 2048) -> bytes:
         img.save(buf, format="PNG")
         logger.info(f"  Resized: {img.width}x{img.height} -> {new_w}x{new_h}")
         return buf.getvalue()
-    return image_data
+    return data
 
 
-# ═══════════════════════════════════════════════════════════════
-#  Image Generation — Prodia SYNC API (/v2/job)
-# ═══════════════════════════════════════════════════════════════
+def _call_prodia(type_: str, config: dict, accept: str = "image/png", files: dict = None, timeout: int = 120) -> bytes:
+    """Call Prodia /v2/job — returns image bytes directly for sync models."""
+    body = {"type": type_, "config": config}
+    headers = {"Authorization": f"Bearer {_token()}", "Accept": accept}
 
-PRODIA_SYNC_URL = "https://inference.prodia.com/v2/job"
+    logger.info(f"Prodia {type_} | {json.dumps(config, ensure_ascii=False)[:120]}")
+
+    if files:
+        # Multipart upload — job JSON as file entry + input files
+        all_files = [("job", ("job.json", json.dumps(body), "application/json"))] + list(files)
+        resp = requests.post(
+            PRODIA_SYNC, headers=headers, files=all_files, timeout=timeout
+        )
+    else:
+        resp = requests.post(PRODIA_SYNC, headers=headers, json=body, timeout=timeout)
+
+    ct = resp.headers.get("content-type", "")
+    logger.info(f"  → {resp.status_code} | content-type={ct[:50]} | len={len(resp.content)}")
+
+    if resp.status_code == 200 and any(t in ct for t in ("image/", "application/octet-stream")):
+        return resp.content
+
+    # Error handling
+    err = ""
+    try:
+        err = json.dumps(resp.json(), indent=2)[:300]
+    except Exception:
+        err = resp.text[:300] if resp.text else ""
+
+    if resp.status_code == 400:
+        raise HTTPException(status_code=400, detail=f"Prodia validation: {err}")
+    elif resp.status_code in (401, 403):
+        raise HTTPException(status_code=502, detail="Prodia auth failed")
+    elif resp.status_code >= 500:
+        raise HTTPException(status_code=502, detail=f"Prodia server error: {err}")
+    else:
+        raise HTTPException(status_code=502, detail=f"Prodia {resp.status_code}: {err}")
 
 
-def prodia_generate_img2img(
-    prompt: str,
-    input_image: str,
-    negative_prompt: str = "",
-    width: int = 512,
-    height: int = 896,
-    thai_model: bool = True,
-) -> dict:
-    """Generate image via Nano Banana img2img — Prodia SYNC API"""
+# ═══════════════════════════════════════════════════════════════════
+#  Nano Banana img2img — Sync API (single call, no polling)
+# ═══════════════════════════════════════════════════════════════════
 
-    if thai_model:
-        if "thai" not in prompt.lower():
-            prompt = prompt.rstrip(",. ") + \
-                ", beautiful Thai person style, realistic skin texture, highly detailed face, soft warm lighting"
-        if not negative_prompt:
-            negative_prompt = (
-                "Chinese face, Korean face, East Asian anime style, plastic surgery face, "
-                "V-shaped chin, double eyelid surgery, glass skin, k-pop style, Japanese face, "
-                "white skin bleaching, pale white skin, caucasian features, western face, "
-                "3D render, illustration, cartoon, low quality, blurry, distorted face, "
-                "unnatural proportions, blemish"
-            )
+THAI_PROMPT_SUFFIX = \
+    ", beautiful Thai person style, realistic skin texture, highly detailed face, soft warm lighting"
 
-    image_data = _download_image(input_image)
-    image_data = _resize_for_prodia(image_data)
+THAI_NEGATIVE = (
+    "Chinese face, Korean face, East Asian anime style, plastic surgery face, "
+    "V-shaped chin, double eyelid surgery, glass skin, k-pop style, Japanese face, "
+    "white skin bleaching, caucasian features, western face, 3D render, illustration, cartoon, "
+    "low quality, blurry, distorted face, unnatural proportions, blemish"
+)
 
-    token = PRODIA_TOKEN()
 
-    config = {
-        "type": "inference.nano-banana.img2img.v2",
-        "config": {
-            "prompt": prompt,
-            "aspect_ratio": "9:16",
-        },
-    }
+def nano_banana_img2img(prompt: str, input_image: str, negative_prompt: str = "") -> dict:
+    """Generate Thai product image via Nano Banana img2img.
+
+    Prodia sync model: POST /v2/job with multipart → image/png response.
+    No polling. No async. Single call.
+    """
+    if "thai" not in prompt.lower():
+        prompt = prompt.rstrip(",. ") + THAI_PROMPT_SUFFIX
+    if not negative_prompt:
+        negative_prompt = THAI_NEGATIVE
+
+    image_data = _load_image(input_image)
+    image_data = _resize(image_data)
 
     files = [
-        ("job", ("job.json", json.dumps(config), "application/json")),
         ("input", ("image.png", image_data, "image/png")),
     ]
 
-    logger.info(f"Nano Banana img2img (sync) | {prompt[:80]}...")
+    result_bytes = _call_prodia(
+        type_="inference.nano-banana.img2img.v2",
+        config={"prompt": prompt},
+        files=files,
+    )
 
-    try:
-        resp = requests.post(
-            PRODIA_SYNC_URL,
-            headers={"Authorization": f"Bearer {token}"},
-            files=files,
-            timeout=120,
-        )
+    path = _save(result_bytes, prefix="nano")
+    cost = get_price_for_sync_image("nano-banana.img2img.v2")
+    logger.info(f"  Image OK ({len(result_bytes)}B) | cost=${cost['dollars']}")
 
-        ct = resp.headers.get("content-type", "")
-        logger.info(
-            f"Prodia response: {resp.status_code} | content-type={ct} | "
-            f"len={len(resp.content)}"
-        )
+    return {
+        "ok": True,
+        "images": [{"url": path, "full_url": f"http://localhost:{PORT}{path}"}],
+        "provider": "prodia",
+        "model": "nano-banana.img2img.v2",
+        "cost": cost,
+    }
 
-        # ── Success: image returned directly ──
-        if resp.status_code == 200 and any(t in ct for t in ("image/", "application/octet-stream")):
-            path = _save_image(resp.content, prefix="nano")
-            full_url = f"http://localhost:{PORT}{path}"
-            cost = get_price_for_sync_image("nano-banana.img2img.v2")
-            logger.info(f"  Image OK ({len(resp.content)}B) | cost=${cost['dollars']}")
-            return {
-                "ok": True,
-                "images": [{"url": path, "full_url": full_url}],
-                "provider": "prodia",
-                "model": "nano-banana.img2img.v2",
-                "cost": cost,
-            }
 
-        # ── Prodia returned JSON (job queued or error) ──
-        err_detail = ""
+# ═══════════════════════════════════════════════════════════════════
+#  Wan 2.7 Lip Sync — Async API (img2vid with audio input)
+# ═══════════════════════════════════════════════════════════════════
+
+def wan_lip_sync(image_url: str, audio_url: str = None, prompt: str = "", duration: int = 5) -> dict:
+    """Submit Wan 2.7 img2vid with audio-driven lip-sync.
+
+    Async job: POST /v2/job/async → poll /v2/job/async/{id}/job.state.current
+    Audio: WAV/MP3, 2-30s, max 15MB
+    Returns job_id for polling.
+    """
+    headers = {"Authorization": f"Bearer {_token()}", "Content-Type": "application/json"}
+
+    # Download and prepare image
+    image_bytes = _load_image(image_url)
+
+    config = {
+        "prompt": prompt or "person speaking naturally, natural facial expressions, professional lighting",
+        "duration": duration,
+        "ratio": "9:16",
+    }
+
+    # Build multipart: json body + input image + optional audio
+    files = [
+        ("job", ("job.json", json.dumps({"type": "inference.wan2-7.img2vid.v1", "config": config}), "application/json")),
+        ("input", ("image.png", image_bytes, "image/png")),
+    ]
+
+    if audio_url:
+        audio_data = _load_image(audio_url)  # reuse image loader — handles URL + disk paths
+        files.append(("audio", ("audio.mp3", audio_data, "audio/mpeg")))
+
+    logger.info(f"Wan 2.7 Lip Sync | duration={duration}s | audio={yes if audio_url else no}")
+
+    resp = requests.post(
+        PRODIA_ASYNC,
+        headers={"Authorization": f"Bearer {_token()}"},
+        files=files,
+        timeout=30,
+    )
+
+    if resp.status_code not in (200, 201, 202):
+        err = ""
         try:
-            body = resp.json()
-            err_detail = json.dumps(body, indent=2)[:500]
-            # Check for job ID (sync API queued — rare but possible)
-            job_id = body.get("id") or body.get("jobId", "")
-            if job_id and resp.status_code == 200:
-                logger.warning(f"  Sync API queued job {job_id} — this model may need async. Retrying...")
-                # Wait a few seconds and try to get the result
-                import time
-                for attempt in range(10):
-                    time.sleep(3)
-                    poll = requests.get(
-                        f"https://inference.prodia.com/v2/job/{job_id}/result",
-                        headers={"Authorization": f"Bearer {token}"},
-                        timeout=30,
-                    )
-                    poll_ct = poll.headers.get("content-type", "")
-                    if poll.status_code == 200 and any(t in poll_ct for t in ("image/", "application/octet-stream")):
-                        path = _save_image(poll.content, prefix="nano")
-                        full_url = f"http://localhost:{PORT}{path}"
-                        cost = get_price_for_sync_image("nano-banana.img2img.v2")
-                        logger.info(f"  Poll OK ({len(poll.content)}B) | cost=${cost['dollars']}")
-                        return {
-                            "ok": True,
-                            "images": [{"url": path, "full_url": full_url}],
-                            "provider": "prodia",
-                            "model": "nano-banana.img2img.v2",
-                            "cost": cost,
-                        }
-                    logger.info(f"  Poll {attempt+1}/10: {poll.status_code}")
-                raise HTTPException(status_code=502, detail=f"Sync job {job_id} polling exhausted")
+            err = json.dumps(resp.json())[:300]
         except Exception:
-            pass
+            err = resp.text[:300] if resp.text else ""
+        raise HTTPException(status_code=502, detail=f"Wan 2.7 submit failed ({resp.status_code}): {err}")
 
-        # ── Error handling ──
-        if resp.status_code == 400:
-            logger.error(f"Prodia 400: {err_detail}")
-            raise HTTPException(status_code=400, detail=f"Invalid request: {err_detail}")
-        elif resp.status_code == 401 or resp.status_code == 403:
-            logger.error(f"Prodia auth error ({resp.status_code}): {err_detail}")
-            raise HTTPException(status_code=502, detail="Prodia authentication failed — check PRODIA_TOKEN")
-        elif resp.status_code >= 500:
-            logger.error(f"Prodia server error ({resp.status_code}): {err_detail}")
-            raise HTTPException(status_code=502, detail=f"Prodia server error: {err_detail}")
-        else:
-            logger.error(f"Prodia unexpected ({resp.status_code}): {err_detail}")
-            raise HTTPException(status_code=502, detail=f"Prodia error ({resp.status_code}): {err_detail}")
+    result = resp.json()
+    job_id = result.get("id") or result.get("jobId", "")
 
-    except HTTPException:
-        raise
-    except requests.exceptions.Timeout:
-        logger.error("Prodia request timeout")
-        raise HTTPException(status_code=504, detail="Prodia request timeout")
-    except requests.exceptions.ConnectionError as e:
-        logger.error(f"Prodia connection error: {e}")
-        raise HTTPException(status_code=502, detail=f"Prodia connection failed: {e}")
-    except Exception as e:
-        logger.error(f"Image generation failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    logger.info(f"  Wan 2.7 job submitted: {job_id}")
+
+    return {
+        "ok": True,
+        "jobId": job_id,
+        "status": "queued",
+        "pollUrl": f"/api/v1/image/lipsync/{job_id}",
+        "note": "Video generation takes ~200s. Poll /api/v1/image/lipsync/{job_id} for status.",
+    }
 
 
-# ═══════════════════════════════════════════════════════════════
+def poll_lip_sync(job_id: str) -> dict:
+    """Poll Wan 2.7 async job status."""
+    headers = {"Authorization": f"Bearer {_token()}"}
+    url = f"{PRODIA_BASE}/v2/job/async/{job_id}/job.state.current"
+
+    resp = requests.get(url, headers=headers, timeout=10)
+
+    if resp.status_code != 200:
+        raise HTTPException(status_code=502, detail=f"Poll failed ({resp.status_code})")
+
+    data = resp.json()
+    state = data.get("state", "unknown")
+    progress = data.get("progress", 0)
+
+    if state == "completed":
+        output_url = data.get("output", {}).get("url") or data.get("outputUrl", "")
+        return {
+            "ok": True,
+            "jobId": job_id,
+            "status": "completed",
+            "videoUrl": output_url,
+        }
+    elif state == "failed":
+        error = data.get("error", "Unknown error")
+        return {"ok": False, "jobId": job_id, "status": "failed", "error": error}
+
+    return {"ok": True, "jobId": job_id, "status": state, "progress": progress}
+
+
+# ═══════════════════════════════════════════════════════════════════
 #  Mistral Pixtral Vision
-# ═══════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════
 
 def mistral_analyze_image(image_path: str, prompt: str) -> str:
     token = MISTRAL_API_KEY()
@@ -287,25 +343,26 @@ def mistral_analyze_image(image_path: str, prompt: str) -> str:
     return resp.json()["choices"][0]["message"]["content"]
 
 
-# ═══════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════
 #  API Endpoints
-# ═══════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════
 
 @app.get("/health")
 def health():
     return {
         "status": "ok",
         "service": "image-module",
-        "version": "4.0.0",
-        "provider": "prodia-sync",
-        "models": ["nano.banana.v2 (img2img)"],
+        "version": "4.1.0",
+        "providers": {
+            "prodia": ["nano-banana.img2img.v2", "wan2-7.img2vid.v1 (lip-sync)"],
+        },
         "mistral_vision": True,
     }
 
 
 @app.get("/active-model")
 def get_active_model():
-    return {"active": "prodia", "providers": ["prodia"]}
+    return {"active": "prodia", "models": ["nano-banana", "wan2-7"]}
 
 
 @app.post("/api/v1/image/generate")
@@ -315,11 +372,29 @@ async def generate_image(req: ImageGenRequest):
     if not req.inputImage:
         raise HTTPException(status_code=400, detail="Missing input image for img2img")
 
-    return prodia_generate_img2img(
+    return nano_banana_img2img(
         prompt=req.prompt,
         input_image=req.inputImage,
         negative_prompt=req.negative_prompt or "",
     )
+
+
+@app.post("/api/v1/image/lipsync")
+async def create_lip_sync(req: LipSyncRequest):
+    """Submit Wan 2.7 lip-sync video generation."""
+    logger.info(f"Lip Sync: duration={req.duration}s")
+    return wan_lip_sync(
+        image_url=req.imageUrl,
+        audio_url=req.audioUrl,
+        prompt=req.prompt,
+        duration=req.duration,
+    )
+
+
+@app.get("/api/v1/image/lipsync/{job_id}")
+async def get_lip_sync_status(job_id: str):
+    """Poll Wan 2.7 lip-sync job status."""
+    return poll_lip_sync(job_id)
 
 
 @app.post("/api/v1/image/analyze")

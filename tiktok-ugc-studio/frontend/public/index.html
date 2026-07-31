@@ -4979,6 +4979,7 @@ function useProduct(jsonEncoded) {
       zone.classList.add("has-image");
       pl.innerHTML = `<img class="preview" src="${uploadedImages.product}" alt="product"><button class="remove-img" onclick="event.stopPropagation();removeImage('product')">✕</button>`;
 
+    }
     switchTab("content");
     goContentStep(1);
     showToast("✅ " + (p.title || "").slice(0,40), "success");

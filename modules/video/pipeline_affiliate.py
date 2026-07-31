@@ -587,24 +587,19 @@ from prodia_client import ProdiaV2Client, ProdiaV2Error, ProdiaValidationError
 
 
 def _convert_to_wav(audio_path: str) -> str:
-    """Convert TTS audio to 16kHz mono PCM WAV for accurate Prodia Lip-sync."""
+    """Pass through audio without conversion.
+    Gemini TTS already outputs valid WAV (24kHz mono PCM).
+    Wan 2.7 docs only specify WAV/MP3, no sample rate requirement.
+    """
     if not audio_path or not os.path.exists(audio_path):
         return audio_path
-    wav_path = str(Path(audio_path).parent / f"{Path(audio_path).stem}_16k.wav")
-    try:
-        import subprocess
-        cmd = [
-            "ffmpeg", "-y", "-i", audio_path,
-            "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le",
-            wav_path
-        ]
-        subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        if os.path.exists(wav_path) and os.path.getsize(wav_path) > 500:
-            logger.info(f"Converted audio to 16kHz WAV for Lip-sync: {wav_path}")
-            return wav_path
-    except Exception as e:
-        logger.warning(f"Audio WAV conversion notice ({e}), using original file: {audio_path}")
+    size = os.path.getsize(audio_path)
+    if size < 500:
+        logger.warning(f"Audio file too small ({size} bytes): {audio_path}")
+        return audio_path
+    logger.info(f"Audio native: {audio_path} ({size} bytes) - sending as-is to Prodia")
     return audio_path
+
 
 
 def generate_video(
@@ -634,7 +629,7 @@ def generate_video(
     audio_bytes = None
     if audio_path:
         valid_wav_path = _convert_to_wav(audio_path)
-        logger.info(f"  Audio: {Path(valid_wav_path).stat().st_size} bytes (sending 16kHz WAV to Prodia for lip-sync)")
+        logger.info(f"  Audio: {Path(valid_wav_path).stat().st_size} bytes (sending native WAV to Prodia for lip-sync)")
         with open(valid_wav_path, "rb") as f:
             audio_bytes = f.read()
 
@@ -749,7 +744,7 @@ def compose_video(
             "ffmpeg", "-y",
             "-i", str(concat_path),
             "-i", str(voice_path),
-            "-filter_complex", "[1:a]aresample=44100,apad,atrim=0:8.034[a1];[0:a][a1]amix=inputs=2:duration=first,volume=2[aud]",
+            "-filter_complex", f"[1:a]aresample=44100,apad,atrim=0:{target_duration}[a1];[0:a][a1]amix=inputs=2:duration=first,volume=1.2[aud]",
             "-c:v", "copy",
             "-c:a", "aac",
             "-map", "0:v:0",

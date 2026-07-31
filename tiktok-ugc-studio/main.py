@@ -554,7 +554,30 @@ async def run_full_pipeline(req: FullPipelineRequest):
         import asyncio
         asyncio.create_task(aitoearn.sync_with_pipeline(job))
         
-        return {"success": True, "job_id": job_id, "status": "completed"}
+        response = {
+            "success": True,
+            "job_id": job_id,
+            "status": "completed",
+        }
+        try:
+            rd = result_data
+            if rd:
+                response.update({
+                    "script": rd.get("script", "") or "",
+                    "hashtags": rd.get("hashtags", []) or [],
+                    "image_path": rd.get("image_path", "") or "",
+                    "image_url": rd.get("image_path", "") or "",
+                    "video_path": final_path or "",
+                    "video_url": final_path or "",
+                    "recipe": rd.get("recipe", req.recipe or "tus"),
+                    "run_id": rd.get("run_id", "") or "",
+                    "duration": rd.get("duration", req.duration),
+                    "cost_estimate": rd.get("cost_estimate", 0),
+                    "product_profile": rd.get("product_profile", {}) or {},
+                })
+        except NameError:
+            pass
+        return response
     except Exception as e:
         logger.error(f"Pipeline {job_id} failed: {e}")
         _update_pipeline_step(job_id, "pipeline", "error", {"error": str(e)})

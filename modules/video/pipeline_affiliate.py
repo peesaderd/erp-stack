@@ -744,11 +744,12 @@ def compose_video(
             "ffmpeg", "-y",
             "-i", str(concat_path),
             "-i", str(voice_path),
-            "-filter_complex", f"[1:a]aresample=44100,apad,atrim=0:{target_duration}[a1];[0:a][a1]amix=inputs=2:duration=first,volume=1.2[aud]",
+            "-map", "0:v:0",
+            "-map", "1:a:0",
             "-c:v", "copy",
             "-c:a", "aac",
-            "-map", "0:v:0",
-            "-map", "[aud]",
+            "-b:a", "192k",
+            "-shortest",
             "-movflags", "+faststart",
             str(voiced_path)
         ]

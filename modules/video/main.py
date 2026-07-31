@@ -278,7 +278,7 @@ async def generate_video(req: VideoRequest):
             product_name=req.product_title or "สินค้า",
             product_image=product_image if product_image else None,
             recipe_name=req.recipe or "tus",
-            voice=req.voice or "th-TH-PremwadeeNeural",
+            voice="Aoede",
             bgm_style=req.bgm_style or random.choices(
                 ["chill_loft", "luxury_jazz", "upbeat_pop", "energetic_edm", "informative_jazz", "asmr", "relaxing"],
                 weights=[15, 15, 20, 12, 12, 4, 22], k=1

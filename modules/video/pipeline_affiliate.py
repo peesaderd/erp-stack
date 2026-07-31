@@ -456,10 +456,9 @@ def build_video_prompts(
         
         # Build the full positive prompt (keep clean and focused on action and character)
         enhanced = (
-            f"Ethnic Thai {gender_en} {model_age} years old, porcelain white glowing skin, "
-            f"monolid eyes, Southeast Asian ethnic Thai features. "
+            f"A Thai {gender_en}. "
             f"{scene_action} "
-            f"Setting: {setting}. {lighting}. "
+            f"Camera slow push-in. {lighting}. "
             f"9:16 portrait, smooth natural motion"
         )
         
@@ -736,33 +735,9 @@ def compose_video(
     else:
         shutil.copy2(valid_paths[0], concat_path)
 
-    # Step 9b: Force-merge Gemini TTS voiceover audio into the video
+    # Step 9b: Wan 2.7 already lip-synced audio into the video.
+    # Do NOT overwrite with Gemini TTS — that destroys lip-sync alignment.
     final_path = concat_path
-    if voice_path and Path(voice_path).exists():
-        logger.info(f"  9b: Merging TTS voiceover audio {voice_path} into final video")
-        voiced_path = STORAGE_DIR / f"affiliate_{run_id}_voiced.mp4"
-        cmd_voice = [
-            "ffmpeg", "-y",
-            "-i", str(concat_path),
-            "-i", str(voice_path),
-            "-map", "0:v:0",
-            "-map", "1:a:0",
-            "-c:v", "copy",
-            "-c:a", "aac",
-            "-b:a", "192k",
-            "-shortest",
-            "-movflags", "+faststart",
-            str(voiced_path)
-        ]
-        try:
-            subprocess.run(cmd_voice, check=True, capture_output=True, timeout=60)
-            if voiced_path.exists() and voiced_path.stat().st_size > 1000:
-                final_path = voiced_path
-                logger.info(f"  9b: Voiceover merged successfully -> {final_path}")
-        except Exception as ve:
-            logger.warning(f"  9b: Merging voiceover failed ({ve}), using concat video")
-    else:
-        final_path = concat_path
 
 
     # Step 9c: Add BGM

@@ -25,7 +25,7 @@ async def _proxy_post(url: str, json_body: dict):
 @app.post("/api/v1/automation/run")
 async def run_pipeline(request: Request):
     payload = await request.json()
-    # Expected payload includes keys: recipe, user_id, content, use_wave2lip (bool)
+    # Expected payload keys: recipe, user_id, content
     # 1. Get recipe
     recipe_name = payload.get("recipe", "default")
     recipe_resp = await _proxy_post(f"{RECIPE_URL}/api/v1/recipe/{recipe_name}", {})

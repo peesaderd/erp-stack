@@ -9,8 +9,7 @@ VIDEO_SERVICE_URL = os.getenv("VIDEO_SERVICE_URL", "http://localhost:8116")
 # Placeholder endpoint for video generation
 @app.post("/api/v1/video/generate")
 async def generate_video(request: Request):
-    # In real implementation, call internal video generation logic and optionally Wave2Lip
-    return JSONResponse({"status": "video generation started", "job_id": "dummy123"})
+        return JSONResponse({"status": "video generation started", "job_id": "dummy123"})
 
 @app.get("/api/v1/video/status/{job_id}")
 async def video_status(job_id: str):

@@ -24,6 +24,7 @@ from gemini_client import (
 from persona_engine import (
     PERSONA_TEMPLATES, _select_persona, _apply_persona_to_profile,
 )
+from model_casting import select_model_cast
 from router_agent import router_decide
 
 logger = logging.getLogger("prompt-builder-service")
@@ -184,7 +185,10 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         article = "an" if pa_clean[:1].lower() in "aeiou" else "a"
     
     env_str = (env_context or "a modern lifestyle setting")[:120]
-    thai_base = f"An ethnic Thai {gender_en}, {model_age} years old, porcelain white glowing skin, monolid eyes, Southeast Asian ethnic Thai features, small nose bridge"
+    if image_description:
+        thai_base = image_description
+    else:
+        thai_base = f"An ethnic Thai {gender_en}, {model_age} years old, porcelain white glowing skin, monolid eyes, Southeast Asian ethnic Thai features, small nose bridge"
     
     # ── Style-driven scene (ugc_style is PRIMARY) ─────────────────
     if ugc_style == "product_demo":
@@ -386,7 +390,15 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     else:
         prod_desc_vid = product_name
     
-    model_intro = f"Ethnic Thai {gender_en} {model_age} years old, porcelain white glowing skin, monolid eyes, Southeast Asian ethnic Thai features{clothing_str}{hair_str}"
+    img_desc = profile.get("image_description", "")
+    if img_desc:
+        model_intro = img_desc
+        if clothing_str:
+            model_intro += f", wearing {persona_clothing}"
+        if hair_str:
+            model_intro += f", {persona_hair}"
+    else:
+        model_intro = f"Ethnic Thai {gender_en} {model_age} years old, porcelain white glowing skin, monolid eyes, Southeast Asian ethnic Thai features{clothing_str}{hair_str}"
     
     # ── Style-driven video_motion (ugc_style is PRIMARY) ──────────
     if ugc_style == "product_demo":
@@ -589,6 +601,12 @@ async def analyze_and_build_prompts(
     persona = _select_persona(profile.get("category", "other"), product_name)
     profile = _apply_persona_to_profile(profile, persona)
     logger.info(f"Persona: {persona.get('vibe', '')} | Env: {persona.get('environment', '')}")
+
+    # Step 3b: Inject diverse model appearance via model_casting (12 models, draw w/o replacement)
+    model_cast = select_model_cast(profile.get("category", "other"), product_name)
+    profile["image_description"] = model_cast.get("image_description", "")
+    profile["model_appearance"] = model_cast.get("model_appearance_th", "")
+    logger.info(f"Model cast: {model_cast.get('id', '')} | {model_cast.get('image_description', '')[:60]}...")
 
     # Sync age — normalize once so image + video prompt ages match
     profile["_normalized_age"] = _normalize_age(profile.get("target_age", "20-35"))

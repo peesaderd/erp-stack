@@ -129,8 +129,11 @@ def _load_style_config() -> dict:
     return {"styles": {}, "default_folder": "UGC_Review"}
 
 _STYLE_CFG = _load_style_config()
+UGC_STYLE_FOLDER = {
+    k: f"UGC_{k}" for k, v in _STYLE_CFG.get("styles", {}).items() if v.get("enabled", True)
+}
 _STYLE_MAP = {
-    k: v["folder"]
+    k: v.get("folder", f"UGC_{k}")
     for k, v in _STYLE_CFG.get("styles", {}).items()
     if v.get("enabled", True)
 }

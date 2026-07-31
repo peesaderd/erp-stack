@@ -9,6 +9,7 @@ import re
 import json
 import base64
 import struct
+import subprocess
 import requests
 import tempfile
 import logging
@@ -27,6 +28,49 @@ MODEL = "gemini-3.1-flash-tts-preview"
 VOICE = "Aoede"
 
 # ─── WAV header writer ─────────────────────────────────────────────────────
+
+
+def _resample_audio(data: bytes, src_rate: int, dst_rate: int,
+                     channels: int = 1, bits: int = 16) -> bytes:
+    """Resample raw PCM in-memory via ffmpeg pipe (no disk I/O).
+
+    Args:
+        data: Raw PCM audio bytes
+        src_rate: Source sample rate (Hz)
+        dst_rate: Target sample rate (Hz)
+        channels: Number of audio channels
+        bits: Bits per sample
+
+    Returns:
+        Resampled raw PCM bytes
+    """
+    codec = "s16le" if bits == 16 else "s32le"
+    layout = "mono" if channels == 1 else "stereo"
+
+    cmd = [
+        "ffmpeg",
+        "-f", codec,
+        "-ar", str(src_rate),
+        "-ac", str(channels),
+        "-i", "pipe:0",
+        "-f", codec,
+        "-ar", str(dst_rate),
+        "-ac", str(channels),
+        "-",
+    ]
+
+    proc = subprocess.run(
+        cmd,
+        input=data,
+        capture_output=True,
+        timeout=120,
+    )
+
+    if proc.returncode != 0:
+        raise RuntimeError(f"FFmpeg resample failed: {proc.stderr[-200:]}")
+
+    return proc.stdout
+
 
 def _raw_pcm_to_wav(data: bytes, sample_rate: int = 24000,
                      channels: int = 1, bits_per_sample: int = 16) -> bytes:
@@ -99,7 +143,8 @@ def _validate_audio(data: bytes, label: str = "audio") -> bool:
 # ─── Main TTS function ─────────────────────────────────────────────────────
 
 def gemini_text_to_speech(text: str, output_path: Optional[str] = None,
-                          voice: str = VOICE) -> str:
+                          voice: str = VOICE,
+                          target_sample_rate: Optional[int] = None) -> str:
     """
     Generate speech from text using Gemini 3.1 Flash TTS Preview.
 
@@ -110,6 +155,7 @@ def gemini_text_to_speech(text: str, output_path: Optional[str] = None,
         text: Thai/English text to synthesize
         output_path: Where to save the WAV file (default: temp file)
         voice: Gemini voice name (Aoede, Wise_Woman, Fenrir, etc.)
+        target_sample_rate: If set, resample output to this Hz (e.g. 16000 for Wan)
 
     Returns:
         Path to the saved WAV file
@@ -186,10 +232,24 @@ def gemini_text_to_speech(text: str, output_path: Optional[str] = None,
     if audio_data is None:
         raise RuntimeError("No audio data in Gemini TTS response")
 
-    # Convert raw PCM → WAV
     mime_type = mime_info['type']
-    if mime_type in ('audio/l16', 'audio/L16', 'audio/x-pcm',
-                     'audio/pcm', 'audio/raw'):
+    is_pcm = mime_type in ('audio/l16', 'audio/L16', 'audio/x-pcm',
+                           'audio/pcm', 'audio/raw')
+
+    # Resample raw PCM BEFORE wrapping in WAV (must happen on raw samples)
+    if target_sample_rate and is_pcm and mime_info.get('rate', 0) != target_sample_rate:
+        src_rate = mime_info.get('rate', 24000)
+        logger.info(f"Resampling PCM in-memory: {src_rate}Hz -> {target_sample_rate}Hz")
+        audio_data = _resample_audio(
+            audio_data,
+            src_rate=src_rate,
+            dst_rate=target_sample_rate,
+            channels=mime_info.get('channels', 1),
+        )
+        mime_info['rate'] = target_sample_rate
+
+    # Convert raw PCM → WAV
+    if is_pcm:
         logger.info(f"Converting raw PCM to WAV "
                     f"({mime_info['rate']}Hz, {mime_info['channels']}ch)")
         audio_data = _raw_pcm_to_wav(

@@ -569,7 +569,7 @@ def generate_voice(
 
     try:
         from gemini_tts import gemini_text_to_speech
-        tts_path = gemini_text_to_speech(text, output_path=output_path, voice=voice)
+        tts_path = gemini_text_to_speech(text, output_path=output_path, voice=voice, target_sample_rate=16000)
         if tts_path and Path(tts_path).exists():
             logger.info(f"  Gemini TTS OK: {tts_path}")
             return tts_path

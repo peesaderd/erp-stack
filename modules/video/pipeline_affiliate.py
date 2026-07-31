@@ -810,7 +810,7 @@ def run_pipeline(
     product_name: str,
     product_image: Optional[str] = None,
     recipe_name: str = "tus",
-    voice: str = "Aoede",
+    voice: str = "th-TH-PremwadeeNeural",
     bgm_style: str = "chill_loft",
     description: Optional[str] = None,
     ugc_style: str = "holding",

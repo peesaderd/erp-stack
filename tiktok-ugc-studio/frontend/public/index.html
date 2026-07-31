@@ -973,8 +973,6 @@ select.input { cursor: pointer; }
   background: rgba(99, 102, 241, 0.25) !important;
   color: #818cf8 !important;
 }
-
-
 /* ══════════════════════════════════════════
    ULTRA MODERN MOBILE & DESKTOP SAAS STYLING
    ══════════════════════════════════════════ */
@@ -1019,8 +1017,6 @@ select.input { cursor: pointer; }
   border-top: 1px solid #e2e8f0 !important;
   box-shadow: 0 -5px 25px rgba(0,0,0,0.05) !important;
 }
-
-
 /* ══════════════════════════════════════════════════════════════
    HIGH IMPACT ULTRA MODERN SAAS REDESIGN (NEON GLASS + VIBRANT NAV)
    ══════════════════════════════════════════════════════════════ */
@@ -1126,8 +1122,6 @@ body {
   padding: 8px 0 !important;
   box-shadow: 0 -10px 30px rgba(0,0,0,0.08) !important;
 }
-
-
 /* ══════════════════════════════════════════════════════════════
    HIGH-END ULTRA MODERN SAAS OVERHAUL
    ══════════════════════════════════════════════════════════════ */
@@ -1625,8 +1619,6 @@ body {
       <label class="text-sm text-secondary mb-2" style="display:block">รายละเอียดสินค้า (Product Details)</label>
       <textarea class="input" id="productDetails" rows="3" placeholder="เช่น: เนื้อแมทท์, 12 สี, ติดทน 12 ชม., มีส่วนผสมบำรุงปาก, ราคา ฿199"></textarea>
     </div>
-
-
 
     <!-- Recipe Presets -->
     <div class="mb-3">
@@ -2178,8 +2170,6 @@ body {
         </div>
       </div>
     </div>
-
-
   </div>
 </div>
 <div id="page-settings" class="page">
@@ -2198,8 +2188,6 @@ body {
     </div>
   </div>
 </div>
-
-
 <!-- ═══ Asset Library ═══ -->
 <div id="page-assets" class="page">
   <div class="page-header">
@@ -2858,16 +2846,12 @@ async function startAutoPipelineNow() {
     document.getElementById('productTitle').value = title;
     document.getElementById('productDetails').value = desc;
     var prodId = filtered[0].product_id;
-    var prodImgUrl = prodId ? "/ugc/static/product_images/" + prodId + ".jpg" : null;
+    var prodImgUrl = images.length ? images[0] : (prodId ? "/ugc/static/product_images/" + prodId + ".jpg" : null);
     if (prodImgUrl) {
-      uploadedImages.product = window.location.origin + prodImgUrl;
-      document.getElementById('productImgPlaceholder').innerHTML = '<img src="'+uploadedImages.product+'" style="max-width:100%;max-height:120px;border-radius:8px">';
-    } else if (images.length) {
-      var url = images[0];
-      var fullUrl = url.startsWith('http') ? url : window.location.origin + url;
-      document.getElementById('productImgPlaceholder').innerHTML = '<img src="'+fullUrl+'" style="max-width:100%;max-height:120px;border-radius:8px">';
-      uploadedImages.product = fullUrl;
+      uploadedImages.product = prodImgUrl.startsWith("http") ? prodImgUrl : window.location.origin + prodImgUrl;
+      document.getElementById("productImgPlaceholder").innerHTML = "<img src="+uploadedImages.product+" style="max-width:100%;max-height:120px;border-radius:8px">";
     }
+
     showToast('✅ Selected: ' + title.slice(0,40), 'success');
     
     if (settings.mode === 'manual') {
@@ -3300,8 +3284,6 @@ function stepStatusIcon(status) {
   const map = { 'success': '✅', 'processing': '⏳', 'pending': '⏸', 'error': '❌' };
   return map[status] || '❓';
 }
-
-
 function getStepProgressHtml(job) {
   const stepsMap = [
     { num: 1, name: 'Analyze Product' },
@@ -4396,8 +4378,6 @@ function refreshAll() {
   loadDashboard(); loadPipeline(); loadAccounts(); loadHistory();
   showToast('Refreshed','success');
 }
-
-
 /* ═══ Social (Scout Targets + Clip Schedule) ═══ */
 
 let _sSocialTargets = [];
@@ -4723,8 +4703,6 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch(e){}
   }
 });
-
-
 /* Products (Analyzer) */
 
 /** Search products by name — queries both tus_products.db and scraped products */
@@ -4992,20 +4970,15 @@ function useProduct(jsonEncoded) {
       const el = document.querySelector(`#styleModalGrid .style-card${p.ugc_style === 'holding' ? '.selected' : "[data-style='" + p.ugc_style + "']"}`);
       if (el) selectStyleFromModal(el, p.ugc_style);
     }
-    var prodImg = p.product_id ? "/ugc/static/product_images/" + p.product_id + ".jpg" : null;
+    var prodImg = p.images && p.images[0] ? p.images[0] : null;
+    if (!prodImg) prodImg = p.product_id ? "/ugc/static/product_images/" + p.product_id + ".jpg" : null;
     if (prodImg) {
-      uploadedImages.product = window.location.origin + prodImg;
+      uploadedImages.product = prodImg.startsWith("http") ? prodImg : window.location.origin + prodImg;
       const zone = document.getElementById("productImgZone");
       const pl = document.getElementById("productImgPlaceholder");
       zone.classList.add("has-image");
-      pl.innerHTML = `<img class="preview" src="${prodImg}" alt="product"><button class="remove-img" onclick="event.stopPropagation();removeImage('product')">✕</button>`;
-    } else if (p.images && p.images[0]) {
-      uploadedImages.product = window.location.origin + p.images[0];
-      const zone = document.getElementById("productImgZone");
-      const pl = document.getElementById("productImgPlaceholder");
-      zone.classList.add("has-image");
-      pl.innerHTML = `<img class="preview" src="${p.images[0]}" alt="product"><button class="remove-img" onclick="event.stopPropagation();removeImage('product')">✕</button>`;
-    }
+      pl.innerHTML = `<img class="preview" src="${uploadedImages.product}" alt="product"><button class="remove-img" onclick="event.stopPropagation();removeImage('product')">✕</button>`;
+
     switchTab("content");
     goContentStep(1);
     showToast("✅ " + (p.title || "").slice(0,40), "success");
@@ -6467,8 +6440,6 @@ async function scoutClone(idx, mode) {
     if (progressEl) progressEl.innerHTML = '<div class="text-sm" style="color:var(--color-red-400)">❌ ' + e.message + '</div>';
   }
 }
-
-
 
 async function scoutQuickClone() {
   const productName = document.getElementById('scout-clone-product')?.value.trim();

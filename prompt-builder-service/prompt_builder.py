@@ -61,7 +61,18 @@ def _override_style_for_clothing(style_info: dict, category: str) -> dict:
     return info
 
 # ─── Clothing/Accessories Category Detection ──────────────────────
-CLOTHING_CATEGORIES = {"fashion", "clothing", "apparel", "accessories", "jewelry", "shoes", "bags", "watch", "watches"}
+CLOTHING_CATEGORIES = {
+    "fashion", "clothing", "apparel", # broad
+    "accessories", "jewelry", "shoes", "bags", "watch", "watches",
+    # specific garment types
+    "shirt", "tops", "t-shirt", "polo", "blouse", "sweater", "hoodie",
+    "jacket", "coat", "blazer", "vest",
+    "pants", "jeans", "trousers", "shorts", "skirt", "leggings", "joggers",
+    "dress", "suit", "uniform", "swimwear", "swimsuit", "bikini",
+    "underwear", "lingerie", "loungewear", "sleepwear", "activewear",
+    "socks", "scarf", "hat", "gloves", "belt", "tie", "cap",
+    "garment", "outfit", "wearable"
+}
 
 def _is_wearable_category(category: str) -> bool:
     cat_lower = (category or "").lower().strip()
@@ -126,7 +137,7 @@ Keywords: {kw_str}"""
             "packaging_action": "generic_hold",
             "action_desc": "ถือสินค้าและใช้งานทั่วไป",
             "hashtags": keywords[:5] if len(keywords) >= 5 else [product_name.replace(" ", "")[:20]] * 5,
-            "image_description": f"An ethnic Thai {gender_en}, 25-35 years old, porcelain white glowing skin, monolid eyes, Southeast Asian features, holding a product at chest level, in a clean modern setting",
+            "image_description": f"A 25-35 year old ethnic Thai {gender_en}, porcelain white glowing skin, monolid eyes, Southeast Asian features, wearing a neutral outfit, product visible in frame, clean modern setting",
             # Extract basic features from description when Gemini fails
             "features": _extract_features_from_description(description) if description else "",
             "product_appearance": _extract_appearance_from_description(description) if description else "",
@@ -562,13 +573,23 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         )
     elif ugc_style in ("talking", "talking_head"):
         # Head/shoulders, talking about product
-        action = (
-            f"{subject} in medium close-up, facing camera, "
-            f"speaking naturally about {prod_desc_vid or product_name}. "
-            f"Gentle head movements, natural facial expressions, conversational tone. "
-            f"Product resting nearby slightly blurred in foreground. "
-            f"Camera static with subtle handheld feel. Natural daylight"
-        )
+        if _is_wearable_category(category):
+            talking_tail = (
+                f"{subject} in medium close-up, facing camera, "
+                f"naturally modeling {prod_desc_vid or product_name}, slight turn to show how it fits. "
+                f"Gentle head movements, natural facial expressions, conversational tone. "
+                f"{prod_desc_vid or product_name} draped beautifully on body. "
+                f"Camera static with subtle handheld feel. Natural daylight"
+            )
+            action = talking_tail
+        else:
+            action = (
+                f"{subject} in medium close-up, facing camera, "
+                f"speaking naturally about {prod_desc_vid or product_name}. "
+                f"Gentle head movements, natural facial expressions, conversational tone. "
+                f"Product resting nearby slightly blurred in foreground. "
+                f"Camera static with subtle handheld feel. Natural daylight"
+            )
     elif ugc_style == "unbox":
         action = (
             f"{subject} unboxing {prod_desc_vid or product_name}, "

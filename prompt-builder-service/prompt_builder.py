@@ -524,11 +524,18 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         
         # Build 3-shot prompt for product demo
         prod = prod_desc_vid or product_name
-        shot1 = f"Shot1/0-5s: Establishing wide shot of {prod} on {env_context}. Product centered, clean surface, minimal composition. Camera slow push in. {p_lighting}."
-        shot2 = f"Shot2/5-10s: Close-up of infrared sensor on {prod}. A hand enters frame, reaches toward sensor. Sensor triggers, fine mist spray bursts from nozzle. Backlit highlighting mist particles drifting in air. Cinematic slow motion. Static camera."
-        shot3 = f"Shot3/10-15s: Wide lifestyle shot of {prod} placed on {env_context} with natural ambient setting. Product in use context — warm atmosphere, depth of field. Camera slow pan right to reveal full scene."
-        
-        action = f"{shot1} {shot2} {shot3} No people except hand in shot2. 9:16 portrait, smooth natural motion. Mood: {p_mood}. BGM: {p_bgm}."
+        if _is_wearable_category(category):
+            shot1 = f"Shot1/0-5s: Full-body shot of {subject} STANDING, modeling {prod}. Garment fits naturally, clearly visible. Camera slow push in to mid-body. {p_lighting}."
+            shot2 = f"Shot2/5-10s: Model turns slightly, showing {prod} from different angle — fabric texture, stitching, and fit details visible. Cinematic slow motion. Static camera."
+            shot3 = f"Shot3/10-15s: Wide shot of {subject} STANDING fully visible, modeling {prod} complete outfit. Natural ambient setting. Camera slow pan right to reveal full scene."
+            extra = "No sitting. No floor. 9:16 portrait, smooth natural motion."
+        else:
+            shot1 = f"Shot1/0-5s: Establishing wide shot of {prod} on {env_context}. Product centered, clean surface, minimal composition. Camera slow push in. {p_lighting}."
+            shot2 = f"Shot2/5-10s: Close-up of {prod}. A hand enters frame, reaches toward product. Fine mist spray bursts from nozzle. Backlit highlighting particles drifting in air. Cinematic slow motion. Static camera."
+            shot3 = f"Shot3/10-15s: Wide lifestyle shot of {prod} placed on {env_context} with natural ambient setting. Product in use context — warm atmosphere, depth of field. Camera slow pan right to reveal full scene."
+            extra = "No people except hand in shot2."
+
+        action = f"{shot1} {shot2} {shot3} {extra} Mood: {p_mood}. BGM: {p_bgm}."
     elif ugc_style in ("usage", "product_usage"):
         # Try Gemini for natural product usage description
         gemini_image, gemini_video = _gemini_generate_prompts(
@@ -591,7 +598,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             )
         else:
             action = (
-                f"{prod_desc_vid or product_name} sits on table. "
+                f"{prod_desc_vid or product_name} is draped flat on surface, fully visible. " if _is_wearable_category(category) else f"{prod_desc_vid or product_name} sits on table. "
                 f"{subject} nearby points at it and gestures with hands. "
                 f"Camera pans slowly across tabletop, hands visible in frame gesturing toward product. "
                 f"Product-centered demonstration, clean studio lighting"

@@ -81,9 +81,83 @@ PERSONA_TEMPLATES = {
         "pacing": "\u0e40\u0e23\u0e47\u0e27 \u0e40\u0e23\u0e49\u0e32\u0e43\u0e08 \u0e21\u0e35\u0e25\u0e39\u0e01\u0e40\u0e25\u0e48\u0e19 \u0e15\u0e37\u0e48\u0e19\u0e40\u0e15\u0e49\u0e19\u0e15\u0e25\u0e2d\u0e14\u0e40\u0e27\u0e25\u0e32",
         "forbidden_phrases": "\u0e2b\u0e49\u0e32\u0e21\u0e43\u0e0a\u0e49\u0e20\u0e32\u0e29\u0e32\u0e40\u0e1e\u0e49\u0e2d\u0e40\u0e08\u0e37\u0e2d \u0e2b\u0e49\u0e32\u0e21\u0e44\u0e21\u0e48\u0e23\u0e39\u0e49\u0e40\u0e23\u0e37\u0e48\u0e2d\u0e07\u0e17\u0e35\u0e48\u0e1e\u0e39\u0e14 \u0e2b\u0e49\u0e32\u0e21\u0e44\u0e21\u0e48\u0e16\u0e39\u0e01\u0e15\u0e49\u0e2d\u0e07\u0e17\u0e32\u0e07\u0e40\u0e17\u0e04\u0e19\u0e34\u0e04",
     },
+    # ── Male Persona Variants ──
+    "street_guy": {
+        "model_age": "22-28",
+        "vibe": "casual cool, street style, confident Gen Z guy energy",
+        "environment": "street corner with graffiti wall, urban rooftop, skate park",
+        "lighting_variation": "harsh daylight with shadows, golden hour street glow",
+        "motion_speed": "casual, relaxed swagger",
+        "clothing": "oversized graphic tee and cargo pants, streetwear hoodie and joggers, denim jacket and black jeans",
+        "hair_style": "textured crop with fade, messy curtain bangs, short spiky with undercut",
+        "speech_style": "พูดตรง ไม่เว่อร์ คูลๆ มีสไตล์ ใช้ศัพท์ผู้ชาย",
+        "pacing": "ผ่อนคลาย มั่นใจ ไม่ต้องเร่ง ไม่ต้องเก๊ก",
+        "forbidden_phrases": "ห้ามใช้ค่ะ/คะ ห้ามใช้ศัพท์ผู้หญิง ใช้ ผม",
+    },
+    "office_guy": {
+        "model_age": "28-38",
+        "vibe": "professional, trustworthy, mature, confident presenter",
+        "environment": "modern office with glass walls, clean studio, co-working space",
+        "lighting_variation": "soft diffused office light, clean daylight white",
+        "motion_speed": "steady, deliberate, minimal but confident gestures",
+        "clothing": "tailored navy blazer and white shirt, business casual linen shirt and chinos, smart polo and dark jeans",
+        "hair_style": "classic side part, clean crew cut, textured quiff",
+        "speech_style": "พูดสุภาพ ฉะฉาน น่าเชื่อถือ ใช้ ครับ สุภาพ",
+        "pacing": "กลาง ไม่ช้าไม่เร็ว เน้นข้อมูลสำคัญ",
+        "forbidden_phrases": "ห้ามใช้ค่ะ/คะ ห้ามใช้ศัพท์วัยรุ่นเกินไป ใช้ ครับ เท่านั้น",
+    },
+    "dad_guy": {
+        "model_age": "32-45",
+        "vibe": "warm, relatable dad energy, practical, trustworthy",
+        "environment": "living room with sofa, home kitchen, backyard garden",
+        "lighting_variation": "warm afternoon light, golden natural window",
+        "motion_speed": "relaxed, natural, unhurried",
+        "clothing": "comfortable polo shirt and chinos, casual button-up and dark jeans, simple t-shirt and shorts",
+        "hair_style": "short neat cut, natural side sweep, clean taper",
+        "speech_style": "พูดกันเอง เหมือนคุยกับเพื่อน อบอุ่น ใช้ ครับ",
+        "pacing": "ธรรมชาติ ไม่เร่ง เหมือนคุยเล่นแต่มีสาระ",
+        "forbidden_phrases": "ห้ามใช้ค่ะ/คะ ห้ามใช้ศัพท์วัยรุ่นเกินไป ใช้ ครับ เท่านั้น",
+    },
+    # ── Male Persona Variants ──
+    "street_guy": {
+        "model_age": "22-28",
+        "vibe": "casual cool, street style, confident Gen Z guy energy",
+        "environment": "street corner with graffiti wall, urban rooftop, skate park",
+        "lighting_variation": "harsh daylight with shadows, golden hour street glow",
+        "motion_speed": "casual, relaxed swagger",
+        "clothing": "oversized graphic tee and cargo pants, streetwear hoodie and joggers, denim jacket and black jeans",
+        "hair_style": "textured crop with fade, messy curtain bangs, short spiky with undercut",
+        "speech_style": "พูดตรง ไม่เว่อร์ คูลๆ มีสไตล์ ใช้ศัพท์ผู้ชาย",
+        "pacing": "ผ่อนคลาย มั่นใจ ไม่ต้องเร่ง ไม่ต้องเก๊ก",
+        "forbidden_phrases": "ห้ามใช้ค่ะ/คะ ห้ามใช้ศัพท์ผู้หญิง ใช้ ผม",
+    },
+    "office_guy": {
+        "model_age": "28-38",
+        "vibe": "professional, trustworthy, mature, confident presenter",
+        "environment": "modern office with glass walls, clean studio, co-working space",
+        "lighting_variation": "soft diffused office light, clean daylight white",
+        "motion_speed": "steady, deliberate, minimal but confident gestures",
+        "clothing": "tailored navy blazer and white shirt, business casual linen shirt and chinos, smart polo and dark jeans",
+        "hair_style": "classic side part, clean crew cut, textured quiff",
+        "speech_style": "พูดสุภาพ ฉะฉาน น่าเชื่อถือ ใช้ ครับ สุภาพ",
+        "pacing": "กลาง ไม่ช้าไม่เร็ว เน้นข้อมูลสำคัญ",
+        "forbidden_phrases": "ห้ามใช้ค่ะ/คะ ห้ามใช้ศัพท์วัยรุ่นเกินไป ใช้ ครับ เท่านั้น",
+    },
+    "dad_guy": {
+        "model_age": "32-45",
+        "vibe": "warm, relatable dad energy, practical, trustworthy",
+        "environment": "living room with sofa, home kitchen, backyard garden",
+        "lighting_variation": "warm afternoon light, golden natural window",
+        "motion_speed": "relaxed, natural, unhurried",
+        "clothing": "comfortable polo shirt and chinos, casual button-up and dark jeans, simple t-shirt and shorts",
+        "hair_style": "short neat cut, natural side sweep, clean taper",
+        "speech_style": "พูดกันเอง เหมือนคุยกับเพื่อน อบอุ่น ใช้ ครับ",
+        "pacing": "ธรรมชาติ ไม่เร่ง เหมือนคุยเล่นแต่มีสาระ",
+        "forbidden_phrases": "ห้ามใช้ค่ะ/คะ ห้ามใช้ศัพท์วัยรุ่นเกินไป ใช้ ครับ เท่านั้น",
+    },
 }
 
-def _select_persona(category: str, product_name: str = "") -> dict:
+def _select_persona(category: str, product_name: str = "", target_gender: str = "female") -> dict:
     import random
     cat_persona_map = {
         "beauty": ["energetic_young", "calm_professional", "mom_at_home", "minimalist_zen"],
@@ -96,8 +170,22 @@ def _select_persona(category: str, product_name: str = "") -> dict:
         "health_hygiene": ["calm_professional", "minimalist_zen", "mom_at_home"],
         "home_appliance": ["mom_at_home", "minimalist_zen", "calm_professional"],
     }
-    fallback_safe = ["calm_professional", "minimalist_zen", "mom_at_home"]
-    pool = cat_persona_map.get(category, fallback_safe)
+    male_pool = ["street_guy", "office_guy", "dad_guy"]
+    female_pool = ["calm_professional", "minimalist_zen", "mom_at_home"]
+    cat_persona_male = {
+        "electronics": ["tech_enthusiast", "office_guy", "street_guy"],
+        "tools": ["office_guy", "dad_guy", "tech_enthusiast"],
+        "home": ["dad_guy", "office_guy"],
+        "food": ["dad_guy", "street_guy"],
+        "fashion": ["street_guy", "office_guy"],
+        "health": ["office_guy", "dad_guy"],
+        "beauty": ["street_guy", "office_guy"],
+    }
+    if target_gender == "male":
+        pool = cat_persona_male.get(category, male_pool)
+    else:
+        pool = cat_persona_map.get(category, female_pool)
+    fallback_safe = female_pool
     chosen = random.choice(pool)
     return PERSONA_TEMPLATES[chosen]
 

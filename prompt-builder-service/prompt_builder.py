@@ -469,9 +469,11 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
 
     # ── Final gender sweep ── template model_action hardcodes "Thai woman"
     if gender_en == "man":
-        image_prompt = image_prompt.replace("woman", "man").replace("Woman", "Man").replace("girl", "man").replace("Girl", "Man").replace("lady", "man").replace("Lady", "Man")
+        image_prompt = re.sub(r"\bwoman\b", "man", image_prompt); image_prompt = re.sub(r"\bWoman\b", "Man", image_prompt); image_prompt = re.sub(r"\bgirl\b", "man", image_prompt); image_prompt = re.sub(r"\bGirl\b", "Man", image_prompt); image_prompt = re.sub(r"\blady\b", "man", image_prompt); image_prompt = re.sub(r"\bLady\b", "Man", image_prompt)
+        image_prompt = image_prompt.replace("wowoman", "man").replace("Wooman", "Man")  # safety net for Gemini typos
     elif gender_en == "woman":
-        image_prompt = image_prompt.replace("man", "woman").replace("Man", "Woman").replace("guy", "woman").replace("Guy", "Woman").replace("boy", "woman").replace("Boy", "Woman")
+        image_prompt = re.sub(r"\bman\b", "woman", image_prompt); image_prompt = re.sub(r"\bMan\b", "Woman", image_prompt); image_prompt = re.sub(r"\bguy\b", "woman", image_prompt); image_prompt = re.sub(r"\bGuy\b", "Woman", image_prompt); image_prompt = re.sub(r"\bboy\b", "woman", image_prompt); image_prompt = re.sub(r"\bBoy\b", "Woman", image_prompt)
+        image_prompt = image_prompt.replace("wowoman", "woman").replace("Wooman", "Woman")
 
     return image_prompt, negative
 

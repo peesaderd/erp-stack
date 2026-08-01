@@ -568,6 +568,12 @@ def generate_voice(
     logger.info(f"Step 7/9: TTS (Gemini TTS)")
     logger.info(f"  Text: {text[:50]}...")
 
+    # Fallback: resolve voice from gender (defensive — caller should have already done this)
+    if voice is None:
+        from gemini_tts import get_voice_for_gender
+        voice = get_voice_for_gender(target_gender)
+    logger.info(f"  Voice: {voice} (gender={target_gender})")
+
     output_path = str(TMP_DIR / f"voice_{run_id}.mp3")
 
     try:

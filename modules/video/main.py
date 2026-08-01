@@ -319,6 +319,20 @@ async def video_gallery():
             files.append({"name": f.name, "size": f.stat().st_size, "path": f"/static/videos/{f.name}"})
     return {"success": True, "videos": files}
 
+
+@app.get("/api/v1/images/gallery")
+async def image_gallery():
+    """List generated images from storage."""
+    from pathlib import Path
+    images_dir = Path(__file__).parent / "storage" / "images"
+    files = []
+    for f in sorted(images_dir.glob("*.png"))[-50:]:
+        files.append({"name": f.name, "size": f.stat().st_size, "path": f"/static/images/{f.name}"})
+    for f in sorted(images_dir.glob("*.jpg"))[-50:]:
+        files.append({"name": f.name, "size": f.stat().st_size, "path": f"/static/images/{f.name}"})
+    return {"success": True, "images": files}
+
+
 # ─── Product Analysis (delegated to pipeline service port 8118) ────
 
 @app.post("/api/v1/product/analyze")

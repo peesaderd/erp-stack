@@ -78,6 +78,8 @@ logger = logging.getLogger("tiktok-ugc.pipeline_affiliate")
 STORAGE_DIR = Path(__file__).parent / "storage"
 TMP_DIR = STORAGE_DIR / "tmp"
 TMP_DIR.mkdir(parents=True, exist_ok=True)
+GALLERY_DIR = STORAGE_DIR / "images"
+GALLERY_DIR.mkdir(parents=True, exist_ok=True)
 
 # Service URLs
 IMAGE_GEN_URL = "http://localhost:8110/api/v1/image/generate"
@@ -967,6 +969,11 @@ def run_pipeline(
         img_url, cost_image = generate_image(image_prompt, product_image)
         img_path = TMP_DIR / f"image_{run_id}.png"
         download_file(img_url, img_path)
+        # Persist to gallery for viewing and reuse
+        try:
+            shutil.copy2(img_path, GALLERY_DIR / f"image_{run_id}.png")
+        except Exception:
+            pass
         image_duration = int((time.time() - step_start) * 1000)
 
         try:

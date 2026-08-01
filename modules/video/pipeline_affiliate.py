@@ -745,10 +745,42 @@ def compose_video(
     else:
         shutil.copy2(valid_paths[0], concat_path)
 
-    # Step 9b: Wan 2.7 already lip-synced audio into the video.
-    # Do NOT overwrite with Gemini TTS — that destroys lip-sync alignment.
+    # Step 9b: Wan 2.7 lip-sync may return near-silent audio.
+    # Check audio level; if too quiet, swap in original TTS voice.
     final_path = concat_path
 
+    if voice_path and Path(voice_path).exists():
+        import json
+        try:
+            result = subprocess.run(
+                ["ffprobe", "-v", "quiet", "-f", "lavfi",
+                 f"amovie={final_path},astats=metadata=1:reset=1",
+                 "-show_entries", "frame_tags=lavfi.astats.Overall.RMS_level",
+                 "-of", "json"],
+                capture_output=True, text=True, timeout=15
+            )
+            frames = json.loads(result.stdout).get("frames", [])
+            if frames:
+                rms_vals = [float(f["tags"]["lavfi.astats.Overall.RMS_level"]) for f in frames]
+                avg_rms = sum(rms_vals) / len(rms_vals)
+                logger.info(f"  9b: Prodia audio RMS={avg_rms:.1f} dB")
+                if avg_rms < -40:
+                    logger.info(f"  9b: Near-silent, replacing with TTS voice")
+                    voice_vid = TMP_DIR / f"voice_{run_id}.mp4"
+                    subprocess.run([
+                        "ffmpeg", "-y",
+                        "-i", str(concat_path),
+                        "-i", str(voice_path),
+                        "-c:v", "copy",
+                        "-map", "0:v:0", "-map", "1:a:0",
+                        "-shortest",
+                        str(voice_vid),
+                    ], check=True, capture_output=True, timeout=60)
+                    final_path = voice_vid
+            else:
+                logger.warning(f"  9b: Cannot probe audio, using video as-is")
+        except Exception as e:
+            logger.warning(f"  9b: Audio check failed ({e}), using video as-is")
 
     # Step 9c: Add BGM
     if bgm_style:

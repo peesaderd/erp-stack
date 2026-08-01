@@ -281,11 +281,15 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     env_str = (env_context or "a modern lifestyle setting")[:120]
     if image_description:
         thai_base = image_description
+        age_str = str(model_age) if model_age else None
+        if age_str and age_str not in thai_base:
+            import re as _re2
+            thai_base = _re2.sub(r"(An ethnic Thai \w+)", lambda m: f"{m.group(1)}, {age_str} years old", thai_base)
         # Gender correction — Gemini bias safety net
         if gender_en == "man":
-            thai_base = thai_base.replace("woman", "man").replace("Woman", "Man").replace("girl", "man").replace("Girl", "Man").replace("lady", "man").replace("Lady", "Man")
+            thai_base = re.sub(r"\bwoman\b", "man", thai_base); thai_base = re.sub(r"\bWoman\b", "Man", thai_base); thai_base = re.sub(r"\bgirl\b", "man", thai_base); thai_base = re.sub(r"\bGirl\b", "Man", thai_base); thai_base = re.sub(r"\blady\b", "man", thai_base); thai_base = re.sub(r"\bLady\b", "Man", thai_base)
         elif gender_en == "woman":
-            thai_base = thai_base.replace("man", "woman").replace("Man", "Woman").replace("guy", "woman").replace("Guy", "Woman").replace("boy", "woman").replace("Boy", "Woman")
+            thai_base = re.sub(r"\bman\b", "woman", thai_base); thai_base = re.sub(r"\bMan\b", "Woman", thai_base); thai_base = re.sub(r"\bguy\b", "woman", thai_base); thai_base = re.sub(r"\bGuy\b", "Woman", thai_base); thai_base = re.sub(r"\bboy\b", "woman", thai_base); thai_base = re.sub(r"\bBoy\b", "Woman", thai_base)
         # Strip clothing/hair from image_description if persona provides them
         if persona_clothing or persona_hair:
             thai_base = _strip_clothing_hair_from_desc(thai_base)

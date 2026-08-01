@@ -887,6 +887,8 @@ def run_pipeline(
         except Exception:
             pass
 
+        # Extract model_gender from product profile (needed by generate_script)
+        model_gender = product_profile.get("target_gender", "female")
         # ── STEP 3: Generate Script (force gen unless decent-length Thai script)
         if script and len(script) >= 30 and script != product_name:
             script_duration = 0

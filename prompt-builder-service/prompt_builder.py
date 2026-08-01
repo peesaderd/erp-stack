@@ -281,6 +281,8 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     env_str = (env_context or "a modern lifestyle setting")[:120]
     if image_description:
         thai_base = image_description
+        # Strip existing age mentions before injection (Gemini often emits "23 years old, 25 years old")
+        thai_base = re.sub(r"\d{2,3}\s*years?\s*old,?\s*", "", thai_base)
         age_str = str(model_age) if model_age else None
         if age_str and age_str not in thai_base:
             import re as _re2
@@ -411,7 +413,14 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         
     else:
         # Default: holding — person holds product, shows to camera
-        if pa_clean:
+        if _is_wearable_category(category):
+            model_action_tail = _cat_action.get("model_action_tail", "modeling garment on body")
+            scene_desc = (
+                f"{env_str}. {thai_base}{clothing_str}{hair_str} {model_action_tail}. "
+                f"Garment clearly visible and draped on body. Warm natural window lighting. "
+                f"Product centered in frame, natural pose."
+            )
+        elif pa_clean:
             prod_str = f"{article} {pa_clean[:200]}"
             scene_desc = (
                 f"{env_str}. {thai_base}{clothing_str}{hair_str} {_cat_hold} {prod_str or product_name} in both hands, "

@@ -28,6 +28,31 @@ from model_casting import select_model_cast
 from router_agent import router_decide
 
 logger = logging.getLogger("prompt-builder-service")
+# ─── Clothing/Accessories Category Detection ──────────────────────
+CLOTHING_CATEGORIES = {"fashion", "clothing", "apparel", "accessories", "jewelry", "shoes", "bags", "watch", "watches"}
+
+def _is_wearable_category(category: str) -> bool:
+    cat_lower = (category or "").lower().strip()
+    return any(w in cat_lower for w in CLOTHING_CATEGORIES) or cat_lower in CLOTHING_CATEGORIES
+
+def _get_category_display_action(category: str) -> dict:
+    if _is_wearable_category(category):
+        return {
+            "holds": "wears and shows off",
+            "hold_replace": "wears",
+            "pose_phrase": "the garment draped beautifully on the body, clearly visible and in focus",
+            "model_action_tail": "modeling and displaying the clothing elegantly on body, garment clearly visible, smiling naturally",
+            "default_vid_motion": "gently modeling and displaying the garment on body",
+        }
+    else:
+        return {
+            "holds": "holds",
+            "hold_replace": "holds",
+            "pose_phrase": "product held at chest level, product clearly visible and in focus",
+            "model_action_tail": "holding the product in both hands, product packaging facing camera, smiling naturally, NOT applying or using product, NOT opening product, just holding and showing",
+            "default_vid_motion": "gently holding product in both hands at chest level",
+        }
+
 
 
 def analyze_product(product_name: str, description: str = "", keywords: Optional[List[str]] = None) -> dict:
@@ -180,6 +205,12 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     model_age = profile.get("_normalized_age") or _normalize_age(profile.get("target_age", "20-35"))
     category = profile.get("category", "other")
 
+    # ── Category-aware display action (clothing → wearing, others → holding) ──
+    _cat_action = _get_category_display_action(category)
+    _cat_hold = _cat_action["holds"]  # "wears and shows off" or "holds"
+    _cat_pose = _cat_action["pose_phrase"]
+    _cat_hold_replace = _cat_action["hold_replace"]  # "wears" or "holds"
+
     gender_en = {
         "female": "woman", "woman": "woman",
         "male": "man", "man": "man",
@@ -271,13 +302,13 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         if pa_clean:
             prod_str = f"{article} {pa_clean[:200]}"
             scene_desc = (
-                f"{env_str}. {thai_base}{clothing_str}{hair_str} holds {prod_str or product_name} in hand, "
+                f"{env_str}. {thai_base}{clothing_str}{hair_str} {_cat_hold} {prod_str or product_name} in hand, "
                 f"looking directly at camera with a friendly reviewing expression. "
                 f"Product clearly visible and in focus. Lifestyle setting, natural window light."
             )
         else:
             scene_desc = (
-                f"{thai_base}{clothing_str}{hair_str} holds {product_name}, "
+                f"{thai_base}{clothing_str}{hair_str} {_cat_hold} {product_name}, "
                 f"looking at camera with a reviewing expression. "
                 f"Product visible in hand, natural lighting, {env_str}."
             )
@@ -323,13 +354,13 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         if pa_clean:
             prod_str = f"{article} {pa_clean[:200]}"
             scene_desc = (
-                f"{env_str}. {thai_base}{clothing_str}{hair_str} holds {prod_str or product_name} in both hands, "
+                f"{env_str}. {thai_base}{clothing_str}{hair_str} {_cat_hold} {prod_str or product_name} in both hands, "
                 f"showing product clearly to camera. Warm natural window lighting. "
                 f"Product centered in frame at chest level."
             )
         else:
             scene_desc = (
-                f"{thai_base}{clothing_str}{hair_str} holds {product_name} in hands, "
+                f"{thai_base}{clothing_str}{hair_str} {_cat_hold} {product_name} in hands, "
                 f"showing the product to camera. Natural lighting, {env_str}."
             )
     
@@ -348,7 +379,7 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         "atmosphere": "warm, inviting, authentic",
         "color_palette": "natural tones, neutral background",
         "background": "clean minimal background",
-        "model_action": style_info.get("model_action", "",),
+        "model_action": _cat_action["model_action_tail"] if _is_wearable_category(category) else style_info.get("model_action", ""),
         "camera": style_info.get("camera", ""),
         "vibe": style_info.get("vibe", ""),
         "keywords": style_info.get("keywords", ""),
@@ -403,6 +434,12 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     model_gender = profile.get("target_gender", "female")
 
     category = profile.get("category", "other")
+
+    # ── Category-aware display action (clothing → wearing, others → holding) ──
+    _cat_action = _get_category_display_action(category)
+    _cat_hold = _cat_action["holds"]  # "wears and shows off" or "holds"
+    _cat_pose = _cat_action["pose_phrase"]
+    _cat_hold_replace = _cat_action["hold_replace"]  # "wears" or "holds"
 
     gender_en = {"female": "woman", "male": "man", "unisex": "person"}.get(model_gender, "person")
     model_age = profile.get("_normalized_age") or _normalize_age(profile.get("target_age", "20-35"))
@@ -475,7 +512,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     elif ugc_style == "review":
         # Person holding product + looking at camera, review-style
         action = (
-            f"{subject} holds {prod_desc_vid or product_name} in hand, "
+            f"{subject} {_cat_hold} {prod_desc_vid or product_name} in hand, "
             f"looking directly at camera with slight head tilt, casual reviewing pose. "
             f"Slow gentle rotation showing product from slightly different angles. "
             f"Subtle hand movement, natural breathing. Camera static with subtle zoom in. "
@@ -509,7 +546,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     else:
         # Default: holding — show product, gentle rotation
         action = (
-            f"{subject} gently holding {prod_desc_vid or product_name} in both hands at chest level, "
+            f"{subject} " + _cat_action.get("default_vid_motion", "gently holding product in both hands at chest level") + ", "
             f"showing product to camera with slight slow rotation. "
             f"Subtle smile, natural breathing motion, gentle hand movement. "
             f"Camera slow push-in. Warm natural light"

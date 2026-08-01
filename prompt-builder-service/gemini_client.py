@@ -160,6 +160,11 @@ JSON ที่ต้องตอบ:
   "image_description": "ENGLISH ONLY — absolutely NO Thai language. Describe the scene for AI image generation.
 
 🔴 CRITICAL — First Frame Rule (บังคับ):
+- สำหรับสินค้าประเภทเสื้อผ้า/แฟชั่น/เครื่องประดับ: นางแบบต้อง "สวมใส่" (wearing/draped) สินค้า ไม่ใช่ "ถือ"
+  • clothing/fashion/apparel → model WEARING the garment
+  • accessories/jewelry/watch → model WEARING/ADORNED with the accessory
+  • bags/shoes → model WEARING/CARRYING naturally
+- สำหรับสินค้าประเภทอื่น (บิวตี้/เครื่องใช้ไฟฟ้า/ฯลฯ): นางแบบ "ถือ" (holding) สินค้า
 - image_description = FIRST FRAME ของวิดีโอ (Wan 2.7 ใช้เป็น reference image)
 - ต้องตรงกับท่าเริ่มต้นของ Video Prompt Scene แรกเป๊ะๆ
 - สำหรับ Holding/UGC Style: นางแบบต้อง "ถือสินค้าที่ระดับอก" (holding at chest level) — ยังไม่เริ่มใช้
@@ -171,7 +176,7 @@ JSON ที่ต้องตอบ:
 
 🔴 ต้องระบุรายละเอียดบรรจุภัณฑ์: container type (bottle/jar/tube), closure (twist cap/pump/spray/flip-top), สีและดีไซน์ของฉลาก
 
-Include: model appearance MUST match target_gender — "Ethnic Thai woman" for female, "Ethnic Thai man" for male (not just "Thai woman/man") — with porcelain white glowing skin, monolid eyes, Southeast Asian features. Pose: HOLDING product at chest level — NOT applying yet. Expression: confident smile. Setting: vanity room, cafe. Lighting: soft natural window light. Mood: warm, inviting. Focus on product being clearly visible and in focus. Do NOT describe the product being used/applied — that happens in the video. ระบุ container type (bottle/jar/tube), closure (twist cap/pump/spray/flip-top) และสีของสินค้าใน image_description ด้วย.
+Include: model appearance MUST match target_gender — "Ethnic Thai woman" for female, "Ethnic Thai man" for male (not just "Thai woman/man") — with porcelain white glowing skin, monolid eyes, Southeast Asian features. Pose: If product is clothing/fashion/apparel → model WEARING/DRAPED in the garment naturally. For all other products → HOLDING product at chest level — NOT applying yet. Expression: confident smile. Setting: vanity room, cafe. Lighting: soft natural window light. Mood: warm, inviting. Focus on product being clearly visible and in focus. Do NOT describe the product being used/applied — that happens in the video. ระบุ container type (bottle/jar/tube), closure (twist cap/pump/spray/flip-top) และสีของสินค้าใน image_description ด้วย.
 
 Examples (match target_gender):
   • If target_gender=female: 'An ethnic Thai woman with porcelain white glowing skin, 25 years old, monolid eyes, happy smile, holding a lip product at chest level — a clear plastic tube with a black twist cap — product visible and in focus, in a vanity room with soft natural window lighting, warm and inviting atmosphere'

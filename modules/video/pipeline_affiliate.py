@@ -562,7 +562,7 @@ def generate_voice(
     voice: Optional[str] = None,
     target_gender: str = "female",
     run_id: str = "",
-    speaking_rate: float = 1.15,
+    speaking_rate: float = 1.25,
 ) -> str:
     """Step 7: Generate Thai voice via Gemini TTS."""
     logger.info(f"Step 7/9: TTS (Gemini TTS)")

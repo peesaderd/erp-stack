@@ -87,7 +87,7 @@ def build_script_system_prompt(persona: dict, duration: str = f"{DEFAULT_DURATIO
         persona_name=persona_name,
         persona_age=persona_age,
         speech_style=speech_style,
-        pacing=pacing,
+        pacing=pacing, polite=polite, wrong_polite=wrong_polite,
         forbidden=forbidden,
     )
     

@@ -223,7 +223,11 @@ async def generate_tts(req: dict):
     """Generate TTS audio from text using Gemini."""
     from video.gemini_tts import gemini_text_to_speech
     text = req.get("text", "")
-    voice = req.get("voice", "Aoede")
+    voice = req.get("voice") or None
+    target_gender = req.get("target_gender", "female")
+    if voice is None:
+        from video.gemini_tts import get_voice_for_gender
+        voice = get_voice_for_gender(target_gender)
     if not text:
         return {"success": False, "error": "No text provided"}
     output_path = str(TTS_DIR / f"tts_{uuid.uuid4().hex[:8]}.mp3")
@@ -241,7 +245,11 @@ async def generate_script_tts(req: dict):
     full_text = " ".join(filter(None, [hook, body, cta]))
     if not full_text.strip():
         return {"success": False, "error": "No text in script"}
-    voice = req.get("voice", "Aoede")
+    voice = req.get("voice") or None
+    target_gender = req.get("target_gender", "female")
+    if voice is None:
+        from video.gemini_tts import get_voice_for_gender
+        voice = get_voice_for_gender(target_gender)
     output_path = str(TTS_DIR / f"script_{uuid.uuid4().hex[:8]}.mp3")
     filepath = gemini_text_to_speech(full_text, output_path=output_path, voice=voice)
     return {"success": True, "filepath": filepath}
@@ -278,7 +286,7 @@ async def generate_video(req: VideoRequest):
             product_name=req.product_title or "สินค้า",
             product_image=product_image if product_image else None,
             recipe_name=req.recipe or "tus",
-            voice="Aoede",
+            voice=None,
             bgm_style=req.bgm_style or random.choices(
                 ["chill_loft", "luxury_jazz", "upbeat_pop", "energetic_edm", "informative_jazz", "asmr", "relaxing"],
                 weights=[15, 15, 20, 12, 12, 4, 22], k=1

@@ -373,17 +373,27 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             )
         
     elif ugc_style in ("talking", "talking_head"):
-        # Head/shoulders framing, talking about product
-        if pa_clean:
-            prod_str = f"{article} {pa_clean[:200]}"
+        # Head/shoulders framing -- clothing: model it on body; others: talk about nearby product
+        if _is_wearable_category(category):
+            prod_desc = product_appearance or product_name
+            model_action_tail = _cat_action.get("model_action_tail", "modeling and displaying the clothing elegantly on body")
+            scene_desc = (
+                f"{thai_base}{hair_str} facing camera, head and shoulders framing, "
+                f"naturally {model_action_tail}. "
+                f"The product -- {prod_desc[:200]} -- draped beautifully on body, clearly visible in frame. "
+                f"{env_str}. Soft natural lighting, shallow depth of field."
+            )
         else:
-            prod_str = product_name
-        scene_desc = (
-            f"{thai_base}{clothing_str}{hair_str} facing camera, head and shoulders framing, "
-            f"speaking conversationally about the product. "
-            f"{prod_str} visible resting nearby in frame. "
-            f"{env_str}. Soft natural lighting, shallow depth of field."
-        )
+            if pa_clean:
+                prod_str = f"{article} {pa_clean[:200]}"
+            else:
+                prod_str = product_name
+            scene_desc = (
+                f"{thai_base}{clothing_str}{hair_str} facing camera, head and shoulders framing, "
+                f"speaking conversationally about the product. "
+                f"{prod_str} visible resting nearby in frame. "
+                f"{env_str}. Soft natural lighting, shallow depth of field."
+            )
         
     elif ugc_style == "unbox":
         # Opening package

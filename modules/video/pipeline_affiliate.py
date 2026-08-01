@@ -559,7 +559,8 @@ def _scene_descriptions_for_category(category: str, product_type: str, product_n
 
 def generate_voice(
     text: str,
-    voice: str = "th-TH-PremwadeeNeural",
+    voice: Optional[str] = None,
+    target_gender: str = "female",
     run_id: str = "",
     speaking_rate: float = 1.15,
 ) -> str:
@@ -785,7 +786,8 @@ def run_pipeline(
     product_name: str,
     product_image: Optional[str] = None,
     recipe_name: str = "tus",
-    voice: str = "Aoede",
+    target_gender: str = "female",
+    voice: Optional[str] = None,
     bgm_style: str = "chill_loft",
     description: Optional[str] = None,
     ugc_style: str = "holding",
@@ -805,7 +807,12 @@ def run_pipeline(
         product_name: ชื่อสินค้า
         product_image: URL ของรูปสินค้า (required!)
         recipe_name: ชื่อ recipe (tus, etsy)
-        voice: ชื่อเสียง TTS
+        voice: ชื่อเสียง TTS (None = auto-detect from target_gender)
+    # Resolve voice from gender if not explicitly set
+    if voice is None:
+        from gemini_tts import get_voice_for_gender
+        voice = get_voice_for_gender(target_gender)
+    logger.info(f"  Voice: {voice} (gender={target_gender})")
         bgm_style: สไตล์เพลงพื้นหลัง
         description: คําอธิบายสินค้า (optional)
         external_job_id: job_id จาก caller (ถ้ามี) — ใช้แทนการ gen เอง เพื่อให้ pipeline_logs.db

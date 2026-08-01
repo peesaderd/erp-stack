@@ -27,6 +27,18 @@ logger = logging.getLogger("tiktok-ugc.gemini_tts")
 MODEL = "gemini-3.1-flash-tts-preview"
 VOICE = "Aoede"
 
+# Gemini prebuilt voices — female for Thai female persona, male for male persona
+# Aoede = warm female, Fenrir = deep male, Charon = clear male narrator
+GENDER_VOICE_MAP = {
+    "female": "Aoede",
+    "male": "Fenrir",
+}
+
+
+def get_voice_for_gender(target_gender: str = "female") -> str:
+    """Return appropriate Gemini voice for the target gender."""
+    return GENDER_VOICE_MAP.get(target_gender, VOICE)
+
 # ─── WAV header writer ─────────────────────────────────────────────────────
 
 
@@ -155,7 +167,7 @@ def gemini_text_to_speech(text: str, output_path: Optional[str] = None,
     Args:
         text: Thai/English text to synthesize
         output_path: Where to save the WAV file (default: temp file)
-        voice: Gemini voice name (Aoede, Wise_Woman, Fenrir, etc.)
+        voice: Gemini voice name (Aoede, Fenrir, Charon, Puck, etc.)
         target_sample_rate: If set, resample output to this Hz (e.g. 16000 for Wan)
         speaking_rate: Speech speed (0.25-4.0, default 1.15 for TikTok pacing)
 

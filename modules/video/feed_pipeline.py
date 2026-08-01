@@ -113,7 +113,7 @@ def feed_single(
         product_name=product_name,
         product_image=image_url,  # ใช้ store สำหรับ pipeline_logs enrichment
         recipe_name=recipe,
-        voice="Aoede",
+        voice=None,
         bgm_style="chill_loft",
         description=description,
         ugc_style=ugc_style,

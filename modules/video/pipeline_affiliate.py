@@ -972,8 +972,9 @@ def run_pipeline(
         # Persist to gallery for viewing and reuse
         try:
             shutil.copy2(img_path, GALLERY_DIR / f"image_{run_id}.png")
-        except Exception:
-            pass
+            logger.info(f"Image saved to gallery: image_{run_id}.png")
+        except Exception as e:
+            logger.warning(f"Gallery copy failed: {e}")
         image_duration = int((time.time() - step_start) * 1000)
 
         try:

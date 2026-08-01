@@ -31,6 +31,7 @@ import os
 import sys
 import json
 import time
+import base64
 import logging
 from typing import Optional, List, Dict, Any, Tuple
 
@@ -146,6 +147,7 @@ class ProdiaV2Client:
             # Prodia async API auto-detects audio from "audio" multipart field
             # DO NOT set config["audio"] — it's not needed for basic lip-sync
             files.append(("audio", ("audio.wav", audio, "audio/wav")))
+            config["audio"] = base64.b64encode(audio).decode("utf-8")
 
         if has_inputs or has_audio:
             # ── Multipart (image ± audio) ──

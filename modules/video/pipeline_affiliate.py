@@ -153,7 +153,7 @@ def analyze_product(product_name: str, product_image: str = None, description: s
         url = f"{PROMPT_BUILDER_URL}/api/v1/build"
         payload = {
             "product_name": product_name,
-            "description": description,
+            "description": description or "",
             "product_image": product_image or "",
             "ugc_style": ugc_style,
         }
@@ -355,17 +355,12 @@ def generate_image(
 
     payload = {
         "prompt": prompt,
-        "count": 1,
-        "upscale": False,
         "aspectRatio": aspect_ratio,
+        "inputImage": product_image or "",
+        "model": "nano-banana",
     }
 
-    if product_image:
-        payload["inputImage"] = product_image
-        payload["modelTier"] = "nano.banana"
-        payload["provider"] = "prodia"
-        payload["thaiModel"] = True
-    else:
+    if not product_image:
         raise RuntimeError("No product_image provided — image-gen requires inputImage for img2img")
 
     resp = requests.post(IMAGE_GEN_URL, json=payload, timeout=300)
@@ -598,26 +593,33 @@ from prodia_client import ProdiaV2Client, ProdiaV2Error, ProdiaValidationError
 
 
 def _convert_to_wav(audio_path: str) -> str:
-    """Pass through audio without conversion.
-    Gemini TTS already outputs valid WAV (24kHz mono PCM).
-    Wan 2.7 docs only specify WAV/MP3, no sample rate requirement.
+    """Convert audio to 16kHz mono PCM WAV for Wan 2.7 lip-sync.
+    Gemini TTS outputs 24kHz WAV; Wan 2.7 requires 16000Hz.
     """
+    import subprocess, tempfile
     if not audio_path or not os.path.exists(audio_path):
         return audio_path
     size = os.path.getsize(audio_path)
     if size < 500:
-        logger.warning(f"Audio file too small ({size} bytes): {audio_path}")
+        logger.warning(f'Audio file too small ({size} bytes): {audio_path}')
         return audio_path
-    logger.info(f"Audio native: {audio_path} ({size} bytes) - sending as-is to Prodia")
-    return audio_path
-
-
+    probe_cmd = ['ffprobe','-v','error','-select_streams','a:0','-show_entries','stream=sample_rate','-of','default=noprint_wrappers=1:nokey=1',audio_path]
+    probe_result = subprocess.run(probe_cmd, capture_output=True, text=True)
+    current_rate = int(probe_result.stdout.strip()) if probe_result.stdout.strip() else 0
+    if current_rate == 16000:
+        logger.info(f'Audio already 16kHz: {audio_path} ({size} bytes)')
+        return audio_path
+    output_path = Path(tempfile.mkdtemp(prefix='tts_resample_')) / 'voice_16k.wav'
+    subprocess.run(['ffmpeg','-y','-i',audio_path,'-ar','16000','-ac','1','-sample_fmt','s16',str(output_path)], capture_output=True, check=True)
+    out_size = output_path.stat().st_size
+    logger.info(f'Audio resampled ({current_rate}Hz->16000Hz): {output_path} ({out_size} bytes)')
+    return str(output_path)
 
 def generate_video(
     image_path: str,
     prompt: str,
     duration: int = 8,
-    resolution: str = "720P",
+    resolution: str = "1080P",
     audio_path: Optional[str] = None,
     negative_prompt: Optional[str] = None,
 ) -> tuple:

@@ -929,6 +929,7 @@ def run_pipeline(
         model_gender = product_profile.get("target_gender", "female")
         target_gender = model_gender
         # Re-resolve voice to match analyzed gender
+        from gemini_tts import get_voice_for_gender
         voice = get_voice_for_gender(target_gender)
         logger.info(f"  Voice: {voice} (gender={target_gender}, from product analysis)")
         # ── STEP 3: Generate Script (force gen unless decent-length Thai script)

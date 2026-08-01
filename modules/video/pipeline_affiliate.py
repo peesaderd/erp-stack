@@ -249,6 +249,7 @@ def generate_script(
     product_profile: dict,
     recipe: dict,
     ugc_style: str = "holding",
+    model_gender: str = "female",
 ) -> str:
     """
     Step 3: Generate script via Gemini
@@ -282,6 +283,7 @@ def generate_script(
             features=product_profile.get("features", ""),
             product_appearance=product_profile.get("product_appearance", ""),
             style=style,
+            gender=model_gender,
         )
 
         script = result.get("script", "")
@@ -559,6 +561,7 @@ def generate_voice(
     text: str,
     voice: str = "th-TH-PremwadeeNeural",
     run_id: str = "",
+    speaking_rate: float = 1.15,
 ) -> str:
     """Step 7: Generate Thai voice via Gemini TTS."""
     logger.info(f"Step 7/9: TTS (Gemini TTS)")
@@ -568,7 +571,7 @@ def generate_voice(
 
     try:
         from gemini_tts import gemini_text_to_speech
-        tts_path = gemini_text_to_speech(text, output_path=output_path, voice=voice, target_sample_rate=16000)
+        tts_path = gemini_text_to_speech(text, output_path=output_path, voice=voice, target_sample_rate=16000, speaking_rate=speaking_rate)
         if tts_path and Path(tts_path).exists():
             logger.info(f"  Gemini TTS OK: {tts_path}")
             return tts_path
@@ -885,7 +888,7 @@ def run_pipeline(
             if script:
                 logger.info(f"Step 3/9: Script too short or =product_title ({len(script)} chars), regenerating Thai")
             step_start = time.time()
-            script = generate_script(product_name, product_profile, recipe, ugc_style=ugc_style)
+            script = generate_script(product_name, product_profile, recipe, ugc_style=ugc_style, model_gender=model_gender)
             script_duration = int((time.time() - step_start) * 1000)
 
         try:

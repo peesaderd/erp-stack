@@ -188,7 +188,7 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     
     persona_clothing = profile.get("persona_clothing", "")
     persona_hair = profile.get("persona_hair", "")
-    env_context = profile.get("env_context", "")
+    env_context = profile.get("persona_environment", profile.get("setting", "")) or profile.get("env_context", "")
     product_appearance = profile.get("product_appearance", "")
     image_description = profile.get("image_description", "")
     
@@ -396,7 +396,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     model_age = profile.get("_normalized_age") or _normalize_age(profile.get("target_age", "20-35"))
     
     # ── Product description (common) ──
-    env_context = profile.get("env_context", "a modern space")
+    env_context = profile.get("persona_environment", profile.get("setting", "")) or profile.get("env_context", "a modern space")
     product_appearance = profile.get("product_appearance", "")
     pa_clean = product_appearance
     if pa_clean:

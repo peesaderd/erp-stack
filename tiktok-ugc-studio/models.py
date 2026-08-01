@@ -109,6 +109,8 @@ class PipelineRequest(BaseModel):
 
 
 class FullPipelineRequest(BaseModel):
+    gender: str = "female"
+    speaking_rate: float = 1.15
     """Legacy pipeline request — kept for backward compat."""
     product_url: Optional[str] = ""
     product_title: Optional[str] = ""

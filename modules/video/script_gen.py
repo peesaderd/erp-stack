@@ -34,7 +34,7 @@ PROMPTS_DIR = Path(__file__).parent / "prompts"
 # ─── Persona-Aware System Prompt Builder ────────────────────────────
 # ═══════════════════════════════════════════════════════════════════════
 
-def build_script_system_prompt(persona: dict, duration: str = f"{DEFAULT_DURATION}s") -> str:
+def build_script_system_prompt(persona: dict, duration: str = f"{DEFAULT_DURATION}s", gender: str = "female") -> str:
     """Build a persona-injected system prompt for Gemini script generation.
     
     Takes the persona dict (from persona_engine._select_persona()) and
@@ -49,6 +49,12 @@ def build_script_system_prompt(persona: dict, duration: str = f"{DEFAULT_DURATIO
     speech_style = persona.get("speech_style", "พูดเป็นกันเอง ธรรมชาติ")
     pacing = persona.get("pacing", "ธรรมชาติ")
     forbidden = persona.get("forbidden_phrases", "")
+
+    polite = "ค่ะ" if gender == "female" else "ครับ"
+    wrong_polite = "ครับ" if gender == "female" else "ค่ะ"
+
+    polite = "ค่ะ" if gender == "female" else "ครับ"
+    wrong_polite = "ครับ" if gender == "female" else "ค่ะ"
 
     base = """คุณคือ Copywriter มืออาชีพที่เขียนสคริปต์โฆษณา UGC สั้นๆ สำหรับ TikTok
 สคริปต์ต้องสั้น กระชับ เข้าใจง่าย เหมาะกับ Voiceover
@@ -66,7 +72,7 @@ def build_script_system_prompt(persona: dict, duration: str = f"{DEFAULT_DURATIO
 2. ห้ามใส่เครื่องหมายวรรคตอนในสคริปต์หลัก (ห้าม . , ! ? " ")
 3. ห้ามใช้ตัวเลข ห้ามใส่ emoji
 4. ห้ามมีคำว่า Hook Value CTA หรือ [วงเล็บ]
-5. ห้ามมีคำว่า "สวัสดี" "วันนี้" "เพื่อนๆ" "ทุกคน" "ครับ" ทุกต้นคลิป
+5. ห้ามมีคำว่า "สวัสดี" "วันนี้" "เพื่อนๆ" "ทุกคน" ทุกต้นคลิป
 6. ห้ามขึ้นต้นด้วยคำว่า ว่าไง/ว่าไงบ้าง/ว่าไงครับ
 7. ห้ามบอกว่ากดติดตาม กดไลค์ กดแชร์ แชร์เลย คลิปนี้
 8. ห้ามพูดถึงหัวข้อเดิมซ้ำ
@@ -74,7 +80,8 @@ def build_script_system_prompt(persona: dict, duration: str = f"{DEFAULT_DURATIO
 10. ส่งออกเฉพาะสคริปต์เท่านั้น ห้ามมีคำอธิบายเพิ่มเติม
 11. ตอบกลับด้วยสคริปต์ภาษาไทยที่พร้อมใช้วางใน TikTok Voiceover ทันที
 12. ห้ามใช้ Hook Value CTA ในสคริปต์
-13. ห้ามมีตัวเลขและ emoji ในสคริปต์เด็ดขาด"""
+13. ห้ามมีตัวเลขและ emoji ในสคริปต์เด็ดขาด
+14. ใช้คำลงท้ายว่า "{polite}" เท่านั้น ห้ามใช้ "{wrong_polite}" โดยเด็ดขาด"""
 
     base = base.format(
         persona_name=persona_name,
@@ -194,6 +201,7 @@ def generate_tiktok_review_script(
     features: str = "",
     product_appearance: str = "",
     style: str = "review",
+    gender: str = "female",
 ) -> dict:
     """Generate a TikTok UGC review script using AiBot prompts
     
@@ -250,7 +258,7 @@ def generate_tiktok_review_script(
     user_prompt = fill_template(user_tpl, user_data)
     
     # ─── Build persona-aware system prompt ────────────────────────────
-    persona_layer = build_script_system_prompt(persona, duration)
+    persona_layer = build_script_system_prompt(persona, duration, gender=gender)
     combined_system = f"{persona_layer}\n\n{system}" if system else persona_layer
 
     # ─── Try LLM with persona injection ───────────────────────────────

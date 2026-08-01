@@ -895,6 +895,10 @@ def run_pipeline(
 
         # Extract model_gender from product profile (needed by generate_script)
         model_gender = product_profile.get("target_gender", "female")
+        target_gender = model_gender
+        # Re-resolve voice to match analyzed gender
+        voice = get_voice_for_gender(target_gender)
+        logger.info(f"  Voice: {voice} (gender={target_gender}, from product analysis)")
         # ── STEP 3: Generate Script (force gen unless decent-length Thai script)
         if script and len(script) >= 30 and script != product_name:
             script_duration = 0

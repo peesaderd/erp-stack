@@ -206,12 +206,18 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     env_str = (env_context or "a modern lifestyle setting")[:120]
     if image_description:
         thai_base = image_description
+        # Gender correction — Gemini bias safety net
+        if gender_en == "man":
+            thai_base = thai_base.replace("woman", "man").replace("Woman", "Man").replace("girl", "man").replace("Girl", "Man").replace("lady", "man").replace("Lady", "Man")
+        elif gender_en == "woman":
+            thai_base = thai_base.replace("man", "woman").replace("Man", "Woman").replace("guy", "woman").replace("Guy", "Woman").replace("boy", "woman").replace("Boy", "Woman")
         # Strip clothing/hair from image_description if persona provides them
         if persona_clothing or persona_hair:
             thai_base = _strip_clothing_hair_from_desc(thai_base)
     else:
         thai_base = f"An ethnic Thai {gender_en}, {model_age} years old, porcelain white glowing skin, monolid eyes, Southeast Asian ethnic Thai features, small nose bridge"
-    
+
+
     # ── Style-driven scene (ugc_style is PRIMARY) ─────────────────
     if ugc_style == "product_demo":
         prod_desc = product_appearance or product_name
@@ -369,6 +375,12 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     image_prompt = re.sub(r',\s*,', ',', image_prompt)
     image_prompt = re.sub(r'\s+', ' ', image_prompt)
     image_prompt = image_prompt.strip()
+
+    # ── Final gender sweep ── template model_action hardcodes "Thai woman"
+    if gender_en == "man":
+        image_prompt = image_prompt.replace("woman", "man").replace("Woman", "Man").replace("girl", "man").replace("Girl", "Man").replace("lady", "man").replace("Lady", "Man")
+    elif gender_en == "woman":
+        image_prompt = image_prompt.replace("man", "woman").replace("Man", "Woman").replace("guy", "woman").replace("Guy", "Woman").replace("boy", "woman").replace("Boy", "Woman")
 
     return image_prompt, negative
 

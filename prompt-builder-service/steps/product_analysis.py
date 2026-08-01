@@ -5,7 +5,7 @@ def create_step() -> Step:
         name="product_analysis",
         desc="Analyze product_name + description via Gemini → category, audience, problem, benefit, product_appearance, features, router_config",
         requires=["product_name"],
-        outputs=["analysis_profile", "category", "target_gender", "target_age", "target_audience",
+        outputs=["analysis_profile", "category", "target_gender", "target_age", "target_audience", "image_description",
                  "setting", "customer_problem", "main_benefit", "hashtags",
                  "product_appearance", "features", "env_context", "product_type", "colors",
                  "router_config"],
@@ -34,6 +34,8 @@ def create_step() -> Step:
             product_type=profile.get("product_type", ""),
             colors=profile.get("colors", ""),
             router_config=router_config,
+            image_description=profile.get("image_description", ""),
         )
     s.run = run
     return s
+

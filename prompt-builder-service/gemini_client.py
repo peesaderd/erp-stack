@@ -171,11 +171,13 @@ JSON ที่ต้องตอบ:
 
 🔴 ต้องระบุรายละเอียดบรรจุภัณฑ์: container type (bottle/jar/tube), closure (twist cap/pump/spray/flip-top), สีและดีไซน์ของฉลาก
 
-Include: model appearance MUST say "Ethnic Thai woman" (not just "Thai woman") — with porcelain white glowing skin, monolid eyes, Southeast Asian features. Pose: HOLDING product at chest level — NOT applying yet. Expression: confident smile. Setting: vanity room, cafe. Lighting: soft natural window light. Mood: warm, inviting. Focus on product being clearly visible and in focus. Do NOT describe the product being used/applied — that happens in the video. ระบุ container type (bottle/jar/tube), closure (twist cap/pump/spray/flip-top) และสีของสินค้าใน image_description ด้วย.
+Include: model appearance MUST match target_gender — "Ethnic Thai woman" for female, "Ethnic Thai man" for male (not just "Thai woman/man") — with porcelain white glowing skin, monolid eyes, Southeast Asian features. Pose: HOLDING product at chest level — NOT applying yet. Expression: confident smile. Setting: vanity room, cafe. Lighting: soft natural window light. Mood: warm, inviting. Focus on product being clearly visible and in focus. Do NOT describe the product being used/applied — that happens in the video. ระบุ container type (bottle/jar/tube), closure (twist cap/pump/spray/flip-top) และสีของสินค้าใน image_description ด้วย.
 
-Example (correct for Holding style): 'An ethnic Thai woman with porcelain white glowing skin, 25 years old, monolid eyes, happy smile, holding a lip product at chest level — a clear plastic tube with a black twist cap — product visible and in focus, in a vanity room with soft natural window lighting, warm and inviting atmosphere'",
+Examples (match target_gender):
+  • If target_gender=female: 'An ethnic Thai woman with porcelain white glowing skin, 25 years old, monolid eyes, happy smile, holding a lip product at chest level — a clear plastic tube with a black twist cap — product visible and in focus, in a vanity room with soft natural window lighting, warm and inviting atmosphere'
+  • If target_gender=male: 'An ethnic Thai man with porcelain white glowing skin, 30 years old, monolid eyes, confident smile, holding a watch at chest level — a stainless steel watch with a black leather strap — product visible and in focus, in a modern office with soft natural window lighting, professional atmosphere'",
 
-🔴 image_description CRITICAL — ต้องแยก "model appearance" (Thai woman, features) ออกจาก "product packaging" (container, cap, color) ให้ชัดเจน
+🔴 image_description CRITICAL — ต้องแยก "model appearance" (ethnicity + gender from target_gender, features) ออกจาก "product packaging" (container, cap, color) ให้ชัดเจน
 }"""
 
 

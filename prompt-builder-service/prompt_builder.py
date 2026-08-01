@@ -547,30 +547,55 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             action = gemini_video
         else:
             # Fallback: simple generic prompt — motion + camera only
-            action = (
-                f"{subject} naturally demonstrates {prod_desc_vid or product_name} — "
-                f"the key product function shown in use. "
-                f"Natural hand movements, interacting with product. "
-                f"Camera follows the action with slow pan. "
-                f"{env_context}, soft natural light"
-            )
+            if _is_wearable_category(category):
+                action = (
+                    f"{subject} naturally modeling {prod_desc_vid or product_name}, "
+                    f"gentle turn to show how the garment fits and drapes on body. "
+                    f"Natural confident movement, garment details clearly visible. "
+                    f"Camera follows with slow pan. "
+                    f"{env_context}, soft natural light"
+                )
+            else:
+                action = (
+                    f"{subject} naturally demonstrates {prod_desc_vid or product_name} — "
+                    f"the key product function shown in use. "
+                    f"Natural hand movements, interacting with product. "
+                    f"Camera follows the action with slow pan. "
+                    f"{env_context}, soft natural light"
+                )
     elif ugc_style == "review":
-        # Person holding product + looking at camera, review-style
-        action = (
-            f"{subject} {_cat_hold} {prod_desc_vid or product_name} in hand, "
-            f"looking directly at camera with slight head tilt, casual reviewing pose. "
-            f"Slow gentle rotation showing product from slightly different angles. "
-            f"Subtle hand movement, natural breathing. Camera static with subtle zoom in. "
-            f"Lifestyle setting, soft natural light"
-        )
+        # Review-style product showcase
+        if _is_wearable_category(category):
+            action = (
+                f"{subject} naturally modeling {prod_desc_vid or product_name}, "
+                f"turning slightly to show how the garment fits and drapes. "
+                f"Looking at camera with confident, casual expression. "
+                f"Garment details clearly visible. Camera static with subtle pull-back. "
+                f"Lifestyle setting, soft natural light"
+            )
+        else:
+            action = (
+                f"{subject} {_cat_hold} {prod_desc_vid or product_name} in hand, "
+                f"looking directly at camera with slight head tilt, casual reviewing pose. "
+                f"Slow gentle rotation showing product from slightly different angles. "
+                f"Subtle hand movement, natural breathing. Camera static with subtle zoom in. "
+                f"Lifestyle setting, soft natural light"
+            )
     elif ugc_style in ("tabletop", "tabletop_demo"):
-        # Product on table, person's hands visible
-        action = (
-            f"{prod_desc_vid or product_name} sits on table. "
-            f"{subject} nearby points at it and gestures with hands. "
-            f"Camera pans slowly across tabletop, hands visible in frame gesturing toward product. "
-            f"Product-centered demonstration, clean studio lighting"
-        )
+        if _is_wearable_category(category):
+            action = (
+                f"{subject} modeling {prod_desc_vid or product_name}, "
+                f"turning slowly to show garment from multiple angles. "
+                f"Camera pans slowly around, full outfit visible. "
+                f"Clean studio lighting, garment-centered presentation"
+            )
+        else:
+            action = (
+                f"{prod_desc_vid or product_name} sits on table. "
+                f"{subject} nearby points at it and gestures with hands. "
+                f"Camera pans slowly across tabletop, hands visible in frame gesturing toward product. "
+                f"Product-centered demonstration, clean studio lighting"
+            )
     elif ugc_style in ("talking", "talking_head"):
         # Head/shoulders, talking about product
         if _is_wearable_category(category):
@@ -591,13 +616,22 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
                 f"Camera static with subtle handheld feel. Natural daylight"
             )
     elif ugc_style == "unbox":
-        action = (
-            f"{subject} unboxing {prod_desc_vid or product_name}, "
-            f"hands opening packaging, lifting product out with slight excitement. "
-            f"Product emerging from packaging — unboxing reveal motion. "
-            f"Camera slow push-in as product is revealed. "
-            f"Clean bright setting, natural light"
-        )
+        if _is_wearable_category(category):
+            action = (
+                f"{subject} first reveal wearing {prod_desc_vid or product_name}, "
+                f"stepping into frame confidently, showing off the full outfit. "
+                f"Garment details fully visible as model poses naturally. "
+                f"Camera slow push-in as outfit is revealed. "
+                f"Clean bright setting, natural light"
+            )
+        else:
+            action = (
+                f"{subject} unboxing {prod_desc_vid or product_name}, "
+                f"hands opening packaging, lifting product out with slight excitement. "
+                f"Product emerging from packaging — unboxing reveal motion. "
+                f"Camera slow push-in as product is revealed. "
+                f"Clean bright setting, natural light"
+            )
     else:
         # Default: holding — show product, gentle rotation
         action = (

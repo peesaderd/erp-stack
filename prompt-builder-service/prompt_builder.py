@@ -144,14 +144,22 @@ Keywords: {kw_str}"""
         }
     else:
         profile = gemini_profile
-        # Normalize hashtags
+        # Normalize hashtags (dedup, preserve order)
         h = profile.get("hashtags", [])
         if isinstance(h, str):
             h = [x.strip().replace("#", "") for x in h.split(",")]
         elif isinstance(h, list):
             h = [x.strip().replace("#", "") for x in h if x.strip()]
+        # Dedup while preserving order (case-insensitive)
+        seen = set()
+        h = [x for x in h if not (x.lower() in seen or seen.add(x.lower()))]
         while len(h) < 5:
-            h.append(product_name.replace(" ", "").replace("\n", "")[:20])
+            fallback = product_name.replace(" ", "").replace("\n", "")[:20]
+            if fallback.lower() not in seen:
+                h.append(fallback)
+                seen.add(fallback.lower())
+            else:
+                h.append(fallback + str(len(h)))
         profile["hashtags"] = h[:5]
 
     # Merge Router Agent insights into profile

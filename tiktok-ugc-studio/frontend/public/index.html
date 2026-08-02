@@ -4789,7 +4789,31 @@ async function loadAnalyzedProducts() {
   } catch(e) { grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">Error: ' + e.message + '</div>'; }
 }
 
-let lightboxItems = [];
+function useProduct(jsonEncoded) {
+  try {
+    const p = JSON.parse(decodeURIComponent(jsonEncoded));
+    document.getElementById("productUrl").value = p.url || "";
+    document.getElementById("productTitle").value = p.title || "";
+    document.getElementById("productDetails").value = (p.description_th || p.description || "");
+
+    if (p.ugc_style) {
+      const sel = "#styleModalGrid .style-card" + (p.ugc_style === "holding" ? ".selected" : "[data-style=\x27" + p.ugc_style + "\x27]");
+      const el = document.querySelector(sel);
+      if (el) selectStyleFromModal(el, p.ugc_style);
+    }
+    if (p.images && p.images[0]) {
+      uploadedImages.product = window.location.origin + p.images[0];
+      const zone = document.getElementById("productImgZone");
+      const pl = document.getElementById("productImgPlaceholder");
+      zone.classList.add("has-image");
+      pl.innerHTML = "<img class=\"preview\" src=\"" + p.images[0] + "\" alt=\"product\"><button class=\"remove-img\" onclick=\"event.stopPropagation();removeImage(\x27product\x27)\">✕</button>";
+    }
+    switchTab("content");
+    goContentStep(1);
+    showToast("✅ " + (p.title || "").slice(0,40), "success");
+  } catch(e) { showToast("Error: " + e.message, "error"); }
+}
+
 let lightboxIndex = -1;
 
 async function loadAssets(type) {

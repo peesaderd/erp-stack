@@ -46,7 +46,7 @@ RECIPES = [
         "name": "fashion",
         "label": "👗 Fashion Lookbook",
         "description": "Elegant slow-mo, chic aesthetic",
-        "ugc_style": "talking_head",
+        "ugc_style": "fashion_lookbook",
         "sound_style": "chill_loft",
         "mood": "luxurious",
         "duration": 8,

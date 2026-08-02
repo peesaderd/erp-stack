@@ -1,0 +1,86 @@
+# 👗 Fashion Lookbook — Garment Showcase Pipeline Template
+# Wan 2.7 img2vid + Audio → full-body garment showcase with 360 spin and detail shots
+
+name: fashion_lookbook
+description: "Fashion garment showcase — full-body, 360 spin, detail stitching, catwalk"
+emoji: 👗
+label: "Fashion Lookbook — โชว์เสื้อผ้าเต็มตัว"
+
+generation:
+  job_type: wan2-7.img2vid.v1
+  needs_audio: true
+  audio_field: audio
+  image_requirement: person_with_product
+  image_model: nano-banana
+  negative_prompt: "deformed face, extra fingers, blurry, low quality, text watermark, cropped body, close-up face only, headshot, portrait photo"
+
+scene_prompts:
+  hook: |
+    {model} confidently {verb} {product}, {lighting},
+    full-body shot showing entire garment from head to toe,
+    smooth slow-motion turn or walk, garment draping naturally,
+    {angle}, {color_palette} aesthetic, {background},
+    professional fashion lookbook style, authentic Thai creator vibe,
+    focus on the clothing details and silhouette, not the face
+
+  value: |
+    {model} showcasing {product} from multiple angles,
+    close-up detail shots of stitching, fabric texture, and design elements,
+    smooth 360-degree spin or half-turn to show front and back of garment,
+    natural movement showing how the fabric flows and fits,
+    {lighting}, {angle}, {color_palette}, {background},
+    premium fashion editorial quality, garment-centered composition
+
+  cta: |
+    {model} in final full-body pose {verb} {product},
+    confident stance showing complete outfit silhouette,
+    entire garment visible in frame with clean composition,
+    ready for CTA overlay, professional finish,
+    {lighting}, {color_palette}, garment as focal point
+
+variations:
+  lighting:
+    - soft natural daylight from large window
+    - bright studio light with clean shadows
+    - warm golden hour outdoor glow
+    - clean even studio lighting no harsh shadows
+    - soft diffused light with gentle rim highlights
+
+  angle:
+    - full-body front view head-to-toe
+    - three-quarter turn showing side profile
+    - full-body back view showing garment rear design
+    - walking catwalk dynamic full-body shot
+    - slow 360-degree spin capturing all angles
+
+  color_palette:
+    - warm beige and cream fashion tones
+    - clean white minimalist editorial
+    - soft pastel aesthetic tones
+    - muted earth tone fashion palette
+    - neutral grey with warm accent
+
+  model:
+    - Thai woman full-body fashion pose
+    - young Thai creator natural style full-length
+    - Thai model walking gracefully showing garment movement
+    - Thai woman elegant posture full-body shot
+    - modern Thai fashion influencer full-length
+
+  background:
+    - minimalist fashion studio clean backdrop
+    - aesthetic urban wall with natural texture
+    - bright airy loft with natural light
+    - clean concrete backdrop fashion editorial
+    - simple neutral wall with gentle shadows
+
+video_params:
+  duration: [8, 10, 12]
+  resolution: 720P
+  ratio: "9:16"
+  default_duration: 8
+
+cta_strategy:
+  pool: [urgent, social_proof, direct, soft]
+  position: end_of_video
+  max_length_chars: 50

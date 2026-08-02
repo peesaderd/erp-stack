@@ -10,7 +10,7 @@ Prodia API is simple — all jobs use the same endpoint.
   Async models: response JSON has job ID → poll /v2/job/async/{id}/job.state.current
 """
 
-import os, sys, json, uuid, logging, requests, io, time
+import os, sys, json, uuid, logging, requests, io, time, re
 from typing import Optional
 from pathlib import Path
 
@@ -104,8 +104,11 @@ def _load_image(url: str) -> bytes:
             with open(p, "rb") as f:
                 return f.read()
 
-    logger.info(f"Downloading: {url}")
-    resp = requests.get(url, timeout=30, verify=False)
+    clean_url = re.sub(r"https?://(https?://)", r"", url)
+    if clean_url != url:
+        logger.warning(f"Fixed double-prefix URL: {url} -> {clean_url}")
+    logger.info(f"Downloading: {clean_url}")
+    resp = requests.get(clean_url, timeout=30, verify=False)
     resp.raise_for_status()
     return resp.content
 

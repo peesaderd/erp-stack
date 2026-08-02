@@ -957,6 +957,14 @@ def run_pipeline(
     logger.info(f"Recipe: {recipe_name}")
     logger.info(f"{'='*60}")
 
+    # Clean double-prefix from image URL
+    if product_image and "://" in product_image:
+        import re
+        clean = re.sub(r"https?://(https?://)", r"", product_image)
+        if clean != product_image:
+            logger.warning(f"Fixed double-prefix product_image: {product_image} -> {clean}")
+            product_image = clean
+
     # Initialize pipeline logger
     try:
         start_job(job_id, {

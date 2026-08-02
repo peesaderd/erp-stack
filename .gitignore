@@ -108,3 +108,4 @@ etsy-wizard/.pod_cache/
 etsy-wizard/sessions/
 etsy-wizard/__pycache__/
 gfpgan/
+venv/

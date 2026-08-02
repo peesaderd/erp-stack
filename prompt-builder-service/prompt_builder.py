@@ -882,7 +882,7 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
         value_text = f"{product_short} ใช้งานง่าย คุ้มค่ามาก{reg_val}"
     cta_text = f"สนใจพิกัดในตะกร้าซ้ายล่างได้เลย{reg_val}"
     
-    target_dur_sec = 15
+    target_dur_sec = 12
     if profile and profile.get("target_duration"):
         try:
             target_dur_sec = int(str(profile.get("target_duration")).replace("s", ""))

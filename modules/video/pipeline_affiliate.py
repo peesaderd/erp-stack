@@ -781,7 +781,7 @@ def compose_video(
     voice_path: Optional[str] = None,
     run_id: str = "",
     bgm_style: str = "chill_loft",
-    target_duration: int = 0,
+    target_duration: int = 12,
     voice_speed: float = 1.3,
 ) -> str:
     """
@@ -849,6 +849,17 @@ def compose_video(
             bgm_output = STORAGE_DIR / f"affiliate_{run_id}_bgm.mp4"
             # Strategy: mix BGM with video audio. If video has no usable audio, just copy BGM
             try:
+                probe_cmd = [
+                    "ffprobe", "-v", "quiet",
+                    "-select_streams", "a:0",
+                    "-show_entries", "stream=duration",
+                    "-of", "csv=p=0",
+                    str(final_path)
+                ]
+                probe_res = subprocess.run(probe_cmd, capture_output=True, text=True, timeout=5)
+                audio_dur = float(probe_res.stdout.strip() or "0")
+                safe_dur = audio_dur + 0.5 if audio_dur > 0 else 12
+                logger.info(f"Audio duration: {audio_dur:.1f}s, using target: {safe_dur:.1f}s")
                 cmd_mix = [
                     "ffmpeg", "-y",
                     "-i", str(final_path),
@@ -860,7 +871,7 @@ def compose_video(
                     "-map", "[out]",
                     "-c:v", "copy",
                     "-c:a", "aac",
-                    "-t", str(target_duration),
+                    "-t", str(safe_dur),
                     str(bgm_output),
                 ]
                 subprocess.run(cmd_mix, check=True, capture_output=True, timeout=60)
@@ -1120,7 +1131,7 @@ def run_pipeline(
             pass
 
         # ── STEP 9: Compose ──
-        final_duration = recipe.get("total_duration", 0)
+        final_duration = recipe.get("total_duration", 12)
         final_path = compose_video(video_paths, voice_path, run_id, bgm_style, target_duration=final_duration)
 
         # Cost summary

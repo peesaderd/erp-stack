@@ -94,7 +94,7 @@ def build_script_system_prompt(persona: dict, duration: str = f"{DEFAULT_DURATIO
     # ─── Append duration timing constraints ──────────────────────────
     # Normalize: "15" → "15s", "16" → "16s", "30" → "30s"
     dur_normalized = duration if duration.endswith("s") else f"{duration}s"
-    if dur_normalized in ("15s", "16s", "30s"):
+    if dur_normalized in ("8s", "10s", "12s", "15s", "16s", "30s"):
         base += adjust_prompt_for_duration(dur_normalized)
     
     return base
@@ -105,18 +105,55 @@ def build_script_system_prompt(persona: dict, duration: str = f"{DEFAULT_DURATIO
 # ─── Duration Timing Constraints ──────────────────────────────────────────
 
 def adjust_prompt_for_duration(duration_type: str = "15s") -> str:
-    """Return timing constraint prompt layer for longer videos."""
-    if duration_type == "15s":
+    """Return timing constraint prompt layer for all durations."""
+    dur = duration_type if duration_type.endswith("s") else f"{duration_type}s"
+
+    if dur == "8s":
         return (
-            "\\n[TIMING CONSTRAINT for 15 วินาที]"
-            "\\n- สคริปต์ทั้งหมดต้องมีความยาวรวมกันประมาณ 45-55 คำ (ภาษาไทย) เพื่อให้พูดจบภายใน 15 วินาที"
-            "\\n- ระยะเวลา 15 วินาทีให้ใช้คำพูด 45-55 คำเท่านั้น"
-            "\\n- แบ่งเวลาเป็น 3-4 ช่วง ช่วงละ 3-5 วินาที"
-            "\\n- ห้ามน้ำท่วมทุ่ง ให้เข้าประเด็นตามโครงสร้างที่กำหนด"
-            "\\n- ห้ามมีเนื้อหาซ้ำหรืออธิบายยืดเยื้อ"
-            "\\n- CTA ต้องสั้นและชัดเจนภายใน 2 วินาทีสุดท้าย"
+            "\n[TIMING CONSTRAINT for 8 วินาที]"
+            "\n- สคริปต์ทั้งหมดต้องมีความยาวรวมกันประมาณ 22-28 คำ (ภาษาไทย) เพื่อให้พูดจบภายใน 8 วินาที"
+            "\n- ระยะเวลา 8 วินาทีให้ใช้คำพูด 22-28 คำเท่านั้น"
+            "\n- แบ่งเป็น Hook (2s), Value (4s), CTA (2s)"
+            "\n- ห้ามน้ำท่วมทุ่ง ให้เข้าประเด็น"
+            "\n- CTA ต้องสั้นและชัดเจนภายใน 2 วินาทีสุดท้าย"
         )
-    elif duration_type == "30s":
+    elif dur == "10s":
+        return (
+            "\n[TIMING CONSTRAINT for 10 วินาที]"
+            "\n- สคริปต์ทั้งหมดต้องมีความยาวรวมกันประมาณ 30-37 คำ (ภาษาไทย) เพื่อให้พูดจบภายใน 10 วินาที"
+            "\n- ระยะเวลา 10 วินาทีให้ใช้คำพูด 30-37 คำเท่านั้น"
+            "\n- แบ่งเป็น Hook (2s), Value (6s), CTA (2s)"
+            "\n- Hook ต้องจั๊วะหนึ่ง น่าสนใจภายใน 2 วิ"
+            "\n- CTA ต้องสั้นและชัดเจนภายใน 2 วินาทีสุดท้าย"
+        )
+    elif dur == "12s":
+        return (
+            "\n[TIMING CONSTRAINT for 12 วินาที]"
+            "\n- สคริปต์ทั้งหมดต้องมีความยาวรวมกันประมาณ 36-43 คำ (ภาษาไทย) เพื่อให้พูดจบภายใน 12 วินาที"
+            "\n- ระยะเวลา 12 วินาทีให้ใช้คำพูด 36-43 คำเท่านั้น"
+            "\n- แบ่งเป็น Hook (3s), Value (6s), CTA (3s)"
+            "\n- Hook ต้องดึงดูด จบภายใน 3 วิ"
+            "\n- CTA ต้องสั้นและชัดเจนภายใน 3 วินาทีสุดท้าย"
+        )
+    elif dur == "15s":
+        return (
+            "\n[TIMING CONSTRAINT for 15 วินาที]"
+            "\n- สคริปต์ทั้งหมดต้องมีความยาวรวมกันประมาณ 45-55 คำ (ภาษาไทย) เพื่อให้พูดจบภายใน 15 วินาที"
+            "\n- ระยะเวลา 15 วินาทีให้ใช้คำพูด 45-55 คำเท่านั้น"
+            "\n- แบ่งเวลาเป็น 3-4 ช่วง ช่วงละ 3-5 วินาที"
+            "\n- ห้ามน้ำท่วมทุ่ง ให้เข้าประเด็นตามโครงสร้างที่กำหนด"
+            "\n- ห้ามมีเนื้อหาซ้ำหรืออธิบายยืดเยื้อ"
+            "\n- CTA ต้องสั้นและชัดเจนภายใน 2 วินาทีสุดท้าย"
+        )
+    elif dur == "16s":
+        return (
+            "\n[TIMING CONSTRAINT for 16 วินาที]"
+            "\n- สคริปต์ทั้งหมดต้องมีความยาวรวมกันประมาณ 48-60 คำ (ภาษาไทย)"
+            "\n- ระยะเวลา 16 วินาทีให้ใช้คำพูด 48-60 คำเท่านั้น"
+            "\n- แบ่งเป็น Hook (3s), Value (10s), CTA (3s)"
+            "\n- ห้ามน้ำท่วมทุ่ง ให้เข้าประเด็นตามโครงสร้างที่กำหนด"
+        )
+    elif dur == "30s":
         return (
             "\n[TIMING CONSTRAINT for 30 วินาที]"
             "\n- สคริปต์ทั้งหมดต้องมีความยาวรวมกันประมาณ 90-110 คำ (ภาษาไทย)"
@@ -127,15 +164,8 @@ def adjust_prompt_for_duration(duration_type: str = "15s") -> str:
             "\n- CTA 3-4 วินาทีสุดท้าย ปิดการขายให้ชัดเจน"
             "\n- ห้ามยืดเนื้อหาเกินจำเป็น ให้กระชับในทุกช่วง"
         )
-    elif duration_type == "16s":
-        return (
-            "\\n[TIMING CONSTRAINT for 16 วินาที]"
-            "\\n- สคริปต์ทั้งหมดต้องมีความยาวรวมกันประมาณ 48-60 คำ (ภาษาไทย)"
-            "\\n- ระยะเวลา 16 วินาทีให้ใช้คำพูด 48-60 คำเท่านั้น"
-            "\\n- แบ่งเป็น Hook (3s), Value (10s), CTA (3s)"
-            "\\n- ห้ามน้ำท่วมทุ่ง ให้เข้าประเด็นตามโครงสร้างที่กำหนด"
-        )
     return ""
+ return ""
 def _call_gemini(system_prompt: str, user_prompt: str) -> Optional[str]:
     """Call Gemini API for script generation."""
     api_key = GEMINI_API_KEY()

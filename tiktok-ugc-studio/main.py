@@ -696,7 +696,7 @@ async def generate_video(req: VideoRequest):
                 "keywords": _db_keywords,
                 "ugc_style": req.ugc_style or "holding",
                 "category": _db_category,
-                "target_gender": getattr(req, "gender", "female") or "female",
+                "target_gender": getattr(req, "gender", "") or "",
                 "product_id": job_id,
                 "price": float(req.product_price) if req.product_price else 0.0,
                 "product_image": _db_image,

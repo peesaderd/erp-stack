@@ -626,6 +626,7 @@ async def analyze_and_build_prompts(
     product_id: str = "",
     price: float = 0.0,
     product_image: str = "",
+    target_gender: str = "",
     category: str = "",
     product_category: str = "",
     target_duration: int = 15,
@@ -670,6 +671,10 @@ async def analyze_and_build_prompts(
         profile["target_gender"] = "person"
 
     # Override with explicit params if provided
+    # Override with explicit target_gender if provided
+    if target_gender:
+        profile["target_gender"] = target_gender
+
     if category:
         profile["category"] = category
     if product_category:

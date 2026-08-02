@@ -659,16 +659,18 @@ async def generate_video(req: VideoRequest):
             # Query product details (description, features, keywords, image) from tus_products.db if available
             _db_desc = req.product_description or ""
             _db_keywords = req.tags or []
+            _db_category = req.category or ""
             _db_image = req.product_image or ""
             try:
                 tconn = sqlite3.connect(str(BASE_DIR / "tus_products.db"))
                 trow = tconn.execute(
-                    "SELECT description_th, description, keywords, images FROM tus_products WHERE title LIKE ? OR title_th LIKE ? OR product_id = ? LIMIT 1",
+                    "SELECT description_th, description, keywords, images, category FROM tus_products WHERE title LIKE ? OR title_th LIKE ? OR product_id = ? LIMIT 1",
                     (f"%{_product_title}%", f"%{_product_title}%", req.product_url or "")
                 ).fetchone()
                 tconn.close()
                 if trow:
                     _db_desc = trow[0] or trow[1] or _db_desc
+                    _db_category = trow[4] or _db_category
                     if trow[2] and not _db_keywords:
                         try:
                             _db_keywords = json.loads(trow[2])
@@ -693,6 +695,8 @@ async def generate_video(req: VideoRequest):
                 "features": _db_desc,
                 "keywords": _db_keywords,
                 "ugc_style": req.ugc_style or "holding",
+                "category": _db_category,
+                "target_gender": req.gender or "female",
                 "product_id": job_id,
                 "price": float(req.product_price) if req.product_price else 0.0,
                 "product_image": _db_image,

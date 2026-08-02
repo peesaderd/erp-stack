@@ -26,6 +26,7 @@ class BuildRequest(BaseModel):
     price: float = 0.0
     product_image: str = ""
     category: str = ""
+    target_gender: str = ""
     product_category: str = ""
     duration: int = 15
     target_duration: int = 15
@@ -49,6 +50,7 @@ async def build(req: BuildRequest):
             price=req.price,
             product_image=req.product_image,
             category=req.category,
+            target_gender=req.target_gender,
             product_category=req.product_category,
             target_duration=req.duration or req.target_duration or 15,
         )

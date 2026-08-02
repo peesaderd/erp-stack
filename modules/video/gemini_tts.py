@@ -31,7 +31,7 @@ VOICE = "Aoede"
 # Aoede = warm female, Fenrir = deep male, Charon = clear male narrator
 GENDER_VOICE_MAP = {
     "female": "Aoede",
-    "male": "Fenrir",
+    "male": "Charon",
 }
 
 

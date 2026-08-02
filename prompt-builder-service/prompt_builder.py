@@ -482,27 +482,12 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     
     # ── Style-driven video_motion (ugc_style is PRIMARY) ──────────
     if ugc_style == "product_demo":
-        # Import preset config for mood/lighting
-        try:
-            from ugc_config import auto_select_preset, build_shot_prompts
-            cat = profile.get("category", "other")
-            selection = auto_select_preset(cat)
-            preset = selection["preset"]
-            p_lighting = preset.get("lighting", "clean studio light")
-            p_mood = preset.get("mood", "clean, informative")
-            p_bgm = preset.get("bgm_style", "informative_jazz")
-        except ImportError:
-            p_lighting = "clean studio light, evenly diffused"
-            p_mood = "clean, informative"
-            p_bgm = "informative_jazz"
-        
-        # Build 3-shot prompt for product demo
         prod = prod_desc_vid or product_name
-        shot1 = f"Shot1/0-5s: Establishing wide shot of {prod} on {env_context}. Product centered, clean surface, minimal composition. Camera slow push in. {p_lighting}."
-        shot2 = f"Shot2/5-10s: Close-up of infrared sensor on {prod}. A hand enters frame, reaches toward sensor. Sensor triggers, fine mist spray bursts from nozzle. Backlit highlighting mist particles drifting in air. Cinematic slow motion. Static camera."
-        shot3 = f"Shot3/10-15s: Wide lifestyle shot of {prod} placed on {env_context} with natural ambient setting. Product in use context — warm atmosphere, depth of field. Camera slow pan right to reveal full scene."
-        
-        action = f"{shot1} {shot2} {shot3} No people except hand in shot2. 9:16 portrait, smooth natural motion. Mood: {p_mood}. BGM: {p_bgm}."
+        action = (
+            f"{prod} on {env_context}. Product centered, clean surface, minimal composition. "
+            f"Camera slow push in. Product features clearly visible. "
+            f"No people. 9:16 portrait, smooth natural motion."
+        )
     elif ugc_style in ("usage", "product_usage"):
         # Try Gemini for natural product usage description
         gemini_image, gemini_video = _gemini_generate_prompts(
@@ -523,7 +508,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             # Fallback: simple generic prompt — no is_* branches
             action = (
                 f"{model_intro} in {env_context} with {prod_desc_vid or product_name}. "
-                f"She naturally demonstrates how to use the product — "
+                f"They naturally demonstrate how to use the product — "
                 f"the key function is shown. "
                 f"Product features are visible as she uses it. "
                 f"Natural product usage demonstration"

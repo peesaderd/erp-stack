@@ -126,10 +126,10 @@ Keywords: {kw_str}"""
 
     if not gemini_profile:
         logger.warning("Gemini analysis failed — using default profile with Router context")
-        gender_en = "woman"
+        gender_en = "person"
         profile = {
             "category": "other",
-            "target_gender": "female",
+            "target_gender": "person",
             "target_age": "25-35",
             "target_audience": f"คนที่กำลังมองหา{product_name[:20]}",
             "setting": "clean modern lifestyle setting",
@@ -229,7 +229,7 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     """
     templates = load_ugc_templates(ugc_style)
     style_info = STYLE_MAP.get(ugc_style, STYLE_MAP["holding"])
-    model_gender = profile.get("target_gender", "female")
+    model_gender = profile.get("target_gender")
     model_age = profile.get("_normalized_age") or _normalize_age(profile.get("target_age", "20-35"))
     category = profile.get("category", "other")
 
@@ -244,7 +244,7 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         "female": "woman", "woman": "woman",
         "male": "man", "man": "man",
         "unisex": "person", "person": "person"
-    }.get(model_gender, "woman")
+    }.get(model_gender, "person")
     
     persona_clothing = profile.get("persona_clothing", "")
     persona_hair = profile.get("persona_hair", "")
@@ -445,7 +445,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     - Person is ALWAYS in the scene
     """
     style_info = STYLE_MAP.get(ugc_style, STYLE_MAP["holding"])
-    model_gender = profile.get("target_gender", "female")
+    model_gender = profile.get("target_gender")
     model_setting = profile.get("setting", "clean modern lifestyle setting")
     category = profile.get("category", "other")
 
@@ -681,7 +681,7 @@ async def analyze_and_build_prompts(
         profile["product_category"] = product_category
     
     # Step 3: Inject persona for diversity
-    persona = _select_persona(profile.get("category", "other"), product_name, profile.get("target_gender", "female"))
+    persona = _select_persona(profile.get("category", "other"), product_name, profile.get("target_gender"))
     profile = _apply_persona_to_profile(profile, persona)
     logger.info(f"Persona: {persona.get('vibe', '')} | Env: {persona.get('environment', '')}")
 
@@ -844,7 +844,7 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
         product_short = product_name[:30]
     
     # Gender-aware Thai register
-    target_gender = profile.get("target_gender", "female") if profile else "female"
+    target_gender = profile.get("target_gender", "person") if profile else "person"
     is_female = target_gender in ("female", "woman")
     reg_hook = "คะ" if is_female else "ครับ"
     reg_val = "ค่ะ" if is_female else "ครับ"
@@ -947,7 +947,7 @@ def _gemini_generate_prompts(
     Returns (image_prompt, video_prompt) — falls back to ("", "") on error.
     """
     # Build a concise product info block
-    gender_en = {"female": "woman", "woman": "woman", "male": "man", "man": "man"}.get(model_gender, "woman")
+    gender_en = {"female": "woman", "woman": "woman", "male": "man", "man": "man"}.get(model_gender, "person")
     
     # Cache by product name + age — avoid duplicate calls within same request
     _cache_key = (product_name, model_age)

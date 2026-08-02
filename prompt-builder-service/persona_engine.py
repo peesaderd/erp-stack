@@ -120,7 +120,7 @@ PERSONA_TEMPLATES = {
     },
 }
 
-def _select_persona(category: str, product_name: str = "", target_gender: str = "female") -> dict:
+def _select_persona(category: str, product_name: str = "", target_gender: str = None) -> dict:
     import random
     cat_persona_map = {
         "beauty": ["energetic_young", "calm_professional", "mom_at_home", "minimalist_zen"],
@@ -146,9 +146,12 @@ def _select_persona(category: str, product_name: str = "", target_gender: str = 
     }
     if target_gender == "male":
         pool = cat_persona_male.get(category, male_pool)
-    else:
+    elif target_gender == "female":
         pool = cat_persona_map.get(category, female_pool)
-    fallback_safe = female_pool
+    else:
+        # gender unknown — mix male + female pools equally, weighed toward category
+        pool = cat_persona_map.get(category, female_pool) + cat_persona_male.get(category, male_pool)
+    fallback_safe = pool if pool else female_pool + male_pool
     chosen = random.choice(pool)
     return PERSONA_TEMPLATES[chosen]
 

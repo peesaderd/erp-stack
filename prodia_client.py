@@ -441,14 +441,6 @@ class ProdiaV2Client:
         if resolution:
             config["resolution"] = resolution
             
-        # ── Fix: Explicitly pass audio in config for Wan 2.7 ──
-        if audio_bytes:
-            import base64
-            is_mp3 = audio_bytes.startswith(b'ID3') or (len(audio_bytes) > 2 and audio_bytes[0] == 0xFF and (audio_bytes[1] & 0xE0) == 0xE0)
-            mime = "audio/mpeg" if is_mp3 else "audio/wav"
-            b64_audio = base64.b64encode(audio_bytes).decode("utf-8")
-            # Explicitly map it into the config so Wan 2.7 (and other models) know it exists
-            config["audio"] = f"data:{mime};base64,{b64_audio}"
             
         config.update(extra_config)
 

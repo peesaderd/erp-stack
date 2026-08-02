@@ -138,7 +138,7 @@ Keywords: {kw_str}"""
             "packaging_action": "generic_hold",
             "action_desc": "ถือสินค้าและใช้งานทั่วไป",
             "hashtags": keywords[:5] if len(keywords) >= 5 else [product_name.replace(" ", "")[:20]] * 5,
-            "image_description": f"An ethnic Thai {gender_en}, 25-35 years old, porcelain white glowing skin, monolid eyes, Southeast Asian features, holding a product at chest level, in a clean modern setting",
+            "image_description": "",
             # Extract basic features from description when Gemini fails
             "features": _extract_features_from_description(description) if description else "",
             "product_appearance": _extract_appearance_from_description(description) if description else "",
@@ -657,7 +657,7 @@ async def analyze_and_build_prompts(
     if vision_profile:
         for key in ["category", "target_gender", "target_age", "target_audience", "setting",
                      "customer_problem", "main_benefit", "env_context", "product_appearance",
-                     "features"]:
+                     "image_description", "features"]:
             if key in vision_profile and vision_profile[key]:
                 profile[key] = vision_profile[key]
         # product_type from vision overwrites text analysis

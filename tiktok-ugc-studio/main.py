@@ -659,7 +659,7 @@ async def generate_video(req: VideoRequest):
             # Query product details (description, features, keywords, image) from tus_products.db if available
             _db_desc = req.product_description or ""
             _db_keywords = req.tags or []
-            _db_category = req.category or ""
+            _db_category = getattr(req, "category", "") or ""
             _db_image = req.product_image or ""
             try:
                 tconn = sqlite3.connect(str(BASE_DIR / "tus_products.db"))
@@ -696,7 +696,7 @@ async def generate_video(req: VideoRequest):
                 "keywords": _db_keywords,
                 "ugc_style": req.ugc_style or "holding",
                 "category": _db_category,
-                "target_gender": req.gender or "female",
+                "target_gender": getattr(req, "gender", "female") or "female",
                 "product_id": job_id,
                 "price": float(req.product_price) if req.product_price else 0.0,
                 "product_image": _db_image,

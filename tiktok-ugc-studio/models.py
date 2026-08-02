@@ -60,6 +60,8 @@ class SceneBlock(BaseModel):
 
 
 class VideoRequest(BaseModel):
+    category: Optional[str] = ""
+    gender: str = "female"
     product_title: str = ""
     product_url: str = ""
     product_image: str = ""

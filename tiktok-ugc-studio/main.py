@@ -790,11 +790,14 @@ async def generate_video(req: VideoRequest):
             final_video_path = VIDEOS_DIR / f"final_{job_id}.mp4"
             shutil.copy2(final_path, final_video_path)
 
-            # ── Generated image URL (pipeline saves directly to TUS storage) ──
+            # ── Generated image URL — copy to permanent gallery storage ──
             img_src = result.get("perm_image_path", "") or result.get("image_path", "")
             image_url = ""
             if img_src and os.path.exists(img_src):
-                image_url = f"/api/tiktok/static/images/{Path(img_src).name}"
+                perm_name = f"gen_{job_id}_{Path(img_src).name}"
+                perm_path = IMAGES_DIR / perm_name
+                shutil.copy2(img_src, perm_path)
+                image_url = f"/api/tiktok/static/images/{perm_name}"
 
             # Store final rich result
             video_web_url = f"/api/tiktok/static/videos/final_{job_id}.mp4"

@@ -268,6 +268,8 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     
     # ── Priority 1: Direct Gemini Vision Scene Description (Exact Product Visual Match) ──
     if image_description and len(image_description) > 20:
+        if _is_wearable_category(category):
+            image_description = image_description.replace("holding", "wearing").replace("hold", "wear")
         scene_desc = image_description
     # ── Priority 2: Style-driven scene fallback ─────────────────
     elif ugc_style == "product_demo":

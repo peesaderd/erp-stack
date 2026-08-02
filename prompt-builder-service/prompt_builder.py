@@ -799,6 +799,17 @@ def _estimate_speech_duration(text: str) -> float:
     switches = 1 if (thai_chars > 0 and non_thai_chars > 0) else 0
     return thai_sec + non_thai_sec + (switches * 0.1)
 
+def _trim_to_word(text: str, max_chars: int) -> str:
+    """Trim text to max_chars without cutting mid-word."""
+    if len(text) <= max_chars:
+        return text
+    trimmed = text[:max_chars]
+    last_space = trimmed.rfind(" ")
+    if last_space > max_chars * 0.6:
+        return trimmed[:last_space]
+    return trimmed[:max_chars]
+
+
 
 def _build_timing_validated_script(product_name: str, category: str = "beauty", profile: dict = None) -> dict:
     """Build script segments with timing validation.
@@ -842,8 +853,8 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
     
     if customer_problem and main_benefit and len(customer_problem) > 5:
         # Shorten problem and benefit for natural spoken Thai
-        hook_text = customer_problem[:40]
-        value_text = f"{product_short} {main_benefit[:45]}"
+        hook_text = _trim_to_word(customer_problem, 40)
+        value_text = f"{product_short} {_trim_to_word(main_benefit, 45)}"
     elif category in ("home", "electronics", "tools"):
         hook_text = f"เจอปัญหานี้อยู่ใช่ไหม{reg_hook}"
         value_text = f"{product_short} ตัวนี้ช่วยได้เยอะเลย{reg_val}"

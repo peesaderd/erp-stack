@@ -676,7 +676,7 @@ async def analyze_and_build_prompts(
         profile["product_category"] = product_category
     
     # Step 3: Inject persona for diversity
-    persona = _select_persona(profile.get("category", "other"), product_name)
+    persona = _select_persona(profile.get("category", "other"), product_name, profile.get("target_gender", "female"))
     profile = _apply_persona_to_profile(profile, persona)
     logger.info(f"Persona: {persona.get('vibe', '')} | Env: {persona.get('environment', '')}")
 

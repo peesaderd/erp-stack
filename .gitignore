@@ -132,3 +132,6 @@ tiktok-ugc-studio/frontend/public/voice_*.wav
 tiktok-ugc-studio/data/
 tiktok-ugc-studio/static/
 *.db
+prompt-builder-service/logs/
+tiktok-ugc-studio/.env.bak*
+tiktok-ugc-studio/frontend/public/assets/

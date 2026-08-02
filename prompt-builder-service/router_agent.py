@@ -132,6 +132,7 @@ def router_decide(
     price: Optional[float] = None,
     image_base64: Optional[str] = None,
     keywords: Optional[list] = None,
+    target_duration: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Main entry — decide content strategy for a product.
     
@@ -153,7 +154,7 @@ def router_decide(
 
     if not result:
         logger.warning(f"Router returned invalid JSON for '{product_name}', using fallback")
-        return dict(FALLBACK_CONFIG, product=product_name, reason="fallback")
+        result = dict(FALLBACK_CONFIG, product=product_name, reason="fallback")
 
     # Validate required fields
     result.setdefault("recipe_type", FALLBACK_CONFIG["recipe_type"])
@@ -162,6 +163,10 @@ def router_decide(
     result.setdefault("persona", FALLBACK_CONFIG["persona"])
     result.setdefault("reason", "")
     result["product"] = product_name
+
+    # Override duration with user's target_duration if specified
+    if target_duration:
+        result["duration"] = f"{int(target_duration)}s"
 
     # Load schema → build scenes with actual durations
     result["scenes"] = _build_scenes(result["recipe_type"], result["duration"])

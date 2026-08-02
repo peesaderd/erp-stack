@@ -31,7 +31,6 @@ import os
 import sys
 import json
 import time
-import base64
 import logging
 from typing import Optional, List, Dict, Any, Tuple
 
@@ -143,11 +142,14 @@ class ProdiaV2Client:
             for i, img_bytes in enumerate(inputs):
                 files.append(("input", (f"input_{i}.png", img_bytes, "image/png")))
         if has_audio:
-            # Audio field name = "audio" (แยกจาก "input" ที่ใช้สำหรับ image)
-            # Prodia async API auto-detects audio from "audio" multipart field
-            # DO NOT set config["audio"] — it's not needed for basic lip-sync
-            files.append(("audio", ("audio.wav", audio, "audio/wav")))
-            config["audio"] = base64.b64encode(audio).decode("utf-8")
+            # Auto-detect WAV vs MP3 header for Prodia Lip-sync compatibility
+            if audio.startswith(b"RIFF"):
+                audio_filename = "audio.wav"
+                audio_mime = "audio/wav"
+            else:
+                audio_filename = "audio.mp3"
+                audio_mime = "audio/mpeg"
+            files.append(("audio", (audio_filename, audio, audio_mime)))
 
         if has_inputs or has_audio:
             # ── Multipart (image ± audio) ──
@@ -200,7 +202,10 @@ class ProdiaV2Client:
                             for _i, _img in enumerate(inputs):
                                 _files.append(("input", (f"input_{_i}.png", _img, "image/png")))
                         if has_audio:
-                            _files.append(("audio", ("audio.wav", audio, "audio/wav")))
+                            is_mp3 = audio.startswith(b'ID3') or (len(audio) > 2 and audio[0] == 0xFF and (audio[1] & 0xE0) == 0xE0)
+                            ext = "mp3" if is_mp3 else "wav"
+                            mime = "audio/mpeg" if is_mp3 else "audio/wav"
+                            _files.append(("audio", (f"audio.{ext}", audio, mime)))
                         resp = self._session.post(endpoint, files=_files, timeout=120)
                     else:
                         resp = self._session.post(endpoint, json=job_payload, timeout=60)
@@ -430,9 +435,21 @@ class ProdiaV2Client:
 
         config = {
             "prompt": prompt,
-            "duration": duration,
-            "resolution": resolution,
         }
+        if duration:
+            config["duration"] = duration
+        if resolution:
+            config["resolution"] = resolution
+            
+        # ── Fix: Explicitly pass audio in config for Wan 2.7 ──
+        if audio_bytes:
+            import base64
+            is_mp3 = audio_bytes.startswith(b'ID3') or (len(audio_bytes) > 2 and audio_bytes[0] == 0xFF and (audio_bytes[1] & 0xE0) == 0xE0)
+            mime = "audio/mpeg" if is_mp3 else "audio/wav"
+            b64_audio = base64.b64encode(audio_bytes).decode("utf-8")
+            # Explicitly map it into the config so Wan 2.7 (and other models) know it exists
+            config["audio"] = f"data:{mime};base64,{b64_audio}"
+            
         config.update(extra_config)
 
         inputs = [input_image] if input_image else None

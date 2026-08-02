@@ -2,12 +2,12 @@
 
 import os
 from datetime import datetime
+import json
 import uuid
 import asyncio
-from pathlib import Path
 import logging
 import sqlite3
-import json
+from pathlib import Path
 import httpx
 from fastapi import FastAPI, HTTPException, Query, Request, File, Form, UploadFile
 import asyncpg
@@ -79,26 +79,6 @@ MODULE_URLS = {
     "auth": "http://localhost:8101",
 }
 
-async def _proxy(method: str, service: str, path: str, body: dict = None, timeout: float = 300.0):
-    base = MODULE_URLS.get(service)
-    if not base:
-        return {"ok": False, "status": 0, "error": f"Unknown service: {service}", "data": None}
-    url = f"{base}{path}"
-    try:
-        async with httpx.AsyncClient(timeout=timeout, verify=False) as client:
-            if method == "GET":
-                resp = await client.get(url)
-            else:
-                resp = await client.post(url, json=body or {})
-            if resp.status_code >= 400:
-                return {"ok": False, "status": resp.status_code, "error": resp.text[:300], "data": None}
-            try:
-                return {"ok": True, "status": resp.status_code, "data": resp.json()}
-            except Exception:
-                return {"ok": True, "status": resp.status_code, "data": {"text": resp.text}}
-    except Exception as e:
-        return {"ok": False, "status": 0, "error": str(e), "data": None}
-
 async def proxy(request: Request, target_url: str):
     async with httpx.AsyncClient() as client:
         try:
@@ -119,27 +99,27 @@ async def proxy(request: Request, target_url: str):
         media_type=resp.headers.get("content-type"),
     )
 
-# Generic proxy endpoint – path after /proxy/{service}
-@app.api_route("/proxy/{service}/{full_path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"]) 
-async def generic_proxy(service: str, full_path: str, request: Request):
-    base = _MODULES.get(service)
-    if not base:
-        raise HTTPException(status_code=400, detail=f"Unknown module: {module}")
+_MODULES = {
+    "video": "http://localhost:8111",
+    "video-gen": "http://localhost:8111",
+    "image-gen": "http://localhost:8110",
+    "prompt-builder": "http://localhost:8117",
+    "payment": "http://localhost:8112",
+    "profile": "http://localhost:8113",
+}
+
+async def _proxy(method: str, service: str, path: str, body: dict = None, timeout: float = 120.0):
+    base = _MODULES.get(service, "http://localhost:8111")
     url = f"{base}{path}"
-    try:
-        async with httpx.AsyncClient(timeout=timeout, verify=False) as client:
-            if method == "GET":
-                resp = await client.get(url)
-            else:
-                resp = await client.post(url, json=body or {})
-            if resp.status_code >= 400:
-                return {"ok": False, "status": resp.status_code, "error": resp.text[:300], "data": None}
-            try:
-                return {"ok": True, "status": resp.status_code, "data": resp.json()}
-            except Exception:
-                return {"ok": True, "status": resp.status_code, "data": {"text": resp.text}}
-    except Exception as e:
-        return {"ok": False, "status": 0, "error": str(e), "data": None}
+    async with httpx.AsyncClient(timeout=timeout, verify=False) as client:
+        if method.upper() == "GET":
+            resp = await client.get(url)
+        else:
+            resp = await client.post(url, json=body or {})
+        try:
+            return resp.json()
+        except Exception:
+            return {"status": "ok", "text": resp.text}
 
 
 # Load .env
@@ -557,30 +537,7 @@ async def run_full_pipeline(req: FullPipelineRequest):
         import asyncio
         asyncio.create_task(aitoearn.sync_with_pipeline(job))
         
-        response = {
-            "success": True,
-            "job_id": job_id,
-            "status": "completed",
-        }
-        try:
-            rd = result_data
-            if rd:
-                response.update({
-                    "script": rd.get("script", "") or "",
-                    "hashtags": rd.get("hashtags", []) or [],
-                    "image_path": rd.get("image_path", "") or "",
-                    "image_url": rd.get("image_path", "") or "",
-                    "video_path": final_path or "",
-                    "video_url": final_path or "",
-                    "recipe": rd.get("recipe", req.recipe or "tus"),
-                    "run_id": rd.get("run_id", "") or "",
-                    "duration": rd.get("duration", req.duration),
-                    "cost_estimate": rd.get("cost_estimate", 0),
-                    "product_profile": rd.get("product_profile", {}) or {},
-                })
-        except NameError:
-            pass
-        return response
+        return {"success": True, "job_id": job_id, "status": "completed"}
     except Exception as e:
         logger.error(f"Pipeline {job_id} failed: {e}")
         _update_pipeline_step(job_id, "pipeline", "error", {"error": str(e)})
@@ -660,9 +617,9 @@ async def generate_video(req: VideoRequest):
         desc = req.product_description or ""
         full_script = f"{_product_title}: {desc}" if desc else f"{_product_title}"
     elif _product_title:
-        full_script = f"Check out this {_product_title}! Amazing quality, great value! Link in bio! 🛍️"
+        full_script = f"{_product_title} ตัวนี้ใช้งานดีมาก คุณภาพดี คุ้มค่าสุดๆ แนะนำเลยค่ะ กดสั่งในตะกร้าได้เลยนะคะ"
     else:
-        full_script = "Check out this amazing product!"
+        full_script = "สินค้าตัวนี้ใช้งานดีมาก คุณภาพดี คุ้มค่าสุดๆ แนะนำเลยค่ะ กดสั่งในตะกร้าได้เลยนะคะ"
 
     scenes = []
     if req.scenes:
@@ -699,23 +656,54 @@ async def generate_video(req: VideoRequest):
 
     async def _run():
         try:
+            # Query product details (description, features, keywords, image) from tus_products.db if available
+            _db_desc = req.product_description or ""
+            _db_keywords = req.tags or []
+            _db_image = req.product_image or ""
+            try:
+                tconn = sqlite3.connect(str(BASE_DIR / "tus_products.db"))
+                trow = tconn.execute(
+                    "SELECT description_th, description, keywords, images FROM tus_products WHERE title LIKE ? OR title_th LIKE ? OR product_id = ? LIMIT 1",
+                    (f"%{_product_title}%", f"%{_product_title}%", req.product_url or "")
+                ).fetchone()
+                tconn.close()
+                if trow:
+                    _db_desc = trow[0] or trow[1] or _db_desc
+                    if trow[2] and not _db_keywords:
+                        try:
+                            _db_keywords = json.loads(trow[2])
+                        except Exception:
+                            pass
+                    if trow[3] and not _db_image:
+                        try:
+                            imgs = json.loads(trow[3])
+                            if isinstance(imgs, list) and imgs:
+                                _db_image = imgs[0]
+                            elif isinstance(trow[3], str) and trow[3].strip():
+                                _db_image = trow[3]
+                        except Exception:
+                            _db_image = trow[3] if isinstance(trow[3], str) else ""
+            except Exception as dbe:
+                logger.debug(f"DB lookup exception: {dbe}")
+
             _update_pipeline_step(job_id, "prompt_builder", "processing")
             pb_result = await _proxy("POST", "prompt-builder", "/api/v1/build", {
                 "product_name": _product_title,
-                "description": req.product_description or "",
-                "keywords": req.tags or [],
+                "description": _db_desc,
+                "features": _db_desc,
+                "keywords": _db_keywords,
                 "ugc_style": req.ugc_style or "holding",
                 "product_id": job_id,
                 "price": float(req.product_price) if req.product_price else 0.0,
-                "product_image": req.product_image or "",
+                "product_image": _db_image,
+                "duration": req.duration or 15,
+                "target_duration": req.duration or 15,
             })
 
-            if pb_result.get("ok") and pb_result.get("data"):
-                pb_data = pb_result["data"]
+            if isinstance(pb_result, dict) and pb_result.get("image_prompt"):
+                pb_data = pb_result
                 
                 # Product Demo: override scene script with Gemini Vision analysis
-                # features + product_appearance มาจาก Vision analysis (Mistral/Gemini on product image)
-                # เป็น data จริงจาก AI vision — ไม่ hardcode
                 if req.ugc_style == "product_demo" and scenes:
                     analysis = pb_data.get("analysis", {}) or {}
                     feat_raw = analysis.get("features", "")
@@ -723,7 +711,6 @@ async def generate_video(req: VideoRequest):
                         ", ".join(f.strip() for f in feat_raw if f.strip()) if isinstance(feat_raw, list) else ""
                     product_appearance = (analysis.get("product_appearance", "") or "")
                     
-                    # Priority: features > product_appearance > raw product_description
                     parts = [f"{_product_title}"]
                     if feat_str:
                         parts.append(feat_str)
@@ -742,35 +729,35 @@ async def generate_video(req: VideoRequest):
                     "negative_prompt": (neg_prompt or "")[:200],
                 })
             else:
-                img_prompt = scenes[0].script if scenes else (req.product_title or "product")
-                video_prompts = [s.script for s in scenes] if scenes else [req.product_title or "product"]
-                neg_prompt = req.negative_prompt
-                _update_pipeline_step(job_id, "prompt_builder", "error", {"error": "Prompt builder returned no data"})
+                _update_pipeline_step(job_id, "prompt_builder", "error", {"error": f"Prompt builder failed: {pb_result}"})
+                raise HTTPException(status_code=500, detail=f"Prompt Builder Service Failed: {pb_result}")
 
             selected_sound_style = scenes[0].sound_style if scenes else "upbeat_pop"
 
             product_img_local = None
-            if req.product_image:
+            prod_img_src = req.product_image or _db_image
+            if prod_img_src:
                 # แปลง /ugc/static/product_images/xxx → local file path
-                if req.product_image.startswith("/ugc/static/product_images/"):
-                    filename = req.product_image.replace("/ugc/static/product_images/", "")
+                if prod_img_src.startswith("/ugc/static/product_images/"):
+                    filename = prod_img_src.replace("/ugc/static/product_images/", "")
                     product_img_local = str(STORAGE_DIR / "product_images" / filename)
                 # แปลง external IP → localhost
-                elif "89.167.82.205" in req.product_image and "8105" in req.product_image:
-                    product_img_local = req.product_image.replace("http://89.167.82.205:8105", "http://localhost:8105")
+                elif "89.167.82.205" in prod_img_src and "8105" in prod_img_src:
+                    product_img_local = prod_img_src.replace("http://89.167.82.205:8105", "http://localhost:8105")
                 else:
-                    product_img_local = req.product_image
+                    product_img_local = prod_img_src
 
             _update_pipeline_step(job_id, "video_generation", "processing")
             affiliate_result = await _proxy("POST", "video", "/api/v1/video/generate", {
                 "product_title": req.product_title or "",
+                "product_name": _product_title or req.product_title or "สินค้า",
                 "product_image": product_img_local or "",
                 "product_price": req.product_price,
                 "product_commission": req.product_commission,
                 "hook": req.hook or "",
                 "value": req.value or "",
                 "cta": req.cta or "",
-                "duration": scenes[0].duration if scenes else DEFAULT_VIDEO_DURATION,
+                "duration": req.duration or (scenes[0].duration if scenes else DEFAULT_VIDEO_DURATION),
                 "scenes": [s.dict() for s in scenes] if scenes else [],
                 "tags": req.tags or [],
                 "content_type": req.content_type or "affiliate",
@@ -782,20 +769,16 @@ async def generate_video(req: VideoRequest):
                 "video_prompt": (video_prompts or [""])[0],
                 "video_prompts": video_prompts or [],
                 "job_id": job_id,
-                "script": (scenes[0].script if scenes and req.ugc_style == "product_demo" else "") or "",
+                "script": pb_data.get("scripts", {}).get("tts_script") or pb_data.get("full_script") or full_script or "",
+                "voice": getattr(req, "voice", None) or "",
             }, timeout=300.0)  # Video pipeline takes 90-180s
 
-            if not affiliate_result.get("ok"):
+            if isinstance(affiliate_result, dict) and (affiliate_result.get("success") or affiliate_result.get("ok")):
+                result = affiliate_result.get("result") or affiliate_result.get("data", {}).get("result", {})
+                _update_pipeline_step(job_id, "video_generation", "success", {"output": str(result.get("final_path", ""))[:100]})
+            else:
                 _update_pipeline_step(job_id, "video_generation", "error", {"error": affiliate_result.get("error", "Pipeline affiliate run failed")})
                 raise Exception(affiliate_result.get("error", "Pipeline affiliate run failed"))
-            _update_pipeline_step(job_id, "video_generation", "success", {"output": str(affiliate_result.get("data", {}).get("video_path", ""))[:100]})
-            
-            # Video module returns {"success": bool, "result": {...}}
-            api_data = affiliate_result.get("data", {})
-            if not api_data.get("success"):
-                raise Exception(api_data.get("error", "Video generation failed"))
-            
-            result = api_data.get("result", {})
             VIDEOS_DIR.mkdir(parents=True, exist_ok=True)
             final_path = result.get("final_path", "")
 

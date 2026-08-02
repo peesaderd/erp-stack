@@ -78,8 +78,6 @@ logger = logging.getLogger("tiktok-ugc.pipeline_affiliate")
 STORAGE_DIR = Path(__file__).parent / "storage"
 TMP_DIR = STORAGE_DIR / "tmp"
 TMP_DIR.mkdir(parents=True, exist_ok=True)
-GALLERY_DIR = STORAGE_DIR / "images"
-GALLERY_DIR.mkdir(parents=True, exist_ok=True)
 
 # Service URLs
 IMAGE_GEN_URL = "http://localhost:8110/api/v1/image/generate"
@@ -153,7 +151,7 @@ def analyze_product(product_name: str, product_image: str = None, description: s
         url = f"{PROMPT_BUILDER_URL}/api/v1/build"
         payload = {
             "product_name": product_name,
-            "description": description or "",
+            "description": description,
             "product_image": product_image or "",
             "ugc_style": ugc_style,
         }
@@ -174,7 +172,20 @@ def analyze_product(product_name: str, product_image: str = None, description: s
 
     except Exception as e:
         logger.error(f"Analyze failed: {e}")
-        raise RuntimeError(f"Product analysis failed: {e}")
+        # Fallback: basic profile
+        return {
+            "category": "other",
+            "target_gender": "unisex",
+            "target_age": "20-35",
+            "target_audience": "ทุกคน",
+            "customer_problem": "",
+            "main_benefit": "คุณภาพดี",
+            "hashtags": [product_name.replace(" ", "")[:20]],
+            "setting": "clean modern lifestyle",
+            "_image_prompt": f"{product_name}, product showcase, clean background",
+            "_video_prompt": f"{product_name} showcase, smooth motion",
+            "_negative_prompt": "no text, no watermark",
+        }
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -251,7 +262,6 @@ def generate_script(
     product_profile: dict,
     recipe: dict,
     ugc_style: str = "holding",
-    model_gender: str = "female",
 ) -> str:
     """
     Step 3: Generate script via Gemini
@@ -285,7 +295,7 @@ def generate_script(
             features=product_profile.get("features", ""),
             product_appearance=product_profile.get("product_appearance", ""),
             style=style,
-            gender=model_gender,
+            gender=product_profile.get("target_gender", "female"),
         )
 
         script = result.get("script", "")
@@ -294,7 +304,22 @@ def generate_script(
 
     except Exception as e:
         logger.error(f"Script generation failed: {e}")
-        raise RuntimeError(f"Script generation failed: {e}")
+        # Fallback: natural Thai narration for product_demo
+        if ugc_style == "product_demo":
+            feat = product_profile.get("features", "")
+            appear = product_profile.get("product_appearance", "")
+            if feat:
+                return f"{product_name} ตัวนี้ {feat} ใช้งานง่ายมาก"
+            elif appear:
+                return f"{product_name} ตัวนี้{appear[:100]} ใช้งานดี"
+            return f"{product_name} ตัวนี้ใช้งานดีมาก"
+        # Default: template review script
+        base = f"{product_profile.get('customer_problem', 'ปัญหาที่เจอบ่อย')} ใช่ไหมคะ? วันนี้เรามี {product_name}"
+        feat = product_profile.get("features", "")
+        if feat:
+            base += f" มี {feat}"
+        base += f" {product_profile.get('main_benefit', 'คุณภาพดี')} ค่ะ กดตะกร้าเลย!"
+        return base
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -326,7 +351,9 @@ def build_image_prompt(
         logger.info(f"  Image prompt: {image_prompt[:60]}...")
         return image_prompt
 
-    raise RuntimeError(f"No image prompt from analyze for product: {product_name}")
+    # Fallback: basic prompt
+    logger.warning("  No image prompt from analyze, using fallback")
+    return f"{product_name}, product showcase, clean background, professional photography"
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -355,33 +382,50 @@ def generate_image(
 
     payload = {
         "prompt": prompt,
+        "count": 1,
+        "upscale": False,
         "aspectRatio": aspect_ratio,
-        "inputImage": product_image or "",
-        "model": "nano-banana",
     }
 
-    if not product_image:
-        raise RuntimeError("No product_image provided — image-gen requires inputImage for img2img")
+    if product_image:
+        payload["inputImage"] = product_image
+        payload["modelTier"] = "nano.banana"
+        payload["provider"] = "prodia"
+        payload["thaiModel"] = True
 
-    resp = requests.post(IMAGE_GEN_URL, json=payload, timeout=300)
-    resp.raise_for_status()
-    data = resp.json()
+    last_exc = None
+    for attempt in range(3):
+        try:
+            resp = requests.post(IMAGE_GEN_URL, json=payload, timeout=300)
+            resp.raise_for_status()
+            data = resp.json()
 
-    if not (data.get("success") or data.get("ok")) or not data.get("images"):
-        raise RuntimeError(f"Image-gen service failed: {data}")
+            if not (data.get("success") or data.get("ok")) or not data.get("images"):
+                raise RuntimeError(f"Image-gen service failed: {data}")
 
-    img_info = data["images"][0]
-    url = img_info.get("full_url") or img_info.get("url")
+            img_info = data["images"][0]
+            url = img_info.get("full_url") or img_info.get("url")
 
-    if not url:
-        raise RuntimeError(f"No URL in response: {data}")
+            if not url:
+                raise RuntimeError(f"No URL in response: {data}")
 
-    # Extract cost from image service response (real pricing from prodia_pricing)
-    cost_data = data.get("cost", {}) or img_info.get("cost", {})
-    cost_usd = float(cost_data.get("dollars", 0.039) if isinstance(cost_data, dict) else 0.039)
+            # Extract cost from image service response (real pricing from prodia_pricing)
+            cost_data = data.get("cost", {}) or img_info.get("cost", {})
+            cost_usd = float(cost_data.get("dollars", 0.039) if isinstance(cost_data, dict) else 0.039)
 
-    logger.info(f"  Image OK: {url[:60]}... | cost=${cost_usd:.4f}")
-    return url, cost_usd
+            logger.info(f"  Image OK: {url[:60]}... | cost=${cost_usd:.4f}")
+            return url, cost_usd
+
+        except Exception as e:
+            last_exc = e
+            logger.warning(f"  Image gen attempt {attempt+1}/3 failed: {e}")
+            if attempt < 2:
+                logger.info(f"  Retrying image gen...")
+                import time
+                time.sleep(2)
+
+    logger.error(f"Image generation failed after 3 attempts: {last_exc}")
+    raise RuntimeError(f"Image generation failed after 3 attempts: {last_exc}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -442,7 +486,7 @@ def build_video_prompts(
     scene_descriptions = _scene_descriptions_for_category(category, product_type, product_name)
 
     # ── Model look (จาก profile, ไม่ hardcode) ──
-    model_gender = product_profile.get("target_gender", "female")
+    model_gender = product_profile.get("target_gender", "unisex")
     gender_en = {"female": "woman", "male": "man", "unisex": "person"}.get(model_gender, "person")
     
     # ── Build per-scene prompts ──
@@ -455,9 +499,10 @@ def build_video_prompts(
         
         # Build the full positive prompt (keep clean and focused on action and character)
         enhanced = (
-            f"A Thai {gender_en}. "
+            f"Ethnic Thai {gender_en} {model_age} years old, porcelain white glowing skin, "
+            f"monolid eyes, Southeast Asian ethnic Thai features. "
             f"{scene_action} "
-            f"Camera slow push-in. {lighting}. "
+            f"Setting: {setting}. {lighting}. "
             f"9:16 portrait, smooth natural motion"
         )
         
@@ -519,12 +564,12 @@ def _scene_descriptions_for_category(category: str, product_type: str, product_n
     # ── Fashion ──
     elif category == "fashion":
         return {
-            "Hook": f"Model wearing {pn}, fashion-forward entrance draped beautifully, garment clearly visible",
-            "Problem": f"Outfit styling without {pn}, neutral expression",
-            "Discovery": f"{pn} being modeled, fabric texture and fit visible",
-            "Features": f"Texture and detail close-up of {pn}, stitching or fabric finish visible",
-            "Transformation": f"Complete look with {pn} worn naturally, confident pose, full outfit visible",
-            "CTA": f"Final confident look, {pn} draped beautifully, featured prominently",
+            "Hook": f"Model holding {pn}, fashion-forward entrance, product clearly visible",
+            "Problem": f"Showing look without {pn}, neutral expression",
+            "Discovery": f"{pn} being shown or styled, model examining product",
+            "Features": f"Texture and detail close-up of {pn}, fabric or finish visible",
+            "Transformation": f"Complete look with {pn} styled, confident pose, full outfit visible",
+            "CTA": f"Final confident look, {pn} featured prominently",
         }
     
     # ── Beauty — keep original holding restriction ──
@@ -556,26 +601,20 @@ def _scene_descriptions_for_category(category: str, product_type: str, product_n
 
 def generate_voice(
     text: str,
-    voice: Optional[str] = None,
-    target_gender: str = "female",
+    voice: str = "Aoede",
     run_id: str = "",
-    speaking_rate: float = 1.25,
 ) -> str:
-    """Step 7: Generate Thai voice via Gemini TTS."""
+    """Step 7: Generate Thai voice via Gemini TTS ONLY (EdgeTTS removed per project policy)."""
     logger.info(f"Step 7/9: TTS (Gemini TTS)")
+    logger.info(f"  Voice: {voice}")
     logger.info(f"  Text: {text[:50]}...")
-
-    # Fallback: resolve voice from gender (defensive — caller should have already done this)
-    if voice is None:
-        from gemini_tts import get_voice_for_gender
-        voice = get_voice_for_gender(target_gender)
-    logger.info(f"  Voice: {voice} (gender={target_gender})")
 
     output_path = str(TMP_DIR / f"voice_{run_id}.mp3")
 
+    # GEMINI TTS ONLY — EdgeTTS removed (ไม่ใช้ Edge TTS เราใช้ Gemini TTS เท่านั้น)
     try:
         from gemini_tts import gemini_text_to_speech
-        tts_path = gemini_text_to_speech(text, output_path=output_path, voice=voice, target_sample_rate=16000, speaking_rate=speaking_rate)
+        tts_path = gemini_text_to_speech(text, output_path=output_path, voice=voice)
         if tts_path and Path(tts_path).exists():
             logger.info(f"  Gemini TTS OK: {tts_path}")
             return tts_path
@@ -593,33 +632,31 @@ from prodia_client import ProdiaV2Client, ProdiaV2Error, ProdiaValidationError
 
 
 def _convert_to_wav(audio_path: str) -> str:
-    """Convert audio to 16kHz mono PCM WAV for Wan 2.7 lip-sync.
-    Gemini TTS outputs 24kHz WAV; Wan 2.7 requires 16000Hz.
-    """
-    import subprocess, tempfile
+    """Convert TTS audio to 16kHz mono PCM WAV for accurate Prodia Lip-sync."""
     if not audio_path or not os.path.exists(audio_path):
         return audio_path
-    size = os.path.getsize(audio_path)
-    if size < 500:
-        logger.warning(f'Audio file too small ({size} bytes): {audio_path}')
-        return audio_path
-    probe_cmd = ['ffprobe','-v','error','-select_streams','a:0','-show_entries','stream=sample_rate','-of','default=noprint_wrappers=1:nokey=1',audio_path]
-    probe_result = subprocess.run(probe_cmd, capture_output=True, text=True)
-    current_rate = int(probe_result.stdout.strip()) if probe_result.stdout.strip() else 0
-    if current_rate == 16000:
-        logger.info(f'Audio already 16kHz: {audio_path} ({size} bytes)')
-        return audio_path
-    output_path = Path(tempfile.mkdtemp(prefix='tts_resample_')) / 'voice_16k.wav'
-    subprocess.run(['ffmpeg','-y','-i',audio_path,'-ar','16000','-ac','1','-sample_fmt','s16',str(output_path)], capture_output=True, check=True)
-    out_size = output_path.stat().st_size
-    logger.info(f'Audio resampled ({current_rate}Hz->16000Hz): {output_path} ({out_size} bytes)')
-    return str(output_path)
+    wav_path = str(Path(audio_path).parent / f"{Path(audio_path).stem}_16k.wav")
+    try:
+        import subprocess
+        cmd = [
+            "ffmpeg", "-y", "-i", audio_path,
+            "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le",
+            wav_path
+        ]
+        subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if os.path.exists(wav_path) and os.path.getsize(wav_path) > 500:
+            logger.info(f"Converted audio to 16kHz WAV for Lip-sync: {wav_path}")
+            return wav_path
+    except Exception as e:
+        logger.warning(f"Audio WAV conversion notice ({e}), using original file: {audio_path}")
+    return audio_path
+
 
 def generate_video(
     image_path: str,
     prompt: str,
     duration: int = 8,
-    resolution: str = "1080P",
+    resolution: str = "720P",
     audio_path: Optional[str] = None,
     negative_prompt: Optional[str] = None,
 ) -> tuple:
@@ -642,7 +679,7 @@ def generate_video(
     audio_bytes = None
     if audio_path:
         valid_wav_path = _convert_to_wav(audio_path)
-        logger.info(f"  Audio: {Path(valid_wav_path).stat().st_size} bytes (sending native WAV to Prodia for lip-sync)")
+        logger.info(f"  Audio: {Path(valid_wav_path).stat().st_size} bytes (sending 16kHz WAV to Prodia for lip-sync)")
         with open(valid_wav_path, "rb") as f:
             audio_bytes = f.read()
 
@@ -657,7 +694,6 @@ def generate_video(
             duration=duration,
             resolution=resolution,
             audio_bytes=audio_bytes,
-            ratio="9:16",
             job_type="inference.wan2-7.img2vid.v1",
             negative_prompt=neg_p,
         )
@@ -690,6 +726,33 @@ def generate_video(
     except Exception as e:
         logger.error(f"  Prodia Wan 2.7 Video generation failed: {e}")
         raise RuntimeError(f"Prodia Wan 2.7 Video generation failed: {e}")
+
+def _generate_fallback_video_from_image(image_path: str, duration: int = 15) -> str:
+    """Generate a high-quality 1080x1920 video with smooth zoompan from a still image via FFmpeg."""
+    fallback_path = TMP_DIR / f"img2vid_fallback_{uuid.uuid4().hex[:8]}.mp4"
+    logger.info(f"Generating FFmpeg video fallback from image: {image_path}")
+    
+    local_img = image_path
+    if str(image_path).startswith("http://") or str(image_path).startswith("https://"):
+        local_img = TMP_DIR / f"temp_img_{uuid.uuid4().hex[:8]}.png"
+        r = requests.get(image_path, timeout=30)
+        with open(local_img, "wb") as f:
+            f.write(r.content)
+            
+    cmd = [
+        "ffmpeg", "-y",
+        "-loop", "1",
+        "-i", str(local_img),
+        "-c:v", "libx264",
+        "-t", str(duration),
+        "-pix_fmt", "yuv420p",
+        "-vf", f"scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,zoompan=z='min(zoom+0.0015,1.2)':d={duration*25}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920",
+        "-r", "25",
+        str(fallback_path)
+    ]
+    subprocess.run(cmd, check=True, capture_output=True, timeout=60)
+    logger.info(f"FFmpeg Video Fallback Created OK -> {fallback_path}")
+    return str(fallback_path)
 
 def has_audio_track(video_path: str) -> bool:
     """Check if video contains an audio stream using ffprobe.
@@ -749,42 +812,32 @@ def compose_video(
     else:
         shutil.copy2(valid_paths[0], concat_path)
 
-    # Step 9b: Wan 2.7 lip-sync may return near-silent audio.
-    # Check audio level; if too quiet, swap in original TTS voice.
+    # Step 9b: Force-merge Gemini TTS voiceover audio into the video
     final_path = concat_path
-
     if voice_path and Path(voice_path).exists():
-        import json
+        logger.info(f"  9b: Merging TTS voiceover audio {voice_path} into final video")
+        voiced_path = STORAGE_DIR / f"affiliate_{run_id}_voiced.mp4"
+        cmd_voice = [
+            "ffmpeg", "-y",
+            "-i", str(concat_path),
+            "-i", str(voice_path),
+            "-c:v", "copy",
+            "-c:a", "aac",
+            "-map", "0:v:0",
+            "-map", "1:a:0",
+            "-shortest",
+            str(voiced_path)
+        ]
         try:
-            result = subprocess.run(
-                ["ffprobe", "-v", "quiet", "-f", "lavfi",
-                 f"amovie={final_path},astats=metadata=1:reset=1",
-                 "-show_entries", "frame_tags=lavfi.astats.Overall.RMS_level",
-                 "-of", "json"],
-                capture_output=True, text=True, timeout=15
-            )
-            frames = json.loads(result.stdout).get("frames", [])
-            if frames:
-                rms_vals = [float(f["tags"]["lavfi.astats.Overall.RMS_level"]) for f in frames]
-                avg_rms = sum(rms_vals) / len(rms_vals)
-                logger.info(f"  9b: Prodia audio RMS={avg_rms:.1f} dB")
-                if avg_rms < -40:
-                    logger.info(f"  9b: Near-silent, replacing with TTS voice")
-                    voice_vid = TMP_DIR / f"voice_{run_id}.mp4"
-                    subprocess.run([
-                        "ffmpeg", "-y",
-                        "-i", str(concat_path),
-                        "-i", str(voice_path),
-                        "-c:v", "copy",
-                        "-map", "0:v:0", "-map", "1:a:0",
-                        "-shortest",
-                        str(voice_vid),
-                    ], check=True, capture_output=True, timeout=60)
-                    final_path = voice_vid
-            else:
-                logger.warning(f"  9b: Cannot probe audio, using video as-is")
-        except Exception as e:
-            logger.warning(f"  9b: Audio check failed ({e}), using video as-is")
+            subprocess.run(cmd_voice, check=True, capture_output=True, timeout=60)
+            if voiced_path.exists() and voiced_path.stat().st_size > 1000:
+                final_path = voiced_path
+                logger.info(f"  9b: Voiceover merged successfully -> {final_path}")
+        except Exception as ve:
+            logger.error(f"  9b: Merging voiceover failed ({ve}), using concat video")
+    else:
+        final_path = concat_path
+
 
     # Step 9c: Add BGM
     if bgm_style:
@@ -814,7 +867,25 @@ def compose_video(
                 logger.info(f"    BGM mixed")
                 final_path = bgm_output
             except Exception as e:
-                logger.warning(f"    BGM mix failed ({e}), using video without BGM")
+                logger.warning(f"    BGM mix failed ({e}), trying BGM-only")
+                # Fallback: just copy video + BGM as sole audio
+                try:
+                    cmd_bgm = [
+                        "ffmpeg", "-y",
+                        "-i", str(concat_path),  # use original video with audio
+                        "-i", str(bgm_path),
+                        "-c:v", "copy",
+                        "-c:a", "aac",
+                        "-map", "0:v:0",
+                        "-map", "1:a:0",
+                        "-shortest",
+                        str(bgm_output),
+                    ]
+                    subprocess.run(cmd_bgm, check=True, capture_output=True, timeout=60)
+                    logger.info(f"    BGM-only added")
+                    final_path = bgm_output
+                except Exception as e2:
+                    logger.warning(f"    BGM-only also failed: {e2}")
 
     logger.info(f"  Final: {final_path}")
     return str(final_path)
@@ -828,8 +899,7 @@ def run_pipeline(
     product_name: str,
     product_image: Optional[str] = None,
     recipe_name: str = "tus",
-    target_gender: str = "female",
-    voice: Optional[str] = None,
+    voice: str = "Aoede",
     bgm_style: str = "chill_loft",
     description: Optional[str] = None,
     ugc_style: str = "holding",
@@ -849,18 +919,13 @@ def run_pipeline(
         product_name: ชื่อสินค้า
         product_image: URL ของรูปสินค้า (required!)
         recipe_name: ชื่อ recipe (tus, etsy)
-        voice: ชื่อเสียง TTS (None = auto-detect from target_gender)
-    # Resolve voice from gender if not explicitly set
-    if voice is None:
-        from gemini_tts import get_voice_for_gender
-        voice = get_voice_for_gender(target_gender)
-    logger.info(f"  Voice: {voice} (gender={target_gender})")
+        voice: ชื่อเสียง TTS
         bgm_style: สไตล์เพลงพื้นหลัง
         description: คําอธิบายสินค้า (optional)
         external_job_id: job_id จาก caller (ถ้ามี) — ใช้แทนการ gen เอง เพื่อให้ pipeline_logs.db
                          ตรงกับ pipeline.db ใน tiktok-ugc-studio
         image_prompt: รูป prompt ที่เตรียมมาแล้ว (ถ้ามีจะไม่ gen ใหม่)
-        video_prompt: วิดีโอ prompt ที่เตรียมมาแล้ว (ต้องมี — throw error ถ้าไม่มี)
+        video_prompt: วิดีโอ prompt ที่เตรียมมาแล้ว (ใช้ fallback ถ้า video_prompts ไม่มี)
         video_prompts: รายการวิดีโอ prompts ต่อ scene (ถ้ามีจะไม่ gen ใหม่)
         negative_prompt: negative prompt ที่เตรียมมาแล้ว
         script: script ที่เตรียมมาแล้ว (ถ้ามีจะไม่ gen ใหม่)
@@ -929,23 +994,20 @@ def run_pipeline(
         except Exception:
             pass
 
-        # Extract model_gender from product profile (needed by generate_script)
-        model_gender = product_profile.get("target_gender", "female")
-        target_gender = model_gender
-        # Re-resolve voice to match analyzed gender
+        # ── Resolve voice by gender (GEMINI TTS ONLY — EdgeTTS not used) ──
+        target_gender = product_profile.get("target_gender", "female")
         from gemini_tts import get_voice_for_gender
         voice = get_voice_for_gender(target_gender)
-        logger.info(f"  Voice: {voice} (gender={target_gender}, from product analysis)")
-        # ── STEP 3: Generate Script (force gen unless decent-length Thai script)
-        if script and len(script) >= 30 and script != product_name:
-            script_duration = 0
-            logger.info(f"Step 3/9: Skipped (using pre-computed script, {len(script)} chars)")
-        else:
-            if script:
-                logger.info(f"Step 3/9: Script too short or =product_title ({len(script)} chars), regenerating Thai")
+        logger.info(f"  Voice: {voice} (gender={target_gender})")
+
+        # ── STEP 3: Generate Script (skip if pre-computed) ──
+        if not script:
             step_start = time.time()
-            script = generate_script(product_name, product_profile, recipe, ugc_style=ugc_style, model_gender=model_gender)
+            script = generate_script(product_name, product_profile, recipe, ugc_style=ugc_style)
             script_duration = int((time.time() - step_start) * 1000)
+        else:
+            script_duration = 0
+            logger.info(f"Step 3/9: Skipped (using pre-computed script)")
 
         try:
             update_step(job_id, 'script', {'duration_ms': script_duration, 'script': script[:100]})
@@ -971,12 +1033,6 @@ def run_pipeline(
         img_url, cost_image = generate_image(image_prompt, product_image)
         img_path = TMP_DIR / f"image_{run_id}.png"
         download_file(img_url, img_path)
-        # Persist to gallery for viewing and reuse
-        try:
-            shutil.copy2(img_path, GALLERY_DIR / f"image_{run_id}.png")
-            logger.info(f"Image saved to gallery: image_{run_id}.png")
-        except Exception as e:
-            logger.warning(f"Gallery copy failed: {e}")
         image_duration = int((time.time() - step_start) * 1000)
 
         try:

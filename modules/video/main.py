@@ -111,6 +111,7 @@ class SceneBlock(BaseModel):
 
 class VideoRequest(BaseModel):
     product_title: str = ""
+    product_name: Optional[str] = None
     product_url: str = ""
     product_image: str = ""
     product_price: Optional[float] = None
@@ -129,6 +130,7 @@ class VideoRequest(BaseModel):
     model_tier: str = "standard"
     image_url: Optional[str] = None
     script: Optional[str] = None
+    voice: Optional[str] = None
     negative_prompt: Optional[str] = None
     bgm_style: Optional[str] = None
     product_description: Optional[str] = None
@@ -223,11 +225,7 @@ async def generate_tts(req: dict):
     """Generate TTS audio from text using Gemini."""
     from video.gemini_tts import gemini_text_to_speech
     text = req.get("text", "")
-    voice = req.get("voice") or None
-    target_gender = req.get("target_gender", "female")
-    if voice is None:
-        from video.gemini_tts import get_voice_for_gender
-        voice = get_voice_for_gender(target_gender)
+    voice = req.get("voice", "Aoede")
     if not text:
         return {"success": False, "error": "No text provided"}
     output_path = str(TTS_DIR / f"tts_{uuid.uuid4().hex[:8]}.mp3")
@@ -245,11 +243,7 @@ async def generate_script_tts(req: dict):
     full_text = " ".join(filter(None, [hook, body, cta]))
     if not full_text.strip():
         return {"success": False, "error": "No text in script"}
-    voice = req.get("voice") or None
-    target_gender = req.get("target_gender", "female")
-    if voice is None:
-        from video.gemini_tts import get_voice_for_gender
-        voice = get_voice_for_gender(target_gender)
+    voice = req.get("voice", "Aoede")
     output_path = str(TTS_DIR / f"script_{uuid.uuid4().hex[:8]}.mp3")
     filepath = gemini_text_to_speech(full_text, output_path=output_path, voice=voice)
     return {"success": True, "filepath": filepath}
@@ -269,7 +263,7 @@ async def generate_video(req: VideoRequest):
     script = req.script or ""
     if not script:
         parts = [p for p in [req.hook, req.value, req.cta] if p]
-        script = " ".join(parts) if parts else ""  # empty -> pipeline generates Thai script via Gemini
+        script = " ".join(parts) if parts else req.product_title or "รีวิวสินค้า"
     
     # Build scene prompts from request
     scene_prompts = []
@@ -283,10 +277,10 @@ async def generate_video(req: VideoRequest):
     
     try:
         result = run_pipeline(
-            product_name=req.product_title or "สินค้า",
+            product_name=req.product_name or req.product_title or (script[:60] if script else "สินค้า"),
             product_image=product_image if product_image else None,
             recipe_name=req.recipe or "tus",
-            voice=None,
+            voice=req.voice or "Aoede",
             bgm_style=req.bgm_style or random.choices(
                 ["chill_loft", "luxury_jazz", "upbeat_pop", "energetic_edm", "informative_jazz", "asmr", "relaxing"],
                 weights=[15, 15, 20, 12, 12, 4, 22], k=1
@@ -318,20 +312,6 @@ async def video_gallery():
         if f.suffix.lower() in (".mp4", ".webm", ".mov"):
             files.append({"name": f.name, "size": f.stat().st_size, "path": f"/static/videos/{f.name}"})
     return {"success": True, "videos": files}
-
-
-@app.get("/api/v1/images/gallery")
-async def image_gallery():
-    """List generated images from storage."""
-    from pathlib import Path
-    images_dir = Path(__file__).parent / "storage" / "images"
-    files = []
-    for f in sorted(images_dir.glob("*.png"))[-50:]:
-        files.append({"name": f.name, "size": f.stat().st_size, "path": f"/static/images/{f.name}"})
-    for f in sorted(images_dir.glob("*.jpg"))[-50:]:
-        files.append({"name": f.name, "size": f.stat().st_size, "path": f"/static/images/{f.name}"})
-    return {"success": True, "images": files}
-
 
 # ─── Product Analysis (delegated to pipeline service port 8118) ────
 

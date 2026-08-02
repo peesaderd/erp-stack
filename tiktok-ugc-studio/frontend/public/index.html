@@ -4802,7 +4802,8 @@ function useProduct(jsonEncoded) {
       if (el) selectStyleFromModal(el, p.ugc_style);
     }
     if (p.images && p.images[0]) {
-      uploadedImages.product = window.location.origin + p.images[0];
+      const img = p.images[0];
+      uploadedImages.product = img.startsWith("http") ? img : window.location.origin + img;
       const zone = document.getElementById("productImgZone");
       const pl = document.getElementById("productImgPlaceholder");
       zone.classList.add("has-image");

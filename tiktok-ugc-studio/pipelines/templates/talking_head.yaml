@@ -24,7 +24,7 @@ scene_prompts:
   hook: |
     {model} confidently speaking directly to camera, {lighting},
     natural hand gestures, warm friendly expression,
-    holding {product} naturally in frame,
+    {verb} {product} naturally in frame,
     {angle}, {color_palette} aesthetic, {background},
     professional UGC style, authentic Thai creator vibe
 

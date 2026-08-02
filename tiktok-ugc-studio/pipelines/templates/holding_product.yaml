@@ -15,7 +15,7 @@ generation:
 
 scene_prompts:
   hook: |
-    Beautiful product close-up, {model} naturally holding {product},
+    Beautiful product close-up, {model} naturally {verb} {product},
     product centered and clearly visible, {lighting},
     eye-catching opening shot, {color_palette} aesthetic,
     professional product photography style, {background}

@@ -120,6 +120,28 @@ def list_templates() -> List[dict]:
 # Variation Engine
 # ═══════════════════════════════════════════════════════
 
+CLOTHING_KEYWORDS = [
+    "เสื้อ", "กางเกง", "กระโปรง", "เดรส", "ชุด", "แฟชั่น", "fashion", "clothing",
+    "apparel", "dress", "shirt", "pant", "jacket", "coat", "shoe", "sneaker",
+    "รองเท้า", "กระเป๋า", "bag", "hat", "หมวก", "scarf", "ผ้าพันคอ", "sock",
+    "ถุงเท้า", "suit", "สูท", "jean", "ยีน", "blouse", "skirt", "hoodie",
+    "sweater", "cardigan", "vest", "swimsuit", "ชุดว่ายน้ำ", "uniform", "เครื่องแบบ",
+]
+
+def _detect_verb(recipe, product):
+    combined = " ".join([
+        recipe.get("name", ""),
+        recipe.get("label", ""),
+        recipe.get("description", ""),
+        product.get("category", ""),
+        product.get("title", ""),
+        product.get("product_type", ""),
+    ]).lower()
+    if any(kw in combined for kw in CLOTHING_KEYWORDS):
+        return "wearing"
+    return "holding"
+
+
 def _pick_variations(template: dict) -> Dict[str, str]:
     """Randomly select 1 option from each variation category."""
     variations = template.get("variations", {})
@@ -193,6 +215,7 @@ def build_pipeline_config(
     vars_used = _pick_variations(template)
     
     # 2. Build scene prompts
+    vars_used["verb"] = _detect_verb(recipe, product)
     product_name = product.get("title", "this product")
     prompts = {}
     for scene, prompt_tpl in template.get("scene_prompts", {}).items():

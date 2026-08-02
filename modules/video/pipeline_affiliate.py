@@ -564,12 +564,12 @@ def _scene_descriptions_for_category(category: str, product_type: str, product_n
     # ── Fashion ──
     elif category == "fashion":
         return {
-            "Hook": f"Model holding {pn}, fashion-forward entrance, product clearly visible",
-            "Problem": f"Showing look without {pn}, neutral expression",
-            "Discovery": f"{pn} being shown or styled, model examining product",
-            "Features": f"Texture and detail close-up of {pn}, fabric or finish visible",
-            "Transformation": f"Complete look with {pn} styled, confident pose, full outfit visible",
-            "CTA": f"Final confident look, {pn} featured prominently",
+            "Hook": f"Model wearing {pn}, fashion-forward entrance, garment clearly visible on body",
+            "Problem": f"Showing outfit without {pn}, neutral expression, missing piece visible",
+            "Discovery": f"{pn} being worn and styled, model adjusting garment naturally on body",
+            "Features": f"Texture and fabric detail close-up of {pn} on body, drape and fit visible",
+            "Transformation": f"Complete look with {pn} worn confidently, full outfit visible on model",
+            "CTA": f"Final confident look, {pn} worn and featured prominently on body",
         }
     
     # ── Beauty — keep original holding restriction ──

@@ -39,7 +39,11 @@ CLOTHING_CATEGORIES = {
     "dress", "suit", "uniform", "swimwear", "swimsuit", "bikini",
     "underwear", "lingerie", "loungewear", "sleepwear", "activewear",
     "socks", "scarf", "hat", "gloves", "belt", "tie", "cap",
-    "garment", "outfit", "wearable"
+    "garment", "outfit", "wearable",
+    # Thai categories
+    "แฟชั่น", "เสื้อ", "เสื้อผ้า", "เสื้อเชิ้ต", "เชิ้ต",
+    "กางเกง", "ยีนส์", "เดรส", "กระโปรง", "สูท", "แจ็คเก็ต",
+    "ชุด", "เครื่องแต่งกาย", "เครื่องนุ่งห่ม", "ผ้า",
 }
 
 def _is_wearable_category(category: str) -> bool:

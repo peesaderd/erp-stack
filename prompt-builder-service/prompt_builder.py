@@ -28,6 +28,74 @@ from router_agent import router_decide
 
 logger = logging.getLogger("prompt-builder-service")
 
+# ─── Clothing/Accessories Category Detection ──────────────────────
+CLOTHING_CATEGORIES = {
+    "fashion", "clothing", "apparel",  # broad
+    "accessories", "jewelry", "shoes", "bags", "watch", "watches",
+    # specific garment types
+    "shirt", "tops", "t-shirt", "polo", "blouse", "sweater", "hoodie",
+    "jacket", "coat", "blazer", "vest",
+    "pants", "jeans", "trousers", "shorts", "skirt", "leggings", "joggers",
+    "dress", "suit", "uniform", "swimwear", "swimsuit", "bikini",
+    "underwear", "lingerie", "loungewear", "sleepwear", "activewear",
+    "socks", "scarf", "hat", "gloves", "belt", "tie", "cap",
+    "garment", "outfit", "wearable"
+}
+
+def _is_wearable_category(category: str) -> bool:
+    cat_lower = (category or "").lower().strip()
+    return any(w in cat_lower for w in CLOTHING_CATEGORIES) or cat_lower in CLOTHING_CATEGORIES
+
+def _override_style_for_clothing(style_info: dict, category: str) -> dict:
+    if not _is_wearable_category(category):
+        return style_info
+    info = dict(style_info)
+    if info.get("model_action"):
+        info["model_action"] = info["model_action"].replace(
+            "holding the product in both hands", "modeling the garment draped on body"
+        ).replace(
+            "casually holding product", "casually modeling the garment"
+        ).replace(
+            "holding product up showing packaging", "modeling the garment, turning to show fit"
+        ).replace(
+            "holding product", "modeling garment"
+        ).replace(
+            "both hands holding product", "garment draped beautifully on body"
+        ).replace(
+            "just holding and showing", "showing how garment fits naturally"
+        )
+    if info.get("video_motion"):
+        info["video_motion"] = info["video_motion"].replace(
+            "holding product gently in both hands", "modeling garment naturally, slight turn to show fit"
+        ).replace(
+            "holding product", "modeling garment"
+        )
+    if info.get("keywords"):
+        info["keywords"] = info["keywords"].replace(
+            "both hands holding product", "garment draped on body"
+        ).replace(
+            "holding product", "wearing garment"
+        )
+    return info
+
+def _get_category_display_action(category: str) -> dict:
+    if _is_wearable_category(category):
+        return {
+            "holds": "wears and shows off",
+            "hold_replace": "wears",
+            "pose_phrase": "the garment draped beautifully on the body, clearly visible and in focus",
+            "model_action_tail": "modeling and displaying the clothing elegantly on body, garment clearly visible, smiling naturally",
+            "default_vid_motion": "gently modeling and displaying the garment on body",
+        }
+    else:
+        return {
+            "holds": "holds",
+            "hold_replace": "holds",
+            "pose_phrase": "the product held at chest level, clearly visible and in focus",
+            "model_action_tail": "",
+            "default_vid_motion": "gently holding product, slight natural movement",
+        }
+
 
 def analyze_product(product_name: str, description: str = "", keywords: Optional[List[str]] = None, target_duration: int = 15, features: str = "") -> dict:
     """Analyze product via Gemini and return profile dict.
@@ -164,6 +232,13 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     model_gender = profile.get("target_gender", "female")
     model_age = profile.get("_normalized_age") or _normalize_age(profile.get("target_age", "20-35"))
     category = profile.get("category", "other")
+
+    # ── Category-aware display action (clothing → wearing, others → holding) ──
+    _cat_action = _get_category_display_action(category)
+    _cat_hold = _cat_action["holds"]
+    _cat_pose = _cat_action["pose_phrase"]
+    _cat_hold_replace = _cat_action["hold_replace"]
+    style_info = _override_style_for_clothing(style_info, category)
 
     gender_en = {
         "female": "woman", "woman": "woman",
@@ -324,7 +399,7 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         "atmosphere": "warm, inviting, authentic",
         "color_palette": "natural tones, neutral background",
         "background": "clean minimal background",
-        "model_action": style_info.get("model_action", "",),
+        "model_action": _cat_action["model_action_tail"] if _is_wearable_category(category) else style_info.get("model_action", "",),
         "camera": style_info.get("camera", ""),
         "vibe": style_info.get("vibe", ""),
         "keywords": style_info.get("keywords", ""),
@@ -373,6 +448,13 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     model_gender = profile.get("target_gender", "female")
     model_setting = profile.get("setting", "clean modern lifestyle setting")
     category = profile.get("category", "other")
+
+    # ── Category-aware display action (clothing → wearing, others → holding) ──
+    _cat_action = _get_category_display_action(category)
+    _cat_hold = _cat_action["holds"]
+    _cat_pose = _cat_action["pose_phrase"]
+    _cat_hold_replace = _cat_action["hold_replace"]
+    style_info = _override_style_for_clothing(style_info, category)
 
     gender_en = {"female": "woman", "male": "man", "unisex": "person"}.get(model_gender, "person")
     persona_clothing = profile.get("persona_clothing", "")

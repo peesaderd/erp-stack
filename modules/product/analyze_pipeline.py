@@ -695,10 +695,9 @@ async def _extract_gender_age_hashtags(title: str, description: str) -> dict:
         '{"gender": "female|male", '
         '"target_age": "short age range e.g. 18-35", '
         '"hashtags": [5-8 Thai+English TikTok hashtags]}\n'
-        "Rules: gender must be female or male - NEVER unisex, NEVER empty. "
-        "Women's clothing/beauty/accessories (dress, เดรส, skirt, กระโปรง, blouse, "
-        "ชุด, makeup, สกินแคร์) -> female. Men's clothing/beauty -> male. "
-        "Choose the best fit even for neutral products.\n"
+        "Rules: gender must be female or male ONLY - return female/male if clearly for a specific gender. "
+        "If truly unknown/neutral/unisex, return gender as empty string (\"\"). "
+        "NEVER guess or force female/male when unclear.\n"
         f"Title: {title}\n"
         f"Description: {description or 'N/A'}"
     )
@@ -721,7 +720,7 @@ async def _extract_gender_age_hashtags(title: str, description: str) -> dict:
             return "female"
         if any(k.lower() in t for k in _MALE_KW):
             return "male"
-        return "female"  # never unisex / never empty: safest for Thai fashion feed
+        return ""  # unknown/neutral — let downstream decide; never hardcode female
 
     if result:
         try:

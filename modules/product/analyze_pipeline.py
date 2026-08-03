@@ -352,6 +352,9 @@ class UnifiedProduct:
     viral_score: float = 0.0
     trending: bool = False
     keywords: List[str] = field(default_factory=list)
+    hashtags: List[str] = field(default_factory=list)
+    gender: str = ""
+    target_age: str = ""
     enriched: bool = False
 
 # ─── Stage 1: Normalizer ─────────────────────────────────────────────────────
@@ -446,6 +449,8 @@ class ProductNormalizer:
             video_count=cls._safe_int(d.get("videos_count", d.get("total_video_count", 0))),
             rank=cls._safe_int(d.get("rank", 0)),
             source="tiktok",
+            gender=str(d.get("gender", "") or ""),
+            target_age=str(d.get("age_group", d.get("target_age", "")) or ""),
             scrape_timestamp=datetime.utcnow().isoformat(),
         )
 
@@ -542,6 +547,12 @@ class ProductEnricher:
             product.category = await _detect_category(product.title, product.categories)
             product.title_th = await _translate_to_thai(product.title)
             product.keywords = await _extract_keywords(product.title, product.description)
+            meta = await _extract_gender_age_hashtags(product.title, product.description)
+            if not product.gender:
+                product.gender = meta.get("gender", "")
+            if not product.target_age:
+                product.target_age = meta.get("target_age", "")
+            product.hashtags = meta.get("hashtags", [])
             product.viral_score = _score_viral(product)
             if product.sold_total > 0:
                 product.trending = (product.sold_week / product.sold_total) > 0.1
@@ -586,6 +597,8 @@ class ProductExporter:
                 "category": p.category, "keywords": p.keywords,
                 "images": p.images, "commission": f"{p.commission_rate}%",
                 "source": p.source, "seller_name": p.seller_name,
+                "gender": p.gender, "target_age": p.target_age,
+                "hashtags": p.hashtags,
                 "image_count": len(p.images),
             })
         return {"tus_ready": True, "products": result, "count": len(result),
@@ -658,6 +671,75 @@ async def _extract_keywords(title: str, description: str) -> list:
             _cache.set(cache_key, keywords)
             return keywords
     return []
+
+def _split_hashtags(raw) -> list:
+    if isinstance(raw, list):
+        out = []
+        for h in raw:
+            if isinstance(h, dict):
+                h = h.get("tag") or h.get("hashtag") or ""
+            out.append(str(h).strip().lstrip("#"))
+        return [x for x in out if x][:12]
+    if isinstance(raw, str):
+        return [x.strip().lstrip("#") for x in re.split(r"[,\s]+", raw) if x.strip()][:12]
+    return []
+
+
+async def _extract_gender_age_hashtags(title: str, description: str) -> dict:
+    """Use Mistral to determine gender, target age group, and hashtags."""
+    out = {"gender": "", "target_age": "", "hashtags": []}
+    if not title:
+        return out
+    prompt = (
+        "Analyze this product for TikTok UGC. Return ONLY valid JSON:\n"
+        '{"gender": "female|male", '
+        '"target_age": "short age range e.g. 18-35", '
+        '"hashtags": [5-8 Thai+English TikTok hashtags]}\n'
+        "Rules: gender must be female or male - NEVER unisex, NEVER empty. "
+        "Women's clothing/beauty/accessories (dress, เดรส, skirt, กระโปรง, blouse, "
+        "ชุด, makeup, สกินแคร์) -> female. Men's clothing/beauty -> male. "
+        "Choose the best fit even for neutral products.\n"
+        f"Title: {title}\n"
+        f"Description: {description or 'N/A'}"
+    )
+    result = await _call_mistral(prompt, max_tokens=300)
+
+    _FEMALE_KW = ("เดรส", "กระโปรง", "ชุด", "เสื้อผ้าผู้หญิง", "กางเกงขาสั้น", "dress", "skirt",
+                  "blouse", "women", "woman", "lady", "makeup", "cosmetic", "สกินแคร์",
+                  "ความงาม", "แฟชั่นผู้หญิง")
+    _MALE_KW = ("เสื้อผู้ชาย", "สูท", "shirt мужчина", "men", "man", "male", "tie", "boxer",
+                "กางเกงในผู้ชาย")
+
+    def _resolve_gender(g: str) -> str:
+        g = (g or "").strip().lower()
+        if g in ("female", "f", "women", "woman", "ladies"):
+            return "female"
+        if g in ("male", "m", "men", "man", "gentlemen"):
+            return "male"
+        t = f"{title} {description or ''}".lower()
+        if any(k.lower() in t for k in _FEMALE_KW):
+            return "female"
+        if any(k.lower() in t for k in _MALE_KW):
+            return "male"
+        return "female"  # never unisex / never empty: safest for Thai fashion feed
+
+    if result:
+        try:
+            data = json.loads(result)
+            out["gender"] = _resolve_gender(data.get("gender", ""))
+            out["target_age"] = str(data.get("target_age", "") or "").strip()
+            out["hashtags"] = _split_hashtags(data.get("hashtags", []))
+        except Exception:
+            m = re.search(r'"gender"\s*:\s*"([^"]+)"', result)
+            if m:
+                out["gender"] = _resolve_gender(m.group(1))
+            m2 = re.search(r'"target_age"\s*:\s*"([^"]+)"', result)
+            if m2:
+                out["target_age"] = m2.group(1)
+            matches = re.findall(r'"([^"]+)"', result)
+            out["hashtags"] = [x for x in matches if x.startswith("#")][:12]
+    return out
+
 
 def _score_viral(p: UnifiedProduct) -> float:
     score = (

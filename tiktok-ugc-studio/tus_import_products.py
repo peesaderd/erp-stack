@@ -50,12 +50,29 @@ def _init_db():
             description_th TEXT,
             images TEXT DEFAULT '[]',
             keywords TEXT DEFAULT '[]',
+            gender TEXT DEFAULT '',
+            target_age TEXT DEFAULT '',
+            hashtags TEXT DEFAULT '[]',
             source TEXT DEFAULT 'tiktok',
             imported_at TEXT,
             tus_status TEXT DEFAULT 'pending',
             notes TEXT DEFAULT ''
         )
     """)
+    # Migrate existing DBs: add gender/target_age/hashtags columns if missing
+    try:
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(tus_products)").fetchall()]
+        for col, ddl in [
+            ("gender", "ALTER TABLE tus_products ADD COLUMN gender TEXT DEFAULT ''"),
+            ("target_age", "ALTER TABLE tus_products ADD COLUMN target_age TEXT DEFAULT ''"),
+            ("hashtags", "ALTER TABLE tus_products ADD COLUMN hashtags TEXT DEFAULT '[]'"),
+        ]:
+            if col not in cols:
+                conn.execute(ddl)
+        conn.commit()
+    except Exception as _mig_e:
+        logger.warning(f"Migration warning: {_mig_e}")
+
     conn.execute("""
         CREATE TABLE IF NOT EXISTS import_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -84,6 +101,7 @@ def _insert_product(p: dict, run_id: str):
     """Insert a new product from analysis into TUS DB."""
     images_json = json.dumps(p.get("images", []), ensure_ascii=False)
     keywords_json = json.dumps(p.get("keywords", []), ensure_ascii=False)
+    hashtags_json = json.dumps(p.get("hashtags", []), ensure_ascii=False)
 
     conn = sqlite3.connect(TUS_DB_PATH)
     conn.execute("""
@@ -91,8 +109,9 @@ def _insert_product(p: dict, run_id: str):
             product_id, title, title_th, price_thb, rating, sold_total,
             viral_score, trending, category, commission_rate,
             seller_name, seller_id, url, description, description_th,
-            images, keywords, source, imported_at, tus_status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            images, keywords, gender, target_age, hashtags,
+            source, imported_at, tus_status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         p.get("product_id", ""),
         p.get("title", ""),
@@ -111,6 +130,9 @@ def _insert_product(p: dict, run_id: str):
         p.get("description_th", ""),
         images_json,
         keywords_json,
+        p.get("gender", ""),
+        p.get("target_age", ""),
+        hashtags_json,
         p.get("source", "tiktok"),
         datetime.utcnow().isoformat(),
         "pending",

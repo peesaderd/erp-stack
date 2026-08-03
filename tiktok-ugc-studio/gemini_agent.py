@@ -40,7 +40,7 @@ Output ONLY valid JSON:
   "key_features": ["จุดเด่น 1", "จุดเด่น 2"],
   "visual_style_recommendation": "สไตล์ภาพที่แนะนำ",
   "age_group": "ช่วงอายุเป้าหมาย",
-  "gender": "male/female/neutral",
+  "gender": "male/female",
   "environment": "ฉาก/สถานที่ที่แนะนำ",
   "pain_points": ["ปัญหา 1", "ปัญหา 2"],
   "hooking_angle": "มุมการตลาดที่ดีที่สุด (ภาษาไทย)"
@@ -420,7 +420,7 @@ def research_product(product_name, description='', category='', image_base64=Non
             'key_features': [],
             'visual_style_recommendation': 'lifestyle',
             'age_group': age_group or 'General',
-            'gender': 'neutral',
+            'gender': 'female',
             'environment': 'modern lifestyle setting',
             'pain_points': [],
             'hooking_angle': f'Highlight benefits of {product_name}',

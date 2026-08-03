@@ -67,7 +67,7 @@ Output ONLY valid JSON matching this schema:
   "key_features": ["highly detailed feature 1 with benefits", "highly detailed feature 2 with benefits", "highly detailed feature 3 with benefits"],
   "visual_style_recommendation": "aesthetic visual direction (e.g. minimal warm tone lifestyle flat-lay with natural sunlight shadows)",
   "age_group": "specific target age group (e.g. 18-35 young professionals)",
-  "gender": "target gender or neutral",
+  "gender": "female or male",
   "environment": "ideal shooting setting (e.g. modern aesthetic bathroom vanity, clean studio wooden desk)",
   "pain_points": ["explicit customer struggle 1 this product solves", "explicit customer struggle 2 this product solves"],
   "hooking_angle": "best attention-grabbing marketing angle in Thai focusing on transformation, result, or convenience"
@@ -256,7 +256,7 @@ def research_product(product_name, description='', category='', image_base64=Non
             'key_features': [f'High quality {product_name}'],
             'visual_style_recommendation': 'lifestyle',
             'age_group': age_group or 'General',
-            'gender': 'neutral',
+            'gender': 'female',
             'environment': 'modern lifestyle setting',
             'pain_points': ['Finding a reliable product'],
             'hooking_angle': f'Highlight benefits of {product_name}'

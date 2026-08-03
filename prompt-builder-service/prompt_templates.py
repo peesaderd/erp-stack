@@ -30,8 +30,9 @@ def _sync_style_map_from_engine():
         for rec in records:
             d = rec.get("data", {})
             key = d.get("style_key")
-            if key and key in STYLE_MAP:
-                # Merge: Schema Engine fields override local defaults
+            if key:
+                # Auto-create new styles from Schema Engine (source of truth)
+                STYLE_MAP.setdefault(key, {})
                 for schema_field in ("model_action", "camera", "vibe", "keywords", "video_motion"):
                     if d.get(schema_field):
                         STYLE_MAP[key][schema_field] = d[schema_field]

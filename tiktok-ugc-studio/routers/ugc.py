@@ -123,6 +123,14 @@ async def ugc_scripts_generate(req: dict):
         pb_result = await _proxy("POST", "prompt-builder", "/api/v1/build", {
             "product_name": product_title,
             "description": req.get("product_details", req.get("description", "")),
+            "features": req.get("features", req.get("product_features", "")),
+            "keywords": req.get("keywords", req.get("product_keywords", [])),
+            "category": req.get("category", req.get("product_category", "")),
+            "product_category": req.get("product_category", ""),
+            "target_age": req.get("target_age", ""),
+            "target_gender": req.get("target_gender", ""),
+            "price": req.get("price", 0),
+            "product_image": req.get("product_image", req.get("image_url", req.get("product_image_url", ""))),
             "ugc_style": req.get("ugc_style", "holding"),
         })
         pb_data = pb_result.get("data") if isinstance(pb_result.get("data"), dict) else (pb_result if isinstance(pb_result, dict) else {})
@@ -205,12 +213,19 @@ async def ugc_videos_build_prompt(req: dict):
     Calls Prompt Builder then returns video_prompt + negative_prompt.
     """
     result = await _proxy("POST", "prompt-builder", "/api/v1/build", req)
-    if result.get("ok"):
-        data = result.get("data", {})
+    data = result.get("data") if isinstance(result.get("data"), dict) else (result if isinstance(result, dict) else {})
+    if data:
+        analysis = data.get("analysis", {})
+        if isinstance(analysis, str):
+            try:
+                import json as _json
+                analysis = _json.loads(analysis)
+            except Exception:
+                analysis = {}
         return {
             "video_prompt": data.get("video_prompt", ""),
             "negative_prompt": data.get("negative_prompt", ""),
-            "script": data.get("analysis", {}),
+            "script": analysis,
         }
     raise HTTPException(status_code=500, detail=result.get("error", "Prompt generation failed"))
 

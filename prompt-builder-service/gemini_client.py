@@ -147,7 +147,7 @@ JSON ที่ต้องตอบ:
 {
   "category": "beauty/fashion/electronics/food/home/tools/health/other",
   "target_gender": "male/female",
-  "target_age": "25",
+  "target_age": "",
   "target_audience": "กลุ่มเป้าหมายหลัก เช่น สาววัยทำงานที่มีปัญหาริมฝีปากแห้ง",
   "setting": "สถานที่ถ่ายวิดีโอ เช่น vanity room หรือ bathroom",
   "customer_problem": "ปัญหาที่สินค้านี้แก้ (เจาะจง) เช่น ริมฝีปากแห้งแตก ไม่ฉ่ำ ใต้ตาคล้ำจากนอนดึก",
@@ -180,8 +180,8 @@ JSON ที่ต้องตอบ:
 Include: model appearance MUST match target_gender — "Ethnic Thai woman" for female, "Ethnic Thai man" for male (not just "Thai woman/man") — with porcelain white glowing skin, monolid eyes, Southeast Asian features. Pose: Model MUST be STANDING (not sitting, not on floor, not kneeling) — full body visible from mid-thigh up. If product is clothing/fashion/apparel → model WEARING/DRAPED in the garment naturally (the garment IS the product — do NOT add denim, jeans, or other random clothing). The product must be ON the body, never "resting nearby." For all other products → HOLDING product at chest level — NOT applying yet. Expression: confident smile. CRITICAL: Model is STANDING upright — NOT sitting on floor, NOT cross-legged, NOT kneeling, NOT leaning on walls. Setting: MATCH the product_analysis.setting and env_context — use the appropriate setting per category (beauty: vanity/bathroom, clothing: closet/boutique/bedroom, electronics: desk/office, home: living/kitchen, food: kitchen/cafe, health: bathroom/bedroom). Lighting: soft natural window light. Mood: warm, inviting. Focus on product being clearly visible and in focus. Do NOT describe the product being used/applied — that happens in the video. ระบุ container type (bottle/jar/tube), closure (twist cap/pump/spray/flip-top) และสีของสินค้าใน image_description ด้วย.
 
 Examples (match target_gender):
-  • If target_gender=female: 'An ethnic Thai woman with porcelain white glowing skin, 25 years old, monolid eyes, happy smile, STANDING, holding a lip product at chest level — a clear plastic tube with a black twist cap — product visible and in focus, in an appropriate setting with soft natural window lighting, warm and inviting atmosphere'
-  • If target_gender=male: 'An ethnic Thai man with porcelain white glowing skin, 30 years old, monolid eyes, confident smile, STANDING, holding a watch at chest level — a stainless steel watch with a black leather strap — product visible and in focus, in a modern office with soft natural window lighting, professional atmosphere'",
+  • If target_gender=female: 'An ethnic Thai woman with porcelain white glowing skin, monolid eyes, happy smile, STANDING, holding a lip product at chest level — a clear plastic tube with a black twist cap — product visible and in focus, in an appropriate setting with soft natural window lighting, warm and inviting atmosphere'
+  • If target_gender=male: 'An ethnic Thai man with porcelain white glowing skin, monolid eyes, confident smile, STANDING, holding a watch at chest level — a stainless steel watch with a black leather strap — product visible and in focus, in a modern office with soft natural window lighting, professional atmosphere'",
 
 🔴 image_description CRITICAL — ต้องแยก "model appearance" (ethnicity + gender from target_gender, features) ออกจาก "product packaging" (container, cap, color) ให้ชัดเจน
 }"""
@@ -194,7 +194,7 @@ JSON format:
   "category": "home/electronics/beauty/fashion/food/tools/health/other",
   "product_type": "what this product is (e.g. wall-mounted motion sensor light, electric toothbrush)",
   "target_gender": "female/male",
-  "target_age": "25",
+  "target_age": "",
   "setting": "where this product is typically used/installed (English, general location)",
   "env_context": "specific environment: hallway entrance, bathroom sink, bedroom vanity, kitchen counter",
   "colors": ["color1", "color2", "color3"],
@@ -205,7 +205,7 @@ JSON format:
 }
 RULES:
 - target_gender MUST be "female" or "male" — image gen NEEDS a specific gender
-- target_age: SINGLE number (e.g. 25), not a range
+- target_age: number only if inferred from product/image, otherwise empty string
 - product_appearance describes the product PHYSICALLY — not a scene, not a person
 - features describes PROPERTIES you can confirm from the image or label (not made up claims)
 - setting = general location type. env_context = specific spot"""

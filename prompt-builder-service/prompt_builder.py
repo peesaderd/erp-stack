@@ -29,6 +29,14 @@ from router_agent import router_decide
 logger = logging.getLogger("prompt-builder-service")
 
 # ─── Clothing/Accessories Category Detection ──────────────────────
+# Single source of truth for clothing/fashion display (image + video).
+# Keep in sync with Gemini's rule: clothing/fashion → model WEARS, never holds.
+WEARABLE_IMAGE_ACTION = "modeling and displaying the clothing elegantly on body, garment clearly visible, smiling naturally"
+WEARABLE_VIDEO_ACTION = (
+    "wearing the garment, full body visible, walking and turning slowly to showcase the fit, "
+    "fabric draping naturally, garment clearly the hero item"
+)
+
 CLOTHING_CATEGORIES = {
     "fashion", "clothing", "apparel",  # broad
     "accessories", "jewelry", "shoes", "bags", "watch", "watches",
@@ -50,58 +58,7 @@ def _is_wearable_category(category: str) -> bool:
     cat_lower = (category or "").lower().strip()
     return any(w in cat_lower for w in CLOTHING_CATEGORIES) or cat_lower in CLOTHING_CATEGORIES
 
-def _override_style_for_clothing(style_info: dict, category: str) -> dict:
-    if not _is_wearable_category(category):
-        return style_info
-    info = dict(style_info)
-    if info.get("model_action"):
-        info["model_action"] = info["model_action"].replace(
-            "holding the product in both hands", "modeling the garment draped on body"
-        ).replace(
-            "casually holding product", "casually modeling the garment"
-        ).replace(
-            "holding product up showing packaging", "modeling the garment, turning to show fit"
-        ).replace(
-            "holding product", "modeling garment"
-        ).replace(
-            "both hands holding product", "garment draped beautifully on body"
-        ).replace(
-            "just holding and showing", "showing how garment fits naturally"
-        )
-    if info.get("video_motion"):
-        info["video_motion"] = info["video_motion"].replace(
-            "holding product gently in both hands", "modeling garment naturally, slight turn to show fit"
-        ).replace(
-            "holding product", "modeling garment"
-        )
-    if info.get("keywords"):
-        info["keywords"] = info["keywords"].replace(
-            "both hands holding product", "garment draped on body"
-        ).replace(
-            "holding product", "wearing garment"
-        )
-    return info
-
-def _get_category_display_action(category: str) -> dict:
-    if _is_wearable_category(category):
-        return {
-            "holds": "wears and shows off",
-            "hold_replace": "wears",
-            "pose_phrase": "the garment draped beautifully on the body, clearly visible and in focus",
-            "model_action_tail": "modeling and displaying the clothing elegantly on body, garment clearly visible, smiling naturally",
-            "default_vid_motion": "gently modeling and displaying the garment on body",
-        }
-    else:
-        return {
-            "holds": "holds",
-            "hold_replace": "holds",
-            "pose_phrase": "the product held at chest level, clearly visible and in focus",
-            "model_action_tail": "",
-            "default_vid_motion": "gently holding product, slight natural movement",
-        }
-
-
-def analyze_product(product_name: str, description: str = "", keywords: Optional[List[str]] = None, target_duration: int = 15, features: str = "", target_age: str = "") -> dict:
+def analyze_product(product_name: str, description: str = "", keywords: Optional[List[str]] = None, target_duration: int = 15, features: str = "", target_age: str = "", ugc_style: str = "", category: str = "", target_gender: str = "") -> dict:
     """Analyze product via Gemini and return profile dict.
     
     Uses Router Agent for strategic context (recipe, style, persona),
@@ -120,10 +77,14 @@ def analyze_product(product_name: str, description: str = "", keywords: Optional
     )
     
     # Get product profile from Gemini analysis
-    age_text = f"\nอายุเป้าหมาย (Target Age): {target_age}" if target_age else ""
+    feat_text = f"\nคุณสมบัติเด่น (Features): {features}" if features else ""
+    style_hint = f"\nUGC Style ที่ต้องการ: {ugc_style}" if ugc_style else ""
+    cat_hint = f"\nหมวดหมู่สินค้า: {category}" if category else ""
+    age_hint = f"\nอายุกลุ่มเป้าหมาย: {target_age}" if target_age else ""
+    gender_hint = f"\nเพศกลุ่มเป้าหมาย: {target_gender}" if target_gender else ""
     user_text = f"""ชื่อสินค้า: {product_name}{feat_text}
 คำอธิบาย: {description if description else 'ไม่มี'}
-Keywords: {kw_str}{age_text}"""
+Keywords: {kw_str}{style_hint}{cat_hint}{age_hint}{gender_hint}"""
 
     raw = _call_gemini(PRODUCT_ANALYSIS_SYSTEM, user_text, temperature=0.3)
     gemini_profile = _extract_json(raw) if raw else None
@@ -238,11 +199,6 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     category = profile.get("category", "other")
 
     # ── Category-aware display action (clothing → wearing, others → holding) ──
-    _cat_action = _get_category_display_action(category)
-    _cat_hold = _cat_action["holds"]
-    _cat_pose = _cat_action["pose_phrase"]
-    _cat_hold_replace = _cat_action["hold_replace"]
-    style_info = _override_style_for_clothing(style_info, category)
 
     gender_en = {
         "female": "woman", "woman": "woman",
@@ -394,6 +350,15 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     # ── Category modifiers (SECONDARY) ───────────────────────────────
     # No hardcoded beauty restrictions — Gemini handles appropriateness
     
+    # ── Wearing guard (source of truth: clothing must be WORN, never held) ──
+    if (_is_wearable_category(category) or ugc_style in ("fashion_lookbook", "lookbook", "outfit", "fashion")) and "holds" in scene_desc:
+        head = scene_desc.rsplit("holds", 1)[0].rstrip(", ")
+        scene_desc = (
+            f"{head} wearing the garment naturally, full body visible, "
+            f"garment clearly in frame and fitting naturally. "
+            f"Warm natural window lighting."
+        )
+
     # ── Build final prompt ──
     data = {
         "scene_description": scene_desc,
@@ -406,7 +371,7 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         "atmosphere": "warm, inviting, authentic",
         "color_palette": "natural tones, neutral background",
         "background": "clean minimal background",
-        "model_action": _cat_action["model_action_tail"] if _is_wearable_category(category) else style_info.get("model_action", "",),
+        "model_action": WEARABLE_IMAGE_ACTION if _is_wearable_category(category) else style_info.get("model_action", "",),
         "camera": style_info.get("camera", ""),
         "vibe": style_info.get("vibe", ""),
         "keywords": style_info.get("keywords", ""),
@@ -457,11 +422,6 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     category = profile.get("category", "other")
 
     # ── Category-aware display action (clothing → wearing, others → holding) ──
-    _cat_action = _get_category_display_action(category)
-    _cat_hold = _cat_action["holds"]
-    _cat_pose = _cat_action["pose_phrase"]
-    _cat_hold_replace = _cat_action["hold_replace"]
-    style_info = _override_style_for_clothing(style_info, category)
 
     gender_en = {"female": "woman", "male": "man", "unisex": "person"}.get(model_gender, "person")
     persona_clothing = profile.get("persona_clothing", "")
@@ -552,14 +512,27 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             f"Slight excitement in movement. "
             f"Product emerging from packaging, unboxing reveal motion"
         )
-    else:
-        # Default: holding — show product, gentle rotation
+    elif _is_wearable_category(category) or ugc_style in ("fashion_lookbook", "lookbook", "outfit", "fashion"):
+        # Clothing/fashion — model WEARS the garment (never holds). Matches Gemini rule.
         action = (
-            f"{model_intro} gently holding {prod_desc_vid or product_name} in both hands, "
-            f"showing product to camera with slight slow rotation. "
-            f"Warm natural motion, product centered. "
-            f"Person holding product gently at chest level"
+            f"{model_intro} {WEARABLE_VIDEO_ACTION}, "
+            f"natural runway-style motion, camera slowly tracking, "
+            f"product: {prod_desc_vid or product_name}"
         )
+    else:
+        # STYLE_MAP-driven (auto-synced from Schema Engine) — new styles work automatically.
+        _style_action = style_info.get("model_action", "").strip()
+        _style_motion = style_info.get("video_motion", "").strip()
+        if _style_action:
+            # Legacy local entries embed a full person description; engine styles are action-only.
+            if any(_style_action.lower().startswith(p) for p in ("ethnic thai", "thai woman", "thai man", "person ")):
+                action = f"{_style_action}, product: {prod_desc_vid or product_name}"
+            else:
+                action = f"{model_intro} {_style_action}, product: {prod_desc_vid or product_name}"
+            if _style_motion and _style_motion.lower() not in action.lower():
+                action += f", {_style_motion}"
+        else:
+            action = f"{model_intro} gently holding {prod_desc_vid or product_name} in both hands, showing product to camera with slight slow rotation"
     
     # ── Category-specific restrictions (SECONDARY) ──
     video_prompt = action
@@ -619,6 +592,7 @@ async def analyze_and_build_prompts(
     category: str = "",
     product_category: str = "",
     target_duration: int = 15,
+    target_age: str = "",
 ) -> dict:
     """
     Full pipeline:
@@ -629,7 +603,7 @@ async def analyze_and_build_prompts(
       5. Return everything in one dict
     """
     # Step 1: Analyze (includes Router Agent call)
-    profile = analyze_product(product_name, description, keywords, target_duration=target_duration, features=features)
+    profile = analyze_product(product_name, description, keywords, target_duration=target_duration, features=features, target_age=target_age, ugc_style=ugc_style, category=category, target_gender=target_gender)
 
     # Router Agent insights are purely advisory — NEVER override user's ugc_style choice
     # The user's ugc_style selection is always authoritative

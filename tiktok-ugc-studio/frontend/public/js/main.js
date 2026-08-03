@@ -741,6 +741,7 @@ function selectRecipe(name) {
     'ugc_review': ['⭐', 'UGC Review — รีวิวสินค้า'],
     'talking_head': ['🎤', 'Talking Head — พูดหน้ากล้อง'],
     'product_demo': ['📦', 'Product Demo — โชว์สินค้า ไม่มีคน'],
+    'fashion_lookbook': ['👗', 'Fashion Lookbook — แฟชั่นสายชิค หรูหรา'],
   };
   const s = styleMap[recipe.ugc_style] || ['📦', 'Product Demo'];
   document.getElementById('selectedStyleIcon').textContent = s[0];

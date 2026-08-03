@@ -299,6 +299,26 @@ NEW_STYLES = {
         "is_default": False,
         "sort_order": 18,
     },
+
+    "fashion_lookbook": {
+        "style_key": "fashion_lookbook",
+        "name": "Fashion Lookbook",
+        "model_action": "wearing the garment naturally, runway-style walk, elegant slow motion showing fabric movement and fit",
+        "camera": "Portrait framing, soft tracking shots, full-body visible",
+        "vibe": "elegant, chic, premium",
+        "keywords": "fashion lookbook, outfit, runway, style, elegant, OOTD",
+        "video_motion": "Slow dolly tracking the model, soft rack focus, subtle tilt, natural fabric movement",
+        "prompt_anchor": "Model wearing [product] as an outfit, full-body runway-style presentation",
+        "script_structure": "Show outfit elegantly, highlight garment beauty and overall look",
+        "shot_count": 2,
+        "has_person": True,
+        "compatible_categories": json.dumps(["fashion"]),
+        "video_resolution": "720P",
+        "aspect_ratio": "9:16",
+        "is_active": True,
+        "is_default": False,
+        "sort_order": 19,
+    },
 }
 
 for key, data in NEW_STYLES.items():

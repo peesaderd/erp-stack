@@ -139,13 +139,13 @@ Product ID: {product_id if product_id else 'ไม่ระบุ'}"""
             "category": "other",
             "target_gender": "",
             "target_age": "",
-            "target_audience": f"คนที่กำลังมองหา{product_name[:20]}",
+            "target_audience": f"คนที่กำลังมองหา{_thai_safe_truncate(product_name, 20)}",
             "setting": "clean modern lifestyle setting",
-            "customer_problem": f"ปัญหาที่{product_name[:30]}นี้ช่วยแก้",
-            "main_benefit": f"คุณประโยชน์ของ{product_name[:20]}",
+            "customer_problem": f"ปัญหาที่{_thai_safe_truncate(product_name, 30)}นี้ช่วยแก้",
+            "main_benefit": f"คุณประโยชน์ของ{_thai_safe_truncate(product_name, 20)}",
             "packaging_action": "generic_hold",
             "action_desc": "ถือสินค้าและใช้งานทั่วไป",
-            "hashtags": keywords[:5] if len(keywords) >= 5 else [product_name.replace(" ", "")[:20]] * 5,
+            "hashtags": keywords[:5] if len(keywords) >= 5 else [_thai_safe_truncate(product_name.replace(" ", ""), 20)] * 5,
             "image_description": "",
             # Extract basic features from description when Gemini fails
             "features": _extract_features_from_description(description) if description else "",
@@ -160,7 +160,7 @@ Product ID: {product_id if product_id else 'ไม่ระบุ'}"""
         elif isinstance(h, list):
             h = [x.strip().replace("#", "") for x in h if x.strip()]
         while len(h) < 5:
-            h.append(product_name.replace(" ", "").replace("\n", "")[:20])
+            h.append(_thai_safe_truncate(product_name.replace(" ", "").replace("\n", ""), 20))
         profile["hashtags"] = h[:5]
 
     if features:
@@ -210,7 +210,7 @@ def _extract_features_from_description(description: str) -> str:
     if spec_patterns:
         return ", ".join(spec_patterns[:6])
     # Last resort: first sentence
-    return desc[:80]
+    return _thai_safe_truncate(desc, 80)
 
 def _extract_appearance_from_description(description: str) -> str:
     """Extract physical appearance from plaintext description."""
@@ -222,8 +222,8 @@ def _extract_appearance_from_description(description: str) -> str:
                'white', 'black', 'pink', 'bottle', 'spray', 'nozzle', 'ขนาด', 'น้ำหนัก']:
         if kw.lower() in desc.lower():
             # Return first 100 chars that contain appearance context
-            return desc[:100]
-    return desc[:60]
+            return _thai_safe_truncate(desc, 100)
+    return _thai_safe_truncate(desc, 60)
 
 
 def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holding") -> str:
@@ -262,7 +262,7 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         pa_clean = re.sub(r'^(a|an)\s+', '', pa_clean, flags=re.IGNORECASE).strip()
         article = "an" if pa_clean[:1].lower() in "aeiou" else "a"
     
-    env_str = (env_context or "a modern lifestyle setting")[:120]
+    env_str = _thai_safe_truncate(env_context or "a modern lifestyle setting", 120)
     age_seg = f" {model_age} years old" if model_age else ""
     thai_base = f"An ethnic Thai {gender_en}{age_seg}, porcelain white glowing skin, monolid eyes, Southeast Asian ethnic Thai features, small nose bridge"
     
@@ -296,7 +296,7 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             preset_mood = "clean, informative"
             preset_light = "clean studio light"
         scene_desc = (
-            f"Product placed on {env_str}. {prod_desc[:200]} — "
+            f"Product placed on {env_str}. {_thai_safe_truncate(prod_desc, 200)} — "
             f"clean surface, product centered in frame. "
             f"Product features clearly visible. No people in frame. "
             f"Lighting: {preset_light}. Mood: {preset_mood}."
@@ -318,7 +318,7 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         if gemini_image:
             scene_desc = gemini_image
         elif pa_clean:
-            prod_str = f"{article} {pa_clean[:200]}"
+            prod_str = f"{article} {_thai_safe_truncate(pa_clean, 200)}"
             scene_desc = (
                 f"{env_str}. {thai_base}{clothing_str}{hair_str} beside {prod_str or product_name} — "
                 f"about to use the product. "
@@ -334,7 +334,7 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     elif ugc_style == "review":
         # Person holding product + looking at camera, review-style
         if pa_clean:
-            prod_str = f"{article} {pa_clean[:200]}"
+            prod_str = f"{article} {_thai_safe_truncate(pa_clean, 200)}"
             scene_desc = (
                 f"{env_str}. {thai_base}{clothing_str}{hair_str} holds {prod_str or product_name} in hand, "
                 f"looking directly at camera with a friendly reviewing expression. "
@@ -350,7 +350,7 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     elif ugc_style in ("tabletop", "tabletop_demo"):
         # Product on table, person's hands demonstrating
         if pa_clean:
-            prod_str = f"{article} {pa_clean[:200]}"
+            prod_str = f"{article} {_thai_safe_truncate(pa_clean, 200)}"
             scene_desc = (
                 f"{env_str}. On a table sits {prod_str}. "
                 f"{thai_base}{clothing_str}{hair_str} gestures toward it, "
@@ -365,7 +365,7 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     elif ugc_style in ("talking", "talking_head"):
         # Head/shoulders framing, talking about product
         if pa_clean:
-            prod_str = f"{article} {pa_clean[:200]}"
+            prod_str = f"{article} {_thai_safe_truncate(pa_clean, 200)}"
         else:
             prod_str = product_name
         scene_desc = (
@@ -386,7 +386,7 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     else:
         # Default: holding — person holds product, shows to camera
         if pa_clean:
-            prod_str = f"{article} {pa_clean[:200]}"
+            prod_str = f"{article} {_thai_safe_truncate(pa_clean, 200)}"
             scene_desc = (
                 f"{env_str}. {thai_base}{clothing_str}{hair_str} holds {prod_str or product_name} in both hands, "
                 f"showing product clearly to camera. Warm natural window lighting. "
@@ -492,7 +492,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         pa_clean = pa_clean[0].lower() + pa_clean[1:] if pa_clean else ""
         pa_clean = re.sub(r'^(a|an)\s+', '', pa_clean, flags=re.IGNORECASE).strip()
         article = "an" if pa_clean[:1].lower() in "aeiou" else "a"
-        prod_desc_vid = f"{article} {pa_clean[:200]}"
+        prod_desc_vid = f"{article} {_thai_safe_truncate(pa_clean, 200)}"
     else:
         prod_desc_vid = product_name
     
@@ -811,7 +811,7 @@ async def analyze_and_build_prompts(
         } if vision_profile else None,
     }
     
-    logger.info(f"Prompt built for [{product_name[:30]}]: img={len(image_prompt)}ch, vid={len(video_prompt)}ch")
+    logger.info(f"Prompt built for [{_thai_safe_truncate(product_name, 30)}]: img={len(image_prompt)}ch, vid={len(video_prompt)}ch")
     return result
 
 
@@ -860,16 +860,25 @@ def _estimate_speech_duration(text: str) -> float:
     switches = 1 if (thai_chars > 0 and non_thai_chars > 0) else 0
     return thai_sec + non_thai_sec + (switches * 0.1)
 
-def _trim_to_word(text: str, max_chars: int) -> str:
-    """Trim text to max_chars without cutting mid-word."""
-    if len(text) <= max_chars:
-        return text
-    trimmed = text[:max_chars]
-    last_space = trimmed.rfind(" ")
-    if last_space > max_chars * 0.6:
-        return trimmed[:last_space]
-    return trimmed[:max_chars]
+_THAI_DANGLING_CHARS = set("\u0e40\u0e41\u0e42\u0e43\u0e44\u0e34\u0e35\u0e36\u0e37\u0e38\u0e39\u0e3a\u0e48\u0e49\u0e4a\u0e4b\u0e4c\u0e4d\u0e4e")
 
+def _thai_safe_truncate(text: str, max_chars: int) -> str:
+    """Truncate text to max_chars without cutting mid-word or leaving a dangling
+    Thai leading vowel / tone mark / vowel mark as the final character.
+    Prefers a whitespace boundary for mixed Latin text."""
+    if not text or len(text) <= max_chars:
+        return text
+    cut = max_chars
+    while cut > 0 and text[cut - 1] in _THAI_DANGLING_CHARS:
+        cut -= 1
+    if cut > max_chars * 0.6:
+        last_space = text.rfind(" ", 0, cut)
+        if last_space > max_chars * 0.6:
+            cut = last_space
+    return text[:cut]
+def _trim_to_word(text: str, max_chars: int) -> str:
+    """Trim text to max_chars without cutting mid-word or breaking Thai chars."""
+    return _thai_safe_truncate(text, max_chars)
 
 
 def _build_timing_validated_script(product_name: str, category: str = "beauty", profile: dict = None) -> dict:
@@ -896,11 +905,11 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
                     kept.append(p)
                 elif not p.isupper():
                     kept.append(p)
-        candidate = ' '.join(kept) if kept else product_name[:30]
-        product_short = candidate if len(candidate) <= 35 else ' '.join(kept[:3]) if len(kept) >= 3 else product_name[:30]
+        candidate = ' '.join(kept) if kept else _thai_safe_truncate(product_name, 30)
+        product_short = candidate if len(candidate) <= 35 else ' '.join(kept[:3]) if len(kept) >= 3 else _thai_safe_truncate(product_name, 30)
     
     if len(product_short) < 5:
-        product_short = product_name[:30]
+        product_short = _thai_safe_truncate(product_name, 30)
     
     # Gender-aware Thai register
     target_gender = (profile or {}).get("target_gender", "")
@@ -1024,7 +1033,7 @@ def _gemini_generate_prompts(
     if isinstance(features, list):
         feat_str = "; ".join(f.strip() for f in features if f.strip())
     elif isinstance(features, str) and features:
-        feat_str = features[:200]
+        feat_str = _thai_safe_truncate(features, 200)
     
     # Wan 2.7 is a diffusion model — it ONLY understands literal visual descriptions
     system_prompt = (
@@ -1059,10 +1068,10 @@ def _gemini_generate_prompts(
     elif any(w in pa_lower for w in ["bottle", "jar", "tube", "dropper"]):
         mount_hint = "\nThis product is HANDHELD. Person picks it up from a surface to use it."
     
-    product_block = f"Product: {product_name}\nAppearance: {pa[:350]}\n"
+    product_block = f"Product: {product_name}\nAppearance: {_thai_safe_truncate(pa, 350)}\n"
     if feat_str:
-        product_block += f"Features: {feat_str[:200]}\n"
-    product_block += f"Setting: {env_context[:120]}\n"
+        product_block += f"Features: {_thai_safe_truncate(feat_str, 200)}\n"
+    product_block += f"Setting: {_thai_safe_truncate(env_context, 120)}\n"
     product_block += mount_hint
     model_seg = f"{model_age}yo " if model_age else ""
     product_block += f"\nModel: {model_seg}{gender_en}, {clothing}, {hair}\n"

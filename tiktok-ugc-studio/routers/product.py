@@ -142,6 +142,10 @@ def list_products(limit: int = 200, preset: str = "all", search: str = ""):
             row_dict["keywords"] = json.loads(row_dict["keywords"] or "[]")
         except (json.JSONDecodeError, TypeError):
             row_dict["keywords"] = []
+        try:
+            row_dict["hashtags"] = json.loads(row_dict["hashtags"] or "[]")
+        except (json.JSONDecodeError, TypeError):
+            row_dict["hashtags"] = []
         row_dict["image_count"] = len(row_dict["images"])
         products.append(row_dict)
     

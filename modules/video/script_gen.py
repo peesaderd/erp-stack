@@ -34,7 +34,7 @@ PROMPTS_DIR = Path(__file__).parent / "prompts"
 # ─── Persona-Aware System Prompt Builder ────────────────────────────
 # ═══════════════════════════════════════════════════════════════════════
 
-def build_script_system_prompt(persona: dict, duration: str = f"{DEFAULT_DURATION}s", gender: str = "female") -> str:
+def build_script_system_prompt(persona: dict, duration: str = f"{DEFAULT_DURATION}s", gender: str = "female", target_age: str = "") -> str:
     """Build a persona-injected system prompt for Gemini script generation.
     
     Takes the persona dict (from persona_engine._select_persona()) and
@@ -45,7 +45,7 @@ def build_script_system_prompt(persona: dict, duration: str = f"{DEFAULT_DURATIO
         duration: "8s", "15s", or "16s"
     """
     persona_name = persona.get("vibe", "ทั่วไป").split(",")[0].strip()
-    persona_age = persona.get("model_age", "25-35")
+    persona_age = target_age
     speech_style = persona.get("speech_style", "พูดเป็นกันเอง ธรรมชาติ")
     pacing = persona.get("pacing", "ธรรมชาติ")
     forbidden = persona.get("forbidden_phrases", "")
@@ -165,7 +165,6 @@ def adjust_prompt_for_duration(duration_type: str = "15s") -> str:
             "\n- ห้ามยืดเนื้อหาเกินจำเป็น ให้กระชับในทุกช่วง"
         )
     return ""
- return ""
 def _call_gemini(system_prompt: str, user_prompt: str) -> Optional[str]:
     """Call Gemini API for script generation."""
     api_key = GEMINI_API_KEY()
@@ -232,6 +231,7 @@ def generate_tiktok_review_script(
     product_appearance: str = "",
     style: str = "review",
     gender: str = "female",
+    target_age: str = "",
 ) -> dict:
     """Generate a TikTok UGC review script using AiBot prompts
     
@@ -288,7 +288,7 @@ def generate_tiktok_review_script(
     user_prompt = fill_template(user_tpl, user_data)
     
     # ─── Build persona-aware system prompt ────────────────────────────
-    persona_layer = build_script_system_prompt(persona, duration, gender=gender)
+    persona_layer = build_script_system_prompt(persona, duration, gender=gender, target_age=target_age)
     combined_system = f"{persona_layer}\n\n{system}" if system else persona_layer
 
     # ─── Try LLM with persona injection ───────────────────────────────

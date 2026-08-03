@@ -73,7 +73,7 @@ def analyze_product(product_name: str, product_image: str = None, description: s
         return {
             "category": "other",
             "target_gender": "unisex",
-            "target_age": "20-35",
+            "target_age": "",
             "target_audience": "ทุกคน",
             "customer_problem": "",
             "main_benefit": "คุณภาพดี",

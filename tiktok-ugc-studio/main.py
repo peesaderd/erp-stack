@@ -1536,7 +1536,7 @@ async def ugc_scripts_generate(req: dict):
             negative_prompt = data.get("negative_prompt", "")
             setting = analysis.get("setting", "")
             target_gender = analysis.get("target_gender", "female")
-            target_age = analysis.get("target_age", "25-35")
+            target_age = analysis.get("target_age", "")
             ugc_style_display = {"holding":"ถือสินค้า", "usage":"ใช้สินค้า", "review":"รีวิว", "unboxing":"แกะกล่อง"}.get(req.get("ugc_style", "holding"), req.get("ugc_style", "holding"))
             # Derive scene/voice/mood from analysis data
             scene = f"UGC {ugc_style_display} หน้ากากหลัง {setting or 'เรียบ'}"
@@ -1626,6 +1626,7 @@ app.mount("/ugc/static/product_images", StaticFiles(directory=product_images_dir
 async def analyze_product(
     product_name: str = Form(...),
     description: str = Form(""),
+    age_group: str = Form(""),
     file: UploadFile = File(None),
 ):
     """Analyze product via Gemini vision."""
@@ -1643,6 +1644,7 @@ async def analyze_product(
             description=description,
             category="",
             target_audience="",
+            age_group=age_group or None,
             image_base64=image_base64,
         )
         return {

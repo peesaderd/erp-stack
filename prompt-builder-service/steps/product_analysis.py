@@ -22,7 +22,7 @@ def create_step() -> Step:
             analysis_profile=profile,
             category=profile.get("category", "other"),
             target_gender=profile.get("target_gender", "person"),
-            target_age=profile.get("target_age", "20-35"),
+            target_age=profile.get("target_age", ""),
             target_audience=profile.get("target_audience", ""),
             setting=profile.get("setting", ""),
             customer_problem=profile.get("customer_problem", ""),

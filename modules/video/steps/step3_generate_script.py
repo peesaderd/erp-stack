@@ -60,6 +60,7 @@ def generate_script(
             product_appearance=product_profile.get("product_appearance", ""),
             style=style,
             gender=product_profile.get("target_gender", "female"),
+            target_age=product_profile.get("target_age", ""),
         )
 
         script = result.get("script", "")

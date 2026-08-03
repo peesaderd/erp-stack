@@ -228,10 +228,12 @@ Output ONLY valid JSON.
     return _parse_json(response)
 
 
-def research_product(product_name, description='', category='', image_base64=None):
+def research_product(product_name, description='', category='', image_base64=None, age_group=None):
     """Step 1: Research product via AI vision/text analysis — returns structured dict"""
     has_vision = bool(image_base64)
     user_prompt = f'Analyze this product:\nProduct Name: {product_name}\nDescription: {description or "N/A"}\nCategory: {category or "N/A"}'
+    if age_group:
+        user_prompt += f'\nTarget Age Group: {age_group}'
     if has_vision:
         user_prompt += '\n\n(Product image attached)'
     try:
@@ -253,7 +255,7 @@ def research_product(product_name, description='', category='', image_base64=Non
             'target_audience': 'General consumers',
             'key_features': [f'High quality {product_name}'],
             'visual_style_recommendation': 'lifestyle',
-            'age_group': '20-35',
+            'age_group': age_group or 'General',
             'gender': 'neutral',
             'environment': 'modern lifestyle setting',
             'pain_points': ['Finding a reliable product'],
@@ -266,11 +268,12 @@ def analyze_product(
     description: str,
     category: str = "",
     target_audience: str = "",
+    age_group: Optional[str] = None,
     image_url: Optional[str] = None,
     image_base64: Optional[str] = None,
 ) -> dict:
     """Analyze product via Gemini — returns image_prompts, video_prompt, hooks, copy"""
-    research = research_product(product_name, description, category, image_base64)
+    research = research_product(product_name, description, category, image_base64, age_group)
 
     # Extract Brand Protocol from image for strict lock
     brand_protocol = {}

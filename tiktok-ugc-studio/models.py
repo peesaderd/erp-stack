@@ -33,7 +33,7 @@ class UGCRequest(BaseModel):
     product_name: str
     product_desc: str = ""
     gender: Optional[str] = ""
-    age: str = "25-35"
+    age: str = ""
     scene: str = "home"
     negative_prompt: Optional[str] = None
 

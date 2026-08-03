@@ -101,7 +101,7 @@ def _get_category_display_action(category: str) -> dict:
         }
 
 
-def analyze_product(product_name: str, description: str = "", keywords: Optional[List[str]] = None, target_duration: int = 15, features: str = "") -> dict:
+def analyze_product(product_name: str, description: str = "", keywords: Optional[List[str]] = None, target_duration: int = 15, features: str = "", target_age: str = "") -> dict:
     """Analyze product via Gemini and return profile dict.
     
     Uses Router Agent for strategic context (recipe, style, persona),
@@ -120,10 +120,10 @@ def analyze_product(product_name: str, description: str = "", keywords: Optional
     )
     
     # Get product profile from Gemini analysis
-    feat_text = f"\nคุณสมบัติเด่น (Features): {features}" if features else ""
+    age_text = f"\nอายุเป้าหมาย (Target Age): {target_age}" if target_age else ""
     user_text = f"""ชื่อสินค้า: {product_name}{feat_text}
 คำอธิบาย: {description if description else 'ไม่มี'}
-Keywords: {kw_str}"""
+Keywords: {kw_str}{age_text}"""
 
     raw = _call_gemini(PRODUCT_ANALYSIS_SYSTEM, user_text, temperature=0.3)
     gemini_profile = _extract_json(raw) if raw else None
@@ -134,7 +134,7 @@ Keywords: {kw_str}"""
         profile = {
             "category": "other",
             "target_gender": "person",
-            "target_age": "25-35",
+            "target_age": "",
             "target_audience": f"คนที่กำลังมองหา{product_name[:20]}",
             "setting": "clean modern lifestyle setting",
             "customer_problem": f"ปัญหาที่{product_name[:30]}นี้ช่วยแก้",
@@ -234,7 +234,7 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     templates = load_ugc_templates(ugc_style)
     style_info = STYLE_MAP.get(ugc_style, STYLE_MAP["holding"])
     model_gender = profile.get("target_gender")
-    model_age = profile.get("_normalized_age") or _normalize_age(profile.get("target_age", "20-35"))
+    model_age = profile.get("_normalized_age") or _normalize_age(profile.get("target_age", "")) or ""
     category = profile.get("category", "other")
 
     # ── Category-aware display action (clothing → wearing, others → holding) ──
@@ -268,7 +268,8 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         article = "an" if pa_clean[:1].lower() in "aeiou" else "a"
     
     env_str = (env_context or "a modern lifestyle setting")[:120]
-    thai_base = f"An ethnic Thai {gender_en}, {model_age} years old, porcelain white glowing skin, monolid eyes, Southeast Asian ethnic Thai features, small nose bridge"
+    age_seg = f" {model_age} years old" if model_age else ""
+    thai_base = f"An ethnic Thai {gender_en}{age_seg}, porcelain white glowing skin, monolid eyes, Southeast Asian ethnic Thai features, small nose bridge"
     
     # ── Priority 1: Direct Gemini Vision Scene Description (Exact Product Visual Match) ──
     if image_description and len(image_description) > 20:
@@ -467,7 +468,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     persona_hair = profile.get("persona_hair", "")
     clothing_str = f", wearing {persona_clothing}" if persona_clothing else ""
     hair_str = f", {persona_hair}" if persona_hair else ""
-    model_age = profile.get("_normalized_age") or _normalize_age(profile.get("target_age", "20-35"))
+    model_age = profile.get("_normalized_age") or _normalize_age(profile.get("target_age", "")) or ""
     
     # ── Product description (common) ──
     env_context = profile.get("env_context", "a modern space")
@@ -482,7 +483,8 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     else:
         prod_desc_vid = product_name
     
-    model_intro = f"Ethnic Thai {gender_en} {model_age} years old, porcelain white glowing skin, monolid eyes, Southeast Asian ethnic Thai features{clothing_str}{hair_str}"
+    age_seg = f" {model_age} years old" if model_age else ""
+    model_intro = f"Ethnic Thai {gender_en}{age_seg}, porcelain white glowing skin, monolid eyes, Southeast Asian ethnic Thai features{clothing_str}{hair_str}"
     
     # ── Style-driven video_motion (ugc_style is PRIMARY) ──────────
     if ugc_style == "product_demo":
@@ -575,21 +577,17 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
 
 
 def _normalize_age(raw_age) -> int:
-    """Normalize age to true uniform random 18-25 range for UGC models."""
-    import random
+    """Normalize target_age range -> single int. Returns 0 when no age given."""
     try:
         if isinstance(raw_age, (int, float)):
-            age = int(raw_age)
-        else:
-            parts = str(raw_age).replace(" ", "").split("-")
-            nums = [int(p) for p in parts if p.isdigit()]
-            age = nums[0] if nums else 22
-        # Clamp within 18-25 if single age provided, else generate random 18-25
-        if 18 <= age <= 25:
-            return age
+            return int(raw_age)
+        parts = str(raw_age).replace(" ", "").split("-")
+        nums = [int(p) for p in parts if p.isdigit()]
+        if nums:
+            return nums[0]
     except Exception:
         pass
-    return random.randint(18, 25)
+    return 0
 
 
 def build_negative_prompt(profile: dict, ugc_style: str = "holding") -> str:
@@ -677,7 +675,7 @@ async def analyze_and_build_prompts(
     logger.info(f"Persona: {persona.get('vibe', '')} | Env: {persona.get('environment', '')}")
 
     # Sync age — normalize once so image + video prompt ages match
-    profile["_normalized_age"] = _normalize_age(profile.get("target_age", "20-35"))
+    profile["_normalized_age"] = _normalize_age(profile.get("target_age", ""))
 
     # Step 4: Clear Gemini cache for fresh prompts, then build
     _gemini_prompt_cache.clear()
@@ -699,7 +697,7 @@ async def analyze_and_build_prompts(
         "analysis": {
             "category": profile.get("category", "other"),
             "target_gender": profile.get("target_gender", "unisex"),
-            "target_age": profile.get("target_age", "20-35"),
+            "target_age": profile.get("target_age", ""),
             "target_audience": profile.get("target_audience", ""),
             "setting": profile.get("setting", ""),
             "customer_problem": profile.get("customer_problem", ""),
@@ -983,7 +981,7 @@ def _gemini_generate_prompts(
         "4. NO: detects, automatically, intelligently, senses, recognizes, responds\n"
         "5. YES: clear liquid appears on palm, button moves down, mist appears below nozzle\n"
         "6. Include model details in first sentence:\n"
-        f"   Age {model_age}, Thai {gender_en}, porcelain white glowing skin, "
+        f"   {('Age ' + str(model_age) + ', ') if model_age else ''}Thai {gender_en}, porcelain white glowing skin, "
         "monolid eyes, Southeast Asian Thai features, small nose bridge, clothing, hair\n\n"
         "IMAGE_PROMPT (under 80 words): Still scene. Product is visible, woman is positioned near it.\n"
         "VIDEO_PROMPT (under 130 words): Step-by-step visual actions. Use BELOW/ABOVE/BESIDE.\n"
@@ -1007,7 +1005,8 @@ def _gemini_generate_prompts(
         product_block += f"Features: {feat_str[:200]}\n"
     product_block += f"Setting: {env_context[:120]}\n"
     product_block += mount_hint
-    product_block += f"\nModel: {model_age}yo {gender_en}, {clothing}, {hair}\n"
+    model_seg = f"{model_age}yo " if model_age else ""
+    product_block += f"\nModel: {model_seg}{gender_en}, {clothing}, {hair}\n"
     
     user_text = f"{product_block}\nGenerate prompts for Wan 2.7:"
     

@@ -61,13 +61,12 @@ def build_video_prompts(
     }
     lighting = lighting_map.get(category, "soft natural lighting")
     
-    # Use target_age from Mistral analysis instead of hardcoded random
+    # Use target_age from analysis only — no fallback, no jitter
     try:
-        target_age = int(product_profile.get("target_age", "25"))
+        target_age = int(product_profile.get("target_age", ""))
     except (ValueError, TypeError):
-        target_age = 25
-    # เล็กน้อย randomize ให้ธรรมชาติ
-    model_age = max(18, min(45, target_age + random.randint(-2, 2)))
+        target_age = None
+    model_age = target_age if target_age is not None else ""
 
     # ── Scene descriptions ตาม product_type/category ──
     # แทนที่จะใช้ "hold only, cap CLOSED" เดียวกันทุก product
@@ -87,8 +86,9 @@ def build_video_prompts(
         scene_action = scene_descriptions.get(scene_name, "product visible in frame, natural setting")
         
         # Build the full positive prompt (keep clean and focused on action and character)
+        age_seg = f" {model_age} years old" if model_age else ""
         enhanced = (
-            f"Ethnic Thai {gender_en} {model_age} years old, porcelain white glowing skin, "
+            f"Ethnic Thai {gender_en}{age_seg}, porcelain white glowing skin, "
             f"monolid eyes, Southeast Asian ethnic Thai features. "
             f"{scene_action} "
             f"Setting: {setting}. {lighting}. "

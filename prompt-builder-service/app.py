@@ -28,6 +28,7 @@ class BuildRequest(BaseModel):
     product_image: str = ""
     category: str = ""
     target_gender: str = ""
+    target_age: str = ""
     product_category: str = ""
     duration: int = 15
     target_duration: int = 15
@@ -52,6 +53,7 @@ async def build(req: BuildRequest):
             product_image=req.product_image,
             category=req.category,
             target_gender=req.target_gender,
+            target_age=req.target_age,
             product_category=req.product_category,
             target_duration=req.duration or req.target_duration or 15,
         )

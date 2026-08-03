@@ -6,7 +6,7 @@ def create_step() -> Step:
         desc="Select random persona (energetic_young, calm_professional, mom_at_home, etc.) by category → inject vibe, environment, clothing, hair, lighting, motion",
         requires=["category"],
         outputs=["persona_vibe", "persona_environment", "persona_lighting", "persona_motion",
-                 "persona_clothing", "persona_hair", "persona_age"],
+                 "persona_clothing", "persona_hair"],
         help_text="Requires: category. Diversity via random persona selection.",
     )
     async def run(ctx):
@@ -23,7 +23,6 @@ def create_step() -> Step:
             persona_motion=profile.get("persona_motion", persona.get("motion_speed", "")),
             persona_clothing=profile.get("persona_clothing", ""),
             persona_hair=profile.get("persona_hair", ""),
-            persona_age=profile.get("persona_age", ""),
         )
         ctx.ctx["persona_vibe"] = profile.get("persona_vibe", persona.get("vibe", ""))
         ctx.ctx["persona_clothing"] = profile.get("persona_clothing", "")

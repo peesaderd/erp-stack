@@ -35,6 +35,32 @@ from .deps import (
 
 router = APIRouter(tags=["video"])
 
+
+def _product_image_to_web_url(image_src: str) -> str:
+    """Normalize product image refs to a URL fetchable by prompt-builder/video-gen.
+
+    Handles all historical formats so broken-image errors are eliminated regardless
+    of which format the DB/frontend currently uses.
+    """
+    if not image_src:
+        return ""
+    s = image_src.strip()
+    # Already absolute URL — use as-is
+    if s.startswith("http://") or s.startswith("https://"):
+        return s
+    # protocol-relative URL (e.g. //cdn...) → make it http
+    if s.startswith("//"):
+        return "http:" + s
+    # Local virtual paths → resolve to the running TUS backend on this host.
+    # /ugc/static/product_images/xxx is served by tiktok-ugc-studio (port 8105).
+    for prefix in ("/ugc/static/product_images/", "/tiktok/storage/product_images/", "/storage/product_images/"):
+        if s.startswith(prefix):
+            filename = s.rsplit("/", 1)[-1]
+            return f"http://localhost:8105/ugc/static/product_images/{filename}"
+    # Bare filename (legacy) → same treatment
+    if "/" not in s:
+        return f"http://localhost:8105/ugc/static/product_images/{s}"
+    return s
 @router.post("/video/generate")
 async def generate_video(req: VideoRequest):
     """Full UGC pipeline with scenes and metadata."""
@@ -158,7 +184,7 @@ async def generate_video(req: VideoRequest):
                 "target_age": _db_age or "",
                 "product_id": job_id,
                 "price": float(req.product_price) if req.product_price else 0.0,
-                "product_image": _db_image,
+                "product_image": _product_image_to_web_url(_db_image),
                 "duration": req.duration or 15,
                 "target_duration": req.duration or 15,
             })
@@ -197,18 +223,9 @@ async def generate_video(req: VideoRequest):
 
             selected_sound_style = scenes[0].sound_style if scenes else "upbeat_pop"
 
-            product_img_local = None
             prod_img_src = req.product_image or _db_image
-            if prod_img_src:
-                # แปลง /ugc/static/product_images/xxx → local file path
-                if prod_img_src.startswith("/ugc/static/product_images/"):
-                    filename = prod_img_src.replace("/ugc/static/product_images/", "")
-                    product_img_local = str(STORAGE_DIR / "product_images" / filename)
-                # แปลง external IP → localhost
-                elif "89.167.82.205" in prod_img_src and "8105" in prod_img_src:
-                    product_img_local = prod_img_src.replace("http://89.167.82.205:8105", "http://localhost:8105")
-                else:
-                    product_img_local = prod_img_src
+            # Normalize to a URL fetchable by prompt-builder / video-gen (all formats)
+            product_img_local = _product_image_to_web_url(prod_img_src) if prod_img_src else None
 
             _update_pipeline_step(job_id, "video_generation", "processing")
             affiliate_result = await _proxy("POST", "video", "/api/v1/video/generate", {
@@ -264,7 +281,7 @@ async def generate_video(req: VideoRequest):
             _update_pipeline_step(job_id, "result", "success", {
                 "product_name": (req.product_title or "")[:100],
                 "product_price": req.product_price,
-                "product_image": req.product_image or "",
+                "product_image": _product_image_to_web_url(req.product_image or ""),
                 "script_hook": (req.hook or "")[:200],
                 "script_value": (req.value or "")[:200],
                 "script_cta": (req.cta or "")[:200],
@@ -289,7 +306,7 @@ async def generate_video(req: VideoRequest):
                 "metadata": {
                     "product_name": req.product_title or "",
                     "product_url": req.product_url or "",
-                    "product_image": req.product_image or "",
+                    "product_image": _product_image_to_web_url(req.product_image or ""),
                     "product_price": req.product_price,
                     "product_commission": req.product_commission,
                     "tags": req.tags,

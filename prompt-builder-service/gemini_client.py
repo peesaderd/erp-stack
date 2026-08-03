@@ -24,6 +24,40 @@ from prompt_templates import _extract_json
 GEMINI_MODEL_NAME = GEMINI_MODEL if isinstance(GEMINI_MODEL, str) else "gemini-2.5-flash"
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 
+def _resolve_image_url(image_url: str) -> str:
+    """Resolve any image ref to an HTTP URL fetchable from this host.
+
+    Fixes broken image refs that have been seen in production logs:
+      1. ``openhands.m2igen.comhttps://...`` (protocol concatenated twice)
+      2. ``/ugc/static/product_images/xxx.jpg`` (relative, no scheme)
+      3. ``/tiktok/storage/product_images/xxx.jpg`` (new format, no scheme)
+      4. bare filenames like ``17923891001.jpg`` (legacy)
+    """
+    if not image_url:
+        return ""
+    s = image_url.strip()
+    # Fix double-protocol: host followed immediately by "https://" or "http://"
+    if "m2igen.comhttps://" in s or "m2igen.comhttp://" in s:
+        idx = s.find("https://")
+        if idx == -1:
+            idx = s.find("http://")
+        if idx != -1:
+            s = s[idx:]
+    # Protocol-relative
+    if s.startswith("//"):
+        return "http:" + s
+    if s.startswith("http://") or s.startswith("https://"):
+        return s
+    # Local virtual path or bare filename → served by tiktok-ugc-studio (8105)
+    for prefix in ("/ugc/static/product_images/", "/tiktok/storage/product_images/", "/storage/product_images/"):
+        if s.startswith(prefix):
+            filename = s.rsplit("/", 1)[-1]
+            return f"http://localhost:8105/ugc/static/product_images/{filename}"
+    if "/" not in s:
+        return f"http://localhost:8105/ugc/static/product_images/{s}"
+    return s
+
+
 
 def _get_gemini_key() -> str:
     key = os.environ.get("GEMINI_API_KEY", "")
@@ -78,6 +112,7 @@ def _call_gemini_vision(system_prompt: str, user_text: str, image_url: str, temp
     if not image_url:
         return None
     try:
+        image_url = _resolve_image_url(image_url)
         img_resp = requests.get(image_url, timeout=30)
         img_resp.raise_for_status()
         img_b64 = base64.b64encode(img_resp.content).decode("utf-8")
@@ -240,6 +275,7 @@ def _call_mistral_vision(system_prompt: str, user_text: str, image_url: str, tem
     if not image_url:
         return None
     try:
+        image_url = _resolve_image_url(image_url)
         # Download image locally first (Mistral's URL fetcher often blocked)
         img_resp = requests.get(image_url, timeout=30)
         img_resp.raise_for_status()
@@ -299,6 +335,15 @@ def analyze_product_image(product_image: str, product_name: str, description: st
         if result:
             logger.info(f"Vision analysis result: {result.get('category', 'unknown')} / {result.get('product_type', 'unknown')}")
             return result
+        # JSON parse failed silently in production (176+ occurrences).
+        # Log a bounded snippet so the raw response can be inspected without
+        # dumping the entire (possibly large) payload.
+        logger.warning(
+            "Vision response JSON parse FAILED — raw snippet (%d chars): %s",
+            len(raw), raw[:300].replace("\n", " ")[:300],
+        )
+    else:
+        logger.warning("Vision returned empty from both Mistral and Gemini fallback (image=%s)", product_image[:80])
     return None
 
 

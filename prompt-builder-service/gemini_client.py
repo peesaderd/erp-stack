@@ -117,7 +117,11 @@ PRODUCT_ANALYSIS_SYSTEM = """คุณคือนักวิเคราะห
 วิเคราะห์สินค้าที่ได้รับ และตอบกลับเป็น JSON ONLY (ไม่มีข้อความอื่น)
 
 กฎสำคัญ:
-- target_gender ต้องเลือกเพียง 1 เพศเท่านั้น: "male" หรือ "female" ห้ามใช้ "unisex"
+- ส่ง JSON ครบทุก field เสมอ ห้ามละเว้น field ใด ห้ามเว้นว่าง ถ้าข้อมูลไม่พอให้ใช้ค่าเริ่มต้นที่เหมาะสม
+- target_gender ต้องเลือกเพียง 1 เพศ: "male" หรือ "female" เท่านั้น ห้ามใช้ "person" หรือ "unisex" โดยเด็ดขาด
+- ถ้าไม่ได้ระบุเพศกลุ่มเป้าหมาย: ให้วิเคราะห์จากชื่อสินค้า + คำอธิบายเอง
+  ตัวอย่าง: "เบลเซอร์ผู้ชาย", "กล่องน้ำหอมผู้ชาย" → male / "ชุดเดรสผู้หญิง", "กระโปรงสตรี" → female
+  ถ้าหาข้อบ่งชี้ไม่ได้จริงๆ (สินค้ากลางๆ เช่น สายชาร์จ, ปลั๊กไฟ) → ใช้ "female" เป็นค่าเริ่มต้น
 - customer_problem: ระบุปัญหาเฉพาะที่เจาะจง ไม่กว้างเกินไป
 - image_description: ภาษาอังกฤษล้วน 100% ห้ามมีภาษาไทยเด็ดขาด
 
@@ -157,6 +161,9 @@ JSON ที่ต้องตอบ:
   "features": "ENGLISH ONLY — ALL product properties from description แยกเป็นรายการ เช่น USB rechargeable, 400ml capacity, wireless, motion sensor, one-button operation, adjustable speed, compact size, LED indicator, refillable, BPA-free, waterproof, dishwasher-safe (4-6 short phrases — extract EVERY spec in the description, do not skip any)",
   "product_appearance": "ENGLISH ONLY — physical description from name/description เช่น white plastic bottle with spray nozzle, LED indicator (keep under 120 chars)",
   "hashtags": ["hashtag1", "hashtag2", "hashtag3", "hashtag4", "hashtag5"],
+  "price": "ราคาสินค้าตามที่ให้ เช่น 499 บาท (ถ้าไม่ระบุ: ไม่ระบุ)",
+  "product_id": "ID สินค้าตามที่ให้ (ถ้าไม่ระบุ: ไม่ระบุ)",
+  "product_category": "หมวดหมู่ย่อย เช่น t-shirt, lipstick, phone-case (ถ้าไม่ระบุ: ไม่ระบุ)",
   "image_description": "ENGLISH ONLY — absolutely NO Thai language. Describe the scene for AI image generation.
 
 🔴 CRITICAL — First Frame Rule (บังคับ):

@@ -58,7 +58,7 @@ def _is_wearable_category(category: str) -> bool:
     cat_lower = (category or "").lower().strip()
     return any(w in cat_lower for w in CLOTHING_CATEGORIES) or cat_lower in CLOTHING_CATEGORIES
 
-def analyze_product(product_name: str, description: str = "", keywords: Optional[List[str]] = None, target_duration: int = 15, features: str = "", target_age: str = "", ugc_style: str = "", category: str = "", target_gender: str = "") -> dict:
+def analyze_product(product_name: str, description: str = "", keywords: Optional[List[str]] = None, target_duration: int = 15, features: str = "", target_age: str = "", ugc_style: str = "", category: str = "", target_gender: str = "", product_id: str = "", price: float = 0.0, product_category: str = "") -> dict:
     """Analyze product via Gemini and return profile dict.
     
     Uses Router Agent for strategic context (recipe, style, persona),
@@ -66,7 +66,7 @@ def analyze_product(product_name: str, description: str = "", keywords: Optional
     Falls back to simple default if Gemini fails.
     """
     keywords = keywords or []
-    kw_str = ", ".join(keywords[:5]) if keywords else "ไม่มี"
+    kw_str = ", ".join(keywords) if keywords else "ไม่มี"
     
     # Get Router Agent config (strategy decision)
     router_config = router_decide(
@@ -77,14 +77,18 @@ def analyze_product(product_name: str, description: str = "", keywords: Optional
     )
     
     # Get product profile from Gemini analysis
-    feat_text = f"\nคุณสมบัติเด่น (Features): {features}" if features else ""
-    style_hint = f"\nUGC Style ที่ต้องการ: {ugc_style}" if ugc_style else ""
-    cat_hint = f"\nหมวดหมู่สินค้า: {category}" if category else ""
-    age_hint = f"\nอายุกลุ่มเป้าหมาย: {target_age}" if target_age else ""
-    gender_hint = f"\nเพศกลุ่มเป้าหมาย: {target_gender}" if target_gender else ""
-    user_text = f"""ชื่อสินค้า: {product_name}{feat_text}
+    # UNIFIED FEED: every known field is ALWAYS sent — never conditionally omitted.
+    user_text = f"""ชื่อสินค้า: {product_name}
 คำอธิบาย: {description if description else 'ไม่มี'}
-Keywords: {kw_str}{style_hint}{cat_hint}{age_hint}{gender_hint}"""
+Keywords: {kw_str}
+คุณสมบัติเด่น (Features): {features if features else 'ไม่มี'}
+UGC Style ที่ต้องการ: {ugc_style if ugc_style else 'ไม่ได้ระบุ'}
+หมวดหมู่สินค้า: {category if category else 'ไม่ระบุ'}
+หมวดหมู่รอง (Product Category): {product_category if product_category else 'ไม่ระบุ'}
+อายุกลุ่มเป้าหมาย: {target_age if target_age else 'ไม่ได้ระบุ'}
+เพศกลุ่มเป้าหมาย: {target_gender if target_gender else 'ไม่ได้ระบุ (ให้วิเคราะห์จากชื่อสินค้า/คำอธิบายเอง)'}
+ราคา: {price if price else 'ไม่ระบุ'}
+Product ID: {product_id if product_id else 'ไม่ระบุ'}"""
 
     raw = _call_gemini(PRODUCT_ANALYSIS_SYSTEM, user_text, temperature=0.3)
     gemini_profile = _extract_json(raw) if raw else None
@@ -231,6 +235,15 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     if image_description and len(image_description) > 20:
         if _is_wearable_category(category):
             image_description = image_description.replace("holding", "wearing").replace("hold", "wear")
+        if age_seg and age_seg not in image_description:
+            # Gemini Vision only sees the photo — it cannot know the target age.
+            # Inject the age so image + video prompts stay consistent.
+            m = re.search(r'(ethnic Thai (?:woman|man|person))', image_description, re.IGNORECASE)
+            if m:
+                image_description = image_description[:m.end()] + age_seg + image_description[m.end():]
+            else:
+                tail = image_description[0].lower() + image_description[1:] if image_description else ""
+                image_description = f"{thai_base}, {tail}".strip()
         scene_desc = image_description
     # ── Priority 2: Style-driven scene fallback ─────────────────
     elif ugc_style == "product_demo":
@@ -603,7 +616,18 @@ async def analyze_and_build_prompts(
       5. Return everything in one dict
     """
     # Step 1: Analyze (includes Router Agent call)
-    profile = analyze_product(product_name, description, keywords, target_duration=target_duration, features=features, target_age=target_age, ugc_style=ugc_style, category=category, target_gender=target_gender)
+    profile = analyze_product(
+        product_name, description, keywords,
+        target_duration=target_duration,
+        features=features,
+        target_age=target_age,
+        ugc_style=ugc_style,
+        category=category,
+        target_gender=target_gender,
+        product_id=product_id,
+        price=price,
+        product_category=product_category,
+    )
 
     # Router Agent insights are purely advisory — NEVER override user's ugc_style choice
     # The user's ugc_style selection is always authoritative
@@ -635,8 +659,18 @@ async def analyze_and_build_prompts(
 
     # Override with explicit params if provided
     # Override with explicit target_gender if provided
+    if target_gender in ("", None, "person", "unisex"):
+        # Auto-detect gender from product name/description — LLM may guess wrong
+        # (e.g. "เบลเซอร์ผู้ชาย" → female) so the product text is authoritative.
+        combined = (f"{product_name} {description}").lower()
+        if any(w in combined for w in ("ผู้ชาย", "ชาย", "gentleman", "for men", "mens")):
+            target_gender = "male"
+        elif any(w in combined for w in ("ผู้หญิง", "หญิง", "lady", "ladies", "sukhon", "สุภาพสตรี", "for women", "womens", "สตรี")):
+            target_gender = "female"
     if target_gender:
         profile["target_gender"] = target_gender
+    if target_age:
+        profile["target_age"] = target_age
 
     if category:
         profile["category"] = category
@@ -667,11 +701,16 @@ async def analyze_and_build_prompts(
     
     result = {
         "product_id": product_id,
+        "price": price,
+        "product_category": product_category,
         "router_config": router_config,
         "analysis": {
             "category": profile.get("category", "other"),
             "target_gender": profile.get("target_gender", "unisex"),
             "target_age": profile.get("target_age", ""),
+            "price": profile.get("price") or price,
+            "product_id": profile.get("product_id") or product_id,
+            "product_category": profile.get("product_category") or product_category,
             "target_audience": profile.get("target_audience", ""),
             "setting": profile.get("setting", ""),
             "customer_problem": profile.get("customer_problem", ""),

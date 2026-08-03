@@ -2421,7 +2421,7 @@ resultInfo.textContent = '🔍 พบ ' + analyzed.length + ' รายการ
       grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">😕 ไม่พบสินค้าใน TUS Products</div>';
     } else {
       grid.innerHTML = analyzed.map(p => {
-        const img = (p.images && p.images[0]) || "";
+        const img = safeProductImage(p);
         const comm = p.commission_rate || 0;
         const sold = p.sold_total || 0;
         const price = p.price_thb || 0;
@@ -2429,7 +2429,7 @@ resultInfo.textContent = '🔍 พบ ' + analyzed.length + ' รายการ
         const imgHtml = img ? `<img class="product-card-img" src="${img}" alt="" loading="lazy" onerror="this.style.display='none'">` : '<div class="product-card-img" style="display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);font-size:32px">📦</div>';
         const pUrl = p.url || "";
         var batchData = {enc:enc, title:p.title||'Unknown', image:img, url:p.url||''};
-        return `<div class="product-card"><div class="product-card-checkbox" style="left:5px;top:5px"><input type="checkbox" onchange="toggleBatchSelect(this, ${JSON.stringify(batchData).replace(/'/g,"\\'")})"></div><div style="flex:0 0 100%;padding:0 16px;min-width:0"><div class="product-card-title" style="margin-bottom:4px;font-size:13.5px;font-weight:700;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;cursor:pointer" onclick="useProduct('${enc}')">${p.title || "Unknown"}</div></div><div style="margin-left:14px">${imgHtml}</div><div class="product-card-body" onclick="useProduct('${enc}')" style="margin-left:4px;cursor:pointer"><div style="display:flex;align-items:center;gap:12px;font-size:12px;color:var(--text-secondary)"><span style="font-weight:800;color:var(--brand);font-size:14.5px">฿${Number(price).toLocaleString()}</span><span class="badge badge-green" style="font-size:10px">💰 ${comm}%</span><span style="font-size:11px">🔥 ขายแล้ว ${sold.toLocaleString()} ชิ้น</span></div><div style="display:flex;align-items:center;gap:6px;margin-top:2px"><span class="badge" style="font-size:10px;background:rgba(255,255,255,0.06)">🥫 ${p.container_type||"ขวดมาตรฐาน"}</span><span class="badge" style="font-size:10px;background:rgba(255,255,255,0.06)">🔒 ${p.closure_type||"ฝามาตรฐาน"}</span></div></div><div class="product-card-actions" style="margin-left:auto"><button class="btn btn-primary btn-sm" style="background:linear-gradient(135deg, var(--brand), var(--accent-purple));border:none" onclick="event.stopPropagation();useProduct('${enc}')">🎬 สร้างคลิป</button></div></div>`;
+        return `<div class="product-card"><div class="product-card-checkbox" style="left:5px;top:5px"><input type="checkbox" onchange="toggleBatchSelect(this, ${JSON.stringify(batchData).replace(/'/g,"\\'")})"></div><div style="flex:0 0 100%;padding:0 16px;min-width:0"><div class="product-card-title" style="margin-bottom:4px;font-size:13.5px;font-weight:700;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;cursor:pointer" onclick="useProduct('${enc}')">${p.title || "Unknown"}</div></div><div style="margin-left:14px">${imgHtml}</div><div class="product-card-body" onclick="useProduct('${enc}')" style="margin-left:4px;cursor:pointer"><div style="display:flex;align-items:center;gap:12px;font-size:12px;color:var(--text-secondary)"><span style="font-weight:800;color:var(--brand);font-size:14.5px">฿${Number(price).toLocaleString()}</span><span class="badge badge-green" style="font-size:10px">💰 ${comm}%</span><span style="font-size:11px">🔥 ขายแล้ว ${sold.toLocaleString()} ชิ้น</span></div><div style="display:flex;align-items:center;gap:6px;margin-top:2px;flex-wrap:wrap"><span class="badge" style="font-size:10px;background:rgba(255,255,255,0.06)">🆔 ${p.product_id||"-"}</span><span class="badge" style="font-size:10px;background:rgba(255,255,255,0.06)">${p.gender ? "👤 "+p.gender : ""}</span><span class="badge" style="font-size:10px;background:rgba(255,255,255,0.06)">${p.target_age ? "🎯 "+p.target_age : ""}</span></div><div style="display:flex;align-items:center;gap:6px;margin-top:2px"><span class="badge" style="font-size:10px;background:rgba(255,255,255,0.06)">🥫 ${p.container_type||"ขวดมาตรฐาน"}</span><span class="badge" style="font-size:10px;background:rgba(255,255,255,0.06)">🔒 ${p.closure_type||"ฝามาตรฐาน"}</span></div></div><div class="product-card-actions" style="margin-left:auto"><button class="btn btn-primary btn-sm" style="background:linear-gradient(135deg, var(--brand), var(--accent-purple));border:none" onclick="event.stopPropagation();useProduct('${enc}')">🎬 สร้างคลิป</button></div></div>`;
       }).join("");
     }
     
@@ -2437,6 +2437,15 @@ resultInfo.textContent = '🔍 พบ ' + analyzed.length + ' รายการ
     grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">Error: ' + e.message + '</div>';
     resultInfo.textContent = '❌ Error: ' + e.message;
   }
+}
+
+function safeProductImage(p) {
+  const imgs = p.images || [];
+  if (!imgs.length) return null;
+  const first = imgs[0];
+  const fn = String(first).split('/').pop() || '';
+  const expected = String(p.product_id || '') + '.jpg';
+  return fn === expected ? first : null;
 }
 
 async function loadAnalyzedProducts() {
@@ -2462,7 +2471,7 @@ async function loadAnalyzedProducts() {
     if (elSold) elSold.textContent = ts;
     if (!products.length) { grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">No products</div>'; return; }
     grid.innerHTML = products.map(p => {
-      const img = (p.images && p.images[0]) || "";
+      const img = safeProductImage(p);
       const comm = p.commission_rate || 0;
       const sold = p.sold_total || 0;
       const price = p.price_thb || 0;
@@ -2470,7 +2479,7 @@ async function loadAnalyzedProducts() {
       const imgHtml = img ? `<img class="product-card-img" src="${img}" alt="" loading="lazy" onerror="this.style.display=\'none\'">` : '<div class="product-card-img" style="display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);font-size:32px">\ud83d\udce6</div>';
       const pUrl = p.url || "";
       const imgCount = p.image_count || (p.images ? p.images.length : 0);
-      return `<div class="product-card"><div class="product-card-checkbox"><input type="checkbox" data-enc="${enc}" onchange="toggleBatchSelect(this)"></div><div style="flex:0 0 100%;padding:0 16px;min-width:0"><div class="product-card-title" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;cursor:pointer" onclick="useProduct('${enc}')">${p.title || "Unknown"}</div></div>${imgHtml}<div class="product-card-body" onclick="useProduct('${enc}')"><div class="product-card-meta"><span class="product-card-price">฿${Number(price).toLocaleString()}</span><span class="product-card-comm">💰 ${comm}%</span><span class="product-card-platform">${p.source || "tiktok"}</span></div><div class="product-card-sold">🔥 Sold ${sold.toLocaleString()} pcs ${imgCount ? '· 📸 ' + imgCount + ' รูป' : ''}</div><div class="product-card-footer"><span class="text-xs text-secondary truncate" style="max-width:80px;flex-shrink:1">${pUrl}</span><button class="btn btn-primary btn-sm" onclick="event.stopPropagation();useProduct('${enc}')">🎬 Create Video</button></div></div></div>`;
+      return `<div class="product-card"><div class="product-card-checkbox"><input type="checkbox" data-enc="${enc}" onchange="toggleBatchSelect(this)"></div><div style="flex:0 0 100%;padding:0 16px;min-width:0"><div class="product-card-title" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;cursor:pointer" onclick="useProduct('${enc}')">${p.title || "Unknown"}</div></div>${imgHtml}<div class="product-card-body" onclick="useProduct('${enc}')"><div class="product-card-meta"><span class="product-card-price">฿${Number(price).toLocaleString()}</span><span class="product-card-comm">💰 ${comm}%</span><span class="product-card-platform">${p.source || "tiktok"}</span></div><div class="product-card-sold">🔥 Sold ${sold.toLocaleString()} pcs ${imgCount ? '· 📸 ' + imgCount + ' รูป' : ''}</div><div class="product-card-sold" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:2px"><span class="badge" style="font-size:10px;background:rgba(255,255,255,0.06)">🆔 ${p.product_id||"-"}</span><span class="badge" style="font-size:10px;background:rgba(255,255,255,0.06)">${p.gender ? "👤 " + p.gender : ""}</span><span class="badge" style="font-size:10px;background:rgba(255,255,255,0.06)">${p.target_age ? "🎯 " + p.target_age : ""}</span></div><div class="product-card-footer"><span class="text-xs text-secondary truncate" style="max-width:80px;flex-shrink:1">${pUrl}</span><button class="btn btn-primary btn-sm" onclick="event.stopPropagation();useProduct('${enc}')">🎬 Create Video</button></div></div></div>`;
     }).join("");
   } catch(e) { grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">Error: ' + e.message + '</div>'; }
 }

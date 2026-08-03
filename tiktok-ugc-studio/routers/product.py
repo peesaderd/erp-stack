@@ -109,7 +109,7 @@ async def scrape_and_generate(req: ScrapeAndGenerateRequest):
 # ─── TTS ───────────────────────────────────────────────────────────────────
 
 @router.get("/products/list")
-def list_products(limit: int = 50, preset: str = "all", search: str = ""):
+def list_products(limit: int = 200, preset: str = "all", search: str = ""):
     """List products from tus_products.db for the frontend product grid."""
     db_path = str(BASE_DIR / "tus_products.db")
     if not os.path.exists(db_path):

@@ -72,7 +72,7 @@ def analyze_product(product_name: str, product_image: str = None, description: s
         # Fallback: basic profile
         return {
             "category": "other",
-            "target_gender": "unisex",
+            "target_gender": "female",
             "target_age": "",
             "target_audience": "ทุกคน",
             "customer_problem": "",

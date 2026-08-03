@@ -74,8 +74,8 @@ def build_video_prompts(
     scene_descriptions = _scene_descriptions_for_category(category, product_type, product_name)
 
     # ── Model look (จาก profile, ไม่ hardcode) ──
-    model_gender = product_profile.get("target_gender", "unisex")
-    gender_en = {"female": "woman", "male": "man", "unisex": "person"}.get(model_gender, "person")
+    model_gender = product_profile.get("target_gender", "female")
+    gender_en = {"female": "woman", "male": "man"}.get(model_gender, "woman")
     
     # ── Build per-scene prompts ──
     for i, scene in enumerate(scenes):

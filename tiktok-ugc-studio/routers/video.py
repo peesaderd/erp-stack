@@ -115,16 +115,20 @@ async def generate_video(req: VideoRequest):
             _db_keywords = req.tags or []
             _db_category = getattr(req, "category", "") or ""
             _db_image = req.product_image or ""
+            _db_gender = getattr(req, "gender", "") or ""
+            _db_age = getattr(req, "age", "") or ""
             try:
                 tconn = sqlite3.connect(str(BASE_DIR / "tus_products.db"))
                 trow = tconn.execute(
-                    "SELECT description_th, description, keywords, images, category FROM tus_products WHERE title LIKE ? OR title_th LIKE ? OR product_id = ? LIMIT 1",
+                    "SELECT description_th, description, keywords, images, category, gender, target_age FROM tus_products WHERE title LIKE ? OR title_th LIKE ? OR product_id = ? LIMIT 1",
                     (f"%{_product_title}%", f"%{_product_title}%", req.product_url or "")
                 ).fetchone()
                 tconn.close()
                 if trow:
                     _db_desc = trow[0] or trow[1] or _db_desc
                     _db_category = trow[4] or _db_category
+                    _db_gender = trow[5] or getattr(req, "gender", "") or ""
+                    _db_age = trow[6] or getattr(req, "age", "") or "" 
                     if trow[2] and not _db_keywords:
                         try:
                             _db_keywords = json.loads(trow[2])
@@ -150,7 +154,8 @@ async def generate_video(req: VideoRequest):
                 "keywords": _db_keywords,
                 "ugc_style": req.ugc_style or "holding",
                 "category": _db_category,
-                "target_gender": getattr(req, "gender", "") or "",
+                "target_gender": _db_gender or "",
+                "target_age": _db_age or "",
                 "product_id": job_id,
                 "price": float(req.product_price) if req.product_price else 0.0,
                 "product_image": _db_image,

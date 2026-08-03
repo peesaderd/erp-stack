@@ -116,6 +116,8 @@ class VideoRequest(BaseModel):
     product_image: str = ""
     product_price: Optional[float] = None
     product_commission: Optional[float] = None
+    gender: str = "female"
+    age: str = ""
     tags: list[str] = []
     hook: str = ""
     value: str = ""
@@ -286,6 +288,8 @@ async def generate_video(req: VideoRequest):
                 weights=[15, 15, 20, 12, 12, 4, 22], k=1
             )[0],
             description=req.product_description or "",
+            gender=req.gender or "",
+            age=req.age or "",
             ugc_style=validate_ugc_style(req.ugc_style),
             external_job_id=req.job_id,
             duration=req.duration,
@@ -324,6 +328,8 @@ async def analyze_product(req: dict):
         description=req.get("description", ""),
         category=req.get("category", ""),
         target_audience=req.get("target_audience", ""),
+        age_group=req.get("age_group") or req.get("age", "") or None,
+        gender=req.get("gender", ""),
         image_url=req.get("image_url", ""),
         image_base64=req.get("image_base64", ""),
     )

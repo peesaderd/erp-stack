@@ -228,12 +228,14 @@ Output ONLY valid JSON.
     return _parse_json(response)
 
 
-def research_product(product_name, description='', category='', image_base64=None, age_group=None):
+def research_product(product_name, description='', category='', image_base64=None, age_group=None, gender=''):
     """Step 1: Research product via AI vision/text analysis — returns structured dict"""
     has_vision = bool(image_base64)
     user_prompt = f'Analyze this product:\nProduct Name: {product_name}\nDescription: {description or "N/A"}\nCategory: {category or "N/A"}'
     if age_group:
         user_prompt += f'\nTarget Age Group: {age_group}'
+    if gender:
+        user_prompt += f'\nTarget Gender: {gender}'
     if has_vision:
         user_prompt += '\n\n(Product image attached)'
     try:
@@ -269,11 +271,12 @@ def analyze_product(
     category: str = "",
     target_audience: str = "",
     age_group: Optional[str] = None,
+    gender: str = "",
     image_url: Optional[str] = None,
     image_base64: Optional[str] = None,
 ) -> dict:
     """Analyze product via Gemini — returns image_prompts, video_prompt, hooks, copy"""
-    research = research_product(product_name, description, category, image_base64, age_group)
+    research = research_product(product_name, description, category, image_base64, age_group, gender)
 
     # Extract Brand Protocol from image for strict lock
     brand_protocol = {}
@@ -364,6 +367,8 @@ Output ONLY valid JSON.
 Product Name: {product_name}
 Description: {description}
 Category: {category or 'N/A'}
+Target Gender: {gender or 'Not specified'}
+Target Age Group: {age_group or 'Not specified'}
 Target Audience: {target_audience or 'General TikTok users'}{model_hint}
 
 **Research Results:**

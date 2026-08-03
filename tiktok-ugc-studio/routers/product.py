@@ -334,6 +334,7 @@ async def analyze_product(
     product_name: str = Form(...),
     description: str = Form(""),
     age_group: str = Form(""),
+    gender: str = Form(""),
     file: UploadFile = File(None),
 ):
     """Analyze product via Gemini vision."""
@@ -352,6 +353,7 @@ async def analyze_product(
             category="",
             target_audience="",
             age_group=age_group or None,
+            gender=gender,
             image_base64=image_base64,
         )
         return {

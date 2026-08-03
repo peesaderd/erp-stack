@@ -81,7 +81,7 @@ def _normalize_gender_in_description(text: str, gender_en: str) -> str:
             (r"young\s+thai\s+wom[ae]n?\b", "young Thai man"),
             (r"\bwom[ae]n\b", "man"),
         ]
-    else:  # woman (or person — normalize woman/man -> person)
+    elif gender_en == "woman":
         repl = [
             (r"ethnic\s+thai\s+wom[ae]n?\b", "ethnic Thai woman"),
             (r"thai\s+wom[ae]n?\b", "Thai woman"),
@@ -89,6 +89,17 @@ def _normalize_gender_in_description(text: str, gender_en: str) -> str:
             (r"thai\s+m[ae]n\b", "Thai woman"),
             (r"young\s+thai\s+m[ae]n\b", "young Thai woman"),
             (r"\bm[ae]n\b", "woman"),
+        ]
+    else:  # person / unisex — strip gender entirely
+        repl = [
+            (r"ethnic\s+thai\s+wom[ae]n?\b", "ethnic Thai person"),
+            (r"thai\s+wom[ae]n?\b", "Thai person"),
+            (r"ethnic\s+thai\s+m[ae]n\b", "ethnic Thai person"),
+            (r"thai\s+m[ae]n\b", "Thai person"),
+            (r"young\s+thai\s+wom[ae]n?\b", "young Thai person"),
+            (r"young\s+thai\s+m[ae]n\b", "young Thai person"),
+            (r"\bwom[ae]n\b", "person"),
+            (r"\bm[ae]n\b", "person"),
         ]
     out = text
     for pat, replacement in repl:

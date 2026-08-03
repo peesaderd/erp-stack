@@ -58,6 +58,43 @@ def _is_wearable_category(category: str) -> bool:
     cat_lower = (category or "").lower().strip()
     return any(w in cat_lower for w in CLOTHING_CATEGORIES) or cat_lower in CLOTHING_CATEGORIES
 
+
+def _normalize_gender_in_description(text: str, gender_en: str) -> str:
+    """Force gender words inside a Gemini-generated image_description
+    to match the resolved target gender.
+
+    Gemini frequently hardcodes 'Ethnic Thai woman' even when the product
+    targets men (or vice versa). The resolved gender (from user input /
+    keyword auto-detect) is authoritative, so rewrite any ethnic-Thai
+    person phrase to the correct gender before the prompt is used.
+    """
+    if not text:
+        return text
+    # Map of every known woman-phrase -> equivalent man-phrase and vice versa.
+    # Order matters: check 'Ethnic Thai woman/man' and 'Thai woman/man' first.
+    if gender_en == "man":
+        repl = [
+            (r"ethnic\s+thai\s+wom[ae]n?\b", "ethnic Thai man"),
+            (r"thai\s+wom[ae]n?\b", "Thai man"),
+            (r"ethnic\s+thai\s+girls?\b", "ethnic Thai man"),
+            (r"thai\s+girls?\b", "Thai man"),
+            (r"young\s+thai\s+wom[ae]n?\b", "young Thai man"),
+            (r"\bwom[ae]n\b", "man"),
+        ]
+    else:  # woman (or person — normalize woman/man -> person)
+        repl = [
+            (r"ethnic\s+thai\s+wom[ae]n?\b", "ethnic Thai woman"),
+            (r"thai\s+wom[ae]n?\b", "Thai woman"),
+            (r"ethnic\s+thai\s+m[ae]n\b", "ethnic Thai woman"),
+            (r"thai\s+m[ae]n\b", "Thai woman"),
+            (r"young\s+thai\s+m[ae]n\b", "young Thai woman"),
+            (r"\bm[ae]n\b", "woman"),
+        ]
+    out = text
+    for pat, replacement in repl:
+        out = re.sub(pat, replacement, out, flags=re.IGNORECASE)
+    return out
+
 def analyze_product(product_name: str, description: str = "", keywords: Optional[List[str]] = None, target_duration: int = 15, features: str = "", target_age: str = "", ugc_style: str = "", category: str = "", target_gender: str = "", product_id: str = "", price: float = 0.0, product_category: str = "") -> dict:
     """Analyze product via Gemini and return profile dict.
     
@@ -235,6 +272,9 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     if image_description and len(image_description) > 20:
         if _is_wearable_category(category):
             image_description = image_description.replace("holding", "wearing").replace("hold", "wear")
+        # Gemini hardcodes a gender even when user selected opposite —
+        # force it to match the RESOLVED target gender (user input authoritative).
+        image_description = _normalize_gender_in_description(image_description, gender_en)
         if age_seg and age_seg not in image_description:
             # Gemini Vision only sees the photo — it cannot know the target age.
             # Inject the age so image + video prompts stay consistent.
@@ -273,8 +313,8 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             category=category,
             model_age=model_age,
             model_gender=gender_en,
-            clothing=clothing_str.lstrip(", wearing "),
-            hair=hair_str.lstrip(", "),
+            clothing=profile.get("persona_clothing", ""),
+            hair=profile.get("persona_hair", ""),
             ugc_style=ugc_style,
         )
         if gemini_image:
@@ -411,6 +451,9 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     image_prompt = re.sub(r',\s*,', ',', image_prompt)
     image_prompt = re.sub(r'\s+', ' ', image_prompt)
     image_prompt = image_prompt.strip()
+    # model_action templates may embed a hardcoded 'Ethnic Thai woman' —
+    # force every gender word to match the resolved target gender.
+    image_prompt = _normalize_gender_in_description(image_prompt, gender_en)
 
     return image_prompt, negative
 
@@ -437,10 +480,9 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     # ── Category-aware display action (clothing → wearing, others → holding) ──
 
     gender_en = {"female": "woman", "male": "man", "unisex": "person"}.get(model_gender, "person")
-    persona_clothing = profile.get("persona_clothing", "")
-    persona_hair = profile.get("persona_hair", "")
-    clothing_str = f", wearing {persona_clothing}" if persona_clothing else ""
-    hair_str = f", {persona_hair}" if persona_hair else ""
+    # img2vid: the input image already locks the model's look (face + outfit).
+    # Do NOT re-describe persona clothing/hair here or the video will contradict
+    # the first frame (e.g. jacket in frame vs t-shirt in video text).
     model_age = profile.get("_normalized_age") or _normalize_age(profile.get("target_age", "")) or ""
     
     # ── Product description (common) ──
@@ -457,7 +499,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         prod_desc_vid = product_name
     
     age_seg = f" {model_age} years old" if model_age else ""
-    model_intro = f"Ethnic Thai {gender_en}{age_seg}, porcelain white glowing skin, monolid eyes, Southeast Asian ethnic Thai features{clothing_str}{hair_str}"
+    model_intro = f"Ethnic Thai {gender_en}{age_seg}, porcelain white glowing skin, monolid eyes, Southeast Asian ethnic Thai features"
     
     # ── Style-driven video_motion (ugc_style is PRIMARY) ──────────
     if ugc_style == "product_demo":
@@ -477,8 +519,8 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             category=category,
             model_age=model_age,
             model_gender=gender_en,
-            clothing=clothing_str.lstrip(", wearing "),
-            hair=hair_str.lstrip(", "),
+            clothing=profile.get("persona_clothing", ""),
+            hair=profile.get("persona_hair", ""),
             ugc_style=ugc_style,
         )
         if gemini_video:
@@ -559,6 +601,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     )
     
     video_prompt = re.sub(r'\s+', ' ', video_prompt).strip()
+    video_prompt = _normalize_gender_in_description(video_prompt, gender_en)
     return video_prompt
 
 
@@ -662,11 +705,16 @@ async def analyze_and_build_prompts(
     if target_gender in ("", None, "person", "unisex"):
         # Auto-detect gender from product name/description — LLM may guess wrong
         # (e.g. "เบลเซอร์ผู้ชาย" → female) so the product text is authoritative.
-        combined = (f"{product_name} {description}").lower()
+        # "สตรีท" (street) contains substring "สตรี" → normalize first so
+        # streetwear is NOT misclassified as female.
+        combined = (f"{product_name} {description}").lower().replace("สตรีท", "street")
         if any(w in combined for w in ("ผู้ชาย", "ชาย", "gentleman", "for men", "mens")):
             target_gender = "male"
         elif any(w in combined for w in ("ผู้หญิง", "หญิง", "lady", "ladies", "sukhon", "สุภาพสตรี", "for women", "womens", "สตรี")):
             target_gender = "female"
+        elif target_gender in ("", None):
+            # No gender signal in product data → NEUTRAL, never invent "female"
+            target_gender = "unisex"
     if target_gender:
         profile["target_gender"] = target_gender
     if target_age:

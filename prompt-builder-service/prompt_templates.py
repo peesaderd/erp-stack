@@ -44,11 +44,11 @@ def _sync_style_map_from_engine():
 
 STYLE_MAP = {
     "holding": {
-        "model_action": "Ethnic Thai woman with porcelain white glowing skin, monolid eyes, Southeast Asian features, holding the product in both hands, product packaging facing camera, smiling naturally, NOT applying or using product, NOT opening product, just holding and showing",
+        "model_action": "Model with Thai ethnic features holding the product in both hands, product packaging facing camera, smiling naturally, NOT applying or using product, NOT opening product, just holding and showing",
         "camera": "mid shot, waist up, product visible at chest level",
         "vibe": "friendly, approachable, product-focused",
         "keywords": "ethnic Thai features, porcelain white skin, monolid eyes, both hands holding product, product clearly visible and in focus, NOT using product, NOT opening container",
-        "video_motion": "ethnic Thai woman with white glowing skin holding product gently in both hands, slight head tilt, natural breathing motion, product packaging facing camera, hands not opening or squeezing product",
+        "video_motion": "model holding product gently in both hands, slight head tilt, natural breathing motion, product packaging facing camera, hands not opening or squeezing product",
     },
     "usage": {
         "model_action": "actively using the product in a natural daily setting, candid moment, product in use",

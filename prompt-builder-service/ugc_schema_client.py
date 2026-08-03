@@ -48,7 +48,7 @@ _FALLBACK_STYLES: Dict[str, Dict[str, Any]] = {
     },
 
     "holding": {
-        "model_action": "Ethnic Thai woman with porcelain white glowing skin, monolid eyes, Southeast Asian features. NOT applying or using product, NOT opening product, just holding and showing the product gently in both hands at chest level, packaging facing camera. CRITICAL: The cap is CLOSED and sealed. Both hands hold the closed product only.",
+        "model_action": "Model with Thai ethnic features. NOT applying or using product, NOT opening product, just holding and showing the product gently in both hands at chest level, packaging facing camera. CRITICAL: The cap is CLOSED and sealed. Both hands hold the closed product only.",
         "camera": "medium shot, chest-up framing, product visible in hands, shallow depth of field",
         "vibe": "authentic, gentle, product-focused, soft presentation",
         "keywords": "holding product, NOT applying, product showcase, hands holding, packaging visible",

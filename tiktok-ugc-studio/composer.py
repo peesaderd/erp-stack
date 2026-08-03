@@ -61,7 +61,6 @@ def compose_video(video_path: str, audio_path: str, output_path: str) -> str:
         "-c:a", "aac",       # Re-encode audio to AAC
         "-map", "0:v:0",     # Video from first input
         "-map", "1:a:0",     # Audio from second input
-        "-shortest",         # Match shortest stream duration
         output_path,
     ]
 
@@ -120,7 +119,6 @@ def add_sound_effects(
             f"[1:a]volume={volume}[bga];[0:a][bga]amix=inputs=2:duration=first[audio]",
             "-map", "0:v:0",
             "-map", "[audio]",
-            "-shortest",
             output_path,
         ]
     else:
@@ -134,7 +132,6 @@ def add_sound_effects(
             "-c:a", "aac",
             "-map", "0:v:0",
             "-map", "1:a:0",
-            "-shortest",
             output_path,
         ]
 
@@ -195,7 +192,6 @@ def merge_audio_video(
             "-c:a", "aac",
             "-map", "0:v:0",
             "-map", "1:a:0",
-            "-shortest",
             output_path,
         ]
     else:
@@ -212,7 +208,6 @@ def merge_audio_video(
             "-map", "0:v:0",
             "-map", "1:a:0",
             "-af", f"adelay={delay_ms}|{delay_ms}",
-            "-shortest",
             output_path,
         ]
 

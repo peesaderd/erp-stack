@@ -281,7 +281,6 @@ def compose_video(
                         "-c:a", "aac",
                         "-map", "0:v:0",
                         "-map", "1:a:0",
-                        "-shortest",
                         str(bgm_output),
                     ]
                     subprocess.run(cmd_bgm, check=True, capture_output=True, timeout=60)

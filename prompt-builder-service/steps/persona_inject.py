@@ -14,7 +14,7 @@ def create_step() -> Step:
         category = ctx.ctx["category"]
         product_name = ctx.ctx.get("product_name", "")
         profile = dict(ctx.ctx)
-        persona = _select_persona(category, product_name, ctx.ctx.get("target_gender", "female"))
+        persona = _select_persona(category, product_name, ctx.ctx.get("target_gender", ""))
         profile = _apply_persona_to_profile(profile, persona)
         ctx.set_outputs(
             persona_vibe=profile.get("persona_vibe", persona.get("vibe", "")),

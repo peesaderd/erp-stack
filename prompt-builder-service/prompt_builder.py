@@ -90,17 +90,8 @@ def _normalize_gender_in_description(text: str, gender_en: str) -> str:
             (r"young\s+thai\s+m[ae]n\b", "young Thai woman"),
             (r"\bm[ae]n\b", "woman"),
         ]
-    else:  # person / unisex — strip gender entirely
-        repl = [
-            (r"ethnic\s+thai\s+wom[ae]n?\b", "ethnic Thai person"),
-            (r"thai\s+wom[ae]n?\b", "Thai person"),
-            (r"ethnic\s+thai\s+m[ae]n\b", "ethnic Thai person"),
-            (r"thai\s+m[ae]n\b", "Thai person"),
-            (r"young\s+thai\s+wom[ae]n?\b", "young Thai person"),
-            (r"young\s+thai\s+m[ae]n\b", "young Thai person"),
-            (r"\bwom[ae]n\b", "person"),
-            (r"\bm[ae]n\b", "person"),
-        ]
+    else:  # unknown gender — never invent/strip; leave text untouched
+        repl = []
     out = text
     for pat, replacement in repl:
         out = re.sub(pat, replacement, out, flags=re.IGNORECASE)
@@ -143,10 +134,10 @@ Product ID: {product_id if product_id else 'ไม่ระบุ'}"""
 
     if not gemini_profile:
         logger.warning("Gemini analysis failed — using default profile with Router context")
-        gender_en = "person"
+        gender_en = ""
         profile = {
             "category": "other",
-            "target_gender": "person",
+            "target_gender": "",
             "target_age": "",
             "target_audience": f"คนที่กำลังมองหา{product_name[:20]}",
             "setting": "clean modern lifestyle setting",
@@ -252,11 +243,7 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
 
     # ── Category-aware display action (clothing → wearing, others → holding) ──
 
-    gender_en = {
-        "female": "woman", "woman": "woman",
-        "male": "man", "man": "man",
-        "unisex": "person", "person": "person"
-    }.get(model_gender, "person")
+    gender_en = {"female": "woman", "male": "man"}.get(model_gender, "")
     
     persona_clothing = profile.get("persona_clothing", "")
     persona_hair = profile.get("persona_hair", "")
@@ -490,7 +477,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
 
     # ── Category-aware display action (clothing → wearing, others → holding) ──
 
-    gender_en = {"female": "woman", "male": "man", "unisex": "person"}.get(model_gender, "person")
+    gender_en = {"female": "woman", "male": "man"}.get(model_gender, "")
     # img2vid: the input image already locks the model's look (face + outfit).
     # Do NOT re-describe persona clothing/hair here or the video will contradict
     # the first frame (e.g. jacket in frame vs t-shirt in video text).
@@ -709,11 +696,11 @@ async def analyze_and_build_prompts(
 
     # Ensure target_gender is explicitly resolved
     if profile.get("target_gender", "") in ("", None):
-        profile["target_gender"] = "person"
+        profile["target_gender"] = ""
 
     # Override with explicit params if provided
     # Override with explicit target_gender if provided
-    if target_gender in ("", None, "person", "unisex"):
+    if not target_gender:
         # Auto-detect gender from product name/description — LLM may guess wrong
         # (e.g. "เบลเซอร์ผู้ชาย" → female) so the product text is authoritative.
         # "สตรีท" (street) contains substring "สตรี" → normalize first so
@@ -723,9 +710,9 @@ async def analyze_and_build_prompts(
             target_gender = "male"
         elif any(w in combined for w in ("ผู้หญิง", "หญิง", "lady", "ladies", "sukhon", "สุภาพสตรี", "for women", "womens", "สตรี")):
             target_gender = "female"
-        elif target_gender in ("", None):
-            # No gender signal in product data → NEUTRAL, never invent "female"
-            target_gender = "unisex"
+        elif not target_gender:
+            # No gender signal in product data → keep empty, never invent
+            target_gender = ""
     if target_gender:
         profile["target_gender"] = target_gender
     if target_age:
@@ -765,7 +752,7 @@ async def analyze_and_build_prompts(
         "router_config": router_config,
         "analysis": {
             "category": profile.get("category", "other"),
-            "target_gender": profile.get("target_gender", "unisex"),
+            "target_gender": profile.get("target_gender", ""),
             "target_age": profile.get("target_age", ""),
             "price": profile.get("price") or price,
             "product_id": profile.get("product_id") or product_id,
@@ -916,7 +903,7 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
         product_short = product_name[:30]
     
     # Gender-aware Thai register
-    target_gender = profile.get("target_gender", "person") if profile else "person"
+    target_gender = (profile or {}).get("target_gender", "")
     is_female = target_gender in ("female", "woman")
     reg_hook = "คะ" if is_female else "ครับ"
     reg_val = "ค่ะ" if is_female else "ครับ"
@@ -1019,7 +1006,7 @@ def _gemini_generate_prompts(
     Returns (image_prompt, video_prompt) — falls back to ("", "") on error.
     """
     # Build a concise product info block
-    gender_en = {"female": "woman", "woman": "woman", "male": "man", "man": "man"}.get(model_gender, "person")
+    gender_en = {"female": "woman", "male": "man"}.get(model_gender, "")
     
     # Cache by product name + age — avoid duplicate calls within same request
     _cache_key = (product_name, model_age)

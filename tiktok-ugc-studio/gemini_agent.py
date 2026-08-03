@@ -425,7 +425,7 @@ def research_product(product_name, description='', category='', image_base64=Non
             'key_features': [],
             'visual_style_recommendation': 'lifestyle',
             'age_group': age_group or 'General',
-            'gender': 'female',
+            'gender': gender or '',
             'environment': 'modern lifestyle setting',
             'pain_points': [],
             'hooking_angle': f'Highlight benefits of {product_name}',

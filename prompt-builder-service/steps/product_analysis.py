@@ -21,7 +21,7 @@ def create_step() -> Step:
         ctx.set_outputs(
             analysis_profile=profile,
             category=profile.get("category", "other"),
-            target_gender=profile.get("target_gender", "person"),
+            target_gender=profile.get("target_gender", ""),
             target_age=profile.get("target_age", ""),
             target_audience=profile.get("target_audience", ""),
             setting=profile.get("setting", ""),

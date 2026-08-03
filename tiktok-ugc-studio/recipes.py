@@ -51,6 +51,11 @@ RECIPES = [
         "mood": "luxurious",
         "duration": 8,
         "bgm_style": "chill_loft",
+        "prompt_context": {
+            "category": "fashion",
+            "vibe": "elegant, chic, premium",
+            "lighting_preference": "neutral tone, soft diffused",
+        },
     },
     {
         "name": "food",
@@ -61,6 +66,11 @@ RECIPES = [
         "mood": "fun",
         "duration": 10,
         "bgm_style": "asmr",
+        "prompt_context": {
+            "category": "food",
+            "vibe": "warm, appetizing, satisfying",
+            "lighting_preference": "warm lighting",
+        },
     },
     {
         "name": "asmr",
@@ -71,6 +81,11 @@ RECIPES = [
         "mood": "calm",
         "duration": 12,
         "bgm_style": "asmr",
+        "prompt_context": {
+            "category": "home",
+            "vibe": "calm, relaxing, mindful",
+            "lighting_preference": "soft indoor light",
+        },
     },
     {
         "name": "makeup",
@@ -81,6 +96,11 @@ RECIPES = [
         "mood": "energetic",
         "duration": 10,
         "bgm_style": "upbeat_pop",
+        "prompt_context": {
+            "category": "beauty",
+            "vibe": "soft, upbeat, trendy",
+            "lighting_preference": "front ring-light",
+        },
     },
     {
         "name": "fitness",
@@ -91,6 +111,11 @@ RECIPES = [
         "mood": "energetic",
         "duration": 8,
         "bgm_style": "energetic_edm",
+        "prompt_context": {
+            "category": "health",
+            "vibe": "energetic, motivating, powerful",
+            "lighting_preference": "high contrast, punchy",
+        },
     },
     {
         "name": "product_demo",

@@ -80,6 +80,10 @@ def _normalize_gender_in_description(text: str, gender_en: str) -> str:
             (r"thai\s+girls?\b", "Thai man"),
             (r"young\s+thai\s+wom[ae]n?\b", "young Thai man"),
             (r"\bwom[ae]n\b", "man"),
+            (r"\bshe\b", "he"),
+            (r"\bher\b", "his"),
+            (r"\bhers\b", "his"),
+            (r"\bherself\b", "himself"),
         ]
     elif gender_en == "woman":
         repl = [
@@ -89,6 +93,10 @@ def _normalize_gender_in_description(text: str, gender_en: str) -> str:
             (r"thai\s+m[ae]n\b", "Thai woman"),
             (r"young\s+thai\s+m[ae]n\b", "young Thai woman"),
             (r"\bm[ae]n\b", "woman"),
+            (r"\bhe\b", "she"),
+            (r"\bhim\b", "her"),
+            (r"\bhis\b", "her"),
+            (r"\bhimself\b", "herself"),
         ]
     else:  # unknown gender — never invent/strip; leave text untouched
         repl = []
@@ -497,7 +505,10 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         prod_desc_vid = product_name
     
     age_seg = f" {model_age} years old" if model_age else ""
-    model_intro = f"Ethnic Thai {gender_en}{age_seg}, porcelain white glowing skin, monolid eyes, Southeast Asian ethnic Thai features"
+    # img2vid: the first-frame image already locks the person's face + skin.
+    # Do NOT re-describe look (porcelain skin, monolid eyes...) here or the
+    # video text will fight the reference image. Keep intro minimal.
+    model_intro = f"Ethnic Thai {gender_en}{age_seg}"
     
     # ── Style-driven video_motion (ugc_style is PRIMARY) ──────────
     if ugc_style == "product_demo":
@@ -1047,10 +1058,11 @@ def _gemini_generate_prompts(
         "3. Product is FIXED/MOUNTED on wall or table — DO NOT have person hold the product\n"
         "   unless it's a handheld product (phone, bottle, tool)\n"
         "4. NO: detects, automatically, intelligently, senses, recognizes, responds\n"
-        "5. YES: clear liquid appears on palm, button moves down, mist appears below nozzle\n"
-        "6. Include model details in first sentence:\n"
-        f"   {('Age ' + str(model_age) + ', ') if model_age else ''}Thai {gender_en}, porcelain white glowing skin, "
-        "monolid eyes, Southeast Asian Thai features, small nose bridge, clothing, hair\n\n"
+        "5. FIRST-FRAME CONSTRAINT (CRITICAL): This video uses Wan 2.7 img2vid which sees a SINGLE still image of the model already holding/positioned with the product. The video motion MUST start from THAT pose and move forward naturally. NEVER describe OPENING the product (no: opens, uncaps, twists cap, squeezes tube, pumps, sprays first, clicks). The product is ALREADY in usable state in the first frame. Instead describe DIRECT APPLICATION: hand moves product toward its target and applies — e.g. 'hand brings the lipstick to the lips and applies directly'.\n"
+        "6. YES: hand moves product to target, product touches/swipes/applies, button presses down\n"
+        "7. IMAGE_PROMPT: include FULL look details (southeast asian thai face, porcelain skin, monolid eyes, clothing, hair) since the model is generated from scratch.\n"
+        "8. VIDEO_PROMPT: do NOT re-describe the face/skin/outfit in detail — the first frame shows the person; keep only 'Thai " + "woman/man" + " + age' there.\n"
+        f"   Age: {model_age or 'unspecified'}; gender: {gender_en or 'unspecified'}; clothing: {clothing}; hair: {hair}\n\n"
         "IMAGE_PROMPT (under 80 words): Still scene. Product is visible, woman is positioned near it.\n"
         "VIDEO_PROMPT (under 130 words): Step-by-step visual actions. Use BELOW/ABOVE/BESIDE.\n"
         "Do NOT add negative instructions or aspect ratios.\n"
@@ -1066,7 +1078,7 @@ def _gemini_generate_prompts(
     if any(w in pa_lower for w in ["wall", "mount", "sensor", "dispenser", "mounted"]):
         mount_hint = "\nIMPORTANT: This product is FIXED on wall or table. Person does NOT hold it. Describe it in place."
     elif any(w in pa_lower for w in ["bottle", "jar", "tube", "dropper"]):
-        mount_hint = "\nThis product is HANDHELD. Person picks it up from a surface to use it."
+        mount_hint = "\nThis product is HANDHELD and ALREADY in the person's hand in the first frame. Describe DIRECT USE without opening/unpacking — no opens, no squeezes, no pumps. Hand simply moves the product toward the target and applies."
     
     product_block = f"Product: {product_name}\nAppearance: {_thai_safe_truncate(pa, 350)}\n"
     if feat_str:

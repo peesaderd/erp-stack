@@ -158,7 +158,7 @@ PRODUCT_ANALYSIS_SYSTEM = """คุณคือนักวิเคราะห
   ตัวอย่าง: "เบลเซอร์ผู้ชาย", "กล่องน้ำหอมผู้ชาย" → male / "ชุดเดรสผู้หญิง", "กระโปรงสตรี" → female
   ถ้าหาข้อบ่งชี้ไม่ได้จริงๆ (สินค้ากลางๆ เช่น สายชาร์จ, ปลั๊กไฟ) → ใช้ "female" เป็นค่าเริ่มต้น
 - customer_problem: ระบุปัญหาเฉพาะที่เจาะจง ไม่กว้างเกินไป
-- image_description: ภาษาอังกฤษล้วน 100% ห้ามมีภาษาไทยเด็ดขาด
+- image_description: ภาษาอังกฤษล้วน 100% ห้ามมีภาษาไทยเด็ดขาด ⚠️ IMPORTANT: You are a TEXT-ONLY analyst — you CANNOT see the product image. Do NOT describe colors, container, closure, label, fabric, or any visual detail you cannot confirm from the text alone. If the product is clothing/fashion, do NOT guess the outfit — a separate VISION system (which sees the actual photo) writes the authoritative image_description. Set image_description to "" unless the product name/description states the physical appearance unambiguously (e.g. "ชุดเดรสสีแดง" → "red dress").
 
 🔴 กฎการวิเคราะห์ Packaging Action (บังคับ):
 - อ่านชื่อสินค้า + คำอธิบาย แล้วค้นหาคำที่บ่งบอกกลไกการใช้งานของแพ็กเกจจิ้ง
@@ -176,11 +176,12 @@ PRODUCT_ANALYSIS_SYSTEM = """คุณคือนักวิเคราะห
 - ถ้าไม่มีคำเหล่านี้เลย → packaging_action: "generic_hold" + action_desc: "ถือสินค้าและใช้งานทั่วไป"
 - action_desc ให้เขียนภาษาไทย สั้น กระชับ
 
-🔴 🏷️ ต้องระบุรายละเอียดบรรจุภัณฑ์ใน image_description:
+🔴 🔴 รายละเอียดบรรจุภัณฑ์ต้องใส่ใน **product_appearance** (ไม่ใช่ image_description) — วิดีโอใช้กำหนดท่าเปิด/ใช้สินค้า:
 - container type: bottle/jar/tube/compact/pen
 - closure: twist cap/pump/spray/flip-top/click mechanism
 - product color/texture (visible through packaging if clear)
 - label colors and design elements
+⚠️ คุณเป็น TEXT-ONLY (ไม่เห็นรูปภาพ): ระบุ container/closure ที่อนุมานได้จากชื่อ/คำอธิบาย (เช่น "สเปรย์"→spray, "ปั๊ม"→pump, "หลอด"→tube) โดยไม่แต่งสีเนื้อที่ไม่ปรากฏ และตั้ง image_description: "" เสมอ เพราะ Vision system (เห็นรูปจริง) จะเขียนฉากเต็มที่ถูกต้อง
 
 JSON ที่ต้องตอบ:
 {
@@ -194,7 +195,7 @@ JSON ที่ต้องตอบ:
   "packaging_action": "click_to_release/pump/spray/roll/smooth_application/glossy_shine/blend/dab_press/click_pen/generic_hold",
   "action_desc": "คำอธิบายภาษาไทยสั้นๆ ว่าแพ็กเกจจิ้งทำงานยังไง",
   "features": "ENGLISH ONLY — ALL product properties from description แยกเป็นรายการ เช่น USB rechargeable, 400ml capacity, wireless, motion sensor, one-button operation, adjustable speed, compact size, LED indicator, refillable, BPA-free, waterproof, dishwasher-safe (4-6 short phrases — extract EVERY spec in the description, do not skip any)",
-  "product_appearance": "ENGLISH ONLY — physical description from name/description เช่น white plastic bottle with spray nozzle, LED indicator (keep under 120 chars)",
+  "product_appearance": "ENGLISH ONLY — physical packaging description from name/description (keep under 120 chars) เช่น white plastic bottle with spray nozzle, LED indicator. จำเป็นสำหรับวิดีโอ (ท่าเปิด/ใช้สินค้า): ระบุ container (bottle/jar/tube/box), closure (twist cap/pump/spray/lid) และเนื้อ/สีตามชื่อหรือคำอธิบายบอก (อย่าแต่งสีที่ไม่มี — ไม่แน่ใจให้ละเว้น). Vision system จะทับค่าที่ถูกต้องจากรูปจริงเมื่อมีภาพ",
   "hashtags": ["hashtag1", "hashtag2", "hashtag3", "hashtag4", "hashtag5"],
   "price": "ราคาสินค้าตามที่ให้ เช่น 499 บาท (ถ้าไม่ระบุ: ไม่ระบุ)",
   "product_id": "ID สินค้าตามที่ให้ (ถ้าไม่ระบุ: ไม่ระบุ)",
@@ -219,11 +220,11 @@ JSON ที่ต้องตอบ:
 
 🔴 ต้องระบุรายละเอียดบรรจุภัณฑ์: container type (bottle/jar/tube), closure (twist cap/pump/spray/flip-top), สีและดีไซน์ของฉลาก
 
-Include: model appearance MUST match target_gender — "Ethnic Thai woman" for female, "Ethnic Thai man" for male (not just "Thai woman/man") — with porcelain white glowing skin, monolid eyes, Southeast Asian features. Pose: Model MUST be STANDING (not sitting, not on floor, not kneeling) — full body visible from mid-thigh up. If product is clothing/fashion/apparel → model WEARING/DRAPED in the garment naturally (the garment IS the product — do NOT add denim, jeans, or other random clothing). The product must be ON the body, never "resting nearby." For all other products → HOLDING product at chest level — NOT applying yet. Expression: confident smile. CRITICAL: Model is STANDING upright — NOT sitting on floor, NOT cross-legged, NOT kneeling, NOT leaning on walls. Setting: MATCH the product_analysis.setting and env_context — use the appropriate setting per category (beauty: vanity/bathroom, clothing: closet/boutique/bedroom, electronics: desk/office, home: living/kitchen, food: kitchen/cafe, health: bathroom/bedroom). Lighting: soft natural window light. Mood: warm, inviting. Focus on product being clearly visible and in focus. Do NOT describe the product being used/applied — that happens in the video. ระบุ container type (bottle/jar/tube), closure (twist cap/pump/spray/flip-top) และสีของสินค้าใน image_description ด้วย.
+Include: model appearance MUST match target_gender — "Ethnic Thai woman" for female, "Ethnic Thai man" for male (not just "Thai woman/man") — with porcelain white glowing skin, monolid eyes, Southeast Asian features. Pose: Model MUST be STANDING (not sitting, not on floor, not kneeling) — full body visible from mid-thigh up. If product is clothing/fashion/apparel → model WEARING/DRAPED in the garment naturally (the garment IS the product — do NOT add denim, jeans, or other random clothing). The product must be ON the body, never "resting nearby." For all other products → HOLDING product at chest level — NOT applying yet. Expression: confident smile. CRITICAL: Model is STANDING upright — NOT sitting on floor, NOT cross-legged, NOT kneeling, NOT leaning on walls. Setting: MATCH the product_analysis.setting and env_context — use the appropriate setting per category (beauty: vanity/bathroom, clothing: closet/boutique/bedroom, electronics: desk/office, home: living/kitchen, food: kitchen/cafe, health: bathroom/bedroom). Lighting: soft natural window light. Mood: warm, inviting. Focus on product being clearly visible and in focus. Do NOT describe the product being used/applied — that happens in the video. ระบุ container type (bottle/jar/tube), closure (twist cap/pump/spray/flip-top) และสีของสินค้าใน product_appearance ด้วย (ไม่ใช่ image_description)
 
 Examples (match target_gender):
-  • If target_gender=female: 'An ethnic Thai woman with porcelain white glowing skin, monolid eyes, happy smile, STANDING, holding a lip product at chest level — a clear plastic tube with a black twist cap — product visible and in focus, in an appropriate setting with soft natural window lighting, warm and inviting atmosphere'
-  • If target_gender=male: 'An ethnic Thai man with porcelain white glowing skin, monolid eyes, confident smile, STANDING, holding a watch at chest level — a stainless steel watch with a black leather strap — product visible and in focus, in a modern office with soft natural window lighting, professional atmosphere'",
+  • If target_gender=female: 'An ethnic Thai woman with a happy smile, STANDING, holding the product at chest level — packaging details such as container and cap are defined in product_appearance, not guessed here — product visible and in focus, in an appropriate setting with soft natural window lighting, warm and inviting atmosphere'
+  • If target_gender=male: 'An ethnic Thai man with a confident smile, STANDING, holding the product at chest level — packaging details such as container and colour are defined in product_appearance, not guessed here — product visible and in focus, in a modern office with soft natural window lighting, professional atmosphere'",
 
 🔴 image_description CRITICAL — ต้องแยก "model appearance" (ethnicity + gender from target_gender, features) ออกจาก "product packaging" (container, cap, color) ให้ชัดเจน
 }"""
@@ -243,12 +244,14 @@ JSON format:
   "customer_problem": "what problem this product solves (Thai natural register, match target_gender — คะ/ค่ะ for female, ครับ for male) เช่น ต้องเดินคลำทางในที่มืด, ปั่นผลไม้ยากลำบาก",
   "main_benefit": "key benefit (Thai natural register, match target_gender — ค่ะ/คะ for female, ครับ for male) เช่น เปิดไฟอัตโนมัติเมื่อเดินผ่าน, ปั่นละเอียดแรงสูงพกพาสะดวก",
   "product_appearance": "ENGLISH ONLY. Physical description of the product ONLY (no person). What it looks like: shape, color, material, size, any visible features.",
-  "features": "ENGLISH ONLY. Key product properties/benefits visible or implied (e.g. portable USB rechargeable, powerful motor, BPA-free, measurement markings, one-button operation, motion sensor, automatic on/off). 1-3 short phrases."
+  "features": "ENGLISH ONLY. Key product properties/benefits visible or implied (e.g. portable USB rechargeable, powerful motor, BPA-free, measurement markings, one-button operation, motion sensor, automatic on/off). 1-3 short phrases.",
+  "image_description": "ENGLISH ONLY. Exact visual scene describing WHAT YOU ACTUALLY SEE in the photo — the model pose/dress and the product exactly as shown (no guessing, no invented attributes). Used AS-IS for image generation, so absolute fidelity to the photo matters. If a woman appears in the photo, describe her and the garment she is wearing. If it is a product-only photo, describe the product placement without inventing a person. NEVER invent items/colors/outfits that are not visible."
 }
 RULES:
 - target_gender MUST be "female" or "male" — image gen NEEDS a specific gender
 - target_age: number only if inferred from product/image, otherwise empty string
 - product_appearance describes the product PHYSICALLY — not a scene, not a person
+- image_description describes the ACTUAL FULL SCENE VISIBLE IN THE PHOTO (person + product + setting) with 100% fidelity — never guess what is not visible, never substitute a different product/outfit
 - features describes PROPERTIES you can confirm from the image or label (not made up claims)
 - setting = general location type. env_context = specific spot"""
 

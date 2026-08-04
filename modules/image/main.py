@@ -169,8 +169,15 @@ def _call_prodia(type_: str, config: dict, accept: str = "image/png", files: dic
 #  Nano Banana img2img — Sync API (single call, no polling)
 # ═══════════════════════════════════════════════════════════════════
 
-THAI_PROMPT_SUFFIX = \
-    ", beautiful Thai person style, realistic skin texture, highly detailed face, soft warm lighting"
+# Prodia Nano Banana img2img (see Prodia docs): the model ALREADY SEES the input image.
+# "Describe the change, not the whole scene" + anchor preservation ("keep everything else
+# exactly the same"). Re-describing the person's look/outfit overrides the real photo with
+# guessed text. Anchor the reference instead.
+IMG2IMG_ANCHOR = (
+    "Keep the product exactly as shown in the reference image, and keep the same "
+    "person, pose, outfit, and setting. Only adjust the scene as described. "
+    "Do NOT change the product or the person's look."
+)
 
 THAI_NEGATIVE = (
     "Chinese face, Korean face, East Asian anime style, plastic surgery face, "
@@ -186,8 +193,10 @@ def nano_banana_img2img(prompt: str, input_image: str, negative_prompt: str = ""
     Prodia sync model: POST /v2/job with multipart → image/png response.
     No polling. No async. Single call.
     """
-    if "thai" not in prompt.lower():
-        prompt = prompt.rstrip(",. ") + THAI_PROMPT_SUFFIX
+    # Prodia img2img: describe the CHANGE anchored to the reference image
+    prompt = prompt.rstrip(",. ")
+    if not any(k in prompt.lower() for k in ("keep", "same as", "reference")):
+        prompt = IMG2IMG_ANCHOR + " " + prompt
     if not negative_prompt:
         negative_prompt = THAI_NEGATIVE
 

@@ -521,14 +521,9 @@ def build_video_prompts(
             f"9:16 portrait, smooth natural motion"
         )
         
-        # For beauty products: keep "not opening" restriction
-        # For electronics/home/tools: allow natural product interaction
-        if category in ("beauty", "health") and ugc_style == "holding":
-            enhanced += (
-                " CRITICAL: Product cap is CLOSED and sealed. "
-                "Model is NOT opening or applying the product. "
-                "Just holding and showing to camera."
-            )
+        # Action rules come from the UGC style data (Schema Engine SSOT),
+        # not from hardcoded per-category restrictions.
+        # Gemini/STYLE_MAP decide hold/use/open per the selected UGC style.
         
         video_prompts.append(enhanced)
 

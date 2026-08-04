@@ -1058,7 +1058,7 @@ def _gemini_generate_prompts(
         "3. Product is FIXED/MOUNTED on wall or table — DO NOT have person hold the product\n"
         "   unless it's a handheld product (phone, bottle, tool)\n"
         "4. NO: detects, automatically, intelligently, senses, recognizes, responds\n"
-        "5. FIRST-FRAME CONSTRAINT (CRITICAL): This video uses Wan 2.7 img2vid which sees a SINGLE still image of the model already holding/positioned with the product. The video motion MUST start from THAT pose and move forward naturally. NEVER describe OPENING the product (no: opens, uncaps, twists cap, squeezes tube, pumps, sprays first, clicks). The product is ALREADY in usable state in the first frame. Instead describe DIRECT APPLICATION: hand moves product toward its target and applies — e.g. 'hand brings the lipstick to the lips and applies directly'.\n"
+        "5. FIRST-FRAME CONSTRAINT (CRITICAL): This video uses Wan 2.7 img2vid which sees a SINGLE still image of the model already holding/positioned with the product. The video motion MUST start from THAT pose and move forward naturally. The product is ALREADY in usable state in the first frame. Describe NATURAL USE moving forward: uncap/squeeze/pump/spray are fine when the product's design requires them. Show DIRECT APPLICATION: hand moves product toward its target and applies — e.g. 'hand brings the lipstick to the lips and applies directly'.\n"
         "6. YES: hand moves product to target, product touches/swipes/applies, button presses down\n"
         "7. IMAGE_PROMPT: include FULL look details (southeast asian thai face, porcelain skin, monolid eyes, clothing, hair) since the model is generated from scratch.\n"
         "8. VIDEO_PROMPT: do NOT re-describe the face/skin/outfit in detail — the first frame shows the person; keep only 'Thai " + "woman/man" + " + age' there.\n"
@@ -1078,7 +1078,7 @@ def _gemini_generate_prompts(
     if any(w in pa_lower for w in ["wall", "mount", "sensor", "dispenser", "mounted"]):
         mount_hint = "\nIMPORTANT: This product is FIXED on wall or table. Person does NOT hold it. Describe it in place."
     elif any(w in pa_lower for w in ["bottle", "jar", "tube", "dropper"]):
-        mount_hint = "\nThis product is HANDHELD and ALREADY in the person's hand in the first frame. Describe DIRECT USE without opening/unpacking — no opens, no squeezes, no pumps. Hand simply moves the product toward the target and applies."
+        mount_hint = "\nThis product is HANDHELD and ALREADY in the person's hand in the first frame. Describe NATURAL USE: the product is ready for immediate use — uncapping/squeezing/pumping are fine when the design requires. Hand moves the product toward the target and applies."
     
     product_block = f"Product: {product_name}\nAppearance: {_thai_safe_truncate(pa, 350)}\n"
     if feat_str:

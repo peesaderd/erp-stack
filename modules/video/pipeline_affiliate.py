@@ -37,6 +37,7 @@ import random
 import re
 import subprocess
 import shutil
+import sqlite3
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
@@ -91,6 +92,35 @@ TMP_DIR.mkdir(parents=True, exist_ok=True)
 # Service URLs
 IMAGE_GEN_URL = "http://localhost:8110/api/v1/image/generate"
 PROMPT_BUILDER_URL = "http://localhost:8117"
+
+def _resolve_product_image(product_name: str) -> str:
+    """Resolve product image URL from tus_products.db (SSOT) when caller omitted it."""
+    if not product_name:
+        return ""
+    module_dir = Path(__file__).resolve().parent          # modules/video
+    db_candidates = [
+        module_dir.parent / "tiktok-ugc-studio" / "tus_products.db",   # erp-stack/tiktok-ugc-studio
+        module_dir.parent.parent / "tiktok-ugc-studio" / "tus_products.db",
+    ]
+    for db_path in db_candidates:
+        if not db_path.exists():
+            continue
+        try:
+            con = sqlite3.connect(str(db_path))
+            rows = con.execute(
+                "SELECT images FROM tus_products WHERE product_id = ? OR title = ? OR title_th = ? LIMIT 1",
+                (product_name, product_name, product_name),
+            ).fetchall()
+            con.close()
+            if rows and rows[0][0]:
+                images = json.loads(rows[0][0])
+                if isinstance(images, list) and images:
+                    fname = Path(str(images[0])).name
+                    return f"http://localhost:8105/ugc/static/product_images/{fname}"
+        except Exception:
+            continue
+    return ""
+
 
 
 
@@ -981,6 +1011,12 @@ def run_pipeline(
     logger.info(f"{'='*60}")
     logger.info(f"Product: {product_name}")
     logger.info(f"Image: {product_image}")
+
+    if not product_image:
+        product_image = _resolve_product_image(product_name)
+        if product_image:
+            logger.info(f"  Image resolved from tus_products.db: {product_image}")
+
     logger.info(f"Recipe: {recipe_name}")
     logger.info(f"{'='*60}")
 

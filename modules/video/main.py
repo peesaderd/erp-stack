@@ -93,7 +93,7 @@ class UGCRequest(BaseModel):
     style: str = "ugc_review"
     product_name: str
     product_desc: str = ""
-    gender: str = "female"
+    gender: str = ""
     age: str = ""
     scene: str = "home"
     negative_prompt: Optional[str] = None
@@ -116,7 +116,7 @@ class VideoRequest(BaseModel):
     product_image: str = ""
     product_price: Optional[float] = None
     product_commission: Optional[float] = None
-    gender: str = "female"
+    gender: str = ""
     age: str = ""
     tags: list[str] = []
     hook: str = ""

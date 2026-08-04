@@ -53,7 +53,16 @@ def get_bgm_path(bgm_style: str) -> Path:
         "asmr": "bg_ambient.mp3",
     }
     bgm_filename = bgm_map.get(bgm_style, "bg_chill.mp3")
-    return STORAGE_DIR / "sounds" / bgm_filename
+    # Check module-local sounds first (legacy), then tiktok-ugc-studio/bgm (actual files on host)
+    candidates = [
+        STORAGE_DIR / "sounds" / bgm_filename,
+        _erp_stack / "tiktok-ugc-studio" / "bgm" / bgm_filename,
+    ]
+    for p in candidates:
+        if p.exists():
+            return p
+    # Default to the known-good location on this host
+    return _erp_stack / "tiktok-ugc-studio" / "bgm" / bgm_filename
 
 # Add erp-stack to path for shared_config
 _erp_stack = Path(__file__).parent.parent.parent
@@ -474,11 +483,16 @@ def build_video_prompts(
     lighting = lighting_map.get(category, "soft natural lighting")
     
     # Use target_age from analysis only — no hardcoded fallback
+    # DB/a11y may store ranges like "18-24" or "20s" — take lower bound when possible
     raw_age = product_profile.get("target_age")
-    try:
-        model_age = int(raw_age) if raw_age else 0
-    except (ValueError, TypeError):
-        model_age = 0
+    model_age = 0
+    if raw_age:
+        m = re.search(r'(\d{1,2})', str(raw_age))
+        if m:
+            try:
+                model_age = int(m.group(1))
+            except (ValueError, TypeError):
+                model_age = 0
 
     # ── Scene descriptions ตาม product_type/category ──
     # แทนที่จะใช้ "hold only, cap CLOSED" เดียวกันทุก product
@@ -486,8 +500,8 @@ def build_video_prompts(
     scene_descriptions = _scene_descriptions_for_category(category, product_type, product_name)
 
     # ── Model look (จาก profile, ไม่ hardcode) ──
-    model_gender = product_profile.get("target_gender", "female")
-    gender_en = {"female": "woman", "male": "man"}.get(model_gender, "woman")
+    model_gender = product_profile.get("target_gender", "") or ""
+    gender_en = {"female": "woman", "male": "man", "": "Thai person"}.get(model_gender, "Thai person")
     
     # ── Build per-scene prompts ──
     for i, scene in enumerate(scenes):
@@ -602,40 +616,38 @@ def _scene_descriptions_for_category(category: str, product_type: str, product_n
 
 def generate_voice(
     text: str,
-    voice: str = "th-TH-PremwadeeNeural",
+    voice: str = "Aoede",
     run_id: str = "",
+    target_gender: str = "",
 ) -> str:
-    """Step 7: Generate Thai voice via EdgeTTS."""
-    logger.info(f"Step 7/9: TTS (Thai EdgeTTS)")
+    """Step 7: Generate Thai voice via Gemini TTS (Gemini-only, no fallback).
+
+    Voice is chosen by target_gender when known:
+      - male   -> Charon (Gemini deep male narrator)
+      - female -> Aoede (Gemini warm female)
+      - empty  -> verbatim 'voice' or Gemini female default (Aoede)
+    """
+    logger.info(f"Step 7/9: TTS (Gemini, gender={target_gender or 'auto'})")
     logger.info(f"  Text: {text[:50]}...")
 
-    output_path = str(TMP_DIR / f"voice_{run_id}.mp3")
-    
-    # Try EdgeTTS first for high quality Thai voice
-    try:
-        import asyncio, edge_tts
-        tts_voice = voice if voice and "th-TH" in voice else "th-TH-PremwadeeNeural"
-        async def _run_edge_tts():
-            comm = edge_tts.Communicate(text, tts_voice)
-            await comm.save(output_path)
-        asyncio.run(_run_edge_tts())
-        if Path(output_path).exists() and Path(output_path).stat().st_size > 1000:
-            logger.info(f"  EdgeTTS OK: {output_path}")
-            return output_path
-    except Exception as e:
-        logger.warning(f"EdgeTTS failed ({e}), trying fallback Gemini TTS")
+    output_path = str(TMP_DIR / f"voice_{run_id}.wav")
+
+    # Gemini-only TTS. Gender from product profile wins; no Edge TTS in this module.
+    from gemini_tts import gemini_text_to_speech, get_voice_for_gender
+    if target_gender in ("male", "female"):
+        gemini_voice = get_voice_for_gender(target_gender)
+    else:
+        gemini_voice = voice or "Aoede"
 
     try:
-        from gemini_tts import gemini_text_to_speech
-        tts_path = gemini_text_to_speech(text, output_path=output_path, voice=voice)
+        tts_path = gemini_text_to_speech(text, output_path=output_path, voice=gemini_voice)
         if tts_path and Path(tts_path).exists():
             logger.info(f"  Gemini TTS OK: {tts_path}")
             return tts_path
     except Exception as e:
-        logger.error(f"Gemini TTS fallback failed: {e}")
+        logger.error(f"Gemini TTS failed: {e}")
 
     return ""
-
 # ═══════════════════════════════════════════════════════════════════════════
 # STEP 8: Generate Video (Prodia Wan 2.7 Sync API)
 # ═══════════════════════════════════════════════════════════════════════════
@@ -700,7 +712,12 @@ def generate_video(
     client = ProdiaV2Client(token=PRODIA_TOKEN())
 
     try:
-        neg_p = negative_prompt or "no text, no watermark, blurry, distorted, extra limbs, bad face, deformed"
+        neg_p = (
+            negative_prompt
+            or "no text, no watermark, blurry, distorted, extra limbs, bad face, deformed, "
+            "gibberish text, fake Thai script, distorted Thai characters, illegible text, "
+            "unnatural facial features, oversaturated colors"
+        )
         result = client.generate_video(
             prompt=prompt,
             input_image=image_data,
@@ -854,8 +871,9 @@ def compose_video(
     # Step 9c: Add BGM
     if bgm_style:
         logger.info(f"  9c: Add BGM ({bgm_style})")
-        bgm_filename = f"{bgm_style}.mp3" if not bgm_style.endswith((".mp3", ".wav")) else bgm_style
-        bgm_path = STORAGE_DIR / "sounds" / bgm_filename
+        bgm_path = get_bgm_path(bgm_style) if bgm_style in (
+            "chill_loft", "informative_jazz", "energetic_edm", "upbeat_pop", "luxury_jazz", "asmr", "relaxing",
+        ) else STORAGE_DIR / "sounds" / bgm_style
 
         if bgm_path.exists():
             bgm_output = STORAGE_DIR / f"affiliate_{run_id}_bgm.mp4"
@@ -1081,7 +1099,7 @@ def run_pipeline(
         # ── STEP 7: TTS (ข้ามถ้าไม่มี voice หรือ recipe ไม่ได้ตั้งค่า tts) ──
         if script:
             step_start = time.time()
-            voice_path = generate_voice(script, voice=voice, run_id=run_id)
+            voice_path = generate_voice(script, voice=voice, run_id=run_id, target_gender=product_profile.get("target_gender", ""))
             tts_duration = int((time.time() - step_start) * 1000)
             cost_voice = (len(script) / 1000) * 0.0001
 

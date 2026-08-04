@@ -872,19 +872,48 @@ def _estimate_speech_duration(text: str) -> float:
     return thai_sec + non_thai_sec + (switches * 0.1)
 
 _THAI_DANGLING_CHARS = set("\u0e40\u0e41\u0e42\u0e43\u0e44\u0e34\u0e35\u0e36\u0e37\u0e38\u0e39\u0e3a\u0e48\u0e49\u0e4a\u0e4b\u0e4c\u0e4d\u0e4e")
+_THAI_CONSONANTS = set(chr(c) for c in range(0x0E01, 0x0E2F))  # ก..ฮ
 
-def _thai_safe_truncate(text: str, max_chars: int) -> str:
-    """Truncate text to max_chars without cutting mid-word or leaving a dangling
-    Thai leading vowel / tone mark / vowel mark as the final character.
-    Prefers a whitespace boundary for mixed Latin text."""
+def _thai_safe_truncate(text: str, max_chars: int, extra_buffer: int = 5) -> str:
+    """Truncate text to max_chars without cutting a Thai word in half.
+
+    Strategy:
+      1. If the cut point splits a Thai word, extend up to ``extra_buffer``
+         extra characters (or until the word finishes) so the word stays whole.
+      2. Never leave a dangling Thai leading vowel / tone mark / vowel mark
+         as the final character.
+      3. For mixed Latin text, prefer a whitespace boundary.
+    """
     if not text or len(text) <= max_chars:
         return text
+
     cut = max_chars
+    if 0 < cut < len(text):
+        prev_char = text[cut - 1]
+        next_char = text[cut]
+        # Mid-word cut: a Thai consonant/vowel-mark sits right before the cut
+        # and more Thai (consonant or vowel mark) follows after it.
+        if (
+            prev_char in _THAI_CONSONANTS
+            and (next_char in _THAI_CONSONANTS or next_char in _THAI_DANGLING_CHARS)
+        ) or (
+            prev_char in _THAI_DANGLING_CHARS and next_char in _THAI_CONSONANTS
+        ):
+            limit = min(len(text), max_chars + extra_buffer)
+            while cut < limit and (
+                text[cut] in _THAI_CONSONANTS or text[cut] in _THAI_DANGLING_CHARS
+            ):
+                cut += 1
+
+    # Never leave a dangling Thai vowel / tone mark at the end.
     while cut > 0 and text[cut - 1] in _THAI_DANGLING_CHARS:
         cut -= 1
-    if cut > max_chars * 0.6:
+
+    # Prefer a whitespace boundary for mixed Latin text.
+    min_cut = max_chars * 0.6
+    if cut > min_cut:
         last_space = text.rfind(" ", 0, cut)
-        if last_space > max_chars * 0.6:
+        if last_space > min_cut:
             cut = last_space
     return text[:cut]
 def _trim_to_word(text: str, max_chars: int) -> str:

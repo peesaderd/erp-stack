@@ -15,6 +15,7 @@ from mistralai.client import Mistral
 logger = logging.getLogger("prompt-builder-service")
 
 from shared_config import GEMINI_API_KEY as _GEMINI_API_KEY_LAZY
+from shared_config import MISTRAL_API_KEY as _MISTRAL_API_KEY_LAZY
 from shared_config import GEMINI_MODEL
 from prompt_templates import _extract_json
 
@@ -272,6 +273,11 @@ def _call_mistral_vision(system_prompt: str, user_text: str, image_url: str, tem
     can't reliably fetch from all image CDNs.
     """
     api_key = os.environ.get("MISTRAL_API_KEY", "")
+    if not api_key:
+        try:
+            api_key = _MISTRAL_API_KEY_LAZY() if callable(_MISTRAL_API_KEY_LAZY) else _MISTRAL_API_KEY_LAZY
+        except Exception:
+            api_key = ""
     if not api_key:
         logger.warning("No MISTRAL_API_KEY set in environment")
         return None

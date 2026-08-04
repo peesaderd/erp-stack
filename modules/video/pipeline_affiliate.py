@@ -257,6 +257,8 @@ def load_recipe(recipe_name: str = "tus") -> dict:
         "image_generation": config.get("image_generation", {}),
         "video_generation": config.get("video_generation", {}),
         "tts": config.get("tts"),  # None = no voiceover
+        "scene_actions_by_category": config.get("scene_actions_by_category", {}),
+        "lighting_map": config.get("lighting_map", {}),
     }
 
     scenes = recipe.get("scenes", [])
@@ -470,7 +472,8 @@ def build_video_prompts(
     product_type = product_profile.get("product_type", "").lower()
     product_name = product_profile.get("product_name", "") or product_profile.get("_product_name", "")
 
-    # Lighting map (simple version)
+    # Lighting map — Schema Engine (recipe config) เป็น SSOT;
+    # hardcode ข้างล่างเป็น fallback เมื่อ recipe ไม่มีค่า
     lighting_map = {
         "beauty": "soft diffused natural window lighting",
         "tools": "bright functional lighting",
@@ -480,7 +483,8 @@ def build_video_prompts(
         "home": "bright natural daylight",
         "other": "soft natural lighting",
     }
-    lighting = lighting_map.get(category, "soft natural lighting")
+    db_lighting = (recipe.get("lighting_map") or {}).get(category)
+    lighting = db_lighting or lighting_map.get(category, "soft natural lighting")
     
     # Use target_age from analysis only — no hardcoded fallback
     # DB/a11y may store ranges like "18-24" or "20s" — take lower bound when possible
@@ -494,10 +498,17 @@ def build_video_prompts(
             except (ValueError, TypeError):
                 model_age = 0
 
-    # ── Scene descriptions ตาม product_type/category ──
-    # แทนที่จะใช้ "hold only, cap CLOSED" เดียวกันทุก product
-    # ใช้ product_type กำหนด action ที่เหมาะสมต่อ scene
-    scene_descriptions = _scene_descriptions_for_category(category, product_type, product_name)
+    # ── Scene descriptions — Schema Engine (recipe config) เป็น SSOT ──
+    # ถ้า recipe มี scene_actions_by_category[category] ให้ใช้ของ DB
+    # (มี {product} placeholder แทนชื่อสินค้า); fallback = hardcode เดิม
+    db_actions = (recipe.get("scene_actions_by_category") or {}).get(category, {})
+    if db_actions:
+        scene_descriptions = {
+            k: (v.replace("{product}", product_name or "product") if isinstance(v, str) else v)
+            for k, v in db_actions.items()
+        }
+    else:
+        scene_descriptions = _scene_descriptions_for_category(category, product_type, product_name)
 
     # ── Model look (จาก profile, ไม่ hardcode) ──
     model_gender = product_profile.get("target_gender", "") or ""

@@ -32,10 +32,6 @@ logger = logging.getLogger("prompt-builder-service")
 # Single source of truth for clothing/fashion display (image + video).
 # Keep in sync with Gemini's rule: clothing/fashion → model WEARS, never holds.
 WEARABLE_IMAGE_ACTION = "modeling and displaying the clothing elegantly on body, garment clearly visible, smiling naturally"
-WEARABLE_VIDEO_ACTION = (
-    "wearing the garment, full body visible, standing still and turning slowly in place to showcase the fit, "
-    "fabric draping naturally, garment clearly the hero item"
-)
 
 CLOTHING_CATEGORIES = {
     "fashion", "clothing", "apparel",  # broad
@@ -57,6 +53,21 @@ CLOTHING_CATEGORIES = {
 def _is_wearable_category(category: str) -> bool:
     cat_lower = (category or "").lower().strip()
     return any(w in cat_lower for w in CLOTHING_CATEGORIES) or cat_lower in CLOTHING_CATEGORIES
+
+
+def _normalize_age(raw_age) -> int:
+    """Normalize age from profile to 18-25 range for UGC models."""
+    import random
+    try:
+        if isinstance(raw_age, (int, float)):
+            age = int(raw_age)
+        else:
+            parts = str(raw_age).replace(" ", "").split("-")
+            nums = [int(p) for p in parts if p.isdigit()]
+            age = nums[0] if nums else 22
+    except (ValueError, TypeError):
+        age = 22
+    return max(18, min(25, age + random.randint(-1, 1)))
 
 
 # ─── Country → Ethnicity descriptor ──────────────────────────────
@@ -531,6 +542,10 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     # model_action templates may embed a hardcoded 'Ethnic Thai woman' —
     # force every gender word to match the resolved target gender.
     image_prompt = _normalize_gender_in_description(image_prompt, gender_en)
+    # Strip any hardcoded ethnicity from the engine action — the ethnicity
+    # is injected via the country field (single source of truth).
+    image_prompt = re.sub(r'Model\s+with\s+[^,]+features', '', image_prompt, flags=re.IGNORECASE).strip()
+    image_prompt = re.sub(r'^,\s*', '', image_prompt).strip()
 
     # ── Ethnicity + age guard (safety net) ─────────────────────────────
     # Gemini sometimes omits the ethnicity/age even when instructed. The model
@@ -551,28 +566,32 @@ def img_desc_sentences(text: str) -> list:
 
 def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holding") -> str:
     """Generate video prompt for Wan 2.7 img2vid.
-    Style-driven, category-modulated.
-    
+    Single source of truth: UGC style (Schema Engine) drives MOTION via
+    model_action + video_motion. Recipe drives SCRIPT (handled elsewhere).
+    No Gemini-generated motion, no fallback templates, no hardcoded actions.
+
     PRINCIPLE:
     - ugc_style controls person action (holding, reviewing, using)
     - category controls environment/context detail only
     - Person is ALWAYS in the scene
+    - Wearable/fashion products force fashion_lookbook so the model WEARS the garment
     """
-    style_info = STYLE_MAP.get(ugc_style, STYLE_MAP["holding"])
+    # Wearable/fashion products → fashion_lookbook (model WEARS the garment, never holds)
+    if _is_wearable_category(profile.get("category", "other")):
+        style_info = STYLE_MAP.get("fashion_lookbook", STYLE_MAP["holding"])
+    else:
+        style_info = STYLE_MAP.get(ugc_style, STYLE_MAP["holding"])
     model_gender = profile.get("target_gender")
-    model_setting = profile.get("setting", "clean modern lifestyle setting")
+    env_context = profile.get("env_context", "a modern space")
     category = profile.get("category", "other")
-
-    # ── Category-aware display action (clothing → wearing, others → holding) ──
 
     gender_en = {"female": "woman", "male": "man"}.get(model_gender, "")
     # img2vid: the input image already locks the model's look (face + outfit).
     # Do NOT re-describe persona clothing/hair here or the video will contradict
     # the first frame (e.g. jacket in frame vs t-shirt in video text).
     model_age = profile.get("_normalized_age") or _normalize_age(profile.get("target_age", "")) or ""
-    
+
     # ── Product description (common) ──
-    env_context = profile.get("env_context", "a modern space")
     product_appearance = profile.get("product_appearance", "")
     pa_clean = product_appearance
     if pa_clean:
@@ -584,7 +603,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         prod_desc_vid = f"{article} {_thai_safe_truncate(pa_clean, 200)}"
     else:
         prod_desc_vid = product_name
-    
+
     age_seg = f" {model_age} years old" if model_age else ""
     # img2vid: the first-frame image already locks the person's face + skin.
     # Do NOT re-describe look (porcelain skin, monolid eyes...) here or the
@@ -592,150 +611,26 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     _eth_label, _eth_features = _country_ethnicity(profile.get("country", ""))
     model_intro = f"{_eth_label} {gender_en}{age_seg}"
 
-    # Step 2: usage_action-driven media generation (Gemini 2-step architecture)
-    # When the vision analysis produced a usage_action (how to open/use the product),
-    # use the MEDIA_GENERATION_SYSTEM prompt to drive the video motion from that action.
-    # This keeps the video prompt focused on MOTION/ACTION (never re-describing the
-    # model face/outfit that the first-frame image already locks).
-    usage_action = profile.get("usage_action", "")
-    _used_media_vid = False
-    if usage_action and ugc_style not in ("product_demo", "tabletop", "tabletop_demo"):
-        _media_img, _media_vid = _get_media_prompts_cached(
-            product_name=product_name,
-            product_appearance=pa_clean or product_name,
-            usage_action=usage_action,
-            ugc_style=ugc_style,
-            category=category,
-            model_gender=gender_en,
-            model_age=str(model_age) if model_age else "",
-            env_context=env_context,
-            features=profile.get("features", ""),
-            country=profile.get("country", ""),
-        )
-        if _media_vid:
-            action = _media_vid
-            _used_media_vid = True
-        else:
-            raise RuntimeError(
-                f"Gemini media generation returned empty video_prompt for product "
-                f"'{product_name}' (usage_action='{usage_action}'). "
-                f"No fallback — fix the Gemini call."
-            )
-    elif ugc_style == "product_demo":
-        prod = prod_desc_vid or product_name
-        action = (
-            f"{prod} on {env_context}. Product centered, clean surface, minimal composition. "
-            f"Camera slow push in. Product features clearly visible. "
-            f"No people. 9:16 portrait, smooth natural motion."
-        )
-    elif ugc_style in ("usage", "product_usage"):
-        # Try Gemini for natural product usage description
-        gemini_image, gemini_video = _gemini_generate_prompts(
-            product_name=product_name,
-            product_appearance=pa_clean or product_name,
-            features=profile.get("features", ""),
-            env_context=env_context,
-            category=category,
-            model_age=model_age,
-            model_gender=gender_en,
-            clothing=profile.get("persona_clothing", ""),
-            hair=profile.get("persona_hair", ""),
-            ugc_style=ugc_style,
-        )
-        if gemini_video:
-            action = gemini_video
-        else:
-            raise RuntimeError(
-                f"Gemini prompt generation returned empty video_prompt for product "
-                f"'{product_name}' (ugc_style='{ugc_style}'). "
-                f"No fallback — fix the Gemini call."
-            )
-    elif ugc_style == "review":
-        # Person holding product + looking at camera, review-style
-        action = (
-            f"{model_intro} holds {prod_desc_vid or product_name} in hand, "
-            f"looking directly at camera with slight head tilt, casual reviewing pose. "
-            f"Slow gentle movement, showing product from slightly different angles. "
-            f"Lifestyle setting, product visible. "
-            f"Person speaking casually, product in hand"
-        )
-    elif ugc_style in ("tabletop", "tabletop_demo"):
-        # Product on table, person's hands visible
-        action = (
-            f"{prod_desc_vid or product_name} sits on table. "
-            f"{model_intro} nearby points at it and gestures with hands. "
-            f"Camera pans slowly showing product on tabletop, hands visible in frame. "
-            f"Product-centered demonstration, person gesturing"
-        )
-    elif ugc_style in ("talking", "talking_head"):
-        # Head/shoulders, talking about product
-        action = (
-            f"{model_intro} in medium close-up, facing camera, "
-            f"speaking naturally about {prod_desc_vid or product_name}. "
-            f"Gentle head movements, conversational tone. "
-            f"Product resting nearby, slightly blurred in foreground. "
-            f"Smooth natural motion, person talking to camera"
-        )
-    elif ugc_style == "unbox":
-        action = (
-            f"{model_intro} unboxing {prod_desc_vid or product_name}, "
-            f"hands opening packaging, lifting product out. "
-            f"Slight excitement in movement. "
-            f"Product emerging from packaging, unboxing reveal motion"
-        )
-    elif _is_wearable_category(category) or ugc_style in ("fashion_lookbook", "lookbook", "outfit", "fashion"):
-        # Clothing/fashion — model WEARS the garment (never holds). Matches Gemini rule.
-        action = (
-            f"{model_intro} {WEARABLE_VIDEO_ACTION}, "
-            f"natural runway-style motion, camera slowly tracking, "
-            f"product: {prod_desc_vid or product_name}"
-        )
+    # ── Single source of truth: UGC style model_action + video_motion ──
+    _style_action = style_info.get("model_action", "").strip()
+    _style_motion = style_info.get("video_motion", "").strip()
+    # Strip any hardcoded ethnicity from the engine action — the ethnicity
+    # is injected via model_intro (single source of truth = country field).
+    _style_action = re.sub(r'Model\s+with\s+[^,]+features', '', _style_action, flags=re.IGNORECASE).strip()
+    _style_action = re.sub(r'^,\s*', '', _style_action).strip()
+    if _style_action:
+        # Engine styles are action-only (no embedded person description).
+        action = f"{model_intro} {_style_action}, product: {prod_desc_vid or product_name}"
+        if _style_motion and _style_motion.lower() not in action.lower():
+            action += f", {_style_motion}"
     else:
-        # STYLE_MAP-driven (auto-synced from Schema Engine) — new styles work automatically.
-        _style_action = style_info.get("model_action", "").strip()
-        _style_motion = style_info.get("video_motion", "").strip()
-        if _style_action:
-            # Legacy local entries embed a full person description; engine styles are action-only.
-            if any(_style_action.lower().startswith(p) for p in ("ethnic thai", "thai woman", "thai man", "person ")):
-                action = f"{_style_action}, product: {prod_desc_vid or product_name}"
-            else:
-                action = f"{model_intro} {_style_action}, product: {prod_desc_vid or product_name}"
-            if _style_motion and _style_motion.lower() not in action.lower():
-                action += f", {_style_motion}"
-        else:
-            action = f"{model_intro} gently holding {prod_desc_vid or product_name} in both hands, showing product to camera with slight slow rotation"
-    
-    # ── Category-specific restrictions (SECONDARY) ──
-    video_prompt = action
-    # No more hardcoded beauty restrictions — Gemini handles appropriateness
-    
-    if not _used_media_vid:
-        # Only prepend a single setting when NOT using the Gemini media prompt
-        # (which already carries its own setting at the start). Avoids duplicate/
-        # conflicting settings that distort the video.
-        video_prompt = f"{env_context.rstrip('.')}. {video_prompt} soft natural lighting, warm atmosphere. 9:16 portrait, smooth natural motion"
-    else:
-        # Gemini media prompt already includes setting + lighting + motion.
-        # Just ensure the aspect ratio is present.
-        if "9:16" not in video_prompt:
-            video_prompt += " 9:16 portrait, smooth natural motion"
+        action = f"{model_intro} gently holding {prod_desc_vid or product_name} in both hands, showing product to camera with slight slow rotation"
+
+    # ── Build final prompt ──
+    video_prompt = f"{env_context.rstrip('.')}. {action} soft natural lighting, warm atmosphere. 9:16 portrait, smooth natural motion"
     video_prompt = re.sub(r'\s+', ' ', video_prompt).strip()
     video_prompt = _normalize_gender_in_description(video_prompt, gender_en)
     return video_prompt
-
-
-def _normalize_age(raw_age) -> int:
-    """Normalize target_age range -> single int. Returns 0 when no age given."""
-    try:
-        if isinstance(raw_age, (int, float)):
-            return int(raw_age)
-        parts = str(raw_age).replace(" ", "").split("-")
-        nums = [int(p) for p in parts if p.isdigit()]
-        if nums:
-            return nums[0]
-    except Exception:
-        pass
-    return 0
 
 
 def build_negative_prompt(profile: dict, ugc_style: str = "holding") -> str:

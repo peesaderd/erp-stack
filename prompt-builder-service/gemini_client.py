@@ -423,9 +423,9 @@ CRITICAL RULES FOR VIDEO_PROMPT:
 3. Focus on MOTION, LIGHTING, CAMERA, and DIRECTION based on 'usage_action' and 'ugc_style'.
 4. Keep product detail to ONE short phrase (e.g. "the pleated midi skirt"). Do NOT paste the full product_reconstruction_prompt.
 5. Incorporate the KEY VISIBLE features from 'product_features' into the motion/action, and EXPLICITLY use the word "feature" in the prompt so the video model knows to showcase them (e.g. "showing the side zipper feature", "highlighting the high-waisted feature", "displaying the pleated A-line feature"). For fashion/apparel, the model is ALREADY WEARING the garment — NEVER show putting it on or taking it off. Show each feature via a natural styling motion (e.g. "smoothing the pleats to show the pleated feature", "turning to display the side zipper feature", "adjusting the waistband to highlight the high-waisted feature"). Keep it concise.
-6. NEVER repeat the same feature twice — each feature appears exactly ONCE. For fashion/apparel, NEVER show the model walking, swaying, or strutting (this distorts the waist/hips), and NEVER describe adjusting, unzipping, or pulling at the skirt/waistband (this looks suggestive). Use only modest, elegant motions like "turning slowly", "smoothing the fabric", "posing gracefully".
+6. NEVER repeat the same feature twice — each feature appears exactly ONCE. For fashion/apparel, NEVER show the model walking, swaying, or strutting (this distorts the waist/hips), and NEVER describe adjusting, unzipping, or pulling at the skirt/waistband (this looks suggestive). Use only modest, elegant motions like "standing still and turning slowly in place", "smoothing the fabric", "gentle head movement".
 7. Example for Beauty: "In a bright bathroom. The young woman holds the serum bottle, gently opens the cap and applies it to her cheek. Soft natural light, slow camera push-in, smooth cinematic motion."
-8. Example for Fashion: "On a clean studio backdrop. The young woman wears the pleated midi skirt, twirls slowly to show the fit. Soft studio light, camera slowly tracking, smooth runway motion."
+8. Example for Fashion: "On a clean studio backdrop. The young woman wears the pleated midi skirt, standing still and turning slowly to show the fit. Soft studio light, static camera, subtle push-in, smooth natural motion."
 
 OUTPUT FORMAT (JSON):
 {

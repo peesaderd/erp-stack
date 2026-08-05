@@ -280,6 +280,9 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     age_seg = f" {model_age} years old" if model_age else ""
     thai_base = f"An ethnic Thai {gender_en}{age_seg}, porcelain white glowing skin, monolid eyes, Southeast Asian ethnic Thai features, small nose bridge"
     
+    _used_media_img = False  # True when Gemini media generation produced the image_prompt
+
+
     # ── Priority 1: Direct Gemini Vision Scene Description (Exact Product Visual Match) ──
     if False and image_description and len(image_description) > 20:  # disabled: vision describes product-only photo, not the model
         if _is_wearable_category(category):
@@ -314,17 +317,12 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         )
         if _media_img:
             scene_desc = _media_img
+            _used_media_img = True
         else:
-            # Fallback: build a scene-first description from usage_action
-            _ua = profile.get("usage_action", "")
-            if pa_clean:
-                prod_str = f"{article} {_thai_safe_truncate(pa_clean, 200)}"
-            else:
-                prod_str = product_name
-            scene_desc = (
-                f"{env_str}. {thai_base}{clothing_str}{hair_str} "
-                f"{_ua or 'holding the product and showing it to camera'} — "
-                f"product and person in frame, natural lifestyle moment."
+            raise RuntimeError(
+                f"Gemini media generation returned empty image_prompt for product "
+                f"'{product_name}' (usage_action='{profile.get('usage_action', '')}'). "
+                f"No fallback — fix the Gemini call."
             )
     elif ugc_style == "product_demo":
         prod_desc = product_appearance or product_name
@@ -473,6 +471,18 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     if templates.get("master"):
         image_prompt = fill_template(templates["master"], data)
         negative = templates.get("negative", "")
+    elif _used_media_img:
+        # Gemini media generation already produced a complete, non-conflicting
+        # image_prompt (action + single setting + lighting). Do NOT append the
+        # STYLE_MAP model_action/camera/vibe — that would duplicate/conflict.
+        image_prompt = (
+            f"{scene_desc}. "
+            f"natural composition, warm inviting atmosphere. "
+            f"The product is clearly in frame. "
+            f"soft natural lighting. "
+            f"--ar 9:16"
+        )
+        negative = templates.get("negative", "")
     else:
         image_prompt = (
             f"{scene_desc}. "
@@ -567,11 +577,10 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             action = _media_vid
             _used_media_vid = True
         else:
-            # Fallback: drive motion directly from usage_action
-            action = (
-                f"{model_intro} {usage_action}. "
-                f"Natural, smooth motion, cinematic. "
-                f"Product: {prod_desc_vid or product_name}"
+            raise RuntimeError(
+                f"Gemini media generation returned empty video_prompt for product "
+                f"'{product_name}' (usage_action='{usage_action}'). "
+                f"No fallback — fix the Gemini call."
             )
     elif ugc_style == "product_demo":
         prod = prod_desc_vid or product_name
@@ -597,13 +606,10 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         if gemini_video:
             action = gemini_video
         else:
-            # Fallback: simple generic prompt — no is_* branches
-            action = (
-                f"{model_intro} in {env_context} with {prod_desc_vid or product_name}. "
-                f"They naturally demonstrate how to use the product — "
-                f"the key function is shown. "
-                f"Product features are visible as she uses it. "
-                f"Natural product usage demonstration"
+            raise RuntimeError(
+                f"Gemini prompt generation returned empty video_prompt for product "
+                f"'{product_name}' (ugc_style='{ugc_style}'). "
+                f"No fallback — fix the Gemini call."
             )
     elif ugc_style == "review":
         # Person holding product + looking at camera, review-style
@@ -761,7 +767,7 @@ async def analyze_and_build_prompts(
     if vision_profile:
         for key in ["category", "target_gender", "target_age", "target_audience", "setting",
                      "customer_problem", "main_benefit", "env_context", "product_appearance",
-                     "image_description", "features"]:
+                     "image_description", "features", "usage_action"]:
             if key in vision_profile and vision_profile[key]:
                 profile[key] = vision_profile[key]
         # product_type from vision overwrites text analysis

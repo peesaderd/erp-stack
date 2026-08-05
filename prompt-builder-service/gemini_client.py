@@ -85,7 +85,7 @@ def _call_gemini(system_prompt: str, user_text: str, temperature: float = 0.3) -
         payload = {
             "system_instruction": {"parts": [{"text": system_prompt}]},
             "contents": [{"parts": [{"text": user_text}]}],
-            "generationConfig": {"temperature": temperature, "maxOutputTokens": 2048},
+            "generationConfig": {"temperature": temperature, "maxOutputTokens": 8192},
         }
         resp = requests.post(
             url,
@@ -126,7 +126,7 @@ def _call_gemini_vision(system_prompt: str, user_text: str, image_url: str, temp
                 {"text": user_text},
                 {"inlineData": {"mimeType": mime, "data": img_b64}}
             ]}],
-            "generationConfig": {"temperature": temperature, "maxOutputTokens": 2048},
+            "generationConfig": {"temperature": temperature, "maxOutputTokens": 8192},
         }
         resp = requests.post(
             url,
@@ -259,7 +259,7 @@ JSON format:
   "main_benefit": "key benefit (Thai natural register, match target_gender — ค่ะ/คะ for female, ครับ for male) เช่น เปิดไฟอัตโนมัติเมื่อเดินผ่าน, ปั่นละเอียดแรงสูงพกพาสะดวก",
   "product_appearance": "ENGLISH ONLY. A highly detailed visual description of the PRODUCT ONLY (no person, no scene). For beauty/cosmetics: include packaging type (bottle/jar/tube/compact/pen), material/color (e.g. frosted glass, glossy plastic), closure (twist cap/pump/spray/flip-top/click), and texture if visible (e.g. clear gel, white cream). For clothing/fashion: include clothing type, fabric details, cut, fit, color, and patterns. This field is used for VIDEO generation (how to open/use the product), so be specific about the physical details.",
   "features": "ENGLISH ONLY. Key product properties/benefits visible or implied (e.g. portable USB rechargeable, powerful motor, BPA-free, measurement markings, one-button operation, motion sensor, automatic on/off). 1-3 short phrases.",
-  "usage_action": "ENGLISH ONLY. How a person would interact with this product. (e.g. 'opening the twist cap and squeezing the cream' OR 'wearing the dress and posing'). Used for VIDEO generation.",
+  "usage_action": "ENGLISH ONLY. A SPECIFIC, ACTION-ORIENTED description of exactly HOW a person interacts with this product — the physical motion of opening/using/wearing it. This drives VIDEO generation, so be precise about the mechanics. Examples by category: BEAUTY (e.g. 'twisting open the cap and squeezing a pea-sized amount of the white cream onto her fingers, then massaging it into her face'), FASHION (e.g. 'unzipping the side zipper and stepping into the high-waisted A-line skirt, then smoothing the pleats and turning to show the silhouette'), ELECTRONICS (e.g. 'pressing the single power button and holding the device up to her ear'), FOOD (e.g. 'twisting off the lid and pouring the golden honey into a spoon'), TOOLS (e.g. 'gripping the handle and pressing the trigger to spray'). ALWAYS include: (1) the specific opening/closure mechanism (twist cap, pump, spray, flip-top, zipper, button, plug), (2) the exact body motion (squeeze, pump, spray, zip, step into, press, pour, grip), (3) the product's texture/consistency if relevant (cream, gel, serum, lotion, pleated fabric, liquid). Do NOT write generic phrases like 'using the product' — describe the real physical interaction.",
   "image_description": "ENGLISH ONLY. Describe the SCENE for AI image generation — the MODEL (person) in the scene, NOT the product details. The product image is already provided as reference, so DO NOT re-describe the product's physical details (container, cap, color, fabric) in detail. Instead describe: (1) room setting / environment, (2) the model — 'Ethnic Thai woman' for female / 'Ethnic Thai man' for male, with age, hair style, and the outfit/dress they are wearing, (3) whether the model is WEARING the garment (for clothing/fashion) or HOLDING the product at chest level (for other products). Keep it concise — the product itself is visible in the reference image. Example: 'An ethnic Thai woman, 25 years old, long black hair, wearing a red knit dress, standing in a bright bedroom with soft natural window light, warm inviting atmosphere.'"
 }
 RULES:

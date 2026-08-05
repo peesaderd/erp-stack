@@ -273,6 +273,7 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         pa_clean = re.sub(r'^(The\s+)?product\s+(is\s+)?', '', pa_clean, flags=re.IGNORECASE).strip()
         pa_clean = pa_clean[0].lower() + pa_clean[1:] if pa_clean else ""
         pa_clean = re.sub(r'^(a|an)\s+', '', pa_clean, flags=re.IGNORECASE).strip()
+        pa_clean = re.sub(r'^the\s+', '', pa_clean, flags=re.IGNORECASE).strip()
         article = "an" if pa_clean[:1].lower() in "aeiou" else "a"
     
     env_str = _thai_safe_truncate(env_context or "a modern lifestyle setting", 120)
@@ -532,6 +533,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         pa_clean = re.sub(r'^(The\s+)?product\s+(is\s+)?', '', pa_clean, flags=re.IGNORECASE).strip()
         pa_clean = pa_clean[0].lower() + pa_clean[1:] if pa_clean else ""
         pa_clean = re.sub(r'^(a|an)\s+', '', pa_clean, flags=re.IGNORECASE).strip()
+        pa_clean = re.sub(r'^the\s+', '', pa_clean, flags=re.IGNORECASE).strip()
         article = "an" if pa_clean[:1].lower() in "aeiou" else "a"
         prod_desc_vid = f"{article} {_thai_safe_truncate(pa_clean, 200)}"
     else:
@@ -549,6 +551,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     # This keeps the video prompt focused on MOTION/ACTION (never re-describing the
     # model face/outfit that the first-frame image already locks).
     usage_action = profile.get("usage_action", "")
+    _used_media_vid = False
     if usage_action and ugc_style not in ("product_demo", "tabletop", "tabletop_demo"):
         _media_img, _media_vid = _get_media_prompts_cached(
             product_name=product_name,
@@ -562,6 +565,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         )
         if _media_vid:
             action = _media_vid
+            _used_media_vid = True
         else:
             # Fallback: drive motion directly from usage_action
             action = (
@@ -660,13 +664,16 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     video_prompt = action
     # No more hardcoded beauty restrictions — Gemini handles appropriateness
     
-    video_prompt += (
-        f" Setting: {model_setting}. "
-        f"{env_context}. "
-        f"soft natural lighting, warm atmosphere. "
-        f"9:16 portrait, smooth natural motion"
-    )
-    
+    if not _used_media_vid:
+        # Only prepend a single setting when NOT using the Gemini media prompt
+        # (which already carries its own setting at the start). Avoids duplicate/
+        # conflicting settings that distort the video.
+        video_prompt = f"{env_context.rstrip('.')}. {video_prompt} soft natural lighting, warm atmosphere. 9:16 portrait, smooth natural motion"
+    else:
+        # Gemini media prompt already includes setting + lighting + motion.
+        # Just ensure the aspect ratio is present.
+        if "9:16" not in video_prompt:
+            video_prompt += " 9:16 portrait, smooth natural motion"
     video_prompt = re.sub(r'\s+', ' ', video_prompt).strip()
     video_prompt = _normalize_gender_in_description(video_prompt, gender_en)
     return video_prompt

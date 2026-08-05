@@ -391,19 +391,18 @@ You will receive:
 - env_context (the setting/environment)
 
 CRITICAL RULES FOR IMAGE_PROMPT:
-1. Construct the scene FIRST: Describe the subject (e.g., "A beautiful 25-year-old Thai woman, porcelain skin, monolid eyes, subtle makeup").
-2. Describe the environment/lighting (e.g., "in a cozy minimalist bedroom, soft natural sunlight").
-3. Integrate the product NATURALLY using the provided 'product_reconstruction_prompt'.
-   - If fashion: The woman is WEARING the [product_reconstruction_prompt].
-   - If beauty: The woman is HOLDING the [product_reconstruction_prompt].
+1. State the ACTION clearly and simply FIRST: "The [gender] is WEARING the [product]" (for fashion/apparel) or "The [gender] is HOLDING the [product]" (for all other categories). Use the exact product name from 'product_reconstruction_prompt'.
+2. Then add the setting (use 'env_context' ONLY, one single setting) and lighting.
+3. Keep it SHORT and direct. Do NOT over-describe the scene, the model's face, or the product's physical details.
 4. NEVER describe the input image's original background.
 
 CRITICAL RULES FOR VIDEO_PROMPT:
-1. The video prompt drives animation from the generated image. DO NOT re-describe the model's full face/outfit/background in detail.
-2. Use brief subject references (e.g., "The young Thai woman").
-3. Focus entirely on MOTION and ACTION based on the 'usage_action'.
-4. Example for Beauty: "The young Thai woman is holding the [bottle/tube], she gently opens the cap and applies the product to her cheek. Subtle movement, cinematic."
-5. Example for Fashion: "The young Thai woman twirls gracefully, the [fabric type] of her dress flowing with the movement. Soft wind, dynamic fashion shot."
+1. The video prompt drives animation from the generated image. DO NOT re-describe the model's face/outfit/background in detail.
+2. Start with the SAME single setting as the image_prompt (use 'env_context' ONLY, once, at the start). Never repeat or add a second setting.
+3. Focus on MOTION, LIGHTING, CAMERA, and DIRECTION based on 'usage_action' and 'ugc_style'.
+4. Keep product detail to ONE short phrase (e.g. "the pleated midi skirt"). Do NOT paste the full product_reconstruction_prompt.
+5. Example for Beauty: "In a bright bathroom. The young Thai woman holds the serum bottle, gently opens the cap and applies it to her cheek. Soft natural light, slow camera push-in, smooth cinematic motion."
+6. Example for Fashion: "On a clean studio backdrop. The young Thai woman wears the pleated midi skirt, twirls slowly to show the fit. Soft studio light, camera slowly tracking, smooth runway motion."
 
 OUTPUT FORMAT (JSON):
 {

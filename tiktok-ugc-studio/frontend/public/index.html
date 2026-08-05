@@ -452,6 +452,9 @@
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('styleModal').classList.remove('open')" style="font-size:18px">✕</button>
         </div>
         <div class="style-select-grid" id="styleModalGrid">
+          <div class="style-card" data-style="auto" onclick="selectStyleFromModal(this,'auto')">
+            <div class="style-card-emoji">🤖</div><div class="font-medium">AI Auto-Select</div><div class="text-xs text-secondary">ระบบเลือกให้ตามหมวดสินค้า</div>
+          </div>
           <div class="style-card selected" data-style="holding" onclick="selectStyleFromModal(this,'holding')">
             <div class="style-card-emoji">🤳</div><div class="font-medium">Holding Product</div><div class="text-xs text-secondary">ถือสินค้าพูด</div>
           </div>

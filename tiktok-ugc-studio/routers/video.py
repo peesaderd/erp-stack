@@ -61,6 +61,79 @@ def _product_image_to_web_url(image_src: str) -> str:
     if "/" not in s:
         return f"http://localhost:8105/ugc/static/product_images/{s}"
     return s
+
+
+# ── UGC Style Auto-Select ────────────────────────────────────────────
+# Map TUS product category (Thai full label) → English category key used by
+# UGC style `compatible_categories`. Unknown categories fall back to "other".
+_CATEGORY_MAP = {
+    "เสื้อผ้าและแฟชั่น": "fashion",
+    "apparel": "fashion",
+    "fashion": "fashion",
+    "เครื่องสำอางและความงาม": "beauty",
+    "beauty": "beauty",
+    "cosmetics": "beauty",
+    "เครื่องครัวและของใช้ในบ้าน": "home",
+    "home": "home",
+    "kitchen": "home",
+    "อุปกรณ์ไอทีและอิเล็กทรอนิกส์": "electronics",
+    "electronics": "electronics",
+    "gadgets": "electronics",
+    "สุขภาพและอาหารเสริม": "health",
+    "health": "health",
+    "food": "food",
+    "อาหาร": "food",
+    "เครื่องมือ": "tools",
+    "tools": "tools",
+    "home_appliance": "home_appliance",
+    "health_hygiene": "health_hygiene",
+    "travel_edc": "travel_edc",
+}
+
+# UGC styles with their compatible categories (mirrors schema-engine ugc_style).
+# Ordered by preference so the first match wins for a given category.
+_STYLE_CATEGORY_MAP = [
+    ("fashion_lookbook", ["fashion"]),
+    ("product_demo", ["electronics", "home", "tools", "home_appliance", "health_hygiene"]),
+    ("unboxing", ["electronics", "home", "beauty", "fashion", "tools"]),
+    ("comparison", ["electronics", "home", "tools", "beauty", "health"]),
+    ("problem_solution", ["electronics", "home", "tools", "beauty", "health_hygiene"]),
+    ("aesthetic_vlog", ["beauty", "fashion", "home", "other"]),
+    ("greenscreen_react", ["electronics", "food", "beauty", "other"]),
+    ("street_interview", ["food", "fashion", "beauty", "other"]),
+    ("split_comparison", ["electronics", "home", "tools", "beauty", "health"]),
+    ("asmr_texture", ["beauty", "food", "home", "other"]),
+    ("pov_lifehack", ["home", "tools", "food", "fashion", "other"]),
+    ("talking", ["beauty", "health", "fashion", "other"]),
+    ("review", ["beauty", "food", "fashion", "home", "health"]),
+    ("usage", ["beauty", "home", "tools", "health_hygiene"]),
+    ("pov", ["home", "fashion", "food", "other", "travel_edc"]),
+    ("holding", ["beauty", "fashion", "food", "other"]),
+]
+
+
+def _map_category(category: str) -> str:
+    """Map a TUS product category (Thai full label or English) to an English key."""
+    if not category:
+        return "other"
+    c = category.strip().lower()
+    for key, eng in _CATEGORY_MAP.items():
+        if key.lower() in c:
+            return eng
+    return "other"
+
+
+def _auto_select_style(category: str) -> str:
+    """Pick the best UGC style for a product category. Falls back to holding."""
+    cat = _map_category(category)
+    if cat == "other":
+        return "holding"
+    for style, cats in _STYLE_CATEGORY_MAP:
+        if cat in cats:
+            return style
+    return "holding"
+
+
 @router.post("/video/generate")
 async def generate_video(req: VideoRequest):
     """Full UGC pipeline with scenes and metadata."""
@@ -172,13 +245,18 @@ async def generate_video(req: VideoRequest):
             except Exception as dbe:
                 logger.debug(f"DB lookup exception: {dbe}")
 
+            # Resolve UGC style: "auto" -> match product category, else use chosen style
+            _resolved_style = req.ugc_style or "holding"
+            if _resolved_style == "auto":
+                _resolved_style = _auto_select_style(_db_category)
+
             _update_pipeline_step(job_id, "prompt_builder", "processing")
             pb_result = await _proxy("POST", "prompt-builder", "/api/v1/build", {
                 "product_name": _product_title,
                 "description": _db_desc,
                 "features": _db_desc,
                 "keywords": _db_keywords,
-                "ugc_style": req.ugc_style or "holding",
+                "ugc_style": _resolved_style,
                 "category": _db_category,
                 "country": getattr(req, "country", "") or "thai",
                 "target_gender": _db_gender or "",
@@ -242,7 +320,7 @@ async def generate_video(req: VideoRequest):
                 "scenes": [s.dict() for s in scenes] if scenes else [],
                 "tags": req.tags or [],
                 "content_type": req.content_type or "affiliate",
-                "ugc_style": req.ugc_style or "holding",
+                "ugc_style": _resolved_style,
                 "aspect_ratio": req.aspect_ratio or "9:16",
                 "negative_prompt": neg_prompt or req.negative_prompt,
                 "bgm_style": req.bgm_style or "",
@@ -296,7 +374,7 @@ async def generate_video(req: VideoRequest):
                 "image_url": image_url,
                 "cost_estimate": result.get("cost_estimate", 0),
                 "duration": req.duration,
-                "ugc_style": req.ugc_style or "",
+                "ugc_style": _resolved_style,
                 "aspect_ratio": req.aspect_ratio or "9:16",
             })
 
@@ -316,7 +394,7 @@ async def generate_video(req: VideoRequest):
                     "value": req.value,
                     "cta": req.cta,
                     "content_type": req.content_type,
-                    "ugc_style": req.ugc_style,
+                    "ugc_style": _resolved_style,
                     "duration": req.duration,
                     "aspect_ratio": req.aspect_ratio or "9:16",
                     "image_prompt": img_prompt or "",
@@ -331,12 +409,29 @@ async def generate_video(req: VideoRequest):
             _update_pipeline_step(job_id, "video_generation", "error", {"error": str(e)})
             _pipeline_results[job_id] = {"status": "failed", "error": str(e), "job_id": job_id}
 
+    # Preview style (outside _run): resolve "auto" from product category (DB lookup first)
+    _preview_style = req.ugc_style or "holding"
+    if _preview_style == "auto":
+        _preview_cat = getattr(req, "category", "") or ""
+        try:
+            _tconn = sqlite3.connect(str(BASE_DIR / "tus_products.db"))
+            _trow = _tconn.execute(
+                "SELECT category FROM tus_products WHERE title LIKE ? OR title_th LIKE ? OR product_id = ? LIMIT 1",
+                (f"%{_product_title}%", f"%{_product_title}%", req.product_url or "")
+            ).fetchone()
+            _tconn.close()
+            if _trow and _trow[0]:
+                _preview_cat = _trow[0]
+        except Exception:
+            pass
+        _preview_style = _auto_select_style(_preview_cat)
+
     asyncio.create_task(_run())
 
     _pipeline_results[job_id] = {
         "status": "processing",
         "job_id": job_id,
-        "message": f"Pipeline running... Style: {req.ugc_style}, Content: {req.content_type}",
+        "message": f"Pipeline running... Style: {_preview_style}, Content: {req.content_type}",
     }
 
     return {
@@ -345,7 +440,7 @@ async def generate_video(req: VideoRequest):
         "duration": req.duration,
         "metadata_preview": {
             "product": _product_title,
-            "style": req.ugc_style,
+            "style": _preview_style,
             "content_type": req.content_type,
             "scenes": len(scenes),
             "tags": req.tags,

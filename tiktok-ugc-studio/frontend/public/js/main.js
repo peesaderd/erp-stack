@@ -738,6 +738,7 @@ function selectRecipe(name) {
   // Apply recipe settings to the form
   // UGC Style
   const styleMap = {
+    'auto': ['🤖', 'AI Auto-Select — ระบบเลือกให้ตามหมวดสินค้า'],
     'product_usage': ['📱', 'Product Usage — สาธิตการใช้'],
     'holding_product': ['🤳', 'Holding Product — ถือสินค้าพูด'],
     'ugc_review': ['⭐', 'UGC Review — รีวิวสินค้า'],
@@ -2495,11 +2496,9 @@ function useProduct(jsonEncoded) {
     document.getElementById("productTitle").value = p.title || "";
     document.getElementById("productDetails").value = (p.description_th || p.description || "");
 
-    if (p.ugc_style) {
-      const sel = "#styleModalGrid .style-card" + (p.ugc_style === "holding" ? ".selected" : "[data-style=\x27" + p.ugc_style + "\x27]");
-      const el = document.querySelector(sel);
-      if (el) selectStyleFromModal(el, p.ugc_style);
-    }
+    // Auto-select UGC style to match the product's category
+    const autoCard = document.querySelector('#styleModalGrid [data-style="auto"]');
+    if (autoCard) selectStyleFromModal(autoCard, "auto");
     if (p.images && p.images[0]) {
       const img = p.images[0];
       uploadedImages.product = img.startsWith("http") ? img : window.location.origin + img;

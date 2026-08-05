@@ -231,11 +231,24 @@ Examples (match target_gender):
 }"""
 
 
-PRODUCT_VISION_SYSTEM = """You are a product and environment analyst. Analyze the product image and return JSON ONLY.
+PRODUCT_VISION_SYSTEM = """You are an expert Product Analyst. Analyze the product from the provided image and text, and extract its exact physical details so it can be accurately recreated in an AI image generator.
+
+IGNORE the background, props, or setting of the input image. Focus ONLY on the product itself.
+
+Categorize the product and provide details based on its category:
+1. IF CATEGORY IS "BEAUTY/SKINCARE":
+   - Extract packaging type (bottle, jar, tube, dropper, pump).
+   - Extract material/color (e.g., frosted glass, glossy plastic).
+   - Extract texture if visible (e.g., clear gel, white cream).
+2. IF CATEGORY IS "FASHION/APPAREL":
+   - Extract clothing type (e.g., crop top, maxi dress, short-sleeve shirt).
+   - Extract fabric details, cut, fit, color, and patterns.
+
+Return JSON ONLY.
 
 JSON format:
 {
-  "category": "home/electronics/beauty/fashion/food/tools/health/other",
+  "category": "beauty/fashion/electronics/food/home/tools/health/other",
   "product_type": "what this product is (e.g. wall-mounted motion sensor light, electric toothbrush)",
   "target_gender": "female/male",
   "target_age": "",
@@ -244,15 +257,17 @@ JSON format:
   "colors": ["color1", "color2", "color3"],
   "customer_problem": "what problem this product solves (Thai natural register, match target_gender — คะ/ค่ะ for female, ครับ for male) เช่น ต้องเดินคลำทางในที่มืด, ปั่นผลไม้ยากลำบาก",
   "main_benefit": "key benefit (Thai natural register, match target_gender — ค่ะ/คะ for female, ครับ for male) เช่น เปิดไฟอัตโนมัติเมื่อเดินผ่าน, ปั่นละเอียดแรงสูงพกพาสะดวก",
-  "product_appearance": "ENGLISH ONLY. Physical description of the product ONLY (no person). What it looks like: shape, color, material, size, any visible features.",
+  "product_appearance": "ENGLISH ONLY. A highly detailed visual description of the PRODUCT ONLY (no person, no scene). For beauty/cosmetics: include packaging type (bottle/jar/tube/compact/pen), material/color (e.g. frosted glass, glossy plastic), closure (twist cap/pump/spray/flip-top/click), and texture if visible (e.g. clear gel, white cream). For clothing/fashion: include clothing type, fabric details, cut, fit, color, and patterns. This field is used for VIDEO generation (how to open/use the product), so be specific about the physical details.",
   "features": "ENGLISH ONLY. Key product properties/benefits visible or implied (e.g. portable USB rechargeable, powerful motor, BPA-free, measurement markings, one-button operation, motion sensor, automatic on/off). 1-3 short phrases.",
-  "image_description": "ENGLISH ONLY. Exact visual scene describing WHAT YOU ACTUALLY SEE in the photo — the model pose/dress and the product exactly as shown (no guessing, no invented attributes). Used AS-IS for image generation, so absolute fidelity to the photo matters. If a woman appears in the photo, describe her and the garment she is wearing. If it is a product-only photo, describe the product placement without inventing a person. NEVER invent items/colors/outfits that are not visible."
+  "usage_action": "ENGLISH ONLY. How a person would interact with this product. (e.g. 'opening the twist cap and squeezing the cream' OR 'wearing the dress and posing'). Used for VIDEO generation.",
+  "image_description": "ENGLISH ONLY. Describe the SCENE for AI image generation — the MODEL (person) in the scene, NOT the product details. The product image is already provided as reference, so DO NOT re-describe the product's physical details (container, cap, color, fabric) in detail. Instead describe: (1) room setting / environment, (2) the model — 'Ethnic Thai woman' for female / 'Ethnic Thai man' for male, with age, hair style, and the outfit/dress they are wearing, (3) whether the model is WEARING the garment (for clothing/fashion) or HOLDING the product at chest level (for other products). Keep it concise — the product itself is visible in the reference image. Example: 'An ethnic Thai woman, 25 years old, long black hair, wearing a red knit dress, standing in a bright bedroom with soft natural window light, warm inviting atmosphere.'"
 }
 RULES:
 - target_gender MUST be "female" or "male" — image gen NEEDS a specific gender
 - target_age: number only if inferred from product/image, otherwise empty string
-- product_appearance describes the product PHYSICALLY — not a scene, not a person
-- image_description describes the ACTUAL FULL SCENE VISIBLE IN THE PHOTO (person + product + setting) with 100% fidelity — never guess what is not visible, never substitute a different product/outfit
+- IGNORE the input image's background, props, or setting — focus ONLY on the product itself
+- product_appearance describes the product PHYSICALLY — not a scene, not a person. Be specific about container/closure/color for video use.
+- image_description describes the SCENE with the MODEL (person) — room setting, Thai ethnicity, age, hair style, outfit/dress, and whether wearing or holding the product. Do NOT re-describe product physical details (they are in product_appearance and visible in the reference image).
 - features describes PROPERTIES you can confirm from the image or label (not made up claims)
 - setting = general location type. env_context = specific spot"""
 
@@ -357,3 +372,93 @@ def analyze_product_image(product_image: str, product_name: str, description: st
 
 
 
+
+# ═══════════════════════════════════════════════════════════════════════
+# ─── Media Generation (Step 2) ────────────────────────────────────────
+# Takes the product analysis (product_appearance + usage_action) and the
+# UGC style, then produces clean, non-conflicting image & video prompts.
+# ═══════════════════════════════════════════════════════════════════════
+
+MEDIA_GENERATION_SYSTEM = """You are an AI Media Prompt Director. Your job is to create precise prompts for Image Generation (Midjourney/Stable Diffusion) and Video Generation (Runway/Kling/Luma).
+
+You will receive:
+- product_reconstruction_prompt (What the product looks like)
+- usage_action (How to interact with it)
+- ugc_style (The vibe/setting requested)
+- category (beauty/fashion/electronics/food/home/tools/health/other)
+- model_gender (female/male)
+- model_age (optional)
+- env_context (the setting/environment)
+
+CRITICAL RULES FOR IMAGE_PROMPT:
+1. Construct the scene FIRST: Describe the subject (e.g., "A beautiful 25-year-old Thai woman, porcelain skin, monolid eyes, subtle makeup").
+2. Describe the environment/lighting (e.g., "in a cozy minimalist bedroom, soft natural sunlight").
+3. Integrate the product NATURALLY using the provided 'product_reconstruction_prompt'.
+   - If fashion: The woman is WEARING the [product_reconstruction_prompt].
+   - If beauty: The woman is HOLDING the [product_reconstruction_prompt].
+4. NEVER describe the input image's original background.
+
+CRITICAL RULES FOR VIDEO_PROMPT:
+1. The video prompt drives animation from the generated image. DO NOT re-describe the model's full face/outfit/background in detail.
+2. Use brief subject references (e.g., "The young Thai woman").
+3. Focus entirely on MOTION and ACTION based on the 'usage_action'.
+4. Example for Beauty: "The young Thai woman is holding the [bottle/tube], she gently opens the cap and applies the product to her cheek. Subtle movement, cinematic."
+5. Example for Fashion: "The young Thai woman twirls gracefully, the [fabric type] of her dress flowing with the movement. Soft wind, dynamic fashion shot."
+
+OUTPUT FORMAT (JSON):
+{
+  "image_prompt": "...",
+  "video_prompt": "..."
+}"""
+
+
+def _generate_media_prompts(
+    product_name: str,
+    product_appearance: str,
+    usage_action: str,
+    ugc_style: str,
+    category: str,
+    model_gender: str,
+    model_age: str = "",
+    env_context: str = "",
+) -> tuple:
+    """Generate clean image + video prompts via Gemini (Step 2).
+
+    Uses the product analysis (product_appearance + usage_action) and the
+    UGC style to produce non-conflicting image & video prompts.
+
+    Returns (image_prompt, video_prompt) — falls back to ("", "") on error.
+    """
+    gender_en = {"female": "woman", "male": "man"}.get(model_gender, "")
+    if not gender_en:
+        gender_en = "woman"  # image gen needs a specific gender
+
+    age_seg = f", {model_age} years old" if model_age else ""
+    subject = f"An ethnic Thai {gender_en}{age_seg}, porcelain white glowing skin, monolid eyes, Southeast Asian ethnic Thai features, small nose bridge"
+
+    user_text = (
+        f"product_reconstruction_prompt: {product_appearance or product_name}\n"
+        f"usage_action: {usage_action or 'holding the product and showing it to camera'}\n"
+        f"ugc_style: {ugc_style or 'holding'}\n"
+        f"category: {category or 'other'}\n"
+        f"model_gender: {gender_en}\n"
+        f"model_age: {model_age or 'unspecified'}\n"
+        f"env_context: {env_context or 'a modern lifestyle setting'}\n"
+        f"subject: {subject}\n\n"
+        f"Generate the image_prompt and video_prompt as JSON."
+    )
+
+    try:
+        raw = _call_gemini(MEDIA_GENERATION_SYSTEM, user_text, temperature=0.4)
+        if not raw:
+            return ("", "")
+        result = _extract_json(raw)
+        if not result:
+            logger.warning("Media generation JSON parse failed — raw snippet: %s", raw[:200].replace("\n", " "))
+            return ("", "")
+        image_prompt = result.get("image_prompt", "")
+        video_prompt = result.get("video_prompt", "")
+        return (image_prompt, video_prompt)
+    except Exception as e:
+        logger.error(f"Media generation failed: {e}")
+        return ("", "")

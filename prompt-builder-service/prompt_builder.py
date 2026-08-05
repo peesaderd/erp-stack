@@ -19,7 +19,7 @@ from prompt_templates import (
 )
 from gemini_client import (
     _call_gemini, _call_gemini_vision, _get_gemini_key, analyze_product_image,
-    PRODUCT_ANALYSIS_SYSTEM,
+    PRODUCT_ANALYSIS_SYSTEM, _generate_media_prompts,
 )
 from persona_engine import (
     PERSONA_TEMPLATES, _select_persona, _apply_persona_to_profile,
@@ -244,7 +244,12 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     - Each style produces distinctly different output
     """
     templates = load_ugc_templates(ugc_style)
-    style_info = STYLE_MAP.get(ugc_style, STYLE_MAP["holding"])
+    # For wearable/fashion products, force the fashion_lookbook style so the model
+    # WEARS the garment (never holds it). The product IS the outfit on the body.
+    if _is_wearable_category(profile.get("category", "other")):
+        style_info = STYLE_MAP.get("fashion_lookbook", STYLE_MAP["holding"])
+    else:
+        style_info = STYLE_MAP.get(ugc_style, STYLE_MAP["holding"])
     model_gender = profile.get("target_gender")
     model_age = profile.get("_normalized_age") or _normalize_age(profile.get("target_age", "")) or ""
     category = profile.get("category", "other")
@@ -275,7 +280,7 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     thai_base = f"An ethnic Thai {gender_en}{age_seg}, porcelain white glowing skin, monolid eyes, Southeast Asian ethnic Thai features, small nose bridge"
     
     # ── Priority 1: Direct Gemini Vision Scene Description (Exact Product Visual Match) ──
-    if image_description and len(image_description) > 20:
+    if False and image_description and len(image_description) > 20:  # disabled: vision describes product-only photo, not the model
         if _is_wearable_category(category):
             image_description = image_description.replace("holding", "wearing").replace("hold", "wear")
         # Gemini hardcodes a gender even when user selected opposite —
@@ -292,6 +297,34 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
                 image_description = f"{thai_base}, {tail}".strip()
         scene_desc = image_description
     # ── Priority 2: Style-driven scene fallback ─────────────────
+    # Step 2: usage_action-driven media generation (Gemini 2-step architecture)
+    # When the vision analysis produced a usage_action, use the MEDIA_GENERATION_SYSTEM
+    # image_prompt (constructed scene-first, product integrated naturally).
+    elif profile.get("usage_action", "") and ugc_style not in ("product_demo", "tabletop", "tabletop_demo"):
+        _media_img, _media_vid = _get_media_prompts_cached(
+            product_name=product_name,
+            product_appearance=pa_clean or product_name,
+            usage_action=profile.get("usage_action", ""),
+            ugc_style=ugc_style,
+            category=category,
+            model_gender=gender_en,
+            model_age=str(model_age) if model_age else "",
+            env_context=env_context,
+        )
+        if _media_img:
+            scene_desc = _media_img
+        else:
+            # Fallback: build a scene-first description from usage_action
+            _ua = profile.get("usage_action", "")
+            if pa_clean:
+                prod_str = f"{article} {_thai_safe_truncate(pa_clean, 200)}"
+            else:
+                prod_str = product_name
+            scene_desc = (
+                f"{env_str}. {thai_base}{clothing_str}{hair_str} "
+                f"{_ua or 'holding the product and showing it to camera'} — "
+                f"product and person in frame, natural lifestyle moment."
+            )
     elif ugc_style == "product_demo":
         prod_desc = product_appearance or product_name
         try:
@@ -509,9 +542,34 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     # Do NOT re-describe look (porcelain skin, monolid eyes...) here or the
     # video text will fight the reference image. Keep intro minimal.
     model_intro = f"Ethnic Thai {gender_en}{age_seg}"
-    
-    # ── Style-driven video_motion (ugc_style is PRIMARY) ──────────
-    if ugc_style == "product_demo":
+
+    # Step 2: usage_action-driven media generation (Gemini 2-step architecture)
+    # When the vision analysis produced a usage_action (how to open/use the product),
+    # use the MEDIA_GENERATION_SYSTEM prompt to drive the video motion from that action.
+    # This keeps the video prompt focused on MOTION/ACTION (never re-describing the
+    # model face/outfit that the first-frame image already locks).
+    usage_action = profile.get("usage_action", "")
+    if usage_action and ugc_style not in ("product_demo", "tabletop", "tabletop_demo"):
+        _media_img, _media_vid = _get_media_prompts_cached(
+            product_name=product_name,
+            product_appearance=pa_clean or product_name,
+            usage_action=usage_action,
+            ugc_style=ugc_style,
+            category=category,
+            model_gender=gender_en,
+            model_age=str(model_age) if model_age else "",
+            env_context=env_context,
+        )
+        if _media_vid:
+            action = _media_vid
+        else:
+            # Fallback: drive motion directly from usage_action
+            action = (
+                f"{model_intro} {usage_action}. "
+                f"Natural, smooth motion, cinematic. "
+                f"Product: {prod_desc_vid or product_name}"
+            )
+    elif ugc_style == "product_demo":
         prod = prod_desc_vid or product_name
         action = (
             f"{prod} on {env_context}. Product centered, clean surface, minimal composition. "
@@ -1037,6 +1095,44 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
 # ─── Gemini Prompt Generation (for product_usage style) ──────────
 # Cache: same product+age within same request returns cached result
 _gemini_prompt_cache = {}
+
+# Cache for Step-2 media generation (usage_action-driven). Keyed by
+# (product_name, usage_action) so build_image_prompt and build_video_prompt
+# share ONE Gemini call per product instead of two.
+_media_prompt_cache = {}
+
+
+def _get_media_prompts_cached(
+    product_name: str,
+    product_appearance: str,
+    usage_action: str,
+    ugc_style: str,
+    category: str,
+    model_gender: str,
+    model_age: str = "",
+    env_context: str = "",
+) -> tuple:
+    """Cached wrapper around _generate_media_prompts (Step 2).
+
+    build_image_prompt and build_video_prompt both call this; the cache
+    ensures only ONE Gemini call happens per (product, usage_action).
+    Returns (image_prompt, video_prompt).
+    """
+    _cache_key = (product_name, usage_action, ugc_style)
+    if _cache_key in _media_prompt_cache:
+        return _media_prompt_cache[_cache_key]
+    result = _generate_media_prompts(
+        product_name=product_name,
+        product_appearance=product_appearance,
+        usage_action=usage_action,
+        ugc_style=ugc_style,
+        category=category,
+        model_gender=model_gender,
+        model_age=model_age,
+        env_context=env_context,
+    )
+    _media_prompt_cache[_cache_key] = result
+    return result
 
 def _gemini_generate_prompts(
     product_name: str,

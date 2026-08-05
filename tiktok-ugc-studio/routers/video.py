@@ -180,6 +180,7 @@ async def generate_video(req: VideoRequest):
                 "keywords": _db_keywords,
                 "ugc_style": req.ugc_style or "holding",
                 "category": _db_category,
+                "country": getattr(req, "country", "") or "thai",
                 "target_gender": _db_gender or "",
                 "target_age": _db_age or "",
                 "product_id": job_id,

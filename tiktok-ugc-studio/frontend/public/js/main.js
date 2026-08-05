@@ -364,6 +364,8 @@ async function autoGenerateAll() {
         aspect_ratio: sessionStorage.getItem('aspectRatio') || '9:16',
         negative_prompt: document.getElementById('negativePrompt')?.value?.trim() || 'text, subtitle, caption, emoji, icon, logo, watermark, UI, overlay, graphic',
         recipe: document.querySelector('#recipePicker .style-card.selected')?.getAttribute('data-recipe') || undefined,
+        country: document.getElementById('countrySelect')?.value || 'thai',
+        gender: document.getElementById('genderSelect')?.value || 'female',
       })
     });
     if (!res.ok) {
@@ -889,6 +891,8 @@ async function startGeneration() {
       duration: duration,
       negative_prompt: document.getElementById('negativePrompt').value.trim() || undefined,
       recipe: document.querySelector('#recipePicker .style-card.selected')?.getAttribute('data-recipe') || undefined,
+      country: document.getElementById('countrySelect')?.value || 'thai',
+      gender: document.getElementById('genderSelect')?.value || 'female',
     };
     
     const res = await fetch(API + '/video/generate', {

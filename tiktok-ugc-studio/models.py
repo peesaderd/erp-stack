@@ -61,6 +61,7 @@ class SceneBlock(BaseModel):
 
 class VideoRequest(BaseModel):
     category: Optional[str] = ""
+    country: Optional[str] = ""
     gender: Optional[str] = ""
     age: str = ""
     product_title: str = ""
@@ -114,6 +115,7 @@ class PipelineRequest(BaseModel):
 class FullPipelineRequest(BaseModel):
     gender: Optional[str] = ""
     category: Optional[str] = ""
+    country: Optional[str] = ""
     speaking_rate: float = 1.15
     """Legacy pipeline request — kept for backward compat."""
     product_url: Optional[str] = ""

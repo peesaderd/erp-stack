@@ -19,6 +19,23 @@ from shared_config import MISTRAL_API_KEY as _MISTRAL_API_KEY_LAZY
 from shared_config import GEMINI_MODEL
 from prompt_templates import _extract_json
 
+# ─── Country → Ethnicity descriptor ──────────────────────────────
+# Single source of truth for the model's ethnicity/appearance based on
+# the selected country. Kept in sync with prompt_builder.py.
+COUNTRY_ETHNICITY = {
+    "thai": ("ethnic Thai", "Southeast Asian ethnic Thai features"),
+    "vietnamese": ("ethnic Vietnamese", "Southeast Asian Vietnamese features"),
+    "korean": ("ethnic Korean", "East Asian Korean features"),
+    "japanese": ("ethnic Japanese", "East Asian Japanese features"),
+    "chinese": ("ethnic Chinese", "East Asian Chinese features"),
+    "indian": ("ethnic Indian", "South Asian Indian features"),
+    "western": ("Caucasian", "Western European features"),
+}
+
+def _country_ethnicity(country: str) -> tuple:
+    """Return (ethnicity_label, features_desc) for a country code."""
+    return COUNTRY_ETHNICITY.get((country or "").lower().strip(), COUNTRY_ETHNICITY["thai"])
+
 # ─── Gemini API Calls ────────────────────────────────────────────────
 # ═══════════════════════════════════════════════════════════════════════
 
@@ -221,11 +238,11 @@ JSON ที่ต้องตอบ:
 
 🔴 ต้องระบุรายละเอียดบรรจุภัณฑ์: container type (bottle/jar/tube), closure (twist cap/pump/spray/flip-top), สีและดีไซน์ของฉลาก
 
-Include: model appearance MUST match target_gender — "Ethnic Thai woman" for female, "Ethnic Thai man" for male (not just "Thai woman/man") — with porcelain white glowing skin, monolid eyes, Southeast Asian features. Pose: Model MUST be STANDING (not sitting, not on floor, not kneeling) — full body visible from mid-thigh up. If product is clothing/fashion/apparel → model WEARING/DRAPED in the garment naturally (the garment IS the product — do NOT add denim, jeans, or other random clothing). The product must be ON the body, never "resting nearby." For all other products → HOLDING product at chest level, OR actively using/applying it (e.g. applying lipstick, spraying mist, pumping) — show the product in natural use. Expression: confident smile. CRITICAL: Model is STANDING upright — NOT sitting on floor, NOT cross-legged, NOT kneeling, NOT leaning on walls. Setting: MATCH the product_analysis.setting and env_context — use the appropriate setting per category (beauty: vanity/bathroom, clothing: closet/boutique/bedroom, electronics: desk/office, home: living/kitchen, food: kitchen/cafe, health: bathroom/bedroom). Lighting: soft natural window light. Mood: warm, inviting. Focus on product being clearly visible and in focus. You MAY describe the product being used/applied (e.g. applying lipstick, spraying mist) — the 6-scene video continues naturally from this first frame. ระบุ container type (bottle/jar/tube), closure (twist cap/pump/spray/flip-top) และสีของสินค้าใน product_appearance ด้วย (ไม่ใช่ image_description)
+Include: model appearance MUST match target_gender AND the country field (e.g. "Ethnic Thai woman" for thai/female, "Ethnic Korean man" for korean/male, "Caucasian woman" for western/female) — with the appropriate ethnicity features for the selected country. Pose: Model MUST be STANDING (not sitting, not on floor, not kneeling) — full body visible from mid-thigh up. If product is clothing/fashion/apparel → model WEARING/DRAPED in the garment naturally (the garment IS the product — do NOT add denim, jeans, or other random clothing). The product must be ON the body, never "resting nearby." For all other products → HOLDING product at chest level, OR actively using/applying it (e.g. applying lipstick, spraying mist, pumping) — show the product in natural use. Expression: confident smile. CRITICAL: Model is STANDING upright — NOT sitting on floor, NOT cross-legged, NOT kneeling, NOT leaning on walls. Setting: MATCH the product_analysis.setting and env_context — use the appropriate setting per category (beauty: vanity/bathroom, clothing: closet/boutique/bedroom, electronics: desk/office, home: living/kitchen, food: kitchen/cafe, health: bathroom/bedroom). Lighting: soft natural window light. Mood: warm, inviting. Focus on product being clearly visible and in focus. You MAY describe the product being used/applied (e.g. applying lipstick, spraying mist) — the 6-scene video continues naturally from this first frame. ระบุ container type (bottle/jar/tube), closure (twist cap/pump/spray/flip-top) และสีของสินค้าใน product_appearance ด้วย (ไม่ใช่ image_description)
 
 Examples (match target_gender):
-  • If target_gender=female: 'An ethnic Thai woman with a happy smile, STANDING, holding the product at chest level — packaging details such as container and cap are defined in product_appearance, not guessed here — product visible and in focus, in an appropriate setting with soft natural window lighting, warm and inviting atmosphere'
-  • If target_gender=male: 'An ethnic Thai man with a confident smile, STANDING, holding the product at chest level — packaging details such as container and colour are defined in product_appearance, not guessed here — product visible and in focus, in a modern office with soft natural window lighting, professional atmosphere'",
+  • If target_gender=female: 'An ethnic [country] woman with a happy smile, STANDING, holding the product at chest level — packaging details such as container and cap are defined in product_appearance, not guessed here — product visible and in focus, in an appropriate setting with soft natural window lighting, warm and inviting atmosphere'
+  • If target_gender=male: 'An ethnic [country] man with a confident smile, STANDING, holding the product at chest level — packaging details such as container and colour are defined in product_appearance, not guessed here — product visible and in focus, in a modern office with soft natural window lighting, professional atmosphere'",
 
 🔴 image_description CRITICAL — ต้องแยก "model appearance" (ethnicity + gender from target_gender, features) ออกจาก "product packaging" (container, cap, color) ให้ชัดเจน
 }"""
@@ -260,7 +277,7 @@ JSON format:
   "product_appearance": "ENGLISH ONLY. A highly detailed visual description of the PRODUCT ONLY (no person, no scene). For beauty/cosmetics: include packaging type (bottle/jar/tube/compact/pen), material/color (e.g. frosted glass, glossy plastic), closure (twist cap/pump/spray/flip-top/click), and texture if visible (e.g. clear gel, white cream). For clothing/fashion: include clothing type, fabric details, cut, fit, color, and patterns. This field is used for VIDEO generation (how to open/use the product), so be specific about the physical details.",
   "features": "ENGLISH ONLY. Key product properties/benefits visible or implied (e.g. portable USB rechargeable, powerful motor, BPA-free, measurement markings, one-button operation, motion sensor, automatic on/off). 1-3 short phrases.",
   "usage_action": "ENGLISH ONLY. A SPECIFIC, ACTION-ORIENTED description of exactly HOW a person interacts with this product — the physical motion of opening/using/wearing it. This drives VIDEO generation, so be precise about the mechanics. Examples by category: BEAUTY (e.g. 'twisting open the cap and squeezing a pea-sized amount of the white cream onto her fingers, then massaging it into her face'), FASHION (e.g. 'already wearing the high-waisted A-line skirt, she smooths the pleats and turns slowly to show the silhouette and the side zipper'), ELECTRONICS (e.g. 'pressing the single power button and holding the device up to her ear'), FOOD (e.g. 'twisting off the lid and pouring the golden honey into a spoon'), TOOLS (e.g. 'gripping the handle and pressing the trigger to spray'). ALWAYS include: (1) the specific opening/closure mechanism (twist cap, pump, spray, flip-top, zipper, button, plug), (2) the exact body motion (squeeze, pump, spray, zip, step into, press, pour, grip), (3) the product's texture/consistency if relevant (cream, gel, serum, lotion, pleated fabric, liquid). Do NOT write generic phrases like 'using the product' — describe the real physical interaction.",
-  "image_description": "ENGLISH ONLY. Describe the SCENE for AI image generation — the MODEL (person) in the scene, NOT the product details. The product image is already provided as reference, so DO NOT re-describe the product's physical details (container, cap, color, fabric) in detail. Instead describe: (1) room setting / environment, (2) the model — 'Ethnic Thai woman' for female / 'Ethnic Thai man' for male, with age, hair style, and the outfit/dress they are wearing, (3) whether the model is WEARING the garment (for clothing/fashion) or HOLDING the product at chest level (for other products). Keep it concise — the product itself is visible in the reference image. Example: 'An ethnic Thai woman, 25 years old, long black hair, wearing a red knit dress, standing in a bright bedroom with soft natural window light, warm inviting atmosphere.'"
+  "image_description": "ENGLISH ONLY. Describe the SCENE for AI image generation — the MODEL (person) in the scene, NOT the product details. The product image is already provided as reference, so DO NOT re-describe the product's physical details (container, cap, color, fabric) in detail. Instead describe: (1) room setting / environment, (2) the model — ethnicity matching the country field (e.g. 'Ethnic Thai woman' for thai/female / 'Ethnic Korean man' for korean/male), with age, hair style, and the outfit/dress they are wearing, (3) whether the model is WEARING the garment (for clothing/fashion) or HOLDING the product at chest level (for other products). Keep it concise — the product itself is visible in the reference image. Example: 'An ethnic Thai woman, 25 years old, long black hair, wearing a red knit dress, standing in a bright bedroom with soft natural window light, warm inviting atmosphere.'"
 }
 RULES:
 - target_gender MUST be "female" or "male" — image gen NEEDS a specific gender
@@ -389,14 +406,16 @@ You will receive:
 - category (beauty/fashion/electronics/food/home/tools/health/other)
 - model_gender (female/male)
 - model_age (optional)
+- country (thai/vietnamese/korean/japanese/chinese/indian/western — the model's ethnicity)
 - env_context (the setting/environment)
 
 CRITICAL RULES FOR IMAGE_PROMPT:
 1. State the ACTION clearly and simply FIRST: "The [gender] is WEARING the [product]" (for fashion/apparel) or "The [gender] is HOLDING the [product]" (for all other categories). Use the exact product name from 'product_reconstruction_prompt'.
-2. Then add the setting (use 'env_context' ONLY, one single setting) and lighting.
-3. Keep it SHORT and direct. Do NOT over-describe the scene, the model's face, or the product's physical details.
-4. NEVER describe the input image's original background.
-5. Incorporate the KEY VISIBLE features from 'product_features' into the prompt (e.g. "high-waisted pleated midi skirt with side zipper", "wireless earbuds with charging case"). Use them naturally in the action/setting, but keep it concise.
+2. ALWAYS describe the model using the ethnicity matching the 'country' field (e.g. "An ethnic Thai woman" for thai, "An ethnic Korean man" for korean, "A Caucasian woman" for western) and include the model_age (e.g. "An ethnic Thai woman, 25 years old") at the START of the image_prompt. NEVER omit the ethnicity or age — the model must match the selected country's ethnicity, never a mismatched/foreign model.
+3. Then add the setting (use 'env_context' ONLY, one single setting) and lighting.
+4. Keep it SHORT and direct. Do NOT over-describe the scene, the model's face, or the product's physical details.
+5. NEVER describe the input image's original background.
+6. Incorporate the KEY VISIBLE features from 'product_features' into the prompt (e.g. "high-waisted pleated midi skirt with side zipper", "wireless earbuds with charging case"). Use them naturally in the action/setting, but keep it concise.
 
 CRITICAL RULES FOR VIDEO_PROMPT:
 1. The video prompt drives animation from the generated image. DO NOT re-describe the model's face/outfit/background in detail.
@@ -404,8 +423,9 @@ CRITICAL RULES FOR VIDEO_PROMPT:
 3. Focus on MOTION, LIGHTING, CAMERA, and DIRECTION based on 'usage_action' and 'ugc_style'.
 4. Keep product detail to ONE short phrase (e.g. "the pleated midi skirt"). Do NOT paste the full product_reconstruction_prompt.
 5. Incorporate the KEY VISIBLE features from 'product_features' into the motion/action, and EXPLICITLY use the word "feature" in the prompt so the video model knows to showcase them (e.g. "showing the side zipper feature", "highlighting the high-waisted feature", "displaying the pleated A-line feature"). For fashion/apparel, the model is ALREADY WEARING the garment — NEVER show putting it on or taking it off. Show each feature via a natural styling motion (e.g. "smoothing the pleats to show the pleated feature", "turning to display the side zipper feature", "adjusting the waistband to highlight the high-waisted feature"). Keep it concise.
-6. Example for Beauty: "In a bright bathroom. The young Thai woman holds the serum bottle, gently opens the cap and applies it to her cheek. Soft natural light, slow camera push-in, smooth cinematic motion."
-7. Example for Fashion: "On a clean studio backdrop. The young Thai woman wears the pleated midi skirt, twirls slowly to show the fit. Soft studio light, camera slowly tracking, smooth runway motion."
+6. NEVER repeat the same feature twice — each feature appears exactly ONCE. For fashion/apparel, NEVER show the model walking, swaying, or strutting (this distorts the waist/hips), and NEVER describe adjusting, unzipping, or pulling at the skirt/waistband (this looks suggestive). Use only modest, elegant motions like "turning slowly", "smoothing the fabric", "posing gracefully".
+7. Example for Beauty: "In a bright bathroom. The young woman holds the serum bottle, gently opens the cap and applies it to her cheek. Soft natural light, slow camera push-in, smooth cinematic motion."
+8. Example for Fashion: "On a clean studio backdrop. The young woman wears the pleated midi skirt, twirls slowly to show the fit. Soft studio light, camera slowly tracking, smooth runway motion."
 
 OUTPUT FORMAT (JSON):
 {
@@ -424,6 +444,7 @@ def _generate_media_prompts(
     model_age: str = "",
     env_context: str = "",
     features: str = "",
+    country: str = "",
 ) -> tuple:
     """Generate clean image + video prompts via Gemini (Step 2).
 
@@ -437,7 +458,8 @@ def _generate_media_prompts(
         gender_en = "woman"  # image gen needs a specific gender
 
     age_seg = f", {model_age} years old" if model_age else ""
-    subject = f"An ethnic Thai {gender_en}{age_seg}, porcelain white glowing skin, monolid eyes, Southeast Asian ethnic Thai features, small nose bridge"
+    _eth_label, _eth_features = _country_ethnicity(country)
+    subject = f"An {_eth_label} {gender_en}{age_seg}, {_eth_features}, small nose bridge"
 
     user_text = (
         f"product_reconstruction_prompt: {product_appearance or product_name}\n"
@@ -446,6 +468,7 @@ def _generate_media_prompts(
         f"category: {category or 'other'}\n"
         f"model_gender: {gender_en}\n"
         f"model_age: {model_age or 'unspecified'}\n"
+        f"country: {country or 'thai'}\n"
         f"env_context: {env_context or 'a modern lifestyle setting'}\n"
         f"product_features: {features or 'none'}\n"
         f"subject: {subject}\n\n"

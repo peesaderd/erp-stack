@@ -33,7 +33,7 @@ logger = logging.getLogger("prompt-builder-service")
 # Keep in sync with Gemini's rule: clothing/fashion → model WEARS, never holds.
 WEARABLE_IMAGE_ACTION = "modeling and displaying the clothing elegantly on body, garment clearly visible, smiling naturally"
 WEARABLE_VIDEO_ACTION = (
-    "wearing the garment, full body visible, walking and turning slowly to showcase the fit, "
+    "wearing the garment, full body visible, standing still and turning slowly in place to showcase the fit, "
     "fabric draping naturally, garment clearly the hero item"
 )
 
@@ -57,6 +57,26 @@ CLOTHING_CATEGORIES = {
 def _is_wearable_category(category: str) -> bool:
     cat_lower = (category or "").lower().strip()
     return any(w in cat_lower for w in CLOTHING_CATEGORIES) or cat_lower in CLOTHING_CATEGORIES
+
+
+# ─── Country → Ethnicity descriptor ──────────────────────────────
+# Single source of truth for the model's ethnicity/appearance based on
+# the selected country. Used by image/video prompt builders and the
+# media-generation (Gemini) prompts so the model always matches the
+# user's chosen country instead of a hardcoded "Ethnic Thai".
+COUNTRY_ETHNICITY = {
+    "thai": ("ethnic Thai", "Southeast Asian ethnic Thai features"),
+    "vietnamese": ("ethnic Vietnamese", "Southeast Asian Vietnamese features"),
+    "korean": ("ethnic Korean", "East Asian Korean features"),
+    "japanese": ("ethnic Japanese", "East Asian Japanese features"),
+    "chinese": ("ethnic Chinese", "East Asian Chinese features"),
+    "indian": ("ethnic Indian", "South Asian Indian features"),
+    "western": ("Caucasian", "Western European features"),
+}
+
+def _country_ethnicity(country: str) -> tuple:
+    """Return (ethnicity_label, features_desc) for a country code."""
+    return COUNTRY_ETHNICITY.get((country or "").lower().strip(), COUNTRY_ETHNICITY["thai"])
 
 
 def _normalize_gender_in_description(text: str, gender_en: str) -> str:
@@ -105,7 +125,7 @@ def _normalize_gender_in_description(text: str, gender_en: str) -> str:
         out = re.sub(pat, replacement, out, flags=re.IGNORECASE)
     return out
 
-def analyze_product(product_name: str, description: str = "", keywords: Optional[List[str]] = None, target_duration: int = 15, features: str = "", target_age: str = "", ugc_style: str = "", category: str = "", target_gender: str = "", product_id: str = "", price: float = 0.0, product_category: str = "") -> dict:
+def analyze_product(product_name: str, description: str = "", keywords: Optional[List[str]] = None, target_duration: int = 15, features: str = "", target_age: str = "", ugc_style: str = "", category: str = "", target_gender: str = "", product_id: str = "", price: float = 0.0, product_category: str = "", country: str = "") -> dict:
     """Analyze product via Gemini and return profile dict.
     
     Uses Router Agent for strategic context (recipe, style, persona),
@@ -134,6 +154,7 @@ UGC Style ที่ต้องการ: {ugc_style if ugc_style else 'ไม�
 หมวดหมู่รอง (Product Category): {product_category if product_category else 'ไม่ระบุ'}
 อายุกลุ่มเป้าหมาย: {target_age if target_age else 'ไม่ได้ระบุ'}
 เพศกลุ่มเป้าหมาย: {target_gender if target_gender else 'ไม่ได้ระบุ (ให้วิเคราะห์จากชื่อสินค้า/คำอธิบายเอง)'}
+ประเทศ/เชื้อชาติของโมเดล: {country if country else 'thai'}
 ราคา: {price if price else 'ไม่ระบุ'}
 Product ID: {product_id if product_id else 'ไม่ระบุ'}"""
 
@@ -145,6 +166,7 @@ Product ID: {product_id if product_id else 'ไม่ระบุ'}"""
         gender_en = ""
         profile = {
             "category": "other",
+            "country": country or "thai",
             "target_gender": "",
             "target_age": "",
             "target_audience": f"คนที่กำลังมองหา{_thai_safe_truncate(product_name, 20)}",
@@ -161,6 +183,7 @@ Product ID: {product_id if product_id else 'ไม่ระบุ'}"""
         }
     else:
         profile = gemini_profile
+        profile["country"] = country or "thai"
         # Normalize hashtags
         h = profile.get("hashtags", [])
         if isinstance(h, str):
@@ -278,7 +301,8 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     
     env_str = _thai_safe_truncate(env_context or "a modern lifestyle setting", 120)
     age_seg = f" {model_age} years old" if model_age else ""
-    thai_base = f"An ethnic Thai {gender_en}{age_seg}, porcelain white glowing skin, monolid eyes, Southeast Asian ethnic Thai features, small nose bridge"
+    _eth_label, _eth_features = _country_ethnicity(profile.get("country", ""))
+    thai_base = f"An {_eth_label} {gender_en}{age_seg}, {_eth_features}, small nose bridge"
     
     _used_media_img = False  # True when Gemini media generation produced the image_prompt
 
@@ -293,7 +317,8 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         if age_seg and age_seg not in image_description:
             # Gemini Vision only sees the photo — it cannot know the target age.
             # Inject the age so image + video prompts stay consistent.
-            m = re.search(r'(ethnic Thai (?:woman|man|person))', image_description, re.IGNORECASE)
+            _eth_label, _eth_features = _country_ethnicity(profile.get("country", ""))
+            m = re.search(rf'(ethnic\s+\w+\s+(?:woman|man|person))', image_description, re.IGNORECASE)
             if m:
                 image_description = image_description[:m.end()] + age_seg + image_description[m.end():]
             else:
@@ -315,6 +340,7 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             model_age=str(model_age) if model_age else "",
             env_context=env_context,
             features=profile.get("features", ""),
+            country=profile.get("country", ""),
         )
         if _media_img:
             scene_desc = _media_img
@@ -506,6 +532,15 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     # force every gender word to match the resolved target gender.
     image_prompt = _normalize_gender_in_description(image_prompt, gender_en)
 
+    # ── Ethnicity + age guard (safety net) ─────────────────────────────
+    # Gemini sometimes omits the ethnicity/age even when instructed. The model
+    # must always look like a Southeast Asian Thai person at the target age,
+    # never a white/foreign model. If the ethnicity is missing, prepend it.
+    if gender_en and not re.search(r'ethnic\s+\w+', image_prompt, re.IGNORECASE):
+        age_guard = f", {model_age} years old" if model_age else ""
+        _eth_label, _eth_features = _country_ethnicity(profile.get("country", ""))
+        image_prompt = f"An {_eth_label} {gender_en}{age_guard}, {_eth_features}. {image_prompt}"
+
     return image_prompt, negative
 
 
@@ -554,7 +589,8 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     # img2vid: the first-frame image already locks the person's face + skin.
     # Do NOT re-describe look (porcelain skin, monolid eyes...) here or the
     # video text will fight the reference image. Keep intro minimal.
-    model_intro = f"Ethnic Thai {gender_en}{age_seg}"
+    _eth_label, _eth_features = _country_ethnicity(profile.get("country", ""))
+    model_intro = f"{_eth_label} {gender_en}{age_seg}"
 
     # Step 2: usage_action-driven media generation (Gemini 2-step architecture)
     # When the vision analysis produced a usage_action (how to open/use the product),
@@ -574,6 +610,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             model_age=str(model_age) if model_age else "",
             env_context=env_context,
             features=profile.get("features", ""),
+            country=profile.get("country", ""),
         )
         if _media_vid:
             action = _media_vid
@@ -731,6 +768,7 @@ async def analyze_and_build_prompts(
     product_category: str = "",
     target_duration: int = 15,
     target_age: str = "",
+    country: str = "",
 ) -> dict:
     """
     Full pipeline:
@@ -752,6 +790,7 @@ async def analyze_and_build_prompts(
         product_id=product_id,
         price=price,
         product_category=product_category,
+        country=country,
     )
 
     # Router Agent insights are purely advisory — NEVER override user's ugc_style choice
@@ -1037,7 +1076,21 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
     if customer_problem and main_benefit and len(customer_problem) > 5:
         # Shorten problem and benefit for natural spoken Thai
         hook_text = _trim_to_word(customer_problem, 40)
-        value_text = f"{product_short} {_trim_to_word(main_benefit, 45)}"
+        # Value segment: do NOT repeat the product name (it was already said in
+        # the hook). Strip the product name (and its reordered tokens) from
+        # main_benefit so the script doesn't sound repetitive.
+        benefit = _trim_to_word(main_benefit, 45)
+        # Collect distinctive product-name tokens (len>=3) to strip from benefit.
+        name_tokens = []
+        for name in (product_short, product_name):
+            for tok in name.split():
+                tok = tok.strip("(),.!")
+                if len(tok) >= 3 and tok not in name_tokens:
+                    name_tokens.append(tok)
+        for tok in sorted(name_tokens, key=len, reverse=True):
+            benefit = benefit.replace(tok, "")
+        benefit = re.sub(r'\s+', ' ', benefit).strip(" ,")
+        value_text = f"{product_short} {benefit}" if benefit else product_short
     elif category in ("home", "electronics", "tools"):
         hook_text = f"เจอปัญหานี้อยู่ใช่ไหม{reg_hook}"
         value_text = f"{product_short} ตัวนี้ช่วยได้เยอะเลย{reg_val}"
@@ -1127,6 +1180,7 @@ def _get_media_prompts_cached(
     model_age: str = "",
     env_context: str = "",
     features: str = "",
+    country: str = "",
 ) -> tuple:
     """Cached wrapper around _generate_media_prompts (Step 2).
 
@@ -1147,6 +1201,7 @@ def _get_media_prompts_cached(
         model_age=model_age,
         env_context=env_context,
         features=features,
+        country=country,
     )
     _media_prompt_cache[_cache_key] = result
     return result

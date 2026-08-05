@@ -314,6 +314,7 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             model_gender=gender_en,
             model_age=str(model_age) if model_age else "",
             env_context=env_context,
+            features=profile.get("features", ""),
         )
         if _media_img:
             scene_desc = _media_img
@@ -572,6 +573,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             model_gender=gender_en,
             model_age=str(model_age) if model_age else "",
             env_context=env_context,
+            features=profile.get("features", ""),
         )
         if _media_vid:
             action = _media_vid
@@ -1124,6 +1126,7 @@ def _get_media_prompts_cached(
     model_gender: str,
     model_age: str = "",
     env_context: str = "",
+    features: str = "",
 ) -> tuple:
     """Cached wrapper around _generate_media_prompts (Step 2).
 
@@ -1143,6 +1146,7 @@ def _get_media_prompts_cached(
         model_gender=model_gender,
         model_age=model_age,
         env_context=env_context,
+        features=features,
     )
     _media_prompt_cache[_cache_key] = result
     return result

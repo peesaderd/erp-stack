@@ -259,7 +259,7 @@ JSON format:
   "main_benefit": "key benefit (Thai natural register, match target_gender — ค่ะ/คะ for female, ครับ for male) เช่น เปิดไฟอัตโนมัติเมื่อเดินผ่าน, ปั่นละเอียดแรงสูงพกพาสะดวก",
   "product_appearance": "ENGLISH ONLY. A highly detailed visual description of the PRODUCT ONLY (no person, no scene). For beauty/cosmetics: include packaging type (bottle/jar/tube/compact/pen), material/color (e.g. frosted glass, glossy plastic), closure (twist cap/pump/spray/flip-top/click), and texture if visible (e.g. clear gel, white cream). For clothing/fashion: include clothing type, fabric details, cut, fit, color, and patterns. This field is used for VIDEO generation (how to open/use the product), so be specific about the physical details.",
   "features": "ENGLISH ONLY. Key product properties/benefits visible or implied (e.g. portable USB rechargeable, powerful motor, BPA-free, measurement markings, one-button operation, motion sensor, automatic on/off). 1-3 short phrases.",
-  "usage_action": "ENGLISH ONLY. A SPECIFIC, ACTION-ORIENTED description of exactly HOW a person interacts with this product — the physical motion of opening/using/wearing it. This drives VIDEO generation, so be precise about the mechanics. Examples by category: BEAUTY (e.g. 'twisting open the cap and squeezing a pea-sized amount of the white cream onto her fingers, then massaging it into her face'), FASHION (e.g. 'unzipping the side zipper and stepping into the high-waisted A-line skirt, then smoothing the pleats and turning to show the silhouette'), ELECTRONICS (e.g. 'pressing the single power button and holding the device up to her ear'), FOOD (e.g. 'twisting off the lid and pouring the golden honey into a spoon'), TOOLS (e.g. 'gripping the handle and pressing the trigger to spray'). ALWAYS include: (1) the specific opening/closure mechanism (twist cap, pump, spray, flip-top, zipper, button, plug), (2) the exact body motion (squeeze, pump, spray, zip, step into, press, pour, grip), (3) the product's texture/consistency if relevant (cream, gel, serum, lotion, pleated fabric, liquid). Do NOT write generic phrases like 'using the product' — describe the real physical interaction.",
+  "usage_action": "ENGLISH ONLY. A SPECIFIC, ACTION-ORIENTED description of exactly HOW a person interacts with this product — the physical motion of opening/using/wearing it. This drives VIDEO generation, so be precise about the mechanics. Examples by category: BEAUTY (e.g. 'twisting open the cap and squeezing a pea-sized amount of the white cream onto her fingers, then massaging it into her face'), FASHION (e.g. 'already wearing the high-waisted A-line skirt, she smooths the pleats and turns slowly to show the silhouette and the side zipper'), ELECTRONICS (e.g. 'pressing the single power button and holding the device up to her ear'), FOOD (e.g. 'twisting off the lid and pouring the golden honey into a spoon'), TOOLS (e.g. 'gripping the handle and pressing the trigger to spray'). ALWAYS include: (1) the specific opening/closure mechanism (twist cap, pump, spray, flip-top, zipper, button, plug), (2) the exact body motion (squeeze, pump, spray, zip, step into, press, pour, grip), (3) the product's texture/consistency if relevant (cream, gel, serum, lotion, pleated fabric, liquid). Do NOT write generic phrases like 'using the product' — describe the real physical interaction.",
   "image_description": "ENGLISH ONLY. Describe the SCENE for AI image generation — the MODEL (person) in the scene, NOT the product details. The product image is already provided as reference, so DO NOT re-describe the product's physical details (container, cap, color, fabric) in detail. Instead describe: (1) room setting / environment, (2) the model — 'Ethnic Thai woman' for female / 'Ethnic Thai man' for male, with age, hair style, and the outfit/dress they are wearing, (3) whether the model is WEARING the garment (for clothing/fashion) or HOLDING the product at chest level (for other products). Keep it concise — the product itself is visible in the reference image. Example: 'An ethnic Thai woman, 25 years old, long black hair, wearing a red knit dress, standing in a bright bedroom with soft natural window light, warm inviting atmosphere.'"
 }
 RULES:
@@ -383,6 +383,7 @@ MEDIA_GENERATION_SYSTEM = """You are an AI Media Prompt Director. Your job is to
 
 You will receive:
 - product_reconstruction_prompt (What the product looks like)
+- product_features (Key features/benefits of the product — MUST be incorporated into the prompt)
 - usage_action (How to interact with it)
 - ugc_style (The vibe/setting requested)
 - category (beauty/fashion/electronics/food/home/tools/health/other)
@@ -395,14 +396,16 @@ CRITICAL RULES FOR IMAGE_PROMPT:
 2. Then add the setting (use 'env_context' ONLY, one single setting) and lighting.
 3. Keep it SHORT and direct. Do NOT over-describe the scene, the model's face, or the product's physical details.
 4. NEVER describe the input image's original background.
+5. Incorporate the KEY VISIBLE features from 'product_features' into the prompt (e.g. "high-waisted pleated midi skirt with side zipper", "wireless earbuds with charging case"). Use them naturally in the action/setting, but keep it concise.
 
 CRITICAL RULES FOR VIDEO_PROMPT:
 1. The video prompt drives animation from the generated image. DO NOT re-describe the model's face/outfit/background in detail.
 2. Start with the SAME single setting as the image_prompt (use 'env_context' ONLY, once, at the start). Never repeat or add a second setting.
 3. Focus on MOTION, LIGHTING, CAMERA, and DIRECTION based on 'usage_action' and 'ugc_style'.
 4. Keep product detail to ONE short phrase (e.g. "the pleated midi skirt"). Do NOT paste the full product_reconstruction_prompt.
-5. Example for Beauty: "In a bright bathroom. The young Thai woman holds the serum bottle, gently opens the cap and applies it to her cheek. Soft natural light, slow camera push-in, smooth cinematic motion."
-6. Example for Fashion: "On a clean studio backdrop. The young Thai woman wears the pleated midi skirt, twirls slowly to show the fit. Soft studio light, camera slowly tracking, smooth runway motion."
+5. Incorporate the KEY VISIBLE features from 'product_features' into the motion/action, and EXPLICITLY use the word "feature" in the prompt so the video model knows to showcase them (e.g. "showing the side zipper feature", "highlighting the high-waisted feature", "displaying the pleated A-line feature"). For fashion/apparel, the model is ALREADY WEARING the garment — NEVER show putting it on or taking it off. Show each feature via a natural styling motion (e.g. "smoothing the pleats to show the pleated feature", "turning to display the side zipper feature", "adjusting the waistband to highlight the high-waisted feature"). Keep it concise.
+6. Example for Beauty: "In a bright bathroom. The young Thai woman holds the serum bottle, gently opens the cap and applies it to her cheek. Soft natural light, slow camera push-in, smooth cinematic motion."
+7. Example for Fashion: "On a clean studio backdrop. The young Thai woman wears the pleated midi skirt, twirls slowly to show the fit. Soft studio light, camera slowly tracking, smooth runway motion."
 
 OUTPUT FORMAT (JSON):
 {
@@ -420,6 +423,7 @@ def _generate_media_prompts(
     model_gender: str,
     model_age: str = "",
     env_context: str = "",
+    features: str = "",
 ) -> tuple:
     """Generate clean image + video prompts via Gemini (Step 2).
 
@@ -443,6 +447,7 @@ def _generate_media_prompts(
         f"model_gender: {gender_en}\n"
         f"model_age: {model_age or 'unspecified'}\n"
         f"env_context: {env_context or 'a modern lifestyle setting'}\n"
+        f"product_features: {features or 'none'}\n"
         f"subject: {subject}\n\n"
         f"Generate the image_prompt and video_prompt as JSON."
     )

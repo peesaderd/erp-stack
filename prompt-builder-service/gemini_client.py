@@ -420,12 +420,12 @@ CRITICAL RULES FOR IMAGE_PROMPT:
 CRITICAL RULES FOR VIDEO_PROMPT:
 1. The video prompt drives animation from the generated image. DO NOT re-describe the model's face/outfit/background in detail.
 2. Start with the SAME single setting as the image_prompt (use 'env_context' ONLY, once, at the start). Never repeat or add a second setting.
-3. Focus on MOTION, LIGHTING, CAMERA, and DIRECTION based on 'usage_action' and 'ugc_style'.
-4. Keep product detail to ONE short phrase (e.g. "the pleated midi skirt"). Do NOT paste the full product_reconstruction_prompt.
-5. Incorporate the KEY VISIBLE features from 'product_features' into the motion/action, and EXPLICITLY use the word "feature" in the prompt so the video model knows to showcase them (e.g. "showing the side zipper feature", "highlighting the high-waisted feature", "displaying the pleated A-line feature"). For fashion/apparel, the model is ALREADY WEARING the garment — NEVER show putting it on or taking it off. Show each feature via a natural styling motion (e.g. "smoothing the pleats to show the pleated feature", "turning to display the side zipper feature", "adjusting the waistband to highlight the high-waisted feature"). Keep it concise.
-6. NEVER repeat the same feature twice — each feature appears exactly ONCE. For fashion/apparel, NEVER show the model walking, swaying, or strutting (this distorts the waist/hips), and NEVER describe adjusting, unzipping, or pulling at the skirt/waistband (this looks suggestive). Use only modest, elegant motions like "standing still and turning slowly in place", "smoothing the fabric", "gentle head movement".
-7. Example for Beauty: "In a bright bathroom. The young woman holds the serum bottle, gently opens the cap and applies it to her cheek. Soft natural light, slow camera push-in, smooth cinematic motion."
-8. Example for Fashion: "On a clean studio backdrop. The young woman wears the pleated midi skirt, standing still and turning slowly to show the fit. Soft studio light, static camera, subtle push-in, smooth natural motion."
+3. Focus on MOTION, LIGHTING, CAMERA, and DIRECTION based on 'usage_action' and 'ugc_style'. Keep it cinematic and highly visual.
+4. Integrate 'product_features' NATURALLY as part of the environment or clothing. STRICTLY FORBIDDEN to use the word "feature" or write like a product catalog. (e.g., Instead of "showing the pleated feature", write "the pleated fabric flows beautifully").
+5. AVOID MICRO-INTERACTIONS WITH CLOTHING: For fashion/apparel, NEVER instruct the model to touch, point at, adjust, or smooth specific parts of the garment (like zippers, waistbands, or pockets) as this causes severe AI body/hand distortions.
+6. USE MACRO-MOVEMENTS ONLY: Express the product's quality through overall graceful body movements. Use phrases like "turning slowly", "the lightweight fabric drapes elegantly", or "fabric swaying gently in the breeze".
+7. Example for Beauty: "In a bright bathroom. The young woman brings the serum bottle close, delicately applying a drop to her cheek. Soft natural light, slow camera push-in, smooth cinematic motion."
+8. Example for Fashion: "On a clean studio backdrop. The young woman wears the high-waisted pleated midi skirt. She turns gracefully in place, allowing the lightweight fabric to flare and drape naturally. Soft studio light, static camera, smooth realistic motion."
 
 OUTPUT FORMAT (JSON):
 {

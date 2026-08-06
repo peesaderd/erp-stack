@@ -341,7 +341,7 @@ def generate_script(
         )
 
         script = result.get("script", "")
-        logger.info(f"  Script: {script[:100]}... (uses_llm={result.get('uses_llm')})")
+        logger.info(f"  Script: {script} (uses_llm={result.get('uses_llm')})")
         return script
 
     except Exception as e:
@@ -390,7 +390,7 @@ def build_image_prompt(
     image_prompt = product_profile.get("_image_prompt", "")
 
     if image_prompt:
-        logger.info(f"  Image prompt: {image_prompt[:60]}...")
+        logger.info(f"  Image prompt: {image_prompt}")
         return image_prompt
 
     # Fallback: basic prompt
@@ -419,7 +419,7 @@ def generate_image(
         tuple: (image_url, cost_usd)
     """
     logger.info(f"Step 5/9: Generate image (Nano Banana, {aspect_ratio})")
-    logger.info(f"  Prompt: {prompt[:40]}...")
+    logger.info(f"  Prompt: {prompt}")
     logger.info(f"  Reference: {product_image or 'None'}")
 
     payload = {
@@ -746,7 +746,7 @@ def generate_video(
     Step 8: Generate video via Wan 2.7 Async API (shared ProdiaV2Client)
     """
     logger.info(f"Step 8/9: Generate video (Wan 2.7, {resolution})")
-    logger.info(f"  Prompt: {prompt[:80]}...")
+    logger.info(f"  Prompt: {prompt}")
 
     # Read image bytes
     if image_path.startswith("http://") or image_path.startswith("https://"):

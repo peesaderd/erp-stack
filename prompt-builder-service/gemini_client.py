@@ -17,7 +17,7 @@ logger = logging.getLogger("prompt-builder-service")
 from shared_config import GEMINI_API_KEY as _GEMINI_API_KEY_LAZY
 from shared_config import MISTRAL_API_KEY as _MISTRAL_API_KEY_LAZY
 from shared_config import GEMINI_MODEL
-from prompt_templates import _extract_json
+from prompt_templates import _extract_json, STYLE_MAP
 
 # ─── Country → Ethnicity descriptor ──────────────────────────────
 # Single source of truth for the model's ethnicity/appearance based on
@@ -396,53 +396,24 @@ def analyze_product_image(product_image: str, product_name: str, description: st
 # UGC style, then produces clean, non-conflicting image & video prompts.
 # ═══════════════════════════════════════════════════════════════════════
 
-MEDIA_GENERATION_SYSTEM = """You are an expert AI Video Prompt Engineer specializing in generating highly realistic, UGC-style video prompts for diffusion models like Wan 2.7.
-Your task is to take brief product details and output a beautifully crafted, cinematic video prompt.
+MEDIA_GENERATION_SYSTEM = """You are an expert AI Video Prompt Engineer for Wan 2.7 (img2vid).
 
-You will receive:
-- product_reconstruction_prompt (What the product looks like)
-- product_features (Key features/benefits of the product — MUST be incorporated into the prompt)
-- usage_action (How to interact with it)
-- ugc_style (The vibe/setting requested)
-- category (beauty/fashion/electronics/food/home/tools/health/other)
-- model_gender (female/male)
-- model_age (optional)
-- country (thai/vietnamese/korean/japanese/chinese/indian/western — the model's ethnicity)
-- env_context (the setting/environment)
+Write a SHORT, concise video prompt (1-2 sentences) following this structure:
+[Camera] + [Who] + [Wearing/Holding what] + [Where] + [What they do]
 
-CRITICAL RULES FOR IMAGE_PROMPT:
-1. State the ACTION clearly and simply FIRST: "The [gender] is WEARING the [product]" (for fashion/apparel) or "The [gender] is HOLDING the [product]" (for all other categories). Use the exact product name from 'product_reconstruction_prompt'.
-2. ALWAYS describe the model using the ethnicity matching the 'country' field (e.g. "An ethnic Thai woman" for thai, "An ethnic Korean man" for korean, "A Caucasian woman" for western) and include the model_age (e.g. "An ethnic Thai woman, 25 years old") at the START of the image_prompt. NEVER omit the ethnicity or age — the model must match the selected country's ethnicity, never a mismatched/foreign model.
-3. Then add the setting (use 'env_context' ONLY, one single setting) and lighting.
-4. Keep it SHORT and direct. Do NOT over-describe the scene, the model's face, or the product's physical details.
-5. NEVER describe the input image's original background.
-6. Incorporate the KEY VISIBLE features from 'product_features' into the prompt (e.g. "high-waisted pleated midi skirt with side zipper", "wireless earbuds with charging case"). Use them naturally in the action/setting, but keep it concise.
+Rules:
+- Keep it SHORT and direct. No over-description, no marketing copy.
+- Translate product specs into visual details (e.g. "sleek side zipper" not "zipper feature").
+- Use natural, subtle movements only (shifting weight, gentle head turn, fabric sway). NO fast spinning or sudden moves.
+- Keep hands in natural relaxed positions (no hand-clothing interaction unless needed).
+- End with a subtle camera move (slow push-in / gentle tilt) that draws focus to the product — the product must be clearly visible and beautiful.
+- Match the model ethnicity to the country field (e.g. "ethnic Thai woman").
 
-CRITICAL RULES FOR VIDEO_PROMPT:
-1. No "Feature" Terminology: Translate all product specifications into visual descriptions (e.g., instead of "zipper feature", describe how "the sleek side zipper rests cleanly against the fabric"). Do not use marketing copy.
-2. Macro-Movements Only: For animations, use natural, macro-movements (e.g., "shifting weight slightly", "subtle breeze moving the fabric", "gentle head movement"). ABSOLUTELY NO fast spinning, slow 360 turning, or sudden movements.
-3. No Hand-Clothing Interactions: Do not instruct the model's hands to touch, hold, or interact with the clothing/product unless strictly requested. Keep hands in natural, relaxed positions (e.g., "hands naturally resting at sides") to prevent anatomical artifacts.
-4. Cinematic & UGC Aesthetic: Always specify the lighting, camera angle (e.g., eye-level smartphone footage), and a clear, single setting.
-5. End Scene (Product Focus): Conclude the action by clearly describing a subtle camera movement (e.g., a slow push-in, a gentle tilt down) that naturally draws the viewer's focus directly to the product's texture, shape, or quality in the final frames.
-
-EXAMPLES:
-Input: "Daily outfit, office, school. ethnic Thai woman 19 years old, product: a solid black, high-waisted pleated skirt"
-Output:
-{
-  "camera_and_lighting": "Eye-level smartphone footage, soft diffused natural daylight.",
-  "subject_and_setting": "In a bright, modern office space. A 19-year-old ethnic Thai woman stands naturally, wearing a solid black, high-waisted pleated skirt.",
-  "outfit_and_product_details": "The dark fabric features crisp, elegant pleats that fall gracefully to her knees.",
-  "action_and_movement": "She gently shifts her weight, her hands resting naturally at her sides, allowing the fabric to sway softly. The camera subtly pushes in at the end, highlighting the crisp folds and elegant drape of the skirt.",
-  "final_video_prompt": "In a bright, modern office space. A 19-year-old ethnic Thai woman stands naturally, wearing a solid black, high-waisted pleated skirt. The dark fabric features crisp, elegant pleats that fall gracefully. She gently shifts her weight, her hands resting naturally at her sides, allowing the fabric to sway softly. Eye-level smartphone footage, soft diffused natural daylight. The camera subtly pushes in at the end, highlighting the crisp folds and elegant drape of the skirt."
-}
-
-OUTPUT FORMAT (JSON):
-Output purely valid JSON without any markdown formatting.
+Output JSON only:
 {
   "image_prompt": "...",
   "video_prompt": "..."
 }"""
-
 
 def _generate_media_prompts(
     product_name: str,
@@ -471,6 +442,16 @@ def _generate_media_prompts(
     _eth_label, _eth_features = _country_ethnicity(country)
     subject = f"An {_eth_label} {gender_en}{age_seg}, {_eth_features}, small nose bridge"
 
+    # Pull the UGC style rule-base (model_action/camera/vibe/video_motion) from
+    # STYLE_MAP so Gemini follows the selected style instead of guessing.
+    _style = STYLE_MAP.get(ugc_style, STYLE_MAP.get("holding", {}))
+    _style_rules = (
+        f"model_action: {_style.get('model_action', '')}\n"
+        f"camera: {_style.get('camera', '')}\n"
+        f"vibe: {_style.get('vibe', '')}\n"
+        f"video_motion: {_style.get('video_motion', '')}"
+    )
+
     user_text = (
         f"product_reconstruction_prompt: {product_appearance or product_name}\n"
         f"usage_action: {usage_action or 'holding the product and showing it to camera'}\n"
@@ -481,8 +462,9 @@ def _generate_media_prompts(
         f"country: {country or 'thai'}\n"
         f"env_context: {env_context or 'a modern lifestyle setting'}\n"
         f"product_features: {features or 'none'}\n"
-        f"subject: {subject}\n\n"
-        f"Generate the image_prompt and video_prompt as JSON."
+        f"subject: {subject}\n"
+        f"style_rules:\n{_style_rules}\n\n"
+        f"Generate the image_prompt and video_prompt as JSON, following the style_rules."
     )
 
     try:

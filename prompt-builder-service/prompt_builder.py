@@ -932,8 +932,8 @@ def _thai_safe_truncate(text: str, max_chars: int, extra_buffer: int = 5) -> str
     """Truncate text to max_chars without cutting a Thai word in half.
 
     Strategy:
-      1. If the cut point splits a Thai word, extend up to ``extra_buffer``
-         extra characters (or until the word finishes) so the word stays whole.
+      1. If the cut point splits a Thai word, extend to the next word boundary
+         (whitespace / punctuation / end of word) so the word stays whole.
       2. Never leave a dangling Thai leading vowel / tone mark / vowel mark
          as the final character.
       3. For mixed Latin text, prefer a whitespace boundary.
@@ -953,10 +953,11 @@ def _thai_safe_truncate(text: str, max_chars: int, extra_buffer: int = 5) -> str
         ) or (
             prev_char in _THAI_DANGLING_CHARS and next_char in _THAI_CONSONANTS
         ):
-            limit = min(len(text), max_chars + extra_buffer)
-            while cut < limit and (
-                text[cut] in _THAI_CONSONANTS or text[cut] in _THAI_DANGLING_CHARS
-            ):
+            # Extend to the next word boundary (whitespace / punctuation / end)
+            # so the Thai word is never split mid-word. Cap at a generous limit
+            # to avoid runaway growth on very long unbroken strings.
+            limit = min(len(text), max_chars + max(extra_buffer, 40))
+            while cut < limit and text[cut] not in " \n\t.,;:!?()":
                 cut += 1
 
     # Never leave a dangling Thai vowel / tone mark at the end.

@@ -214,6 +214,35 @@ def fill_template(template: str, data: dict) -> str:
 
 # ─── Script Generators ─────────────────────────────────────────────────────
 
+def _dedupe_product_name(script: str, product_name: str) -> str:
+    # ให้พูดชื่อสินค้าแค่ครั้งเดียว (ครั้งแรกที่เจอ) ครั้งที่เหลือแทนด้วยสรรพนาม ตัวนี้
+    if not product_name or not script:
+        return script
+    name = product_name.strip()
+    # ถ้าเจอชื่อเต็มใน script ให้ใช้ชื่อเต็ม
+    if name in script:
+        target = name
+    else:
+        # ถ้าไม่เจอชื่อเต็ม ให้หาคำหลักที่ยาวที่สุดที่ปรากฏใน script
+        # เช่น product_name="กระโปรงยาวจีบรอบทรงเอ สไตล์มินิมอลญี่ปุ่น"
+        # แต่ script มีแค่ "กระโปรงยาวจีบรอบทรงเอ"
+        words = [w for w in name.split() if len(w) >= 4]
+        target = None
+        for w in sorted(words, key=len, reverse=True):
+            if w in script:
+                target = w
+                break
+        if target is None:
+            return script
+    first_idx = script.find(target)
+    if first_idx == -1:
+        return script
+    result = script[:first_idx + len(target)]
+    rest = script[first_idx + len(target):]
+    result += rest.replace(target, "ตัวนี้")
+    return result
+
+
 def generate_tiktok_review_script(
     product_name: str,
     customer_problem: str = "",
@@ -293,8 +322,10 @@ def generate_tiktok_review_script(
     raw = _call_gemini(combined_system, user_prompt)
 
     if raw:
+        # Post-process: พูดชื่อสินค้าแค่ครั้งเดียว (ครั้งแรก) ครั้งที่เหลือแทนด้วยสรรพนาม
+        script = _dedupe_product_name(raw, product_name)
         return {
-            "script": raw,
+            "script": script,
             "uses_llm": True,
             "duration": duration,
             "product": product_name,

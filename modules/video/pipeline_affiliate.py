@@ -967,7 +967,7 @@ def compose_video(
                     "-stream_loop", "-1",
                     "-i", str(bgm_path),
                     "-filter_complex",
-                    "[1:a]volume=0.15[bg];[0:a][bg]amix=inputs=2:duration=first:normalize=0[out]",
+                    "[1:a]volume=0.15[bg];[0:a][bg]amix=inputs=2:duration=longest:normalize=0[out]",
                     "-map", "0:v",
                     "-map", "[out]",
                     "-c:v", "copy",

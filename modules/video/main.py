@@ -293,6 +293,7 @@ async def generate_video(req: VideoRequest):
             ugc_style=validate_ugc_style(req.ugc_style),
             external_job_id=req.job_id,
             duration=req.duration,
+            features=req.features or "",
             # Pre-computed prompts (bypass auto-gen if provided)
             image_prompt=req.image_prompt or "",
             video_prompt=req.video_prompt or "",

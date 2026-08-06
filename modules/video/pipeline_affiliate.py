@@ -163,7 +163,7 @@ def concat_videos(video_paths: list, output_path: Path) -> Path:
 # STEP 1: Analyze Product (Mistral)
 # ═══════════════════════════════════════════════════════════════════════════
 
-def analyze_product(product_name: str, product_image: str = None, description: str = "", ugc_style: str = "holding", gender: str = "", target_age: str = "") -> dict:
+def analyze_product(product_name: str, product_image: str = None, description: str = "", ugc_style: str = "holding", gender: str = "", target_age: str = "", features: str = "") -> dict:
     """
     Step 1: Analyze product via Mistral → product_profile
 
@@ -195,6 +195,7 @@ def analyze_product(product_name: str, product_image: str = None, description: s
             "ugc_style": ugc_style,
             "target_gender": gender,
             "target_age": target_age,
+            "features": features,
         }
 
         resp = requests.post(url, json=payload, timeout=60)
@@ -1086,6 +1087,7 @@ def run_pipeline(
     if ugc_style != _orig_ugc:
         logger.warning(f"  ugc_style '{_orig_ugc}' not valid, using '{ugc_style}'")
 
+    features = kwargs.get("features", "")
     pipeline_start = time.time()
     cost_image = 0.0
     cost_voice = 0.0
@@ -1094,7 +1096,7 @@ def run_pipeline(
     try:
         # ── STEP 1: Analyze ──
         step_start = time.time()
-        product_profile = analyze_product(product_name, product_image, description, ugc_style=ugc_style, gender=gender or "", target_age=age or "")
+        product_profile = analyze_product(product_name, product_image, description, ugc_style=ugc_style, gender=gender or "", target_age=age or "", features=features)
         analyze_duration = int((time.time() - step_start) * 1000)
 
         try:

@@ -208,6 +208,23 @@ Product ID: {product_id if product_id else 'ไม่ระบุ'}"""
     if features:
         profile["features"] = features
 
+    # ── usage_action fallback ─────────────────────────────────────────
+    # Gemini sometimes omits usage_action. For fashion/wearable products the
+    # model must WEAR the garment (never hold it). Provide a sensible default
+    # so the Gemini media-generation path (build_image_prompt/build_video_prompt)
+    # is always used for fashion.
+    if not profile.get("usage_action", ""):
+        _cat = (profile.get("category") or category or "").lower()
+        if _is_wearable_category(_cat):
+            profile["usage_action"] = (
+                "already wearing the garment, she smooths the pleats and turns "
+                "slowly to showcase the silhouette and the fabric quality"
+            )
+        else:
+            profile["usage_action"] = (
+                "holding the product and showing it to camera, then using it naturally"
+            )
+
     # Merge Router Agent insights into profile
     profile["router_config"] = {
         "recipe_type": router_config.get("recipe_type", "pas"),
@@ -556,6 +573,18 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         _eth_label, _eth_features = _country_ethnicity(profile.get("country", ""))
         image_prompt = f"An {_eth_label} {gender_en}{age_guard}, {_eth_features}. {image_prompt}"
 
+    # ── Age consistency guard ─────────────────────────────────────────
+    # Gemini sometimes writes a different age than the resolved target age.
+    # Force every "N years old" in the prompt to match _normalized_age so
+    # image + video prompts stay consistent.
+    if model_age:
+        image_prompt = re.sub(
+            r'\b\d{1,2}\s+years?\s+old\b',
+            f'{model_age} years old',
+            image_prompt,
+            flags=re.IGNORECASE,
+        )
+
     return image_prompt, negative
 
 
@@ -615,6 +644,17 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             video_prompt = _media_vid
             video_prompt = re.sub(r'\s+', ' ', video_prompt).strip()
             video_prompt = _normalize_gender_in_description(video_prompt, gender_en)
+            # ── Age consistency guard ─────────────────────────────────
+            # Gemini sometimes writes a different age than the resolved target
+            # age. Force every "N years old" to match _normalized_age so the
+            # image + video prompts stay consistent.
+            if model_age:
+                video_prompt = re.sub(
+                    r'\b\d{1,2}\s+years?\s+old\b',
+                    f'{model_age} years old',
+                    video_prompt,
+                    flags=re.IGNORECASE,
+                )
             return video_prompt
     except Exception as e:
         logger.warning(f"Gemini video prompt generation failed, falling back to template: {e}")
@@ -932,7 +972,15 @@ def _thai_safe_truncate(text: str, max_chars: int, extra_buffer: int = 5) -> str
     return text[:cut]
 def _trim_to_word(text: str, max_chars: int) -> str:
     """Trim text to max_chars without cutting mid-word or breaking Thai chars."""
-    return _thai_safe_truncate(text, max_chars)
+    if not text or len(text) <= max_chars:
+        return text
+    # Prefer a whitespace boundary so Thai words are never split mid-word.
+    # Fall back to _thai_safe_truncate (which extends up to extra_buffer chars)
+    # only when no whitespace exists within a reasonable window.
+    last_space = text.rfind(" ", 0, max_chars)
+    if last_space > max_chars * 0.5:
+        return text[:last_space]
+    return _thai_safe_truncate(text, max_chars, extra_buffer=12)
 
 
 def _build_timing_validated_script(product_name: str, category: str = "beauty", profile: dict = None) -> dict:

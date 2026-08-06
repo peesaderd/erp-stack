@@ -51,7 +51,7 @@ def get_bgm_path(bgm_style: str) -> Path:
         "energetic_edm": "bg_edm.mp3",
         "upbeat_pop": "bg_upbeat.mp3",
         "luxury_jazz": "bg_jazz.mp3",
-        "asmr": "bg_ambient.mp3",
+        "asmr": "bg_chill.mp3",
     }
     bgm_filename = bgm_map.get(bgm_style, "bg_chill.mp3")
     # Check module-local sounds first (legacy), then tiktok-ugc-studio/bgm (actual files on host)

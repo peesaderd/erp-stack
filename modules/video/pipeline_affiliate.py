@@ -1161,9 +1161,18 @@ def run_pipeline(
             vid_prompt_duration = 0
             logger.info(f"Step 6/9: Skipped (using pre-computed video_prompt)")
         elif not video_prompts:
-            step_start = time.time()
-            video_prompts = build_video_prompts(product_profile, recipe, str(img_path), ugc_style=ugc_style)
-            vid_prompt_duration = int((time.time() - step_start) * 1000)
+            # Prefer Gemini video_prompt from analyze_product() (Step 1) — it is a
+            # full descriptive narrative, not a keyword list. Fall back to the
+            # recipe-template builder only when Gemini did not produce one.
+            gemini_vp = product_profile.get("_video_prompt", "")
+            if gemini_vp:
+                video_prompts = [gemini_vp]
+                vid_prompt_duration = 0
+                logger.info(f"Step 6/9: Using Gemini video_prompt from analyze_product()")
+            else:
+                step_start = time.time()
+                video_prompts = build_video_prompts(product_profile, recipe, str(img_path), ugc_style=ugc_style)
+                vid_prompt_duration = int((time.time() - step_start) * 1000)
         else:
             vid_prompt_duration = 0
             logger.info(f"Step 6/9: Skipped (using pre-computed video_prompts)")

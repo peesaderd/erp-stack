@@ -53,8 +53,6 @@ def build_script_system_prompt(persona: dict, duration: str = f"{DEFAULT_DURATIO
     polite = "ค่ะ" if gender == "female" else "ครับ"
     wrong_polite = "ครับ" if gender == "female" else "ค่ะ"
 
-    polite = "ค่ะ" if gender == "female" else "ครับ"
-    wrong_polite = "ครับ" if gender == "female" else "ค่ะ"
 
     base = """คุณคือ Copywriter มืออาชีพที่เขียนสคริปต์โฆษณา UGC สั้นๆ สำหรับ TikTok
 สคริปต์ต้องสั้น กระชับ เข้าใจง่าย เหมาะกับ Voiceover

@@ -497,10 +497,31 @@ def build_video_prompts(
     scenes = recipe.get("scenes", [])
     video_prompts = []
 
-    setting = product_profile.get("setting", "clean modern lifestyle")
+    # Setting: prefer env_context (specific environment from Gemini analysis),
+    # fallback to setting (general location), then category-aware default.
+    # This keeps the scene consistent with the product category (no mixed scenes).
     category = product_profile.get("category", "other")
     product_type = product_profile.get("product_type", "").lower()
     product_name = product_profile.get("product_name", "") or product_profile.get("_product_name", "")
+
+    # Category-aware default settings — ensures scene matches product type
+    category_setting_map = {
+        "beauty": "a vanity table with soft mirror lighting",
+        "fashion": "a bright closet or boutique with clothing racks",
+        "electronics": "a clean modern desk or office workspace",
+        "home": "a bright living room or kitchen counter",
+        "food": "a warm kitchen counter or cafe table",
+        "tools": "a functional workshop or garage bench",
+        "health": "a clean bathroom or bedroom",
+        "other": "a clean modern lifestyle setting",
+    }
+    # Always use category-aware setting as the base so the scene matches the
+    # product type (no mixed scenes like fashion in a market). Append env_context
+    # as a specific detail when present (e.g. "bathroom sink" for beauty).
+    env_context = product_profile.get("env_context", "")
+    setting = category_setting_map.get(category, "a clean modern lifestyle setting")
+    if env_context:
+        setting = f"{setting}, {env_context}" if env_context.lower() not in setting.lower() else setting
 
     # Lighting map — Schema Engine (recipe config) เป็น SSOT;
     # hardcode ข้างล่างเป็น fallback เมื่อ recipe ไม่มีค่า
@@ -842,6 +863,24 @@ def has_audio_track(video_path: str) -> bool:
     except Exception as e:
         logger.warning(f"Failed to probe audio track for {video_path}: {e}")
         return False
+
+def _probe_duration(video_path: str) -> float:
+    """Get video duration in seconds using ffprobe. Returns 0 on error."""
+    try:
+        cmd = [
+            "ffprobe", "-v", "error",
+            "-show_entries", "format=duration",
+            "-of", "default=noprint_wrappers=1:nokey=1",
+            video_path,
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        if result.returncode == 0 and result.stdout.strip():
+            return float(result.stdout.strip())
+    except Exception as e:
+        logger.warning(f"Failed to probe duration for {video_path}: {e}")
+    return 0.0
+
+
 def compose_video(
     video_paths: list,
     voice_path: Optional[str] = None,
@@ -913,7 +952,14 @@ def compose_video(
 
         if bgm_path.exists():
             bgm_output = STORAGE_DIR / f"affiliate_{run_id}_bgm.mp4"
-            # Strategy: mix BGM with video audio. If video has no usable audio, just copy BGM
+            # Probe actual video duration so BGM is trimmed to match exactly
+            actual_dur = _probe_duration(str(final_path))
+            if actual_dur <= 0:
+                actual_dur = float(target_duration) if target_duration > 0 else 15.0
+            logger.info(f"    Video duration: {actual_dur:.2f}s, BGM: {bgm_path.name}")
+
+            # Mix BGM under voiceover: BGM at low volume (0.15), voice stays full.
+            # Use amix with normalize=0 so voice volume is NOT reduced by BGM.
             try:
                 cmd_mix = [
                     "ffmpeg", "-y",
@@ -921,16 +967,16 @@ def compose_video(
                     "-stream_loop", "-1",
                     "-i", str(bgm_path),
                     "-filter_complex",
-                    "[1:a]volume=0.15[bg];[0:a][bg]amix=inputs=2:duration=first[out]",
+                    "[1:a]volume=0.15[bg];[0:a][bg]amix=inputs=2:duration=first:normalize=0[out]",
                     "-map", "0:v",
                     "-map", "[out]",
                     "-c:v", "copy",
                     "-c:a", "aac",
-                    "-t", str(target_duration),
+                    "-t", f"{actual_dur:.2f}",
                     str(bgm_output),
                 ]
                 subprocess.run(cmd_mix, check=True, capture_output=True, timeout=60)
-                logger.info(f"    BGM mixed")
+                logger.info(f"    BGM mixed (trimmed to {actual_dur:.2f}s)")
                 final_path = bgm_output
             except Exception as e:
                 logger.warning(f"    BGM mix failed ({e}), trying BGM-only")
@@ -944,10 +990,11 @@ def compose_video(
                         "-c:a", "aac",
                         "-map", "0:v:0",
                         "-map", "1:a:0",
+                        "-t", f"{actual_dur:.2f}",
                         str(bgm_output),
                     ]
                     subprocess.run(cmd_bgm, check=True, capture_output=True, timeout=60)
-                    logger.info(f"    BGM-only added")
+                    logger.info(f"    BGM-only added (trimmed to {actual_dur:.2f}s)")
                     final_path = bgm_output
                 except Exception as e2:
                     logger.warning(f"    BGM-only also failed: {e2}")

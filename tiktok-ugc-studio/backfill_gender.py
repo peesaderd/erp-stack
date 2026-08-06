@@ -16,7 +16,7 @@ MISTRAL_KEY = os.environ.get('MISTRAL_API_KEY', '')
 MISTRAL_URL = 'https://api.mistral.ai/v1/chat/completions'
 MISTRAL_MODEL = 'mistral-large-latest'
 MAX_RETRIES = 5
-BASE_DELAY = 5.0
+BASE_DELAY = 10.0
 
 PROMPT = '''Analyze this product image and its details for a TikTok UGC video.
 Determine the target gender of the product. Return ONLY valid JSON:
@@ -118,7 +118,7 @@ def main():
         else:
             failed += 1
             logger.warning('%s: FAILED (%s)', product_id, reason)
-        time.sleep(2.0)
+        time.sleep(8.0)
     conn.close()
     logger.info('DONE: updated=%d, failed=%d', updated, failed)
 

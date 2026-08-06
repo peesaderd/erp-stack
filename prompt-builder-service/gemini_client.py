@@ -401,17 +401,19 @@ MEDIA_GENERATION_SYSTEM = """You are an expert AI Prompt Engineer for UGC produc
 You produce TWO separate prompts with DIFFERENT purposes:
 
 === IMAGE PROMPT (first frame / thumbnail) ===
-Purpose: a clean, beautiful still of the model with the product.
+Purpose: a clean, beautiful still of the product (with a model ONLY for person-focused styles).
 - Keep it SHORT. Do NOT re-describe the product's appearance in detail (the product is already known).
-- Focus on: framing, model pose, and LIGHTING (e.g. "natural window light", "soft diffused daylight", "warm golden-hour light").
+- Focus on: framing, and LIGHTING (e.g. "natural window light", "soft diffused daylight", "warm golden-hour light").
+- PRODUCT-ONLY styles (ugc_style=product_demo/unboxing/comparison/split_comparison): NO person/model in frame — show the product ALONE on a clean surface, clearly centered, features visible. Do NOT mention any person, model, woman, man, or ethnicity.
 - For CLOTHING/FASHION products (category=fashion/clothing/skirt/dress/top/shoes): the model WEARS the product.
-- For all other products (beauty, electronics, food, home, etc.): the model HOLDS the product at chest level, packaging facing camera.
-- Match the model ethnicity to the country field (e.g. "ethnic Thai woman").
+- For all other person-focused styles (beauty, electronics, food, home, etc.): the model HOLDS the product at chest level, packaging facing camera.
+- Match the model ethnicity to the country field (e.g. "ethnic Thai woman") ONLY for person-focused styles.
 
 === VIDEO PROMPT (motion / action) ===
 Purpose: describe the MOTION and ACTION, not the product's appearance.
 - Keep it SHORT (1-2 sentences). Do NOT re-describe the product's appearance or the location in detail — those are already in the image prompt.
-- Structure: [Camera] + [Who] + [wearing/holding the product] + [What they do].
+- For PRODUCT-ONLY styles (ugc_style=product_demo/unboxing/comparison/split_comparison): NO person/model in frame — describe only the product and camera motion (e.g. "camera slowly pans around the product on a clean surface"). Do NOT mention any person, model, woman, man, or ethnicity.
+- For other styles, structure: [Camera] + [Who] + [wearing/holding the product] + [What they do].
 - Focus on natural, subtle movements (shifting weight, gentle head turn, fabric sway, applying the product). NO fast spinning or sudden moves.
 - End with a subtle camera move (slow push-in / gentle tilt) that draws focus to the product.
 
@@ -420,6 +422,10 @@ Output JSON only:
   "image_prompt": "...",
   "video_prompt": "..."
 }"""
+
+# Styles that focus on the PRODUCT only (no person in frame).
+# For these, we do NOT pass a human subject to Gemini — the product is the star.
+PRODUCT_ONLY_STYLES = {"product_demo", "unboxing", "comparison", "split_comparison"}
 
 def _generate_media_prompts(
     product_name: str,
@@ -446,7 +452,12 @@ def _generate_media_prompts(
 
     age_seg = f", {model_age} years old" if model_age else ""
     _eth_label, _eth_features = _country_ethnicity(country)
-    subject = f"An {_eth_label} {gender_en}{age_seg}, {_eth_features}, small nose bridge"
+    # For product-only styles (product_demo, unboxing, comparison, split_comparison),
+    # do NOT pass a human subject — the product is the star, no person in frame.
+    if ugc_style in PRODUCT_ONLY_STYLES:
+        subject = "no person in frame, product only, product clearly centered"
+    else:
+        subject = f"An {_eth_label} {gender_en}{age_seg}, {_eth_features}, small nose bridge"
 
     # Pull the UGC style rule-base (model_action/camera/vibe/video_motion) from
     # STYLE_MAP so Gemini follows the selected style instead of guessing.
@@ -458,20 +469,41 @@ def _generate_media_prompts(
         f"video_motion: {_style.get('video_motion', '')}"
     )
 
-    user_text = (
-        f"product_reconstruction_prompt: {product_appearance or product_name}\n"
-        f"usage_action: {usage_action or 'holding the product and showing it to camera'}\n"
-        f"ugc_style: {ugc_style or 'holding'}\n"
-        f"category: {category or 'other'}\n"
-        f"model_gender: {gender_en}\n"
-        f"model_age: {model_age or 'unspecified'}\n"
-        f"country: {country or 'thai'}\n"
-        f"env_context: {env_context or 'a modern lifestyle setting'}\n"
-        f"product_features: {features or 'none'}\n"
-        f"subject: {subject}\n"
-        f"style_rules:\n{_style_rules}\n\n"
-        f"Generate the image_prompt and video_prompt as JSON, following the style_rules."
-    )
+    # For product-only styles, do NOT pass any human model info (gender/age)
+    # so Gemini never puts a person in frame — the product is the star.
+    if ugc_style in PRODUCT_ONLY_STYLES:
+        # Override usage_action: vision analysis often says "holding the product"
+        # which would make Gemini put a person in frame. For product-only styles
+        # the product is shown alone on a surface — no person.
+        usage_action = "product on clean surface, no person, product clearly centered"
+        user_text = (
+            f"product_reconstruction_prompt: {product_appearance or product_name}\n"
+            f"usage_action: {usage_action}\n"
+            f"ugc_style: {ugc_style or 'product_demo'}\n"
+            f"category: {category or 'other'}\n"
+            f"country: {country or 'thai'}\n"
+            f"env_context: {env_context or 'a clean minimal surface'}\n"
+            f"product_features: {features or 'none'}\n"
+            f"subject: no person in frame, product only, product clearly centered\n"
+            f"style_rules:\n{_style_rules}\n\n"
+            f"Generate the image_prompt and video_prompt as JSON, following the style_rules. "
+            f"IMPORTANT: NO person/model in frame — product only."
+        )
+    else:
+        user_text = (
+            f"product_reconstruction_prompt: {product_appearance or product_name}\n"
+            f"usage_action: {usage_action or 'holding the product and showing it to camera'}\n"
+            f"ugc_style: {ugc_style or 'holding'}\n"
+            f"category: {category or 'other'}\n"
+            f"model_gender: {gender_en}\n"
+            f"model_age: {model_age or 'unspecified'}\n"
+            f"country: {country or 'thai'}\n"
+            f"env_context: {env_context or 'a modern lifestyle setting'}\n"
+            f"product_features: {features or 'none'}\n"
+            f"subject: {subject}\n"
+            f"style_rules:\n{_style_rules}\n\n"
+            f"Generate the image_prompt and video_prompt as JSON, following the style_rules."
+        )
 
     try:
         raw = _call_gemini(MEDIA_GENERATION_SYSTEM, user_text, temperature=0.4)

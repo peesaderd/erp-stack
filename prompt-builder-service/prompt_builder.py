@@ -568,7 +568,10 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     # Gemini sometimes omits the ethnicity/age even when instructed. The model
     # must always look like a Southeast Asian Thai person at the target age,
     # never a white/foreign model. If the ethnicity is missing, prepend it.
-    if gender_en and not re.search(r'ethnic\s+\w+', image_prompt, re.IGNORECASE):
+    # SKIP for product-only styles (product_demo/unboxing/comparison/split_comparison)
+    # where NO person/model should appear in frame.
+    if (gender_en and ugc_style not in ("product_demo", "unboxing", "comparison", "split_comparison")
+            and not re.search(r'ethnic\s+\w+', image_prompt, re.IGNORECASE)):
         age_guard = f", {model_age} years old" if model_age else ""
         _eth_label, _eth_features = _country_ethnicity(profile.get("country", ""))
         image_prompt = f"An {_eth_label} {gender_en}{age_guard}, {_eth_features}. {image_prompt}"

@@ -263,6 +263,9 @@ class AnalyzedProduct(Base):
     trending = Column(Boolean, default=False)
     keywords = Column(JSON, default=list)
     enriched = Column(Boolean, default=False)
+    gender = Column(String(20), default="")
+    target_age = Column(String(50), default="")
+    hashtags = Column(JSON, default=list)
     variants = Column(JSON, default=list, nullable=True)
     lifecycle_stage = Column(String(30), default="ANALYZED", index=True) # LOCAL_RAW, SCRAPED_STAGING, ANALYZED, TUS_READY, IN_PRODUCTION, PUBLISHED, COOLDOWN
     usage_count = Column(Integer, default=0)

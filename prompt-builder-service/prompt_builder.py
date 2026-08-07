@@ -19,7 +19,7 @@ from prompt_templates import (
 )
 from gemini_client import (
     _call_gemini, _call_gemini_vision, _get_gemini_key, analyze_product_image,
-    PRODUCT_ANALYSIS_SYSTEM,
+    PRODUCT_ANALYSIS_SYSTEM, _generate_media_prompts,
 )
 from persona_engine import (
     PERSONA_TEMPLATES, _select_persona, _apply_persona_to_profile,
@@ -29,6 +29,10 @@ from router_agent import router_decide
 logger = logging.getLogger("prompt-builder-service")
 
 # ─── Clothing/Accessories Category Detection ──────────────────────
+# Single source of truth for clothing/fashion display (image + video).
+# Keep in sync with Gemini's rule: clothing/fashion → model WEARS, never holds.
+WEARABLE_IMAGE_ACTION = "modeling and displaying the clothing elegantly on body, garment clearly visible, smiling naturally"
+
 CLOTHING_CATEGORIES = {
     "fashion", "clothing", "apparel",  # broad
     "accessories", "jewelry", "shoes", "bags", "watch", "watches",
@@ -50,58 +54,89 @@ def _is_wearable_category(category: str) -> bool:
     cat_lower = (category or "").lower().strip()
     return any(w in cat_lower for w in CLOTHING_CATEGORIES) or cat_lower in CLOTHING_CATEGORIES
 
-def _override_style_for_clothing(style_info: dict, category: str) -> dict:
-    if not _is_wearable_category(category):
-        return style_info
-    info = dict(style_info)
-    if info.get("model_action"):
-        info["model_action"] = info["model_action"].replace(
-            "holding the product in both hands", "modeling the garment draped on body"
-        ).replace(
-            "casually holding product", "casually modeling the garment"
-        ).replace(
-            "holding product up showing packaging", "modeling the garment, turning to show fit"
-        ).replace(
-            "holding product", "modeling garment"
-        ).replace(
-            "both hands holding product", "garment draped beautifully on body"
-        ).replace(
-            "just holding and showing", "showing how garment fits naturally"
-        )
-    if info.get("video_motion"):
-        info["video_motion"] = info["video_motion"].replace(
-            "holding product gently in both hands", "modeling garment naturally, slight turn to show fit"
-        ).replace(
-            "holding product", "modeling garment"
-        )
-    if info.get("keywords"):
-        info["keywords"] = info["keywords"].replace(
-            "both hands holding product", "garment draped on body"
-        ).replace(
-            "holding product", "wearing garment"
-        )
-    return info
 
-def _get_category_display_action(category: str) -> dict:
-    if _is_wearable_category(category):
-        return {
-            "holds": "wears and shows off",
-            "hold_replace": "wears",
-            "pose_phrase": "the garment draped beautifully on the body, clearly visible and in focus",
-            "model_action_tail": "modeling and displaying the clothing elegantly on body, garment clearly visible, smiling naturally",
-            "default_vid_motion": "gently modeling and displaying the garment on body",
-        }
-    else:
-        return {
-            "holds": "holds",
-            "hold_replace": "holds",
-            "pose_phrase": "the product held at chest level, clearly visible and in focus",
-            "model_action_tail": "",
-            "default_vid_motion": "gently holding product, slight natural movement",
-        }
+def _normalize_age(raw_age) -> int:
+    """Normalize age from profile to 18-25 range for UGC models."""
+    import random
+    try:
+        if isinstance(raw_age, (int, float)):
+            age = int(raw_age)
+        else:
+            parts = str(raw_age).replace(" ", "").split("-")
+            nums = [int(p) for p in parts if p.isdigit()]
+            age = nums[0] if nums else 22
+    except (ValueError, TypeError):
+        age = 22
+    return max(18, min(25, age + random.randint(-1, 1)))
 
 
-def analyze_product(product_name: str, description: str = "", keywords: Optional[List[str]] = None, target_duration: int = 15, features: str = "") -> dict:
+# ─── Country → Ethnicity descriptor ──────────────────────────────
+# Single source of truth for the model's ethnicity/appearance based on
+# the selected country. Used by image/video prompt builders and the
+# media-generation (Gemini) prompts so the model always matches the
+# user's chosen country instead of a hardcoded "Ethnic Thai".
+COUNTRY_ETHNICITY = {
+    "thai": ("ethnic Thai", "Southeast Asian ethnic Thai features"),
+    "vietnamese": ("ethnic Vietnamese", "Southeast Asian Vietnamese features"),
+    "korean": ("ethnic Korean", "East Asian Korean features"),
+    "japanese": ("ethnic Japanese", "East Asian Japanese features"),
+    "chinese": ("ethnic Chinese", "East Asian Chinese features"),
+    "indian": ("ethnic Indian", "South Asian Indian features"),
+    "western": ("Caucasian", "Western European features"),
+}
+
+def _country_ethnicity(country: str) -> tuple:
+    """Return (ethnicity_label, features_desc) for a country code."""
+    return COUNTRY_ETHNICITY.get((country or "").lower().strip(), COUNTRY_ETHNICITY["thai"])
+
+
+def _normalize_gender_in_description(text: str, gender_en: str) -> str:
+    """Force gender words inside a Gemini-generated image_description
+    to match the resolved target gender.
+
+    Gemini frequently hardcodes 'Ethnic Thai woman' even when the product
+    targets men (or vice versa). The resolved gender (from user input /
+    keyword auto-detect) is authoritative, so rewrite any ethnic-Thai
+    person phrase to the correct gender before the prompt is used.
+    """
+    if not text:
+        return text
+    # Map of every known woman-phrase -> equivalent man-phrase and vice versa.
+    # Order matters: check 'Ethnic Thai woman/man' and 'Thai woman/man' first.
+    if gender_en == "man":
+        repl = [
+            (r"ethnic\s+thai\s+wom[ae]n?\b", "ethnic Thai man"),
+            (r"thai\s+wom[ae]n?\b", "Thai man"),
+            (r"ethnic\s+thai\s+girls?\b", "ethnic Thai man"),
+            (r"thai\s+girls?\b", "Thai man"),
+            (r"young\s+thai\s+wom[ae]n?\b", "young Thai man"),
+            (r"\bwom[ae]n\b", "man"),
+            (r"\bshe\b", "he"),
+            (r"\bher\b", "his"),
+            (r"\bhers\b", "his"),
+            (r"\bherself\b", "himself"),
+        ]
+    elif gender_en == "woman":
+        repl = [
+            (r"ethnic\s+thai\s+wom[ae]n?\b", "ethnic Thai woman"),
+            (r"thai\s+wom[ae]n?\b", "Thai woman"),
+            (r"ethnic\s+thai\s+m[ae]n\b", "ethnic Thai woman"),
+            (r"thai\s+m[ae]n\b", "Thai woman"),
+            (r"young\s+thai\s+m[ae]n\b", "young Thai woman"),
+            (r"\bm[ae]n\b", "woman"),
+            (r"\bhe\b", "she"),
+            (r"\bhim\b", "her"),
+            (r"\bhis\b", "her"),
+            (r"\bhimself\b", "herself"),
+        ]
+    else:  # unknown gender — never invent/strip; leave text untouched
+        repl = []
+    out = text
+    for pat, replacement in repl:
+        out = re.sub(pat, replacement, out, flags=re.IGNORECASE)
+    return out
+
+def analyze_product(product_name: str, description: str = "", keywords: Optional[List[str]] = None, target_duration: int = 15, features: str = "", target_age: str = "", ugc_style: str = "", category: str = "", target_gender: str = "", product_id: str = "", price: float = 0.0, product_category: str = "", country: str = "") -> dict:
     """Analyze product via Gemini and return profile dict.
     
     Uses Router Agent for strategic context (recipe, style, persona),
@@ -109,7 +144,7 @@ def analyze_product(product_name: str, description: str = "", keywords: Optional
     Falls back to simple default if Gemini fails.
     """
     keywords = keywords or []
-    kw_str = ", ".join(keywords[:5]) if keywords else "ไม่มี"
+    kw_str = ", ".join(keywords) if keywords else "ไม่มี"
     
     # Get Router Agent config (strategy decision)
     router_config = router_decide(
@@ -120,28 +155,38 @@ def analyze_product(product_name: str, description: str = "", keywords: Optional
     )
     
     # Get product profile from Gemini analysis
-    feat_text = f"\nคุณสมบัติเด่น (Features): {features}" if features else ""
-    user_text = f"""ชื่อสินค้า: {product_name}{feat_text}
+    # UNIFIED FEED: every known field is ALWAYS sent — never conditionally omitted.
+    user_text = f"""ชื่อสินค้า: {product_name}
 คำอธิบาย: {description if description else 'ไม่มี'}
-Keywords: {kw_str}"""
+Keywords: {kw_str}
+คุณสมบัติเด่น (Features): {features if features else 'ไม่มี'}
+UGC Style ที่ต้องการ: {ugc_style if ugc_style else 'ไม่ได้ระบุ'}
+หมวดหมู่สินค้า: {category if category else 'ไม่ระบุ'}
+หมวดหมู่รอง (Product Category): {product_category if product_category else 'ไม่ระบุ'}
+อายุกลุ่มเป้าหมาย: {target_age if target_age else 'ไม่ได้ระบุ'}
+เพศกลุ่มเป้าหมาย: {target_gender if target_gender else 'ไม่ได้ระบุ (ให้วิเคราะห์จากชื่อสินค้า/คำอธิบายเอง)'}
+ประเทศ/เชื้อชาติของโมเดล: {country if country else 'thai'}
+ราคา: {price if price else 'ไม่ระบุ'}
+Product ID: {product_id if product_id else 'ไม่ระบุ'}"""
 
     raw = _call_gemini(PRODUCT_ANALYSIS_SYSTEM, user_text, temperature=0.3)
     gemini_profile = _extract_json(raw) if raw else None
 
     if not gemini_profile:
         logger.warning("Gemini analysis failed — using default profile with Router context")
-        gender_en = "person"
+        gender_en = ""
         profile = {
             "category": "other",
-            "target_gender": "person",
-            "target_age": "25-35",
-            "target_audience": f"คนที่กำลังมองหา{product_name[:20]}",
+            "country": country or "thai",
+            "target_gender": "",
+            "target_age": "",
+            "target_audience": f"คนที่กำลังมองหา{_thai_safe_truncate(product_name, 20)}",
             "setting": "clean modern lifestyle setting",
-            "customer_problem": f"ปัญหาที่{product_name[:30]}นี้ช่วยแก้",
-            "main_benefit": f"คุณประโยชน์ของ{product_name[:20]}",
+            "customer_problem": f"ปัญหาที่{_thai_safe_truncate(product_name, 30)}นี้ช่วยแก้",
+            "main_benefit": f"คุณประโยชน์ของ{_thai_safe_truncate(product_name, 20)}",
             "packaging_action": "generic_hold",
             "action_desc": "ถือสินค้าและใช้งานทั่วไป",
-            "hashtags": keywords[:5] if len(keywords) >= 5 else [product_name.replace(" ", "")[:20]] * 5,
+            "hashtags": keywords[:5] if len(keywords) >= 5 else [_thai_safe_truncate(product_name.replace(" ", ""), 20)] * 5,
             "image_description": "",
             # Extract basic features from description when Gemini fails
             "features": _extract_features_from_description(description) if description else "",
@@ -149,6 +194,7 @@ Keywords: {kw_str}"""
         }
     else:
         profile = gemini_profile
+        profile["country"] = country or "thai"
         # Normalize hashtags
         h = profile.get("hashtags", [])
         if isinstance(h, str):
@@ -156,11 +202,28 @@ Keywords: {kw_str}"""
         elif isinstance(h, list):
             h = [x.strip().replace("#", "") for x in h if x.strip()]
         while len(h) < 5:
-            h.append(product_name.replace(" ", "").replace("\n", "")[:20])
+            h.append(_thai_safe_truncate(product_name.replace(" ", "").replace("\n", ""), 20))
         profile["hashtags"] = h[:5]
 
     if features:
         profile["features"] = features
+
+    # ── usage_action fallback ─────────────────────────────────────────
+    # Gemini sometimes omits usage_action. For fashion/wearable products the
+    # model must WEAR the garment (never hold it). Provide a sensible default
+    # so the Gemini media-generation path (build_image_prompt/build_video_prompt)
+    # is always used for fashion.
+    if not profile.get("usage_action", ""):
+        _cat = (profile.get("category") or category or "").lower()
+        if _is_wearable_category(_cat):
+            profile["usage_action"] = (
+                "already wearing the garment, she smooths the pleats and turns "
+                "slowly to showcase the silhouette and the fabric quality"
+            )
+        else:
+            profile["usage_action"] = (
+                "holding the product and showing it to camera, then using it naturally"
+            )
 
     # Merge Router Agent insights into profile
     profile["router_config"] = {
@@ -206,7 +269,7 @@ def _extract_features_from_description(description: str) -> str:
     if spec_patterns:
         return ", ".join(spec_patterns[:6])
     # Last resort: first sentence
-    return desc[:80]
+    return _thai_safe_truncate(desc, 80)
 
 def _extract_appearance_from_description(description: str) -> str:
     """Extract physical appearance from plaintext description."""
@@ -218,8 +281,8 @@ def _extract_appearance_from_description(description: str) -> str:
                'white', 'black', 'pink', 'bottle', 'spray', 'nozzle', 'ขนาด', 'น้ำหนัก']:
         if kw.lower() in desc.lower():
             # Return first 100 chars that contain appearance context
-            return desc[:100]
-    return desc[:60]
+            return _thai_safe_truncate(desc, 100)
+    return _thai_safe_truncate(desc, 60)
 
 
 def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holding") -> str:
@@ -232,23 +295,19 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     - Each style produces distinctly different output
     """
     templates = load_ugc_templates(ugc_style)
-    style_info = STYLE_MAP.get(ugc_style, STYLE_MAP["holding"])
+    # For wearable/fashion products, force the fashion_lookbook style so the model
+    # WEARS the garment (never holds it). The product IS the outfit on the body.
+    if _is_wearable_category(profile.get("category", "other")):
+        style_info = STYLE_MAP.get("fashion_lookbook", STYLE_MAP["holding"])
+    else:
+        style_info = STYLE_MAP.get(ugc_style, STYLE_MAP["holding"])
     model_gender = profile.get("target_gender")
-    model_age = profile.get("_normalized_age") or _normalize_age(profile.get("target_age", "20-35"))
+    model_age = profile.get("_normalized_age") or _normalize_age(profile.get("target_age", "")) or ""
     category = profile.get("category", "other")
 
     # ── Category-aware display action (clothing → wearing, others → holding) ──
-    _cat_action = _get_category_display_action(category)
-    _cat_hold = _cat_action["holds"]
-    _cat_pose = _cat_action["pose_phrase"]
-    _cat_hold_replace = _cat_action["hold_replace"]
-    style_info = _override_style_for_clothing(style_info, category)
 
-    gender_en = {
-        "female": "woman", "woman": "woman",
-        "male": "man", "man": "man",
-        "unisex": "person", "person": "person"
-    }.get(model_gender, "person")
+    gender_en = {"female": "woman", "male": "man"}.get(model_gender, "")
     
     persona_clothing = profile.get("persona_clothing", "")
     persona_hair = profile.get("persona_hair", "")
@@ -265,17 +324,61 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         pa_clean = re.sub(r'^(The\s+)?product\s+(is\s+)?', '', pa_clean, flags=re.IGNORECASE).strip()
         pa_clean = pa_clean[0].lower() + pa_clean[1:] if pa_clean else ""
         pa_clean = re.sub(r'^(a|an)\s+', '', pa_clean, flags=re.IGNORECASE).strip()
+        pa_clean = re.sub(r'^the\s+', '', pa_clean, flags=re.IGNORECASE).strip()
         article = "an" if pa_clean[:1].lower() in "aeiou" else "a"
     
-    env_str = (env_context or "a modern lifestyle setting")[:120]
-    thai_base = f"An ethnic Thai {gender_en}, {model_age} years old, porcelain white glowing skin, monolid eyes, Southeast Asian ethnic Thai features, small nose bridge"
+    env_str = _thai_safe_truncate(env_context or "a modern lifestyle setting", 120)
+    age_seg = f" {model_age} years old" if model_age else ""
+    _eth_label, _eth_features = _country_ethnicity(profile.get("country", ""))
+    thai_base = f"An {_eth_label} {gender_en}{age_seg}, {_eth_features}, small nose bridge"
     
+    _used_media_img = False  # True when Gemini media generation produced the image_prompt
+
+
     # ── Priority 1: Direct Gemini Vision Scene Description (Exact Product Visual Match) ──
-    if image_description and len(image_description) > 20:
+    if False and image_description and len(image_description) > 20:  # disabled: vision describes product-only photo, not the model
         if _is_wearable_category(category):
             image_description = image_description.replace("holding", "wearing").replace("hold", "wear")
+        # Gemini hardcodes a gender even when user selected opposite —
+        # force it to match the RESOLVED target gender (user input authoritative).
+        image_description = _normalize_gender_in_description(image_description, gender_en)
+        if age_seg and age_seg not in image_description:
+            # Gemini Vision only sees the photo — it cannot know the target age.
+            # Inject the age so image + video prompts stay consistent.
+            _eth_label, _eth_features = _country_ethnicity(profile.get("country", ""))
+            m = re.search(rf'(ethnic\s+\w+\s+(?:woman|man|person))', image_description, re.IGNORECASE)
+            if m:
+                image_description = image_description[:m.end()] + age_seg + image_description[m.end():]
+            else:
+                tail = image_description[0].lower() + image_description[1:] if image_description else ""
+                image_description = f"{thai_base}, {tail}".strip()
         scene_desc = image_description
     # ── Priority 2: Style-driven scene fallback ─────────────────
+    # Step 2: usage_action-driven media generation (Gemini 2-step architecture)
+    # When the vision analysis produced a usage_action, use the MEDIA_GENERATION_SYSTEM
+    # image_prompt (constructed scene-first, product integrated naturally).
+    elif profile.get("usage_action", "") and ugc_style not in ("product_demo", "tabletop", "tabletop_demo"):
+        _media_img, _media_vid = _get_media_prompts_cached(
+            product_name=product_name,
+            product_appearance=pa_clean or product_name,
+            usage_action=profile.get("usage_action", ""),
+            ugc_style=ugc_style,
+            category=category,
+            model_gender=gender_en,
+            model_age=str(model_age) if model_age else "",
+            env_context=env_context,
+            features=profile.get("features", ""),
+            country=profile.get("country", ""),
+        )
+        if _media_img:
+            scene_desc = _media_img
+            _used_media_img = True
+        else:
+            raise RuntimeError(
+                f"Gemini media generation returned empty image_prompt for product "
+                f"'{product_name}' (usage_action='{profile.get('usage_action', '')}'). "
+                f"No fallback — fix the Gemini call."
+            )
     elif ugc_style == "product_demo":
         prod_desc = product_appearance or product_name
         try:
@@ -288,7 +391,7 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             preset_mood = "clean, informative"
             preset_light = "clean studio light"
         scene_desc = (
-            f"Product placed on {env_str}. {prod_desc[:200]} — "
+            f"Product placed on {env_str}. {_thai_safe_truncate(prod_desc, 200)} — "
             f"clean surface, product centered in frame. "
             f"Product features clearly visible. No people in frame. "
             f"Lighting: {preset_light}. Mood: {preset_mood}."
@@ -303,14 +406,14 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             category=category,
             model_age=model_age,
             model_gender=gender_en,
-            clothing=clothing_str.lstrip(", wearing "),
-            hair=hair_str.lstrip(", "),
+            clothing=profile.get("persona_clothing", ""),
+            hair=profile.get("persona_hair", ""),
             ugc_style=ugc_style,
         )
         if gemini_image:
             scene_desc = gemini_image
         elif pa_clean:
-            prod_str = f"{article} {pa_clean[:200]}"
+            prod_str = f"{article} {_thai_safe_truncate(pa_clean, 200)}"
             scene_desc = (
                 f"{env_str}. {thai_base}{clothing_str}{hair_str} beside {prod_str or product_name} — "
                 f"about to use the product. "
@@ -326,7 +429,7 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     elif ugc_style == "review":
         # Person holding product + looking at camera, review-style
         if pa_clean:
-            prod_str = f"{article} {pa_clean[:200]}"
+            prod_str = f"{article} {_thai_safe_truncate(pa_clean, 200)}"
             scene_desc = (
                 f"{env_str}. {thai_base}{clothing_str}{hair_str} holds {prod_str or product_name} in hand, "
                 f"looking directly at camera with a friendly reviewing expression. "
@@ -342,7 +445,7 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     elif ugc_style in ("tabletop", "tabletop_demo"):
         # Product on table, person's hands demonstrating
         if pa_clean:
-            prod_str = f"{article} {pa_clean[:200]}"
+            prod_str = f"{article} {_thai_safe_truncate(pa_clean, 200)}"
             scene_desc = (
                 f"{env_str}. On a table sits {prod_str}. "
                 f"{thai_base}{clothing_str}{hair_str} gestures toward it, "
@@ -357,7 +460,7 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     elif ugc_style in ("talking", "talking_head"):
         # Head/shoulders framing, talking about product
         if pa_clean:
-            prod_str = f"{article} {pa_clean[:200]}"
+            prod_str = f"{article} {_thai_safe_truncate(pa_clean, 200)}"
         else:
             prod_str = product_name
         scene_desc = (
@@ -378,7 +481,7 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     else:
         # Default: holding — person holds product, shows to camera
         if pa_clean:
-            prod_str = f"{article} {pa_clean[:200]}"
+            prod_str = f"{article} {_thai_safe_truncate(pa_clean, 200)}"
             scene_desc = (
                 f"{env_str}. {thai_base}{clothing_str}{hair_str} holds {prod_str or product_name} in both hands, "
                 f"showing product clearly to camera. Warm natural window lighting. "
@@ -393,6 +496,15 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     # ── Category modifiers (SECONDARY) ───────────────────────────────
     # No hardcoded beauty restrictions — Gemini handles appropriateness
     
+    # ── Wearing guard (source of truth: clothing must be WORN, never held) ──
+    if (_is_wearable_category(category) or ugc_style in ("fashion_lookbook", "lookbook", "outfit", "fashion")) and "holds" in scene_desc:
+        head = scene_desc.rsplit("holds", 1)[0].rstrip(", ")
+        scene_desc = (
+            f"{head} wearing the garment naturally, full body visible, "
+            f"garment clearly in frame and fitting naturally. "
+            f"Warm natural window lighting."
+        )
+
     # ── Build final prompt ──
     data = {
         "scene_description": scene_desc,
@@ -405,7 +517,7 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         "atmosphere": "warm, inviting, authentic",
         "color_palette": "natural tones, neutral background",
         "background": "clean minimal background",
-        "model_action": _cat_action["model_action_tail"] if _is_wearable_category(category) else style_info.get("model_action", "",),
+        "model_action": WEARABLE_IMAGE_ACTION if _is_wearable_category(category) else style_info.get("model_action", "",),
         "camera": style_info.get("camera", ""),
         "vibe": style_info.get("vibe", ""),
         "keywords": style_info.get("keywords", ""),
@@ -413,6 +525,18 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     }
     if templates.get("master"):
         image_prompt = fill_template(templates["master"], data)
+        negative = templates.get("negative", "")
+    elif _used_media_img:
+        # Gemini media generation already produced a complete, non-conflicting
+        # image_prompt (action + single setting + lighting). Do NOT append the
+        # STYLE_MAP model_action/camera/vibe — that would duplicate/conflict.
+        image_prompt = (
+            f"{scene_desc}. "
+            f"natural composition, warm inviting atmosphere. "
+            f"The product is clearly in frame. "
+            f"soft natural lighting. "
+            f"--ar 9:16"
+        )
         negative = templates.get("negative", "")
     else:
         image_prompt = (
@@ -432,6 +556,37 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     image_prompt = re.sub(r',\s*,', ',', image_prompt)
     image_prompt = re.sub(r'\s+', ' ', image_prompt)
     image_prompt = image_prompt.strip()
+    # model_action templates may embed a hardcoded 'Ethnic Thai woman' —
+    # force every gender word to match the resolved target gender.
+    image_prompt = _normalize_gender_in_description(image_prompt, gender_en)
+    # Strip any hardcoded ethnicity from the engine action — the ethnicity
+    # is injected via the country field (single source of truth).
+    image_prompt = re.sub(r'Model\s+with\s+[^,]+features', '', image_prompt, flags=re.IGNORECASE).strip()
+    image_prompt = re.sub(r'^,\s*', '', image_prompt).strip()
+
+    # ── Ethnicity + age guard (safety net) ─────────────────────────────
+    # Gemini sometimes omits the ethnicity/age even when instructed. The model
+    # must always look like a Southeast Asian Thai person at the target age,
+    # never a white/foreign model. If the ethnicity is missing, prepend it.
+    # SKIP for product-only styles (product_demo/unboxing/comparison/split_comparison)
+    # where NO person/model should appear in frame.
+    if (gender_en and ugc_style not in ("product_demo", "unboxing", "comparison", "split_comparison")
+            and not re.search(r'ethnic\s+\w+', image_prompt, re.IGNORECASE)):
+        age_guard = f", {model_age} years old" if model_age else ""
+        _eth_label, _eth_features = _country_ethnicity(profile.get("country", ""))
+        image_prompt = f"An {_eth_label} {gender_en}{age_guard}, {_eth_features}. {image_prompt}"
+
+    # ── Age consistency guard ─────────────────────────────────────────
+    # Gemini sometimes writes a different age than the resolved target age.
+    # Force every "N years old" in the prompt to match _normalized_age so
+    # image + video prompts stay consistent.
+    if model_age:
+        image_prompt = re.sub(
+            r'\b\d{1,2}\s+years?\s+old\b',
+            f'{model_age} years old',
+            image_prompt,
+            flags=re.IGNORECASE,
+        )
 
     return image_prompt, negative
 
@@ -443,154 +598,90 @@ def img_desc_sentences(text: str) -> list:
 
 def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holding") -> str:
     """Generate video prompt for Wan 2.7 img2vid.
-    Style-driven, category-modulated.
-    
-    PRINCIPLE:
-    - ugc_style controls person action (holding, reviewing, using)
-    - category controls environment/context detail only
-    - Person is ALWAYS in the scene
+
+    Uses Gemini (via _get_media_prompts_cached) to produce a cinematic,
+    narrative video prompt with clear scene, movement, and direction.
+    Falls back to the STYLE_MAP-driven template if Gemini fails.
     """
-    style_info = STYLE_MAP.get(ugc_style, STYLE_MAP["holding"])
+    # Wearable/fashion products → fashion_lookbook (model WEARS the garment, never holds)
+    if _is_wearable_category(profile.get("category", "other")):
+        style_info = STYLE_MAP.get("fashion_lookbook", STYLE_MAP["holding"])
+    else:
+        style_info = STYLE_MAP.get(ugc_style, STYLE_MAP["holding"])
     model_gender = profile.get("target_gender")
-    model_setting = profile.get("setting", "clean modern lifestyle setting")
+    env_context = profile.get("env_context", "a modern space")
     category = profile.get("category", "other")
 
-    # ── Category-aware display action (clothing → wearing, others → holding) ──
-    _cat_action = _get_category_display_action(category)
-    _cat_hold = _cat_action["holds"]
-    _cat_pose = _cat_action["pose_phrase"]
-    _cat_hold_replace = _cat_action["hold_replace"]
-    style_info = _override_style_for_clothing(style_info, category)
+    gender_en = {"female": "woman", "male": "man"}.get(model_gender, "")
+    model_age = profile.get("_normalized_age") or _normalize_age(profile.get("target_age", "")) or ""
 
-    gender_en = {"female": "woman", "male": "man", "unisex": "person"}.get(model_gender, "person")
-    persona_clothing = profile.get("persona_clothing", "")
-    persona_hair = profile.get("persona_hair", "")
-    clothing_str = f", wearing {persona_clothing}" if persona_clothing else ""
-    hair_str = f", {persona_hair}" if persona_hair else ""
-    model_age = profile.get("_normalized_age") or _normalize_age(profile.get("target_age", "20-35"))
-    
     # ── Product description (common) ──
-    env_context = profile.get("env_context", "a modern space")
     product_appearance = profile.get("product_appearance", "")
     pa_clean = product_appearance
     if pa_clean:
         pa_clean = re.sub(r'^(The\s+)?product\s+(is\s+)?', '', pa_clean, flags=re.IGNORECASE).strip()
         pa_clean = pa_clean[0].lower() + pa_clean[1:] if pa_clean else ""
         pa_clean = re.sub(r'^(a|an)\s+', '', pa_clean, flags=re.IGNORECASE).strip()
+        pa_clean = re.sub(r'^the\s+', '', pa_clean, flags=re.IGNORECASE).strip()
         article = "an" if pa_clean[:1].lower() in "aeiou" else "a"
-        prod_desc_vid = f"{article} {pa_clean[:200]}"
+        prod_desc_vid = f"{article} {_thai_safe_truncate(pa_clean, 200)}"
     else:
         prod_desc_vid = product_name
-    
-    model_intro = f"Ethnic Thai {gender_en} {model_age} years old, porcelain white glowing skin, monolid eyes, Southeast Asian ethnic Thai features{clothing_str}{hair_str}"
-    
-    # ── Style-driven video_motion (ugc_style is PRIMARY) ──────────
-    if ugc_style == "product_demo":
-        prod = prod_desc_vid or product_name
-        action = (
-            f"{prod} on {env_context}. Product centered, clean surface, minimal composition. "
-            f"Camera slow push in. Product features clearly visible. "
-            f"No people. 9:16 portrait, smooth natural motion."
-        )
-    elif ugc_style in ("usage", "product_usage"):
-        # Try Gemini for natural product usage description
-        gemini_image, gemini_video = _gemini_generate_prompts(
+
+    # ── Try Gemini first (cinematic narrative video prompt) ──
+    try:
+        _media_img, _media_vid = _get_media_prompts_cached(
             product_name=product_name,
             product_appearance=pa_clean or product_name,
-            features=profile.get("features", ""),
-            env_context=env_context,
-            category=category,
-            model_age=model_age,
-            model_gender=gender_en,
-            clothing=clothing_str.lstrip(", wearing "),
-            hair=hair_str.lstrip(", "),
+            usage_action=profile.get("usage_action", ""),
             ugc_style=ugc_style,
+            category=category,
+            model_gender=gender_en,
+            model_age=str(model_age) if model_age else "",
+            env_context=env_context,
+            features=profile.get("features", ""),
+            country=profile.get("country", ""),
         )
-        if gemini_video:
-            action = gemini_video
-        else:
-            # Fallback: simple generic prompt — no is_* branches
-            action = (
-                f"{model_intro} in {env_context} with {prod_desc_vid or product_name}. "
-                f"They naturally demonstrate how to use the product — "
-                f"the key function is shown. "
-                f"Product features are visible as she uses it. "
-                f"Natural product usage demonstration"
-            )
-    elif ugc_style == "review":
-        # Person holding product + looking at camera, review-style
-        action = (
-            f"{model_intro} holds {prod_desc_vid or product_name} in hand, "
-            f"looking directly at camera with slight head tilt, casual reviewing pose. "
-            f"Slow gentle movement, showing product from slightly different angles. "
-            f"Lifestyle setting, product visible. "
-            f"Person speaking casually, product in hand"
-        )
-    elif ugc_style in ("tabletop", "tabletop_demo"):
-        # Product on table, person's hands visible
-        action = (
-            f"{prod_desc_vid or product_name} sits on table. "
-            f"{model_intro} nearby points at it and gestures with hands. "
-            f"Camera pans slowly showing product on tabletop, hands visible in frame. "
-            f"Product-centered demonstration, person gesturing"
-        )
-    elif ugc_style in ("talking", "talking_head"):
-        # Head/shoulders, talking about product
-        action = (
-            f"{model_intro} in medium close-up, facing camera, "
-            f"speaking naturally about {prod_desc_vid or product_name}. "
-            f"Gentle head movements, conversational tone. "
-            f"Product resting nearby, slightly blurred in foreground. "
-            f"Smooth natural motion, person talking to camera"
-        )
-    elif ugc_style == "unbox":
-        action = (
-            f"{model_intro} unboxing {prod_desc_vid or product_name}, "
-            f"hands opening packaging, lifting product out. "
-            f"Slight excitement in movement. "
-            f"Product emerging from packaging, unboxing reveal motion"
-        )
+        if _media_vid and len(_media_vid) > 20:
+            # Gemini produced a complete narrative video prompt — use it.
+            video_prompt = _media_vid
+            video_prompt = re.sub(r'\s+', ' ', video_prompt).strip()
+            video_prompt = _normalize_gender_in_description(video_prompt, gender_en)
+            # ── Age consistency guard ─────────────────────────────────
+            # Gemini sometimes writes a different age than the resolved target
+            # age. Force every "N years old" to match _normalized_age so the
+            # image + video prompts stay consistent.
+            if model_age:
+                video_prompt = re.sub(
+                    r'\b\d{1,2}\s+years?\s+old\b',
+                    f'{model_age} years old',
+                    video_prompt,
+                    flags=re.IGNORECASE,
+                )
+            return video_prompt
+    except Exception as e:
+        logger.warning(f"Gemini video prompt generation failed, falling back to template: {e}")
+
+    # ── Fallback: STYLE_MAP-driven template ──
+    age_seg = f" {model_age} years old" if model_age else ""
+    _eth_label, _eth_features = _country_ethnicity(profile.get("country", ""))
+    model_intro = f"{_eth_label} {gender_en}{age_seg}"
+
+    _style_action = style_info.get("model_action", "").strip()
+    _style_motion = style_info.get("video_motion", "").strip()
+    _style_action = re.sub(r'Model\s+with\s+[^,]+features', '', _style_action, flags=re.IGNORECASE).strip()
+    _style_action = re.sub(r'^,\s*', '', _style_action).strip()
+    if _style_action:
+        action = f"{model_intro} {_style_action}, product: {prod_desc_vid or product_name}"
+        if _style_motion and _style_motion.lower() not in action.lower():
+            action += f", {_style_motion}"
     else:
-        # Default: holding — show product, gentle rotation
-        action = (
-            f"{model_intro} gently holding {prod_desc_vid or product_name} in both hands, "
-            f"showing product to camera with slight slow rotation. "
-            f"Warm natural motion, product centered. "
-            f"Person holding product gently at chest level"
-        )
-    
-    # ── Category-specific restrictions (SECONDARY) ──
-    video_prompt = action
-    # No more hardcoded beauty restrictions — Gemini handles appropriateness
-    
-    video_prompt += (
-        f" Setting: {model_setting}. "
-        f"{env_context}. "
-        f"soft natural lighting, warm atmosphere. "
-        f"9:16 portrait, smooth natural motion"
-    )
-    
+        action = f"{model_intro} gently holding {prod_desc_vid or product_name} in both hands, showing product to camera with slight slow rotation"
+
+    video_prompt = f"{env_context.rstrip('.')}. {action} soft natural lighting, warm atmosphere. 9:16 portrait, smooth natural motion"
     video_prompt = re.sub(r'\s+', ' ', video_prompt).strip()
+    video_prompt = _normalize_gender_in_description(video_prompt, gender_en)
     return video_prompt
-
-
-def _normalize_age(raw_age) -> int:
-    """Normalize age to true uniform random 18-25 range for UGC models."""
-    import random
-    try:
-        if isinstance(raw_age, (int, float)):
-            age = int(raw_age)
-        else:
-            parts = str(raw_age).replace(" ", "").split("-")
-            nums = [int(p) for p in parts if p.isdigit()]
-            age = nums[0] if nums else 22
-        # Clamp within 18-25 if single age provided, else generate random 18-25
-        if 18 <= age <= 25:
-            return age
-    except Exception:
-        pass
-    return random.randint(18, 25)
-
 
 def build_negative_prompt(profile: dict, ugc_style: str = "holding") -> str:
     """Build negative prompt — just the defaults (text/watermark/hands/distortion).
@@ -621,6 +712,8 @@ async def analyze_and_build_prompts(
     category: str = "",
     product_category: str = "",
     target_duration: int = 15,
+    target_age: str = "",
+    country: str = "",
 ) -> dict:
     """
     Full pipeline:
@@ -631,7 +724,19 @@ async def analyze_and_build_prompts(
       5. Return everything in one dict
     """
     # Step 1: Analyze (includes Router Agent call)
-    profile = analyze_product(product_name, description, keywords, target_duration=target_duration, features=features)
+    profile = analyze_product(
+        product_name, description, keywords,
+        target_duration=target_duration,
+        features=features,
+        target_age=target_age,
+        ugc_style=ugc_style,
+        category=category,
+        target_gender=target_gender,
+        product_id=product_id,
+        price=price,
+        product_category=product_category,
+        country=country,
+    )
 
     # Router Agent insights are purely advisory — NEVER override user's ugc_style choice
     # The user's ugc_style selection is always authoritative
@@ -648,7 +753,7 @@ async def analyze_and_build_prompts(
     if vision_profile:
         for key in ["category", "target_gender", "target_age", "target_audience", "setting",
                      "customer_problem", "main_benefit", "env_context", "product_appearance",
-                     "image_description", "features"]:
+                     "image_description", "features", "usage_action"]:
             if key in vision_profile and vision_profile[key]:
                 profile[key] = vision_profile[key]
         # product_type from vision overwrites text analysis
@@ -659,12 +764,27 @@ async def analyze_and_build_prompts(
 
     # Ensure target_gender is explicitly resolved
     if profile.get("target_gender", "") in ("", None):
-        profile["target_gender"] = "person"
+        profile["target_gender"] = ""
 
     # Override with explicit params if provided
     # Override with explicit target_gender if provided
+    if not target_gender:
+        # Auto-detect gender from product name/description — LLM may guess wrong
+        # (e.g. "เบลเซอร์ผู้ชาย" → female) so the product text is authoritative.
+        # "สตรีท" (street) contains substring "สตรี" → normalize first so
+        # streetwear is NOT misclassified as female.
+        combined = (f"{product_name} {description}").lower().replace("สตรีท", "street")
+        if any(w in combined for w in ("ผู้ชาย", "ชาย", "gentleman", "for men", "mens")):
+            target_gender = "male"
+        elif any(w in combined for w in ("ผู้หญิง", "หญิง", "lady", "ladies", "sukhon", "สุภาพสตรี", "for women", "womens", "สตรี")):
+            target_gender = "female"
+        elif not target_gender:
+            # No gender signal in product data → keep empty, never invent
+            target_gender = ""
     if target_gender:
         profile["target_gender"] = target_gender
+    if target_age:
+        profile["target_age"] = target_age
 
     if category:
         profile["category"] = category
@@ -677,7 +797,7 @@ async def analyze_and_build_prompts(
     logger.info(f"Persona: {persona.get('vibe', '')} | Env: {persona.get('environment', '')}")
 
     # Sync age — normalize once so image + video prompt ages match
-    profile["_normalized_age"] = _normalize_age(profile.get("target_age", "20-35"))
+    profile["_normalized_age"] = _normalize_age(profile.get("target_age", ""))
 
     # Step 4: Clear Gemini cache for fresh prompts, then build
     _gemini_prompt_cache.clear()
@@ -695,11 +815,16 @@ async def analyze_and_build_prompts(
     
     result = {
         "product_id": product_id,
+        "price": price,
+        "product_category": product_category,
         "router_config": router_config,
         "analysis": {
             "category": profile.get("category", "other"),
-            "target_gender": profile.get("target_gender", "unisex"),
-            "target_age": profile.get("target_age", "20-35"),
+            "target_gender": profile.get("target_gender", ""),
+            "target_age": profile.get("target_age", ""),
+            "price": profile.get("price") or price,
+            "product_id": profile.get("product_id") or product_id,
+            "product_category": profile.get("product_category") or product_category,
             "target_audience": profile.get("target_audience", ""),
             "setting": profile.get("setting", ""),
             "customer_problem": profile.get("customer_problem", ""),
@@ -754,7 +879,7 @@ async def analyze_and_build_prompts(
         } if vision_profile else None,
     }
     
-    logger.info(f"Prompt built for [{product_name[:30]}]: img={len(image_prompt)}ch, vid={len(video_prompt)}ch")
+    logger.info(f"Prompt built for [{_thai_safe_truncate(product_name, 30)}]: img={len(image_prompt)}ch, vid={len(video_prompt)}ch")
     return result
 
 
@@ -803,16 +928,63 @@ def _estimate_speech_duration(text: str) -> float:
     switches = 1 if (thai_chars > 0 and non_thai_chars > 0) else 0
     return thai_sec + non_thai_sec + (switches * 0.1)
 
-def _trim_to_word(text: str, max_chars: int) -> str:
-    """Trim text to max_chars without cutting mid-word."""
-    if len(text) <= max_chars:
-        return text
-    trimmed = text[:max_chars]
-    last_space = trimmed.rfind(" ")
-    if last_space > max_chars * 0.6:
-        return trimmed[:last_space]
-    return trimmed[:max_chars]
+_THAI_DANGLING_CHARS = set("\u0e40\u0e41\u0e42\u0e43\u0e44\u0e34\u0e35\u0e36\u0e37\u0e38\u0e39\u0e3a\u0e48\u0e49\u0e4a\u0e4b\u0e4c\u0e4d\u0e4e")
+_THAI_CONSONANTS = set(chr(c) for c in range(0x0E01, 0x0E2F))  # ก..ฮ
 
+def _thai_safe_truncate(text: str, max_chars: int, extra_buffer: int = 5) -> str:
+    """Truncate text to max_chars without cutting a Thai word in half.
+
+    Strategy:
+      1. If the cut point splits a Thai word, extend to the next word boundary
+         (whitespace / punctuation / end of word) so the word stays whole.
+      2. Never leave a dangling Thai leading vowel / tone mark / vowel mark
+         as the final character.
+      3. For mixed Latin text, prefer a whitespace boundary.
+    """
+    if not text or len(text) <= max_chars:
+        return text
+
+    cut = max_chars
+    if 0 < cut < len(text):
+        prev_char = text[cut - 1]
+        next_char = text[cut]
+        # Mid-word cut: a Thai consonant/vowel-mark sits right before the cut
+        # and more Thai (consonant or vowel mark) follows after it.
+        if (
+            prev_char in _THAI_CONSONANTS
+            and (next_char in _THAI_CONSONANTS or next_char in _THAI_DANGLING_CHARS)
+        ) or (
+            prev_char in _THAI_DANGLING_CHARS and next_char in _THAI_CONSONANTS
+        ):
+            # Extend to the next word boundary (whitespace / punctuation / end)
+            # so the Thai word is never split mid-word. Cap at a generous limit
+            # to avoid runaway growth on very long unbroken strings.
+            limit = min(len(text), max_chars + max(extra_buffer, 40))
+            while cut < limit and text[cut] not in " \n\t.,;:!?()":
+                cut += 1
+
+    # Never leave a dangling Thai vowel / tone mark at the end.
+    while cut > 0 and text[cut - 1] in _THAI_DANGLING_CHARS:
+        cut -= 1
+
+    # Prefer a whitespace boundary for mixed Latin text.
+    min_cut = max_chars * 0.6
+    if cut > min_cut:
+        last_space = text.rfind(" ", 0, cut)
+        if last_space > min_cut:
+            cut = last_space
+    return text[:cut]
+def _trim_to_word(text: str, max_chars: int) -> str:
+    """Trim text to max_chars without cutting mid-word or breaking Thai chars."""
+    if not text or len(text) <= max_chars:
+        return text
+    # Prefer a whitespace boundary so Thai words are never split mid-word.
+    # Fall back to _thai_safe_truncate (which extends up to extra_buffer chars)
+    # only when no whitespace exists within a reasonable window.
+    last_space = text.rfind(" ", 0, max_chars)
+    if last_space > max_chars * 0.5:
+        return text[:last_space]
+    return _thai_safe_truncate(text, max_chars, extra_buffer=12)
 
 
 def _build_timing_validated_script(product_name: str, category: str = "beauty", profile: dict = None) -> dict:
@@ -839,14 +1011,14 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
                     kept.append(p)
                 elif not p.isupper():
                     kept.append(p)
-        candidate = ' '.join(kept) if kept else product_name[:30]
-        product_short = candidate if len(candidate) <= 35 else ' '.join(kept[:3]) if len(kept) >= 3 else product_name[:30]
+        candidate = ' '.join(kept) if kept else _thai_safe_truncate(product_name, 30)
+        product_short = candidate if len(candidate) <= 35 else ' '.join(kept[:3]) if len(kept) >= 3 else _thai_safe_truncate(product_name, 30)
     
     if len(product_short) < 5:
-        product_short = product_name[:30]
+        product_short = _thai_safe_truncate(product_name, 30)
     
     # Gender-aware Thai register
-    target_gender = profile.get("target_gender", "person") if profile else "person"
+    target_gender = (profile or {}).get("target_gender", "")
     is_female = target_gender in ("female", "woman")
     reg_hook = "คะ" if is_female else "ครับ"
     reg_val = "ค่ะ" if is_female else "ครับ"
@@ -858,7 +1030,21 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
     if customer_problem and main_benefit and len(customer_problem) > 5:
         # Shorten problem and benefit for natural spoken Thai
         hook_text = _trim_to_word(customer_problem, 40)
-        value_text = f"{product_short} {_trim_to_word(main_benefit, 45)}"
+        # Value segment: do NOT repeat the product name (it was already said in
+        # the hook). Strip the product name (and its reordered tokens) from
+        # main_benefit so the script doesn't sound repetitive.
+        benefit = _trim_to_word(main_benefit, 45)
+        # Collect distinctive product-name tokens (len>=3) to strip from benefit.
+        name_tokens = []
+        for name in (product_short, product_name):
+            for tok in name.split():
+                tok = tok.strip("(),.!")
+                if len(tok) >= 3 and tok not in name_tokens:
+                    name_tokens.append(tok)
+        for tok in sorted(name_tokens, key=len, reverse=True):
+            benefit = benefit.replace(tok, "")
+        benefit = re.sub(r'\s+', ' ', benefit).strip(" ,")
+        value_text = f"{product_short} {benefit}" if benefit else product_short
     elif category in ("home", "electronics", "tools"):
         hook_text = f"เจอปัญหานี้อยู่ใช่ไหม{reg_hook}"
         value_text = f"{product_short} ตัวนี้ช่วยได้เยอะเลย{reg_val}"
@@ -932,6 +1118,48 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
 # Cache: same product+age within same request returns cached result
 _gemini_prompt_cache = {}
 
+# Cache for Step-2 media generation (usage_action-driven). Keyed by
+# (product_name, usage_action) so build_image_prompt and build_video_prompt
+# share ONE Gemini call per product instead of two.
+_media_prompt_cache = {}
+
+
+def _get_media_prompts_cached(
+    product_name: str,
+    product_appearance: str,
+    usage_action: str,
+    ugc_style: str,
+    category: str,
+    model_gender: str,
+    model_age: str = "",
+    env_context: str = "",
+    features: str = "",
+    country: str = "",
+) -> tuple:
+    """Cached wrapper around _generate_media_prompts (Step 2).
+
+    build_image_prompt and build_video_prompt both call this; the cache
+    ensures only ONE Gemini call happens per (product, usage_action).
+    Returns (image_prompt, video_prompt).
+    """
+    _cache_key = (product_name, usage_action, ugc_style)
+    if _cache_key in _media_prompt_cache:
+        return _media_prompt_cache[_cache_key]
+    result = _generate_media_prompts(
+        product_name=product_name,
+        product_appearance=product_appearance,
+        usage_action=usage_action,
+        ugc_style=ugc_style,
+        category=category,
+        model_gender=model_gender,
+        model_age=model_age,
+        env_context=env_context,
+        features=features,
+        country=country,
+    )
+    _media_prompt_cache[_cache_key] = result
+    return result
+
 def _gemini_generate_prompts(
     product_name: str,
     product_appearance: str,
@@ -949,7 +1177,7 @@ def _gemini_generate_prompts(
     Returns (image_prompt, video_prompt) — falls back to ("", "") on error.
     """
     # Build a concise product info block
-    gender_en = {"female": "woman", "woman": "woman", "male": "man", "man": "man"}.get(model_gender, "person")
+    gender_en = {"female": "woman", "male": "man"}.get(model_gender, "")
     
     # Cache by product name + age — avoid duplicate calls within same request
     _cache_key = (product_name, model_age)
@@ -967,7 +1195,7 @@ def _gemini_generate_prompts(
     if isinstance(features, list):
         feat_str = "; ".join(f.strip() for f in features if f.strip())
     elif isinstance(features, str) and features:
-        feat_str = features[:200]
+        feat_str = _thai_safe_truncate(features, 200)
     
     # Wan 2.7 is a diffusion model — it ONLY understands literal visual descriptions
     system_prompt = (
@@ -975,18 +1203,19 @@ def _gemini_generate_prompts(
         "Wan 2.7 CANNOT understand abstract concepts, product mechanics, or cause/effect.\n"
         "Describe ONLY what is VISUALLY seen — no concepts like 'sensor detects' or 'automatically'.\n\n"
         "CRITICAL RULES:\n"
-        "1. Describe ONLY concrete visual actions (moves, stops, places, lifts, presses, turns)\n"
+        "1. Describe ONLY concrete visual actions (moves, stops, places, lifts, presses, turns).\n"
         "2. Be EXTREMELY specific about hand/body POSITION relative to product:\n"
-        "   - Use BELOW the nozzle, ABOVE the button, BESIDE the product, IN FRONT OF the camera\n"
-        "3. Product is FIXED/MOUNTED on wall or table — DO NOT have person hold the product\n"
-        "   unless it's a handheld product (phone, bottle, tool)\n"
-        "4. NO: detects, automatically, intelligently, senses, recognizes, responds\n"
-        "5. YES: clear liquid appears on palm, button moves down, mist appears below nozzle\n"
-        "6. Include model details in first sentence:\n"
-        f"   Age {model_age}, Thai {gender_en}, porcelain white glowing skin, "
-        "monolid eyes, Southeast Asian Thai features, small nose bridge, clothing, hair\n\n"
-        "IMAGE_PROMPT (under 80 words): Still scene. Product is visible, woman is positioned near it.\n"
-        "VIDEO_PROMPT (under 130 words): Step-by-step visual actions. Use BELOW/ABOVE/BESIDE.\n"
+        "   - Use BELOW the nozzle, ABOVE the button, BESIDE the product, IN FRONT OF the camera.\n"
+        "3. Product is FIXED/MOUNTED on wall or table — DO NOT have person hold the product unless it's a handheld product (phone, bottle, tool). For FASHION/APPAREL, the product is ALREADY WORN.\n"
+        "4. FORBIDDEN WORDS: detects, automatically, intelligently, senses, recognizes, responds, or catalog jargon like \"feature\".\n"
+        "5. FIRST-FRAME CONSTRAINT (CRITICAL): This video uses Wan 2.7 img2vid which sees a SINGLE still image of the model already holding/positioned with the product. The video motion MUST start from THAT pose and move forward naturally. \n"
+        "6. FOR HARD GOODS/BEAUTY: Describe NATURAL USE moving forward (uncap, squeeze, press). Show DIRECT APPLICATION (e.g., 'hand brings lipstick to lips').\n"
+        "7. FOR FASHION/APPAREL (CRITICAL AVOIDANCE): NEVER instruct hands to touch, pull, adjust, or smooth the clothing (this causes severe hand/body mutations). Use MACRO-MOVEMENTS ONLY (e.g., 'model stands still and turns gracefully', 'the fabric sways and drapes naturally in the breeze'). \n"
+        "8. IMAGE_PROMPT: include FULL look details (southeast asian thai face, porcelain skin, monolid eyes, clothing, hair) since the model is generated from scratch.\n"
+        "9. VIDEO_PROMPT: do NOT re-describe the face/skin/outfit in detail — the first frame shows the person; keep only 'Thai " + "woman/man" + " + age' there.\n"
+        f"   Age: {model_age or 'unspecified'}; gender: {gender_en or 'unspecified'}; clothing: {clothing}; hair: {hair}\n\n"
+        "IMAGE_PROMPT (under 80 words): Still scene. Product is visible, woman is positioned near it (or wearing it).\n"
+        "VIDEO_PROMPT (under 130 words): Step-by-step visual actions. Use BELOW/ABOVE/BESIDE for hard goods.\n"
         "Do NOT add negative instructions or aspect ratios.\n"
         "Output format:\n"
         "IMAGE_PROMPT: ...\n"
@@ -1000,14 +1229,15 @@ def _gemini_generate_prompts(
     if any(w in pa_lower for w in ["wall", "mount", "sensor", "dispenser", "mounted"]):
         mount_hint = "\nIMPORTANT: This product is FIXED on wall or table. Person does NOT hold it. Describe it in place."
     elif any(w in pa_lower for w in ["bottle", "jar", "tube", "dropper"]):
-        mount_hint = "\nThis product is HANDHELD. Person picks it up from a surface to use it."
+        mount_hint = "\nThis product is HANDHELD and ALREADY in the person's hand in the first frame. Describe NATURAL USE: the product is ready for immediate use — uncapping/squeezing/pumping are fine when the design requires. Hand moves the product toward the target and applies."
     
-    product_block = f"Product: {product_name}\nAppearance: {pa[:350]}\n"
+    product_block = f"Product: {product_name}\nAppearance: {_thai_safe_truncate(pa, 350)}\n"
     if feat_str:
-        product_block += f"Features: {feat_str[:200]}\n"
-    product_block += f"Setting: {env_context[:120]}\n"
+        product_block += f"Features: {_thai_safe_truncate(feat_str, 200)}\n"
+    product_block += f"Setting: {_thai_safe_truncate(env_context, 120)}\n"
     product_block += mount_hint
-    product_block += f"\nModel: {model_age}yo {gender_en}, {clothing}, {hair}\n"
+    model_seg = f"{model_age}yo " if model_age else ""
+    product_block += f"\nModel: {model_seg}{gender_en}, {clothing}, {hair}\n"
     
     user_text = f"{product_block}\nGenerate prompts for Wan 2.7:"
     

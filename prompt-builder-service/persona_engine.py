@@ -10,7 +10,6 @@ logger = logging.getLogger("prompt-builder-service")
 
 PERSONA_TEMPLATES = {
     "energetic_young": {
-        "model_age": "22-26",
         "vibe": "high energy, trendy, fast talker, Gen Z slang",
         "environment": "bedroom with led lights, trendy cafe",
         "lighting_variation": "neon pink/purple, bright indoor",
@@ -22,7 +21,6 @@ PERSONA_TEMPLATES = {
         "forbidden_phrases": "\u0e2b\u0e49\u0e32\u0e21\u0e43\u0e0a\u0e49\u0e20\u0e32\u0e29\u0e32\u0e40\u0e1b\u0e47\u0e19\u0e17\u0e32\u0e07\u0e01\u0e32\u0e23 \u0e2b\u0e49\u0e32\u0e21\u0e43\u0e0a\u0e49 '\u0e04\u0e23\u0e31\u0e1a/\u0e04\u0e48\u0e30' \u0e21\u0e32\u0e01\u0e40\u0e01\u0e34\u0e19\u0e44\u0e1b \u0e2b\u0e49\u0e32\u0e21\u0e1e\u0e39\u0e14\u0e22\u0e36\u0e14\u0e22\u0e32\u0e27",
     },
     "calm_professional": {
-        "model_age": "28-35",
         "vibe": "calm, authoritative, measured speech, professional",
         "environment": "modern office, clean white studio",
         "lighting_variation": "soft neutral, ring light style",
@@ -34,7 +32,6 @@ PERSONA_TEMPLATES = {
         "forbidden_phrases": "\u0e2b\u0e49\u0e32\u0e21\u0e43\u0e0a\u0e49\u0e28\u0e31\u0e1e\u0e17\u0e4c\u0e27\u0e31\u0e22\u0e23\u0e38\u0e48\u0e19 \u0e2b\u0e49\u0e32\u0e21\u0e1e\u0e39\u0e14\u0e40\u0e23\u0e47\u0e27\u0e40\u0e01\u0e34\u0e19\u0e44\u0e1b \u0e2b\u0e49\u0e32\u0e21\u0e43\u0e0a\u0e49\u0e04\u0e33\u0e44\u0e21\u0e48\u0e40\u0e1b\u0e47\u0e19\u0e17\u0e32\u0e07\u0e01\u0e32\u0e23",
     },
     "mom_at_home": {
-        "model_age": "30-40",
         "vibe": "warm, relatable, busy mom energy",
         "environment": "home kitchen, living room with kids toys",
         "lighting_variation": "warm golden, natural window",
@@ -46,7 +43,6 @@ PERSONA_TEMPLATES = {
         "forbidden_phrases": "\u0e2b\u0e49\u0e32\u0e21\u0e43\u0e0a\u0e49\u0e20\u0e32\u0e29\u0e32\u0e2d\u0e31\u0e07\u0e01\u0e24\u0e29\u0e40\u0e22\u0e2d\u0e30 \u0e2b\u0e49\u0e32\u0e21\u0e43\u0e0a\u0e49\u0e28\u0e31\u0e1e\u0e17\u0e4c\u0e17\u0e32\u0e07\u0e01\u0e32\u0e23 \u0e2b\u0e49\u0e32\u0e21\u0e1e\u0e39\u0e14\u0e22\u0e36\u0e14\u0e40\u0e22\u0e37\u0e2d",
     },
     "college_student": {
-        "model_age": "19-23",
         "vibe": "casual, budget-conscious, honest reactions",
         "environment": "dorm room, campus, library",
         "lighting_variation": "cool fluorescent, mixed daylight",
@@ -58,7 +54,6 @@ PERSONA_TEMPLATES = {
         "forbidden_phrases": "\u0e2b\u0e49\u0e32\u0e21\u0e42\u0e06\u0e29\u0e13\u0e32\u0e0a\u0e31\u0e14\u0e40\u0e01\u0e34\u0e19\u0e44\u0e1b \u0e2b\u0e49\u0e32\u0e21\u0e43\u0e0a\u0e49\u0e20\u0e32\u0e29\u0e32\u0e40\u0e0a\u0e1f\u0e2b\u0e23\u0e37\u0e2d\u0e1c\u0e39\u0e49\u0e43\u0e2b\u0e0d\u0e48",
     },
     "minimalist_zen": {
-        "model_age": "25-32",
         "vibe": "calm, aesthetic, slow living, premium feel",
         "environment": "minimalist room with plants, yoga space",
         "lighting_variation": "soft diffused, morning light",
@@ -70,7 +65,6 @@ PERSONA_TEMPLATES = {
         "forbidden_phrases": "\u0e2b\u0e49\u0e32\u0e21\u0e1e\u0e39\u0e14\u0e40\u0e23\u0e47\u0e27 \u0e2b\u0e49\u0e32\u0e21\u0e43\u0e0a\u0e49\u0e04\u0e33\u0e15\u0e25\u0e32\u0e14 \u0e2b\u0e49\u0e32\u0e21\u0e02\u0e32\u0e22\u0e02\u0e2d\u0e07\u0e15\u0e23\u0e07\u0e40\u0e01\u0e34\u0e19\u0e44\u0e1b",
     },
     "tech_enthusiast": {
-        "model_age": "22-30",
         "vibe": "excited, gadget-focused, fast demo style",
         "environment": "desk with monitors, gaming setup",
         "lighting_variation": "RGB lighting, cool blue/white",
@@ -83,7 +77,6 @@ PERSONA_TEMPLATES = {
     },
     # ── Male Persona Variants ──
     "street_guy": {
-        "model_age": "22-28",
         "vibe": "casual cool, street style, confident Gen Z guy energy",
         "environment": "street corner with graffiti wall, urban rooftop, skate park",
         "lighting_variation": "harsh daylight with shadows, golden hour street glow",
@@ -95,7 +88,6 @@ PERSONA_TEMPLATES = {
         "forbidden_phrases": "ห้ามใช้ค่ะ/คะ ห้ามใช้ศัพท์ผู้หญิง ใช้ ผม",
     },
     "office_guy": {
-        "model_age": "28-38",
         "vibe": "professional, trustworthy, mature, confident presenter",
         "environment": "modern office with glass walls, clean studio, co-working space",
         "lighting_variation": "soft diffused office light, clean daylight white",
@@ -107,7 +99,6 @@ PERSONA_TEMPLATES = {
         "forbidden_phrases": "ห้ามใช้ค่ะ/คะ ห้ามใช้ศัพท์วัยรุ่นเกินไป ใช้ ครับ เท่านั้น",
     },
     "dad_guy": {
-        "model_age": "32-45",
         "vibe": "warm, relatable dad energy, practical, trustworthy",
         "environment": "living room with sofa, home kitchen, backyard garden",
         "lighting_variation": "warm afternoon light, golden natural window",
@@ -165,8 +156,6 @@ def _pick_random_option(field_value: str) -> str:
 
 
 def _apply_persona_to_profile(profile: dict, persona: dict) -> dict:
-    if persona.get("model_age"):
-        profile["persona_age"] = persona["model_age"]
     if persona.get("vibe"):
         profile["persona_vibe"] = persona["vibe"]
     if persona.get("environment"):

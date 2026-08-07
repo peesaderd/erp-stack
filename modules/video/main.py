@@ -93,8 +93,8 @@ class UGCRequest(BaseModel):
     style: str = "ugc_review"
     product_name: str
     product_desc: str = ""
-    gender: str = "female"
-    age: str = "25-35"
+    gender: str = ""
+    age: str = ""
     scene: str = "home"
     negative_prompt: Optional[str] = None
 
@@ -116,6 +116,8 @@ class VideoRequest(BaseModel):
     product_image: str = ""
     product_price: Optional[float] = None
     product_commission: Optional[float] = None
+    gender: str = ""
+    age: str = ""
     tags: list[str] = []
     hook: str = ""
     value: str = ""
@@ -134,6 +136,7 @@ class VideoRequest(BaseModel):
     negative_prompt: Optional[str] = None
     bgm_style: Optional[str] = None
     product_description: Optional[str] = None
+    features: str = ""
     recipe: Optional[str] = None
     job_id: Optional[str] = None  # external job_id from caller — used to keep pipeline_logs.db in sync
     image_prompt: str = ""
@@ -286,9 +289,12 @@ async def generate_video(req: VideoRequest):
                 weights=[15, 15, 20, 12, 12, 4, 22], k=1
             )[0],
             description=req.product_description or "",
+            gender=req.gender or "",
+            age=req.age or "",
             ugc_style=validate_ugc_style(req.ugc_style),
             external_job_id=req.job_id,
             duration=req.duration,
+            features=req.features or "",
             # Pre-computed prompts (bypass auto-gen if provided)
             image_prompt=req.image_prompt or "",
             video_prompt=req.video_prompt or "",
@@ -324,6 +330,8 @@ async def analyze_product(req: dict):
         description=req.get("description", ""),
         category=req.get("category", ""),
         target_audience=req.get("target_audience", ""),
+        age_group=req.get("age_group") or req.get("age", "") or None,
+        gender=req.get("gender", ""),
         image_url=req.get("image_url", ""),
         image_base64=req.get("image_base64", ""),
     )

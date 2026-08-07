@@ -40,7 +40,7 @@ Output ONLY valid JSON:
   "key_features": ["จุดเด่น 1", "จุดเด่น 2"],
   "visual_style_recommendation": "สไตล์ภาพที่แนะนำ",
   "age_group": "ช่วงอายุเป้าหมาย",
-  "gender": "male/female/neutral",
+  "gender": "male/female",
   "environment": "ฉาก/สถานที่ที่แนะนำ",
   "pain_points": ["ปัญหา 1", "ปัญหา 2"],
   "hooking_angle": "มุมการตลาดที่ดีที่สุด (ภาษาไทย)"
@@ -170,11 +170,13 @@ def analyze_product(
     description: str,
     category: str = "",
     target_audience: str = "",
+    age_group: Optional[str] = None,
+    gender: str = "",
     image_url: Optional[str] = None,
     image_base64: Optional[str] = None,
 ) -> dict:
     """Analyze product via Gemini — returns image_prompts, video_prompt, hooks, copy"""
-    research = research_product(product_name, description, category, image_base64)
+    research = research_product(product_name, description, category, image_base64, age_group, gender)
 
     brand_protocol = {}
     if image_base64:
@@ -229,6 +231,8 @@ Output ONLY valid JSON:
 Product Name: {product_name}
 Description: {description}
 Category: {category or 'N/A'}
+Target Gender: {gender or 'Not specified'}
+Target Age Group: {age_group or 'Not specified'}
 Target Audience: {target_audience or 'General TikTok users'}
 
 **Research Results:**
@@ -392,10 +396,14 @@ def generate_publish_content(
         }
 
 
-def research_product(product_name, description='', category='', image_base64=None):
+def research_product(product_name, description='', category='', image_base64=None, age_group=None, gender=''):
     """Research product via Gemini Vision analysis"""
     has_vision = bool(image_base64)
     user_prompt = f'Analyze this product:\nProduct Name: {product_name}\nDescription: {description or "N/A"}\nCategory: {category or "N/A"}'
+    if age_group:
+        user_prompt += f'\nTarget Age Group: {age_group}'
+    if gender:
+        user_prompt += f'\nTarget Gender: {gender}'
     if has_vision:
         user_prompt += '\n\n(Product image attached)'
     try:
@@ -416,8 +424,8 @@ def research_product(product_name, description='', category='', image_base64=Non
             'target_audience': 'General consumers',
             'key_features': [],
             'visual_style_recommendation': 'lifestyle',
-            'age_group': '20-35',
-            'gender': 'neutral',
+            'age_group': age_group or 'General',
+            'gender': gender or '',
             'environment': 'modern lifestyle setting',
             'pain_points': [],
             'hooking_angle': f'Highlight benefits of {product_name}',

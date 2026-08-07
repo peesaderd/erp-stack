@@ -34,7 +34,7 @@ PROMPTS_DIR = Path(__file__).parent / "prompts"
 # ─── Persona-Aware System Prompt Builder ────────────────────────────
 # ═══════════════════════════════════════════════════════════════════════
 
-def build_script_system_prompt(persona: dict, duration: str = f"{DEFAULT_DURATION}s", gender: str = "female") -> str:
+def build_script_system_prompt(persona: dict, duration: str = f"{DEFAULT_DURATION}s", gender: str = "female", target_age: str = "") -> str:
     """Build a persona-injected system prompt for Gemini script generation.
     
     Takes the persona dict (from persona_engine._select_persona()) and
@@ -45,7 +45,7 @@ def build_script_system_prompt(persona: dict, duration: str = f"{DEFAULT_DURATIO
         duration: "8s", "15s", or "16s"
     """
     persona_name = persona.get("vibe", "ทั่วไป").split(",")[0].strip()
-    persona_age = persona.get("model_age", "25-35")
+    persona_age = target_age
     speech_style = persona.get("speech_style", "พูดเป็นกันเอง ธรรมชาติ")
     pacing = persona.get("pacing", "ธรรมชาติ")
     forbidden = persona.get("forbidden_phrases", "")
@@ -53,8 +53,6 @@ def build_script_system_prompt(persona: dict, duration: str = f"{DEFAULT_DURATIO
     polite = "ค่ะ" if gender == "female" else "ครับ"
     wrong_polite = "ครับ" if gender == "female" else "ค่ะ"
 
-    polite = "ค่ะ" if gender == "female" else "ครับ"
-    wrong_polite = "ครับ" if gender == "female" else "ค่ะ"
 
     base = """คุณคือ Copywriter มืออาชีพที่เขียนสคริปต์โฆษณา UGC สั้นๆ สำหรับ TikTok
 สคริปต์ต้องสั้น กระชับ เข้าใจง่าย เหมาะกับ Voiceover
@@ -129,8 +127,11 @@ def adjust_prompt_for_duration(duration_type: str = "15s") -> str:
     elif dur == "12s":
         return (
             "\n[TIMING CONSTRAINT for 12 วินาที]"
-            "\n- สคริปต์ทั้งหมดต้องมีความยาวรวมกันประมาณ 36-43 คำ (ภาษาไทย) เพื่อให้พูดจบภายใน 12 วินาที"
-            "\n- ระยะเวลา 12 วินาทีให้ใช้คำพูด 36-43 คำเท่านั้น"
+            "\n- สคริปต์ทั้งหมดต้องมีความยาวรวมกันประมาณ 28-34 คำ (ภาษาไทย) เพื่อให้พูดจบภายใน 12 วินาที"
+            "\n- ระยะเวลา 12 วินาทีให้ใช้คำพูด 28-34 คำเท่านั้น"
+            "\n- ใช้ feature แค่ 2-4 จุดเด่นที่สำคัญที่สุดเท่านั้น ห้ามใส่ทุก spec"
+            "\n- ตัดส่วน Problem ที่ยืดเยื้อออก ให้เข้าประเด็นเร็ว"
+            "\n- ใช้คำพูดสั้น กระชับ ไม่มีคำฟุ่มเฟือย"
             "\n- แบ่งเป็น Hook (3s), Value (6s), CTA (3s)"
             "\n- Hook ต้องดึงดูด จบภายใน 3 วิ"
             "\n- CTA ต้องสั้นและชัดเจนภายใน 3 วินาทีสุดท้าย"
@@ -165,7 +166,6 @@ def adjust_prompt_for_duration(duration_type: str = "15s") -> str:
             "\n- ห้ามยืดเนื้อหาเกินจำเป็น ให้กระชับในทุกช่วง"
         )
     return ""
- return ""
 def _call_gemini(system_prompt: str, user_prompt: str) -> Optional[str]:
     """Call Gemini API for script generation."""
     api_key = GEMINI_API_KEY()
@@ -217,6 +217,35 @@ def fill_template(template: str, data: dict) -> str:
 
 # ─── Script Generators ─────────────────────────────────────────────────────
 
+def _dedupe_product_name(script: str, product_name: str) -> str:
+    # ให้พูดชื่อสินค้าแค่ครั้งเดียว (ครั้งแรกที่เจอ) ครั้งที่เหลือแทนด้วยสรรพนาม ตัวนี้
+    if not product_name or not script:
+        return script
+    name = product_name.strip()
+    # ถ้าเจอชื่อเต็มใน script ให้ใช้ชื่อเต็ม
+    if name in script:
+        target = name
+    else:
+        # ถ้าไม่เจอชื่อเต็ม ให้หาคำหลักที่ยาวที่สุดที่ปรากฏใน script
+        # เช่น product_name="กระโปรงยาวจีบรอบทรงเอ สไตล์มินิมอลญี่ปุ่น"
+        # แต่ script มีแค่ "กระโปรงยาวจีบรอบทรงเอ"
+        words = [w for w in name.split() if len(w) >= 4]
+        target = None
+        for w in sorted(words, key=len, reverse=True):
+            if w in script:
+                target = w
+                break
+        if target is None:
+            return script
+    first_idx = script.find(target)
+    if first_idx == -1:
+        return script
+    result = script[:first_idx + len(target)]
+    rest = script[first_idx + len(target):]
+    result += rest.replace(target, "ตัวนี้")
+    return result
+
+
 def generate_tiktok_review_script(
     product_name: str,
     customer_problem: str = "",
@@ -232,6 +261,7 @@ def generate_tiktok_review_script(
     product_appearance: str = "",
     style: str = "review",
     gender: str = "female",
+    target_age: str = "",
 ) -> dict:
     """Generate a TikTok UGC review script using AiBot prompts
     
@@ -288,15 +318,17 @@ def generate_tiktok_review_script(
     user_prompt = fill_template(user_tpl, user_data)
     
     # ─── Build persona-aware system prompt ────────────────────────────
-    persona_layer = build_script_system_prompt(persona, duration, gender=gender)
+    persona_layer = build_script_system_prompt(persona, duration, gender=gender, target_age=target_age)
     combined_system = f"{persona_layer}\n\n{system}" if system else persona_layer
 
     # ─── Try LLM with persona injection ───────────────────────────────
     raw = _call_gemini(combined_system, user_prompt)
 
     if raw:
+        # Post-process: พูดชื่อสินค้าแค่ครั้งเดียว (ครั้งแรก) ครั้งที่เหลือแทนด้วยสรรพนาม
+        script = _dedupe_product_name(raw, product_name)
         return {
-            "script": raw,
+            "script": script,
             "uses_llm": True,
             "duration": duration,
             "product": product_name,

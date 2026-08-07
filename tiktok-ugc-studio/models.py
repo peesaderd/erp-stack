@@ -33,7 +33,7 @@ class UGCRequest(BaseModel):
     product_name: str
     product_desc: str = ""
     gender: Optional[str] = ""
-    age: str = "25-35"
+    age: str = ""
     scene: str = "home"
     negative_prompt: Optional[str] = None
 
@@ -61,7 +61,9 @@ class SceneBlock(BaseModel):
 
 class VideoRequest(BaseModel):
     category: Optional[str] = ""
+    country: Optional[str] = ""
     gender: Optional[str] = ""
+    age: str = ""
     product_title: str = ""
     product_url: str = ""
     product_image: str = ""
@@ -113,6 +115,7 @@ class PipelineRequest(BaseModel):
 class FullPipelineRequest(BaseModel):
     gender: Optional[str] = ""
     category: Optional[str] = ""
+    country: Optional[str] = ""
     speaking_rate: float = 1.15
     """Legacy pipeline request — kept for backward compat."""
     product_url: Optional[str] = ""

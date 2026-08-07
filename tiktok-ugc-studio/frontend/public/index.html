@@ -413,6 +413,28 @@
       <div id="recipePicker" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px"></div>
     </div>
 
+    <div class="mb-3" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div>
+        <label class="text-sm text-secondary mb-2" style="display:block">🌏 Country</label>
+        <select class="input" id="countrySelect">
+          <option value="thai" selected>Thai</option>
+          <option value="vietnamese">Vietnamese</option>
+          <option value="korean">Korean</option>
+          <option value="japanese">Japanese</option>
+          <option value="chinese">Chinese</option>
+          <option value="indian">Indian</option>
+          <option value="western">Western</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-sm text-secondary mb-2" style="display:block">👤 Gender</label>
+        <select class="input" id="genderSelect">
+          <option value="female" selected>Female</option>
+          <option value="male">Male</option>
+        </select>
+      </div>
+    </div>
+
     <div class="mb-4">
       <label class="text-sm text-secondary mb-2" style="display:block">UGC Style <span class="text-xs text-secondary">(ปรับเอง)</span></label>
       <div id="selectedStyleChip" onclick="document.getElementById('styleModal').classList.add('open')" style="padding:10px 14px;border:1px solid var(--border-primary);border-radius:var(--radius-lg);cursor:pointer;display:flex;align-items:center;gap:8px">
@@ -430,6 +452,9 @@
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('styleModal').classList.remove('open')" style="font-size:18px">✕</button>
         </div>
         <div class="style-select-grid" id="styleModalGrid">
+          <div class="style-card" data-style="auto" onclick="selectStyleFromModal(this,'auto')">
+            <div class="style-card-emoji">🤖</div><div class="font-medium">AI Auto-Select</div><div class="text-xs text-secondary">ระบบเลือกให้ตามหมวดสินค้า</div>
+          </div>
           <div class="style-card selected" data-style="holding" onclick="selectStyleFromModal(this,'holding')">
             <div class="style-card-emoji">🤳</div><div class="font-medium">Holding Product</div><div class="text-xs text-secondary">ถือสินค้าพูด</div>
           </div>
@@ -441,6 +466,9 @@
           </div>
           <div class="style-card" data-style="talking" onclick="selectStyleFromModal(this,'talking')">
             <div class="style-card-emoji">🎤</div><div class="font-medium">Talking Head</div><div class="text-xs text-secondary">พูดหน้ากล้อง</div>
+          </div>
+          <div class="style-card" data-style="fashion_lookbook" onclick="selectStyleFromModal(this,'fashion_lookbook')">
+            <div class="style-card-emoji">👗</div><div class="font-medium">Fashion Lookbook</div><div class="text-xs text-secondary">แฟชั่นสายชิค หรูหรา</div>
           </div>
           <div class="style-card" data-style="product_demo" onclick="selectStyleFromModal(this,'product_demo')">
             <div class="style-card-emoji">📦</div><div class="font-medium">Product Demo</div><div class="text-xs text-secondary">โชว์สินค้า ไม่มีคน</div>

@@ -58,11 +58,11 @@ def _load_casts() -> List[Dict]:
         # Fallback — 1 default
         _MODEL_CASTS = [{
             "id": "default",
-            "age": "22",
+            "age": "",
             "appearance": "สาวไทยผิวสวย หน้าใส",
             "clothing": "เสื้อผ้าสไตล์ธรรมชาติ",
             "style": "natural, clean",
-            "image_desc": "A beautiful young Thai woman, 22 years old, glowing dewy skin, natural look, holding product at chest level with a bright smile, soft lighting, warm atmosphere",
+            "image_desc": "A beautiful young Thai woman, glowing dewy skin, natural look, holding product at chest level with a bright smile, soft lighting, warm atmosphere",
         }]
     return _MODEL_CASTS
 

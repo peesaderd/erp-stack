@@ -67,7 +67,7 @@ Output ONLY valid JSON matching this schema:
   "key_features": ["highly detailed feature 1 with benefits", "highly detailed feature 2 with benefits", "highly detailed feature 3 with benefits"],
   "visual_style_recommendation": "aesthetic visual direction (e.g. minimal warm tone lifestyle flat-lay with natural sunlight shadows)",
   "age_group": "specific target age group (e.g. 18-35 young professionals)",
-  "gender": "target gender or neutral",
+  "gender": "female or male",
   "environment": "ideal shooting setting (e.g. modern aesthetic bathroom vanity, clean studio wooden desk)",
   "pain_points": ["explicit customer struggle 1 this product solves", "explicit customer struggle 2 this product solves"],
   "hooking_angle": "best attention-grabbing marketing angle in Thai focusing on transformation, result, or convenience"
@@ -228,10 +228,14 @@ Output ONLY valid JSON.
     return _parse_json(response)
 
 
-def research_product(product_name, description='', category='', image_base64=None):
+def research_product(product_name, description='', category='', image_base64=None, age_group=None, gender=''):
     """Step 1: Research product via AI vision/text analysis — returns structured dict"""
     has_vision = bool(image_base64)
     user_prompt = f'Analyze this product:\nProduct Name: {product_name}\nDescription: {description or "N/A"}\nCategory: {category or "N/A"}'
+    if age_group:
+        user_prompt += f'\nTarget Age Group: {age_group}'
+    if gender:
+        user_prompt += f'\nTarget Gender: {gender}'
     if has_vision:
         user_prompt += '\n\n(Product image attached)'
     try:
@@ -253,8 +257,8 @@ def research_product(product_name, description='', category='', image_base64=Non
             'target_audience': 'General consumers',
             'key_features': [f'High quality {product_name}'],
             'visual_style_recommendation': 'lifestyle',
-            'age_group': '20-35',
-            'gender': 'neutral',
+            'age_group': age_group or 'General',
+            'gender': gender or '',
             'environment': 'modern lifestyle setting',
             'pain_points': ['Finding a reliable product'],
             'hooking_angle': f'Highlight benefits of {product_name}'
@@ -266,11 +270,13 @@ def analyze_product(
     description: str,
     category: str = "",
     target_audience: str = "",
+    age_group: Optional[str] = None,
+    gender: str = "",
     image_url: Optional[str] = None,
     image_base64: Optional[str] = None,
 ) -> dict:
     """Analyze product via Gemini — returns image_prompts, video_prompt, hooks, copy"""
-    research = research_product(product_name, description, category, image_base64)
+    research = research_product(product_name, description, category, image_base64, age_group, gender)
 
     # Extract Brand Protocol from image for strict lock
     brand_protocol = {}
@@ -361,6 +367,8 @@ Output ONLY valid JSON.
 Product Name: {product_name}
 Description: {description}
 Category: {category or 'N/A'}
+Target Gender: {gender or 'Not specified'}
+Target Age Group: {age_group or 'Not specified'}
 Target Audience: {target_audience or 'General TikTok users'}{model_hint}
 
 **Research Results:**

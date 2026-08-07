@@ -100,6 +100,7 @@ def feed_single(
     recipe: str = "tus",
     duration: int = 8,
     ugc_style: str = "holding",
+    features: str = "",
 ) -> dict:
     """ส่งรูปที่มีอยู่แล้วเข้า pipeline"""
     
@@ -118,6 +119,7 @@ def feed_single(
         description=description,
         ugc_style=ugc_style,
         duration=duration,
+        features=features,
         existing_image=image_url,  # ← bypass Step 5!
     )
     

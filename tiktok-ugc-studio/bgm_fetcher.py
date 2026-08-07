@@ -34,7 +34,7 @@ STYLE_FILENAME = {
     "energetic_edm":    "bg_edm.mp3",
     "upbeat_pop":       "bg_upbeat.mp3",
     "luxury_jazz":      "bg_jazz.mp3",
-    "asmr":             "bg_ambient.mp3",
+    "asmr":             "bg_chill.mp3",
 }
 
 # Pixabay query keywords per style (tried in random order on fallback)

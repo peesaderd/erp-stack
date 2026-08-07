@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-from logging_config import setup_logging; setup_logging()
 import sys
 import os
 import logging
@@ -27,10 +26,12 @@ class BuildRequest(BaseModel):
     price: float = 0.0
     product_image: str = ""
     category: str = ""
-    target_gender: str = ""
     product_category: str = ""
     duration: int = 15
     target_duration: int = 15
+    target_age: str = ""
+    target_gender: str = ""
+    country: str = ""
 
 
 @app.get("/health")
@@ -51,9 +52,11 @@ async def build(req: BuildRequest):
             price=req.price,
             product_image=req.product_image,
             category=req.category,
-            target_gender=req.target_gender,
             product_category=req.product_category,
             target_duration=req.duration or req.target_duration or 15,
+            target_age=req.target_age,
+            target_gender=req.target_gender,
+            country=req.country,
         )
         return result
     except Exception as e:

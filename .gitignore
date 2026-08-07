@@ -135,3 +135,8 @@ tiktok-ugc-studio/static/
 prompt-builder-service/logs/
 tiktok-ugc-studio/.env.bak*
 tiktok-ugc-studio/frontend/public/assets/
+
+# Local backups (not source)
+tiktok-ugc-studio/main.py.monolith-backup
+tiktok-ugc-studio/main.py.orig-2716
+*.bak*

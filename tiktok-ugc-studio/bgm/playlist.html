@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎵 BGM Playlist - เลือกเพลง</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:"Segoe UI",Tahoma,sans-serif; background:#0f1117; color:#e8e8e8; padding:20px; }
+h1 { text-align:center; margin-bottom:8px; font-size:26px; }
+.sub { text-align:center; color:#888; margin-bottom:24px; font-size:14px; }
+.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:16px; max-width:1400px; margin:0 auto; }
+.card { background:#1a1d27; border:2px solid #2a2e3d; border-radius:12px; padding:16px; transition:all .2s; }
+.card:hover { border-color:#4a9eff; transform:translateY(-2px); }
+.card.selected { border-color:#22c55e; background:#16231a; box-shadow:0 0 15px rgba(34,197,94,.3); }
+.card h3 { font-size:16px; margin-bottom:4px; }
+.card .meta { font-size:12px; color:#888; margin-bottom:10px; }
+.card .tags { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+.tag { background:#2a2e3d; padding:2px 8px; border-radius:10px; font-size:11px; color:#aaa; }
+.tag.pop { background:#3d2a1a; color:#ffb86b; }
+.tag.calm { background:#1a3d2a; color:#6bffb8; }
+.tag.jazz { background:#3d1a2a; color:#ff6bb8; }
+.tag.edm { background:#1a2a3d; color:#6bb8ff; }
+.tag.asmr { background:#2a1a3d; color:#b86bff; }
+.tag.fun { background:#3d3d1a; color:#ffd86b; }
+.tag.new { background:#1a3d3d; color:#6bffd8; }
+audio { width:100%; height:36px; margin-bottom:10px; }
+.btn { width:100%; padding:10px; border:none; border-radius:8px; cursor:pointer; font-size:14px; font-weight:600; }
+.btn.select { background:#2a2e3d; color:#e8e8e8; }
+.btn.select:hover { background:#3a3e4d; }
+.btn.selected { background:#22c55e; color:#fff; }
+.btn.apply { background:#4a9eff; color:#fff; padding:14px; font-size:16px; margin-top:20px; }
+.btn.apply:hover { background:#3a8eef; }
+#applyBar { position:fixed; bottom:0; left:0; right:0; background:#1a1d27; border-top:2px solid #2a2e3d; padding:12px 20px; display:flex; align-items:center; justify-content:center; gap:16px; }
+#applyBar .info { font-size:14px; color:#aaa; }
+#applyBar .info b { color:#22c55e; }
+</style>
+</head>
+<body>
+<h1>🎵 BGM Playlist</h1>
+<div class="sub">เลือกเพลงที่ชอบ แล้วกด "ใช้เพลงนี้" เพื่อตั้งเป็น BGM หลัก</div>
+
+<div class="grid" id="grid"></div>
+
+<div id="applyBar">
+  <div class="info">เลือกแล้ว: <b id="selectedName">ยังไม่ได้เลือก</b></div>
+  <button class="btn apply" id="applyBtn" onclick="applySelection()">✅ ใช้เพลงนี้เป็น BGM</button>
+</div>
+
+<script>
+// BGM tracks - name, file, tags
+const tracks = [
+  {name:"One More Dance", file:"bg_upbeat.mp3", tags:["pop","สนุก"], artist:"Arulo"},
+  {name:"Island Beat", file:"bg_chill.mp3", tags:["calm","R&B"], artist:"Arulo"},
+  {name:"Upbeat 02 (เดิม)", file:"bg_upbeat_02.mp3", tags:["pop","เดิม"], artist:"ระบบ"},
+  {name:"Jazz (เดิม)", file:"bg_jazz.mp3", tags:["jazz","เดิม"], artist:"ระบบ"},
+  {name:"EDM (เดิม)", file:"bg_edm.mp3", tags:["edm","เดิม"], artist:"ระบบ"},
+  {name:"Dance Playful Night", file:"alexzavesa_dance_playful_night.mp3", tags:["pop","สนุก","ใหม่"], artist:"Alex Zavesa"},
+  {name:"Escape Your Love", file:"fassounds_escape_your_love.mp3", tags:["pop","fashion","ใหม่"], artist:"Fassounds"},
+  {name:"No Sleep", file:"kontraa_no_sleep.mp3", tags:["pop","ใหม่"], artist:"Kontraa"},
+  {name:"Water", file:"kontraa_water.mp3", tags:["calm","ใหม่"], artist:"Kontraa"},
+  {name:"Kornev Music", file:"kornevmusic.mp3", tags:["pop","ใหม่"], artist:"Kornev"},
+  {name:"Smile", file:"mixkit_smile.mp3", tags:["pop","สนุก","ใหม่"], artist:"Mixkit"},
+  {name:"Sigma Music Art", file:"sigmamusicart.mp3", tags:["pop","ใหม่"], artist:"Sigma Music Art"},
+];
+
+let selected = null;
+
+function render() {
+  const grid = document.getElementById("grid");
+  grid.innerHTML = "";
+  tracks.forEach((t, i) => {
+    const card = document.createElement("div");
+    card.className = "card" + (selected === i ? " selected" : "");
+    const tags = t.tags.map(tg => `<span class="tag ${tg}">${tg}</span>`).join("");
+    card.innerHTML = `
+      <h3>${t.name}</h3>
+      <div class="meta">${t.artist}</div>
+      <div class="tags">${tags}</div>
+      <audio controls preload="none" src="${t.file}"></audio>
+      <button class="btn select ${selected === i ? "selected" : ""}" onclick="selectTrack(${i})">
+        ${selected === i ? "✓ เลือกแล้ว" : "เลือกเพลงนี้"}
+      </button>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function selectTrack(i) {
+  selected = i;
+  document.getElementById("selectedName").textContent = tracks[i].name;
+  render();
+}
+
+function applySelection() {
+  if (selected === null) { alert("กรุณาเลือกเพลงก่อน"); return; }
+  const t = tracks[selected];
+  // Call backend to set BGM
+  fetch("/api/set-bgm", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({file: t.file})
+  }).then(r => r.json()).then(d => {
+    if (d.ok) {
+      alert(`✅ ตั้ง BGM เป็น "${t.name}" แล้ว`);
+    } else {
+      alert("❌ เกิดข้อผิดพลาด: " + (d.error || "unknown"));
+    }
+  }).catch(e => alert("❌ ไม่สามารถเชื่อมต่อ server: " + e));
+}
+
+render();
+</script>
+</body>
+</html>

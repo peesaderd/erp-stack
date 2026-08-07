@@ -505,13 +505,9 @@ def build_video_prompts(
         "health": "a clean bathroom or bedroom",
         "other": "a clean modern lifestyle setting",
     }
-    # Always use category-aware setting as the base so the scene matches the
-    # product type (no mixed scenes like fashion in a market). Append env_context
-    # as a specific detail when present (e.g. "bathroom sink" for beauty).
-    env_context = product_profile.get("env_context", "")
-    setting = category_setting_map.get(category, "a clean modern lifestyle setting")
-    if env_context:
-        setting = f"{setting}, {env_context}" if env_context.lower() not in setting.lower() else setting
+    # Setting is intentionally NOT injected into the I2V prompt: Wan 2.7 img2vid
+    # uses the first frame as conditioning image, so re-describing the setting
+    # would fight the reference frame and cause the background to warp.
 
     # Lighting map — Schema Engine (recipe config) เป็น SSOT;
     # hardcode ข้างล่างเป็น fallback เมื่อ recipe ไม่มีค่า
@@ -527,17 +523,9 @@ def build_video_prompts(
     db_lighting = (recipe.get("lighting_map") or {}).get(category)
     lighting = db_lighting or lighting_map.get(category, "soft natural lighting")
     
-    # Use target_age from analysis only — no hardcoded fallback
-    # DB/a11y may store ranges like "18-24" or "20s" — take lower bound when possible
-    raw_age = product_profile.get("target_age")
-    model_age = 0
-    if raw_age:
-        m = re.search(r'(\d{1,2})', str(raw_age))
-        if m:
-            try:
-                model_age = int(m.group(1))
-            except (ValueError, TypeError):
-                model_age = 0
+    # Model age is intentionally NOT injected into the I2V prompt: the model's
+    # appearance comes from the reference image (Step 5), not from re-describing
+    # age here (which would fight the first frame).
 
     # ── Scene descriptions — Schema Engine (recipe config) เป็น SSOT ──
     # ถ้า recipe มี scene_actions_by_category[category] ให้ใช้ของ DB
@@ -563,14 +551,16 @@ def build_video_prompts(
         # Get scene-specific description or default
         scene_action = scene_descriptions.get(scene_name, "product visible in frame, natural setting")
         
-        # Build the full positive prompt (keep clean and focused on action and character)
-        age_desc = f" {model_age} years old" if model_age else ""
+        # Build the full positive prompt (Minimalist I2V formula).
+        # Wan 2.7 img2vid receives the first frame as conditioning image, so we
+        # do NOT re-describe the model's face/skin or the setting (that would
+        # fight the reference frame and cause the video to not continue).
+        # Only describe WHO does WHAT and the LIGHTING tone.
         enhanced = (
-            f"Ethnic Thai {gender_en}{age_desc}, porcelain white glowing skin, "
-            f"monolid eyes, Southeast Asian ethnic Thai features. "
+            f"The {gender_en}. "
             f"{scene_action} "
-            f"Setting: {setting}. {lighting}. "
-            f"9:16 portrait, smooth natural motion"
+            f"{lighting}. "
+            f"9:16 portrait, smooth natural motion."
         )
         
         # Action rules come from the UGC style data (Schema Engine SSOT),

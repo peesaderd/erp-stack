@@ -298,54 +298,108 @@ RULES:
 MISTRAL_MODEL = "mistral-large-latest"  # Supports text + image input
 
 
+
+_mistral_key_counter = 0
+
 def _call_mistral_vision(system_prompt: str, user_text: str, image_url: str, temperature: float = 0.3) -> Optional[str]:
     """Call Mistral Large with image input (vision capabilities).
-    
+
     Downloads image locally and passes as base64 since Mistral's backend
     can't reliably fetch from all image CDNs.
+
+    Supports multiple Mistral API keys (MISTRAL_API_KEY, MISTRAL_API_KEY_2,
+    MISTRAL_API_KEY_3, MISTRAL_API_KEY_4) that are rotated round-robin to
+    distribute quota and avoid rate limits. On 401/429 it falls through to
+    the next key.
     """
-    api_key = os.environ.get("MISTRAL_API_KEY", "")
-    if not api_key:
-        try:
-            api_key = _MISTRAL_API_KEY_LAZY() if callable(_MISTRAL_API_KEY_LAZY) else _MISTRAL_API_KEY_LAZY
-        except Exception:
-            api_key = ""
-    if not api_key:
-        logger.warning("No MISTRAL_API_KEY set in environment")
-        return None
+    global _mistral_key_counter
     if not image_url:
         return None
+
+    # Collect all available Mistral keys (dedup, drop empties).
+    # Sources: os.environ first, then shared_config._env_dict (which loads
+    # the .env files). This lets MISTRAL_API_KEY_2/3/4 from .env be used.
+    keys = []
+    seen = set()
+    env_sources = [os.environ]
+    try:
+        from shared_config import _env_dict as _shared_env
+        env_sources.append(_shared_env)
+    except Exception:
+        pass
+    for i in range(1, 10):
+        env_name = "MISTRAL_API_KEY" if i == 1 else f"MISTRAL_API_KEY_{i}"
+        k = ""
+        for src in env_sources:
+            v = src.get(env_name, "")
+            if v:
+                k = v
+                break
+        if not k:
+            try:
+                k = _MISTRAL_API_KEY_LAZY() if callable(_MISTRAL_API_KEY_LAZY) else _MISTRAL_API_KEY_LAZY
+            except Exception:
+                k = ""
+        if k and k not in seen:
+            seen.add(k)
+            keys.append(k)
+    if not keys:
+        logger.warning("No MISTRAL_API_KEY set in environment")
+        return None
+
+    # Resolve + download image once (shared across key attempts)
     try:
         image_url = _resolve_image_url(image_url)
-        # Download image locally first (Mistral's URL fetcher often blocked)
         img_resp = requests.get(image_url, timeout=30)
         img_resp.raise_for_status()
         img_b64 = base64.b64encode(img_resp.content).decode("utf-8")
         mime = img_resp.headers.get("content-type", "image/jpeg")
         data_uri = f"data:{mime};base64,{img_b64}"
-        
-        client = Mistral(api_key=api_key)
-        response = client.chat.complete(
-            model=MISTRAL_MODEL,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": [
-                    {"type": "text", "text": user_text},
-                    {"type": "image_url", "image_url": data_uri},
-                ]},
-            ],
-            temperature=temperature,
-            max_tokens=2048,
-        )
-        if response and response.choices:
-            return response.choices[0].message.content
-        else:
-            logger.warning("Mistral vision returned empty response")
-            return None
     except Exception as e:
-        logger.error(f"Mistral vision call failed: {e}")
+        logger.error(f"Mistral vision image download failed: {e}")
         return None
 
+    # Round-robin start index
+    start = _mistral_key_counter % len(keys)
+    last_err = None
+    for offset in range(len(keys)):
+        idx = (start + offset) % len(keys)
+        api_key = keys[idx]
+        try:
+            client = Mistral(api_key=api_key)
+            response = client.chat.complete(
+                model=MISTRAL_MODEL,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": [
+                        {"type": "text", "text": user_text},
+                        {"type": "image_url", "image_url": data_uri},
+                    ]},
+                ],
+                temperature=temperature,
+                max_tokens=2048,
+                timeout_ms=30000,  # 30s cap so Step 1 (60s) never hangs on Mistral
+            )
+            if response and response.choices:
+                _mistral_key_counter += 1
+                return response.choices[0].message.content
+            else:
+                logger.warning("Mistral vision returned empty response")
+                return None
+        except Exception as e:
+            last_err = e
+            msg = str(e)
+            # On auth/rate-limit errors, try the next key
+            if "401" in msg or "Invalid API Key" in msg or "429" in msg or "rate" in msg.lower():
+                logger.warning(f"Mistral key {idx+1} failed ({msg[:80]}) — trying next key")
+                continue
+            # Other errors (network, timeout, etc.) — try next key too
+            logger.warning(f"Mistral key {idx+1} error ({msg[:80]}) — trying next key")
+            continue
+
+    _mistral_key_counter += 1
+    logger.error(f"Mistral vision call failed with all keys: {last_err}")
+    return None
 
 def analyze_product_image(product_image: str, product_name: str, description: str = "") -> Optional[dict]:
     """Analyze product image via Mistral Large (vision-capable).
@@ -357,7 +411,8 @@ def analyze_product_image(product_image: str, product_name: str, description: st
     - Label colors and design
     - Product color/texture visible through packaging
     
-    Falls back to Gemini Vision if Mistral is unavailable.
+    Uses Mistral vision only (no Gemini fallback) so the prompt stays
+    consistent in one direction.
     """
     if not product_image:
         return None
@@ -366,10 +421,9 @@ def analyze_product_image(product_image: str, product_name: str, description: st
     # Primary: Mistral vision
     raw = _call_mistral_vision(PRODUCT_VISION_SYSTEM, user_text, product_image, temperature=0.3)
     
-    # Fallback: Gemini vision if Mistral fails
+    # No Gemini fallback — Mistral is the single source of truth.
     if not raw:
-        logger.info("Mistral vision failed — trying Gemini vision fallback")
-        raw = _call_gemini_vision(PRODUCT_VISION_SYSTEM, user_text, product_image, temperature=0.3)
+        logger.warning("Mistral vision returned empty — no fallback (single direction)")
     
     if raw:
         result = _extract_json(raw)

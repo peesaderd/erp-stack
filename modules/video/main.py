@@ -136,6 +136,7 @@ class VideoRequest(BaseModel):
     negative_prompt: Optional[str] = None
     bgm_style: Optional[str] = None
     product_description: Optional[str] = None
+    features: str = ""
     recipe: Optional[str] = None
     job_id: Optional[str] = None  # external job_id from caller — used to keep pipeline_logs.db in sync
     image_prompt: str = ""

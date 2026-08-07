@@ -214,20 +214,9 @@ def analyze_product(product_name: str, product_image: str = None, description: s
 
     except Exception as e:
         logger.error(f"Analyze failed: {e}")
-        # Fallback: basic profile
-        return {
-            "category": "other",
-            "target_gender": "female",
-            "target_age": "",
-            "target_audience": "ทุกคน",
-            "customer_problem": "",
-            "main_benefit": "คุณภาพดี",
-            "hashtags": [product_name.replace(" ", "")[:20]],
-            "setting": "clean modern lifestyle",
-            "_image_prompt": f"{product_name}, product showcase, clean background",
-            "_video_prompt": f"{product_name} showcase, smooth motion",
-            "_negative_prompt": "no text, no watermark",
-        }
+        # No fallback — fail fast so the pipeline never runs with a generic
+        # prompt that does not match the product. Re-raise to stop the job.
+        raise RuntimeError(f"Product analysis failed (no fallback): {e}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════

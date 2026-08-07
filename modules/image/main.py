@@ -174,9 +174,10 @@ def _call_prodia(type_: str, config: dict, accept: str = "image/png", files: dic
 # exactly the same"). Re-describing the person's look/outfit overrides the real photo with
 # guessed text. Anchor the reference instead.
 IMG2IMG_ANCHOR = (
-    "Keep the product exactly as shown in the reference image, and keep the same "
-    "person, pose, outfit, and setting. Only adjust the scene as described. "
-    "Do NOT change the product or the person's look."
+    "Keep the product exactly as shown in the reference image, unchanged and clearly "
+    "visible. Replace any person in the scene with a Thai model (Southeast Asian, warm "
+    "skin tone, natural features), matching the gender described in the prompt. Keep "
+    "the product unchanged. Do NOT change the product's appearance."
 )
 
 THAI_NEGATIVE = (

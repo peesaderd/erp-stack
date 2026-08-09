@@ -44,26 +44,20 @@ from typing import Optional, List, Dict, Any
 import requests
 
 def get_bgm_path(bgm_style: str) -> Path:
-    """Helper to resolve BGM path from style name."""
-    bgm_map = {
-        "chill_loft": "bg_chill.mp3",
-        "informative_jazz": "bg_jazz.mp3",
-        "energetic_edm": "bg_edm.mp3",
-        "upbeat_pop": "bg_upbeat.mp3",
-        "luxury_jazz": "bg_jazz.mp3",
-        "asmr": "bg_chill.mp3",
-    }
-    bgm_filename = bgm_map.get(bgm_style, "bg_chill.mp3")
-    # Check module-local sounds first (legacy), then tiktok-ugc-studio/bgm (actual files on host)
-    candidates = [
-        STORAGE_DIR / "sounds" / bgm_filename,
-        _erp_stack / "tiktok-ugc-studio" / "bgm" / bgm_filename,
-    ]
-    for p in candidates:
-        if p.exists():
-            return p
-    # Default to the known-good location on this host
-    return _erp_stack / "tiktok-ugc-studio" / "bgm" / bgm_filename
+    """Helper to resolve BGM path. Randomly pick an available track from the BGM library."""
+    # Collect all available BGM files from both locations (module-local sounds + tiktok-ugc-studio/bgm).
+    # Exclude TTS voice samples (tts_*.mp3) which are not background music.
+    candidates = []
+    for d in (STORAGE_DIR / "sounds", _erp_stack / "tiktok-ugc-studio" / "bgm"):
+        if d.is_dir():
+            candidates.extend(
+                p for p in sorted(d.glob("*.mp3"))
+                if not p.name.startswith("tts_")
+            )
+    if candidates:
+        return random.choice(candidates)
+    # Last resort: return a path even if it doesn't exist (compose_video will skip BGM)
+    return _erp_stack / "tiktok-ugc-studio" / "bgm" / "bg_chill.mp3"
 
 # Add erp-stack to path for shared_config
 _erp_stack = Path(__file__).parent.parent.parent
@@ -926,9 +920,7 @@ def compose_video(
     # Step 9c: Add BGM
     if bgm_style:
         logger.info(f"  9c: Add BGM ({bgm_style})")
-        bgm_path = get_bgm_path(bgm_style) if bgm_style in (
-            "chill_loft", "informative_jazz", "energetic_edm", "upbeat_pop", "luxury_jazz", "asmr", "relaxing",
-        ) else STORAGE_DIR / "sounds" / bgm_style
+        bgm_path = get_bgm_path(bgm_style)
 
         if bgm_path.exists():
             bgm_output = STORAGE_DIR / f"affiliate_{run_id}_bgm.mp4"

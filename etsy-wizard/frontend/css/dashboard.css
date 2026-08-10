@@ -200,3 +200,39 @@ tbody tr:hover{background:var(--bg3)}
 /* Theme toggle button */
 .theme-toggle{background:none;border:none;font-size:18px;cursor:pointer;padding:4px;border-radius:6px;transition:background .15s;color:var(--text2);line-height:1}
 .theme-toggle:hover{background:var(--bg3)}
+
+/* ─── Story Coloring Book Page ─── */
+.page-header{margin-bottom:24px}
+.page-header h1{font-size:24px;font-weight:700;margin-bottom:4px}
+.page-header p{font-size:13px;color:var(--text2)}
+.story-section{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.section-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px}
+.section-card h3{font-size:16px;margin-bottom:16px}
+.template-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.template-card{border:2px solid var(--border);border-radius:12px;padding:16px;text-align:center;cursor:pointer;transition:all .15s;background:var(--bg3)}
+.template-card:hover{border-color:var(--text2);transform:translateY(-2px)}
+.template-card.selected{border-color:var(--accent);background:rgba(228,88,88,.08)}
+.template-icon{font-size:40px;margin-bottom:8px}
+.template-card h4{font-size:14px;margin-bottom:4px}
+.template-card p{font-size:12px;color:var(--text2);margin-bottom:8px}
+.badge{font-size:10px;background:var(--accent);color:#fff;padding:2px 8px;border-radius:10px}
+.preview-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.preview-card{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center}
+.preview-card .page-num{font-size:24px;font-weight:700;color:var(--accent);margin-bottom:4px}
+.preview-card p{font-size:11px;color:var(--text2)}
+.generate-controls{text-align:center;padding:20px 0}
+.generate-controls .note{font-size:12px;color:var(--text2);margin-top:12px}
+.generate-status{margin-top:16px;padding:16px;background:var(--bg3);border-radius:8px;text-align:center}
+.results-grid{margin-top:16px}
+.results-grid h4{font-size:16px;margin-bottom:16px}
+.result-images{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.result-card{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center}
+.result-card img{width:100%;border-radius:8px;margin-bottom:8px}
+.result-card p{font-size:12px;margin-bottom:8px}
+.loading{text-align:center;padding:40px}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.success{color:var(--green);font-weight:600}
+.error{color:var(--accent);font-weight:600}
+@media(max-width:900px){.story-section{grid-template-columns:1fr}.result-images,.preview-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.result-images,.preview-grid{grid-template-columns:1fr}}

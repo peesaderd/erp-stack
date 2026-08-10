@@ -4,6 +4,7 @@ const App = {
     dashboard: { label: 'Dashboard', icon: '📊', render: () => DashboardPage.render(), after: () => DashboardPage.afterRender() },
     gallery:   { label: 'Gallery', icon: '🖼️', render: () => GalleryPage.render(), after: () => GalleryPage.afterRender() },
     wizard:    { label: 'POD Wizard', icon: '✨', render: () => WizardPage.render(), after: () => WizardPage.afterRender() },
+    story:     { label: 'Story Book', icon: '📚', render: () => StoryPage.render(), after: () => StoryPage.afterRender() },
     listings:  { label: 'Listings', icon: '📋', render: () => ListingsPage.render(), after: () => ListingsPage.afterRender() },
     messages:  { label: 'More', icon: '💬', render: () => MessagesPage.render(), after: () => MessagesPage.afterRender() },
     settings:  { label: 'Settings', icon: '⚙️', render: () => SettingsPage.render(), after: () => SettingsPage.afterRender() }

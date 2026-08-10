@@ -1525,3 +1525,15 @@ def ai_generate_concept(product: ProductInfo):
         "image_style": concept.get("image_style", "product"),
         "elapsed_seconds": round(elapsed, 1),
     }
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 📚 Story Coloring Book — POD Wizard Integration
+# ═══════════════════════════════════════════════════════════════════
+
+try:
+    from story_coloring import register_story_routes
+    register_story_routes(app)
+    logger.info("📚 Story Coloring Book module loaded")
+except ImportError as e:
+    logger.warning(f"⚠️ Story module not loaded: {e}")

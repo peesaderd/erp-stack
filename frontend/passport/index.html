@@ -3,183 +3,266 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Passport Photo AI V2</title>
+<title>AI Passport Photo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#0f172a;--surface:#1e293b;--surface2:#334155;--border:#475569;--text:#f1f5f9;--dim:#94a3b8;--accent:#6366f1;--accent-hover:#818cf8;--radius:12px;--sm:8px;--green:#22c55e;--red:#ef4444}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans Thai',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;gap:10px}
-header h1{font-size:1.15rem;font-weight:700}header h1 span{color:var(--accent)}
-header .badge{font-size:.65rem;background:var(--accent);color:#fff;padding:2px 8px;border-radius:10px;font-weight:600}
-main{max-width:700px;margin:0 auto;padding:20px 16px 80px}
-.card{background:var(--surface);border-radius:var(--radius);padding:20px;margin-bottom:16px}
-.card-title{font-size:.85rem;color:var(--dim);margin-bottom:12px;font-weight:600}
-.upload-box{border:2px dashed var(--border);border-radius:var(--radius);padding:32px 20px;text-align:center;cursor:pointer;transition:all .2s;position:relative}
-.upload-box:hover{border-color:var(--accent);background:rgba(99,102,241,.08)}
-.upload-box .icon{font-size:2.5rem;margin-bottom:6px}
-.upload-box .label{font-weight:600}
-.upload-box .hint{font-size:.8rem;color:var(--dim);margin-top:4px}
-.upload-box input{display:none}
-.upload-box.has-img{border-style:solid;padding:12px}
-.upload-preview{max-width:200px;max-height:200px;border-radius:var(--sm);margin:0 auto;display:block}
-.upload-box .remove-btn{margin-top:8px;background:none;border:1px solid var(--border);color:var(--dim);padding:4px 14px;border-radius:var(--sm);cursor:pointer;font-size:.8rem}
-select,input[type=number]{width:100%;padding:10px 12px;border-radius:var(--sm);border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:.9rem;outline:none}
-select:focus{border-color:var(--accent)}
-.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
-@media(max-width:500px){.grid-2,.grid-3{grid-template-columns:1fr}}
-.chips{display:flex;flex-wrap:wrap;gap:8px}
-.chip{padding:8px 16px;border-radius:var(--sm);border:1px solid var(--border);background:var(--surface2);cursor:pointer;font-size:.85rem;transition:all .15s}
-.chip:hover{border-color:var(--accent)}.chip.active{background:var(--accent);color:#fff;border-color:var(--accent)}
-.btn{width:100%;padding:14px;border:none;border-radius:var(--sm);font-size:1.05rem;font-weight:700;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px}
-.btn:disabled{opacity:.4;cursor:not-allowed}
-.btn-primary{background:var(--accent);color:#fff}.btn-primary:hover:not(:disabled){background:var(--accent-hover)}
-.btn-success{background:var(--green);color:#fff}
-.btn-outline{background:none;border:1px solid var(--border);color:var(--text)}.btn-outline:hover{border-color:var(--accent)}
-.spinner{width:20px;height:20px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite}
+:root{
+  --bg:#0a0e1a;--surface:#111827;--surface2:#1f2937;--surface3:#374151;
+  --border:#374151;--text:#f9fafb;--dim:#9ca3af;--muted:#6b7280;
+  --accent:#818cf8;--accent2:#6366f1;--accent-glow:rgba(129,140,248,.15);
+  --green:#34d399;--red:#f87171;--amber:#fbbf24;
+  --radius:16px;--radius-sm:10px;--sm:8px;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased}
+
+/* ── Header ── */
+.hero{text-align:center;padding:40px 20px 20px;position:relative}
+.hero::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:300px;height:300px;background:radial-gradient(circle,rgba(99,102,241,.12) 0%,transparent 70%);pointer-events:none}
+.hero h1{font-size:2rem;font-weight:800;background:linear-gradient(135deg,#818cf8,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px}
+.hero p{color:var(--dim);font-size:.9rem}
+.hero .badge{display:inline-block;background:linear-gradient(135deg,var(--accent2),#a78bfa);color:#fff;font-size:.65rem;font-weight:700;padding:3px 10px;border-radius:20px;margin-bottom:12px;letter-spacing:.5px}
+
+main{max-width:640px;margin:0 auto;padding:0 16px 100px}
+
+/* ── Cards ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(129,140,248,.3),transparent)}
+.card-label{font-size:.7rem;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.card-label .icon{font-size:1rem}
+
+/* ── Upload Zone ── */
+.upload-zone{
+  border:2px dashed var(--border);border-radius:var(--radius);padding:40px 20px;
+  text-align:center;cursor:pointer;transition:all .3s;position:relative;
+  background:linear-gradient(135deg,rgba(99,102,241,.03),rgba(168,85,247,.03));
+}
+.upload-zone:hover{border-color:var(--accent);background:var(--accent-glow);transform:translateY(-2px)}
+.upload-zone.dragover{border-color:var(--accent);background:var(--accent-glow);box-shadow:0 0 30px rgba(99,102,241,.15)}
+.upload-zone.has-image{border-style:solid;border-color:var(--accent);padding:16px}
+.upload-zone .big-icon{font-size:3rem;margin-bottom:8px;filter:grayscale(.3)}
+.upload-zone h3{font-size:1rem;font-weight:600;margin-bottom:4px}
+.upload-zone .sub{font-size:.8rem;color:var(--dim)}
+.upload-zone img.preview{max-width:180px;max-height:220px;border-radius:var(--sm);margin:0 auto 12px;display:block;box-shadow:0 8px 32px rgba(0,0,0,.3)}
+.upload-zone .remove{background:none;border:1px solid var(--border);color:var(--dim);padding:6px 16px;border-radius:var(--sm);cursor:pointer;font-size:.8rem;transition:all .2s}
+.upload-zone .remove:hover{border-color:var(--red);color:var(--red)}
+.upload-zone input{display:none}
+.upload-zone .bulk-tag{position:absolute;top:12px;right:12px;background:var(--accent2);color:#fff;font-size:.7rem;font-weight:600;padding:4px 10px;border-radius:20px}
+
+/* ── Section Title ── */
+.section-title{font-size:.8rem;font-weight:600;color:var(--dim);margin:20px 0 10px;padding-left:4px}
+
+/* ── Carousel Slider ── */
+.carousel-wrap{position:relative;margin:0 -16px;padding:0 16px}
+.carousel{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:4px 0 16px}
+.carousel::-webkit-scrollbar{display:none}
+.carousel-item{
+  flex:0 0 auto;scroll-snap-align:start;cursor:pointer;
+  border:2px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;
+  transition:all .25s;position:relative;background:var(--surface2);
+}
+.carousel-item:hover{border-color:var(--accent);transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.carousel-item.active{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow),0 8px 24px rgba(0,0,0,.3)}
+.carousel-item.active::after{content:'✓';position:absolute;top:8px;right:8px;background:var(--accent);color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700}
+.carousel-item img{width:100%;height:100%;object-fit:cover;display:block}
+.carousel-item .item-label{text-align:center;padding:6px 8px;font-size:.7rem;font-weight:500;color:var(--dim);white-space:nowrap}
+
+/* Clothing carousel sizing */
+.clothing-carousel .carousel-item{width:110px;height:150px}
+.clothing-carousel .carousel-item img{height:120px}
+.clothing-carousel .carousel-item .item-label{height:30px;display:flex;align-items:center;justify-content:center}
+
+/* Background carousel sizing */
+.bg-carousel .carousel-item{width:80px;height:80px}
+.bg-carousel .carousel-item img{height:60px}
+.bg-carousel .carousel-item .item-label{height:20px;font-size:.65rem;display:flex;align-items:center;justify-content:center}
+
+/* ── Country Select ── */
+.country-select{
+  width:100%;padding:12px 16px;border-radius:var(--radius-sm);
+  border:1px solid var(--border);background:var(--surface2);color:var(--text);
+  font-size:.9rem;font-weight:500;outline:none;appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%239ca3af'%3E%3Cpath d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 12px center;
+}
+.country-select:focus{border-color:var(--accent)}
+
+/* ── Print Settings Row ── */
+.settings-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.settings-row select,.settings-row input{padding:10px 12px;border-radius:var(--sm);border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:.85rem;outline:none;width:100%}
+.settings-row label{font-size:.7rem;color:var(--dim);margin-bottom:4px;display:block}
+.blade-toggle{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:.8rem;color:var(--dim);cursor:pointer}
+.blade-toggle input{accent-color:var(--accent)}
+
+/* ── Gender Detection Badge ── */
+.gender-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;font-size:.8rem;font-weight:600;margin-top:10px;animation:fadeIn .3s}
+.gender-badge.male{background:rgba(59,130,246,.15);color:#60a5fa;border:1px solid rgba(59,130,246,.3)}
+.gender-badge.female{background:rgba(236,72,153,.15);color:#f472b6;border:1px solid rgba(236,72,153,.3)}
+@keyframes fadeIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── Generate Button ── */
+.gen-btn{
+  width:100%;padding:16px;border:none;border-radius:var(--radius);
+  font-size:1.1rem;font-weight:700;cursor:pointer;
+  background:linear-gradient(135deg,var(--accent2),#a78bfa);color:#fff;
+  transition:all .3s;position:relative;overflow:hidden;
+  box-shadow:0 4px 20px rgba(99,102,241,.3);
+}
+.gen-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 30px rgba(99,102,241,.4)}
+.gen-btn:active:not(:disabled){transform:translateY(0)}
+.gen-btn:disabled{opacity:.35;cursor:not-allowed;transform:none}
+.gen-btn .shimmer{position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.1),transparent);animation:shimmer 2s infinite}
+@keyframes shimmer{to{left:100%}}
+
+/* ── Result ── */
+.result-section{display:none;animation:slideUp .4s ease}
+.result-section.show{display:block}
+@keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.result-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.result-img-wrap{position:relative;background:#000}
+.result-img-wrap img{width:100%;max-height:420px;object-fit:contain;display:block}
+.result-stats{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--border)}
+.result-stats div{padding:12px 8px;text-align:center;border-right:1px solid var(--border)}
+.result-stats div:last-child{border-right:none}
+.result-stats .val{font-size:.95rem;font-weight:700;color:var(--accent)}
+.result-stats .lbl{font-size:.65rem;color:var(--muted);margin-top:2px}
+.result-actions{display:flex;gap:10px;padding:16px}
+.result-actions button{flex:1;padding:12px;border:none;border-radius:var(--sm);font-size:.9rem;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:6px}
+.btn-download{background:var(--green);color:#fff}
+.btn-download:hover{filter:brightness(1.1)}
+.btn-sheet{background:var(--surface2);color:var(--text);border:1px solid var(--border)!important}
+.btn-sheet:hover{border-color:var(--accent)!important}
+.btn-retry{background:var(--surface2);color:var(--dim);border:1px solid var(--border)!important}
+.btn-retry:hover{color:var(--text);border-color:var(--accent)!important}
+
+/* Print sheet preview */
+.print-preview{padding:16px;border-top:1px solid var(--border)}
+.print-preview img{width:100%;border-radius:var(--sm);background:#000}
+
+/* Bulk results */
+.bulk-list{padding:0 16px 16px}
+.bulk-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface2);border-radius:var(--sm);margin-bottom:6px;font-size:.8rem}
+.bulk-item .idx{color:var(--muted);font-weight:600;min-width:24px}
+.bulk-item .info{flex:1}
+.bulk-item .info .gender{font-weight:600}
+.bulk-item .info .clothing{color:var(--dim)}
+.bulk-item .time{color:var(--muted);font-size:.75rem}
+.bulk-item a{color:var(--accent);text-decoration:none;font-weight:500}
+
+/* ── Overlay ── */
+.overlay{display:none;position:fixed;inset:0;background:rgba(10,14,26,.92);z-index:998;justify-content:center;align-items:center;flex-direction:column;gap:20px;backdrop-filter:blur(8px)}
+.overlay.show{display:flex}
+.loader{width:48px;height:48px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-.result{display:none}.result.show{display:block}
-.result img{width:100%;max-height:400px;object-fit:contain;border-radius:var(--sm);background:var(--bg)}
-.result-actions{display:flex;gap:10px;margin-top:12px}.result-actions .btn{flex:1}
-.result-info{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px;margin:12px 0}
-.result-info div{background:var(--surface2);border-radius:var(--sm);padding:10px;text-align:center}
-.result-info .val{font-size:1rem;font-weight:700;color:var(--accent)}.result-info .lbl{font-size:.7rem;color:var(--dim);margin-top:2px}
-.steps{display:flex;gap:6px;margin-bottom:20px;font-size:.72rem}
-.steps span{flex:1;text-align:center;padding:6px 4px;border-radius:var(--sm);background:var(--surface2);color:var(--dim)}
-.steps span.active{background:var(--accent);color:#fff}.steps span.done{background:var(--green);color:#fff}
-.overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.85);z-index:998;justify-content:center;align-items:center;flex-direction:column;gap:16px}
-.overlay.show{display:flex}.overlay .spinner-lg{width:44px;height:44px;border-width:4px}
-.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 20px;display:none;z-index:999;max-width:90%}
-.toast.show{display:flex;align-items:center;gap:8px}.toast.error{border-color:var(--red)}
-.gender-badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:.8rem;font-weight:600;margin-top:8px}
-.gender-badge.male{background:#3b82f620;color:#60a5fa;border:1px solid #3b82f640}
-.gender-badge.female{background:#ec489920;color:#f472b6;border:1px solid #ec489940}
-.section-divider{border:none;border-top:1px solid var(--border);margin:20px 0}
-.bulk-results{margin-top:12px}
-.bulk-item{display:flex;align-items:center;gap:8px;padding:8px;background:var(--surface2);border-radius:var(--sm);margin-bottom:4px;font-size:.8rem}
-.bulk-item a{color:var(--accent);text-decoration:none}
+.overlay-text{font-size:1rem;font-weight:500;color:var(--text)}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 20px;display:none;z-index:999;font-size:.85rem;box-shadow:0 8px 32px rgba(0,0,0,.4)}
+.toast.show{display:flex;align-items:center;gap:8px;animation:slideUp .3s}
+.toast.error{border-color:var(--red);color:var(--red)}
+
+/* ── Responsive ── */
+@media(max-width:480px){
+  .hero h1{font-size:1.5rem}
+  .settings-row{grid-template-columns:1fr 1fr}
+  .result-stats{grid-template-columns:repeat(2,1fr)}
+  .result-stats div:nth-child(2){border-right:none}
+}
 </style>
 </head>
 <body>
-<header>
-  <h1><span>AI</span> Passport Photo</h1>
-  <span class="badge">V2</span>
-</header>
+
+<!-- Hero -->
+<div class="hero">
+  <div class="badge">✦ AI POWERED</div>
+  <h1>Passport Photo</h1>
+  <p>ถ่ายรูป → AI สร้างพาสปอร์ต → พร้อมพิมพ์</p>
+</div>
+
+<!-- Overlay -->
 <div class="overlay" id="overlay">
-  <div class="spinner spinner-lg"></div>
-  <div id="overlayText" style="color:var(--text);font-size:1rem;">กำลังสร้าง...</div>
+  <div class="loader"></div>
+  <div class="overlay-text" id="overlayText">กำลังสร้าง...</div>
 </div>
 <div class="toast" id="toast"></div>
 
 <main>
-  <div class="steps">
-    <span id="s1" class="active">1. รูป</span>
-    <span id="s2">2. ตั้งค่า</span>
-    <span id="s3">3. AI สร้าง</span>
-    <span id="s4">4. เสร็จ</span>
+  <!-- Upload -->
+  <div class="card">
+    <div class="card-label"><span class="icon">📸</span> UPLOAD YOUR PHOTO</div>
+    <div class="upload-zone" id="uploadZone">
+      <div id="uploadEmpty">
+        <div class="big-icon">📷</div>
+        <h3>ลากหรือคลิกเพื่อเลือกรูป</h3>
+        <div class="sub">JPG / PNG • สูงสุด 10MB • ลากหลายรูปได้</div>
+      </div>
+      <div id="uploadPreview" style="display:none">
+        <img class="preview" id="previewImg" alt="preview">
+        <button class="remove" id="removeBtn">✕ เปลี่ยนรูป</button>
+      </div>
+      <input type="file" id="fileInput" accept="image/jpeg,image/png" multiple>
+    </div>
+    <div id="genderBadge"></div>
+    <div id="bulkInfo" style="display:none;text-align:center;margin-top:10px;font-size:.8rem;color:var(--accent)"></div>
   </div>
 
-  <!-- Step 1: Upload -->
+  <!-- Country -->
   <div class="card">
-    <div class="card-title">📸 อัปโหลดรูปถ่าย (ลากหลายรูปได้)</div>
-    <div class="upload-box" id="photoUpload">
-      <div id="photoEmpty">
-        <div class="icon">🙋</div>
-        <div class="label">เลือกรูปถ่าย</div>
-        <div class="hint">ถ่ายรูปตรงๆ หน้าชัด • ลาก+วางหลายรูปได้</div>
-      </div>
-      <div id="photoPreview" style="display:none">
-        <img class="upload-preview" id="photoImg" alt="photo">
-        <button class="remove-btn" id="photoRemove">เปลี่ยนรูป</button>
-      </div>
-      <input type="file" id="photoInput" accept="image/jpeg,image/png" multiple>
-    </div>
-    <div id="genderResult" style="text-align:center"></div>
-    <div id="bulkStatus" style="display:none;margin-top:10px;text-align:center;color:var(--accent);font-size:.85rem"></div>
+    <div class="card-label"><span class="icon">🌍</span> COUNTRY & SIZE</div>
+    <select class="country-select" id="templateSelect"></select>
   </div>
 
-  <!-- Step 2: Settings -->
+  <!-- Clothing Carousel -->
   <div class="card">
-    <div class="card-title">🌍 ขนาดประเทศ</div>
-    <select id="templateSelect"></select>
-  </div>
-  <div class="grid-2">
-    <div class="card">
-      <div class="card-title">👤 เพศ</div>
-      <div class="chips" id="genderChips">
-        <div class="chip active" data-value="auto">🔍 อัตโนมัติ</div>
-        <div class="chip" data-value="male">👨 ชาย</div>
-        <div class="chip" data-value="female">👩 หญิง</div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title">🎨 พื้นหลัง</div>
-      <div class="chips" id="bgChips">
-        <div class="chip active" data-value="light_blue">🔵 ฟ้าอ่อน</div>
-        <div class="chip" data-value="white">⚪ ขาว</div>
-        <div class="chip" data-value="light_gray">⚫ เทาอ่อน</div>
-      </div>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card-title">👔 ชุด</div>
-    <div class="chips" id="clothingChips">
-      <div class="chip active" data-value="auto">🔍 อัตโนมัติ</div>
-      <div class="chip" data-value="random">🎲 สุ่ม</div>
-      <div class="chip" data-value="white_shirt">衬衫 ขาว</div>
-      <div class="chip" data-value="blue_shirt">衬衫 น้ำเงิน</div>
-      <div class="chip" data-value="black_suit">🤵 สูทดำ</div>
-    </div>
-  </div>
-  <hr class="section-divider">
-  <div class="card">
-    <div class="card-title">🖨️ ตั้งค่าแผ่นพิมพ์</div>
-    <div class="grid-3">
-      <div>
-        <div style="font-size:.75rem;color:var(--dim);margin-bottom:4px">ขนาดกระดาษ</div>
-        <select id="printSize">
-          <option value="4x6">4x6"</option>
-          <option value="5x7">5x7"</option>
-          <option value="a6">A6</option>
-          <option value="a4">A4</option>
-        </select>
-      </div>
-      <div>
-        <div style="font-size:.75rem;color:var(--dim);margin-bottom:4px">จำนวนรูป</div>
-        <input type="number" id="photoCount" value="6" min="1" max="20">
-      </div>
-      <div>
-        <div style="font-size:.75rem;color:var(--dim);margin-bottom:4px">ขอบ</div>
-        <select id="borderType">
-          <option value="guidelines">📏 เส้นตัด</option>
-          <option value="none">✂️ ไม่มีขอบ</option>
-          <option value="frame">🔲 กรอบขาว</option>
-        </select>
-      </div>
-    </div>
-    <div style="margin-top:12px">
-      <label style="display:flex;align-items:center;gap:8px;font-size:.85rem;cursor:pointer">
-        <input type="checkbox" id="bladeMode"> 🔪 Cutting blade (เพิ่ม gap)
-      </label>
+    <div class="card-label"><span class="icon">👔</span> CHOOSE OUTFIT</div>
+    <div class="section-title" id="clothingTitle">👨 เลือกชุดสำหรับผู้ชาย</div>
+    <div class="carousel-wrap">
+      <div class="carousel clothing-carousel" id="clothingCarousel"></div>
     </div>
   </div>
 
-  <button class="btn btn-primary" id="genBtn" disabled>✨ สร้างรูปพาสปอร์ต</button>
+  <!-- Background Carousel -->
+  <div class="card">
+    <div class="card-label"><span class="icon">🎨</span> BACKGROUND</div>
+    <div class="carousel-wrap">
+      <div class="carousel bg-carousel" id="bgCarousel"></div>
+    </div>
+  </div>
+
+  <!-- Print Settings -->
+  <div class="card">
+    <div class="card-label"><span class="icon">🖨️</span> PRINT SETTINGS</div>
+    <div class="settings-row">
+      <div><label>ขนาด</label><select id="printSize"><option value="4x6">4×6"</option><option value="5x7">5×7"</option><option value="a6">A6</option><option value="a4">A4</option></select></div>
+      <div><label>จำนวน</label><input type="number" id="photoCount" value="6" min="1" max="20"></div>
+      <div><label>ขอบ</label><select id="borderType"><option value="guidelines">เส้นตัด</option><option value="none">ไม่มี</option><option value="frame">กรอบ</option></select></div>
+    </div>
+    <label class="blade-toggle"><input type="checkbox" id="bladeMode"> 🔪 รองรับ cutting blade</label>
+  </div>
+
+  <!-- Generate -->
+  <button class="gen-btn" id="genBtn" disabled>
+    <span class="shimmer"></span>
+    ✨ สร้างรูปพาสปอร์ต
+  </button>
 
   <!-- Result -->
-  <div class="card result" id="resultCard">
-    <div class="card-title">✅ ผลลัพธ์</div>
-    <div class="result-info" id="resultInfo"></div>
-    <img id="resultImg" alt="Passport Photo">
-    <div class="result-actions">
-      <button class="btn btn-success" id="dlPassport">⬇️ รูปเดี่ยว</button>
-      <button class="btn btn-success" id="dlPrint">🖨️ แผ่นพิมพ์</button>
-      <button class="btn btn-outline" id="regenerate">🔄 สร้างใหม่</button>
-    </div>
-    <div id="bulkResults" class="bulk-results" style="display:none"></div>
-    <div style="margin-top:16px" id="printPreviewSection" hidden>
-      <div class="card-title">🖨️ แผ่นพิมพ์</div>
-      <img id="printImg" style="width:100%;border-radius:var(--sm);background:var(--bg)" alt="Print Sheet">
+  <div class="result-section" id="resultSection">
+    <div style="height:16px"></div>
+    <div class="result-card">
+      <div class="result-img-wrap"><img id="resultImg" alt="Passport"></div>
+      <div class="result-stats" id="resultStats"></div>
+      <div class="result-actions">
+        <button class="btn-download" id="dlPassport">⬇️ รูปเดี่ยว</button>
+        <button class="btn-sheet" id="dlPrint">🖨️ แผ่นพิมพ์</button>
+        <button class="btn-retry" id="retryBtn">🔄 ใหม่</button>
+      </div>
+      <div class="print-preview" id="printPreview" hidden>
+        <img id="printImg" alt="Print Sheet">
+      </div>
+      <div class="bulk-list" id="bulkList" style="display:none"></div>
     </div>
   </div>
 </main>
@@ -187,155 +270,227 @@ select:focus{border-color:var(--accent)}
 <script>
 const API='/api/passport';
 const $=id=>document.getElementById(id);
-let state={photo:null,photos:[],sessionId:null,gender:'auto',isBulk:false};
 
-async function init(){await loadTemplates();setupUploads();setupChips();setupGen();}
+const CLOTHING_IMAGES={
+  male:[
+    {key:'auto',img:'img/clothing/male/white_shirt.png',label:'อัตโนมัติ'},
+    {key:'random',img:'img/clothing/male/blue_shirt.png',label:'🎲 สุ่ม'},
+    {key:'white_shirt',img:'img/clothing/male/white_shirt.png',label:'เสื้อขาว'},
+    {key:'blue_shirt',img:'img/clothing/male/blue_shirt.png',label:'เสื้อน้ำเงิน'},
+    {key:'black_suit',img:'img/clothing/male/black_suit.png',label:'สูทดำ'},
+    {key:'gray_blazer',img:'img/clothing/male/gray_blazer.png',label:'เบลเซอร์เทา'},
+    {key:'navy_suit',img:'img/clothing/male/navy_suit.png',label:'สูทกรมท่า'},
+  ],
+  female:[
+    {key:'auto',img:'img/clothing/female/white_blouse.png',label:'อัตโนมัติ'},
+    {key:'random',img:'img/clothing/female/pink_blouse.png',label:'🎲 สุ่ม'},
+    {key:'white_blouse',img:'img/clothing/female/white_blouse.png',label:'บลูซ์ขาว'},
+    {key:'pink_blouse',img:'img/clothing/female/pink_blouse.png',label:'บลูซ์ชมพู'},
+    {key:'blue_blouse',img:'img/clothing/female/blue_blouse.png',label:'บลูซ์น้ำเงิน'},
+    {key:'black_top',img:'img/clothing/female/black_top.png',label:'เสื้อดำ'},
+    {key:'white_turtleneck',img:'img/clothing/female/white_turtleneck.png',label:'คอกลมขาว'},
+  ]
+};
 
+const BG_IMAGES=[
+  {key:'light_blue',img:'img/bg/light_blue.png',label:'ฟ้าอ่อน'},
+  {key:'white',img:'img/bg/white.png',label:'ขาว'},
+  {key:'light_gray',img:'img/bg/light_gray.png',label:'เทาอ่อน'},
+];
+
+let state={photo:null,photos:[],sessionId:null,gender:'auto',clothing:'auto',background:'light_blue',isBulk:false};
+
+// ── Init ──
+async function init(){
+  await loadTemplates();
+  buildCarousel('clothingCarousel',CLOTHING_IMAGES.male,'clothing');
+  buildCarousel('bgCarousel',BG_IMAGES,'background');
+  setupUpload();
+  setupGen();
+}
+
+// ── Templates ──
 async function loadTemplates(){
   try{
     const r=await fetch(`${API}/templates`);const d=await r.json();
     const sel=$('templateSelect');const groups={};
     for(const t of d.templates||[]){const g=t.country||'Other';if(!groups[g])groups[g]=[];groups[g].push(t);}
-    const order=['Thailand','United States','United Kingdom','China','Japan'];
-    for(const c of order){if(groups[c]){addGroup(sel,c,groups[c]);delete groups[c];}}
-    for(const [c,ts] of Object.entries(groups).sort())addGroup(sel,c,ts);
+    for(const [c,ts] of Object.entries(groups).sort()){
+      const og=document.createElement('optgroup');og.label=c==='Thailand'?'🇹🇭 ไทย':c;
+      for(const t of ts.sort((a,b)=>a.name.localeCompare(b.name))){
+        const opt=document.createElement('option');opt.value=t.code;opt.textContent=`${t.name} (${t.width_mm}×${t.height_mm}mm)`;og.appendChild(opt);
+      }
+      sel.appendChild(og);
+    }
     sel.value='thai_passport';
   }catch(e){showToast('โหลดประเทศไม่สำเร็จ','error');}
 }
-function addGroup(sel,country,templates){
-  const og=document.createElement('optgroup');og.label=country==='Thailand'?'🇹🇭 ไทย':country;
-  for(const t of templates){const opt=document.createElement('option');opt.value=t.code;opt.textContent=`${t.name} (${t.width_mm}×${t.height_mm}mm)`;og.appendChild(opt);}
-  sel.appendChild(og);
-}
 
-function setupUploads(){
-  setupUpload('photo',(file)=>{
-    const input=$('photoInput');
-    if(input.files&&input.files.length>1){
-      state.isBulk=true;state.photos=[];
-      for(const f of input.files)state.photos.push(f);
-      state.photo=state.photos[0];
-      $('bulkStatus').style.display='block';
-      $('bulkStatus').textContent=`📁 เลือก ${state.photos.length} รูป — จะสร้างทั้งหมด`;
-      $('photoImg').src=URL.createObjectURL(state.photos[0]);
-      $('photoEmpty').style.display='none';$('photoPreview').style.display='block';
-      $('photoUpload').classList.add('has-img');
-    }else{
-      state.isBulk=false;state.photos=[file];state.photo=file;
-      $('bulkStatus').style.display='none';
-    }
-    $('s1').className='done';$('s2').className='active';updateGenBtn();
+// ── Carousel Builder ──
+function buildCarousel(containerId,items,stateKey){
+  const container=$(containerId);
+  container.innerHTML='';
+  items.forEach((item,i)=>{
+    const div=document.createElement('div');
+    div.className='carousel-item'+(i===0?' active':'');
+    div.dataset.key=item.key;
+    div.innerHTML=`<img src="${item.img}" alt="${item.label}" loading="lazy"><div class="item-label">${item.label}</div>`;
+    div.addEventListener('click',()=>{
+      container.querySelectorAll('.carousel-item').forEach(c=>c.classList.remove('active'));
+      div.classList.add('active');
+      state[stateKey]=item.key;
+      if(stateKey==='clothing')updateClothingTitle();
+    });
+    container.appendChild(div);
   });
 }
-function setupUpload(prefix,onFile){
-  const zone=$(`${prefix}Upload`),input=$(`${prefix}Input`);
-  const preview=$(`${prefix}Preview`),img=$(`${prefix}Img`);
-  const remove=$(`${prefix}Remove`),empty=$(`${prefix}Empty`);
+
+function updateClothingTitle(){
+  const g=state.gender;
+  $('clothingTitle').textContent=g==='female'?'👩 เลือกชุดสำหรับผู้หญิง':'👨 เลือกชุดสำหรับผู้ชาย';
+  // Rebuild carousel for detected gender
+  const items=g==='female'?CLOTHING_IMAGES.female:CLOTHING_IMAGES.male;
+  buildCarousel('clothingCarousel',items,'clothing');
+  // Re-apply state
+  const active=state.clothing;
+  const target=$('clothingCarousel').querySelector(`[data-key="${active}"]`);
+  if(target){$('clothingCarousel').querySelectorAll('.carousel-item').forEach(c=>c.classList.remove('active'));target.classList.add('active');}
+}
+
+// ── Upload ──
+function setupUpload(){
+  const zone=$('uploadZone'),input=$('fileInput');
   zone.addEventListener('click',e=>{if(!e.target.closest('button'))input.click();});
-  input.addEventListener('change',()=>{if(input.files[0])handleFile(input.files[0]);});
-  if(remove)remove.addEventListener('click',e=>{
-    e.stopPropagation();state[prefix]=null;state.photos=[];state.isBulk=false;input.value='';
-    empty.style.display='block';preview.style.display='none';zone.classList.remove('has-img');
-    $('bulkStatus').style.display='none';updateGenBtn();
+  zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('dragover');});
+  zone.addEventListener('dragleave',()=>zone.classList.remove('dragover'));
+  zone.addEventListener('drop',e=>{
+    e.preventDefault();zone.classList.remove('dragover');
+    if(e.dataTransfer.files.length)handleFiles(e.dataTransfer.files);
   });
-  function handleFile(file){
-    if(!file.type.match(/^image\/(jpeg|png)$/)){showToast('เฉพาะ JPG/PNG','error');return;}
-    const reader=new FileReader();
-    reader.onload=e=>{onFile(e.target.result);img.src=e.target.result;empty.style.display='none';preview.style.display='block';zone.classList.add('has-img');};
-    reader.readAsDataURL(file);
+  input.addEventListener('change',()=>{if(input.files.length)handleFiles(input.files);});
+  $('removeBtn').addEventListener('click',e=>{
+    e.stopPropagation();resetUpload();
+  });
+}
+
+function handleFiles(files){
+  if(files.length>1){
+    state.isBulk=true;state.photos=[...files];state.photo=files[0];
+    $('bulkInfo').style.display='block';
+    $('bulkInfo').textContent=`📁 เลือก ${files.length} รูป — จะสร้างทั้งหมด`;
+  }else{
+    state.isBulk=false;state.photos=[];state.photo=files[0];
+    $('bulkInfo').style.display='none';
   }
+  const reader=new FileReader();
+  reader.onload=e=>{
+    $('previewImg').src=e.target.result;
+    $('uploadEmpty').style.display='none';$('uploadPreview').style.display='block';
+    $('uploadZone').classList.add('has-image');
+    $('genBtn').disabled=false;
+    // Auto-detect gender
+    detectGender(files[0]);
+  };
+  reader.readAsDataURL(files[0]);
 }
 
-function setupChips(){
-  setupChipGroup('genderChips',v=>state.gender=v);
-  setupChipGroup('bgChips',()=>{});
-  setupChipGroup('clothingChips',()=>{});
+function resetUpload(){
+  state.photo=null;state.photos=[];state.isBulk=false;state.gender='auto';
+  $('fileInput').value='';
+  $('uploadEmpty').style.display='';$('uploadPreview').style.display='none';
+  $('uploadZone').classList.remove('has-image');
+  $('genderBadge').innerHTML='';$('bulkInfo').style.display='none';
+  $('genBtn').disabled=true;
 }
-function setupChipGroup(cid,onChange){
-  $(cid).addEventListener('click',e=>{
-    const chip=e.target.closest('.chip');if(!chip)return;
-    $(cid).querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
-    chip.classList.add('active');onChange(chip.dataset.value);
-  });
-}
-function getChipValue(cid){const a=$(cid).querySelector('.chip.active');return a?a.dataset.value:'';}
-function updateGenBtn(){$('genBtn').disabled=!state.photo;}
 
+async function detectGender(file){
+  const b64=await readFileAsBase64(file);
+  try{
+    const fd=new FormData();fd.append('image_base64',b64);
+    const r=await fetch(`${API}/detect-gender`,{method:'POST',body:fd});
+    const d=await r.json();
+    if(d.ok&&d.gender){
+      state.gender=d.gender;
+      const emoji=d.gender==='male'?'👨':'👩';
+      const label=d.gender==='male'?'ชาย':'หญิง';
+      $('genderBadge').innerHTML=`<span class="gender-badge ${d.gender}">${emoji} ${label} (${d.confidence?Math.round(d.confidence*100):'?'}%)</span>`;
+      updateClothingTitle();
+    }
+  }catch(e){console.log('Gender detect failed:',e);}
+}
+
+// ── Generate ──
 function setupGen(){
   $('genBtn').addEventListener('click',generate);
   $('dlPassport').addEventListener('click',()=>dl('passport'));
   $('dlPrint').addEventListener('click',()=>dl('print'));
-  $('regenerate').addEventListener('click',generate);
+  $('retryBtn').addEventListener('click',()=>{$('resultSection').classList.remove('show');window.scrollTo({top:0,behavior:'smooth'});});
 }
 
 async function generate(){
   if(!state.photo)return;
   if(state.isBulk&&state.photos.length>1)return generateBulk();
-  const b64=state.photo.split(',')[1];
-  showOverlay('🤖 AI กำลังวิเคราะห์และสร้างรูป...');
-  $('s2').className='done';$('s3').className='active';
+
+  showOverlay('🤖 AI กำลังสร้างรูป...');
   try{
+    const b64=await readFileAsBase64(state.photo);
     const r=await fetch(`${API}/generate`,{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({image_base64:b64,template_code:$('templateSelect').value,gender:getChipValue('genderChips'),clothing:getChipValue('clothingChips'),background:getChipValue('bgChips'),strength:0.65})
+      body:JSON.stringify({image_base64:b64,template_code:$('templateSelect').value,gender:state.gender,clothing:state.clothing,background:state.background,strength:0.65})
     });
     const d=await r.json();if(!d.ok)throw new Error(d.detail||'Error');
     state.sessionId=d.session_id;
-    const ge=d.gender==='male'?'👨':d.gender==='female'?'👩':'❓';
-    $('genderResult').innerHTML=`<span class="gender-badge ${d.gender}">${ge} ${d.gender==='male'?'ชาย':'หญิง'} (${d.clothing})</span>`;
-    $('resultInfo').innerHTML=`
+
+    $('resultStats').innerHTML=`
       <div><div class="val">${d.time_seconds||'?'}s</div><div class="lbl">⏱ เวลา</div></div>
       <div><div class="val">${d.dimensions?.w}×${d.dimensions?.h}</div><div class="lbl">📐 mm</div></div>
-      <div><div class="val">${d.gender==='male'?'👨 ชาย':'👩 หญิง'}</div><div class="lbl">👤 เพศ</div></div>
-      <div><div class="val">${d.clothing}</div><div class="lbl">👔 ชุด</div></div>
+      <div><div class="val">${d.gender==='male'?'👨':'👩'} ${d.gender==='male'?'ชาย':'หญิง'}</div><div class="lbl">👤 เพศ</div></div>
       <div><div class="val">$0.004</div><div class="lbl">💰 ราคา</div></div>`;
     $('resultImg').src=`${API}/download/${d.session_id}_passport.jpg?t=${Date.now()}`;
-    if(d.download_print){$('printImg').src=`${API}/download/${d.session_id}_print.jpg?t=${Date.now()}`;$('printPreviewSection').hidden=false;}
-    $('s3').className='done';$('s4').className='active';
-    $('resultCard').classList.add('show');$('resultCard').scrollIntoView({behavior:'smooth'});
+    if(d.download_print){
+      $('printImg').src=`${API}/download/${d.session_id}_print.jpg?t=${Date.now()}`;
+      $('printPreview').hidden=false;
+    }
+    $('resultSection').classList.add('show');
+    $('resultSection').scrollIntoView({behavior:'smooth'});
     showToast('✅ เสร็จแล้ว!');
-  }catch(e){showToast(`❌ ${e.message}`,'error');$('s3').className='';}
+  }catch(e){showToast(`❌ ${e.message}`,'error');}
   finally{hideOverlay();}
 }
 
 async function generateBulk(){
   showOverlay(`🤖 กำลังสร้าง ${state.photos.length} รูป...`);
-  $('s2').className='done';$('s3').className='active';
   try{
     const images=[];for(const f of state.photos)images.push(await readFileAsBase64(f));
     const r=await fetch(`${API}/bulk-generate`,{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({images,template_code:$('templateSelect').value,gender:getChipValue('genderChips'),clothing:getChipValue('clothingChips'),background:getChipValue('bgChips'),strength:0.65,print_size:$('printSize').value,photo_count:parseInt($('photoCount').value)||6,border:$('borderType').value,blade_mode:$('bladeMode').checked})
+      body:JSON.stringify({images,template_code:$('templateSelect').value,gender:state.gender,clothing:state.clothing,background:state.background,strength:0.65,print_size:$('printSize').value,photo_count:parseInt($('photoCount').value)||6,border:$('borderType').value,blade_mode:$('bladeMode').checked})
     });
     const d=await r.json();if(!d.ok)throw new Error(d.detail||'Error');
     state.sessionId=d.results[0]?.session_id;
-    $('resultInfo').innerHTML=`
+
+    $('resultStats').innerHTML=`
       <div><div class="val">${d.time_seconds}s</div><div class="lbl">⏱ เวลา</div></div>
       <div><div class="val">${d.success}/${d.total}</div><div class="lbl">✅ สำเร็จ</div></div>
-      <div><div class="val">$${(0.004*d.total).toFixed(3)}</div><div class="lbl">💰 ราคา</div></div>`;
+      <div><div class="val">$${(0.004*d.total).toFixed(3)}</div><div class="lbl">💰 ราคา</div></div>
+      <div><div class="val">${d.total}</div><div class="lbl">📸 รูป</div></div>`;
     if(d.results[0]?.ok)$('resultImg').src=`${API}/download/${d.results[0].session_id}_passport.jpg?t=${Date.now()}`;
-    let html='<div class="bulk-results">';
-    for(const r of d.results){
-      if(r.ok)html+=`<div class="bulk-item"><span>✅</span><span>#${r.index+1} ${r.gender==='male'?'👨':'👩'} ${r.clothing}</span><span style="margin-left:auto;color:var(--dim)">${r.time_seconds}s</span><a href="${API}/download/${r.session_id}_passport.jpg" download>⬇️</a>${r.download_print?`<a href="${API}/download/${r.session_id}_print.jpg" download style="color:var(--green)">🖨️</a>`:''}</div>`;
-      else html+=`<div class="bulk-item" style="color:var(--red)"><span>❌</span><span>#${r.index+1}: ${r.error}</span></div>`;
+
+    let html='';for(const r of d.results){
+      if(r.ok)html+=`<div class="bulk-item"><span class="idx">#${r.index+1}</span><div class="info"><span class="gender">${r.gender==='male'?'👨':'👩'}</span> <span class="clothing">${r.clothing}</span></div><span class="time">${r.time_seconds}s</span><a href="${API}/download/${r.session_id}_passport.jpg" download>⬇️</a></div>`;
+      else html+=`<div class="bulk-item" style="color:var(--red)"><span class="idx">#${r.index+1}</span><div class="info">${r.error}</div></div>`;
     }
-    html+='</div>';$('resultInfo').insertAdjacentHTML('beforeend',html);
-    $('s3').className='done';$('s4').className='active';
-    $('resultCard').classList.add('show');$('resultCard').scrollIntoView({behavior:'smooth'});
+    $('bulkList').innerHTML=html;$('bulkList').style.display='block';
+    $('resultSection').classList.add('show');$('resultSection').scrollIntoView({behavior:'smooth'});
     showToast(`✅ เสร็จ ${d.success}/${d.total} รูป!`);
-  }catch(e){showToast(`❌ ${e.message}`,'error');$('s3').className='';}
+  }catch(e){showToast(`❌ ${e.message}`,'error');}
   finally{hideOverlay();}
 }
 
 function readFileAsBase64(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(file);});}
+function dl(type){if(!state.sessionId)return;const a=document.createElement('a');a.href=`${API}/download/${state.sessionId}_${type}.jpg`;a.download=`passport_${state.sessionId}_${type}.jpg`;a.click();}
 
-function dl(type){
-  if(!state.sessionId)return;const s=type==='passport'?'passport':'print';
-  const a=document.createElement('a');a.href=`${API}/download/${state.sessionId}_${s}.jpg`;a.download=`passport_${state.sessionId}_${s}.jpg`;a.click();
-}
-
-let toastTimeout;
-function showToast(msg,type=''){clearTimeout(toastTimeout);const t=$('toast');t.className=`toast show ${type}`;t.innerHTML=`<span>${msg}</span>`;toastTimeout=setTimeout(()=>t.classList.remove('show'),4000);}
+let tt;function showToast(m,t=''){clearTimeout(tt);const e=$('toast');e.className=`toast show ${t}`;e.innerHTML=m;tt=setTimeout(()=>e.classList.remove('show'),4000);}
 function showOverlay(t){$('overlayText').textContent=t;$('overlay').classList.add('show');}
 function hideOverlay(){$('overlay').classList.remove('show');}
 

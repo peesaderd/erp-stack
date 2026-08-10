@@ -3,403 +3,414 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>AI Passport Photo</title>
+<title>Passport Photo AI</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#0a0e1a;--surface:#111827;--surface2:#1f2937;--surface3:#374151;
-  --border:#374151;--text:#f9fafb;--dim:#9ca3af;--muted:#6b7280;
-  --accent:#818cf8;--accent2:#6366f1;--accent-glow:rgba(129,140,248,.15);
-  --green:#34d399;--red:#f87171;--amber:#fbbf24;
-  --radius:16px;--radius-sm:10px;--sm:8px;
+  --bg:#fafafa;--surface:#fff;--surface2:#f5f5f5;--surface3:#eee;
+  --border:#e5e5e5;--text:#171717;--dim:#737373;--muted:#a3a3a3;
+  --accent:#2563eb;--accent-light:#eff6ff;
+  --radius:12px;--radius-sm:8px;--radius-xs:6px;
+  --shadow:0 1px 3px rgba(0,0,0,.06);
+  --shadow-lg:0 4px 12px rgba(0,0,0,.08);
 }
 html{scroll-behavior:smooth}
-body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased}
+body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;padding:0 0 80px}
 
-/* ── Header ── */
-.hero{text-align:center;padding:40px 20px 20px;position:relative}
-.hero::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:300px;height:300px;background:radial-gradient(circle,rgba(99,102,241,.12) 0%,transparent 70%);pointer-events:none}
-.hero h1{font-size:2rem;font-weight:800;background:linear-gradient(135deg,#818cf8,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px}
-.hero p{color:var(--dim);font-size:.9rem}
-.hero .badge{display:inline-block;background:linear-gradient(135deg,var(--accent2),#a78bfa);color:#fff;font-size:.65rem;font-weight:700;padding:3px 10px;border-radius:20px;margin-bottom:12px;letter-spacing:.5px}
+/* Header */
+.header{padding:24px 20px 16px;max-width:560px;margin:0 auto}
+.header h1{font-size:1.5rem;font-weight:700;letter-spacing:-.02em}
+.header p{font-size:.8rem;color:var(--dim);margin-top:2px}
 
-main{max-width:640px;margin:0 auto;padding:0 16px 100px}
+/* Container */
+.container{max-width:560px;margin:0 auto;padding:0 20px}
 
-/* ── Cards ── */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px;position:relative;overflow:hidden}
-.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(129,140,248,.3),transparent)}
-.card-label{font-size:.7rem;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;display:flex;align-items:center;gap:6px}
-.card-label .icon{font-size:1rem}
+/* Section */
+.section{margin-bottom:24px}
+.section-label{font-size:.65rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}
 
-/* ── Upload Zone ── */
-.upload-zone{
-  border:2px dashed var(--border);border-radius:var(--radius);padding:40px 20px;
-  text-align:center;cursor:pointer;transition:all .3s;position:relative;
-  background:linear-gradient(135deg,rgba(99,102,241,.03),rgba(168,85,247,.03));
+/* Upload */
+.upload-area{
+  border:1.5px dashed var(--border);border-radius:var(--radius);
+  padding:32px;text-align:center;cursor:pointer;transition:all .2s;
+  background:var(--surface);
 }
-.upload-zone:hover{border-color:var(--accent);background:var(--accent-glow);transform:translateY(-2px)}
-.upload-zone.dragover{border-color:var(--accent);background:var(--accent-glow);box-shadow:0 0 30px rgba(99,102,241,.15)}
-.upload-zone.has-image{border-style:solid;border-color:var(--accent);padding:16px}
-.upload-zone .big-icon{font-size:3rem;margin-bottom:8px;filter:grayscale(.3)}
-.upload-zone h3{font-size:1rem;font-weight:600;margin-bottom:4px}
-.upload-zone .sub{font-size:.8rem;color:var(--dim)}
-.upload-zone img.preview{max-width:180px;max-height:220px;border-radius:var(--sm);margin:0 auto 12px;display:block;box-shadow:0 8px 32px rgba(0,0,0,.3)}
-.upload-zone .remove{background:none;border:1px solid var(--border);color:var(--dim);padding:6px 16px;border-radius:var(--sm);cursor:pointer;font-size:.8rem;transition:all .2s}
-.upload-zone .remove:hover{border-color:var(--red);color:var(--red)}
-.upload-zone input{display:none}
-.upload-zone .bulk-tag{position:absolute;top:12px;right:12px;background:var(--accent2);color:#fff;font-size:.7rem;font-weight:600;padding:4px 10px;border-radius:20px}
+.upload-area:hover{border-color:var(--accent);background:var(--accent-light)}
+.upload-area.dragover{border-color:var(--accent);background:var(--accent-light)}
+.upload-area.has-image{border-style:solid;padding:16px;display:flex;align-items:center;gap:16px}
+.upload-area .icon{font-size:2rem;opacity:.4}
+.upload-area h3{font-size:.9rem;font-weight:600;margin-top:4px}
+.upload-area .sub{font-size:.75rem;color:var(--dim);margin-top:2px}
+.upload-area img{width:80px;height:80px;object-fit:cover;border-radius:var(--radius-sm);flex-shrink:0}
+.upload-area .info{flex:1;text-align:left}
+.upload-area .info h3{margin-top:0}
+.upload-area .remove{background:none;border:1px solid var(--border);color:var(--dim);padding:4px 12px;border-radius:var(--radius-xs);cursor:pointer;font-size:.7rem;transition:all .15s}
+.upload-area .remove:hover{border-color:#ef4444;color:#ef4444}
+.upload-area input{display:none}
+.gender-tag{display:inline-flex;align-items:center;gap:4px;margin-top:8px;padding:4px 10px;border-radius:20px;font-size:.7rem;font-weight:500;background:var(--accent-light);color:var(--accent)}
+.bulk-tag{display:inline-flex;align-items:center;gap:4px;margin-top:8px;padding:4px 10px;border-radius:20px;font-size:.7rem;font-weight:500;background:#f0fdf4;color:#16a34a}
 
-/* ── Section Title ── */
-.section-title{font-size:.8rem;font-weight:600;color:var(--dim);margin:20px 0 10px;padding-left:4px}
+/* Country Grid */
+.country-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.country-item{
+  display:flex;align-items:center;gap:8px;padding:10px 12px;
+  border:1.5px solid var(--border);border-radius:var(--radius-sm);
+  cursor:pointer;transition:all .15s;background:var(--surface);
+  font-size:.78rem;font-weight:500;
+}
+.country-item:hover{border-color:var(--accent)}
+.country-item.active{border-color:var(--accent);background:var(--accent-light);color:var(--accent)}
+.country-item .flag{font-size:1.1rem}
+.country-item .size{font-size:.65rem;color:var(--muted);font-weight:400}
 
-/* ── Carousel Slider ── */
-.carousel-wrap{position:relative;margin:0 -16px;padding:0 16px}
-.carousel{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:4px 0 16px}
+/* Custom Size */
+.custom-size{display:flex;gap:8px;margin-top:8px;align-items:center}
+.custom-size input{flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-xs);font-size:.78rem;outline:none;background:var(--surface)}
+.custom-size input:focus{border-color:var(--accent)}
+.custom-size span{font-size:.7rem;color:var(--muted)}
+
+/* Clothing Carousel */
+.carousel{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:4px 0 8px}
 .carousel::-webkit-scrollbar{display:none}
 .carousel-item{
-  flex:0 0 auto;scroll-snap-align:start;cursor:pointer;
-  border:2px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;
-  transition:all .25s;position:relative;background:var(--surface2);
+  flex:0 0 90px;scroll-snap-align:start;cursor:pointer;
+  border:1.5px solid var(--border);border-radius:var(--radius-sm);
+  overflow:hidden;transition:all .15s;background:var(--surface);
 }
-.carousel-item:hover{border-color:var(--accent);transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
-.carousel-item.active{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow),0 8px 24px rgba(0,0,0,.3)}
-.carousel-item.active::after{content:'✓';position:absolute;top:8px;right:8px;background:var(--accent);color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700}
-.carousel-item img{width:100%;height:100%;object-fit:cover;display:block}
-.carousel-item .item-label{text-align:center;padding:6px 8px;font-size:.7rem;font-weight:500;color:var(--dim);white-space:nowrap}
+.carousel-item:hover{border-color:var(--accent)}
+.carousel-item.active{border-color:var(--accent);background:var(--accent-light)}
+.carousel-item img{width:100%;height:90px;object-fit:cover}
+.carousel-item .label{text-align:center;padding:6px 4px;font-size:.65rem;font-weight:500;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-/* Clothing carousel sizing */
-.clothing-carousel .carousel-item{width:110px;height:150px}
-.clothing-carousel .carousel-item img{height:120px}
-.clothing-carousel .carousel-item .item-label{height:30px;display:flex;align-items:center;justify-content:center}
-
-/* Background carousel sizing */
-.bg-carousel .carousel-item{width:80px;height:80px}
-.bg-carousel .carousel-item img{height:60px}
-.bg-carousel .carousel-item .item-label{height:20px;font-size:.65rem;display:flex;align-items:center;justify-content:center}
-
-/* ── Country Select ── */
-.country-select{
-  width:100%;padding:12px 16px;border-radius:var(--radius-sm);
-  border:1px solid var(--border);background:var(--surface2);color:var(--text);
-  font-size:.9rem;font-weight:500;outline:none;appearance:none;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%239ca3af'%3E%3Cpath d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-  background-repeat:no-repeat;background-position:right 12px center;
+/* Background Dots */
+.bg-dots{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.bg-dot{
+  width:40px;height:40px;border-radius:50%;cursor:pointer;
+  border:2px solid var(--border);transition:all .15s;position:relative;
 }
-.country-select:focus{border-color:var(--accent)}
+.bg-dot:hover{transform:scale(1.1)}
+.bg-dot.active{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-light)}
+.bg-dot.active::after{content:'✓';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;color:var(--accent)}
+.bg-dot.custom{border-style:dashed;display:flex;align-items:center;justify-content:center;font-size:1rem;color:var(--muted)}
+.color-picker-wrap{position:relative}
+.color-picker-wrap input[type=color]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
 
-/* ── Print Settings Row ── */
-.settings-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
-.settings-row select,.settings-row input{padding:10px 12px;border-radius:var(--sm);border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:.85rem;outline:none;width:100%}
-.settings-row label{font-size:.7rem;color:var(--dim);margin-bottom:4px;display:block}
-.blade-toggle{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:.8rem;color:var(--dim);cursor:pointer}
-.blade-toggle input{accent-color:var(--accent)}
+/* Print Settings Row */
+.print-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.print-row .field label{font-size:.65rem;color:var(--muted);margin-bottom:4px;display:block}
+.print-row select,.print-row input{width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-xs);font-size:.78rem;background:var(--surface);color:var(--text);outline:none}
+.print-row select:focus,.print-row input:focus{border-color:var(--accent)}
+.blade-row{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:.72rem;color:var(--dim);cursor:pointer}
+.blade-row input{accent-color:var(--accent)}
 
-/* ── Gender Detection Badge ── */
-.gender-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;font-size:.8rem;font-weight:600;margin-top:10px;animation:fadeIn .3s}
-.gender-badge.male{background:rgba(59,130,246,.15);color:#60a5fa;border:1px solid rgba(59,130,246,.3)}
-.gender-badge.female{background:rgba(236,72,153,.15);color:#f472b6;border:1px solid rgba(236,72,153,.3)}
-@keyframes fadeIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
-
-/* ── Generate Button ── */
+/* Generate Button */
 .gen-btn{
-  width:100%;padding:16px;border:none;border-radius:var(--radius);
-  font-size:1.1rem;font-weight:700;cursor:pointer;
-  background:linear-gradient(135deg,var(--accent2),#a78bfa);color:#fff;
-  transition:all .3s;position:relative;overflow:hidden;
-  box-shadow:0 4px 20px rgba(99,102,241,.3);
+  width:100%;padding:14px;border:none;border-radius:var(--radius);
+  font-size:.9rem;font-weight:600;cursor:pointer;
+  background:var(--accent);color:#fff;transition:all .15s;
 }
-.gen-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 30px rgba(99,102,241,.4)}
-.gen-btn:active:not(:disabled){transform:translateY(0)}
-.gen-btn:disabled{opacity:.35;cursor:not-allowed;transform:none}
-.gen-btn .shimmer{position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.1),transparent);animation:shimmer 2s infinite}
-@keyframes shimmer{to{left:100%}}
+.gen-btn:hover{filter:brightness(1.05)}
+.gen-btn:disabled{opacity:.35;cursor:not-allowed}
 
-/* ── Result ── */
-.result-section{display:none;animation:slideUp .4s ease}
-.result-section.show{display:block}
-@keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-.result-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
-.result-img-wrap{position:relative;background:#000}
-.result-img-wrap img{width:100%;max-height:420px;object-fit:contain;display:block}
+/* Result */
+.result{display:none;animation:fadeUp .3s}
+.result.show{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.result-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+.result-img{width:100%;max-height:400px;object-fit:contain;background:#f5f5f5}
 .result-stats{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--border)}
-.result-stats div{padding:12px 8px;text-align:center;border-right:1px solid var(--border)}
+.result-stats div{padding:10px 6px;text-align:center;border-right:1px solid var(--border)}
 .result-stats div:last-child{border-right:none}
-.result-stats .val{font-size:.95rem;font-weight:700;color:var(--accent)}
-.result-stats .lbl{font-size:.65rem;color:var(--muted);margin-top:2px}
-.result-actions{display:flex;gap:10px;padding:16px}
-.result-actions button{flex:1;padding:12px;border:none;border-radius:var(--sm);font-size:.9rem;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:6px}
-.btn-download{background:var(--green);color:#fff}
-.btn-download:hover{filter:brightness(1.1)}
-.btn-sheet{background:var(--surface2);color:var(--text);border:1px solid var(--border)!important}
-.btn-sheet:hover{border-color:var(--accent)!important}
-.btn-retry{background:var(--surface2);color:var(--dim);border:1px solid var(--border)!important}
-.btn-retry:hover{color:var(--text);border-color:var(--accent)!important}
-
-/* Print sheet preview */
-.print-preview{padding:16px;border-top:1px solid var(--border)}
-.print-preview img{width:100%;border-radius:var(--sm);background:#000}
-
-/* Bulk results */
-.bulk-list{padding:0 16px 16px}
-.bulk-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface2);border-radius:var(--sm);margin-bottom:6px;font-size:.8rem}
-.bulk-item .idx{color:var(--muted);font-weight:600;min-width:24px}
+.result-stats .v{font-size:.85rem;font-weight:600;color:var(--accent)}
+.result-stats .l{font-size:.6rem;color:var(--muted);margin-top:1px}
+.result-actions{display:flex;gap:8px;padding:12px}
+.result-actions button{flex:1;padding:10px;border:none;border-radius:var(--radius-xs);font-size:.78rem;font-weight:500;cursor:pointer;transition:all .15s}
+.btn-green{background:#16a34a;color:#fff}.btn-green:hover{filter:brightness(1.05)}
+.btn-gray{background:var(--surface2);color:var(--text);border:1px solid var(--border)!important}.btn-gray:hover{border-color:var(--accent)!important}
+.print-preview{padding:12px;border-top:1px solid var(--border)}
+.print-preview img{width:100%;border-radius:var(--radius-xs);background:#f5f5f5}
+.bulk-list{padding:0 12px 12px}
+.bulk-item{display:flex;align-items:center;gap:8px;padding:8px;background:var(--surface2);border-radius:var(--radius-xs);margin-bottom:4px;font-size:.72rem}
+.bulk-item .idx{color:var(--muted);font-weight:600;min-width:20px}
 .bulk-item .info{flex:1}
-.bulk-item .info .gender{font-weight:600}
-.bulk-item .info .clothing{color:var(--dim)}
-.bulk-item .time{color:var(--muted);font-size:.75rem}
 .bulk-item a{color:var(--accent);text-decoration:none;font-weight:500}
 
-/* ── Overlay ── */
-.overlay{display:none;position:fixed;inset:0;background:rgba(10,14,26,.92);z-index:998;justify-content:center;align-items:center;flex-direction:column;gap:20px;backdrop-filter:blur(8px)}
+/* Overlay */
+.overlay{display:none;position:fixed;inset:0;background:rgba(255,255,255,.9);z-index:998;justify-content:center;align-items:center;flex-direction:column;gap:16px;backdrop-filter:blur(4px)}
 .overlay.show{display:flex}
-.loader{width:48px;height:48px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+.loader{width:32px;height:32px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-.overlay-text{font-size:1rem;font-weight:500;color:var(--text)}
+.overlay-text{font-size:.85rem;color:var(--dim)}
 
-/* ── Toast ── */
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 20px;display:none;z-index:999;font-size:.85rem;box-shadow:0 8px 32px rgba(0,0,0,.4)}
-.toast.show{display:flex;align-items:center;gap:8px;animation:slideUp .3s}
-.toast.error{border-color:var(--red);color:var(--red)}
-
-/* ── Responsive ── */
-@media(max-width:480px){
-  .hero h1{font-size:1.5rem}
-  .settings-row{grid-template-columns:1fr 1fr}
-  .result-stats{grid-template-columns:repeat(2,1fr)}
-  .result-stats div:nth-child(2){border-right:none}
-}
+/* Toast */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--text);color:#fff;border-radius:20px;padding:10px 20px;display:none;z-index:999;font-size:.8rem}
+.toast.show{display:block;animation:fadeUp .2s}
+.toast.error{background:#ef4444}
 </style>
 </head>
 <body>
 
-<!-- Hero -->
-<div class="hero">
-  <div class="badge">✦ AI POWERED</div>
+<div class="header">
   <h1>Passport Photo</h1>
-  <p>ถ่ายรูป → AI สร้างพาสปอร์ต → พร้อมพิมพ์</p>
+  <p>AI-powered passport photos in seconds</p>
 </div>
 
-<!-- Overlay -->
 <div class="overlay" id="overlay">
   <div class="loader"></div>
-  <div class="overlay-text" id="overlayText">กำลังสร้าง...</div>
+  <div class="overlay-text" id="overlayText">Processing...</div>
 </div>
 <div class="toast" id="toast"></div>
 
-<main>
+<div class="container">
   <!-- Upload -->
-  <div class="card">
-    <div class="card-label"><span class="icon">📸</span> UPLOAD YOUR PHOTO</div>
-    <div class="upload-zone" id="uploadZone">
+  <div class="section">
+    <div class="section-label">Photo</div>
+    <div class="upload-area" id="uploadArea">
       <div id="uploadEmpty">
-        <div class="big-icon">📷</div>
-        <h3>ลากหรือคลิกเพื่อเลือกรูป</h3>
-        <div class="sub">JPG / PNG • สูงสุด 10MB • ลากหลายรูปได้</div>
+        <div class="icon">📷</div>
+        <h3>Drop photo here</h3>
+        <div class="sub">JPG or PNG · Multiple files supported</div>
       </div>
       <div id="uploadPreview" style="display:none">
-        <img class="preview" id="previewImg" alt="preview">
-        <button class="remove" id="removeBtn">✕ เปลี่ยนรูป</button>
+        <img id="previewImg" alt="">
+        <div class="info">
+          <h3 id="fileName">photo.jpg</h3>
+          <div class="sub" id="fileSize"></div>
+          <div id="genderTag"></div>
+          <div id="bulkTag" style="display:none"></div>
+        </div>
+        <button class="remove" id="removeBtn">✕</button>
       </div>
       <input type="file" id="fileInput" accept="image/jpeg,image/png" multiple>
     </div>
-    <div id="genderBadge"></div>
-    <div id="bulkInfo" style="display:none;text-align:center;margin-top:10px;font-size:.8rem;color:var(--accent)"></div>
   </div>
 
   <!-- Country -->
-  <div class="card">
-    <div class="card-label"><span class="icon">🌍</span> COUNTRY & SIZE</div>
-    <select class="country-select" id="templateSelect"></select>
-  </div>
-
-  <!-- Clothing Carousel -->
-  <div class="card">
-    <div class="card-label"><span class="icon">👔</span> CHOOSE OUTFIT</div>
-    <div class="section-title" id="clothingTitle">👨 เลือกชุดสำหรับผู้ชาย</div>
-    <div class="carousel-wrap">
-      <div class="carousel clothing-carousel" id="clothingCarousel"></div>
+  <div class="section">
+    <div class="section-label">Country & Size</div>
+    <div class="country-grid" id="countryGrid"></div>
+    <div class="custom-size">
+      <input type="number" id="customW" placeholder="Width (mm)" min="10" max="200">
+      <span>×</span>
+      <input type="number" id="customH" placeholder="Height (mm)" min="10" max="200">
+      <button class="gen-btn" style="width:auto;padding:8px 14px;font-size:.72rem" id="customBtn">Set</button>
     </div>
   </div>
 
-  <!-- Background Carousel -->
-  <div class="card">
-    <div class="card-label"><span class="icon">🎨</span> BACKGROUND</div>
-    <div class="carousel-wrap">
-      <div class="carousel bg-carousel" id="bgCarousel"></div>
-    </div>
+  <!-- Clothing -->
+  <div class="section">
+    <div class="section-label">Outfit</div>
+    <div class="carousel" id="clothingCarousel"></div>
+  </div>
+
+  <!-- Background -->
+  <div class="section">
+    <div class="section-label">Background</div>
+    <div class="bg-dots" id="bgDots"></div>
   </div>
 
   <!-- Print Settings -->
-  <div class="card">
-    <div class="card-label"><span class="icon">🖨️</span> PRINT SETTINGS</div>
-    <div class="settings-row">
-      <div><label>ขนาด</label><select id="printSize"><option value="4x6">4×6"</option><option value="5x7">5×7"</option><option value="a6">A6</option><option value="a4">A4</option></select></div>
-      <div><label>จำนวน</label><input type="number" id="photoCount" value="6" min="1" max="20"></div>
-      <div><label>ขอบ</label><select id="borderType"><option value="guidelines">เส้นตัด</option><option value="none">ไม่มี</option><option value="frame">กรอบ</option></select></div>
+  <div class="section">
+    <div class="section-label">Print Sheet</div>
+    <div class="print-row">
+      <div class="field">
+        <label>Paper</label>
+        <select id="printSize">
+          <option value="4x6">4×6"</option>
+          <option value="5x7">5×7"</option>
+          <option value="a6">A6</option>
+          <option value="a4">A4</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Photos</label>
+        <input type="number" id="photoCount" value="6" min="1" max="20">
+      </div>
+      <div class="field">
+        <label>Border</label>
+        <select id="borderType">
+          <option value="guidelines">Cut lines</option>
+          <option value="none">None</option>
+          <option value="frame">White frame</option>
+        </select>
+      </div>
     </div>
-    <label class="blade-toggle"><input type="checkbox" id="bladeMode"> 🔪 รองรับ cutting blade</label>
+    <label class="blade-row"><input type="checkbox" id="bladeMode"> Cutting blade mode</label>
   </div>
 
   <!-- Generate -->
-  <button class="gen-btn" id="genBtn" disabled>
-    <span class="shimmer"></span>
-    ✨ สร้างรูปพาสปอร์ต
-  </button>
+  <button class="gen-btn" id="genBtn" disabled>✨ Generate Passport Photo</button>
 
   <!-- Result -->
-  <div class="result-section" id="resultSection">
+  <div class="result" id="resultSection">
     <div style="height:16px"></div>
     <div class="result-card">
-      <div class="result-img-wrap"><img id="resultImg" alt="Passport"></div>
+      <img class="result-img" id="resultImg" alt="Result">
       <div class="result-stats" id="resultStats"></div>
       <div class="result-actions">
-        <button class="btn-download" id="dlPassport">⬇️ รูปเดี่ยว</button>
-        <button class="btn-sheet" id="dlPrint">🖨️ แผ่นพิมพ์</button>
-        <button class="btn-retry" id="retryBtn">🔄 ใหม่</button>
+        <button class="btn-green" id="dlPassport">⬇️ Photo</button>
+        <button class="btn-gray" id="dlPrint">🖨️ Print Sheet</button>
+        <button class="btn-gray" id="retryBtn">🔄 Retry</button>
       </div>
       <div class="print-preview" id="printPreview" hidden>
-        <img id="printImg" alt="Print Sheet">
+        <img id="printImg" alt="Print">
       </div>
       <div class="bulk-list" id="bulkList" style="display:none"></div>
     </div>
   </div>
-</main>
+</div>
 
 <script>
 const API='/api/passport';
 const $=id=>document.getElementById(id);
 
-const CLOTHING_IMAGES={
+const FLAGS={Thailand:'🇹🇭','United States':'🇺🇸','United Kingdom':'🇬🇧',China:'🇨🇳',Japan:'🇯🇵',Germany:'🇩🇪',France:'🇫🇷',Australia:'🇦🇺',Canada:'🇨🇦',India:'🇮🇳',South Korea:'🇰🇷',Singapore:'🇸🇬',Malaysia:'🇲🇾',Vietnam:'🇻🇳',Philippines:'🇵🇭','Hong Kong':'🇭🇰',Taiwan:'🇹🇼',Brazil:'🇧🇷',Russia:'🇷🇺',Mexico:'🇲🇽'};
+
+const CLOTHING={
   male:[
-    {key:'auto',img:'img/clothing/male/white_shirt.png',label:'อัตโนมัติ'},
-    {key:'random',img:'img/clothing/male/blue_shirt.png',label:'🎲 สุ่ม'},
-    {key:'white_shirt',img:'img/clothing/male/white_shirt.png',label:'เสื้อขาว'},
-    {key:'blue_shirt',img:'img/clothing/male/blue_shirt.png',label:'เสื้อน้ำเงิน'},
-    {key:'black_suit',img:'img/clothing/male/black_suit.png',label:'สูทดำ'},
-    {key:'gray_blazer',img:'img/clothing/male/gray_blazer.png',label:'เบลเซอร์เทา'},
-    {key:'navy_suit',img:'img/clothing/male/navy_suit.png',label:'สูทกรมท่า'},
+    {key:'auto',img:'img/clothing/male/white_shirt.png',label:'Auto'},
+    {key:'random',img:'img/clothing/male/blue_shirt.png',label:'🎲 Random'},
+    {key:'white_shirt',img:'img/clothing/male/white_shirt.png',label:'White Shirt'},
+    {key:'blue_shirt',img:'img/clothing/male/blue_shirt.png',label:'Blue Shirt'},
+    {key:'black_suit',img:'img/clothing/male/black_suit.png',label:'Black Suit'},
+    {key:'gray_blazer',img:'img/clothing/male/gray_blazer.png',label:'Gray Blazer'},
+    {key:'navy_suit',img:'img/clothing/male/navy_suit.png',label:'Navy Suit'},
   ],
   female:[
-    {key:'auto',img:'img/clothing/female/white_blouse.png',label:'อัตโนมัติ'},
-    {key:'random',img:'img/clothing/female/pink_blouse.png',label:'🎲 สุ่ม'},
-    {key:'white_blouse',img:'img/clothing/female/white_blouse.png',label:'บลูซ์ขาว'},
-    {key:'pink_blouse',img:'img/clothing/female/pink_blouse.png',label:'บลูซ์ชมพู'},
-    {key:'blue_blouse',img:'img/clothing/female/blue_blouse.png',label:'บลูซ์น้ำเงิน'},
-    {key:'black_top',img:'img/clothing/female/black_top.png',label:'เสื้อดำ'},
-    {key:'white_turtleneck',img:'img/clothing/female/white_turtleneck.png',label:'คอกลมขาว'},
+    {key:'auto',img:'img/clothing/female/white_blouse.png',label:'Auto'},
+    {key:'random',img:'img/clothing/female/pink_blouse.png',label:'🎲 Random'},
+    {key:'white_blouse',img:'img/clothing/female/white_blouse.png',label:'White Blouse'},
+    {key:'pink_blouse',img:'img/clothing/female/pink_blouse.png',label:'Pink Blouse'},
+    {key:'blue_blouse',img:'img/clothing/female/blue_blouse.png',label:'Blue Blouse'},
+    {key:'black_top',img:'img/clothing/female/black_top.png',label:'Black Top'},
+    {key:'white_turtleneck',img:'img/clothing/female/white_turtleneck.png',label:'Turtleneck'},
   ]
 };
 
-const BG_IMAGES=[
-  {key:'light_blue',img:'img/bg/light_blue.png',label:'ฟ้าอ่อน'},
-  {key:'white',img:'img/bg/white.png',label:'ขาว'},
-  {key:'light_gray',img:'img/bg/light_gray.png',label:'เทาอ่อน'},
+const BG_COLORS=[
+  {key:'light_blue',color:'#C4DCFF',label:'Blue'},
+  {key:'white',color:'#FFFFFF',label:'White'},
+  {key:'light_gray',color:'#E8E8E8',label:'Gray'},
+  {key:'cream',color:'#FFF8E7',label:'Cream'},
+  {key:'light_pink',color:'#FFE4E8',label:'Pink'},
+  {key:'light_green',color:'#E8F5E8',label:'Green'},
 ];
 
-let state={photo:null,photos:[],sessionId:null,gender:'auto',clothing:'auto',background:'light_blue',isBulk:false};
+let state={photo:null,photos:[],sessionId:null,gender:'auto',clothing:'auto',background:'light_blue',bgCustom:null,isBulk:false,template:'thai_passport',customW:null,customH:null};
 
-// ── Init ──
 async function init(){
   await loadTemplates();
-  buildCarousel('clothingCarousel',CLOTHING_IMAGES.male,'clothing');
-  buildCarousel('bgCarousel',BG_IMAGES,'background');
+  buildClothing();
+  buildBgDots();
   setupUpload();
   setupGen();
 }
 
-// ── Templates ──
 async function loadTemplates(){
   try{
     const r=await fetch(`${API}/templates`);const d=await r.json();
-    const sel=$('templateSelect');const groups={};
+    const grid=$('countryGrid');
+    const groups={};
     for(const t of d.templates||[]){const g=t.country||'Other';if(!groups[g])groups[g]=[];groups[g].push(t);}
-    for(const [c,ts] of Object.entries(groups).sort()){
-      const og=document.createElement('optgroup');og.label=c==='Thailand'?'🇹🇭 ไทย':c;
-      for(const t of ts.sort((a,b)=>a.name.localeCompare(b.name))){
-        const opt=document.createElement('option');opt.value=t.code;opt.textContent=`${t.name} (${t.width_mm}×${t.height_mm}mm)`;og.appendChild(opt);
+    for(const [country,templates] of Object.entries(groups).sort()){
+      for(const t of templates.sort((a,b)=>a.name.localeCompare(b.name))){
+        const flag=FLAGS[t.country]||'🌍';
+        const div=document.createElement('div');
+        div.className='country-item'+(t.code==='thai_passport'?' active':'');
+        div.dataset.code=t.code;
+        div.innerHTML=`<span class="flag">${flag}</span><div>${t.name}<div class="size">${t.width_mm}×${t.height_mm}mm</div></div>`;
+        div.addEventListener('click',()=>{
+          grid.querySelectorAll('.country-item').forEach(c=>c.classList.remove('active'));
+          div.classList.add('active');
+          state.template=t.code;
+          state.customW=null;state.customH=null;
+        });
+        grid.appendChild(div);
       }
-      sel.appendChild(og);
     }
-    sel.value='thai_passport';
-  }catch(e){showToast('โหลดประเทศไม่สำเร็จ','error');}
+  }catch(e){showToast('Load failed','error');}
 }
 
-// ── Carousel Builder ──
-function buildCarousel(containerId,items,stateKey){
-  const container=$(containerId);
-  container.innerHTML='';
+function buildClothing(){
+  const items=state.gender==='female'?CLOTHING.female:CLOTHING.male;
+  const car=$('clothingCarousel');car.innerHTML='';
   items.forEach((item,i)=>{
     const div=document.createElement('div');
     div.className='carousel-item'+(i===0?' active':'');
     div.dataset.key=item.key;
-    div.innerHTML=`<img src="${item.img}" alt="${item.label}" loading="lazy"><div class="item-label">${item.label}</div>`;
+    div.innerHTML=`<img src="${item.img}" alt="${item.label}" loading="lazy"><div class="label">${item.label}</div>`;
     div.addEventListener('click',()=>{
-      container.querySelectorAll('.carousel-item').forEach(c=>c.classList.remove('active'));
-      div.classList.add('active');
-      state[stateKey]=item.key;
-      if(stateKey==='clothing')updateClothingTitle();
+      car.querySelectorAll('.carousel-item').forEach(c=>c.classList.remove('active'));
+      div.classList.add('active');state.clothing=item.key;
     });
-    container.appendChild(div);
+    car.appendChild(div);
   });
 }
 
-function updateClothingTitle(){
-  const g=state.gender;
-  $('clothingTitle').textContent=g==='female'?'👩 เลือกชุดสำหรับผู้หญิง':'👨 เลือกชุดสำหรับผู้ชาย';
-  // Rebuild carousel for detected gender
-  const items=g==='female'?CLOTHING_IMAGES.female:CLOTHING_IMAGES.male;
-  buildCarousel('clothingCarousel',items,'clothing');
-  // Re-apply state
-  const active=state.clothing;
-  const target=$('clothingCarousel').querySelector(`[data-key="${active}"]`);
-  if(target){$('clothingCarousel').querySelectorAll('.carousel-item').forEach(c=>c.classList.remove('active'));target.classList.add('active');}
+function buildBgDots(){
+  const wrap=$('bgDots');wrap.innerHTML='';
+  BG_COLORS.forEach((bg,i)=>{
+    const dot=document.createElement('div');
+    dot.className='bg-dot'+(i===0?' active':'');
+    dot.style.background=bg.color;
+    dot.title=bg.label;
+    dot.dataset.key=bg.key;
+    if(bg.color==='#FFFFFF')dot.style.borderColor='#ddd';
+    dot.addEventListener('click',()=>{
+      wrap.querySelectorAll('.bg-dot').forEach(d=>d.classList.remove('active'));
+      dot.classList.add('active');state.background=bg.key;state.bgCustom=null;
+    });
+    wrap.appendChild(dot);
+  });
+  // Custom color
+  const custom=document.createElement('div');
+  custom.className='bg-dot custom';
+  custom.title='Custom color';
+  custom.innerHTML='<div class="color-picker-wrap"><input type="color" value="#C4DCFF"><span style="pointer-events:none;position:relative;z-index:1">+</span></div>';
+  custom.querySelector('input').addEventListener('input',e=>{
+    wrap.querySelectorAll('.bg-dot').forEach(d=>d.classList.remove('active'));
+    custom.classList.add('active');custom.style.background=e.target.value;
+    state.bgCustom=e.target.value;state.background='custom';
+  });
+  wrap.appendChild(custom);
 }
 
-// ── Upload ──
 function setupUpload(){
-  const zone=$('uploadZone'),input=$('fileInput');
-  zone.addEventListener('click',e=>{if(!e.target.closest('button'))input.click();});
-  zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('dragover');});
-  zone.addEventListener('dragleave',()=>zone.classList.remove('dragover'));
-  zone.addEventListener('drop',e=>{
-    e.preventDefault();zone.classList.remove('dragover');
-    if(e.dataTransfer.files.length)handleFiles(e.dataTransfer.files);
-  });
+  const area=$('uploadArea'),input=$('fileInput');
+  area.addEventListener('click',e=>{if(!e.target.closest('button')&&!e.target.closest('input'))input.click();});
+  area.addEventListener('dragover',e=>{e.preventDefault();area.classList.add('dragover');});
+  area.addEventListener('dragleave',()=>area.classList.remove('dragover'));
+  area.addEventListener('drop',e=>{e.preventDefault();area.classList.remove('dragover');if(e.dataTransfer.files.length)handleFiles(e.dataTransfer.files);});
   input.addEventListener('change',()=>{if(input.files.length)handleFiles(input.files);});
-  $('removeBtn').addEventListener('click',e=>{
-    e.stopPropagation();resetUpload();
-  });
+  $('removeBtn').addEventListener('click',e=>{e.stopPropagation();resetUpload();});
 }
 
 function handleFiles(files){
-  if(files.length>1){
-    state.isBulk=true;state.photos=[...files];state.photo=files[0];
-    $('bulkInfo').style.display='block';
-    $('bulkInfo').textContent=`📁 เลือก ${files.length} รูป — จะสร้างทั้งหมด`;
-  }else{
-    state.isBulk=false;state.photos=[];state.photo=files[0];
-    $('bulkInfo').style.display='none';
-  }
+  if(files.length>1){state.isBulk=true;state.photos=[...files];state.photo=files[0];}
+  else{state.isBulk=false;state.photos=[];state.photo=files[0];}
   const reader=new FileReader();
   reader.onload=e=>{
     $('previewImg').src=e.target.result;
-    $('uploadEmpty').style.display='none';$('uploadPreview').style.display='block';
-    $('uploadZone').classList.add('has-image');
+    $('fileName').textContent=state.photo.name;
+    $('fileSize').textContent=`${(state.photo.size/1024).toFixed(0)} KB`;
+    $('uploadEmpty').style.display='none';$('uploadPreview').style.display='flex';
+    $('uploadArea').classList.add('has-image');
     $('genBtn').disabled=false;
-    // Auto-detect gender
-    detectGender(files[0]);
+    if(state.isBulk){$('bulkTag').style.display='block';$('bulkTag').textContent=`📁 ${files.length} photos selected`;}
+    else{$('bulkTag').style.display='none';}
+    detectGender(state.photo);
   };
-  reader.readAsDataURL(files[0]);
+  reader.readAsDataURL(state.photo);
 }
 
 function resetUpload(){
   state.photo=null;state.photos=[];state.isBulk=false;state.gender='auto';
   $('fileInput').value='';
   $('uploadEmpty').style.display='';$('uploadPreview').style.display='none';
-  $('uploadZone').classList.remove('has-image');
-  $('genderBadge').innerHTML='';$('bulkInfo').style.display='none';
+  $('uploadArea').classList.remove('has-image');
+  $('genderTag').innerHTML='';$('bulkTag').style.display='none';
   $('genBtn').disabled=true;
 }
 
@@ -412,85 +423,83 @@ async function detectGender(file){
     if(d.ok&&d.gender){
       state.gender=d.gender;
       const emoji=d.gender==='male'?'👨':'👩';
-      const label=d.gender==='male'?'ชาย':'หญิง';
-      $('genderBadge').innerHTML=`<span class="gender-badge ${d.gender}">${emoji} ${label} (${d.confidence?Math.round(d.confidence*100):'?'}%)</span>`;
-      updateClothingTitle();
+      $('genderTag').innerHTML=`<span class="gender-tag">${emoji} ${d.gender}</span>`;
+      buildClothing();
     }
-  }catch(e){console.log('Gender detect failed:',e);}
+  }catch(e){}
 }
 
-// ── Generate ──
 function setupGen(){
   $('genBtn').addEventListener('click',generate);
   $('dlPassport').addEventListener('click',()=>dl('passport'));
   $('dlPrint').addEventListener('click',()=>dl('print'));
   $('retryBtn').addEventListener('click',()=>{$('resultSection').classList.remove('show');window.scrollTo({top:0,behavior:'smooth'});});
+  $('customBtn').addEventListener('click',()=>{
+    const w=parseInt($('customW').value);const h=parseInt($('customH').value);
+    if(w&&h&&w>0&&h>0){state.customW=w;state.customH=h;state.template='custom';
+      $('countryGrid').querySelectorAll('.country-item').forEach(c=>c.classList.remove('active'));
+      showToast(`Custom size: ${w}×${h}mm`);
+    }
+  });
 }
 
 async function generate(){
   if(!state.photo)return;
   if(state.isBulk&&state.photos.length>1)return generateBulk();
 
-  showOverlay('🤖 AI กำลังสร้างรูป...');
+  showOverlay('Generating...');
   try{
     const b64=await readFileAsBase64(state.photo);
-    const r=await fetch(`${API}/generate`,{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({image_base64:b64,template_code:$('templateSelect').value,gender:state.gender,clothing:state.clothing,background:state.background,strength:0.65})
-    });
+    const body={image_base64:b64,template_code:state.template,gender:state.gender,clothing:state.clothing,background:state.background,strength:0.65};
+    if(state.bgCustom)body.background_color=state.bgCustom;
+    if(state.customW&&state.customH){body.custom_width=state.customW;body.custom_height=state.customH;}
+    const r=await fetch(`${API}/generate`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const d=await r.json();if(!d.ok)throw new Error(d.detail||'Error');
     state.sessionId=d.session_id;
-
     $('resultStats').innerHTML=`
-      <div><div class="val">${d.time_seconds||'?'}s</div><div class="lbl">⏱ เวลา</div></div>
-      <div><div class="val">${d.dimensions?.w}×${d.dimensions?.h}</div><div class="lbl">📐 mm</div></div>
-      <div><div class="val">${d.gender==='male'?'👨':'👩'} ${d.gender==='male'?'ชาย':'หญิง'}</div><div class="lbl">👤 เพศ</div></div>
-      <div><div class="val">$0.004</div><div class="lbl">💰 ราคา</div></div>`;
+      <div><div class="v">${d.time_seconds||'?'}s</div><div class="l">Time</div></div>
+      <div><div class="v">${d.dimensions?.w}×${d.dimensions?.h}</div><div class="l">mm</div></div>
+      <div><div class="v">${d.gender==='male'?'👨':'👩'} ${d.gender}</div><div class="l">Gender</div></div>
+      <div><div class="v">$0.004</div><div class="l">Cost</div></div>`;
     $('resultImg').src=`${API}/download/${d.session_id}_passport.jpg?t=${Date.now()}`;
-    if(d.download_print){
-      $('printImg').src=`${API}/download/${d.session_id}_print.jpg?t=${Date.now()}`;
-      $('printPreview').hidden=false;
-    }
-    $('resultSection').classList.add('show');
-    $('resultSection').scrollIntoView({behavior:'smooth'});
-    showToast('✅ เสร็จแล้ว!');
+    if(d.download_print){$('printImg').src=`${API}/download/${d.session_id}_print.jpg?t=${Date.now()}`;$('printPreview').hidden=false;}
+    $('resultSection').classList.add('show');$('resultSection').scrollIntoView({behavior:'smooth'});
+    showToast('✅ Done!');
   }catch(e){showToast(`❌ ${e.message}`,'error');}
   finally{hideOverlay();}
 }
 
 async function generateBulk(){
-  showOverlay(`🤖 กำลังสร้าง ${state.photos.length} รูป...`);
+  showOverlay(`Generating ${state.photos.length} photos...`);
   try{
     const images=[];for(const f of state.photos)images.push(await readFileAsBase64(f));
-    const r=await fetch(`${API}/bulk-generate`,{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({images,template_code:$('templateSelect').value,gender:state.gender,clothing:state.clothing,background:state.background,strength:0.65,print_size:$('printSize').value,photo_count:parseInt($('photoCount').value)||6,border:$('borderType').value,blade_mode:$('bladeMode').checked})
-    });
+    const body={images,template_code:state.template,gender:state.gender,clothing:state.clothing,background:state.background,strength:0.65,print_size:$('printSize').value,photo_count:parseInt($('photoCount').value)||6,border:$('borderType').value,blade_mode:$('bladeMode').checked};
+    if(state.bgCustom)body.background_color=state.bgCustom;
+    if(state.customW&&state.customH){body.custom_width=state.customW;body.custom_height=state.customH;}
+    const r=await fetch(`${API}/bulk-generate`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const d=await r.json();if(!d.ok)throw new Error(d.detail||'Error');
     state.sessionId=d.results[0]?.session_id;
-
     $('resultStats').innerHTML=`
-      <div><div class="val">${d.time_seconds}s</div><div class="lbl">⏱ เวลา</div></div>
-      <div><div class="val">${d.success}/${d.total}</div><div class="lbl">✅ สำเร็จ</div></div>
-      <div><div class="val">$${(0.004*d.total).toFixed(3)}</div><div class="lbl">💰 ราคา</div></div>
-      <div><div class="val">${d.total}</div><div class="lbl">📸 รูป</div></div>`;
+      <div><div class="v">${d.time_seconds}s</div><div class="l">Time</div></div>
+      <div><div class="v">${d.success}/${d.total}</div><div class="l">Done</div></div>
+      <div><div class="v">$${(0.004*d.total).toFixed(3)}</div><div class="l">Cost</div></div>
+      <div><div class="v">${d.total}</div><div class="l">Photos</div></div>`;
     if(d.results[0]?.ok)$('resultImg').src=`${API}/download/${d.results[0].session_id}_passport.jpg?t=${Date.now()}`;
-
     let html='';for(const r of d.results){
-      if(r.ok)html+=`<div class="bulk-item"><span class="idx">#${r.index+1}</span><div class="info"><span class="gender">${r.gender==='male'?'👨':'👩'}</span> <span class="clothing">${r.clothing}</span></div><span class="time">${r.time_seconds}s</span><a href="${API}/download/${r.session_id}_passport.jpg" download>⬇️</a></div>`;
-      else html+=`<div class="bulk-item" style="color:var(--red)"><span class="idx">#${r.index+1}</span><div class="info">${r.error}</div></div>`;
+      if(r.ok)html+=`<div class="bulk-item"><span class="idx">#${r.index+1}</span><div class="info">${r.gender==='male'?'👨':'👩'} ${r.clothing}</div><span>${r.time_seconds}s</span><a href="${API}/download/${r.session_id}_passport.jpg" download>⬇️</a></div>`;
+      else html+=`<div class="bulk-item" style="color:#ef4444"><span class="idx">#${r.index+1}</span><div class="info">${r.error}</div></div>`;
     }
     $('bulkList').innerHTML=html;$('bulkList').style.display='block';
     $('resultSection').classList.add('show');$('resultSection').scrollIntoView({behavior:'smooth'});
-    showToast(`✅ เสร็จ ${d.success}/${d.total} รูป!`);
+    showToast(`✅ ${d.success}/${d.total} done`);
   }catch(e){showToast(`❌ ${e.message}`,'error');}
   finally{hideOverlay();}
 }
 
 function readFileAsBase64(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(file);});}
-function dl(type){if(!state.sessionId)return;const a=document.createElement('a');a.href=`${API}/download/${state.sessionId}_${type}.jpg`;a.download=`passport_${state.sessionId}_${type}.jpg`;a.click();}
+function dl(type){if(!state.sessionId)return;const a=document.createElement('a');a.href=`${API}/download/${state.sessionId}_${type}.jpg`;a.download=`passport_${type}.jpg`;a.click();}
 
-let tt;function showToast(m,t=''){clearTimeout(tt);const e=$('toast');e.className=`toast show ${t}`;e.innerHTML=m;tt=setTimeout(()=>e.classList.remove('show'),4000);}
+let tt;function showToast(m,t=''){clearTimeout(tt);const e=$('toast');e.className=`toast show ${t}`;e.innerHTML=m;tt=setTimeout(()=>e.classList.remove('show'),3000);}
 function showOverlay(t){$('overlayText').textContent=t;$('overlay').classList.add('show');}
 function hideOverlay(){$('overlay').classList.remove('show');}
 

@@ -48,6 +48,11 @@ logger = logging.getLogger("line-bot.handlers")
 ERP_MODULAR_URL = os.environ.get("ERP_MODULAR_URL", "http://localhost:8102")
 POS_API_URL = os.environ.get("POS_API_URL", "http://localhost:8114")
 POS_MCP_URL = os.environ.get("POS_MCP_URL", "http://localhost:8200")
+GPS_QUEUE_URL = os.environ.get("GPS_QUEUE_URL", "http://localhost:8112")
+
+# Shop location (for GPS distance calculation)
+SHOP_LAT = 13.7563
+SHOP_LNG = 100.5018
 
 # POS mock menu (fallback)
 _MOCK_MENU = [
@@ -257,6 +262,43 @@ async def _handle_text(text: str, session: dict, reply_token: str, user_id: str)
             if handled and messages:
                 await line_client.reply(reply_token, messages)
                 return
+
+    # ── GPS Queue commands ────────────────────────────────────────────
+    if text_lower in ("เช็คอิน", "checkin", "check-in", "เข้าคิว", "จองคิว"):
+        await _queue_checkin(reply_token, user_id)
+        return
+
+    if text_lower in ("ดูคิว", "queue", "คิว", "สถานะคิว", "queue status"):
+        await _queue_status(reply_token)
+        return
+
+    if text_lower in ("คิวของฉัน", "my queue", "my ticket", "ticket ของฉัน"):
+        await _my_queue(reply_token, user_id)
+        return
+
+    if text_lower in ("สั่งล่วงหน้า", "preorder", "pre-order", "สั่งก่อน"):
+        session["state"] = "preorder"
+        await line_client.reply(reply_token, [
+            line_client.text(
+                "🛒 **สั่งล่วงหน้า**\n\n"
+                "พิมพ์รายการอาหารที่ต้องการ เช่น:\n"
+                "`ผัดไทย 2, ต้มยำ 1`\n\n"
+                "หรือพิมพ์ `ยกเลิก` เพื่อยกเลิก"
+            )
+        ])
+        return
+
+    # Handle preorder state
+    if session.get("state") == "preorder":
+        if text_lower in ("ยกเลิก", "cancel"):
+            session["state"] = "idle"
+            await line_client.reply(reply_token, [
+                line_client.text("❌ ยกเลิกการสั่งล่วงหน้าแล้ว")
+            ])
+        else:
+            await _queue_preorder(text, reply_token, user_id)
+            session["state"] = "idle"
+        return
 
     # ── Cart commands ──────────────────────────────────────────────────
     if text_lower in ("ยืนยัน", "ยีนยัน", "confirm", "สั่งเลย", "checkout"):
@@ -519,9 +561,236 @@ async def _handle_location(msg: dict, reply_token: str, user_id: str):
     address = msg.get("address", "")
     lat = msg.get("latitude", 0)
     lon = msg.get("longitude", 0)
+
+    # Send GPS ping to queue service
+    profile = await line_client.get_profile(user_id)
+    customer_name = profile.display_name if profile else f"LINE:{user_id[:8]}"
+
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.post(
+                f"{GPS_QUEUE_URL}/gps/ping",
+                json={
+                    "customer_name": customer_name,
+                    "latitude": lat,
+                    "longitude": lon,
+                    "phone": "",
+                    "source": "line",
+                },
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                dist = data.get("distance_meters", 0)
+                status = data.get("geofence_status", "unknown")
+                status_emoji = {"arrived": "🏠", "nearby": "📍", "approaching": "🚶"}.get(status, "❓")
+                await line_client.reply(reply_token, [
+                    line_client.text(
+                        f"📍 ได้รับตำแหน่งของคุณแล้ว!\n\n"
+                        f"{status_emoji} สถานะ: {status}\n"
+                        f"📏 ระยะห่างจากร้าน: {dist:,} เมตร\n\n"
+                        f"พิมพ์ `เช็คอิน` เพื่อเข้าคิวครับ"
+                    )
+                ])
+                return
+    except Exception as e:
+        logger.warning(f"GPS ping failed: {e}")
+
     await line_client.reply(reply_token, [
         line_client.text(f"📍 ได้รับตำแหน่งของคุณแล้ว: {title or address}")
     ])
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# GPS QUEUE HANDLERS
+# ═══════════════════════════════════════════════════════════════════════════
+
+async def _queue_checkin(reply_token: str, user_id: str):
+    """Check in to queue via GPS location."""
+    profile = await line_client.get_profile(user_id)
+    name = profile.display_name if profile else f"LINE:{user_id[:8]}"
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(
+                f"{GPS_QUEUE_URL}/queue/check-in",
+                json={
+                    "customer_name": name,
+                    "phone": "",
+                    "party_size": 1,
+                    "source": "line",
+                    "user_id": user_id,
+                },
+            )
+            if resp.status_code in (200, 201):
+                data = resp.json()
+                ticket = data.get("ticket", "")
+                wait = data.get("estimated_wait_minutes", 0)
+                await line_client.reply(reply_token, [
+                    line_client.text(
+                        f"✅ **เช็คอินสำเร็จ!**\n\n"
+                        f"🎫 หมายเลขคิว: `{ticket}`\n"
+                        f"👤 ชื่อ: {name}\n"
+                        f"⏳ เวลาโดยประมาณ: {wait} นาที\n\n"
+                        f"💡 ส่งตำแหน่งที่ตั้ง (Location) เพื่อคำนวณระยะห่างจากร้าน\n"
+                        f"พิมพ์ `คิวของฉัน` เพื่อดูสถานะ"
+                    )
+                ])
+                return
+            else:
+                error = resp.json().get("error", "unknown error") if resp.headers.get("content-type", "").startswith("application/json") else resp.text
+                await line_client.reply(reply_token, [
+                    line_client.text(f"❌ เช็คอินไม่สำเร็จ: {error}")
+                ])
+                return
+    except Exception as e:
+        logger.warning(f"Queue check-in failed: {e}")
+        await line_client.reply(reply_token, [
+            line_client.text("❌ เช็คอินไม่สำเร็จ กรุณาลองใหม่อีกครั้ง")
+        ])
+
+
+async def _queue_status(reply_token: str):
+    """Show current queue status."""
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(f"{GPS_QUEUE_URL}/queue")
+            if resp.status_code == 200:
+                data = resp.json()
+                queue = data.get("queue", [])
+                if not queue:
+                    await line_client.reply(reply_token, [
+                        line_client.text("📋 คิวว่างเปล่า — ไม่มีลูกค้ารอ")
+                    ])
+                    return
+
+                lines = [f"📋 **คิวปัจจุบัน ({len(queue)} คน)**\n"]
+                for i, t in enumerate(queue[:10], 1):
+                    status_emoji = {"waiting": "⏳", "called": "📢", "completed": "✅"}.get(t.get("status", ""), "❓")
+                    lines.append(
+                        f"{i}. {status_emoji} `{t.get('ticket', '')}` — {t.get('customer', '')} "
+                        f"(👥 {t.get('party_size', 1)}) — {t.get('status', '')}"
+                    )
+
+                await line_client.reply(reply_token, [line_client.text("\n".join(lines))])
+                return
+    except Exception as e:
+        logger.warning(f"Queue status failed: {e}")
+
+    await line_client.reply(reply_token, [
+        line_client.text("❌ ไม่สามารถดึงสถานะคิวได้")
+    ])
+
+
+async def _my_queue(reply_token: str, user_id: str):
+    """Show user's active queue ticket."""
+    profile = await line_client.get_profile(user_id)
+    name = profile.display_name if profile else f"LINE:{user_id[:8]}"
+
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(f"{GPS_QUEUE_URL}/queue")
+            if resp.status_code == 200:
+                data = resp.json()
+                queue = data.get("queue", [])
+                my_tickets = [t for t in queue if t.get("customer", "") == name]
+
+                if not my_tickets:
+                    await line_client.reply(reply_token, [
+                        line_client.text(
+                            f"🔍 ไม่พบคิวของคุณ ({name})\n\n"
+                            f"พิมพ์ `เช็คอิน` เพื่อเข้าคิว"
+                        )
+                    ])
+                    return
+
+                t = my_tickets[0]
+                status_emoji = {"waiting": "⏳", "called": "📢"}.get(t.get("status", ""), "❓")
+                await line_client.reply(reply_token, [
+                    line_client.text(
+                        f"🎫 **คิวของคุณ**\n\n"
+                        f"หมายเลข: `{t.get('ticket', '')}`\n"
+                        f"สถานะ: {status_emoji} {t.get('status', '')}\n"
+                        f"👥 จำนวน: {t.get('party_size', 1)} คน\n"
+                        f"📏 ระยะห่าง: {t.get('distance_m', 0):,} เมตร\n"
+                        f"⏳ เวลาโดยประมาณ: {t.get('estimated_wait_minutes', t.get('wait_estimate', 0))} นาที"
+                    )
+                ])
+                return
+    except Exception as e:
+        logger.warning(f"My queue failed: {e}")
+
+    await line_client.reply(reply_token, [
+        line_client.text("❌ ไม่สามารถดึงข้อมูลคิวได้")
+    ])
+
+
+async def _queue_preorder(text: str, reply_token: str, user_id: str):
+    """Handle pre-order from LINE."""
+    profile = await line_client.get_profile(user_id)
+    name = profile.display_name if profile else f"LINE:{user_id[:8]}"
+
+    # Parse items from text like "ผัดไทย 2, ต้มยำ 1"
+    items = []
+    for part in text.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        parts = part.split()
+        if len(parts) >= 2:
+            try:
+                qty = int(parts[-1])
+                item_name = " ".join(parts[:-1])
+            except ValueError:
+                qty = 1
+                item_name = part
+        else:
+            qty = 1
+            item_name = part
+        items.append({"name": item_name, "qty": qty})
+
+    if not items:
+        await line_client.reply(reply_token, [
+            line_client.text("❌ ไม่พบรายการอาหาร กรุณาพิมพ์ใหม่ เช่น `ผัดไทย 2, ต้มยำ 1`")
+        ])
+        return
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(
+                f"{GPS_QUEUE_URL}/queue/pre-order",
+                json={
+                    "customer_name": name,
+                    "phone": "",
+                    "items": items,
+                    "party_size": 1,
+                },
+            )
+            if resp.status_code in (200, 201):
+                data = resp.json()
+                ticket = data.get("ticket", "")
+                wait = data.get("estimated_wait_minutes", 0)
+                items_text = ", ".join(f"{i['name']}×{i['qty']}" for i in items)
+                await line_client.reply(reply_token, [
+                    line_client.text(
+                        f"✅ **สั่งล่วงหน้าสำเร็จ!**\n\n"
+                        f"🎫 หมายเลข: `{ticket}`\n"
+                        f"🛒 รายการ: {items_text}\n"
+                        f"⏳ เวลาโดยประมาณ: {wait} นาที\n\n"
+                        f"พิมพ์ `คิวของฉัน` เพื่อดูสถานะ"
+                    )
+                ])
+                return
+            else:
+                error = resp.json().get("error", "unknown") if resp.headers.get("content-type", "").startswith("application/json") else resp.text
+                await line_client.reply(reply_token, [
+                    line_client.text(f"❌ สั่งล่วงหน้าไม่สำเร็จ: {error}")
+                ])
+                return
+    except Exception as e:
+        logger.warning(f"Pre-order failed: {e}")
+        await line_client.reply(reply_token, [
+            line_client.text("❌ สั่งล่วงหน้าไม่สำเร็จ กรุณาลองใหม่อีกครั้ง")
+        ])
 
 
 # ═══════════════════════════════════════════════════════════════════════════

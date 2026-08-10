@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>\Queue Dashboard — GPS Queue Manager</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+        
+        .header { background: linear-gradient(135deg, #1e293b, #0f172a); padding: 20px 30px; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 24px; font-weight: 700; }
+        .header h1 span { color: #3b82f6; }
+        .header .status { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #94a3b8; }
+        .header .dot { width: 10px; height: 10px; border-radius: 50%; background: #10b981; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        
+        .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+        .stat-card { background: #1e293b; border-radius: 12px; padding: 20px; border: 1px solid #334155; }
+        .stat-card .label { font-size: 13px; color: #94a3b8; margin-bottom: 4px; }
+        .stat-card .value { font-size: 32px; font-weight: 700; }
+        .stat-card.waiting .value { color: #f59e0b; }
+        .stat-card.called .value { color: #3b82f6; }
+        .stat-card.completed .value { color: #10b981; }
+        .stat-card.total .value { color: #e2e8f0; }
+        
+        .queue-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        
+        .panel { background: #1e293b; border-radius: 12px; border: 1px solid #334155; overflow: hidden; }
+        .panel-header { padding: 16px 20px; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
+        .panel-header h2 { font-size: 16px; font-weight: 600; }
+        .panel-body { padding: 12px; max-height: 500px; overflow-y: auto; }
+        
+        .ticket { background: #0f172a; border-radius: 10px; padding: 14px 16px; margin-bottom: 8px; border: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s; }
+        .ticket:hover { border-color: #3b82f6; }
+        .ticket .info { flex: 1; }
+        .ticket .ticket-num { font-size: 18px; font-weight: 700; color: #3b82f6; }
+        .ticket .customer { font-size: 14px; color: #94a3b8; margin-top: 2px; }
+        .ticket .meta { font-size: 12px; color: #64748b; margin-top: 4px; }
+        .ticket .actions { display: flex; gap: 8px; }
+        
+        .btn { padding: 8px 16px; border-radius: 8px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .btn-call { background: #3b82f6; color: white; }
+        .btn-call:hover { background: #2563eb; }
+        .btn-complete { background: #10b981; color: white; }
+        .btn-complete:hover { background: #059669; }
+        .btn-cancel { background: #ef4444; color: white; }
+        .btn-cancel:hover { background: #dc2626; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        .ticket.waiting { border-left: 4px solid #f59e0b; }
+        .ticket.called { border-left: 4px solid #3b82f6; background: #172554; }
+        .ticket.completed { border-left: 4px solid #10b981; opacity: 0.6; }
+        
+        .empty { text-align: center; padding: 40px; color: #64748b; }
+        .empty .icon { font-size: 48px; margin-bottom: 12px; }
+        
+        .customer-display { background: linear-gradient(135deg, #1e3a5f, #0f172a); border-radius: 16px; padding: 40px; text-align: center; margin-bottom: 24px; border: 2px solid #3b82f6; }
+        .customer-display .now-serving { font-size: 14px; color: #94a3b8; text-transform: uppercase; letter-spacing: 2px; }
+        .customer-display .current-ticket { font-size: 72px; font-weight: 800; color: #3b82f6; margin: 12px 0; }
+        .customer-display .customer-name { font-size: 24px; color: #e2e8f0; }
+        .customer-display .wait-info { font-size: 16px; color: #94a3b8; margin-top: 12px; }
+        
+        .refresh-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .refresh-bar .timer { font-size: 13px; color: #64748b; }
+        .refresh-bar button { background: #334155; color: #e2e8f0; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+        
+        @media (max-width: 768px) {
+            .stats { grid-template-columns: repeat(2, 1fr); }
+            .queue-grid { grid-template-columns: 1fr; }
+            .customer-display .current-ticket { font-size: 48px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎫 <span>Queue</span> Dashboard</h1>
+        <div class="status">
+            <div class="dot"></div>
+            <span id="statusText">เชื่อมต่อ...</span>
+        </div>
+    </div>
+    
+    <div class="container">
+        <!-- Customer-facing display -->
+        <div class="customer-display" id="customerDisplay">
+            <div class="now-serving">กำลังเรียกคิว</div>
+            <div class="current-ticket" id="currentTicket">---</div>
+            <div class="customer-name" id="currentCustomer">รอสักครู่...</div>
+            <div class="wait-info" id="waitInfo"></div>
+        </div>
+        
+        <!-- Stats -->
+        <div class="stats">
+            <div class="stat-card waiting">
+                <div class="label">⏳ รอ</div>
+                <div class="value" id="statWaiting">0</div>
+            </div>
+            <div class="stat-card called">
+                <div class="label">📢 เรียกแล้ว</div>
+                <div class="value" id="statCalled">0</div>
+            </div>
+            <div class="stat-card completed">
+                <div class="label">✅ เสร็จ</div>
+                <div class="value" id="statCompleted">0</div>
+            </div>
+            <div class="stat-card total">
+                <div class="label">📊 ทั้งหมด</div>
+                <div class="value" id="statTotal">0</div>
+            </div>
+        </div>
+        
+        <!-- Refresh controls -->
+        <div class="refresh-bar">
+            <span class="timer" id="refreshTimer">refreshing in 5s</span>
+            <button onclick="fetchQueue()">🔄 Refresh Now</button>
+        </div>
+        
+        <!-- Queue panels -->
+        <div class="queue-grid">
+            <!-- Waiting queue -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>⏳ คิวที่รอ</h2>
+                    <span id="waitingCount" style="color:#f59e0b;font-weight:600">0</span>
+                </div>
+                <div class="panel-body" id="waitingList">
+                    <div class="empty"><div class="icon">📭</div>ไม่มีคิวที่รอ</div>
+                </div>
+            </div>
+            
+            <!-- Called queue -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>📢 เรียกแล้ว</h2>
+                    <span id="calledCount" style="color:#3b82f6;font-weight:600">0</span>
+                </div>
+                <div class="panel-body" id="calledList">
+                    <div class="empty"><div class="icon">📭</div>ยังไม่มีคิวที่เรียก</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const API = window.GPS_QUEUE_URL || 'http://localhost:8112';
+        let refreshInterval;
+        let countdown = 5;
+        
+        async function fetchQueue() {
+            try {
+                const resp = await fetch(`${API}/queue`);
+                const data = await resp.json();
+                const queue = data.queue || [];
+                
+                // Update status
+                document.getElementById('statusText').textContent = `เชื่อมต่อแล้ว • ${queue.length} คิว`;
+                
+                // Filter by status
+                const waiting = queue.filter(t => t.status === 'waiting');
+                const called = queue.filter(t => t.status === 'called');
+                const completed = queue.filter(t => t.status === 'completed');
+                
+                // Update stats
+                document.getElementById('statWaiting').textContent = waiting.length;
+                document.getElementById('statCalled').textContent = called.length;
+                document.getElementById('statCompleted').textContent = completed.length;
+                document.getElementById('statTotal').textContent = queue.length;
+                document.getElementById('waitingCount').textContent = waiting.length;
+                document.getElementById('calledCount').textContent = called.length;
+                
+                // Update customer display (show first called ticket)
+                if (called.length > 0) {
+                    const c = called[0];
+                    document.getElementById('currentTicket').textContent = c.ticket;
+                    document.getElementById('currentCustomer').textContent = c.customer;
+                    document.getElementById('waitInfo').textContent = `👥 ${c.party_size} คน • 📏 ${c.distance_m}m`;
+                } else if (waiting.length > 0) {
+                    document.getElementById('currentTicket').textContent = '---';
+                    document.getElementById('currentCustomer').textContent = `มี ${waiting.length} คิวรอ`;
+                    document.getElementById('waitInfo').textContent = 'รอสักครู่...');
+                } else {
+                    document.getElementById('currentTicket').textContent = '🎉';
+                    document.getElementById('currentCustomer').textContent = 'คิวว่างเปล่า';
+                    document.getElementById('waitInfo').textContent = 'ยินดีต้อนรับ!';
+                }
+                
+                // Render waiting list
+                renderList('waitingList', waiting, 'waiting');
+                renderList('calledList', called, 'called');
+                
+                countdown = 5;
+            } catch (err) {
+                document.getElementById('statusText').textContent = '❌ เชื่อมต่อไม่ได้';
+                console.error(err);
+            }
+        }
+        
+        function renderList(containerId, tickets, type) {
+            const container = document.getElementById(containerId);
+            if (tickets.length === 0) {
+                container.innerHTML = `<div class="empty"><div class="icon">📭</div>${type === 'waiting' ? 'ไม่มีคิวที่รอ' : 'ยังไม่มีคิวที่เรียก'}</div>`;
+                return;
+            }
+            
+            container.innerHTML = tickets.map(t => `
+                <div class="ticket ${t.status}">
+                    <div class="info">
+                        <div class="ticket-num">${t.ticket}</div>
+                        <div class="customer">${t.customer}</div>
+                        <div class="meta">👥 ${t.party_size} คน • 📏 ${t.distance_m}m • ⏳ ${t.wait_estimate || t.estimated_wait_minutes || 0} นาที</div>
+                    </div>
+                    <div class="actions">
+                        ${t.status === 'waiting' ? `<button class="btn btn-call" onclick="callTicket('${t.ticket}')">📢 เรียก</button>` : ''}
+                        ${t.status === 'called' ? `<button class="btn btn-complete" onclick="completeTicket('${t.ticket}')">✅ เสร็จ</button>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        async function callTicket(ticket) {
+            try {
+                const resp = await fetch(`${API}/queue/call`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ticket })
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    fetchQueue();
+                } else {
+                    alert('Error: ' + (data.error || 'unknown'));
+                }
+            } catch (err) {
+                alert('เชื่อมต่อไม่ได้: ' + err.message);
+            }
+        }
+        
+        async function completeTicket(ticket) {
+            try {
+                const resp = await fetch(`${API}/queue/complete`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ticket })
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    fetchQueue();
+                } else {
+                    alert('Error: ' + (data.error || 'unknown'));
+                }
+            } catch (err) {
+                alert('เชื่อมต่อไม่ได้: ' + err.message);
+            }
+        }
+        
+        // Auto-refresh
+        function startAutoRefresh() {
+            fetchQueue();
+            refreshInterval = setInterval(() => {
+                countdown--;
+                document.getElementById('refreshTimer').textContent = `refreshing in ${countdown}s`;
+                if (countdown <= 0) {
+                    fetchQueue();
+                }
+            }, 1000);
+        }
+        
+        startAutoRefresh();
+    </script>
+</body>
+</html>

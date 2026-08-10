@@ -46,6 +46,70 @@ SHOP_LNG = 100.5018
 GEOFENCE_METERS = 1000  # 1 km radius
 GEOFENCE_NEARBY_METERS = 2000  # 2 km = nearby
 GEOFENCE_APPROACHING_METERS = 3000  # 3 km = approaching
+LINE_BOT_URL = os.environ.get("LINE_BOT_URL", "http://localhost:8140")
+POS_API_URL = os.environ.get("POS_API_URL", "http://localhost:8114")
+
+# ── POS Integration Helpers ──
+
+def _create_pos_order(ticket_data: dict) -> dict:
+    """Create a draft order in POS when a ticket is called/seated."""
+    try:
+        # Build order items from pre_order_items or create empty draft
+        items = ticket_data.get("pre_order_items", [])
+        if not items:
+            # Create empty draft order — staff will add items
+            items = []
+        
+        pos_items = []
+        for item in items:
+            pos_items.append({
+                "item_id": item.get("item_id", item.get("name", "UNKNOWN")),
+                "quantity": item.get("qty", 1),
+                "notes": item.get("notes", ""),
+            })
+        
+        # Use QUEUE table for queue orders (pre-defined in pos_engine.py)
+        table_id = "QUEUE"
+        
+        url = f"{POS_API_URL}/pos/orders"
+        body = json.dumps({"table_id": table_id, "items": pos_items}).encode()
+        req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"}, method="POST")
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            result = json.loads(resp.read())
+            print(f"  📦 POS order created: {result.get('order_id', '?')}")
+            return result
+    except Exception as e:
+        print(f"  ⚠️ POS order creation failed: {e}")
+        return {"error": str(e)}
+
+
+def _complete_pos_order(order_id: str) -> dict:
+    """Mark POS order as completed."""
+    try:
+        url = f"{POS_API_URL}/pos/orders/{order_id}/status"
+        body = json.dumps({"status": "completed"}).encode()
+        req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"}, method="PUT")
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return json.loads(resp.read())
+    except Exception as e:
+        print(f"  ⚠️ POS order complete failed: {e}")
+        return {"error": str(e)}
+
+
+# ── LINE Bot Webhook Helpers ──
+
+def _notify_line(customer_name: str, ticket: str, notify_type: str = "called", message: str = ""):
+    """Push notification to LINE user via LINE Bot webhook."""
+    try:
+        url = f"{LINE_BOT_URL}/webhook/queue/notify"
+        body = json.dumps({"customer_name": customer_name, "ticket": ticket, "type": notify_type, "message": message}).encode()
+        req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"}, method="POST")
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            return json.loads(resp.read())
+    except Exception as e:
+        print(f"  ⚠️ LINE notify failed: {e}")
+        return {"ok": False, "error": str(e)}
+
 
 # ── Schema Engine Helpers ──
 
@@ -77,6 +141,16 @@ def create_record(slug, data):
 
 def update_record(slug, record_id, data):
     return schema_api("PUT", f"/api/v1/data/{slug}/{record_id}", data)
+
+def _calc_wait_time(party_size):
+    """Estimate wait time based on party size and current queue."""
+    result = get_schema_data("queue_ticket")
+    tickets = [r.get("data", {}) for r in result.get("data", [])]
+    waiting = [t for t in tickets if t.get("status") == "waiting"]
+    
+    # Base: 15 min per party ahead + 5 min per additional person
+    base_wait = len(waiting) * 15 + (party_size - 1) * 5
+    return max(base_wait, 15)  # minimum 15 min
 
 # ── GPS Math ──
 
@@ -313,6 +387,13 @@ class GPSQueueHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(data, ensure_ascii=False).encode())
     
+    def _send_html(self, html, status=200):
+        self.send_response(status)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        self.wfile.write(html.encode())
+    
     def _read_body(self):
         length = int(self.headers.get("Content-Length", 0))
         if length > 0:
@@ -331,6 +412,20 @@ class GPSQueueHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path
         params = parse_qs(parsed.query)
+        
+        # Serve dashboard HTML
+        if path in ("/dashboard", "/dashboard.html"):
+            dashboard_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dashboard.html")
+            try:
+                with open(dashboard_path, "r") as f:
+                    html = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.end_headers()
+                self.wfile.write(html.encode())
+            except FileNotFoundError:
+                self._send_json({"error": "dashboard.html not found"}, 404)
+            return
         
         if path == "/health":
             self._send_json({
@@ -435,6 +530,70 @@ class GPSQueueHandler(BaseHTTPRequestHandler):
             result = cleanup_old_tickets(days)
             self._send_json(result)
         
+        elif path == "/analytics":
+            # Analytics Dashboard HTML
+            html = open(os.path.join(os.path.dirname(__file__), "analytics.html")).read()
+            self._send_html(html)
+        
+        elif path == "/queue/analytics":
+            result = get_schema_data("queue_ticket")
+            tickets = [r.get("data", {}) for r in result.get("data", [])]
+            
+            total = len(tickets)
+            completed = len([t for t in tickets if t.get("status") == "completed"])
+            waiting = len([t for t in tickets if t.get("status") == "waiting"])
+            called = len([t for t in tickets if t.get("status") == "called"])
+            
+            # Wait time stats (from created_at to served_at)
+            wait_times = []
+            for t in tickets:
+                if t.get("served_at") and t.get("created_at"):
+                    try:
+                        created = datetime.fromisoformat(t["created_at"].replace("Z", "+00:00"))
+                        served = datetime.fromisoformat(t["served_at"].replace("Z", "+00:00"))
+                        wait_min = (served - created).total_seconds() / 60
+                        if 0 < wait_min < 480:  # skip outliers > 8 hours
+                            wait_times.append(wait_min)
+                    except:
+                        pass
+            
+            avg_wait = round(sum(wait_times) / len(wait_times), 1) if wait_times else 0
+            max_wait = round(max(wait_times), 1) if wait_times else 0
+            min_wait = round(min(wait_times), 1) if wait_times else 0
+            
+            # Peak hours
+            hourly = {}
+            for t in tickets:
+                created = t.get("created_at", "")
+                if "T" in created:
+                    hour = int(created.split("T")[1].split(":")[0])
+                    hourly[hour] = hourly.get(hour, 0) + 1
+            
+            peak_hour = max(hourly, key=hourly.get) if hourly else None
+            
+            # Source breakdown
+            sources = {}
+            for t in tickets:
+                src = t.get("source", "unknown")
+                sources[src] = sources.get(src, 0) + 1
+            
+            # Revenue (from POS)
+            revenue_tickets = [t for t in tickets if t.get("pos_order_id")]
+            
+            self._send_json({
+                "total_tickets": total,
+                "waiting": waiting,
+                "called": called,
+                "completed": completed,
+                "avg_wait_minutes": avg_wait,
+                "max_wait_minutes": max_wait,
+                "min_wait_minutes": min_wait,
+                "peak_hour": peak_hour,
+                "hourly_distribution": dict(sorted(hourly.items())),
+                "sources": sources,
+                "revenue_tickets": len(revenue_tickets),
+            })
+        
         else:
             self._send_json({"error": "not found"}, 404)
     
@@ -498,6 +657,17 @@ class GPSQueueHandler(BaseHTTPRequestHandler):
             result = create_record("queue_ticket", ticket)
             
             if result.get("success"):
+                # Store LINE user_id mapping for push notifications
+                user_id = body.get("user_id", "")
+                if user_id and source == "line":
+                    try:
+                        url = f"{LINE_BOT_URL}/webhook/queue/checkin"
+                        body_data = json.dumps({"customer_name": name, "user_id": user_id}).encode()
+                        req = urllib.request.Request(url, data=body_data, headers={"Content-Type": "application/json"}, method="POST")
+                        urllib.request.urlopen(req, timeout=5)
+                    except Exception as e:
+                        print(f"  ⚠️ LINE mapping failed: {e}")
+
                 self._send_json({
                     "ticket": ticket_num,
                     "customer": name,
@@ -553,9 +723,9 @@ class GPSQueueHandler(BaseHTTPRequestHandler):
                 self._send_json({"error": f"create failed: {result.get('error', '?')}"}, 500)
         
         elif path == "/queue/call":
-            ticket_id = body.get("ticket_id", "")
+            ticket_id = body.get("ticket") or body.get("ticket_id") or body.get("ticket_number") or ""
             if not ticket_id:
-                self._send_json({"error": "ticket_id required"}, 400)
+                self._send_json({"error": "ticket required (UUID or ticket_number like Q-0842-a1b2)"}, 400)
                 return
             
             result = get_schema_data("queue_ticket")
@@ -566,7 +736,7 @@ class GPSQueueHandler(BaseHTTPRequestHandler):
                     break
             
             if not found:
-                self._send_json({"error": "ticket not found"}, 404)
+                self._send_json({"error": f"ticket '{ticket_id}' not found"}, 404)
                 return
             
             rd = found["data"]
@@ -574,17 +744,29 @@ class GPSQueueHandler(BaseHTTPRequestHandler):
             rd["called_at"] = datetime.now(timezone.utc).isoformat()
             up = update_record("queue_ticket", found["id"], rd)
             
+            # Notify customer via LINE
+            _notify_line(rd.get("customer_name", ""), rd.get("ticket_number", ""), "called")
+            
+            # Create POS order if pre-order items exist
+            pos_order = None
+            if rd.get("pre_order_items"):
+                pos_order = _create_pos_order(rd)
+                if pos_order and pos_order.get("order_id"):
+                    rd["pos_order_id"] = pos_order["order_id"]
+                    update_record("queue_ticket", found["id"], rd)
+            
             self._send_json({
                 "success": up.get("success", False),
                 "ticket": rd.get("ticket_number"),
                 "customer": rd.get("customer_name"),
                 "status": "called",
+                "pos_order_id": pos_order.get("order_id") if pos_order else None,
             })
         
         elif path == "/queue/complete":
-            ticket_id = body.get("ticket_id", "")
+            ticket_id = body.get("ticket") or body.get("ticket_id") or body.get("ticket_number") or ""
             if not ticket_id:
-                self._send_json({"error": "ticket_id required"}, 400)
+                self._send_json({"error": "ticket required (UUID or ticket_number like Q-0842-a1b2)"}, 400)
                 return
             
             result = get_schema_data("queue_ticket")
@@ -595,7 +777,7 @@ class GPSQueueHandler(BaseHTTPRequestHandler):
                     break
             
             if not found:
-                self._send_json({"error": "ticket not found"}, 404)
+                self._send_json({"error": f"ticket '{ticket_id}' not found"}, 404)
                 return
             
             rd = found["data"]
@@ -603,12 +785,119 @@ class GPSQueueHandler(BaseHTTPRequestHandler):
             rd["served_at"] = datetime.now(timezone.utc).isoformat()
             up = update_record("queue_ticket", found["id"], rd)
             
+            # Notify customer via LINE
+            _notify_line(rd.get("customer_name", ""), rd.get("ticket_number", ""), "completed")
+            
             self._send_json({
                 "success": up.get("success", False),
                 "ticket": rd.get("ticket_number"),
                 "customer": rd.get("customer_name"),
                 "status": "completed",
             })
+        
+        elif path == "/webhook/pos/payment":
+            # POS notifies GPS Queue when payment is completed
+            order_id = body.get("order_id", "")
+            if not order_id:
+                self._send_json({"error": "order_id required"}, 400)
+                return
+            
+            # Find queue ticket by pos_order_id
+            result = get_schema_data("queue_ticket")
+            found = None
+            for rec in result.get("data", []):
+                rd = rec.get("data", {})
+                if rd.get("pos_order_id") == order_id:
+                    found = rec
+                    break
+            
+            if not found:
+                self._send_json({"error": f"no queue ticket for order {order_id}"}, 404)
+                return
+            
+            rd = found["data"]
+            rd["status"] = "completed"
+            rd["served_at"] = datetime.now(timezone.utc).isoformat()
+            rd["payment_completed"] = True
+            up = update_record("queue_ticket", found["id"], rd)
+            
+            # Notify customer via LINE
+            _notify_line(rd.get("customer_name", ""), rd.get("ticket_number", ""), "completed", 
+                        f"✅ ชำระเงินเรียบร้อย! คิว {rd.get('ticket_number', '')} เสร็จสิ้น")
+            
+            self._send_json({
+                "success": up.get("success", False),
+                "ticket": rd.get("ticket_number"),
+                "status": "completed",
+            })
+        
+        # ── Walk-in Check-in ──
+        elif path == "/queue/walk-in":
+            # Walk-in: customer arrives at kiosk, auto check-in
+            customer_name = body.get("customer_name", f"Walk-in {datetime.now(timezone.utc).strftime('%H%M')}")
+            party_size = body.get("party_size", 1)
+            phone = body.get("phone", "")
+            
+            ticket_number = f"W-{datetime.now(timezone.utc).strftime('%m%d')}-{uuid.uuid4().hex[:4].upper()}"
+            ticket_data = {
+                "ticket_number": ticket_number,
+                "customer_name": customer_name,
+                "phone": phone,
+                "party_size": party_size,
+                "status": "waiting",
+                "source": "kiosk",
+                "gps_distance": 0,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "pre_order_items": [],
+            }
+            
+            res = create_record("queue_ticket", ticket_data)
+            print(f"  🎫 Walk-in: {ticket_number} ({customer_name}, party={party_size})")
+            
+            self._send_json({
+                "ticket": ticket_number,
+                "customer": customer_name,
+                "party_size": party_size,
+                "position": len(get_schema_data("queue_ticket").get("data", [])),
+            }, 201)
+        
+        # ── Web Booking ──
+        elif path == "/queue/book":
+            # Web booking: customer books online
+            customer_name = body.get("customer_name", "")
+            party_size = body.get("party_size", 2)
+            phone = body.get("phone", "")
+            booking_time = body.get("booking_time", "")
+            pre_order_items = body.get("items", [])
+            
+            if not customer_name:
+                self._send_json({"error": "customer_name required"}, 400)
+                return
+            
+            ticket_number = f"B-{datetime.now(timezone.utc).strftime('%m%d')}-{uuid.uuid4().hex[:4].upper()}"
+            ticket_data = {
+                "ticket_number": ticket_number,
+                "customer_name": customer_name,
+                "phone": phone,
+                "party_size": party_size,
+                "status": "waiting",
+                "source": "web",
+                "gps_distance": 0,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "pre_order_items": pre_order_items,
+                "booking_time": booking_time,
+            }
+            
+            res = create_record("queue_ticket", ticket_data)
+            print(f"  🌐 Web booking: {ticket_number} ({customer_name}, party={party_size})")
+            
+            self._send_json({
+                "ticket": ticket_number,
+                "customer": customer_name,
+                "party_size": party_size,
+                "booking_time": booking_time,
+                "estimated_wait_minutes": _calc_wait_time(party_size),
+            }, 201)
         
         else:
             self._send_json({"error": "not found"}, 404)
@@ -637,6 +926,12 @@ def main():
     print("    POST /queue/complete      — Complete ticket (id or number)")
     print("    GET  /queue/wait-time     — Estimate wait")
     print("    GET  /queue/cleanup?days=7 — Cleanup old tickets")
+    print("    POST /webhook/pos/payment — POS payment completed webhook")
+    print("    POST /queue/walk-in       — Walk-in check-in (kiosk)")
+    print("    POST /queue/book          — Web booking")
+    print("    GET  /queue/analytics     — Queue statistics")
+    print("    GET  /analytics           — Analytics Dashboard UI")
+    print("    GET  /dashboard           — Queue Dashboard UI")
     print("=" * 55)
     
     server = HTTPServer((HOST, PORT), GPSQueueHandler)

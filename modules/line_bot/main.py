@@ -137,6 +137,63 @@ async def webhook_post(request: Request):
     return JSONResponse(content={"ok": True})
 
 
+# ── GPS Queue Webhook ──────────────────────────────────────────────────────
+
+# In-memory mapping: customer_name → user_id (populated on check-in)
+_customer_user_map: dict[str, str] = {}
+
+@app.post("/webhook/queue/checkin")
+async def webhook_queue_checkin(request: Request):
+    """Called by GPS Queue when a LINE user checks in — stores name→user_id mapping."""
+    body = await request.json()
+    customer_name = body.get("customer_name", "")
+    user_id = body.get("user_id", "")
+    if customer_name and user_id:
+        _customer_user_map[customer_name] = user_id
+        logger.info(f"Mapped customer '{customer_name}' → LINE {user_id[:8]}...")
+        return {"ok": True}
+    return JSONResponse(status_code=400, content={"error": "customer_name and user_id required"})
+
+@app.post("/webhook/queue/notify")
+async def webhook_queue_notify(request: Request):
+    """Called by GPS Queue when a ticket is called — pushes notification to LINE user."""
+    body = await request.json()
+    customer_name = body.get("customer_name", "")
+    ticket = body.get("ticket", "")
+    message = body.get("message", "")
+    notify_type = body.get("type", "called")  # called, completed, cancelled
+
+    # Look up user_id from mapping
+    user_id = _customer_user_map.get(customer_name, "")
+    if not user_id:
+        # Try partial match
+        for name, uid in _customer_user_map.items():
+            if customer_name in name or name in customer_name:
+                user_id = uid
+                break
+
+    if not user_id:
+        logger.warning(f"No LINE user found for customer '{customer_name}'")
+        return {"ok": False, "error": "user not mapped"}
+
+    # Build notification message
+    if not message:
+        if notify_type == "called":
+            message = f"📢 **คิวของคุณถูกเรียกแล้ว!**\n\n🎫 หมายเลข: {ticket}\n\nกรุณาไปที่เคาน์เตอร์ครับ"
+        elif notify_type == "completed":
+            message = f"✅ **คิว {ticket} เสร็จสิ้นแล้ว**\n\nขอบคุณที่มาใช้บริการครับ!"
+        elif notify_type == "cancelled":
+            message = f"❌ **คิว {ticket} ถูกยกเลิก**"
+        else:
+            message = f"🔔 แจ้งเตือน: {ticket} — {notify_type}"
+
+    # Push notification
+    from line_client import line_client
+    status, _ = await line_client.push(user_id, [line_client.text(message)])
+    logger.info(f"Pushed {notify_type} notification to {customer_name} (LINE {user_id[:8]}...): {status}")
+    return {"ok": status == 200}
+
+
 # ── Admin Routes ──────────────────────────────────────────────────────────
 
 @app.post("/admin/richmenu/setup")

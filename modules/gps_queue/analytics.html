@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📊 GPS Queue Analytics</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; }
+        .header { background: linear-gradient(135deg, #1e293b, #334155); padding: 20px; text-align: center; }
+        .header h1 { font-size: 1.8em; color: #38bdf8; }
+        .header p { color: #94a3b8; margin-top: 5px; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; padding: 20px; }
+        .stat-card { background: #1e293b; border-radius: 12px; padding: 20px; text-align: center; border: 1px solid #334155; }
+        .stat-card .number { font-size: 2.5em; font-weight: bold; color: #38bdf8; }
+        .stat-card .label { color: #94a3b8; margin-top: 5px; font-size: 0.9em; }
+        .stat-card.green .number { color: #4ade80; }
+        .stat-card.yellow .number { color: #fbbf24; }
+        .stat-card.red .number { color: #f87171; }
+        .stat-card.purple .number { color: #a78bfa; }
+        .chart-section { padding: 20px; }
+        .chart-card { background: #1e293b; border-radius: 12px; padding: 20px; border: 1px solid #334155; }
+        .chart-card h2 { color: #38bdf8; margin-bottom: 15px; font-size: 1.2em; }
+        .bar-chart { display: flex; align-items: flex-end; gap: 8px; height: 200px; padding-top: 20px; }
+        .bar { flex: 1; background: linear-gradient(to top, #3b82f6, #60a5fa); border-radius: 4px 4px 0 0; position: relative; min-width: 30px; transition: all 0.3s; }
+        .bar:hover { background: linear-gradient(to top, #2563eb, #3b82f6); }
+        .bar-label { position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%); font-size: 0.7em; color: #94a3b8; }
+        .bar-value { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); font-size: 0.75em; color: #e2e8f0; }
+        .source-list { list-style: none; }
+        .source-list li { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #334155; }
+        .source-list li:last-child { border-bottom: none; }
+        .source-badge { background: #334155; padding: 3px 10px; border-radius: 12px; font-size: 0.85em; }
+        .refresh-btn { position: fixed; bottom: 20px; right: 20px; background: #3b82f6; color: white; border: none; padding: 12px 24px; border-radius: 25px; cursor: pointer; font-size: 1em; box-shadow: 0 4px 15px rgba(59,130,246,0.4); }
+        .refresh-btn:hover { background: #2563eb; }
+        .auto-refresh { color: #4ade80; font-size: 0.8em; margin-left: 10px; }
+        @media (max-width: 600px) { .stats { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 GPS Queue Analytics</h1>
+        <p>สถิติระบบคิวอัจฉริยะ | <span id="lastUpdate"></span> <span class="auto-refresh">🔄 Auto-refresh 30s</span></p>
+    </div>
+    
+    <div class="stats">
+        <div class="stat-card">
+            <div class="number" id="totalTickets">-</div>
+            <div class="label">Total Tickets</div>
+        </div>
+        <div class="stat-card green">
+            <div class="number" id="completed">-</div>
+            <div class="label">Completed</div>
+        </div>
+        <div class="stat-card yellow">
+            <div class="number" id="waiting">-</div>
+            <div class="label">Waiting</div>
+        </div>
+        <div class="stat-card purple">
+            <div class="number" id="avgWait">-</div>
+            <div class="label">Avg Wait (min)</div>
+        </div>
+        <div class="stat-card red">
+            <div class="number" id="peakHour">-</div>
+            <div class="label">Peak Hour</div>
+        </div>
+        <div class="stat-card">
+            <div class="number" id="revenueTickets">-</div>
+            <div class="label">Revenue Tickets</div>
+        </div>
+    </div>
+    
+    <div class="chart-section">
+        <div class="chart-card">
+            <h2>⏰ Hourly Distribution</h2>
+            <div class="bar-chart" id="hourlyChart"></div>
+        </div>
+    </div>
+    
+    <div class="chart-section">
+        <div class="chart-card">
+            <h2>📱 Source Breakdown</h2>
+            <ul class="source-list" id="sourceList"></ul>
+        </div>
+    </div>
+    
+    <button class="refresh-btn" onclick="loadData()">🔄 Refresh</button>
+    
+    <script>
+        async function loadData() {
+            try {
+                const res = await fetch('/queue/analytics');
+                const data = await res.json();
+                
+                document.getElementById('totalTickets').textContent = data.total_tickets || 0;
+                document.getElementById('completed').textContent = data.completed || 0;
+                document.getElementById('waiting').textContent = data.waiting || 0;
+                document.getElementById('avgWait').textContent = data.avg_wait_minutes || 0;
+                document.getElementById('peakHour').textContent = data.peak_hour ? `${data.peak_hour}:00` : '-';
+                document.getElementById('revenueTickets').textContent = data.revenue_tickets || 0;
+                
+                // Hourly chart
+                const chart = document.getElementById('hourlyChart');
+                chart.innerHTML = '';
+                const hourly = data.hourly_distribution || {};
+                const maxVal = Math.max(...Object.values(hourly), 1);
+                
+                for (let h = 0; h < 24; h++) {
+                    const val = hourly[h] || 0;
+                    const height = (val / maxVal) * 100;
+                    const bar = document.createElement('div');
+                    bar.className = 'bar';
+                    bar.style.height = `${Math.max(height, 2)}%`;
+                    bar.innerHTML = `<span class="bar-value">${val}</span><span class="bar-label">${h}</span>`;
+                    chart.appendChild(bar);
+                }
+                
+                // Sources
+                const sourceList = document.getElementById('sourceList');
+                sourceList.innerHTML = '';
+                const sources = data.sources || {};
+                for (const [src, count] of Object.entries(sources)) {
+                    const li = document.createElement('li');
+                    li.innerHTML = `<span>${src}</span><span class="source-badge">${count}</span>`;
+                    sourceList.appendChild(li);
+                }
+                
+                document.getElementById('lastUpdate').textContent = new Date().toLocaleString('th-TH');
+            } catch (e) {
+                console.error('Failed to load analytics:', e);
+            }
+        }
+        
+        loadData();
+        setInterval(loadData, 30000); // Auto-refresh every 30s
+    </script>
+</body>
+</html>

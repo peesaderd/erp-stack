@@ -6,13 +6,38 @@ from typing import Optional, Dict, List, Any
 from datetime import datetime
 from dataclasses import dataclass, field, asdict
 from collections import Counter
+import os, sys
+from pathlib import Path
+_modules_root = str(Path(__file__).resolve().parents[1])
+if _modules_root not in sys.path:
+    sys.path.insert(0, _modules_root)
 from product.analyzer_db import store_analyzed as _store_analyzed, get_analyzed_stats as _get_stats, get_analyzed_products as _get_products
 from product.analyzer_db import store_analyzed_batch
-from pathlib import Path
 
 logger = logging.getLogger("analyze_pipeline")
 
 MISTRAL_KEY = os.environ.get("MISTRAL_API_KEY", "")
+
+# Collect all available Mistral keys for round-robin rotation
+_mistral_keys = []
+_mistral_key_index = 0
+
+def _load_mistral_keys():
+    """Load all MISTRAL_API_KEY, MISTRAL_API_KEY_2, MISTRAL_API_KEY_3, MISTRAL_API_KEY_4 from env."""
+    global _mistral_keys
+    seen = set()
+    keys = []
+    for i in range(1, 10):
+        env_name = "MISTRAL_API_KEY" if i == 1 else f"MISTRAL_API_KEY_{i}"
+        k = os.environ.get(env_name, "")
+        if k and k not in seen:
+            seen.add(k)
+            keys.append(k)
+    _mistral_keys = keys
+    if _mistral_keys:
+        logger.info(f"Loaded {len(_mistral_keys)} Mistral API keys for rotation")
+    else:
+        logger.warning("No MISTRAL_API_KEY set in environment")
 
 # ─── Local Image Storage ───────────────────────────────────
 # Images are downloaded to Analysis module static dir
@@ -348,6 +373,7 @@ class UnifiedProduct:
     video_count: int = 0
     rank: int = 0
     source: str = ""
+    url: str = ""
     scrape_timestamp: str = ""
     viral_score: float = 0.0
     trending: bool = False
@@ -443,7 +469,7 @@ class ProductNormalizer:
             seller_name=seller.get("seller_name", d.get("seller_name", "")),
             seller_id=str(seller.get("seller_id", d.get("seller_id", ""))),
             categories=[c.strip() for c in d.get("categories", "").split("/") if c.strip()],
-            images=[d.get("cover_url", "")] if d.get("cover_url") else [],
+            images=d.get("images", []) or ([d.get("cover_url", "")] if d.get("cover_url") else []),
             commission_rate=cls._safe_float(d.get("commission_rate", d.get("commission", "0")).replace("%", "")),
             influencer_count=cls._safe_int(d.get("influencers_count", d.get("total_ifl_cnt", 0))),
             video_count=cls._safe_int(d.get("videos_count", d.get("total_video_count", 0))),
@@ -456,22 +482,23 @@ class ProductNormalizer:
 
     @classmethod
     def _normalize_apify(cls, d: dict) -> UnifiedProduct:
+        # Apify uses camelCase: productId, soldCount, shopName, etc.
         return UnifiedProduct(
-            product_id=str(d.get("id", d.get("product_id", ""))),
+            product_id=str(d.get("productId", d.get("id", d.get("product_id", "")))),
             title=d.get("title", d.get("product_name", "")),
             description=d.get("description", d.get("product_name", "")),
-            price_min=cls._safe_float(d.get("min_price", d.get("price", 0))),
-            price_max=cls._safe_float(d.get("max_price", d.get("price", 0))),
+            price_min=cls._safe_float(d.get("minPrice", d.get("min_price", d.get("price", 0)))),
+            price_max=cls._safe_float(d.get("maxPrice", d.get("max_price", d.get("price", 0)))),
             price_avg=cls._safe_float(d.get("price", d.get("avg_price", 0))),
-            currency=d.get("currency", "USD"),
-            rating=cls._safe_float(d.get("product_rating", d.get("rating", 0))),
-            review_count=cls._safe_int(d.get("review_count", 0)),
-            sold_total=cls._safe_int(d.get("sold_count", d.get("total_sales", d.get("total_sold", 0)))),
-            sold_week=cls._safe_int(d.get("week_sold_count", d.get("week_sales", 0))),
-            categories=(d.get("categories", "") or "").split("|") if isinstance(d.get("categories"), str) else (d.get("categories") or []),
-            images=[d.get("images_privatization", [None])[0]] if d.get("images_privatization") else [],
-            commission_rate=cls._safe_float(str(d.get("commission_rate", "0")).replace("%", "")),
-            seller_name=d.get("seller_name", ""),
+            currency=d.get("currency", d.get("currencySymbol", "USD")).replace("฿","THB"),
+            rating=cls._safe_float(d.get("rating", d.get("product_rating", 0))),
+            review_count=cls._safe_int(d.get("reviewCount", d.get("review_count", 0))),
+            sold_total=cls._safe_int(d.get("soldCount", d.get("sold_count", d.get("total_sales", d.get("total_sold", 0))))),
+            sold_week=cls._safe_int(d.get("weekSoldCount", d.get("week_sold_count", d.get("week_sales", 0)))),
+            categories=(d.get("categories", d.get("sourceQuery", "")) or "").split("|") if isinstance(d.get("categories", d.get("sourceQuery", "")), str) else (d.get("categories") or [d.get("sourceQuery", "")]),
+            images=d.get("images", [d.get("primaryImage", "")]) if d.get("images") else [d.get("primaryImage", "")] if d.get("primaryImage") else [],
+            commission_rate=cls._safe_float(str(d.get("commissionRate", d.get("commission_rate", "0"))).replace("%", "")),
+            seller_name=d.get("shopName", d.get("seller_name", d.get("shop_name", ""))),
             source="apify",
             scrape_timestamp=datetime.utcnow().isoformat(),
         )
@@ -547,7 +574,7 @@ class ProductEnricher:
             product.category = await _detect_category(product.title, product.categories)
             product.title_th = await _translate_to_thai(product.title)
             product.keywords = await _extract_keywords(product.title, product.description)
-            meta = await _extract_gender_age_hashtags(product.title, product.description)
+            meta = await _extract_gender_age_hashtags(product.title, product.description, product.category)
             if not product.gender:
                 product.gender = meta.get("gender", "")
             if not product.target_age:
@@ -607,27 +634,45 @@ class ProductExporter:
 # ─── Helper Functions ────────────────────────────────────────────────────────
 
 async def _call_mistral(prompt: str, max_tokens: int = 500) -> str:
-    if not MISTRAL_KEY: return ""
-    await _rate_limiter.wait_if_needed()
-    try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.post(
-                "https://api.mistral.ai/v1/chat/completions",
-                headers={"Authorization": f"Bearer {MISTRAL_KEY}", "Content-Type": "application/json"},
-                json={"model": "mistral-large-latest",
-                      "messages": [{"role": "user", "content": prompt}],
-                      "max_tokens": max_tokens, "temperature": 0.3})
-            _rate_limiter.record_call()
-            if resp.status_code == 200:
-                _rate_limiter.record_success()
-                return resp.json()["choices"][0]["message"]["content"].strip()
-            if resp.status_code == 429:
-                _rate_limiter.record_error()
-            logger.warning(f"Mistral error: {resp.status_code} {resp.text[:200]}")
-            return ""
-    except Exception as e:
-        logger.error(f"Mistral call failed: {e}")
+    """Call Mistral API with key rotation (MISTRAL_API_KEY, MISTRAL_API_KEY_2, etc).
+    Rotates round-robin through available keys. On 401/429 falls through to next key."""
+    global _mistral_key_index
+    if not _mistral_keys:
+        _load_mistral_keys()
+    if not _mistral_keys:
         return ""
+    
+    start = _mistral_key_index % len(_mistral_keys)
+    for offset in range(len(_mistral_keys)):
+        idx = (start + offset) % len(_mistral_keys)
+        api_key = _mistral_keys[idx]
+        try:
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.post(
+                    "https://api.mistral.ai/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                    json={"model": "mistral-large-latest",
+                          "messages": [{"role": "user", "content": prompt}],
+                          "max_tokens": max_tokens, "temperature": 0.3})
+                if resp.status_code == 200:
+                    _mistral_key_index += 1
+                    return resp.json()["choices"][0]["message"]["content"].strip()
+                if resp.status_code in (401, 429):
+                    logger.warning(f"Mistral key {idx+1}/{len(_mistral_keys)} rate-limited (HTTP {resp.status_code}) — rotating")
+                    continue
+                logger.warning(f"Mistral HTTP {resp.status_code}: {resp.text[:200]}")
+                return ""
+        except Exception as e:
+            msg = str(e)
+            if "429" in msg or "401" in msg or "rate" in msg.lower():
+                logger.warning(f"Mistral key {idx+1}/{len(_mistral_keys)} error ({msg[:80]}) — rotating")
+                continue
+            logger.error(f"Mistral call failed: {e}")
+            return ""
+    
+    _mistral_key_index += 1
+    logger.error(f"All {len(_mistral_keys)} Mistral keys exhausted")
+    return ""
 
 async def _detect_category(title: str, categories: list) -> str:
     if categories and categories[0]:
@@ -685,7 +730,7 @@ def _split_hashtags(raw) -> list:
     return []
 
 
-async def _extract_gender_age_hashtags(title: str, description: str) -> dict:
+async def _extract_gender_age_hashtags(title: str, description: str, category: str = "") -> dict:
     """Use Mistral to determine gender, target age group, and hashtags."""
     out = {"gender": "", "target_age": "", "hashtags": []}
     if not title:
@@ -703,35 +748,80 @@ async def _extract_gender_age_hashtags(title: str, description: str) -> dict:
     )
     result = await _call_mistral(prompt, max_tokens=300)
 
-    _FEMALE_KW = ("เดรส", "กระโปรง", "ชุด", "เสื้อผ้าผู้หญิง", "กางเกงขาสั้น", "dress", "skirt",
-                  "blouse", "women", "woman", "lady", "makeup", "cosmetic", "สกินแคร์",
-                  "ความงาม", "แฟชั่นผู้หญิง")
-    _MALE_KW = ("เสื้อผู้ชาย", "สูท", "shirt мужчина", "men", "man", "male", "tie", "boxer",
-                "กางเกงในผู้ชาย")
+    # ── Female keywords: Thai + English beauty/cosmetic terms ──
+    _FEMALE_KW = (
+        # Makeup
+        "ลิปสติก", "ลิป", "ลิปจิ้มจุ่ม", "ลิปแมท", "ลิปกลอส", "บลัช", "บลัชออน",
+        "อายแชโดว์", "อายไลเนอร์", "มาสคาร่า", "คอนซีลเลอร์", "รองพื้น",
+        "แป้ง", "แป้งพัฟ", "ไฮไลท์", "คอนทัวร์", "ดินสอเขียนคิ้ว",
+        "makeup", "lipstick", "lip", "blush", "eyeshadow", "mascara",
+        "concealer", "foundation", "powder", "highlighter", "contour",
+        # Skincare
+        "เซรั่ม", "ครีม", "มอยส์เจอไรเซอร์", "เอสเซนส์", "โทนเนอร์",
+        "มาส์กหน้า", "สครับ", "เซรั่มบำรุง", "ครีมบำรุง", "น้ำตบ",
+        "เอสเซ้นส์", "อิมัลชั่น", "อายครีม", "กันแดด",
+        "serum", "cream", "moisturizer", "essence", "toner",
+        "mask", "scrub", "sunscreen", "skincare",
+        # Beauty & personal care
+        "สกินแคร์", "ความงาม", "แต่งหน้า", "เครื่องสำอาง", "เครื่องสำอางค์",
+        "ความสวยความงาม", "บำรุงผิว", "ผิวสวย", "ผิวขาว",
+        "beauty", "cosmetic", "women", "woman", "lady",
+        # Hair & body
+        "แชมพู", "ครีมนวด", "ทรีทเมนท์", "สีผม", "ยาย้อมผม",
+        "โลชั่น", "ครีมอาบน้ำ", "เจลอาบน้ำ",
+        # Fashion (female)
+        "เดรส", "กระโปรง", "ชุด", "เสื้อผ้าผู้หญิง", "กางเกงขาสั้น",
+        "dress", "skirt", "blouse",
+        # Nail & lashes
+        "ยาทาเล็บ", "เจลทาเล็บ", "เล็บ", "ขนตา", "ต่อขนตา", "eyelash", "false lash",
+        # Perfume
+        "น้ำหอม", "perfume", "fragrance",
+    )
+    _MALE_KW = (
+        "เสื้อผู้ชาย", "สูท", "กางเกงในผู้ชาย", "รองเท้าผู้ชาย",
+        "men", "man", "male", "gentleman", "boxer", "tie",
+        "shaver", "razor", "beard",
+    )
+    # Category-based gender: if keyword matching fails, use category
+    _FEMALE_CATEGORIES = (
+        "lip", "makeup", "cosmetic", "beauty", "skincare", "serum",
+        "foundation", "concealer", "eyeshadow", "mascara", "blush",
+        "nail", "perfume", "fragrance",
+    )
+    _MALE_CATEGORIES = (
+        "shaver", "razor", "beard",
+    )
 
-    def _resolve_gender(g: str) -> str:
+    def _resolve_gender(g: str, category: str = "") -> str:
         g = (g or "").strip().lower()
         if g in ("female", "f", "women", "woman", "ladies"):
             return "female"
         if g in ("male", "m", "men", "man", "gentlemen"):
             return "male"
+        # Keyword-based fallback from title + description
         t = f"{title} {description or ''}".lower()
         if any(k.lower() in t for k in _FEMALE_KW):
             return "female"
         if any(k.lower() in t for k in _MALE_KW):
             return "male"
-        return ""  # unknown/neutral — let downstream decide; never hardcode female
+        # Category-based fallback
+        cat = (category or "").lower()
+        if any(c in cat for c in _FEMALE_CATEGORIES):
+            return "female"
+        if any(c in cat for c in _MALE_CATEGORIES):
+            return "male"
+        return ""  # truly unknown/neutral
 
     if result:
         try:
             data = json.loads(result)
-            out["gender"] = _resolve_gender(data.get("gender", ""))
+            out["gender"] = _resolve_gender(data.get("gender", ""), category)
             out["target_age"] = str(data.get("target_age", "") or "").strip()
             out["hashtags"] = _split_hashtags(data.get("hashtags", []))
         except Exception:
             m = re.search(r'"gender"\s*:\s*"([^"]+)"', result)
             if m:
-                out["gender"] = _resolve_gender(m.group(1))
+                out["gender"] = _resolve_gender(m.group(1), category)
             m2 = re.search(r'"target_age"\s*:\s*"([^"]+)"', result)
             if m2:
                 out["target_age"] = m2.group(1)

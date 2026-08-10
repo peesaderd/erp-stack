@@ -79,7 +79,7 @@ app.use(express.json());
 
 // Proxy product images → calm-noether (8108) for HTTPS mixed-content fix
 app.get("/ugc/static/product_images/:filename", (req, res) => {
-  http.get("http://localhost:8108/product_images/" + req.params.filename, (proxyRes) => {
+  http.get("http://localhost:8105/ugc/static/product_images/" + req.params.filename, (proxyRes) => {
     res.writeHead(proxyRes.statusCode, {
       "Content-Type": proxyRes.headers["content-type"] || "image/jpeg",
       "Content-Length": proxyRes.headers["content-length"],

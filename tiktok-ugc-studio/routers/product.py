@@ -209,15 +209,20 @@ async def list_scraped_products(limit: int = 100, search: str = ""):
 
 @router.post("/products/analyze-scraped")
 async def analyze_scraped_products():
-    """Read scraped products from PostgreSQL → Normalize → Enrich (Gemini) → Write to tus_products.db"""
-    import google.generativeai as genai
-    from gemini_agent import TEXT_MODEL
+    """Read scraped products -> Normalize -> Enrich (Mistral) -> Store in analyzed_products -> Write to tus_products.db.
 
-    # 1. Read from PostgreSQL
+    No fallbacks. If enrichment fails, the product is skipped with error logged.
+    """
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    from modules.product.analyze_pipeline import ProductNormalizer, ProductEnricher
+    from modules.product.analyzer_db import store_analyzed, store_analyzed_batch
+
+    # 1. Read from PostgreSQL products table
     try:
         conn = await asyncpg.connect(PRODUCTDB_DSN)
         rows = await conn.fetch(
-            "SELECT id, name, data::text FROM products ORDER BY id ASC"
+            "SELECT id, name, description, price, category, source_url, image_urls, ai_analysis, sku FROM products ORDER BY id ASC"
         )
         await conn.close()
     except Exception as e:
@@ -227,107 +232,148 @@ async def analyze_scraped_products():
     tus_conn = sqlite3.connect(db_path)
     enriched = 0
     skipped = 0
-    errors = 0
+    errors = []
 
     for r in rows:
         try:
             row_id = r["id"]
             name = r["name"]
-            data = json.loads(r["data"]) if isinstance(r["data"], str) else {}
-            product_id = data.get("product_id", str(row_id))
+            price = float(r["price"] or 0)
+            description = r["description"] or ""
+            category = r["category"] or ""
+            source_url = r["source_url"] or ""
+            image_urls_raw = r["image_urls"]
+            sku = r["sku"] or ""
+            ai_analysis = r["ai_analysis"]
 
-            # Skip if already in tus_products.db
-            existing = tus_conn.execute(
-                "SELECT 1 FROM tus_products WHERE product_id = ?", (product_id,)
+            # Parse image_urls (might be JSON string or list)
+            if isinstance(image_urls_raw, str):
+                try:
+                    image_urls = json.loads(image_urls_raw)
+                except Exception:
+                    image_urls = [image_urls_raw] if image_urls_raw else []
+            elif isinstance(image_urls_raw, list):
+                image_urls = image_urls_raw
+            else:
+                image_urls = []
+
+            # Skip if already in analyzed_products (check via store_analyzed dedup)
+            # store_analyzed does upsert by product_id+source, so we check if enriched=True
+            # For now, just proceed - store_analyzed will handle dedup
+
+            # 2. Normalize
+            raw = {
+                "product_id": str(row_id),
+                "name": name,
+                "title": name,
+                "description": description,
+                "price": price,
+                "category": category,
+                "source_url": source_url,
+                "url": source_url,
+                "images": image_urls,
+                "sku": sku,
+                "seller_name": "",
+                "seller_id": "",
+                "commission_rate": "0",
+                "source_site": "tiktok",
+            }
+            product = await ProductNormalizer.normalize(raw, source_hint="tiktok")
+
+            # 3. Enrich (Mistral) - NO FALLBACK, let errors propagate
+            product = await ProductEnricher.enrich(product)
+            if not product.enriched:
+                raise Exception(f"Enrichment failed for product {row_id}: {product.title}")
+
+            # 4. Store in analyzed_products (SSOT)
+            product_dict = {
+                "product_id": product.product_id,
+                "title": product.title,
+                "title_th": product.title_th or product.title,
+                "description": product.description,
+                "price_min": product.price_min or 0,
+                "price_max": product.price_max or 0,
+                "price_avg": product.price_avg or 0,
+                "price_thb": product.price_min or 0,
+                "source": product.source or "tiktok",
+                "category": product.category or "",
+                "commission_rate": product.commission_rate or 0,
+                "seller_name": product.seller_name or "",
+                "seller_id": product.seller_id or "",
+                "keywords": product.keywords or [],
+                "hashtags": product.hashtags or [],
+                "gender": product.gender or "",
+                "target_age": product.target_age or "",
+                "images": product.images or [],
+                "sold_total": product.sold_total or 0,
+                "viral_score": product.viral_score or 0,
+                "enriched": product.enriched or False,
+            }
+            await store_analyzed_batch([product_dict])
+
+            # 5. Write to tus_products.db
+            existing_tus = tus_conn.execute(
+                "SELECT keywords FROM tus_products WHERE product_id = ?",
+                (product.product_id,)
             ).fetchone()
-            if existing:
-                skipped += 1
-                continue
+            if existing_tus:
+                try:
+                    existing_kw = json.loads(existing_tus[0]) if existing_tus[0] else []
+                except Exception:
+                    existing_kw = []
+                if len(existing_kw) > 2:
+                    skipped += 1
+                    continue
 
-            # 2. Extract keywords using Gemini
-            keywords = []
-            try:
-                gen_model = genai.GenerativeModel(TEXT_MODEL)
-                resp = gen_model.generate_content(
-                    f"จากชื่อสินค้า: '{name}'\nจง extract คำค้นหาหลัก 5-10 คำ (ภาษาไทย) ที่เกี่ยวข้องกับสินค้านี้ "
-                    f"เช่น หมวดหมู่, ประเภท, คุณสมบัติเด่น\nตอบเฉพาะคำค้นหา คั่นด้วยจุลภาค"
-                )
-                kw_text = resp.text.strip()
-                keywords = [k.strip() for k in kw_text.split(",") if k.strip()]
-            except Exception:
-                # Fallback: extract Thai/Eng words from name
-                words = re.findall(r"[\u0E00-\u0E7Fa-zA-Zก-๙]+(?:\s+[\u0E00-\u0E7Fa-zA-Zก-๙]+)*", name)
-                keywords = [w.strip() for w in words if len(w.strip()) > 2][:10]
-
-            # 3. Parse commission rate
-            comm_raw = data.get("commission_rate", "0")
-            comm_num = float(re.sub(r"[^0-9.]", "", str(comm_raw)) or "0")
-            viral_score = min(99, int(comm_num * 5))
-            price = float(data.get("price", 0))
-
-            # 4. Resolve product image — copy from calm-noether → TUS storage
-            image_urls = []
-            image_filename = data.get("image_filename", "")
-            if not image_filename:
-                for ext in ("jpg", "png", "jpeg", "webp"):
-                    candidate = f"{product_id}.{ext}"
-                    calm_path = os.path.expanduser(f"~/calm-noether/product_images/{candidate}")
-                    if os.path.exists(calm_path):
-                        image_filename = candidate
-                        break
-            if image_filename:
-                calm_path = os.path.expanduser(f"~/calm-noether/product_images/{image_filename}")
-                tus_img_dir = str(BASE_DIR / "storage" / "product_images")
-                os.makedirs(tus_img_dir, exist_ok=True)
-                tus_img_path = os.path.join(tus_img_dir, image_filename)
-                if os.path.exists(calm_path) and not os.path.exists(tus_img_path):
-                    import shutil
-                    shutil.copy2(calm_path, tus_img_path)
-                    logger.info(f"  Copied product image: {image_filename}")
-                if os.path.exists(tus_img_path):
-                    image_urls.append(f"/ugc/static/product_images/{image_filename}")
-            # 5. Insert into tus_products.db
             tus_conn.execute("""
-                INSERT INTO tus_products 
+                INSERT OR REPLACE INTO tus_products
                 (product_id, title, title_th, price_thb, rating, sold_total, viral_score,
                  trending, category, commission_rate, seller_name, seller_id, url,
-                 description, description_th, images, keywords, source, imported_at, tus_status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), 'pending')
+                 description, description_th, images, keywords, hashtags, gender, target_age,
+                 source, imported_at, tus_status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), 'pending')
             """, (
-                product_id,
-                name,
-                name,
-                price,
+                product.product_id,
+                product.title,
+                product.title_th or product.title,
+                product.price_min or 0,
                 0,
-                0,
-                viral_score,
-                0,
-                data.get("category", ""),
-                str(comm_raw),
-                data.get("seller_name", ""),
-                data.get("seller_id", ""),
-                data.get("product_url", ""),
-                data.get("hook_concept", ""),
-                data.get("hook_concept", ""),
-                json.dumps(image_urls),
-                json.dumps(keywords[:10]),
-                "tiktok",
+                product.sold_total or 0,
+                product.viral_score or 0,
+                1 if (product.viral_score or 0) >= 18 else 0,
+                product.category or "",
+                product.commission_rate or 0,
+                product.seller_name or "",
+                product.seller_id or "",
+                product.url or "",
+                product.description or "",
+                product.description or "",
+                json.dumps(product.images),
+                json.dumps(product.keywords),
+                json.dumps(product.hashtags),
+                product.gender or "",
+                product.target_age or "",
+                product.source or "tiktok",
             ))
             enriched += 1
+            logger.info(f"  OK {product.product_id[:18]} | gender={product.gender!r} | age={product.target_age!r} | kw={len(product.keywords)}")
+
         except Exception as e:
-            logger.warning(f"analyze-scraped row {r.get('id','?')}: {e}")
-            errors += 1
+            error_msg = f"Row {r.get('id','?')}: {e}"
+            logger.error(f"analyze-scraped FAILED: {error_msg}")
+            errors.append(error_msg)
 
     tus_conn.commit()
     total = tus_conn.execute("SELECT count(*) FROM tus_products").fetchone()[0]
     tus_conn.close()
 
     return {
-        "success": True,
+        "success": len(errors) == 0,
         "enriched": enriched,
         "skipped": skipped,
         "errors": errors,
         "total_in_tus": total,
+        "message": f"Enriched {enriched}, skipped {skipped}, errors {len(errors)}",
     }
 
 

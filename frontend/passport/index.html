@@ -8,618 +8,178 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
-  --surface:#fff;--surface2:#f8fafc;--surface3:#f1f5f9;
-  --border:#e2e8f0;--text:#0f172a;--dim:#64748b;--muted:#94a3b8;
-  --accent:#6366f1;--accent-hover:#4f46e5;--accent-light:#eef2ff;--accent-glow:rgba(99,102,241,.3);
-  --success:#10b981;--danger:#ef4444;
-  --radius:16px;--radius-sm:12px;--radius-xs:8px;
-  --shadow:0 1px 3px rgba(0,0,0,.1);
-  --shadow-md:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -2px rgba(0,0,0,.1);
-  --shadow-lg:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -4px rgba(0,0,0,.1);
-  --shadow-xl:0 20px 25px -5px rgba(0,0,0,.1),0 8px 10px -6px rgba(0,0,0,.1);
-}
+:root{--bg:#f8fafc;--surface:#fff;--surface2:#f1f5f9;--border:#e2e8f0;--text:#0f172a;--dim:#64748b;--muted:#94a3b8;--accent:#6366f1;--accent-hover:#4f46e5;--accent-light:#eef2ff;--accent-glow:rgba(99,102,241,.15);--success:#10b981;--danger:#ef4444;--radius:16px;--radius-sm:12px;--radius-xs:8px;--shadow:0 1px 3px rgba(0,0,0,.06);--shadow-md:0 4px 12px rgba(0,0,0,.08);--shadow-lg:0 12px 24px rgba(0,0,0,.1)}
 html{scroll-behavior:smooth}
-body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);min-height:100vh;-webkit-font-smoothing:antialiased;padding:0 0 40px}
-
-.header{text-align:center;padding:32px 20px 24px}
-.header h1{font-size:2rem;font-weight:800;color:#fff;letter-spacing:-.03em;text-shadow:0 2px 10px rgba(0,0,0,.2)}
-.header p{font-size:.9rem;color:rgba(255,255,255,.85);margin-top:6px}
-
-.main-card{max-width:520px;margin:0 auto;background:var(--surface);border-radius:24px;box-shadow:var(--shadow-xl);overflow:hidden}
-
-.steps{display:flex;background:var(--surface2);border-bottom:1px solid var(--border)}
-.step{flex:1;padding:14px 8px;text-align:center;font-size:.72rem;font-weight:600;color:var(--muted);position:relative;transition:all .3s;cursor:pointer}
-.step.active{color:var(--accent);background:var(--surface)}
-.step.active::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--accent);border-radius:3px 3px 0 0}
-.step-num{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--border);color:var(--dim);font-size:.65rem;margin-right:6px;transition:all .3s}
-.step.active .step-num{background:var(--accent);color:#fff}
-.step.done .step-num{background:var(--success);color:#fff}
-
-.content{padding:24px}
-
-.back-link{cursor:pointer;font-size:.8rem;color:var(--accent);margin-bottom:16px;font-weight:500;display:inline-flex;align-items:center;gap:4px}
-.back-link:hover{text-decoration:underline}
-
-.upload-zone{
-  border:2px dashed var(--border);border-radius:var(--radius);
-  padding:40px 20px;text-align:center;cursor:pointer;transition:all .3s;
-  background:var(--surface2);position:relative
-}
+body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);min-height:100vh;-webkit-font-smoothing:antialiased;color:var(--text)}
+.header{padding:24px 20px 16px;max-width:960px;margin:0 auto;display:flex;align-items:center;justify-content:space-between}
+.header h1{font-size:1.4rem;font-weight:800;letter-spacing:-.03em;display:flex;align-items:center;gap:10px}
+.header p{font-size:.78rem;color:var(--dim);margin-top:2px}
+.header-price{font-size:.7rem;color:var(--accent);font-weight:600;background:var(--accent-light);padding:6px 12px;border-radius:20px}
+.page{max-width:960px;margin:0 auto;padding:0 16px 60px}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+.card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;box-shadow:var(--shadow)}
+.card-head{padding:14px 18px;border-bottom:1px solid var(--border);font-size:.8rem;font-weight:700;display:flex;align-items:center;gap:8px}
+.card-body{padding:18px}
+.upload-zone{border:2px dashed var(--border);border-radius:var(--radius-sm);padding:32px 20px;text-align:center;cursor:pointer;transition:all .3s;background:var(--surface2);position:relative}
 .upload-zone:hover{border-color:var(--accent);background:var(--accent-light)}
-.upload-zone.dragover{border-color:var(--accent);background:var(--accent-light)}
 .upload-zone.has-file{border-style:solid;border-color:var(--accent);padding:12px;display:flex;align-items:center;gap:14px;text-align:left}
-.upload-icon{font-size:48px;margin-bottom:12px;opacity:.6}
-.upload-title{font-size:1rem;font-weight:600;color:var(--text)}
-.upload-sub{font-size:.78rem;color:var(--dim);margin-top:4px}
-.upload-zone img{width:72px;height:72px;object-fit:cover;border-radius:var(--radius-sm);flex-shrink:0}
-.upload-zone .file-info{flex:1}
-.upload-zone .file-name{font-size:.85rem;font-weight:600;color:var(--text);margin-bottom:2px;word-break:break-all}
-.upload-zone .file-meta{font-size:.72rem;color:var(--dim)}
-.gender-badge{display:inline-flex;align-items:center;gap:4px;margin-top:6px;padding:4px 10px;border-radius:20px;font-size:.7rem;font-weight:600;background:var(--accent-light);color:var(--accent)}
-.bulk-badge{display:inline-flex;align-items:center;gap:4px;margin-top:6px;padding:4px 10px;border-radius:20px;font-size:.7rem;font-weight:600;background:#dcfce7;color:#16a34a}
-.upload-zone .clear-btn{position:absolute;top:10px;right:10px;width:24px;height:24px;border-radius:50%;background:var(--surface);border:1px solid var(--border);cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;color:var(--dim);transition:all .2s}
-.upload-zone .clear-btn:hover{background:var(--danger);color:#fff;border-color:var(--danger)}
+.upload-icon{font-size:36px;margin-bottom:8px;opacity:.5}
+.upload-title{font-size:.85rem;font-weight:600}
+.upload-sub{font-size:.72rem;color:var(--dim);margin-top:4px}
+.upload-zone img{width:60px;height:60px;object-fit:cover;border-radius:var(--radius-xs);flex-shrink:0}
+.file-info{flex:1}.file-name{font-size:.78rem;font-weight:600;word-break:break-all}.file-meta{font-size:.68rem;color:var(--dim)}
+.gender-badge{display:inline-flex;align-items:center;gap:4px;margin-top:4px;padding:3px 8px;border-radius:12px;font-size:.65rem;font-weight:600;background:var(--accent-light);color:var(--accent)}
+.bulk-badge{display:inline-flex;align-items:center;gap:4px;margin-top:4px;padding:3px 8px;border-radius:12px;font-size:.65rem;font-weight:600;background:#dcfce7;color:#16a34a}
+.clear-btn{position:absolute;top:8px;right:8px;width:22px;height:22px;border-radius:50%;background:var(--surface);border:1px solid var(--border);cursor:pointer;font-size:10px;display:flex;align-items:center;justify-content:center;color:var(--dim)}
+.clear-btn:hover{background:var(--danger);color:#fff;border-color:var(--danger)}
 .upload-zone input{display:none}
-
-.preview-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+.preview-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}
 .preview-thumb{position:relative;aspect-ratio:3/4;border-radius:var(--radius-xs);overflow:hidden;box-shadow:var(--shadow)}
 .preview-thumb img{width:100%;height:100%;object-fit:cover}
-.preview-thumb .remove{position:absolute;top:4px;right:4px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;border:none;cursor:pointer;font-size:10px;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s}
-.preview-thumb:hover .remove{opacity:1}
-
-.section-label{font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px;display:flex;align-items:center;gap:6px}
-.section-label .count{background:var(--accent);color:#fff;font-size:.6rem;padding:2px 6px;border-radius:10px}
-
-.country-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
-.country-chip{
-  display:flex;align-items:center;gap:6px;padding:10px 12px;
-  border:1.5px solid var(--border);border-radius:var(--radius-sm);
-  cursor:pointer;transition:all .2s;background:var(--surface);font-size:.75rem;font-weight:500
-}
-.country-chip:hover{border-color:var(--accent);transform:translateY(-1px)}
-.country-chip.active{border-color:var(--accent);background:var(--accent-light);color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
-.country-chip .flag{font-size:1rem}
-.country-chip .name{flex:1}
-.country-chip .size{font-size:.6rem;color:var(--muted);font-weight:400}
-
-.custom-row{display:flex;gap:6px;align-items:center}
-.custom-row input{flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-xs);font-size:.78rem;outline:none;background:var(--surface);text-align:center}
+.preview-thumb .remove{position:absolute;top:3px;right:3px;width:16px;height:16px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;border:none;cursor:pointer;font-size:8px;display:none;align-items:center;justify-content:center}
+.preview-thumb:hover .remove{display:flex}
+.country-select{width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius-xs);font-size:.82rem;font-weight:500;background:var(--surface);color:var(--text);outline:none;cursor:pointer;appearance:none;padding-right:36px}
+.country-select:focus{border-color:var(--accent)}
+.custom-row{display:flex;gap:6px;align-items:center;margin-top:8px}
+.custom-row input{flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-xs);font-size:.75rem;outline:none;text-align:center}
 .custom-row input:focus{border-color:var(--accent)}
 .custom-row span{color:var(--muted);font-weight:600}
-.custom-row button{padding:8px 14px;border:none;border-radius:var(--radius-xs);font-size:.72rem;font-weight:600;cursor:pointer;background:var(--accent);color:#fff;transition:all .2s}
+.custom-row button{padding:8px 14px;border:none;border-radius:var(--radius-xs);font-size:.7rem;font-weight:600;cursor:pointer;background:var(--accent);color:#fff;white-space:nowrap}
 .custom-row button:hover{background:var(--accent-hover)}
-
 .carousel-wrap{position:relative;margin:0 -4px;padding:0 4px}
-.carousel{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:8px 0 12px}
+.carousel{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;padding:6px 0 8px}
 .carousel::-webkit-scrollbar{display:none}
-.carousel-item{
-  flex:0 0 100px;scroll-snap-align:start;cursor:pointer;
-  border:2px solid var(--border);border-radius:var(--radius-sm);
-  overflow:hidden;transition:all .25s;background:var(--surface);position:relative
-}
-.carousel-item:hover{border-color:var(--accent);transform:translateY(-3px);box-shadow:var(--shadow-md)}
-.carousel-item.active{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow),var(--shadow-md)}
-.carousel-item img{width:100%;height:120px;object-fit:cover;display:block;background:var(--surface3)}
-.carousel-item .label{text-align:center;padding:8px 4px;font-size:.68rem;font-weight:600;color:var(--dim);line-height:1.2}
+.carousel-item{flex:0 0 80px;scroll-snap-align:start;cursor:pointer;border:2px solid var(--border);border-radius:var(--radius-xs);overflow:hidden;transition:all .25s;background:var(--surface);position:relative}
+.carousel-item:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:var(--shadow-md)}
+.carousel-item.active{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+.carousel-item img{width:100%;height:96px;object-fit:cover;display:block;background:var(--surface2)}
+.carousel-item .label{text-align:center;padding:6px 3px;font-size:.62rem;font-weight:600;color:var(--dim)}
 .carousel-item.active .label{color:var(--accent)}
-.carousel-item .check{position:absolute;top:6px;right:6px;width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;display:none;align-items:center;justify-content:center;font-size:10px;font-weight:700}
+.carousel-item .check{position:absolute;top:4px;right:4px;width:18px;height:18px;border-radius:50%;background:var(--accent);color:#fff;display:none;align-items:center;justify-content:center;font-size:9px;font-weight:700}
 .carousel-item.active .check{display:flex}
-
-.carousel-arrow{
-  position:absolute;top:50%;transform:translateY(-50%);width:32px;height:32px;
-  border-radius:50%;background:var(--surface);border:1px solid var(--border);
-  box-shadow:var(--shadow-md);cursor:pointer;display:flex;align-items:center;
-  justify-content:center;font-size:14px;color:var(--dim);z-index:5;transition:all .2s
-}
+.carousel-arrow{position:absolute;top:50%;transform:translateY(-50%);width:28px;height:28px;border-radius:50%;background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--dim);z-index:5}
 .carousel-arrow:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
-.carousel-arrow.left{left:-12px}
-.carousel-arrow.right{right:-12px}
-
-.bg-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-.bg-dot{
-  width:44px;height:44px;border-radius:50%;cursor:pointer;
-  border:3px solid var(--border);transition:all .2s;position:relative;box-shadow:var(--shadow)
-}
-.bg-dot:hover{transform:scale(1.1);box-shadow:var(--shadow-md)}
-.bg-dot.active{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
-.bg-dot.active::after{content:'✓';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;color:var(--accent)}
-.bg-dot.custom{border-style:dashed;display:flex;align-items:center;justify-content:center;font-size:1.1rem;color:var(--muted)}
-.color-wrap{position:relative;width:44px;height:44px}
+.carousel-arrow.left{left:-10px}.carousel-arrow.right{right:-10px}
+.bg-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.bg-dot{width:36px;height:36px;border-radius:50%;cursor:pointer;border:3px solid var(--border);transition:all .2s;position:relative;box-shadow:var(--shadow)}
+.bg-dot:hover{transform:scale(1.1)}.bg-dot.active{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+.bg-dot.active::after{content:"✓";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;color:var(--accent)}
+.bg-dot.custom{border-style:dashed;display:flex;align-items:center;justify-content:center;font-size:1rem;color:var(--muted)}
+.color-wrap{position:relative;width:36px;height:36px}
 .color-wrap input[type=color]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
-
-.print-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
-.print-field label{font-size:.65rem;color:var(--muted);margin-bottom:4px;display:block;font-weight:500}
-.print-field select,.print-field input{
-  width:100%;padding:10px;border:1.5px solid var(--border);border-radius:var(--radius-xs);
-  font-size:.78rem;background:var(--surface);color:var(--text);outline:none;transition:border-color .2s
-}
+.print-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.print-field label{font-size:.62rem;color:var(--muted);margin-bottom:3px;display:block;font-weight:500}
+.print-field select,.print-field input{width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-xs);font-size:.75rem;background:var(--surface);color:var(--text);outline:none}
 .print-field select:focus,.print-field input:focus{border-color:var(--accent)}
-.blade-toggle{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:.72rem;color:var(--dim);cursor:pointer;user-select:none}
-.blade-toggle input{accent-color:var(--accent);width:14px;height:14px}
-
-.gen-btn{
-  width:100%;padding:16px;border:none;border-radius:var(--radius);
-  font-size:.95rem;font-weight:700;cursor:pointer;
-  background:linear-gradient(135deg,var(--accent) 0%,#8b5cf6 100%);
-  color:#fff;transition:all .3s;margin-top:24px;
-  box-shadow:0 4px 15px var(--accent-glow)
-}
+.blade-toggle{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:.68rem;color:var(--dim);cursor:pointer;user-select:none}
+.blade-toggle input{accent-color:var(--accent);width:13px;height:13px}
+.gen-btn{width:100%;padding:14px;border:none;border-radius:var(--radius-sm);font-size:.9rem;font-weight:700;cursor:pointer;background:linear-gradient(135deg,var(--accent) 0%,#8b5cf6 100%);color:#fff;margin-top:16px;box-shadow:0 4px 15px var(--accent-glow);transition:all .3s}
 .gen-btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px var(--accent-glow)}
-.gen-btn:active{transform:translateY(0)}
 .gen-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
-
-.result-section{display:none;animation:slideUp .4s ease}
-.result-section.show{display:block}
-@keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-
-.result-card{background:var(--surface);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow-xl);border:1px solid var(--border)}
+.result-card{background:var(--surface);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow-lg);border:1px solid var(--border)}
 .result-img{width:100%;max-height:400px;object-fit:contain;background:var(--surface2)}
 .result-stats{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--border)}
-.result-stat{padding:12px 8px;text-align:center;border-right:1px solid var(--border)}
+.result-stat{padding:10px 6px;text-align:center;border-right:1px solid var(--border)}
 .result-stat:last-child{border-right:none}
-.result-stat .val{font-size:.9rem;font-weight:700;color:var(--accent)}
-.result-stat .lbl{font-size:.6rem;color:var(--muted);margin-top:2px;font-weight:500}
-.result-actions{display:flex;gap:8px;padding:16px}
-.result-btn{
-  flex:1;padding:12px;border:none;border-radius:var(--radius-sm);
-  font-size:.8rem;font-weight:600;cursor:pointer;transition:all .2s;
-  display:flex;align-items:center;justify-content:center;gap:6px
-}
-.result-btn.primary{background:var(--success);color:#fff}
-.result-btn.primary:hover{filter:brightness(1.1);transform:translateY(-1px)}
-.result-btn.secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
-.result-btn.secondary:hover{border-color:var(--accent);color:var(--accent)}
-
-.print-section{padding:16px;border-top:1px solid var(--border)}
-.print-section img{width:100%;border-radius:var(--radius-sm);background:var(--surface2)}
-
-.bulk-list{padding:0 16px 16px}
-.bulk-item{
-  display:flex;align-items:center;gap:10px;padding:10px 12px;
-  background:var(--surface2);border-radius:var(--radius-xs);margin-bottom:6px;
-  font-size:.75rem;transition:all .2s
-}
+.result-stat .val{font-size:.82rem;font-weight:700;color:var(--accent)}
+.result-stat .lbl{font-size:.55rem;color:var(--muted);margin-top:2px}
+.result-actions{display:flex;gap:6px;padding:14px}
+.result-btn{flex:1;padding:10px;border:none;border-radius:var(--radius-xs);font-size:.75rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;transition:all .2s}
+.result-btn.primary{background:var(--success);color:#fff}.result-btn.primary:hover{filter:brightness(1.1)}
+.result-btn.secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border)}.result-btn.secondary:hover{border-color:var(--accent);color:var(--accent)}
+.print-section{padding:14px;border-top:1px solid var(--border)}.print-section img{width:100%;border-radius:var(--radius-sm);background:var(--surface2)}
+.bulk-list{padding:0 14px 14px}
+.bulk-item{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border-radius:var(--radius-xs);margin-bottom:5px;font-size:.7rem}
 .bulk-item:hover{background:var(--accent-light)}
-.bulk-item .num{font-weight:700;color:var(--muted);min-width:24px}
-.bulk-item .info{flex:1}
-.bulk-item .status{font-size:.65rem;padding:2px 8px;border-radius:10px;font-weight:600}
-.bulk-item .status.ok{background:#dcfce7;color:#16a34a}
-.bulk-item .status.err{background:#fee2e2;color:#ef4444}
-.bulk-item a{color:var(--accent);text-decoration:none;font-weight:600;font-size:.72rem}
-
-.overlay{
-  display:none;position:fixed;inset:0;background:rgba(255,255,255,.92);
-  z-index:998;justify-content:center;align-items:center;flex-direction:column;
-  gap:16px;backdrop-filter:blur(8px)
-}
+.bulk-item .num{font-weight:700;color:var(--muted);min-width:22px}.bulk-item .info{flex:1}
+.bulk-item .status{font-size:.6rem;padding:2px 6px;border-radius:8px;font-weight:600}
+.bulk-item .status.ok{background:#dcfce7;color:#16a34a}.bulk-item .status.err{background:#fee2e2;color:#ef4444}
+.bulk-item a{color:var(--accent);text-decoration:none;font-weight:600;font-size:.68rem}
+.overlay{display:none;position:fixed;inset:0;background:rgba(255,255,255,.92);z-index:998;justify-content:center;align-items:center;flex-direction:column;gap:14px;backdrop-filter:blur(8px)}
 .overlay.show{display:flex}
-.spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-.overlay-text{font-size:.9rem;color:var(--dim);font-weight:500}
-
-.toast{
-  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);
-  background:var(--text);color:#fff;border-radius:24px;padding:12px 24px;
-  z-index:999;font-size:.82rem;font-weight:500;box-shadow:var(--shadow-lg);
-  transition:transform .3s ease
-}
-.toast.show{transform:translateX(-50%) translateY(0)}
-.toast.error{background:var(--danger)}
-
-@media(max-width:560px){
-  .header h1{font-size:1.6rem}
-  .main-card{margin:0 12px;border-radius:20px}
-  .content{padding:20px 16px}
-  .country-grid{grid-template-columns:repeat(2,1fr)}
-  .carousel-item{width:85px}
-  .carousel-item img{height:100px}
-}
+.overlay-text{font-size:.85rem;color:var(--dim);font-weight:500}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--text);color:#fff;border-radius:20px;padding:10px 20px;z-index:999;font-size:.78rem;font-weight:500;transition:transform .3s ease}
+.toast.show{transform:translateX(-50%) translateY(0)}.toast.error{background:var(--danger)}
+@media(max-width:768px){.cols{grid-template-columns:1fr}.header{flex-direction:column;align-items:flex-start;gap:8px}.carousel-item{width:72px}.carousel-item img{height:84px}}
 </style>
 </head>
 <body>
-
-<div class="header">
-  <h1>📸 Passport Photo Studio</h1>
-  <p>สร้างรูปพาสปอร์ตด้วย AI · ไม่ถึง 10 วินาที</p>
-</div>
-
-<div class="overlay" id="overlay">
-  <div class="spinner"></div>
-  <div class="overlay-text" id="overlayText">กำลังสร้างรูป...</div>
-</div>
+<div class="header"><div><h1><span style="font-size:1.6rem">📸</span> Passport Photo Studio</h1><p>AI passport photos in under 10 seconds</p></div><div class="header-price">⚡ $0.004 / photo</div></div>
+<div class="overlay" id="overlay"><div class="spinner"></div><div class="overlay-text" id="overlayText">Generating...</div></div>
 <div class="toast" id="toast"></div>
-
-<div class="main-card">
-  <div class="steps">
-    <div class="step active" data-step="1"><span class="step-num">1</span>อัพรูป</div>
-    <div class="step" data-step="2"><span class="step-num">2</span>เลือกตัวเลือก</div>
-    <div class="step" data-step="3"><span class="step-num">3</span>ผลลัพธ์</div>
-  </div>
-
-  <div class="content">
-    <!-- Step 1 -->
-    <div class="step-page" id="page1">
-      <div class="upload-zone" id="uploadZone">
-        <div id="uploadEmpty">
-          <div class="upload-icon">📷</div>
-          <div class="upload-title">ลากไฟล์มาที่นี่</div>
-          <div class="upload-sub">JPG หรือ PNG · รองรับสูงสุด 20 ไฟล์</div>
-        </div>
-        <div id="uploadFilled" style="display:none">
-          <img id="previewThumb" alt="">
-          <div class="file-info">
-            <div class="file-name" id="fileName"></div>
-            <div class="file-meta" id="fileMeta"></div>
-            <div id="genderBadge"></div>
-            <div id="bulkBadge" style="display:none"></div>
-          </div>
-        </div>
-        <button class="clear-btn" id="clearBtn" style="display:none" title="ลบรูป">✕</button>
-        <input type="file" id="fileInput" accept="image/jpeg,image/png" multiple>
-      </div>
-      <div class="preview-grid" id="previewGrid"></div>
-    </div>
-
-    <!-- Step 2 -->
-    <div class="step-page" id="page2" style="display:none">
-      <div class="back-link" id="backBtn">← ย้อนกลับ</div>
-
-      <div class="section-label">🌍 ประเทศ & ขนาด</div>
-      <div class="country-grid" id="countryGrid"></div>
-      <div class="custom-row">
-        <input type="number" id="customW" placeholder="กว้าง (mm)" min="10" max="200">
-        <span>×</span>
-        <input type="number" id="customH" placeholder="สูง (mm)" min="10" max="200">
-        <button id="customBtn">ตั้งค่า</button>
-      </div>
-
-      <div class="section-label" style="margin-top:20px">👔 เสื้อผ้า <span class="count" id="clothingCount">0</span></div>
-      <div class="carousel-wrap">
-        <button class="carousel-arrow left" id="clothingLeft">◀</button>
-        <div class="carousel" id="clothingCarousel"></div>
-        <button class="carousel-arrow right" id="clothingRight">▶</button>
-      </div>
-
-      <div class="section-label" style="margin-top:16px">🎨 พื้นหลัง</div>
-      <div class="bg-row" id="bgRow"></div>
-
-      <div class="section-label" style="margin-top:20px">🖨️ การพิมพ์</div>
-      <div class="print-grid">
-        <div class="print-field">
-          <label>กระดาษ</label>
-          <select id="printSize">
-            <option value="4x6">4×6"</option>
-            <option value="5x7">5×7"</option>
-            <option value="a6">A6</option>
-            <option value="a4">A4</option>
-          </select>
-        </div>
-        <div class="print-field">
-          <label>จำนวนรูป</label>
-          <input type="number" id="photoCount" value="6" min="1" max="20">
-        </div>
-        <div class="print-field">
-          <label>ขอบ</label>
-          <select id="borderType">
-            <option value="guidelines">เส้นตัด</option>
-            <option value="none">ไม่มี</option>
-            <option value="frame">กรอบขาว</option>
-          </select>
-        </div>
-      </div>
-      <label class="blade-toggle"><input type="checkbox" id="bladeMode"> เปิดโหมด blade สำหรับตัด</label>
-
-      <button class="gen-btn" id="genBtn" disabled>✨ สร้างรูปพาสปอร์ต</button>
-    </div>
-
-    <!-- Step 3 -->
-    <div class="step-page" id="page3" style="display:none">
-      <div class="result-section show">
-        <div class="result-card">
-          <img class="result-img" id="resultImg" alt="Result">
-          <div class="result-stats" id="resultStats"></div>
-          <div class="result-actions">
-            <button class="result-btn primary" id="dlPassport">💾 ดาวน์โหลด</button>
-            <button class="result-btn secondary" id="dlPrint">🖨️ แผ่นพิมพ์</button>
-            <button class="result-btn secondary" id="retryBtn">🔄 ใหม่</button>
-          </div>
-          <div class="print-section" id="printSection" style="display:none">
-            <img id="printImg" alt="Print Sheet">
-          </div>
-          <div class="bulk-list" id="bulkList" style="display:none"></div>
-        </div>
-      </div>
-    </div>
-  </div>
+<div class="page"><div class="cols">
+<div>
+<div class="card"><div class="card-head">📷 Upload Photo</div><div class="card-body">
+<div class="upload-zone" id="uploadZone">
+<div id="uploadEmpty"><div class="upload-icon">📷</div><div class="upload-title">Drag &amp; drop or click</div><div class="upload-sub">JPG or PNG · Up to 20 files</div></div>
+<div id="uploadFilled" style="display:none"><img id="previewThumb" alt=""><div class="file-info"><div class="file-name" id="fileName"></div><div class="file-meta" id="fileMeta"></div><div id="genderBadge"></div><div id="bulkBadge" style="display:none"></div></div></div>
+<button class="clear-btn" id="clearBtn" style="display:none" title="Remove">✕</button>
+<input type="file" id="fileInput" accept="image/jpeg,image/png" multiple>
 </div>
-
+<div class="preview-grid" id="previewGrid"></div>
+</div></div>
+<div class="card" style="margin-top:14px"><div class="card-head">🌍 Country &amp; Size</div><div class="card-body">
+<select class="country-select" id="countrySelect"><option value="">Select Country</option></select>
+<div class="custom-row"><input type="number" id="customW" placeholder="W (mm)" min="10" max="200"><span>×</span><input type="number" id="customH" placeholder="H (mm)" min="10" max="200"><button id="customBtn">Custom</button></div>
+</div></div>
+<div class="card" style="margin-top:14px"><div class="card-head">👔 Clothing <span style="margin-left:auto;font-size:.6rem;background:var(--accent);color:#fff;padding:2px 6px;border-radius:10px" id="clothingCount">0</span></div><div class="card-body" style="padding:12px 14px">
+<div class="carousel-wrap"><button class="carousel-arrow left" id="clothingLeft">◀</button><div class="carousel" id="clothingCarousel"></div><button class="carousel-arrow right" id="clothingRight">▶</button></div>
+</div></div>
+<div class="card" style="margin-top:14px"><div class="card-head">🎨 Background</div><div class="card-body"><div class="bg-row" id="bgRow"></div></div></div>
+<div class="card" style="margin-top:14px"><div class="card-head">🖨️ Print</div><div class="card-body">
+<div class="print-grid">
+<div class="print-field"><label>Paper</label><select id="printSize"><option value="4x6">4×6"</option><option value="5x7">5×7"</option><option value="a6">A6</option><option value="a4">A4</option></select></div>
+<div class="print-field"><label>Count</label><input type="number" id="photoCount" value="6" min="1" max="20"></div>
+<div class="print-field"><label>Border</label><select id="borderType"><option value="guidelines">Cut lines</option><option value="none">None</option><option value="frame">Frame</option></select></div>
+</div>
+<label class="blade-toggle"><input type="checkbox" id="bladeMode"> Blade mode</label>
+</div></div>
+<button class="gen-btn" id="genBtn" disabled>✨ Generate Passport Photo</button>
+</div>
+<div>
+<div class="card"><div class="card-head">📋 Result</div><div class="card-body">
+<div id="resultEmpty" style="text-align:center;padding:40px 20px;color:var(--muted)">
+<div style="font-size:2.5rem;margin-bottom:12px;opacity:.4">🖼️</div>
+<div style="font-size:.82rem;font-weight:500">Upload a photo and click Generate</div>
+<div style="font-size:.72rem;margin-top:4px">Results appear here</div></div>
+<div id="resultContent" style="display:none"><div class="result-card">
+<img class="result-img" id="resultImg" alt="Result">
+<div class="result-stats" id="resultStats"></div>
+<div class="result-actions"><button class="result-btn primary" id="dlPassport">💾 Download</button><button class="result-btn secondary" id="dlPrint">🖨️ Print Sheet</button><button class="result-btn secondary" id="retryBtn">🔄 New</button></div>
+<div class="print-section" id="printSection" style="display:none"><img id="printImg" alt="Print Sheet"></div>
+<div class="bulk-list" id="bulkList" style="display:none"></div>
+</div></div>
+</div></div>
+</div>
+</div></div>
 <script>
-const API='/api/passport';
-const $=id=>document.getElementById(id);
-
+const API='/api/passport';const $=id=>document.getElementById(id);
 const FLAGS={Thailand:'🇹🇭',Japan:'🇯🇵',China:'🇨🇳','South Korea':'🇰🇷','United States':'🇺🇸','United Kingdom':'🇬🇧','European Union':'🇪🇺',Canada:'🇨🇦',Australia:'🇦🇺',India:'🇮🇳',Singapore:'🇸🇬',Malaysia:'🇲🇾',Philippines:'🇵🇭',Indonesia:'🇮🇩',Vietnam:'🇻🇳',Cambodia:'🇰🇭',Laos:'🇱🇦',Myanmar:'🇲🇲','Hong Kong':'🇭🇰',France:'🇫🇷',Germany:'🇩🇪'};
-
-const state={
-  photo:null,photos:[],isBulk:false,
-  gender:'male',clothing:'white_shirt',background:'light_blue',
-  template:'us_passport',bgCustom:null,customW:null,customH:null,
-  sessionId:null,step:1
-};
-
-let clothingData={male:[],female:[]};
-let bgData=[];
-let tplData=[];
-
-async function init(){
-  await loadData();
-  setupUpload();
-  setupNavigation();
-  renderCountries();
-  renderClothing();
-  renderBg();
-}
-
-async function loadData(){
-  try{
-    const [mRes,fRes,bgRes,tplRes]=await Promise.all([
-      fetch(`${API}/clothing?gender=male`),
-      fetch(`${API}/clothing?gender=female`),
-      fetch(`${API}/backgrounds`),
-      fetch(`${API}/templates`)
-    ]);
-    const mJson=await mRes.json(); clothingData.male=mJson.options||mJson;
-    const fJson=await fRes.json(); clothingData.female=fJson.options||fJson;
-    const bgJson=await bgRes.json(); bgData=bgJson.options||bgJson;
-    const tplJson=await tplRes.json(); tplData=tplJson.templates||tplJson;
-  }catch(e){console.error('Load error:',e);}
-}
-
-function setupUpload(){
-  const zone=$('uploadZone'),input=$('fileInput');
-  zone.addEventListener('click',e=>{
-    if(e.target.id==='clearBtn'||e.target.closest('.clear-btn'))return;
-    input.click();
-  });
-  zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('dragover')});
-  zone.addEventListener('dragleave',()=>zone.classList.remove('dragover'));
-  zone.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('dragover');handleFiles(e.dataTransfer.files)});
-  input.addEventListener('change',e=>handleFiles(e.target.files));
-  $('clearBtn').addEventListener('click',e=>{e.stopPropagation();clearFile()});
-}
-
-function handleFiles(files){
-  const arr=[...files].filter(f=>f.type.startsWith('image/'));
-  if(!arr.length)return;
-  if(arr.length===1){
-    state.photo=arr[0];state.photos=[arr[0]];state.isBulk=false;
-  }else{
-    state.photos=arr.slice(0,20);state.photo=arr[0];state.isBulk=true;
-  }
-  showUploadState();
-  detectGender();
-}
-
-function showUploadState(){
-  const zone=$('uploadZone');
-  if(!state.photo){
-    zone.classList.remove('has-file');$('uploadEmpty').style.display='';
-    $('uploadFilled').style.display='none';$('clearBtn').style.display='none';
-    $('previewGrid').innerHTML='';return;
-  }
-  zone.classList.add('has-file');$('uploadEmpty').style.display='none';
-  $('uploadFilled').style.display='';$('clearBtn').style.display='flex';
-  $('previewThumb').src=URL.createObjectURL(state.photo);
-  $('fileName').textContent=state.photo.name;
-  $('fileMeta').textContent=state.isBulk?`${state.photos.length} ไฟล์`:`${(state.photo.size/1024).toFixed(0)} KB`;
-  $('bulkBadge').style.display=state.isBulk?'inline-flex':'none';
-  if(state.isBulk)$('bulkBadge').textContent=`📸 ${state.photos.length} รูป`;
-  if(state.photos.length>1){
-    $('previewGrid').innerHTML=state.photos.slice(0,8).map((f,i)=>
-      `<div class="preview-thumb"><img src="${URL.createObjectURL(f)}"><button class="remove" onclick="event.stopPropagation();removePhoto(${i})">✕</button></div>`
-    ).join('')+(state.photos.length>8?`<div class="preview-thumb" style="display:flex;align-items:center;justify-content:center;background:var(--surface3);font-size:.7rem;color:var(--dim)">+${state.photos.length-8}</div>`:'');
-  }else{
-    $('previewGrid').innerHTML='';
-  }
-}
-
-function removePhoto(i){
-  state.photos.splice(i,1);
-  if(!state.photos.length){clearFile();return;}
-  state.photo=state.photos[0];state.isBulk=state.photos.length>1;
-  showUploadState();
-}
-
-function clearFile(){
-  state.photo=null;state.photos=[];state.isBulk=false;
-  state.gender='male';state.clothing='white_shirt';
-  $('fileInput').value='';$('genderBadge').innerHTML='';$('bulkBadge').style.display='none';
-  showUploadState();renderClothing();
-}
-
-async function detectGender(){
-  if(!state.photo)return;
-  try{
-    const b64=await toBase64(state.photo);
-    const fd=new FormData();fd.append('image_base64',b64);
-    const r=await fetch(`${API}/detect-gender`,{method:'POST',body:fd});
-    const d=await r.json();
-    if(d.ok&&d.gender){
-      state.gender=d.gender;
-      state.clothing=state.gender==='male'?'white_shirt':'white_blouse';
-      $('genderBadge').innerHTML=`<span class="gender-badge">${d.gender==='male'?'👨':'👩'} ${d.gender}</span>`;
-      renderClothing();
-    }
-  }catch(e){console.error('Gender detect error:',e);}
-}
-
-function setupNavigation(){
-  // Step clicks
-  document.querySelectorAll('.step').forEach(s=>{
-    s.addEventListener('click',()=>{
-      const sn=+s.dataset.step;
-      if(sn<=state.step||(sn===2&&state.photo)||(sn===3&&state.sessionId))goStep(sn);
-    });
-  });
-  // Back button
-  $('backBtn').addEventListener('click',()=>goStep(1));
-  // Generate
-  $('genBtn').addEventListener('click',generate);
-  // Result actions
-  $('dlPassport').addEventListener('click',()=>dl('passport'));
-  $('dlPrint').addEventListener('click',()=>dl('print'));
-  $('retryBtn').addEventListener('click',()=>{goStep(1);clearFile()});
-  // Custom size
-  $('customBtn').addEventListener('click',()=>{
-    const w=parseInt($('customW').value),h=parseInt($('customH').value);
-    if(w>0&&h>0){state.customW=w;state.customH=h;state.template='custom';
-      document.querySelectorAll('.country-chip').forEach(c=>c.classList.remove('active'));
-      toast(`กำหนดขนาด ${w}×${h}mm`);
-    }
-  });
-  // Carousel arrows
-  $('clothingLeft').addEventListener('click',()=>{$('clothingCarousel').scrollBy({left:-120,behavior:'smooth'})});
-  $('clothingRight').addEventListener('click',()=>{$('clothingCarousel').scrollBy({left:120,behavior:'smooth'})});
-}
-
-function goStep(n){
-  state.step=n;
-  [1,2,3].forEach(i=>$('page'+i).style.display=i===n?'':'none');
-  document.querySelectorAll('.step').forEach(s=>{
-    const sn=+s.dataset.step;
-    s.classList.remove('active','done');
-    if(sn===n)s.classList.add('active');
-    else if(sn<n)s.classList.add('done');
-  });
-  $('genBtn').disabled=!state.photo;
-}
-
-function renderCountries(){
-  $('countryGrid').innerHTML=tplData.map(t=>
-    `<div class="country-chip ${t.code===state.template?'active':''}" data-key="${t.code}">
-      <span class="flag">${FLAGS[t.country]||'🏳️'}</span>
-      <span class="name">${t.name}</span>
-      <span class="size">${t.width_mm}×${t.height_mm}</span>
-    </div>`
-  ).join('');
-  document.querySelectorAll('.country-chip').forEach(c=>{
-    c.addEventListener('click',()=>{
-      state.template=c.dataset.key;state.customW=null;state.customH=null;
-      document.querySelectorAll('.country-chip').forEach(x=>x.classList.remove('active'));
-      c.classList.add('active');
-    });
-  });
-}
-
-function renderClothing(){
-  const data=state.gender==='male'?clothingData.male:clothingData.female;
-  if(!data||!data.length){
-    $('clothingCarousel').innerHTML='<div style="padding:20px;color:var(--muted);font-size:.8rem">ไม่มีข้อมูลเสื้อผ้า</div>';
-    $('clothingCount').textContent='0';return;
-  }
-  $('clothingCount').textContent=data.length;
-  $('clothingCarousel').innerHTML=data.map(c=>
-    `<div class="carousel-item ${c.key===state.clothing?'active':''}" data-key="${c.key}">
-      <img src="/img/clothing/${state.gender}/${c.key}.png" alt="${c.name}" loading="lazy"
-           onerror="this.style.background='var(--surface3)'">
-      <div class="label">${c.name}</div>
-      <div class="check">✓</div>
-    </div>`
-  ).join('');
-  document.querySelectorAll('.carousel-item').forEach(item=>{
-    item.addEventListener('click',()=>{
-      state.clothing=item.dataset.key;
-      document.querySelectorAll('.carousel-item').forEach(x=>x.classList.remove('active'));
-      item.classList.add('active');
-    });
-  });
-}
-
-function renderBg(){
-  $('bgRow').innerHTML=bgData.map(b=>
-    `<div class="bg-dot ${b.key===state.background?'active':''}" style="background:${b.hex||'#ccc'}" data-key="${b.key}" title="${b.name}"></div>`
-  ).join('')+'<div class="color-wrap"><div class="bg-dot custom" title="สีอื่น">+</div><input type="color" value="#C4DCFF" id="customColor"></div>';
-  document.querySelectorAll('.bg-dot:not(.custom)').forEach(d=>{
-    d.addEventListener('click',()=>{
-      state.background=d.dataset.key;state.bgCustom=null;
-      document.querySelectorAll('.bg-dot').forEach(x=>x.classList.remove('active'));
-      d.classList.add('active');
-    });
-  });
-  $('customColor').addEventListener('input',e=>{
-    state.bgCustom=e.target.value;state.background='custom';
-    document.querySelectorAll('.bg-dot').forEach(x=>x.classList.remove('active'));
-  });
-}
-
-async function generate(){
-  if(!state.photo)return;
-  if(state.isBulk&&state.photos.length>1)return generateBulk();
-  showOverlay('กำลังสร้างรูป...');
-  try{
-    const b64=await toBase64(state.photo);
-    const body={image_base64:b64,template_code:state.template,gender:state.gender,clothing:state.clothing,background:state.background,strength:0.65};
-    if(state.bgCustom)body.background_color=state.bgCustom;
-    if(state.customW&&state.customH){body.custom_width=state.customW;body.custom_height=state.customH;}
-    const r=await fetch(`${API}/generate`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-    const d=await r.json();if(!d.ok)throw new Error(d.detail||'Error');
-    state.sessionId=d.session_id;
-    showResult(d);
-  }catch(e){toast(`❌ ${e.message}`,'error');}
-  finally{hideOverlay();}
-}
-
-async function generateBulk(){
-  showOverlay(`กำลังสร้าง ${state.photos.length} รูป...`);
-  try{
-    const images=[];for(const f of state.photos)images.push(await toBase64(f));
-    const body={images,template_code:state.template,gender:state.gender,clothing:state.clothing,background:state.background,strength:0.65,print_size:$('printSize').value,photo_count:parseInt($('photoCount').value)||6,border:$('borderType').value,blade_mode:$('bladeMode').checked};
-    if(state.bgCustom)body.background_color=state.bgCustom;
-    if(state.customW&&state.customH){body.custom_width=state.customW;body.custom_height=state.customH;}
-    const r=await fetch(`${API}/bulk-generate`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-    const d=await r.json();if(!d.ok)throw new Error(d.detail||'Error');
-    state.sessionId=d.results[0]?.session_id;
-    showBulkResult(d);
-  }catch(e){toast(`❌ ${e.message}`,'error');}
-  finally{hideOverlay();}
-}
-
-function showResult(d){
-  $('resultStats').innerHTML=`
-    <div class="result-stat"><div class="val">${d.time_seconds||'?'}s</div><div class="lbl">เวลา</div></div>
-    <div class="result-stat"><div class="val">${d.dimensions?.w}×${d.dimensions?.h}</div><div class="lbl">mm</div></div>
-    <div class="result-stat"><div class="val">${d.gender==='male'?'👨':'👩'}</div><div class="lbl">เพศ</div></div>
-    <div class="result-stat"><div class="val">$0.004</div><div class="lbl">ค่าใช้จ่าย</div></div>`;
-  $('resultImg').src=`${API}/download/${d.session_id}_passport.jpg?t=${Date.now()}`;
-  if(d.download_print){$('printImg').src=`${API}/download/${d.session_id}_print.jpg?t=${Date.now()}`;$('printSection').style.display='';}
-  else $('printSection').style.display='none';
-  $('bulkList').style.display='none';
-  goStep(3);toast('✅ สำเร็จ!');
-}
-
-function showBulkResult(d){
-  $('resultStats').innerHTML=`
-    <div class="result-stat"><div class="val">${d.time_seconds}s</div><div class="lbl">เวลา</div></div>
-    <div class="result-stat"><div class="val">${d.success}/${d.total}</div><div class="lbl">สำเร็จ</div></div>
-    <div class="result-stat"><div class="val">$${(0.004*d.total).toFixed(3)}</div><div class="lbl">ค่าใช้จ่าย</div></div>
-    <div class="result-stat"><div class="val">${d.total}</div><div class="lbl">รูป</div></div>`;
-  if(d.results[0]?.ok)$('resultImg').src=`${API}/download/${d.results[0].session_id}_passport.jpg?t=${Date.now()}`;
-  let html='';for(const r of d.results){
-    if(r.ok)html+=`<div class="bulk-item"><span class="num">#${r.index+1}</span><div class="info">${r.gender==='male'?'👨':'👩'} ${r.clothing}</div><span class="status ok">✓ ${r.time_seconds}s</span><a href="${API}/download/${r.session_id}_passport.jpg" download>⬇️</a></div>`;
-    else html+=`<div class="bulk-item"><span class="num">#${r.index+1}</span><div class="info">${r.error}</div><span class="status err">✕</span></div>`;
-  }
-  $('bulkList').innerHTML=html;$('bulkList').style.display='';
-  $('printSection').style.display='none';
-  goStep(3);toast(`✅ ${d.success}/${d.total} สำเร็จ`);
-}
-
-function toBase64(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(file);});}
-function dl(type){if(!state.sessionId)return;const a=document.createElement('a');a.href=`${API}/download/${state.sessionId}_${type}.jpg`;a.download=`passport_${type}.jpg`;a.click();}
+const state={photo:null,photos:[],isBulk:false,gender:'male',clothing:'white_shirt',background:'light_blue',template:'us_passport',bgCustom:null,customW:null,customH:null,sessionId:null};
+let clothingData={male:[],female:[]},bgData=[],tplData=[];
+async function init(){await loadData();setupUpload();setupActions();renderCountryDropdown();renderClothing();renderBg();}
+async function loadData(){try{const[m,f,bg,tp]=await Promise.all([fetch(API+'/clothing?gender=male'),fetch(API+'/clothing?gender=female'),fetch(API+'/backgrounds'),fetch(API+'/templates')]);const mj=await m.json();clothingData.male=mj.options||mj;const fj=await f.json();clothingData.female=fj.options||fj;const bj=await bg.json();bgData=bj.options||bj;const tj=await tp.json();tplData=tj.templates||tj;}catch(e){console.error(e);}}
+function setupUpload(){const z=$('uploadZone'),i=$('fileInput');z.addEventListener('click',e=>{if(e.target.classList.contains('clear-btn'))return;i.click();});z.addEventListener('dragover',e=>{e.preventDefault();z.classList.add('dragover')});z.addEventListener('dragleave',()=>z.classList.remove('dragover'));z.addEventListener('drop',e=>{e.preventDefault();z.classList.remove('dragover');handleFiles(e.dataTransfer.files)});i.addEventListener('change',e=>handleFiles(e.target.files));$('clearBtn').addEventListener('click',e=>{e.stopPropagation();clearFile()});}
+function handleFiles(files){const a=[...files].filter(f=>f.type.startsWith('image/'));if(!a.length)return;if(a.length===1){state.photo=a[0];state.photos=[a[0]];state.isBulk=false;}else{state.photos=a.slice(0,20);state.photo=a[0];state.isBulk=true;}showUploadState();detectGender();$('genBtn').disabled=false;}
+function showUploadState(){const z=$('uploadZone');if(!state.photo){z.classList.remove('has-file');$('uploadEmpty').style.display='';$('uploadFilled').style.display='none';$('clearBtn').style.display='none';$('previewGrid').innerHTML='';return;}z.classList.add('has-file');$('uploadEmpty').style.display='none';$('uploadFilled').style.display='';$('clearBtn').style.display='flex';$('previewThumb').src=URL.createObjectURL(state.photo);$('fileName').textContent=state.photo.name;$('fileMeta').textContent=state.isBulk?state.photos.length+' files':(state.photo.size/1024).toFixed(0)+' KB';$('bulkBadge').style.display=state.isBulk?'inline-flex':'none';if(state.isBulk)$('bulkBadge').textContent='📸 '+state.photos.length;if(state.photos.length>1){$('previewGrid').innerHTML=state.photos.slice(0,8).map((f,i)=>'<div class="preview-thumb"><img src="'+URL.createObjectURL(f)+'"><button class="remove" onclick="event.stopPropagation();removePhoto('+i+')">✕</button></div>').join('')+(state.photos.length>8?'<div class="preview-thumb" style="display:flex;align-items:center;justify-content:center;background:var(--surface2);font-size:.65rem;color:var(--dim)">+'+(state.photos.length-8)+'</div>':'');}else $('previewGrid').innerHTML='';}
+function removePhoto(i){state.photos.splice(i,1);if(!state.photos.length){clearFile();return;}state.photo=state.photos[0];state.isBulk=state.photos.length>1;showUploadState();}
+function clearFile(){state.photo=null;state.photos=[];state.isBulk=false;state.gender='male';state.clothing='white_shirt';$('fileInput').value='';$('genderBadge').innerHTML='';$('bulkBadge').style.display='none';$('genBtn').disabled=true;showUploadState();renderClothing();$('resultEmpty').style.display='';$('resultContent').style.display='none';}
+async function detectGender(){if(!state.photo)return;try{const b=await toBase64(state.photo);const fd=new FormData();fd.append('image_base64',b);const r=await fetch(API+'/detect-gender',{method:'POST',body:fd});const d=await r.json();if(d.ok&&d.gender){state.gender=d.gender;state.clothing=state.gender==='male'?'white_shirt':'white_blouse';$('genderBadge').innerHTML='<span class="gender-badge">'+(d.gender==='male'?'👨':'👩')+' '+d.gender+'</span>';renderClothing();}}catch(e){console.error(e);}}
+function setupActions(){$('genBtn').addEventListener('click',generate);$('dlPassport').addEventListener('click',()=>dl('passport'));$('dlPrint').addEventListener('click',()=>dl('print'));$('retryBtn').addEventListener('click',()=>clearFile());$('customBtn').addEventListener('click',()=>{const w=parseInt($('customW').value),h=parseInt($('customH').value);if(w>0&&h>0){state.customW=w;state.customH=h;state.template='custom';$('countrySelect').value='';toast(w+'×'+h+'mm');}});$('countrySelect').addEventListener('change',e=>{state.template=e.target.value;state.customW=null;state.customH=null;});$('clothingLeft').addEventListener('click',()=>{$('clothingCarousel').scrollBy({left:-100,behavior:'smooth'})});$('clothingRight').addEventListener('click',()=>{$('clothingCarousel').scrollBy({left:100,behavior:'smooth'})});}
+function renderCountryDropdown(){let h='<option value="">Select Country</option>';for(const t of tplData){const f=FLAGS[t.country]||'';h+='<option value="'+t.code+'"'+(t.code===state.template?' selected':'')+'>'+f+' '+t.name+' ('+t.width_mm+'×'+t.height_mm+'mm)</option>';}$('countrySelect').innerHTML=h;}
+function renderClothing(){const d=state.gender==='male'?clothingData.male:clothingData.female;if(!d||!d.length){$('clothingCarousel').innerHTML='<div style="padding:16px;color:var(--muted);font-size:.75rem">No data</div>';$('clothingCount').textContent='0';return;}$('clothingCount').textContent=d.length;$('clothingCarousel').innerHTML=d.map(c=>'<div class="carousel-item'+(c.key===state.clothing?' active':'')+'" data-key="'+c.key+'"><img src="/img/clothing/'+state.gender+'/'+c.key+'.png" alt="'+c.name+'" loading="lazy" onerror="this.style.background=\'var(--surface2)\';this.style.height=\'96px\'"><div class="label">'+c.name+'</div><div class="check">✓</div></div>').join('');document.querySelectorAll('.carousel-item').forEach(i=>{i.addEventListener('click',()=>{state.clothing=i.dataset.key;document.querySelectorAll('.carousel-item').forEach(x=>x.classList.remove('active'));i.classList.add('active');});});}
+function renderBg(){$('bgRow').innerHTML=bgData.map(b=>'<div class="bg-dot'+(b.key===state.background?' active')+'" style="background:'+(b.hex||'#ccc')+'" data-key="'+b.key+'" title="'+b.name+'"></div>').join('')+'<div class="color-wrap"><div class="bg-dot custom" title="Custom">+</div><input type="color" value="#C4DCFF" id="customColor"></div>';document.querySelectorAll('.bg-dot:not(.custom)').forEach(d=>{d.addEventListener('click',()=>{state.background=d.dataset.key;state.bgCustom=null;document.querySelectorAll('.bg-dot').forEach(x=>x.classList.remove('active'));d.classList.add('active');});});$('customColor').addEventListener('input',e=>{state.bgCustom=e.target.value;state.background='custom';document.querySelectorAll('.bg-dot').forEach(x=>x.classList.remove('active'));});}
+async function generate(){if(!state.photo)return;if(state.isBulk&&state.photos.length>1)return generateBulk();showOverlay('Generating...');try{const b=await toBase64(state.photo);const body={image_base64:b,template_code:state.template,gender:state.gender,clothing:state.clothing,background:state.background,strength:0.65};if(state.bgCustom)body.background_color=state.bgCustom;if(state.customW&&state.customH){body.custom_width=state.customW;body.custom_height=state.customH;}const r=await fetch(API+'/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json();if(!d.ok)throw new Error(d.detail||'Error');state.sessionId=d.session_id;showResult(d);}catch(e){toast('Error: '+e.message,'error');}finally{hideOverlay();}}
+async function generateBulk(){showOverlay('Generating '+state.photos.length+'...');try{const imgs=[];for(const f of state.photos)imgs.push(await toBase64(f));const body={images:imgs,template_code:state.template,gender:state.gender,clothing:state.clothing,background:state.background,strength:0.65,print_size:$('printSize').value,photo_count:parseInt($('photoCount').value)||6,border:$('borderType').value,blade_mode:$('bladeMode').checked};if(state.bgCustom)body.background_color=state.bgCustom;if(state.customW&&state.customH){body.custom_width=state.customW;body.custom_height=state.customH;}const r=await fetch(API+'/bulk-generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json();if(!d.ok)throw new Error(d.detail||'Error');state.sessionId=d.results[0]?d.results[0].session_id:null;showBulkResult(d);}catch(e){toast('Error: '+e.message,'error');}finally{hideOverlay();}}
+function showResult(d){$('resultEmpty').style.display='none';$('resultContent').style.display='';$('resultStats').innerHTML='<div class="result-stat"><div class="val">'+(d.time_seconds||'?')+'s</div><div class="lbl">Time</div></div><div class="result-stat"><div class="val">'+d.dimensions.w+'×'+d.dimensions.h+'</div><div class="lbl">mm</div></div><div class="result-stat"><div class="val">'+(d.gender==='male'?'👨':'👩')+'</div><div class="lbl">Gender</div></div><div class="result-stat"><div class="val">$0.004</div><div class="lbl">Cost</div></div>';$('resultImg').src=API+'/download/'+d.session_id+'_passport.jpg?t='+Date.now();if(d.download_print){$('printImg').src=API+'/download/'+d.session_id+'_print.jpg?t='+Date.now();$('printSection').style.display='';}else $('printSection').style.display='none';$('bulkList').style.display='none';toast('Done!');}
+function showBulkResult(d){$('resultEmpty').style.display='none';$('resultContent').style.display='';$('resultStats').innerHTML='<div class="result-stat"><div class="val">'+d.time_seconds+'s</div><div class="lbl">Time</div></div><div class="result-stat"><div class="val">'+d.success+'/'+d.total+'</div><div class="lbl">OK</div></div><div class="result-stat"><div class="val">$'+(0.004*d.total).toFixed(3)+'</div><div class="lbl">Cost</div></div><div class="result-stat"><div class="val">'+d.total+'</div><div class="lbl">Photos</div></div>';if(d.results[0]&&d.results[0].ok)$('resultImg').src=API+'/download/'+d.results[0].session_id+'_passport.jpg?t='+Date.now();let h='';for(const r of d.results){if(r.ok)h+='<div class="bulk-item"><span class="num">#'+(r.index+1)+'</span><div class="info">'+(r.gender==='male'?'👨':'👩')+' '+r.clothing+'</div><span class="status ok">✓ '+r.time_seconds+'s</span><a href="'+API+'/download/'+r.session_id+'_passport.jpg" download>⬇</a></div>';else h+='<div class="bulk-item"><span class="num">#'+(r.index+1)+'</span><div class="info">'+r.error+'</div><span class="status err">✕</span></div>';}$('bulkList').innerHTML=h;$('bulkList').style.display='';$('printSection').style.display='none';toast(d.success+'/'+d.total+' OK');}
+function toBase64(f){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(f);});}
+function dl(t){if(!state.sessionId)return;const a=document.createElement('a');a.href=API+'/download/'+state.sessionId+'_'+t+'.jpg';a.download='passport_'+t+'.jpg';a.click();}
 function showOverlay(t){$('overlayText').textContent=t;$('overlay').classList.add('show');}
 function hideOverlay(){$('overlay').classList.remove('show');}
-let tt;function toast(m,t=''){clearTimeout(tt);const e=$('toast');e.className=`toast show ${t}`;e.innerHTML=m;tt=setTimeout(()=>e.classList.remove('show'),3000);}
-
+let tt;function toast(m,t){clearTimeout(tt);const e=$('toast');e.className='toast show '+(t||'');e.textContent=m;tt=setTimeout(()=>e.classList.remove('show'),3000);}
 init();
 </script>
 </body>

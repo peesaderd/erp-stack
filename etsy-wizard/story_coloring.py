@@ -236,7 +236,7 @@ def create_story_coloring_book(
     for page in pages:
         page_num = page['page_num']
         scene = page['scene'].lower().replace(' ', '_')[:25]
-        filename = f"{title.lower().replace(' ', '_')}_{scene}_{page_num:02d}.png"
+        filename = f"{title.lower().replace(' ', '_')}_{scene}_{page_num:02d}.jpg"
         
         logger.info(f"📖 Page {page_num}: {page['scene']}")
         

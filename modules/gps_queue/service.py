@@ -208,6 +208,100 @@ def estimate_wait(party_size):
     wait = max(5, (ahead // 2) * 15)
     return wait
 
+# ── Cleanup ──
+
+def cleanup_old_tickets(days=7):
+    """Remove completed/cancelled tickets older than N days."""
+    result = get_schema_data("queue_ticket")
+    if not result.get("success"):
+        return {"cleaned": 0, "error": result.get("error")}
+    
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(days=days)
+    cleaned = 0
+    
+    for rec in result.get("data", []):
+        rd = rec.get("data", {})
+        status = rd.get("status", "")
+        
+        # Only cleanup completed/cancelled tickets
+        if status not in ("completed", "cancelled"):
+            continue
+        
+        # Check age via served_at or created_at
+        ts_str = rd.get("served_at", "") or rec.get("created_at", "")
+        if not ts_str:
+            continue
+        
+        try:
+            ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+            if ts < cutoff:
+                # Delete via Schema Engine
+                del_result = schema_api("DELETE", f"/api/v1/data/queue_ticket/{rec['id']}")
+                if del_result.get("success", False):
+                    cleaned += 1
+        except:
+            pass
+    
+    return {"cleaned": cleaned, "cutoff": cutoff.isoformat()}
+
+# ── Customer GPS History ──
+
+def _normalize_name(name):
+    """Normalize name for comparison: lowercase, strip, collapse spaces."""
+    return " ".join(name.lower().split())
+
+def get_customer_gps_history(customer_name):
+    """Get GPS location history for a specific customer."""
+    result = get_schema_data("location_log")
+    if not result.get("success"):
+        return {"customer": customer_name, "logs": [], "count": 0}
+    
+    norm_target = _normalize_name(customer_name)
+    logs = []
+    for rec in result.get("data", []):
+        rd = rec.get("data", {})
+        db_name = _normalize_name(rd.get("customer_name", ""))
+        # Exact match or one contains the other (handles URL encoding issues)
+        if db_name == norm_target or norm_target in db_name or db_name in norm_target:
+            logs.append({
+                "id": rec["id"],
+                "latitude": rd.get("latitude"),
+                "longitude": rd.get("longitude"),
+                "geofence_status": rd.get("geofence_status"),
+                "accuracy": rd.get("accuracy", 0),
+                "source": rd.get("source", ""),
+                "notes": rd.get("notes", ""),
+                "time": rec.get("created_at", ""),
+            })
+    
+    # Sort by time descending (newest first)
+    logs.sort(key=lambda x: x.get("time", ""), reverse=True)
+    
+    # Get active queue ticket if any
+    qt_result = get_schema_data("queue_ticket")
+    active_ticket = None
+    if qt_result.get("success"):
+        for rec in qt_result.get("data", []):
+            rd = rec.get("data", {})
+            if (rd.get("customer_name", "").lower() == customer_name.lower()
+                    and rd.get("status") in ("waiting", "called")):
+                active_ticket = {
+                    "ticket_number": rd.get("ticket_number"),
+                    "status": rd.get("status"),
+                    "party_size": rd.get("party_size", 1),
+                    "source": rd.get("source", ""),
+                    "estimated_wait_minutes": rd.get("estimated_wait_minutes", 0),
+                }
+                break
+    
+    return {
+        "customer": customer_name,
+        "logs": logs,
+        "count": len(logs),
+        "active_ticket": active_ticket,
+    }
+
 # ── HTTP Server ──
 
 class GPSQueueHandler(BaseHTTPRequestHandler):
@@ -316,6 +410,30 @@ class GPSQueueHandler(BaseHTTPRequestHandler):
                         "time": rd.get("created_at", ""),
                     })
             self._send_json({"logs": logs, "count": len(logs)})
+        
+        elif path.startswith("/gps/customer/"):
+            # /gps/customer/สมชาย → extract name from path
+            customer_name = path.split("/gps/customer/", 1)[1]
+            if not customer_name:
+                self._send_json({"error": "customer name required in path"}, 400)
+                return
+            # URL decode the name (handle double-encoding)
+            import urllib.parse as _up
+            customer_name = _up.unquote(_up.unquote(customer_name))
+            # Also try raw path segment as-is (some clients don't encode)
+            history = get_customer_gps_history(customer_name)
+            # If no results, try matching with the raw URL segment
+            if history["count"] == 0:
+                raw_name = path.split("/gps/customer/", 1)[1]
+                if raw_name != customer_name:
+                    history = get_customer_gps_history(raw_name)
+            self._send_json(history)
+        
+        elif path == "/queue/cleanup":
+            # Manual trigger for cleanup (or could be called by cron)
+            days = int(params.get("days", [7])[0])
+            result = cleanup_old_tickets(days)
+            self._send_json(result)
         
         else:
             self._send_json({"error": "not found"}, 404)
@@ -511,12 +629,14 @@ def main():
     print("    POST /gps/ping            — Receive GPS location")
     print("    GET  /gps/nearby          — Who's near?")
     print("    GET  /gps/logs            — Location history")
+    print("    GET  /gps/customer/:name  — GPS history for customer")
     print("    GET  /queue               — Queue sorted by distance")
     print("    POST /queue/check-in      — Check in via GPS")
     print("    POST /queue/pre-order     — Pre-order from LINE")
-    print("    POST /queue/call          — Call next ticket")
-    print("    POST /queue/complete      — Complete ticket")
+    print("    POST /queue/call          — Call next ticket (id or number)")
+    print("    POST /queue/complete      — Complete ticket (id or number)")
     print("    GET  /queue/wait-time     — Estimate wait")
+    print("    GET  /queue/cleanup?days=7 — Cleanup old tickets")
     print("=" * 55)
     
     server = HTTPServer((HOST, PORT), GPSQueueHandler)

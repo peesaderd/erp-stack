@@ -101,6 +101,18 @@ class GenerateRequest(BaseModel):
     background: str = "light_blue" # "light_blue" | "white" | "light_gray"
     strength: float = 0.65         # FLUX i2i strength
 
+class BulkGenerateRequest(BaseModel):
+    images: list  # list of base64 strings
+    template_code: str = "thai_passport"
+    gender: str = "auto"
+    clothing: str = "auto"
+    background: str = "light_blue"
+    strength: float = 0.65
+    print_size: str = "4x6"
+    photo_count: int = 6
+    border: str = "guidelines"
+    blade_mode: bool = False
+
 class PrintSheetRequest(BaseModel):
     session_id: str
     print_size: str = "4x6"
@@ -298,6 +310,115 @@ def download(filename: str):
     if not path.exists():
         raise HTTPException(404, "File not found")
     return FileResponse(str(path), media_type="image/jpeg")
+
+
+# ── Bulk Generate ─────────────────────────────────────
+
+@app.post("/api/passport/bulk-generate")
+async def bulk_generate(req: BulkGenerateRequest):
+    """Generate multiple passport photos in one request."""
+    from .ai_passport import generate_passport
+    from .gender_detector import detect_gender as _detect_gender
+    from .clothing import get_clothing, get_background
+    from .print_sheet import generate_print_sheet
+
+    if not req.images:
+        raise HTTPException(400, "No images provided")
+    if len(req.images) > 20:
+        raise HTTPException(400, "Max 20 images per batch")
+
+    engine = _get_template_engine()
+    template_info = engine.get(req.template_code)
+    if not template_info:
+        raise HTTPException(404, f"Template '{req.template_code}' not found")
+
+    bg = get_background(req.background)
+    results = []
+    total_t0 = time.time()
+
+    for i, img_b64 in enumerate(req.images):
+        batch_id = uuid.uuid4().hex[:12]
+        t0 = time.time()
+        logger.info(f"[BULK {i+1}/{len(req.images)}] Processing...")
+
+        try:
+            img_bytes = base64.b64decode(img_b64)
+        except Exception:
+            results.append({"ok": False, "index": i, "error": "Invalid base64"})
+            continue
+
+        # Gender detection
+        gender = req.gender
+        gender_info = {"gender": gender, "confidence": 1.0}
+        if gender == "auto":
+            gender_info = _detect_gender(img_bytes)
+            gender = gender_info["gender"]
+
+        clothing = get_clothing(gender, req.clothing)
+
+        # Generate passport photo
+        result = generate_passport(
+            img_bytes,
+            template_info=template_info,
+            clothing_prompt=clothing["prompt"],
+            bg_prompt=bg["prompt"],
+            strength=req.strength,
+        )
+
+        if not result["ok"]:
+            results.append({"ok": False, "index": i, "error": result.get("error", "Failed")})
+            continue
+
+        # Save passport photo
+        out_img = result["result"]
+        out_bytes = _encode_image(out_img)
+        out_path = STORAGE_DIR / f"{batch_id}_passport.jpg"
+        with open(out_path, "wb") as f:
+            f.write(out_bytes)
+
+        # Generate print sheet
+        print_url = None
+        try:
+            mm_w = result["dimensions_mm"]["w"]
+            mm_h = result["dimensions_mm"]["h"]
+            sheet = generate_print_sheet(
+                out_img, mm_w, mm_h, req.print_size, 300, req.blade_mode and 5.0 or 3.0,
+                True, req.border, req.blade_mode and 5.0 or 3.0, req.blade_mode, req.photo_count
+            )
+            if sheet.get("ok"):
+                sheet_bytes = _encode_image(sheet["result"])
+                print_path = STORAGE_DIR / f"{batch_id}_print.jpg"
+                with open(print_path, "wb") as f:
+                    f.write(sheet_bytes)
+                print_url = f"/api/passport/download/{batch_id}_print.jpg"
+        except Exception as e:
+            logger.warning(f"Print sheet error for {i}: {e}")
+
+        elapsed = round(time.time() - t0, 1)
+        results.append({
+            "ok": True,
+            "index": i,
+            "session_id": batch_id,
+            "download_passport": f"/api/passport/download/{batch_id}_passport.jpg",
+            "download_print": print_url,
+            "gender": gender,
+            "clothing": clothing["name"],
+            "time_seconds": elapsed,
+        })
+        logger.info(f"[BULK {i+1}/{len(req.images)}] Done in {elapsed}s — gender={gender}")
+
+    total_elapsed = round(time.time() - total_t0, 1)
+    success = sum(1 for r in results if r["ok"])
+    logger.info(f"[BULK] Complete: {success}/{len(req.images)} in {total_elapsed}s")
+
+    return {
+        "ok": True,
+        "total": len(req.images),
+        "success": success,
+        "failed": len(req.images) - success,
+        "time_seconds": total_elapsed,
+        "results": results,
+    }
 
 
 # ═══════════════════════════════════════════════════════════

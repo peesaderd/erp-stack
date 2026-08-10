@@ -5,134 +5,66 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Passport Photo AI V2</title>
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-:root {
-  --bg: #0f172a; --surface: #1e293b; --surface2: #334155;
-  --border: #475569; --text: #f1f5f9; --dim: #94a3b8;
-  --accent: #6366f1; --accent-hover: #818cf8;
-  --radius: 12px; --sm: 8px;
-  --green: #22c55e; --red: #ef4444;
-}
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans Thai', sans-serif;
-  background: var(--bg); color: var(--text); min-height: 100vh;
-}
-header {
-  background: var(--surface); border-bottom: 1px solid var(--border);
-  padding: 14px 20px; display: flex; align-items: center; gap: 10px;
-}
-header h1 { font-size: 1.15rem; font-weight: 700; }
-header h1 span { color: var(--accent); }
-header .badge { font-size: .65rem; background: var(--accent); color: #fff; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
-main { max-width: 700px; margin: 0 auto; padding: 20px 16px 80px; }
-
-.card {
-  background: var(--surface); border-radius: var(--radius);
-  padding: 20px; margin-bottom: 16px;
-}
-.card-title { font-size: .85rem; color: var(--dim); margin-bottom: 12px; font-weight: 600; }
-
-/* Upload */
-.upload-box {
-  border: 2px dashed var(--border); border-radius: var(--radius);
-  padding: 32px 20px; text-align: center; cursor: pointer;
-  transition: all .2s; position: relative;
-}
-.upload-box:hover { border-color: var(--accent); background: rgba(99,102,241,.08); }
-.upload-box .icon { font-size: 2.5rem; margin-bottom: 6px; }
-.upload-box .label { font-weight: 600; }
-.upload-box .hint { font-size: .8rem; color: var(--dim); margin-top: 4px; }
-.upload-box input { display: none; }
-.upload-box.has-img { border-style: solid; padding: 12px; }
-.upload-preview { max-width: 200px; max-height: 200px; border-radius: var(--sm); margin: 0 auto; display: block; }
-.upload-box .remove-btn {
-  margin-top: 8px; background: none; border: 1px solid var(--border);
-  color: var(--dim); padding: 4px 14px; border-radius: var(--sm);
-  cursor: pointer; font-size: .8rem;
-}
-
-/* Select & Input */
-select, textarea, input[type=number] {
-  width: 100%; padding: 10px 12px; border-radius: var(--sm);
-  border: 1px solid var(--border); background: var(--surface2);
-  color: var(--text); font-size: .9rem; outline: none;
-}
-select:focus, textarea:focus { border-color: var(--accent); }
-
-/* Grid */
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
-@media (max-width: 500px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
-
-/* Option chips */
-.chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.chip {
-  padding: 8px 16px; border-radius: var(--sm); border: 1px solid var(--border);
-  background: var(--surface2); cursor: pointer; font-size: .85rem;
-  transition: all .15s;
-}
-.chip:hover { border-color: var(--accent); }
-.chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-
-/* Button */
-.btn {
-  width: 100%; padding: 14px; border: none; border-radius: var(--sm);
-  font-size: 1.05rem; font-weight: 700; cursor: pointer;
-  transition: all .2s; display: flex; align-items: center;
-  justify-content: center; gap: 8px;
-}
-.btn:disabled { opacity: .4; cursor: not-allowed; }
-.btn-primary { background: var(--accent); color: #fff; }
-.btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
-.btn-success { background: var(--green); color: #fff; }
-.btn-outline { background: none; border: 1px solid var(--border); color: var(--text); }
-.btn-outline:hover { border-color: var(--accent); }
-
-.spinner { width: 20px; height: 20px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* Result */
-.result { display: none; }
-.result.show { display: block; }
-.result img { width: 100%; max-height: 400px; object-fit: contain; border-radius: var(--sm); background: var(--bg); }
-.result-actions { display: flex; gap: 10px; margin-top: 12px; }
-.result-actions .btn { flex: 1; }
-.result-info { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px; margin: 12px 0; }
-.result-info div { background: var(--surface2); border-radius: var(--sm); padding: 10px; text-align: center; }
-.result-info .val { font-size: 1rem; font-weight: 700; color: var(--accent); }
-.result-info .lbl { font-size: .7rem; color: var(--dim); margin-top: 2px; }
-
-/* Steps */
-.steps { display: flex; gap: 6px; margin-bottom: 20px; font-size: .72rem; }
-.steps span { flex: 1; text-align: center; padding: 6px 4px; border-radius: var(--sm); background: var(--surface2); color: var(--dim); }
-.steps span.active { background: var(--accent); color: #fff; }
-.steps span.done { background: var(--green); color: #fff; }
-
-/* Overlay */
-.overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,.85); z-index: 998; justify-content: center; align-items: center; flex-direction: column; gap: 16px; }
-.overlay.show { display: flex; }
-.overlay .spinner-lg { width: 44px; height: 44px; border-width: 4px; }
-
-/* Toast */
-.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 20px; display: none; z-index: 999; max-width: 90%; }
-.toast.show { display: flex; align-items: center; gap: 8px; }
-.toast.error { border-color: var(--red); }
-
-/* Gender badge */
-.gender-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: .8rem; font-weight: 600; margin-top: 8px; }
-.gender-badge.male { background: #3b82f620; color: #60a5fa; border: 1px solid #3b82f640; }
-.gender-badge.female { background: #ec489920; color: #f472b6; border: 1px solid #ec489940; }
-
-.section-divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0f172a;--surface:#1e293b;--surface2:#334155;--border:#475569;--text:#f1f5f9;--dim:#94a3b8;--accent:#6366f1;--accent-hover:#818cf8;--radius:12px;--sm:8px;--green:#22c55e;--red:#ef4444}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans Thai',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;gap:10px}
+header h1{font-size:1.15rem;font-weight:700}header h1 span{color:var(--accent)}
+header .badge{font-size:.65rem;background:var(--accent);color:#fff;padding:2px 8px;border-radius:10px;font-weight:600}
+main{max-width:700px;margin:0 auto;padding:20px 16px 80px}
+.card{background:var(--surface);border-radius:var(--radius);padding:20px;margin-bottom:16px}
+.card-title{font-size:.85rem;color:var(--dim);margin-bottom:12px;font-weight:600}
+.upload-box{border:2px dashed var(--border);border-radius:var(--radius);padding:32px 20px;text-align:center;cursor:pointer;transition:all .2s;position:relative}
+.upload-box:hover{border-color:var(--accent);background:rgba(99,102,241,.08)}
+.upload-box .icon{font-size:2.5rem;margin-bottom:6px}
+.upload-box .label{font-weight:600}
+.upload-box .hint{font-size:.8rem;color:var(--dim);margin-top:4px}
+.upload-box input{display:none}
+.upload-box.has-img{border-style:solid;padding:12px}
+.upload-preview{max-width:200px;max-height:200px;border-radius:var(--sm);margin:0 auto;display:block}
+.upload-box .remove-btn{margin-top:8px;background:none;border:1px solid var(--border);color:var(--dim);padding:4px 14px;border-radius:var(--sm);cursor:pointer;font-size:.8rem}
+select,input[type=number]{width:100%;padding:10px 12px;border-radius:var(--sm);border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:.9rem;outline:none}
+select:focus{border-color:var(--accent)}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+@media(max-width:500px){.grid-2,.grid-3{grid-template-columns:1fr}}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{padding:8px 16px;border-radius:var(--sm);border:1px solid var(--border);background:var(--surface2);cursor:pointer;font-size:.85rem;transition:all .15s}
+.chip:hover{border-color:var(--accent)}.chip.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn{width:100%;padding:14px;border:none;border-radius:var(--sm);font-size:1.05rem;font-weight:700;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-primary{background:var(--accent);color:#fff}.btn-primary:hover:not(:disabled){background:var(--accent-hover)}
+.btn-success{background:var(--green);color:#fff}
+.btn-outline{background:none;border:1px solid var(--border);color:var(--text)}.btn-outline:hover{border-color:var(--accent)}
+.spinner{width:20px;height:20px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.result{display:none}.result.show{display:block}
+.result img{width:100%;max-height:400px;object-fit:contain;border-radius:var(--sm);background:var(--bg)}
+.result-actions{display:flex;gap:10px;margin-top:12px}.result-actions .btn{flex:1}
+.result-info{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px;margin:12px 0}
+.result-info div{background:var(--surface2);border-radius:var(--sm);padding:10px;text-align:center}
+.result-info .val{font-size:1rem;font-weight:700;color:var(--accent)}.result-info .lbl{font-size:.7rem;color:var(--dim);margin-top:2px}
+.steps{display:flex;gap:6px;margin-bottom:20px;font-size:.72rem}
+.steps span{flex:1;text-align:center;padding:6px 4px;border-radius:var(--sm);background:var(--surface2);color:var(--dim)}
+.steps span.active{background:var(--accent);color:#fff}.steps span.done{background:var(--green);color:#fff}
+.overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.85);z-index:998;justify-content:center;align-items:center;flex-direction:column;gap:16px}
+.overlay.show{display:flex}.overlay .spinner-lg{width:44px;height:44px;border-width:4px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 20px;display:none;z-index:999;max-width:90%}
+.toast.show{display:flex;align-items:center;gap:8px}.toast.error{border-color:var(--red)}
+.gender-badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:.8rem;font-weight:600;margin-top:8px}
+.gender-badge.male{background:#3b82f620;color:#60a5fa;border:1px solid #3b82f640}
+.gender-badge.female{background:#ec489920;color:#f472b6;border:1px solid #ec489940}
+.section-divider{border:none;border-top:1px solid var(--border);margin:20px 0}
+.bulk-results{margin-top:12px}
+.bulk-item{display:flex;align-items:center;gap:8px;padding:8px;background:var(--surface2);border-radius:var(--sm);margin-bottom:4px;font-size:.8rem}
+.bulk-item a{color:var(--accent);text-decoration:none}
 </style>
 </head>
 <body>
-
 <header>
   <h1><span>AI</span> Passport Photo</h1>
   <span class="badge">V2</span>
 </header>
-
 <div class="overlay" id="overlay">
   <div class="spinner spinner-lg"></div>
   <div id="overlayText" style="color:var(--text);font-size:1rem;">กำลังสร้าง...</div>
@@ -149,20 +81,21 @@ select:focus, textarea:focus { border-color: var(--accent); }
 
   <!-- Step 1: Upload -->
   <div class="card">
-    <div class="card-title">📸 อัปโหลดรูปถ่าย</div>
+    <div class="card-title">📸 อัปโหลดรูปถ่าย (ลากหลายรูปได้)</div>
     <div class="upload-box" id="photoUpload">
       <div id="photoEmpty">
         <div class="icon">🙋</div>
         <div class="label">เลือกรูปถ่าย</div>
-        <div class="hint">ถ่ายรูปตรงๆ หน้าชัด</div>
+        <div class="hint">ถ่ายรูปตรงๆ หน้าชัด • ลาก+วางหลายรูปได้</div>
       </div>
       <div id="photoPreview" style="display:none">
         <img class="upload-preview" id="photoImg" alt="photo">
         <button class="remove-btn" id="photoRemove">เปลี่ยนรูป</button>
       </div>
-      <input type="file" id="photoInput" accept="image/jpeg,image/png">
+      <input type="file" id="photoInput" accept="image/jpeg,image/png" multiple>
     </div>
     <div id="genderResult" style="text-align:center"></div>
+    <div id="bulkStatus" style="display:none;margin-top:10px;text-align:center;color:var(--accent);font-size:.85rem"></div>
   </div>
 
   <!-- Step 2: Settings -->
@@ -170,12 +103,11 @@ select:focus, textarea:focus { border-color: var(--accent); }
     <div class="card-title">🌍 ขนาดประเทศ</div>
     <select id="templateSelect"></select>
   </div>
-
   <div class="grid-2">
     <div class="card">
       <div class="card-title">👤 เพศ</div>
       <div class="chips" id="genderChips">
-        <div class="chip active" data-value="auto">🔍 ตรวจอัตโนมัติ</div>
+        <div class="chip active" data-value="auto">🔍 อัตโนมัติ</div>
         <div class="chip" data-value="male">👨 ชาย</div>
         <div class="chip" data-value="female">👩 หญิง</div>
       </div>
@@ -189,7 +121,6 @@ select:focus, textarea:focus { border-color: var(--accent); }
       </div>
     </div>
   </div>
-
   <div class="card">
     <div class="card-title">👔 ชุด</div>
     <div class="chips" id="clothingChips">
@@ -200,17 +131,15 @@ select:focus, textarea:focus { border-color: var(--accent); }
       <div class="chip" data-value="black_suit">🤵 สูทดำ</div>
     </div>
   </div>
-
   <hr class="section-divider">
-
   <div class="card">
     <div class="card-title">🖨️ ตั้งค่าแผ่นพิมพ์</div>
     <div class="grid-3">
       <div>
         <div style="font-size:.75rem;color:var(--dim);margin-bottom:4px">ขนาดกระดาษ</div>
         <select id="printSize">
-          <option value="4x6">4x6" (10x15cm)</option>
-          <option value="5x7">5x7" (13x18cm)</option>
+          <option value="4x6">4x6"</option>
+          <option value="5x7">5x7"</option>
           <option value="a6">A6</option>
           <option value="a4">A4</option>
         </select>
@@ -230,15 +159,12 @@ select:focus, textarea:focus { border-color: var(--accent); }
     </div>
     <div style="margin-top:12px">
       <label style="display:flex;align-items:center;gap:8px;font-size:.85rem;cursor:pointer">
-        <input type="checkbox" id="bladeMode"> 🔪 รองรับ cutting blade (เพิ่ม gap)
+        <input type="checkbox" id="bladeMode"> 🔪 Cutting blade (เพิ่ม gap)
       </label>
     </div>
   </div>
 
-  <!-- Generate -->
-  <button class="btn btn-primary" id="genBtn" disabled>
-    ✨ สร้างรูปพาสปอร์ต
-  </button>
+  <button class="btn btn-primary" id="genBtn" disabled>✨ สร้างรูปพาสปอร์ต</button>
 
   <!-- Result -->
   <div class="card result" id="resultCard">
@@ -250,8 +176,7 @@ select:focus, textarea:focus { border-color: var(--accent); }
       <button class="btn btn-success" id="dlPrint">🖨️ แผ่นพิมพ์</button>
       <button class="btn btn-outline" id="regenerate">🔄 สร้างใหม่</button>
     </div>
-
-    <!-- Print sheet preview -->
+    <div id="bulkResults" class="bulk-results" style="display:none"></div>
     <div style="margin-top:16px" id="printPreviewSection" hidden>
       <div class="card-title">🖨️ แผ่นพิมพ์</div>
       <img id="printImg" style="width:100%;border-radius:var(--sm);background:var(--bg)" alt="Print Sheet">
@@ -260,191 +185,159 @@ select:focus, textarea:focus { border-color: var(--accent); }
 </main>
 
 <script>
-const API = '/api/passport';
-const $ = id => document.getElementById(id);
-let state = { photo: null, sessionId: null, gender: 'auto' };
+const API='/api/passport';
+const $=id=>document.getElementById(id);
+let state={photo:null,photos:[],sessionId:null,gender:'auto',isBulk:false};
 
-// ── Init ──
-async function init() {
-  await loadTemplates();
-  setupUploads();
-  setupChips();
-  setupGen();
-}
+async function init(){await loadTemplates();setupUploads();setupChips();setupGen();}
 
-// ── Templates ──
-async function loadTemplates() {
-  try {
-    const r = await fetch(`${API}/templates`);
-    const d = await r.json();
-    const sel = $('templateSelect');
-    const groups = {};
-    for (const t of d.templates || []) {
-      const g = t.country || 'Other';
-      if (!groups[g]) groups[g] = [];
-      groups[g].push(t);
-    }
-    const order = ['Thailand','United States','United Kingdom','China','Japan'];
-    for (const c of order) { if (groups[c]) { addGroup(sel, c, groups[c]); delete groups[c]; } }
-    for (const [c, ts] of Object.entries(groups).sort()) addGroup(sel, c, ts);
-    sel.value = 'thai_passport';
-  } catch(e) { showToast('โหลดประเทศไม่สำเร็จ', 'error'); }
+async function loadTemplates(){
+  try{
+    const r=await fetch(`${API}/templates`);const d=await r.json();
+    const sel=$('templateSelect');const groups={};
+    for(const t of d.templates||[]){const g=t.country||'Other';if(!groups[g])groups[g]=[];groups[g].push(t);}
+    const order=['Thailand','United States','United Kingdom','China','Japan'];
+    for(const c of order){if(groups[c]){addGroup(sel,c,groups[c]);delete groups[c];}}
+    for(const [c,ts] of Object.entries(groups).sort())addGroup(sel,c,ts);
+    sel.value='thai_passport';
+  }catch(e){showToast('โหลดประเทศไม่สำเร็จ','error');}
 }
-function addGroup(sel, country, templates) {
-  const og = document.createElement('optgroup');
-  og.label = country === 'Thailand' ? '🇹🇭 ไทย' : country;
-  for (const t of templates) {
-    const opt = document.createElement('option');
-    opt.value = t.code;
-    opt.textContent = `${t.name} (${t.width_mm}×${t.height_mm}mm)`;
-    og.appendChild(opt);
-  }
+function addGroup(sel,country,templates){
+  const og=document.createElement('optgroup');og.label=country==='Thailand'?'🇹🇭 ไทย':country;
+  for(const t of templates){const opt=document.createElement('option');opt.value=t.code;opt.textContent=`${t.name} (${t.width_mm}×${t.height_mm}mm)`;og.appendChild(opt);}
   sel.appendChild(og);
 }
 
-// ── Upload ──
-function setupUploads() {
-  setupUpload('photo', (file) => {
-    state.photo = file;
-    $('s1').className = 'done';
-    $('s2').className = 'active';
-    updateGenBtn();
+function setupUploads(){
+  setupUpload('photo',(file)=>{
+    const input=$('photoInput');
+    if(input.files&&input.files.length>1){
+      state.isBulk=true;state.photos=[];
+      for(const f of input.files)state.photos.push(f);
+      state.photo=state.photos[0];
+      $('bulkStatus').style.display='block';
+      $('bulkStatus').textContent=`📁 เลือก ${state.photos.length} รูป — จะสร้างทั้งหมด`;
+      $('photoImg').src=URL.createObjectURL(state.photos[0]);
+      $('photoEmpty').style.display='none';$('photoPreview').style.display='block';
+      $('photoUpload').classList.add('has-img');
+    }else{
+      state.isBulk=false;state.photos=[file];state.photo=file;
+      $('bulkStatus').style.display='none';
+    }
+    $('s1').className='done';$('s2').className='active';updateGenBtn();
   });
 }
-function setupUpload(prefix, onFile) {
-  const zone = $(`${prefix}Upload`), input = $(`${prefix}Input`);
-  const preview = $(`${prefix}Preview`), img = $(`${prefix}Img`);
-  const remove = $(`${prefix}Remove`), empty = $(`${prefix}Empty`);
-
-  zone.addEventListener('click', e => { if (!e.target.closest('button')) input.click(); });
-  input.addEventListener('change', () => { if (input.files[0]) handleFile(input.files[0]); });
-  if (remove) remove.addEventListener('click', e => {
-    e.stopPropagation();
-    state[prefix] = null; input.value = '';
-    empty.style.display = 'block'; preview.style.display = 'none';
-    zone.classList.remove('has-img');
-    updateGenBtn();
+function setupUpload(prefix,onFile){
+  const zone=$(`${prefix}Upload`),input=$(`${prefix}Input`);
+  const preview=$(`${prefix}Preview`),img=$(`${prefix}Img`);
+  const remove=$(`${prefix}Remove`),empty=$(`${prefix}Empty`);
+  zone.addEventListener('click',e=>{if(!e.target.closest('button'))input.click();});
+  input.addEventListener('change',()=>{if(input.files[0])handleFile(input.files[0]);});
+  if(remove)remove.addEventListener('click',e=>{
+    e.stopPropagation();state[prefix]=null;state.photos=[];state.isBulk=false;input.value='';
+    empty.style.display='block';preview.style.display='none';zone.classList.remove('has-img');
+    $('bulkStatus').style.display='none';updateGenBtn();
   });
-
-  function handleFile(file) {
-    if (!file.type.match(/^image\/(jpeg|png)$/)) { showToast('เฉพาะ JPG/PNG', 'error'); return; }
-    const reader = new FileReader();
-    reader.onload = e => {
-      onFile(e.target.result);
-      img.src = e.target.result;
-      empty.style.display = 'none'; preview.style.display = 'block';
-      zone.classList.add('has-img');
-    };
+  function handleFile(file){
+    if(!file.type.match(/^image\/(jpeg|png)$/)){showToast('เฉพาะ JPG/PNG','error');return;}
+    const reader=new FileReader();
+    reader.onload=e=>{onFile(e.target.result);img.src=e.target.result;empty.style.display='none';preview.style.display='block';zone.classList.add('has-img');};
     reader.readAsDataURL(file);
   }
 }
 
-// ── Chips ──
-function setupChips() {
-  setupChipGroup('genderChips', v => state.gender = v);
-  setupChipGroup('bgChips', () => {});
-  setupChipGroup('clothingChips', () => {});
+function setupChips(){
+  setupChipGroup('genderChips',v=>state.gender=v);
+  setupChipGroup('bgChips',()=>{});
+  setupChipGroup('clothingChips',()=>{});
 }
-function setupChipGroup(containerId, onChange) {
-  const container = $(containerId);
-  container.addEventListener('click', e => {
-    const chip = e.target.closest('.chip');
-    if (!chip) return;
-    container.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
-    chip.classList.add('active');
-    onChange(chip.dataset.value);
+function setupChipGroup(cid,onChange){
+  $(cid).addEventListener('click',e=>{
+    const chip=e.target.closest('.chip');if(!chip)return;
+    $(cid).querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+    chip.classList.add('active');onChange(chip.dataset.value);
   });
 }
-function getChipValue(containerId) {
-  const active = $(containerId).querySelector('.chip.active');
-  return active ? active.dataset.value : '';
+function getChipValue(cid){const a=$(cid).querySelector('.chip.active');return a?a.dataset.value:'';}
+function updateGenBtn(){$('genBtn').disabled=!state.photo;}
+
+function setupGen(){
+  $('genBtn').addEventListener('click',generate);
+  $('dlPassport').addEventListener('click',()=>dl('passport'));
+  $('dlPrint').addEventListener('click',()=>dl('print'));
+  $('regenerate').addEventListener('click',generate);
 }
 
-function updateGenBtn() { $('genBtn').disabled = !state.photo; }
-
-// ── Generate ──
-function setupGen() {
-  $('genBtn').addEventListener('click', generate);
-  $('dlPassport').addEventListener('click', () => dl('passport'));
-  $('dlPrint').addEventListener('click', () => dl('print'));
-  $('regenerate').addEventListener('click', generate);
-}
-
-async function generate() {
-  if (!state.photo) return;
-  const b64 = state.photo.split(',')[1];
-
+async function generate(){
+  if(!state.photo)return;
+  if(state.isBulk&&state.photos.length>1)return generateBulk();
+  const b64=state.photo.split(',')[1];
   showOverlay('🤖 AI กำลังวิเคราะห์และสร้างรูป...');
-  $('s2').className = 'done'; $('s3').className = 'active';
-
-  try {
-    const r = await fetch(`${API}/generate`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        image_base64: b64,
-        template_code: $('templateSelect').value,
-        gender: getChipValue('genderChips'),
-        clothing: getChipValue('clothingChips'),
-        background: getChipValue('bgChips'),
-        strength: 0.65,
-      })
+  $('s2').className='done';$('s3').className='active';
+  try{
+    const r=await fetch(`${API}/generate`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({image_base64:b64,template_code:$('templateSelect').value,gender:getChipValue('genderChips'),clothing:getChipValue('clothingChips'),background:getChipValue('bgChips'),strength:0.65})
     });
-    const d = await r.json();
-    if (!d.ok) throw new Error(d.detail || 'Error');
-
-    state.sessionId = d.session_id;
-
-    // Gender badge
-    const genderEmoji = d.gender === 'male' ? '👨' : d.gender === 'female' ? '👩' : '❓';
-    $('genderResult').innerHTML = `<span class="gender-badge ${d.gender}">${genderEmoji} ${d.gender === 'male' ? 'ชาย' : 'หญิง'} (${d.clothing})</span>`;
-
-    // Info
-    $('resultInfo').innerHTML = `
-      <div><div class="val">${d.time_seconds || '?'}s</div><div class="lbl">⏱ เวลา</div></div>
+    const d=await r.json();if(!d.ok)throw new Error(d.detail||'Error');
+    state.sessionId=d.session_id;
+    const ge=d.gender==='male'?'👨':d.gender==='female'?'👩':'❓';
+    $('genderResult').innerHTML=`<span class="gender-badge ${d.gender}">${ge} ${d.gender==='male'?'ชาย':'หญิง'} (${d.clothing})</span>`;
+    $('resultInfo').innerHTML=`
+      <div><div class="val">${d.time_seconds||'?'}s</div><div class="lbl">⏱ เวลา</div></div>
       <div><div class="val">${d.dimensions?.w}×${d.dimensions?.h}</div><div class="lbl">📐 mm</div></div>
-      <div><div class="val">${d.gender === 'male' ? '👨 ชาย' : '👩 หญิง'}</div><div class="lbl">👤 เพศ</div></div>
+      <div><div class="val">${d.gender==='male'?'👨 ชาย':'👩 หญิง'}</div><div class="lbl">👤 เพศ</div></div>
       <div><div class="val">${d.clothing}</div><div class="lbl">👔 ชุด</div></div>
-      <div><div class="val">$0.004</div><div class="lbl">💰 ราคา</div></div>
-    `;
-
-    $('resultImg').src = `${API}/download/${d.session_id}_passport.jpg?t=${Date.now()}`;
-
-    // Print sheet preview
-    if (d.download_print) {
-      $('printImg').src = `${API}/download/${d.session_id}_print.jpg?t=${Date.now()}`;
-      $('printPreviewSection').hidden = false;
-    }
-
-    $('s3').className = 'done'; $('s4').className = 'active';
-    $('resultCard').classList.add('show');
-    $('resultCard').scrollIntoView({behavior:'smooth'});
+      <div><div class="val">$0.004</div><div class="lbl">💰 ราคา</div></div>`;
+    $('resultImg').src=`${API}/download/${d.session_id}_passport.jpg?t=${Date.now()}`;
+    if(d.download_print){$('printImg').src=`${API}/download/${d.session_id}_print.jpg?t=${Date.now()}`;$('printPreviewSection').hidden=false;}
+    $('s3').className='done';$('s4').className='active';
+    $('resultCard').classList.add('show');$('resultCard').scrollIntoView({behavior:'smooth'});
     showToast('✅ เสร็จแล้ว!');
-  } catch(e) {
-    showToast(`❌ ${e.message}`, 'error');
-    $('s3').className = '';
-  } finally { hideOverlay(); }
+  }catch(e){showToast(`❌ ${e.message}`,'error');$('s3').className='';}
+  finally{hideOverlay();}
 }
 
-function dl(type) {
-  if (!state.sessionId) return;
-  const suffix = type === 'passport' ? 'passport' : 'print';
-  const a = document.createElement('a');
-  a.href = `${API}/download/${state.sessionId}_${suffix}.jpg`;
-  a.download = `passport_${state.sessionId}_${suffix}.jpg`;
-  a.click();
+async function generateBulk(){
+  showOverlay(`🤖 กำลังสร้าง ${state.photos.length} รูป...`);
+  $('s2').className='done';$('s3').className='active';
+  try{
+    const images=[];for(const f of state.photos)images.push(await readFileAsBase64(f));
+    const r=await fetch(`${API}/bulk-generate`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({images,template_code:$('templateSelect').value,gender:getChipValue('genderChips'),clothing:getChipValue('clothingChips'),background:getChipValue('bgChips'),strength:0.65,print_size:$('printSize').value,photo_count:parseInt($('photoCount').value)||6,border:$('borderType').value,blade_mode:$('bladeMode').checked})
+    });
+    const d=await r.json();if(!d.ok)throw new Error(d.detail||'Error');
+    state.sessionId=d.results[0]?.session_id;
+    $('resultInfo').innerHTML=`
+      <div><div class="val">${d.time_seconds}s</div><div class="lbl">⏱ เวลา</div></div>
+      <div><div class="val">${d.success}/${d.total}</div><div class="lbl">✅ สำเร็จ</div></div>
+      <div><div class="val">$${(0.004*d.total).toFixed(3)}</div><div class="lbl">💰 ราคา</div></div>`;
+    if(d.results[0]?.ok)$('resultImg').src=`${API}/download/${d.results[0].session_id}_passport.jpg?t=${Date.now()}`;
+    let html='<div class="bulk-results">';
+    for(const r of d.results){
+      if(r.ok)html+=`<div class="bulk-item"><span>✅</span><span>#${r.index+1} ${r.gender==='male'?'👨':'👩'} ${r.clothing}</span><span style="margin-left:auto;color:var(--dim)">${r.time_seconds}s</span><a href="${API}/download/${r.session_id}_passport.jpg" download>⬇️</a>${r.download_print?`<a href="${API}/download/${r.session_id}_print.jpg" download style="color:var(--green)">🖨️</a>`:''}</div>`;
+      else html+=`<div class="bulk-item" style="color:var(--red)"><span>❌</span><span>#${r.index+1}: ${r.error}</span></div>`;
+    }
+    html+='</div>';$('resultInfo').insertAdjacentHTML('beforeend',html);
+    $('s3').className='done';$('s4').className='active';
+    $('resultCard').classList.add('show');$('resultCard').scrollIntoView({behavior:'smooth'});
+    showToast(`✅ เสร็จ ${d.success}/${d.total} รูป!`);
+  }catch(e){showToast(`❌ ${e.message}`,'error');$('s3').className='';}
+  finally{hideOverlay();}
+}
+
+function readFileAsBase64(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(file);});}
+
+function dl(type){
+  if(!state.sessionId)return;const s=type==='passport'?'passport':'print';
+  const a=document.createElement('a');a.href=`${API}/download/${state.sessionId}_${s}.jpg`;a.download=`passport_${state.sessionId}_${s}.jpg`;a.click();
 }
 
 let toastTimeout;
-function showToast(msg, type='') {
-  clearTimeout(toastTimeout);
-  const t = $('toast');
-  t.className = `toast show ${type}`;
-  t.innerHTML = `<span>${msg}</span>`;
-  toastTimeout = setTimeout(() => t.classList.remove('show'), 4000);
-}
-function showOverlay(t) { $('overlayText').textContent = t; $('overlay').classList.add('show'); }
-function hideOverlay() { $('overlay').classList.remove('show'); }
+function showToast(msg,type=''){clearTimeout(toastTimeout);const t=$('toast');t.className=`toast show ${type}`;t.innerHTML=`<span>${msg}</span>`;toastTimeout=setTimeout(()=>t.classList.remove('show'),4000);}
+function showOverlay(t){$('overlayText').textContent=t;$('overlay').classList.add('show');}
+function hideOverlay(){$('overlay').classList.remove('show');}
 
 init();
 </script>

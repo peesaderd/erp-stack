@@ -3,19 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Passport Photo AI</title>
-<script>// ล้าง Service Worker เก่า — cache หน้าเก่าทิ้ง
-if('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(function(rs) {
-    for(var r of rs) r.unregister();
-  });
-  navigator.serviceWorker.register('/sw.js?v='+Date.now());
-}
-// force reload หน้าเว็บถ้ามาจาก cache
-window.addEventListener('pageshow', function(e) {
-  if(e.persisted) window.location.reload();
-});
-</script>
+<title>Passport Photo AI V2</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -23,6 +11,7 @@ window.addEventListener('pageshow', function(e) {
   --border: #475569; --text: #f1f5f9; --dim: #94a3b8;
   --accent: #6366f1; --accent-hover: #818cf8;
   --radius: 12px; --sm: 8px;
+  --green: #22c55e; --red: #ef4444;
 }
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans Thai', sans-serif;
@@ -34,11 +23,8 @@ header {
 }
 header h1 { font-size: 1.15rem; font-weight: 700; }
 header h1 span { color: var(--accent); }
-header .badge {
-  font-size: .65rem; background: var(--accent); color: #fff;
-  padding: 2px 8px; border-radius: 10px; font-weight: 600;
-}
-main { max-width: 700px; margin: 0 auto; padding: 20px 16px 60px; }
+header .badge { font-size: .65rem; background: var(--accent); color: #fff; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+main { max-width: 700px; margin: 0 auto; padding: 20px 16px 80px; }
 
 .card {
   background: var(--surface); border-radius: var(--radius);
@@ -58,32 +44,35 @@ main { max-width: 700px; margin: 0 auto; padding: 20px 16px 60px; }
 .upload-box .hint { font-size: .8rem; color: var(--dim); margin-top: 4px; }
 .upload-box input { display: none; }
 .upload-box.has-img { border-style: solid; padding: 12px; }
-.upload-preview {
-  max-width: 200px; max-height: 200px; border-radius: var(--sm);
-  margin: 0 auto; display: block; object-fit: contain;
-}
+.upload-preview { max-width: 200px; max-height: 200px; border-radius: var(--sm); margin: 0 auto; display: block; }
 .upload-box .remove-btn {
   margin-top: 8px; background: none; border: 1px solid var(--border);
   color: var(--dim); padding: 4px 14px; border-radius: var(--sm);
   cursor: pointer; font-size: .8rem;
 }
-.upload-box .remove-btn:hover { border-color: #ef4444; color: #ef4444; }
 
-/* Select */
-select, textarea {
+/* Select & Input */
+select, textarea, input[type=number] {
   width: 100%; padding: 10px 12px; border-radius: var(--sm);
   border: 1px solid var(--border); background: var(--surface2);
   color: var(--text); font-size: .9rem; outline: none;
-  transition: border .2s;
 }
 select:focus, textarea:focus { border-color: var(--accent); }
-textarea {
-  resize: vertical; min-height: 60px; font-family: inherit;
-}
 
-/* Grid 2 col */
+/* Grid */
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-@media (max-width: 500px) { .grid-2 { grid-template-columns: 1fr; } }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+@media (max-width: 500px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+/* Option chips */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  padding: 8px 16px; border-radius: var(--sm); border: 1px solid var(--border);
+  background: var(--surface2); cursor: pointer; font-size: .85rem;
+  transition: all .15s;
+}
+.chip:hover { border-color: var(--accent); }
+.chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 
 /* Button */
 .btn {
@@ -95,96 +84,77 @@ textarea {
 .btn:disabled { opacity: .4; cursor: not-allowed; }
 .btn-primary { background: var(--accent); color: #fff; }
 .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
-.btn-success { background: #22c55e; color: #fff; }
-.btn-success:hover:not(:disabled) { filter: brightness(1.1); }
-.spinner {
-  width: 20px; height: 20px; border: 2px solid rgba(255,255,255,.3);
-  border-top-color: #fff; border-radius: 50%;
-  animation: spin .6s linear infinite;
-}
+.btn-success { background: var(--green); color: #fff; }
+.btn-outline { background: none; border: 1px solid var(--border); color: var(--text); }
+.btn-outline:hover { border-color: var(--accent); }
+
+.spinner { width: 20px; height: 20px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* Result */
 .result { display: none; }
 .result.show { display: block; }
-.result img {
-  width: 100%; max-height: 340px; object-fit: contain;
-  border-radius: var(--sm); background: var(--bg);
-}
+.result img { width: 100%; max-height: 400px; object-fit: contain; border-radius: var(--sm); background: var(--bg); }
 .result-actions { display: flex; gap: 10px; margin-top: 12px; }
 .result-actions .btn { flex: 1; }
-.result-info {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-  gap: 8px; margin: 12px 0;
-}
-.result-info div {
-  background: var(--surface2); border-radius: var(--sm);
-  padding: 10px; text-align: center;
-}
+.result-info { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px; margin: 12px 0; }
+.result-info div { background: var(--surface2); border-radius: var(--sm); padding: 10px; text-align: center; }
 .result-info .val { font-size: 1rem; font-weight: 700; color: var(--accent); }
 .result-info .lbl { font-size: .7rem; color: var(--dim); margin-top: 2px; }
 
-/* Steps indicator */
-.steps {
-  display: flex; gap: 8px; margin-bottom: 20px; font-size: .75rem;
-}
-.steps span {
-  flex: 1; text-align: center; padding: 6px; border-radius: var(--sm);
-  background: var(--surface2); color: var(--dim);
-}
+/* Steps */
+.steps { display: flex; gap: 6px; margin-bottom: 20px; font-size: .72rem; }
+.steps span { flex: 1; text-align: center; padding: 6px 4px; border-radius: var(--sm); background: var(--surface2); color: var(--dim); }
 .steps span.active { background: var(--accent); color: #fff; }
-.steps span.done { background: #22c55e; color: #fff; }
-
-/* Toast */
-.toast {
-  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 12px 20px;
-  display: none; z-index: 999; max-width: 90%;
-}
-.toast.show { display: flex; align-items: center; gap: 8px; }
-.toast.error { border-color: #ef4444; }
+.steps span.done { background: var(--green); color: #fff; }
 
 /* Overlay */
-.overlay {
-  display: none; position: fixed; inset: 0;
-  background: rgba(15,23,42,.85); z-index: 998;
-  justify-content: center; align-items: center; flex-direction: column; gap: 16px;
-}
+.overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,.85); z-index: 998; justify-content: center; align-items: center; flex-direction: column; gap: 16px; }
 .overlay.show { display: flex; }
 .overlay .spinner-lg { width: 44px; height: 44px; border-width: 4px; }
+
+/* Toast */
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 20px; display: none; z-index: 999; max-width: 90%; }
+.toast.show { display: flex; align-items: center; gap: 8px; }
+.toast.error { border-color: var(--red); }
+
+/* Gender badge */
+.gender-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: .8rem; font-weight: 600; margin-top: 8px; }
+.gender-badge.male { background: #3b82f620; color: #60a5fa; border: 1px solid #3b82f640; }
+.gender-badge.female { background: #ec489920; color: #f472b6; border: 1px solid #ec489940; }
+
+.section-divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
 </style>
 </head>
 <body>
 
 <header>
   <h1><span>AI</span> Passport Photo</h1>
-  <span class="badge">AI</span>
+  <span class="badge">V2</span>
 </header>
 
 <div class="overlay" id="overlay">
   <div class="spinner spinner-lg"></div>
-  <div id="overlayText" style="color:var(--text);font-size:1rem;">กำลังสร้างรูปด้วย AI...</div>
+  <div id="overlayText" style="color:var(--text);font-size:1rem;">กำลังสร้าง...</div>
 </div>
-
 <div class="toast" id="toast"></div>
 
 <main>
   <div class="steps">
     <span id="s1" class="active">1. รูป</span>
-    <span id="s2">2. เลือกประเทศ</span>
+    <span id="s2">2. ตั้งค่า</span>
     <span id="s3">3. AI สร้าง</span>
     <span id="s4">4. เสร็จ</span>
   </div>
 
-  <!-- Step 1: Upload photo -->
+  <!-- Step 1: Upload -->
   <div class="card">
-    <div class="card-title">📸 อัปโหลดรูปถ่ายของคุณ</div>
+    <div class="card-title">📸 อัปโหลดรูปถ่าย</div>
     <div class="upload-box" id="photoUpload">
       <div id="photoEmpty">
         <div class="icon">🙋</div>
         <div class="label">เลือกรูปถ่าย</div>
-        <div class="hint">ถ่ายรูปตรงๆ ไม่ต้องมีพื้นหลังพิเศษ</div>
+        <div class="hint">ถ่ายรูปตรงๆ หน้าชัด</div>
       </div>
       <div id="photoPreview" style="display:none">
         <img class="upload-preview" id="photoImg" alt="photo">
@@ -192,9 +162,10 @@ textarea {
       </div>
       <input type="file" id="photoInput" accept="image/jpeg,image/png">
     </div>
+    <div id="genderResult" style="text-align:center"></div>
   </div>
 
-  <!-- Step 2: Template + Prompt + Reference -->
+  <!-- Step 2: Settings -->
   <div class="card">
     <div class="card-title">🌍 ขนาดประเทศ</div>
     <select id="templateSelect"></select>
@@ -202,28 +173,71 @@ textarea {
 
   <div class="grid-2">
     <div class="card">
-      <div class="card-title">💬 Prompt (ไม่ใส่ก็ได้)</div>
-      <textarea id="promptInput" placeholder="เช่น ใส่สูทสีดำ, ไว้หนวด, ยิ้มเล็กน้อย"></textarea>
+      <div class="card-title">👤 เพศ</div>
+      <div class="chips" id="genderChips">
+        <div class="chip active" data-value="auto">🔍 ตรวจอัตโนมัติ</div>
+        <div class="chip" data-value="male">👨 ชาย</div>
+        <div class="chip" data-value="female">👩 หญิง</div>
+      </div>
     </div>
     <div class="card">
-      <div class="card-title">👔 รูปชุดตัวอย่าง (ไม่ใส่ก็ได้)</div>
-      <div class="upload-box" id="refUpload">
-        <div id="refEmpty">
-          <div class="icon">👕</div>
-          <div class="hint">เลือกรูปชุดที่อยากใส่</div>
-        </div>
-        <div id="refPreview" style="display:none">
-          <img class="upload-preview" id="refImg" alt="reference" style="max-height:100px">
-          <button class="remove-btn" id="refRemove">ลบ</button>
-        </div>
-        <input type="file" id="refInput" accept="image/jpeg,image/png">
+      <div class="card-title">🎨 พื้นหลัง</div>
+      <div class="chips" id="bgChips">
+        <div class="chip active" data-value="light_blue">🔵 ฟ้าอ่อน</div>
+        <div class="chip" data-value="white">⚪ ขาว</div>
+        <div class="chip" data-value="light_gray">⚫ เทาอ่อน</div>
       </div>
     </div>
   </div>
 
-  <!-- Generate button -->
+  <div class="card">
+    <div class="card-title">👔 ชุด</div>
+    <div class="chips" id="clothingChips">
+      <div class="chip active" data-value="auto">🔍 อัตโนมัติ</div>
+      <div class="chip" data-value="random">🎲 สุ่ม</div>
+      <div class="chip" data-value="white_shirt">衬衫 ขาว</div>
+      <div class="chip" data-value="blue_shirt">衬衫 น้ำเงิน</div>
+      <div class="chip" data-value="black_suit">🤵 สูทดำ</div>
+    </div>
+  </div>
+
+  <hr class="section-divider">
+
+  <div class="card">
+    <div class="card-title">🖨️ ตั้งค่าแผ่นพิมพ์</div>
+    <div class="grid-3">
+      <div>
+        <div style="font-size:.75rem;color:var(--dim);margin-bottom:4px">ขนาดกระดาษ</div>
+        <select id="printSize">
+          <option value="4x6">4x6" (10x15cm)</option>
+          <option value="5x7">5x7" (13x18cm)</option>
+          <option value="a6">A6</option>
+          <option value="a4">A4</option>
+        </select>
+      </div>
+      <div>
+        <div style="font-size:.75rem;color:var(--dim);margin-bottom:4px">จำนวนรูป</div>
+        <input type="number" id="photoCount" value="6" min="1" max="20">
+      </div>
+      <div>
+        <div style="font-size:.75rem;color:var(--dim);margin-bottom:4px">ขอบ</div>
+        <select id="borderType">
+          <option value="guidelines">📏 เส้นตัด</option>
+          <option value="none">✂️ ไม่มีขอบ</option>
+          <option value="frame">🔲 กรอบขาว</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-top:12px">
+      <label style="display:flex;align-items:center;gap:8px;font-size:.85rem;cursor:pointer">
+        <input type="checkbox" id="bladeMode"> 🔪 รองรับ cutting blade (เพิ่ม gap)
+      </label>
+    </div>
+  </div>
+
+  <!-- Generate -->
   <button class="btn btn-primary" id="genBtn" disabled>
-    ✨ AI Generate
+    ✨ สร้างรูปพาสปอร์ต
   </button>
 
   <!-- Result -->
@@ -232,8 +246,15 @@ textarea {
     <div class="result-info" id="resultInfo"></div>
     <img id="resultImg" alt="Passport Photo">
     <div class="result-actions">
-      <button class="btn btn-success" id="dlPassport">⬇️ รูป</button>
+      <button class="btn btn-success" id="dlPassport">⬇️ รูปเดี่ยว</button>
       <button class="btn btn-success" id="dlPrint">🖨️ แผ่นพิมพ์</button>
+      <button class="btn btn-outline" id="regenerate">🔄 สร้างใหม่</button>
+    </div>
+
+    <!-- Print sheet preview -->
+    <div style="margin-top:16px" id="printPreviewSection" hidden>
+      <div class="card-title">🖨️ แผ่นพิมพ์</div>
+      <img id="printImg" style="width:100%;border-radius:var(--sm);background:var(--bg)" alt="Print Sheet">
     </div>
   </div>
 </main>
@@ -241,40 +262,38 @@ textarea {
 <script>
 const API = '/api/passport';
 const $ = id => document.getElementById(id);
-let state = { photo: null, ref: null, templates: [], sessionId: null };
+let state = { photo: null, sessionId: null, gender: 'auto' };
 
+// ── Init ──
 async function init() {
   await loadTemplates();
   setupUploads();
+  setupChips();
   setupGen();
 }
 
+// ── Templates ──
 async function loadTemplates() {
   try {
     const r = await fetch(`${API}/templates`);
     const d = await r.json();
-    state.templates = d.templates || [];
     const sel = $('templateSelect');
     const groups = {};
-    for (const t of state.templates) {
+    for (const t of d.templates || []) {
       const g = t.country || 'Other';
       if (!groups[g]) groups[g] = [];
       groups[g].push(t);
     }
-    const order = ['Thailand','United States','United Kingdom','China','Japan','South Korea'];
-    for (const c of order) {
-      if (groups[c]) { addGroup(sel, c, groups[c]); delete groups[c]; }
-    }
+    const order = ['Thailand','United States','United Kingdom','China','Japan'];
+    for (const c of order) { if (groups[c]) { addGroup(sel, c, groups[c]); delete groups[c]; } }
     for (const [c, ts] of Object.entries(groups).sort()) addGroup(sel, c, ts);
     sel.value = 'thai_passport';
-  } catch(e) {
-    showToast('โหลดประเทศไม่สำเร็จ', 'error');
-  }
+  } catch(e) { showToast('โหลดประเทศไม่สำเร็จ', 'error'); }
 }
 function addGroup(sel, country, templates) {
   const og = document.createElement('optgroup');
   og.label = country === 'Thailand' ? '🇹🇭 ไทย' : country;
-  for (const t of templates.sort((a,b) => a.name.localeCompare(b.name, 'th'))) {
+  for (const t of templates) {
     const opt = document.createElement('option');
     opt.value = t.code;
     opt.textContent = `${t.name} (${t.width_mm}×${t.height_mm}mm)`;
@@ -283,26 +302,23 @@ function addGroup(sel, country, templates) {
   sel.appendChild(og);
 }
 
+// ── Upload ──
 function setupUploads() {
-  // Main photo
-  setupUpload('photo', (file) => state.photo = file);
-  setupUpload('ref', (file) => state.ref = file);
+  setupUpload('photo', (file) => {
+    state.photo = file;
+    $('s1').className = 'done';
+    $('s2').className = 'active';
+    updateGenBtn();
+  });
 }
 function setupUpload(prefix, onFile) {
-  const zone = $(`${prefix}Upload`);
-  const input = $(`${prefix}Input`);
-  const preview = $(`${prefix}Preview`);
-  const img = $(`${prefix}Img`);
-  const remove = $(`${prefix}Remove`);
-  const empty = $(`${prefix}Empty`);
+  const zone = $(`${prefix}Upload`), input = $(`${prefix}Input`);
+  const preview = $(`${prefix}Preview`), img = $(`${prefix}Img`);
+  const remove = $(`${prefix}Remove`), empty = $(`${prefix}Empty`);
 
-  zone.addEventListener('click', (e) => {
-    if (!e.target.closest('button')) input.click();
-  });
-  input.addEventListener('change', () => {
-    if (input.files[0]) handleUpload(input.files[0]);
-  });
-  if (remove) remove.addEventListener('click', (e) => {
+  zone.addEventListener('click', e => { if (!e.target.closest('button')) input.click(); });
+  input.addEventListener('change', () => { if (input.files[0]) handleFile(input.files[0]); });
+  if (remove) remove.addEventListener('click', e => {
     e.stopPropagation();
     state[prefix] = null; input.value = '';
     empty.style.display = 'block'; preview.style.display = 'none';
@@ -310,83 +326,104 @@ function setupUpload(prefix, onFile) {
     updateGenBtn();
   });
 
-  function handleUpload(file) {
-    if (!file.type.match(/^image\/(jpeg|png)$/)) {
-      showToast('เฉพาะ JPG/PNG', 'error'); return;
-    }
-    if (file.size > 10*1024*1024) { showToast('ไฟล์ใหญ่เกิน 10MB','error'); return; }
+  function handleFile(file) {
+    if (!file.type.match(/^image\/(jpeg|png)$/)) { showToast('เฉพาะ JPG/PNG', 'error'); return; }
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = e => {
       onFile(e.target.result);
-      if (img) img.src = e.target.result;
-      if (prefix === 'photo') {
-        $('s1').className = 'done';
-        $('s2').className = 'active';
-      }
+      img.src = e.target.result;
       empty.style.display = 'none'; preview.style.display = 'block';
       zone.classList.add('has-img');
-      updateGenBtn();
     };
     reader.readAsDataURL(file);
   }
 }
 
-function updateGenBtn() {
-  $('genBtn').disabled = !state.photo;
+// ── Chips ──
+function setupChips() {
+  setupChipGroup('genderChips', v => state.gender = v);
+  setupChipGroup('bgChips', () => {});
+  setupChipGroup('clothingChips', () => {});
+}
+function setupChipGroup(containerId, onChange) {
+  const container = $(containerId);
+  container.addEventListener('click', e => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    container.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    onChange(chip.dataset.value);
+  });
+}
+function getChipValue(containerId) {
+  const active = $(containerId).querySelector('.chip.active');
+  return active ? active.dataset.value : '';
 }
 
+function updateGenBtn() { $('genBtn').disabled = !state.photo; }
+
+// ── Generate ──
 function setupGen() {
   $('genBtn').addEventListener('click', generate);
   $('dlPassport').addEventListener('click', () => dl('passport'));
   $('dlPrint').addEventListener('click', () => dl('print'));
+  $('regenerate').addEventListener('click', generate);
 }
 
 async function generate() {
   if (!state.photo) return;
   const b64 = state.photo.split(',')[1];
-  const refB64 = state.ref ? state.ref.split(',')[1] : '';
-  const prompt = $('promptInput').value.trim();
 
-  showOverlay('🤖 AI กำลังวิเคราะห์รูปและสร้างพาสปอร์ต...');
-  $('s2').className = 'done';
-  $('s3').className = 'active';
+  showOverlay('🤖 AI กำลังวิเคราะห์และสร้างรูป...');
+  $('s2').className = 'done'; $('s3').className = 'active';
 
   try {
-    const r = await fetch(`${API}/ai-generate`, {
+    const r = await fetch(`${API}/generate`, {
       method: 'POST',
-      headers: {'Content-Type':'application/json'},
+      headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
         image_base64: b64,
         template_code: $('templateSelect').value,
-        prompt: prompt,
-        reference_image_base64: refB64
+        gender: getChipValue('genderChips'),
+        clothing: getChipValue('clothingChips'),
+        background: getChipValue('bgChips'),
+        strength: 0.65,
       })
     });
     const d = await r.json();
     if (!d.ok) throw new Error(d.detail || 'Error');
 
     state.sessionId = d.session_id;
-    const info = d.info || {};
 
+    // Gender badge
+    const genderEmoji = d.gender === 'male' ? '👨' : d.gender === 'female' ? '👩' : '❓';
+    $('genderResult').innerHTML = `<span class="gender-badge ${d.gender}">${genderEmoji} ${d.gender === 'male' ? 'ชาย' : 'หญิง'} (${d.clothing})</span>`;
+
+    // Info
     $('resultInfo').innerHTML = `
-      <div><div class="val">${info.time_seconds || '?'}s</div><div class="lbl">⏱ เวลา</div></div>
-      <div><div class="val">${d.dimensions?.w || '?'}×${d.dimensions?.h || '?'}</div><div class="lbl">📐 mm</div></div>
-      <div><div class="val">${info.final_size?.[0] || '?'}×${info.final_size?.[1] || '?'}</div><div class="lbl">🖼 px</div></div>
-      <div><div class="val">300</div><div class="lbl">🔲 DPI</div></div>
+      <div><div class="val">${d.time_seconds || '?'}s</div><div class="lbl">⏱ เวลา</div></div>
+      <div><div class="val">${d.dimensions?.w}×${d.dimensions?.h}</div><div class="lbl">📐 mm</div></div>
+      <div><div class="val">${d.gender === 'male' ? '👨 ชาย' : '👩 หญิง'}</div><div class="lbl">👤 เพศ</div></div>
+      <div><div class="val">${d.clothing}</div><div class="lbl">👔 ชุด</div></div>
+      <div><div class="val">$0.004</div><div class="lbl">💰 ราคา</div></div>
     `;
+
     $('resultImg').src = `${API}/download/${d.session_id}_passport.jpg?t=${Date.now()}`;
 
-    $('s3').className = 'done';
-    $('s4').className = 'active';
+    // Print sheet preview
+    if (d.download_print) {
+      $('printImg').src = `${API}/download/${d.session_id}_print.jpg?t=${Date.now()}`;
+      $('printPreviewSection').hidden = false;
+    }
+
+    $('s3').className = 'done'; $('s4').className = 'active';
     $('resultCard').classList.add('show');
     $('resultCard').scrollIntoView({behavior:'smooth'});
     showToast('✅ เสร็จแล้ว!');
   } catch(e) {
-    showToast(`❌ ${e.message || 'Error'}`, 'error');
+    showToast(`❌ ${e.message}`, 'error');
     $('s3').className = '';
-  } finally {
-    hideOverlay();
-  }
+  } finally { hideOverlay(); }
 }
 
 function dl(type) {
@@ -394,7 +431,7 @@ function dl(type) {
   const suffix = type === 'passport' ? 'passport' : 'print';
   const a = document.createElement('a');
   a.href = `${API}/download/${state.sessionId}_${suffix}.jpg`;
-  a.download = `passport_${state.sessionId}.jpg`;
+  a.download = `passport_${state.sessionId}_${suffix}.jpg`;
   a.click();
 }
 
@@ -413,4 +450,3 @@ init();
 </script>
 </body>
 </html>
-<meta name="version" content="v3-ai-txt2img-1784825088">

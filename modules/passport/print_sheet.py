@@ -1,6 +1,6 @@
 """
 Print Sheet Generator
-=====================
+====================
 สร้างแผ่นรวมรูป passport photo สำหรับพิมพ์จริง
 
 Layouts:
@@ -8,7 +8,10 @@ Layouts:
 - 5x7" print: 4-up (2 columns × 2 rows)
 - A4 print: multi-configurable
 
-Guidelines are added as thin dashed lines for easy cutting.
+Options:
+- border: "none" | "guidelines" | "frame"
+- gap_mm: cutting blade gap (default 3mm)
+- blade_mode: True/False for cutting blade support
 """
 
 import logging
@@ -34,6 +37,10 @@ def generate_print_sheet(
     dpi: int = 300,
     margin_mm: float = 3.0,
     add_guidelines: bool = True,
+    border: str = "guidelines",
+    gap_mm: float = 3.0,
+    blade_mode: bool = False,
+    photo_count: int = 0,
 ) -> dict:
     """
     Generate a print-ready sheet with multiple passport photos.
@@ -44,14 +51,15 @@ def generate_print_sheet(
         template_h_mm: template height in mm
         print_size: "4x6" | "5x7" | "a4" | "a6"
         dpi: target print DPI
-        margin_mm: margin between photos in mm
-        add_guidelines: add cut lines
+        margin_mm: margin between photos in mm (legacy, use gap_mm)
+        add_guidelines: add cut lines (legacy, use border param)
+        border: "none" | "guidelines" | "frame"
+        gap_mm: gap between photos in mm (for cutting blade)
+        blade_mode: if True, add extra gap for cutting blade
+        photo_count: 0 = auto-fill, >0 = limit photo count
 
     Returns:
-        dict with:
-            - ok: bool
-            - result: RGB print sheet image
-            - info: metadata (cols, rows, count, etc.)
+        dict with ok, result, info
     """
     ps = PRINT_SIZES.get(print_size)
     if not ps:
@@ -64,8 +72,10 @@ def generate_print_sheet(
     photo_w = int(round(template_w_mm / 25.4 * dpi))
     photo_h = int(round(template_h_mm / 25.4 * dpi))
 
-    margin_px = int(round(margin_mm / 25.4 * dpi))
-    padding_px = max(margin_px, 10)  # at least 10px
+    # Use gap_mm for padding (supports cutting blade)
+    padding_px = int(round(gap_mm / 25.4 * dpi))
+    if blade_mode:
+        padding_px = int(round(max(gap_mm, 5.0) / 25.4 * dpi))
 
     # Ensure passport_image matches expected dimensions
     if passport_image.shape[1] != photo_w or passport_image.shape[0] != photo_h:
@@ -74,16 +84,13 @@ def generate_print_sheet(
     # Calculate grid layout
     cols = (sheet_w + padding_px) // (photo_w + padding_px)
     rows = (sheet_h + padding_px) // (photo_h + padding_px)
+    if cols < 1: cols = 1
+    if rows < 1: rows = 1
 
-    if cols < 1:
-        cols = 1
-    if rows < 1:
-        rows = 1
+    max_count = cols * rows
+    count = photo_count if 0 < photo_count <= max_count else max_count
 
-    # Maximum count
-    count = cols * rows
-
-    # If too many, center the grid
+    # Center the grid
     total_w = cols * photo_w + (cols - 1) * padding_px
     total_h = rows * photo_h + (rows - 1) * padding_px
     offset_x = (sheet_w - total_w) // 2
@@ -92,79 +99,85 @@ def generate_print_sheet(
     # Create white sheet
     sheet = np.full((sheet_h, sheet_w, 3), 255, dtype=np.uint8)
 
-    # Place photos
+    # Place photos (respect photo_count limit)
     positions = []
+    placed = 0
     for row in range(rows):
         for col in range(cols):
+            if placed >= count:
+                break
             x = offset_x + col * (photo_w + padding_px)
             y = offset_y + row * (photo_h + padding_px)
-
             x2 = min(x + photo_w, sheet_w)
             y2 = min(y + photo_h, sheet_h)
             pw = x2 - x
             ph = y2 - y
-
             if pw > 0 and ph > 0:
-                paste = passport_image[:ph, :pw]
-                sheet[y:y2, x:x2] = paste
+                sheet[y:y2, x:x2] = passport_image[:ph, :pw]
                 positions.append({"x": x, "y": y, "w": pw, "h": ph})
+                placed += 1
+        if placed >= count:
+            break
 
-    # Add cut guidelines
-    if add_guidelines:
+    # Add border/guidelines
+    if border == "frame":
+        sheet = _add_frame(sheet, positions)
+    elif border == "guidelines" or add_guidelines:
         sheet = _add_guidelines(sheet, positions)
 
-    # Save info
     info = {
         "print_size": print_size,
         "dpi": dpi,
         "cols": cols,
         "rows": rows,
-        "count": count,
+        "count": placed,
+        "max_count": max_count,
+        "border": border,
+        "gap_mm": gap_mm,
+        "blade_mode": blade_mode,
         "sheet_pixels": {"w": sheet_w, "h": sheet_h},
         "sheet_mm": {"w": ps["width_mm"], "h": ps["height_mm"]},
         "photo_mm": {"w": template_w_mm, "h": template_h_mm},
     }
 
-    logger.info(f"Print sheet: {cols}x{rows}={count} photos on {print_size} ({sheet_w}x{sheet_h}px)")
+    logger.info(f"Print sheet: {cols}x{rows}={placed}/{max_count} photos on {print_size} (border={border})")
     return {"ok": True, "result": sheet, "info": info}
 
 
 def _add_guidelines(sheet: np.ndarray, positions: list) -> np.ndarray:
     """Add thin dashed cut lines around each photo."""
     result = sheet.copy()
-    h, w = result.shape[:2]
+    dash_len = 8
+    gap_len = 4
+    color = (180, 180, 180)
+    thickness = 1
 
     for pos in positions:
         x, y, pw, ph = pos["x"], pos["y"], pos["w"], pos["h"]
-
-        # Draw dashed rectangle (thin gray lines)
-        dash_len = 8
-        gap_len = 4
-        color = (180, 180, 180)
-        thickness = 1
-
-        # Top edge
+        # Top & bottom
         for dx in range(0, pw, dash_len + gap_len):
             x1 = x + dx
             x2 = min(x1 + dash_len, x + pw)
             cv2.line(result, (x1, y), (x2, y), color, thickness)
-
-        # Bottom edge
-        for dx in range(0, pw, dash_len + gap_len):
-            x1 = x + dx
-            x2 = min(x1 + dash_len, x + pw)
             cv2.line(result, (x1, y + ph), (x2, y + ph), color, thickness)
-
-        # Left edge
+        # Left & right
         for dy in range(0, ph, dash_len + gap_len):
             y1 = y + dy
             y2 = min(y1 + dash_len, y + ph)
             cv2.line(result, (x, y1), (x, y2), color, thickness)
-
-        # Right edge
-        for dy in range(0, ph, dash_len + gap_len):
-            y1 = y + dy
-            y2 = min(y1 + dash_len, y + ph)
             cv2.line(result, (x + pw, y1), (x + pw, y2), color, thickness)
+
+    return result
+
+
+def _add_frame(sheet: np.ndarray, positions: list) -> np.ndarray:
+    """Add solid white frame border around each photo."""
+    result = sheet.copy()
+    color = (255, 255, 255)
+    thickness = 3
+
+    for pos in positions:
+        x, y, pw, ph = pos["x"], pos["y"], pos["w"], pos["h"]
+        cv2.rectangle(result, (x - 1, y - 1), (x + pw + 1, y + ph + 1), color, thickness)
 
     return result

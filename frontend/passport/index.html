@@ -23,35 +23,32 @@
 html{scroll-behavior:smooth}
 body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);min-height:100vh;-webkit-font-smoothing:antialiased;padding:0 0 40px}
 
-/* Header */
-.header{text-align:center;padding:32px 20px 24px;position:relative}
-.header::before{content:'';position:absolute;top:0;left:0;right:0;height:200px;background:linear-gradient(180deg,rgba(255,255,255,.1) 0%,transparent 100%);pointer-events:none}
-.header h1{font-size:2rem;font-weight:800;color:#fff;letter-spacing:-.03em;text-shadow:0 2px 10px rgba(0,0,0,.2);position:relative}
-.header p{font-size:.9rem;color:rgba(255,255,255,.85);margin-top:6px;position:relative}
+.header{text-align:center;padding:32px 20px 24px}
+.header h1{font-size:2rem;font-weight:800;color:#fff;letter-spacing:-.03em;text-shadow:0 2px 10px rgba(0,0,0,.2)}
+.header p{font-size:.9rem;color:rgba(255,255,255,.85);margin-top:6px}
 
-/* Main Card */
-.main-card{max-width:520px;margin:0 auto;background:var(--surface);border-radius:24px;box-shadow:var(--shadow-xl);overflow:hidden;position:relative}
+.main-card{max-width:520px;margin:0 auto;background:var(--surface);border-radius:24px;box-shadow:var(--shadow-xl);overflow:hidden}
 
-/* Steps */
 .steps{display:flex;background:var(--surface2);border-bottom:1px solid var(--border)}
-.step{flex:1;padding:14px 8px;text-align:center;font-size:.72rem;font-weight:600;color:var(--muted);position:relative;transition:all .3s}
+.step{flex:1;padding:14px 8px;text-align:center;font-size:.72rem;font-weight:600;color:var(--muted);position:relative;transition:all .3s;cursor:pointer}
 .step.active{color:var(--accent);background:var(--surface)}
 .step.active::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--accent);border-radius:3px 3px 0 0}
 .step-num{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--border);color:var(--dim);font-size:.65rem;margin-right:6px;transition:all .3s}
 .step.active .step-num{background:var(--accent);color:#fff}
 .step.done .step-num{background:var(--success);color:#fff}
 
-/* Content */
 .content{padding:24px}
 
-/* Upload */
+.back-link{cursor:pointer;font-size:.8rem;color:var(--accent);margin-bottom:16px;font-weight:500;display:inline-flex;align-items:center;gap:4px}
+.back-link:hover{text-decoration:underline}
+
 .upload-zone{
   border:2px dashed var(--border);border-radius:var(--radius);
   padding:40px 20px;text-align:center;cursor:pointer;transition:all .3s;
-  background:var(--surface2);position:relative;overflow:hidden
+  background:var(--surface2);position:relative
 }
 .upload-zone:hover{border-color:var(--accent);background:var(--accent-light)}
-.upload-zone.dragover{border-color:var(--accent);background:var(--accent-light);transform:scale(1.01)}
+.upload-zone.dragover{border-color:var(--accent);background:var(--accent-light)}
 .upload-zone.has-file{border-style:solid;border-color:var(--accent);padding:12px;display:flex;align-items:center;gap:14px;text-align:left}
 .upload-icon{font-size:48px;margin-bottom:12px;opacity:.6}
 .upload-title{font-size:1rem;font-weight:600;color:var(--text)}
@@ -60,24 +57,21 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);min-heigh
 .upload-zone .file-info{flex:1}
 .upload-zone .file-name{font-size:.85rem;font-weight:600;color:var(--text);margin-bottom:2px;word-break:break-all}
 .upload-zone .file-meta{font-size:.72rem;color:var(--dim)}
-.upload-zone .gender-badge{display:inline-flex;align-items:center;gap:4px;margin-top:6px;padding:4px 10px;border-radius:20px;font-size:.7rem;font-weight:600;background:var(--accent-light);color:var(--accent)}
-.upload-zone .bulk-badge{display:inline-flex;align-items:center;gap:4px;margin-top:6px;padding:4px 10px;border-radius:20px;font-size:.7rem;font-weight:600;background:#dcfce7;color:#16a34a}
+.gender-badge{display:inline-flex;align-items:center;gap:4px;margin-top:6px;padding:4px 10px;border-radius:20px;font-size:.7rem;font-weight:600;background:var(--accent-light);color:var(--accent)}
+.bulk-badge{display:inline-flex;align-items:center;gap:4px;margin-top:6px;padding:4px 10px;border-radius:20px;font-size:.7rem;font-weight:600;background:#dcfce7;color:#16a34a}
 .upload-zone .clear-btn{position:absolute;top:10px;right:10px;width:24px;height:24px;border-radius:50%;background:var(--surface);border:1px solid var(--border);cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;color:var(--dim);transition:all .2s}
 .upload-zone .clear-btn:hover{background:var(--danger);color:#fff;border-color:var(--danger)}
 .upload-zone input{display:none}
 
-/* Preview Grid */
 .preview-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
 .preview-thumb{position:relative;aspect-ratio:3/4;border-radius:var(--radius-xs);overflow:hidden;box-shadow:var(--shadow)}
 .preview-thumb img{width:100%;height:100%;object-fit:cover}
 .preview-thumb .remove{position:absolute;top:4px;right:4px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;border:none;cursor:pointer;font-size:10px;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s}
 .preview-thumb:hover .remove{opacity:1}
 
-/* Section Label */
 .section-label{font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px;display:flex;align-items:center;gap:6px}
 .section-label .count{background:var(--accent);color:#fff;font-size:.6rem;padding:2px 6px;border-radius:10px}
 
-/* Country Grid */
 .country-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
 .country-chip{
   display:flex;align-items:center;gap:6px;padding:10px 12px;
@@ -90,7 +84,6 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);min-heigh
 .country-chip .name{flex:1}
 .country-chip .size{font-size:.6rem;color:var(--muted);font-weight:400}
 
-/* Custom Size */
 .custom-row{display:flex;gap:6px;align-items:center}
 .custom-row input{flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-xs);font-size:.78rem;outline:none;background:var(--surface);text-align:center}
 .custom-row input:focus{border-color:var(--accent)}
@@ -98,28 +91,22 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);min-heigh
 .custom-row button{padding:8px 14px;border:none;border-radius:var(--radius-xs);font-size:.72rem;font-weight:600;cursor:pointer;background:var(--accent);color:#fff;transition:all .2s}
 .custom-row button:hover{background:var(--accent-hover)}
 
-/* Clothing Carousel */
 .carousel-wrap{position:relative;margin:0 -4px;padding:0 4px}
-.carousel{
-  display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;
-  -webkit-overflow-scrolling:touch;scrollbar-width:none;padding:8px 0 12px
-}
+.carousel{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:8px 0 12px}
 .carousel::-webkit-scrollbar{display:none}
 .carousel-item{
   flex:0 0 100px;scroll-snap-align:start;cursor:pointer;
   border:2px solid var(--border);border-radius:var(--radius-sm);
-  overflow:hidden;transition:all .25s;background:var(--surface);
-  position:relative
+  overflow:hidden;transition:all .25s;background:var(--surface);position:relative
 }
 .carousel-item:hover{border-color:var(--accent);transform:translateY(-3px);box-shadow:var(--shadow-md)}
 .carousel-item.active{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow),var(--shadow-md)}
-.carousel-item img{width:100%;height:120px;object-fit:cover;display:block}
+.carousel-item img{width:100%;height:120px;object-fit:cover;display:block;background:var(--surface3)}
 .carousel-item .label{text-align:center;padding:8px 4px;font-size:.68rem;font-weight:600;color:var(--dim);line-height:1.2}
 .carousel-item.active .label{color:var(--accent)}
 .carousel-item .check{position:absolute;top:6px;right:6px;width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;display:none;align-items:center;justify-content:center;font-size:10px;font-weight:700}
 .carousel-item.active .check{display:flex}
 
-/* Carousel Arrows */
 .carousel-arrow{
   position:absolute;top:50%;transform:translateY(-50%);width:32px;height:32px;
   border-radius:50%;background:var(--surface);border:1px solid var(--border);
@@ -130,12 +117,10 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);min-heigh
 .carousel-arrow.left{left:-12px}
 .carousel-arrow.right{right:-12px}
 
-/* Background Dots */
 .bg-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .bg-dot{
   width:44px;height:44px;border-radius:50%;cursor:pointer;
-  border:3px solid var(--border);transition:all .2s;position:relative;
-  box-shadow:var(--shadow)
+  border:3px solid var(--border);transition:all .2s;position:relative;box-shadow:var(--shadow)
 }
 .bg-dot:hover{transform:scale(1.1);box-shadow:var(--shadow-md)}
 .bg-dot.active{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
@@ -144,7 +129,6 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);min-heigh
 .color-wrap{position:relative;width:44px;height:44px}
 .color-wrap input[type=color]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
 
-/* Print Row */
 .print-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 .print-field label{font-size:.65rem;color:var(--muted);margin-bottom:4px;display:block;font-weight:500}
 .print-field select,.print-field input{
@@ -155,7 +139,6 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);min-heigh
 .blade-toggle{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:.72rem;color:var(--dim);cursor:pointer;user-select:none}
 .blade-toggle input{accent-color:var(--accent);width:14px;height:14px}
 
-/* Generate Button */
 .gen-btn{
   width:100%;padding:16px;border:none;border-radius:var(--radius);
   font-size:.95rem;font-weight:700;cursor:pointer;
@@ -167,7 +150,6 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);min-heigh
 .gen-btn:active{transform:translateY(0)}
 .gen-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
 
-/* Result Section */
 .result-section{display:none;animation:slideUp .4s ease}
 .result-section.show{display:block}
 @keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
@@ -190,11 +172,9 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);min-heigh
 .result-btn.secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
 .result-btn.secondary:hover{border-color:var(--accent);color:var(--accent)}
 
-/* Print Preview */
 .print-section{padding:16px;border-top:1px solid var(--border)}
 .print-section img{width:100%;border-radius:var(--radius-sm);background:var(--surface2)}
 
-/* Bulk List */
 .bulk-list{padding:0 16px 16px}
 .bulk-item{
   display:flex;align-items:center;gap:10px;padding:10px 12px;
@@ -209,7 +189,6 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);min-heigh
 .bulk-item .status.err{background:#fee2e2;color:#ef4444}
 .bulk-item a{color:var(--accent);text-decoration:none;font-weight:600;font-size:.72rem}
 
-/* Overlay */
 .overlay{
   display:none;position:fixed;inset:0;background:rgba(255,255,255,.92);
   z-index:998;justify-content:center;align-items:center;flex-direction:column;
@@ -220,17 +199,15 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);min-heigh
 @keyframes spin{to{transform:rotate(360deg)}}
 .overlay-text{font-size:.9rem;color:var(--dim);font-weight:500}
 
-/* Toast */
 .toast{
   position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);
   background:var(--text);color:#fff;border-radius:24px;padding:12px 24px;
   z-index:999;font-size:.82rem;font-weight:500;box-shadow:var(--shadow-lg);
-  transition:transform .3s ease;display:flex;align-items:center;gap:8px
+  transition:transform .3s ease
 }
 .toast.show{transform:translateX(-50%) translateY(0)}
 .toast.error{background:var(--danger)}
 
-/* Mobile */
 @media(max-width:560px){
   .header h1{font-size:1.6rem}
   .main-card{margin:0 12px;border-radius:20px}
@@ -255,7 +232,6 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);min-heigh
 <div class="toast" id="toast"></div>
 
 <div class="main-card">
-  <!-- Steps -->
   <div class="steps">
     <div class="step active" data-step="1"><span class="step-num">1</span>อัพรูป</div>
     <div class="step" data-step="2"><span class="step-num">2</span>เลือกตัวเลือก</div>
@@ -263,7 +239,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);min-heigh
   </div>
 
   <div class="content">
-    <!-- Step 1: Upload -->
+    <!-- Step 1 -->
     <div class="step-page" id="page1">
       <div class="upload-zone" id="uploadZone">
         <div id="uploadEmpty">
@@ -274,7 +250,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);min-heigh
         <div id="uploadFilled" style="display:none">
           <img id="previewThumb" alt="">
           <div class="file-info">
-            <div class="file-name" id="fileName">photo.jpg</div>
+            <div class="file-name" id="fileName"></div>
             <div class="file-meta" id="fileMeta"></div>
             <div id="genderBadge"></div>
             <div id="bulkBadge" style="display:none"></div>
@@ -286,9 +262,10 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);min-heigh
       <div class="preview-grid" id="previewGrid"></div>
     </div>
 
-    <!-- Step 2: Options -->
+    <!-- Step 2 -->
     <div class="step-page" id="page2" style="display:none">
-      <!-- Country -->
+      <div class="back-link" id="backBtn">← ย้อนกลับ</div>
+
       <div class="section-label">🌍 ประเทศ & ขนาด</div>
       <div class="country-grid" id="countryGrid"></div>
       <div class="custom-row">
@@ -298,19 +275,16 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);min-heigh
         <button id="customBtn">ตั้งค่า</button>
       </div>
 
-      <!-- Clothing -->
-      <div class="section-label" style="margin-top:20px">👔 เสื้อผ้า <span class="count" id="clothingCount">5</span></div>
+      <div class="section-label" style="margin-top:20px">👔 เสื้อผ้า <span class="count" id="clothingCount">0</span></div>
       <div class="carousel-wrap">
-        <button class="carousel-arrow left" onclick="scrollCarousel('clothing',-1)">◀</button>
+        <button class="carousel-arrow left" id="clothingLeft">◀</button>
         <div class="carousel" id="clothingCarousel"></div>
-        <button class="carousel-arrow right" onclick="scrollCarousel('clothing',1)">▶</button>
+        <button class="carousel-arrow right" id="clothingRight">▶</button>
       </div>
 
-      <!-- Background -->
       <div class="section-label" style="margin-top:16px">🎨 พื้นหลัง</div>
       <div class="bg-row" id="bgRow"></div>
 
-      <!-- Print -->
       <div class="section-label" style="margin-top:20px">🖨️ การพิมพ์</div>
       <div class="print-grid">
         <div class="print-field">
@@ -337,13 +311,12 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);min-heigh
       </div>
       <label class="blade-toggle"><input type="checkbox" id="bladeMode"> เปิดโหมด blade สำหรับตัด</label>
 
-      <!-- Generate -->
       <button class="gen-btn" id="genBtn" disabled>✨ สร้างรูปพาสปอร์ต</button>
     </div>
 
-    <!-- Step 3: Result -->
+    <!-- Step 3 -->
     <div class="step-page" id="page3" style="display:none">
-      <div class="result-section show" id="resultSection">
+      <div class="result-section show">
         <div class="result-card">
           <img class="result-img" id="resultImg" alt="Result">
           <div class="result-stats" id="resultStats"></div>
@@ -366,6 +339,8 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);min-heigh
 const API='/api/passport';
 const $=id=>document.getElementById(id);
 
+const FLAGS={Thailand:'🇹🇭',Japan:'🇯🇵',China:'🇨🇳','South Korea':'🇰🇷','United States':'🇺🇸','United Kingdom':'🇬🇧','European Union':'🇪🇺',Canada:'🇨🇦',Australia:'🇦🇺',India:'🇮🇳',Singapore:'🇸🇬',Malaysia:'🇲🇾',Philippines:'🇵🇭',Indonesia:'🇮🇩',Vietnam:'🇻🇳',Cambodia:'🇰🇭',Laos:'🇱🇦',Myanmar:'🇲🇲','Hong Kong':'🇭🇰',France:'🇫🇷',Germany:'🇩🇪'};
+
 const state={
   photo:null,photos:[],isBulk:false,
   gender:'male',clothing:'white_shirt',background:'light_blue',
@@ -377,18 +352,13 @@ let clothingData={male:[],female:[]};
 let bgData=[];
 let tplData=[];
 
-// Init
 async function init(){
   await loadData();
   setupUpload();
-  setupGender();
-  setupCustom();
-  setupNav();
-  setupActions();
+  setupNavigation();
   renderCountries();
   renderClothing();
   renderBg();
-  updateBtn();
 }
 
 async function loadData(){
@@ -399,17 +369,19 @@ async function loadData(){
       fetch(`${API}/backgrounds`),
       fetch(`${API}/templates`)
     ]);
-    clothingData.male=await mRes.json();
-    clothingData.female=await fRes.json();
-    bgData=await bgRes.json();
-    tplData=await tplRes.json();
-  }catch(e){console.error(e);}
+    const mJson=await mRes.json(); clothingData.male=mJson.options||mJson;
+    const fJson=await fRes.json(); clothingData.female=fJson.options||fJson;
+    const bgJson=await bgRes.json(); bgData=bgJson.options||bgJson;
+    const tplJson=await tplRes.json(); tplData=tplJson.templates||tplJson;
+  }catch(e){console.error('Load error:',e);}
 }
 
-// Upload
 function setupUpload(){
   const zone=$('uploadZone'),input=$('fileInput');
-  zone.addEventListener('click',e=>{if(e.target.id!=='clearBtn')input.click()});
+  zone.addEventListener('click',e=>{
+    if(e.target.id==='clearBtn'||e.target.closest('.clear-btn'))return;
+    input.click();
+  });
   zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('dragover')});
   zone.addEventListener('dragleave',()=>zone.classList.remove('dragover'));
   zone.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('dragover');handleFiles(e.dataTransfer.files)});
@@ -427,21 +399,26 @@ function handleFiles(files){
   }
   showUploadState();
   detectGender();
-  updateBtn();
 }
 
 function showUploadState(){
   const zone=$('uploadZone');
-  if(!state.photo){zone.classList.remove('has-file');$('uploadEmpty').style.display='';$('uploadFilled').style.display='none';$('clearBtn').style.display='none';$('previewGrid').innerHTML='';return;}
-  zone.classList.add('has-file');$('uploadEmpty').style.display='none';$('uploadFilled').style.display='';$('clearBtn').style.display='flex';
+  if(!state.photo){
+    zone.classList.remove('has-file');$('uploadEmpty').style.display='';
+    $('uploadFilled').style.display='none';$('clearBtn').style.display='none';
+    $('previewGrid').innerHTML='';return;
+  }
+  zone.classList.add('has-file');$('uploadEmpty').style.display='none';
+  $('uploadFilled').style.display='';$('clearBtn').style.display='flex';
   $('previewThumb').src=URL.createObjectURL(state.photo);
   $('fileName').textContent=state.photo.name;
-  $('fileMeta').textContent=state.isBulk?`${state.photos.length} ไฟล์ · ${(state.photo.size/1024).toFixed(0)}KB`:`${(state.photo.size/1024).toFixed(0)} KB`;
+  $('fileMeta').textContent=state.isBulk?`${state.photos.length} ไฟล์`:`${(state.photo.size/1024).toFixed(0)} KB`;
   $('bulkBadge').style.display=state.isBulk?'inline-flex':'none';
   if(state.isBulk)$('bulkBadge').textContent=`📸 ${state.photos.length} รูป`;
-  // Grid previews
   if(state.photos.length>1){
-    $('previewGrid').innerHTML=state.photos.slice(0,8).map((f,i)=>`<div class="preview-thumb"><img src="${URL.createObjectURL(f)}"><button class="remove" onclick="event.stopPropagation();removePhoto(${i})">✕</button></div>`).join('')+(state.photos.length>8?`<div class="preview-thumb" style="display:flex;align-items:center;justify-content:center;background:var(--surface2);font-size:.7rem;color:var(--dim)">+${state.photos.length-8}</div>`:'');
+    $('previewGrid').innerHTML=state.photos.slice(0,8).map((f,i)=>
+      `<div class="preview-thumb"><img src="${URL.createObjectURL(f)}"><button class="remove" onclick="event.stopPropagation();removePhoto(${i})">✕</button></div>`
+    ).join('')+(state.photos.length>8?`<div class="preview-thumb" style="display:flex;align-items:center;justify-content:center;background:var(--surface3);font-size:.7rem;color:var(--dim)">+${state.photos.length-8}</div>`:'');
   }else{
     $('previewGrid').innerHTML='';
   }
@@ -449,20 +426,17 @@ function showUploadState(){
 
 function removePhoto(i){
   state.photos.splice(i,1);
-  if(state.photos.length===0){clearFile();return;}
-  state.photo=state.photos[0];
-  state.isBulk=state.photos.length>1;
-  showUploadState();updateBtn();
+  if(!state.photos.length){clearFile();return;}
+  state.photo=state.photos[0];state.isBulk=state.photos.length>1;
+  showUploadState();
 }
 
 function clearFile(){
-  state.photo=null;state.photos=[];state.isBulk=false;state.gender='male';state.clothing='white_shirt';
+  state.photo=null;state.photos=[];state.isBulk=false;
+  state.gender='male';state.clothing='white_shirt';
   $('fileInput').value='';$('genderBadge').innerHTML='';$('bulkBadge').style.display='none';
-  showUploadState();renderClothing();updateBtn();
+  showUploadState();renderClothing();
 }
-
-// Gender
-function setupGender(){}// auto-detected
 
 async function detectGender(){
   if(!state.photo)return;
@@ -472,31 +446,31 @@ async function detectGender(){
     const r=await fetch(`${API}/detect-gender`,{method:'POST',body:fd});
     const d=await r.json();
     if(d.ok&&d.gender){
-      state.gender=d.gender;state.clothing=state.gender==='male'?'white_shirt':'white_blouse';
+      state.gender=d.gender;
+      state.clothing=state.gender==='male'?'white_shirt':'white_blouse';
       $('genderBadge').innerHTML=`<span class="gender-badge">${d.gender==='male'?'👨':'👩'} ${d.gender}</span>`;
       renderClothing();
     }
-  }catch(e){}
+  }catch(e){console.error('Gender detect error:',e);}
 }
 
-// Countries
-function renderCountries(){
-  $('countryGrid').innerHTML=tplData.map(t=>`
-    <div class="country-chip ${t.key===state.template?'active':''}" data-key="${t.key}" onclick="selectCountry('${t.key}')">
-      <span class="flag">${t.flag||'🏳️'}</span>
-      <span class="name">${t.name}</span>
-      <span class="size">${t.width_mm}×${t.height_mm}</span>
-    </div>
-  `).join('');
-}
-
-function selectCountry(key){
-  state.template=key;state.customW=null;state.customH=null;
-  document.querySelectorAll('.country-chip').forEach(c=>c.classList.toggle('active',c.dataset.key===key));
-}
-
-// Custom Size
-function setupCustom(){
+function setupNavigation(){
+  // Step clicks
+  document.querySelectorAll('.step').forEach(s=>{
+    s.addEventListener('click',()=>{
+      const sn=+s.dataset.step;
+      if(sn<=state.step||(sn===2&&state.photo)||(sn===3&&state.sessionId))goStep(sn);
+    });
+  });
+  // Back button
+  $('backBtn').addEventListener('click',()=>goStep(1));
+  // Generate
+  $('genBtn').addEventListener('click',generate);
+  // Result actions
+  $('dlPassport').addEventListener('click',()=>dl('passport'));
+  $('dlPrint').addEventListener('click',()=>dl('print'));
+  $('retryBtn').addEventListener('click',()=>{goStep(1);clearFile()});
+  // Custom size
   $('customBtn').addEventListener('click',()=>{
     const w=parseInt($('customW').value),h=parseInt($('customH').value);
     if(w>0&&h>0){state.customW=w;state.customH=h;state.template='custom';
@@ -504,45 +478,9 @@ function setupCustom(){
       toast(`กำหนดขนาด ${w}×${h}mm`);
     }
   });
-}
-
-// Clothing
-function renderClothing(){
-  const data=state.gender==='male'?clothingData.male:clothingData.female;
-  $('clothingCount').textContent=data.length;
-  $('clothingCarousel').innerHTML=data.map(c=>`
-    <div class="carousel-item ${c.key===state.clothing?'active':''}" onclick="selectClothing('${c.key}')">
-      <img src="/img/clothing/${state.gender}/${c.key}.png" alt="${c.name_th}" loading="lazy">
-      <div class="label">${c.name_th}</div>
-      <div class="check">✓</div>
-    </div>
-  `).join('');
-}
-
-function selectClothing(key){state.clothing=key;renderClothing();}
-
-function scrollCarousel(id,dir){
-  const el=$('clothingCarousel');
-  el.scrollBy({left:dir*120,behavior:'smooth'});
-}
-
-// Background
-function renderBg(){
-  $('bgRow').innerHTML=bgData.map(b=>`
-    <div class="bg-dot ${b.key===state.background?'active':''}" style="background:${b.color||b.key}" 
-         onclick="selectBg('${b.key}')" title="${b.name_th}"></div>
-  `).join('')+'<div class="color-wrap"><div class="bg-dot custom" title="สีอื่น">+</div><input type="color" value="#C4DCFF" onchange="selectCustomBg(this.value)"></div>';
-}
-
-function selectBg(key){state.background=key;state.bgCustom=null;renderBg();}
-function selectCustomBg(color){state.bgCustom=color;state.background='custom';renderBg();}
-
-// Navigation
-function setupNav(){
-  $('genBtn').addEventListener('click',generate);
-  $('dlPassport').addEventListener('click',()=>dl('passport'));
-  $('dlPrint').addEventListener('click',()=>dl('print'));
-  $('retryBtn').addEventListener('click',()=>{goStep(1);clearFile()});
+  // Carousel arrows
+  $('clothingLeft').addEventListener('click',()=>{$('clothingCarousel').scrollBy({left:-120,behavior:'smooth'})});
+  $('clothingRight').addEventListener('click',()=>{$('clothingCarousel').scrollBy({left:120,behavior:'smooth'})});
 }
 
 function goStep(n){
@@ -554,21 +492,70 @@ function goStep(n){
     if(sn===n)s.classList.add('active');
     else if(sn<n)s.classList.add('done');
   });
-  updateBtn();
+  $('genBtn').disabled=!state.photo;
 }
 
-function updateBtn(){
-  const btn=$('genBtn');
-  if(state.step===1){
-    if(state.photo){goStep(2);}
+function renderCountries(){
+  $('countryGrid').innerHTML=tplData.map(t=>
+    `<div class="country-chip ${t.code===state.template?'active':''}" data-key="${t.code}">
+      <span class="flag">${FLAGS[t.country]||'🏳️'}</span>
+      <span class="name">${t.name}</span>
+      <span class="size">${t.width_mm}×${t.height_mm}</span>
+    </div>`
+  ).join('');
+  document.querySelectorAll('.country-chip').forEach(c=>{
+    c.addEventListener('click',()=>{
+      state.template=c.dataset.key;state.customW=null;state.customH=null;
+      document.querySelectorAll('.country-chip').forEach(x=>x.classList.remove('active'));
+      c.classList.add('active');
+    });
+  });
+}
+
+function renderClothing(){
+  const data=state.gender==='male'?clothingData.male:clothingData.female;
+  if(!data||!data.length){
+    $('clothingCarousel').innerHTML='<div style="padding:20px;color:var(--muted);font-size:.8rem">ไม่มีข้อมูลเสื้อผ้า</div>';
+    $('clothingCount').textContent='0';return;
   }
+  $('clothingCount').textContent=data.length;
+  $('clothingCarousel').innerHTML=data.map(c=>
+    `<div class="carousel-item ${c.key===state.clothing?'active':''}" data-key="${c.key}">
+      <img src="/img/clothing/${state.gender}/${c.key}.png" alt="${c.name}" loading="lazy"
+           onerror="this.style.background='var(--surface3)'">
+      <div class="label">${c.name}</div>
+      <div class="check">✓</div>
+    </div>`
+  ).join('');
+  document.querySelectorAll('.carousel-item').forEach(item=>{
+    item.addEventListener('click',()=>{
+      state.clothing=item.dataset.key;
+      document.querySelectorAll('.carousel-item').forEach(x=>x.classList.remove('active'));
+      item.classList.add('active');
+    });
+  });
 }
 
-// Generate
+function renderBg(){
+  $('bgRow').innerHTML=bgData.map(b=>
+    `<div class="bg-dot ${b.key===state.background?'active':''}" style="background:${b.hex||'#ccc'}" data-key="${b.key}" title="${b.name}"></div>`
+  ).join('')+'<div class="color-wrap"><div class="bg-dot custom" title="สีอื่น">+</div><input type="color" value="#C4DCFF" id="customColor"></div>';
+  document.querySelectorAll('.bg-dot:not(.custom)').forEach(d=>{
+    d.addEventListener('click',()=>{
+      state.background=d.dataset.key;state.bgCustom=null;
+      document.querySelectorAll('.bg-dot').forEach(x=>x.classList.remove('active'));
+      d.classList.add('active');
+    });
+  });
+  $('customColor').addEventListener('input',e=>{
+    state.bgCustom=e.target.value;state.background='custom';
+    document.querySelectorAll('.bg-dot').forEach(x=>x.classList.remove('active'));
+  });
+}
+
 async function generate(){
   if(!state.photo)return;
   if(state.isBulk&&state.photos.length>1)return generateBulk();
-  
   showOverlay('กำลังสร้างรูป...');
   try{
     const b64=await toBase64(state.photo);
@@ -608,8 +595,7 @@ function showResult(d){
   if(d.download_print){$('printImg').src=`${API}/download/${d.session_id}_print.jpg?t=${Date.now()}`;$('printSection').style.display='';}
   else $('printSection').style.display='none';
   $('bulkList').style.display='none';
-  goStep(3);
-  toast('✅ สำเร็จ!');
+  goStep(3);toast('✅ สำเร็จ!');
 }
 
 function showBulkResult(d){
@@ -625,11 +611,9 @@ function showBulkResult(d){
   }
   $('bulkList').innerHTML=html;$('bulkList').style.display='';
   $('printSection').style.display='none';
-  goStep(3);
-  toast(`✅ ${d.success}/${d.total} สำเร็จ`);
+  goStep(3);toast(`✅ ${d.success}/${d.total} สำเร็จ`);
 }
 
-// Helpers
 function toBase64(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(file);});}
 function dl(type){if(!state.sessionId)return;const a=document.createElement('a');a.href=`${API}/download/${state.sessionId}_${type}.jpg`;a.download=`passport_${type}.jpg`;a.click();}
 function showOverlay(t){$('overlayText').textContent=t;$('overlay').classList.add('show');}

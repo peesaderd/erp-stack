@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>🎫 รับคิว — GPS Queue</title>
+    <link rel="manifest" href="/kiosk/manifest.json">
+    <meta name="theme-color" content="#3b82f6">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="/kiosk/icon-192.png">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Noto Sans Thai', 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #e2e8f0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .kiosk-container { max-width: 480px; width: 100%; text-align: center; }
+        .shop-logo { font-size: 4em; margin-bottom: 10px; }
+        .shop-name { font-size: 1.8em; font-weight: 700; color: #38bdf8; margin-bottom: 5px; }
+        .shop-sub { color: #94a3b8; font-size: 0.95em; margin-bottom: 30px; }
+
+        .qr-section {
+            background: #ffffff; border-radius: 16px; padding: 24px;
+            margin-bottom: 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        .qr-section h2 { color: #1e293b; font-size: 1.1em; margin-bottom: 12px; }
+        .qr-code {
+            width: 200px; height: 200px; margin: 0 auto 12px; background: #f1f5f9;
+            border-radius: 12px; display: flex; align-items: center; justify-content: center;
+        }
+        .qr-code canvas { border-radius: 8px; }
+        .qr-hint { color: #64748b; font-size: 0.85em; }
+
+        .checkin-card {
+            background: #1e293b; border-radius: 16px; padding: 24px;
+            border: 1px solid #334155; margin-bottom: 24px;
+        }
+        .checkin-card h2 { font-size: 1.2em; color: #38bdf8; margin-bottom: 16px; }
+        .form-group { margin-bottom: 16px; text-align: left; }
+        .form-group label { display: block; color: #94a3b8; font-size: 0.85em; margin-bottom: 6px; }
+        .form-group input {
+            width: 100%; padding: 14px 16px; background: #0f172a; border: 1px solid #334155;
+            border-radius: 10px; color: #e2e8f0; font-size: 1.1em; outline: none;
+        }
+        .form-group input:focus { border-color: #3b82f6; }
+        .form-group input::placeholder { color: #475569; }
+
+        .checkin-btn {
+            width: 100%; padding: 16px; background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white; border: none; border-radius: 12px; font-size: 1.3em;
+            font-weight: 700; cursor: pointer; transition: all 0.2s; margin-top: 8px;
+        }
+        .checkin-btn:hover { transform: translateY(-1px); }
+        .checkin-btn:active { transform: translateY(0); }
+        .checkin-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .queue-types { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+        .queue-type-btn {
+            padding: 12px; background: #0f172a; border: 2px solid #334155; border-radius: 10px;
+            color: #e2e8f0; font-size: 0.95em; cursor: pointer; text-align: center;
+        }
+        .queue-type-btn.active { border-color: #3b82f6; background: #1e3a5f; color: #38bdf8; }
+        .queue-type-btn .icon { font-size: 1.5em; display: block; margin-bottom: 4px; }
+
+        .result-card {
+            background: linear-gradient(135deg, #065f46, #064e3b); border-radius: 16px;
+            padding: 30px; border: 1px solid #10b981; display: none;
+        }
+        .result-card.show { display: block; animation: popIn 0.4s ease; }
+        @keyframes popIn { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        .result-ticket { font-size: 3em; font-weight: 800; color: #4ade80; margin: 10px 0; letter-spacing: 2px; }
+        .result-name { font-size: 1.2em; color: #a7f3d0; margin-bottom: 8px; }
+        .result-wait { font-size: 1em; color: #6ee7b7; }
+        .result-hint { margin-top: 16px; color: #6ee7b7; font-size: 0.85em; }
+
+        .status-board {
+            background: #1e293b; border-radius: 16px; padding: 20px;
+            border: 1px solid #334155; margin-top: 20px;
+        }
+        .status-board h3 { color: #38bdf8; font-size: 1em; margin-bottom: 12px; text-align: left; }
+        .queue-list { max-height: 200px; overflow-y: auto; }
+        .queue-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 12px; border-bottom: 1px solid #334155; font-size: 0.9em;
+        }
+        .queue-item:last-child { border-bottom: none; }
+        .queue-item .ticket-num { font-weight: 700; color: #38bdf8; }
+        .queue-item .status-badge { padding: 3px 10px; border-radius: 12px; font-size: 0.8em; }
+        .status-badge.waiting { background: #78350f; color: #fbbf24; }
+        .status-badge.called { background: #1e3a5f; color: #60a5fa; }
+        .live-dot {
+            width: 8px; height: 8px; background: #10b981; border-radius: 50%;
+            display: inline-block; animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+    </style>
+</head>
+<body>
+    <div class="kiosk-container">
+        <div class="shop-logo">🏪</div>
+        <div class="shop-name">ร้านของเรา</div>
+        <div class="shop-sub">แตะเพื่อรับคิว • Scan QR to check in</div>
+
+        <div class="qr-section">
+            <h2>📱 Scan QR to Check In via LINE</h2>
+            <div class="qr-code"><canvas id="qrCanvas"></canvas></div>
+            <div class="qr-hint">แสกน QR ด้วย LINE แล้วพิมพ์ <strong>/checkin ชื่อ</strong></div>
+        </div>
+
+        <div class="checkin-card" id="checkinCard">
+            <h2>🎫 รับคิวหน้าร้าน</h2>
+            <div class="form-group">
+                <label>ชื่อลูกค้า</label>
+                <input type="text" id="customerName" placeholder="กรอกชื่อ..." autocomplete="off">
+            </div>
+            <div class="queue-types">
+                <button class="queue-type-btn active" data-type="normal" onclick="selectType(this)">
+                    <span class="icon">🪑</span>นั่งทาน
+                </button>
+                <button class="queue-type-btn" data-type="takeaway" onclick="selectType(this)">
+                    <span class="icon">🥡</span>กลับบ้าน
+                </button>
+                <button class="queue-type-btn" data-type="preorder" onclick="selectType(this)">
+                    <span class="icon">📋</span>สั่งล่วงหน้า
+                </button>
+                <button class="queue-type-btn" data-type="vip" onclick="selectType(this)">
+                    <span class="icon">⭐</span>VIP
+                </button>
+            </div>
+            <div class="form-group" id="preorderSection" style="display:none">
+                <label>สั่งอาหารล่วงหน้า</label>
+                <input type="text" id="preorderItems" placeholder="เช่น ข้าวผัด x2, แกงส้ม x1">
+            </div>
+            <button class="checkin-btn" id="checkinBtn" onclick="doCheckin()">🎫 กดรับคิว</button>
+        </div>
+
+        <div class="result-card" id="resultCard">
+            <div>✅ เช็คอินสำเร็จ!</div>
+            <div class="result-name" id="resultName"></div>
+            <div class="result-ticket" id="resultTicket"></div>
+            <div class="result-wait" id="resultWait"></div>
+            <div class="result-hint">📱 LINE จะแจ้งเตือนเมื่อถึงคิวของคุณ</div>
+            <button class="checkin-btn" style="margin-top:16px;background:linear-gradient(135deg,#059669,#047857)" onclick="resetForm()">🎫 รับคิวใหม่</button>
+        </div>
+
+        <div class="status-board">
+            <h3><span class="live-dot"></span> คิวปัจจุบัน (Live)</h3>
+            <div class="queue-list" id="queueList"><div class="queue-item" style="color:#64748b">กำลังโหลด...</div></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script>
+        const API = '/api/queue';
+        let selectedType = 'normal';
+
+        // Generate QR pointing to LINE add friend
+        const lineAddFriend = 'https://line.me/R/ti/p/@your-liff-id';
+        QRCode.toCanvas(document.getElementById('qrCanvas'), lineAddFriend, {
+            width: 180, margin: 1, color: { dark: '#1e293b', light: '#ffffff' }
+        });
+
+        function selectType(btn) {
+            document.querySelectorAll('.queue-type-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            selectedType = btn.dataset.type;
+            document.getElementById('preorderSection').style.display =
+                selectedType === 'preorder' ? 'block' : 'none';
+        }
+
+        async function doCheckin() {
+            const name = document.getElementById('customerName').value.trim();
+            if (!name) { alert('กรุณากรอกชื่อลูกค้า'); return; }
+            const btn = document.getElementById('checkinBtn');
+            btn.disabled = true; btn.textContent = '⏳ กำลังรับคิว...';
+
+            const body = { customer_name: name, source: 'kiosk', queue_type: selectedType };
+            if (selectedType === 'preorder')
+                body.pre_order_items = document.getElementById('preorderItems').value.trim();
+
+            try {
+                const res = await fetch(`${API}/check-in`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const data = await res.json();
+                if (data.ticket_number) {
+                    document.getElementById('checkinCard').style.display = 'none';
+                    document.getElementById('resultCard').classList.add('show');
+                    document.getElementById('resultName').textContent = 'คุณ' + name;
+                    document.getElementById('resultTicket').textContent = data.ticket_number;
+                    document.getElementById('resultWait').textContent =
+                        '⏳ คาดว่าจะได้คิวภายใน ' + (data.estimated_wait_minutes || '?') + ' นาที';
+                    loadQueue();
+                } else {
+                    alert('เกิดข้อผิดพลาด: ' + JSON.stringify(data));
+                }
+            } catch (e) { alert('เชื่อมต่อไม่ได้: ' + e.message); }
+            btn.disabled = false; btn.textContent = '🎫 กดรับคิว';
+        }
+
+        function resetForm() {
+            document.getElementById('checkinCard').style.display = 'block';
+            document.getElementById('resultCard').classList.remove('show');
+            document.getElementById('customerName').value = '';
+            document.getElementById('preorderItems').value = '';
+            selectType(document.querySelector('[data-type="normal"]'));
+        }
+
+        async function loadQueue() {
+            try {
+                const res = await fetch(API);
+                const tickets = await res.json();
+                const list = document.getElementById('queueList');
+                if (!tickets.length) {
+                    list.innerHTML = '<div class="queue-item" style="color:#64748b">ยังไม่มีคิว</div>';
+                    return;
+                }
+                list.innerHTML = tickets.map(t => `
+                    <div class="queue-item">
+                        <span class="ticket-num">${t.ticket_number || t.id.slice(0,8)}</span>
+                        <span>${t.customer_name || '-'}</span>
+                        <span class="status-badge ${t.status}">${
+                            t.status==='waiting'?'⏳ รอ':t.status==='called'?'📢 เรียกแล้ว':t.status
+                        }</span>
+                    </div>`).join('');
+            } catch (e) { console.error(e); }
+        }
+
+        loadQueue(); setInterval(loadQueue, 5000);
+        document.getElementById('customerName').addEventListener('keypress', e => {
+            if (e.key === 'Enter') doCheckin();
+        });
+
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/kiosk/sw.js').then(reg => {
+                console.log('SW registered:', reg.scope);
+            }).catch(err => console.error('SW failed:', err));
+        }
+    </script>
+</body>
+</html>

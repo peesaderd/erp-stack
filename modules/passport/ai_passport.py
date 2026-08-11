@@ -195,11 +195,12 @@ def crop_passport(image: np.ndarray) -> np.ndarray:
     face_center_x = x + fw // 2
     face_center_y = y + fh // 2
 
-    crop_h = int(fh / 0.40)
+    crop_h = int(fh / 0.35)  # Face smaller in frame = more space around
     crop_w = int(crop_h * target_ratio)
 
     crop_x1 = max(0, face_center_x - crop_w // 2)
-    crop_y1 = max(0, int(face_center_y - crop_h * 0.30))
+    # Place face center at 38% from top (more head space above)
+    crop_y1 = max(0, int(face_center_y - crop_h * 0.38))
 
     if crop_x1 + crop_w > w: crop_x1 = w - crop_w
     if crop_y1 + crop_h > h: crop_y1 = h - crop_h

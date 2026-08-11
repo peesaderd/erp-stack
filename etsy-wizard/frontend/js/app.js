@@ -76,8 +76,6 @@ const App = {
               <span class="shop-name">· <strong>ArtisanCrafts</strong></span>
             </div>
             <div class="topbar-right">
-              <span class="status-badge">Live</span>
-              <button class="theme-toggle" onclick="App.toggleTheme()" title="Toggle theme">${this.themeIcon()}</button>
               <button class="btn btn-sm" onclick="DashboardPage.showConnect()">🔗 Connect Etsy API</button>
               <div class="avatar" title="ArtisanCrafts">AC</div>
             </div>

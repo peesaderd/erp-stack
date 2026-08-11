@@ -8,10 +8,14 @@ import random
 
 # ── Male Clothing ──────────────────────────────────────
 MALE_CLOTHING = {
+    "keep_original": {
+        "name": "เก็บชุดเดิม",
+        "prompt": "keep the person's original clothing exactly as it is, do not change clothing",
+        "default": True,
+    },
     "white_shirt": {
         "name": "เสื้อเชิ้ตสีขาว",
         "prompt": "white formal dress shirt, crisp white collar, professional business attire",
-        "default": True,
     },
     "blue_shirt": {
         "name": "เสื้อเชิ้ตสีน้ำเงิน",
@@ -33,10 +37,14 @@ MALE_CLOTHING = {
 
 # ── Female Clothing ────────────────────────────────────
 FEMALE_CLOTHING = {
+    "keep_original": {
+        "name": "เก็บชุดเดิม",
+        "prompt": "keep the person's original clothing exactly as it is, do not change clothing",
+        "default": True,
+    },
     "white_blouse": {
         "name": "เสื้อ.blouse สีขาว",
         "prompt": "white formal blouse, professional business attire, modest neckline",
-        "default": True,
     },
     "pink_blouse": {
         "name": "เสื้อ.blouse สีชมพู",
@@ -53,6 +61,18 @@ FEMALE_CLOTHING = {
     "white_turtleneck": {
         "name": "เสื้อคอกลมสีขาว",
         "prompt": "white turtleneck top, professional business attire, modest neckline",
+    },
+    "red_blouse": {
+        "name": "เสื้อ.blouse สีแดง",
+        "prompt": "red formal blouse, professional business attire, modest neckline",
+    },
+    "green_blouse": {
+        "name": "เสื้อ.blouse สีเขียว",
+        "prompt": "green formal blouse, professional business attire, modest neckline",
+    },
+    "purple_blouse": {
+        "name": "เสื้อ.blouse สีม่วง",
+        "prompt": "purple formal blouse, professional business attire, modest neckline",
     },
 }
 

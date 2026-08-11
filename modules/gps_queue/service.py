@@ -413,6 +413,60 @@ class GPSQueueHandler(BaseHTTPRequestHandler):
         path = parsed.path
         params = parse_qs(parsed.query)
         
+        # Serve kiosk HTML
+        if path in ("/kiosk", "/kiosk.html"):
+            kiosk_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "kiosk.html")
+            try:
+                with open(kiosk_path, "r") as f:
+                    html = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.end_headers()
+                self.wfile.write(html.encode())
+            except FileNotFoundError:
+                self._send_json({"error": "kiosk.html not found"}, 404)
+            return
+
+        # PWA assets
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        if path == "/kiosk/manifest.json":
+            fpath = os.path.join(base_dir, "manifest.json")
+            try:
+                with open(fpath, "r") as f:
+                    data = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(data.encode())
+            except FileNotFoundError:
+                self._send_json({"error": "not found"}, 404)
+            return
+        if path == "/kiosk/sw.js":
+            fpath = os.path.join(base_dir, "sw.js")
+            try:
+                with open(fpath, "r") as f:
+                    data = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/javascript")
+                self.end_headers()
+                self.wfile.write(data.encode())
+            except FileNotFoundError:
+                self._send_json({"error": "not found"}, 404)
+            return
+        if path.startswith("/kiosk/icon-"):
+            fname = path.split("/")[-1]
+            fpath = os.path.join(base_dir, fname)
+            try:
+                with open(fpath, "rb") as f:
+                    data = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "image/png")
+                self.end_headers()
+                self.wfile.write(data)
+            except FileNotFoundError:
+                self._send_json({"error": "not found"}, 404)
+            return
+
         # Serve dashboard HTML
         if path in ("/dashboard", "/dashboard.html"):
             dashboard_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dashboard.html")

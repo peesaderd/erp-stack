@@ -48,6 +48,10 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#f8fafc;min-height:
 .citem.on .lb{color:#6366f1}
 .citem .ck{position:absolute;top:3px;right:3px;width:16px;height:16px;border-radius:50%;background:#6366f1;color:#fff;display:none;align-items:center;justify-content:center;font-size:8px;font-weight:700}
 .citem.on .ck{display:flex}
+.gender-tabs{display:flex;gap:6px;margin-bottom:10px}
+.gtab{flex:1;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;cursor:pointer;font-size:.72rem;font-weight:600;color:#64748b;transition:.2s}
+.gtab:hover{border-color:#6366f1;color:#6366f1}
+.gtab.active{background:#6366f1;color:#fff;border-color:#6366f1}
 .carro{position:absolute;top:50%;transform:translateY(-50%);width:24px;height:24px;border-radius:50%;background:#fff;border:1px solid #e2e8f0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:10px;color:#64748b;z-index:2}
 .carro:hover{background:#6366f1;color:#fff;border-color:#6366f1}
 .carro.L{left:-6px}.carro.R{right:-6px}
@@ -111,6 +115,10 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#f8fafc;min-height:
 <div class="crow"><input type="number" id="cw" placeholder="W mm" min="10" max="200"><span>&#xD7;</span><input type="number" id="ch" placeholder="H mm" min="10" max="200"><button id="cb">Custom</button></div>
 </div></div>
 <div class="card" style="margin-top:12px"><div class="card-h">&#x1F454; Clothing <span style="float:right;font-size:.58rem;background:#6366f1;color:#fff;padding:1px 5px;border-radius:8px" id="cc">0</span></div><div class="card-b" style="padding:10px 12px">
+<div class="gender-tabs" id="gt">
+  <button class="gtab active" data-g="male">&#x1F468; Men</button>
+  <button class="gtab" data-g="female">&#x1F469; Women</button>
+</div>
 <div class="caro"><button class="carro L" id="cL">&#x25C0;</button><div class="caro-list" id="cl"></div><button class="carro R" id="cR">&#x25B6;</button></div>
 </div></div>
 <div class="card" style="margin-top:12px"><div class="card-h">&#x1F3A8; Background</div><div class="card-b"><div class="bgrow" id="bgr"></div></div></div>
@@ -231,6 +239,19 @@ function setupUI(){
   $('cs').addEventListener('change',function(){S.tpl=this.value;S.cw=null;S.ch=null});
   $('cL').addEventListener('click',function(){$('cl').scrollBy({left:-100,behavior:'smooth'})});
   $('cR').addEventListener('click',function(){$('cl').scrollBy({left:100,behavior:'smooth'})});
+  
+  // Gender tabs
+  var tabs=document.querySelectorAll('.gtab');
+  for(var t=0;t<tabs.length;t++){
+    tabs[t].addEventListener('click',function(){
+      var all=document.querySelectorAll('.gtab');
+      for(var x=0;x<all.length;x++)all[x].classList.remove('active');
+      this.classList.add('active');
+      S.gender=this.dataset.g;
+      S.clothing=S.gender==='male'?'keep_original':'keep_original';
+      renderClothes();
+    });
+  }
 }
 
 function handleFiles(files){

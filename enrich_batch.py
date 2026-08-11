@@ -83,19 +83,22 @@ def update_product(conn, pid, product):
     ))
     conn.commit()
     
-    # Sync to PostgreSQL analyzed_products
+    # Sync to PostgreSQL analyzed_products (thread to avoid asyncio.run conflict)
     try:
-        async def _sync_pg():
-            import asyncpg
-            DSN = os.environ.get('PRODUCTDB_DSN', 'postgresql://openhands:OpenHands%40ERP2026@127.0.0.1:5432/erp_stack')
-            pg = await asyncpg.connect(DSN)
-            await pg.execute('''
-                UPDATE analyzed_products
-                SET gender = $1, target_age = $2, hashtags = $3, updated_at = NOW()::text
-                WHERE product_id = $4
-            ''', product.gender or '', product.target_age or '', json.dumps(product.hashtags), pid)
-            await pg.close()
-        asyncio.run(_sync_pg())
+        import threading
+        def _sync_pg():
+            import asyncio as _aio, asyncpg
+            async def _do():
+                DSN = os.environ.get('PRODUCTDB_DSN', 'postgresql://openhands:OpenHands%40ERP2026@127.0.0.1:5432/erp_stack')
+                pg = await asyncpg.connect(DSN)
+                await pg.execute('''
+                    UPDATE analyzed_products
+                    SET gender = $1, target_age = $2, hashtags = $3, updated_at = NOW()::text
+                    WHERE product_id = $4
+                ''', product.gender or '', product.target_age or '', json.dumps(product.hashtags), pid)
+                await pg.close()
+            _aio.run(_do())
+        threading.Thread(target=_sync_pg, daemon=True).start()
     except Exception as e:
         logger.warning(f"PostgreSQL sync failed for {pid}: {e}")
 

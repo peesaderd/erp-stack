@@ -355,6 +355,8 @@ async function autoGenerateAll() {
         product_url: url,
         product_description: details,
         product_image: imageUrl,
+        product_price: parseFloat(sessionStorage.getItem('selectedProductPrice')) || undefined,
+        product_commission: parseFloat(sessionStorage.getItem('selectedProductCommission')) || undefined,
         hook: document.getElementById('scriptHook')?.value || '',
         value: document.getElementById('scriptValue')?.value || '',
         cta: document.getElementById('scriptCta')?.value || '',
@@ -2501,9 +2503,35 @@ function useProduct(jsonEncoded) {
     document.getElementById("productTitle").value = p.title || "";
     document.getElementById("productDetails").value = (p.description_th || p.description || "");
 
-    // Auto-select UGC style to match the product's category
-    const autoCard = document.querySelector('#styleModalGrid [data-style="auto"]');
-    if (autoCard) selectStyleFromModal(autoCard, "auto");
+    // ── Auto-select Recipe based on category ──
+    const cat = (p.category || "").toLowerCase();
+    const recipeMap = {
+      'skincare': 'skincare', 'beauty': 'skincare', 'ความงาม': 'skincare',
+      'hair care': 'gadget', 'haircare': 'gadget',
+      'gadget': 'gadget', 'electronics': 'gadget', 'เทคโนโลยี': 'gadget',
+      'fashion': 'fashion', 'แฟชั่น': 'fashion', 'clothing': 'fashion',
+      'food': 'food', 'อาหาร': 'food', 'snack': 'food', 'เครื่องดื่ม': 'food',
+      'makeup': 'makeup', 'เครื่องสำอาง': 'makeup', 'cosmetics': 'makeup',
+      'fitness': 'fitness', 'กีฬา': 'fitness', 'สุขภาพ': 'fitness',
+    };
+    let recipeName = 'gadget'; // default
+    for (const [key, val] of Object.entries(recipeMap)) {
+      if (cat.includes(key)) { recipeName = val; break; }
+    }
+    if (typeof selectRecipe === 'function') selectRecipe(recipeName);
+
+    // ── Auto-select Gender ──
+    const genderMap = { 'หญิง': 'female', 'หญิง/ชาย': 'female', 'male': 'male', 'ชาย': 'male' };
+    const g = (p.gender || "").toLowerCase();
+    const genderVal = genderMap[g] || (g === 'male' ? 'male' : 'female');
+    const genderEl = document.getElementById('genderSelect');
+    if (genderEl) genderEl.value = genderVal;
+
+    // ── Auto-select Country (default thai) ──
+    const countryEl = document.getElementById('countrySelect');
+    if (countryEl) countryEl.value = 'thai';
+
+    // ── Product Image ──
     if (p.images && p.images[0]) {
       const img = p.images[0];
       uploadedImages.product = img.startsWith("http") ? img : window.location.origin + img;
@@ -2512,9 +2540,17 @@ function useProduct(jsonEncoded) {
       zone.classList.add("has-image");
       pl.innerHTML = "<img class=\"preview\" src=\"" + p.images[0] + "\" alt=\"product\"><button class=\"remove-img\" onclick=\"event.stopPropagation();removeImage(\x27product\x27)\">✕</button>";
     }
+
+    // ── Store price/commission for auto-generate ──
+    if (p.price_thb) sessionStorage.setItem('selectedProductPrice', p.price_thb);
+    if (p.commission_rate) sessionStorage.setItem('selectedProductCommission', p.commission_rate);
+
+    // ── Go to Step 1 (Product) ──
     switchTab("content");
     goContentStep(1);
-    showToast("✅ " + (p.title || "").slice(0,40), "success");
+    const catLabel = p.category || "-";
+    const recipeLabel = recipeName;
+    showToast("✅ " + (p.title || "").slice(0,40) + " | " + recipeLabel + " | " + genderVal, "success");
   } catch(e) { showToast("Error: " + e.message, "error"); }
 }
 

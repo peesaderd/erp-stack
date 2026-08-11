@@ -472,7 +472,6 @@ class VoicePOS {
     cleanText = cleanText.replace(/[^\u0e00-\u0e7fa-zA-Z0-9 \t.,!?-]/g, ' ').replace(/\s+/g, ' ').trim();
     if (!cleanText) return;
     if (this.synthesis.speaking) this.synthesis.cancel();
-    }
 
     const utterance = new SpeechSynthesisUtterance(cleanText);
     utterance.lang = 'th-TH';

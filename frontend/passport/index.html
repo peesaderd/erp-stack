@@ -10,9 +10,9 @@
 *{box-sizing:border-box;margin:0;padding:0}
 html{overflow-x:hidden;width:100%}
 body{font-family:'Inter',-apple-system,sans-serif;background:#f8fafc;min-height:100vh;color:#0f172a;overflow-x:hidden;width:100%}
-.hdr{padding:16px 16px 8px;max-width:960px;margin:0 auto;display:flex;align-items:center;gap:8px}
+.hdr{padding:16px 16px 8px;max-width:960px;margin:0 auto;display:flex;align-items:center;gap:8px;overflow:visible;position:relative;z-index:10}
 .tabs{display:flex;gap:4px;flex-shrink:0}
-.tab{padding:6px 12px;border-radius:8px;font-size:.72rem;font-weight:600;text-decoration:none;color:#64748b;background:#fff;border:1px solid #e2e8f0;transition:.2s;white-space:nowrap}
+.tab{padding:6px 12px;border-radius:8px;font-size:.72rem;font-weight:600;text-decoration:none;color:#64748b;background:#fff;border:1px solid #e2e8f0;transition:.2s;white-space:nowrap;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .tab:hover{border-color:#6366f1;color:#6366f1}
 .tab.active{background:#6366f1;color:#fff;border-color:#6366f1}
 .hdr h1{font-size:1.1rem;font-weight:800;white-space:nowrap}

@@ -2,15 +2,19 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Print Sheet — Passport Photo Studio</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Inter',-apple-system,sans-serif;background:#f8fafc;min-height:100vh;color:#0f172a}
-.hdr{padding:20px 16px 12px;max-width:960px;margin:0 auto;display:flex;align-items:center;gap:12px}
-.hdr h1{font-size:1.2rem;font-weight:800;flex:1}
-.hdr a{padding:7px 14px;background:#6366f1;color:#fff;border-radius:8px;text-decoration:none;font-size:.75rem;font-weight:600}
+.hdr{padding:16px 16px 8px;max-width:960px;margin:0 auto;display:flex;align-items:center;gap:8px}
+.tabs{display:flex;gap:4px;flex-shrink:0}
+.tab{padding:6px 12px;border-radius:8px;font-size:.72rem;font-weight:600;text-decoration:none;color:#64748b;background:#fff;border:1px solid #e2e8f0;transition:.2s;white-space:nowrap;cursor:pointer}
+.tab:hover{border-color:#6366f1;color:#6366f1}
+.tab.active{background:#6366f1;color:#fff;border-color:#6366f1}
+.hdr h1{font-size:1.1rem;font-weight:800;white-space:nowrap}
+.hdr .price{font-size:.65rem;color:#6366f1;font-weight:600;background:#eef2ff;padding:4px 8px;border-radius:20px;white-space:nowrap;flex-shrink:0;margin-left:auto}
 .page{max-width:960px;margin:0 auto;padding:0 16px 60px}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
 .card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06)}
@@ -34,7 +38,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#f8fafc;min-height:
 .result{margin-top:16px}
 .result img{width:100%;border-radius:12px;background:#f1f5f9;box-shadow:0 4px 16px rgba(0,0,0,.08)}
 .rbtns{display:flex;gap:8px;margin-top:12px}
-.rbtn{flex:1;padding:10px;border:none;border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer;text-align:center}
+.rbtn{flex:1;padding:10px;border:none;border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer;text-align:center;text-decoration:none}
 .rbtn.dl{background:#10b981;color:#fff}.rbtn.dl:hover{filter:brightness(1.1)}
 .rbtn.print{background:#6366f1;color:#fff}.rbtn.print:hover{filter:brightness(1.1)}
 .info{background:#f1f5f9;border-radius:8px;padding:10px 12px;margin-top:12px;font-size:.68rem;color:#64748b;line-height:1.5}
@@ -47,20 +51,17 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#f8fafc;min-height:
 @keyframes sp{to{transform:rotate(360deg)}}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(100px);background:#0f172a;color:#fff;border-radius:20px;padding:9px 18px;z-index:999;font-size:.75rem;font-weight:500;transition:transform .3s}
 .toast.show{transform:translateX(-50%) translateY(0)}
-.hamburger{position:relative}
-.hamburger-btn{background:none;border:none;font-size:1.3rem;cursor:pointer;padding:4px 8px;border-radius:6px;transition:.2s}
-.hamburger-btn:hover{background:#f1f5f9}
-.hamburger-menu{display:none;position:absolute;top:100%;right:0;background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);min-width:160px;z-index:100;padding:6px 0}
-.hamburger-menu.show{display:block}
-.hamburger-menu a{display:flex;align-items:center;gap:8px;padding:9px 16px;color:#0f172a;text-decoration:none;font-size:.78rem;font-weight:500;transition:.15s}
-.hamburger-menu a:hover{background:#f1f5f9;color:#6366f1}
 @media(max-width:768px){.row{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <div class="hdr">
+  <div class="tabs">
+    <a href="/passport/" class="tab">🏠 Home</a>
+    <a href="/passport/gallery.html" class="tab">📸 Gallery</a>
+    <a href="/passport/print.html" class="tab active">🖨 Print</a>
+  </div>
   <h1>🖨 Print Sheet</h1>
-  <div class="hamburger"><button class="hamburger-btn" onclick="toggleMenu()">☰</button><div class="hamburger-menu" id="hmenu"><a href="/passport/">🏠 Home</a><a href="/passport/gallery.html">📸 Gallery</a><a href="/passport/print.html">🖨 Print Sheet</a><a href="https://m2igen.com" target="_blank">🌐 Main Site</a></div></div>
 </div>
 <div class="ov" id="ov"><div class="sp"></div><div class="t">Generating...</div></div>
 <div class="toast" id="toast"></div>
@@ -134,7 +135,6 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#f8fafc;min-height:
 <script>
 var API='/api/passport';
 var photoFile=null;
-function toggleMenu(){var m=document.getElementById('hmenu');m.classList.toggle('show');document.addEventListener('click',function h(e){if(!e.target.closest('.hamburger')){m.classList.remove('show');document.removeEventListener('click',h)}})}
 
 document.getElementById('fi').addEventListener('change',function(e){
   var f=e.target.files[0];
@@ -153,7 +153,7 @@ document.getElementById('btn').addEventListener('click',generate);
 
 async function generate(){
   if(!photoFile)return;
-  showOv();
+  document.getElementById('ov').classList.add('show');
   try{
     var b64=await toB64(photoFile);
     var body={
@@ -167,7 +167,7 @@ async function generate(){
     var d=await r.json();
     if(!d.ok)throw new Error(d.detail||'Generation failed');
     showResult(d);
-  }catch(e){toast('Error: '+e.message,'err')}finally{hideOv()}
+  }catch(e){toast('Error: '+e.message,'err')}finally{document.getElementById('ov').classList.remove('show')}
 }
 
 function showResult(d){
@@ -186,8 +186,6 @@ function showResult(d){
 }
 
 function toB64(f){return new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(r.result.split(',')[1])};r.onerror=rej;r.readAsDataURL(f)})}
-function showOv(){document.getElementById('ov').classList.add('show')}
-function hideOv(){document.getElementById('ov').classList.remove('show')}
 function toast(m,t){var e=document.getElementById('toast');e.className='toast show '+(t||'');e.textContent=m;setTimeout(function(){e.className='toast'},3000)}
 
 // Check if session_id in URL (from gallery)
@@ -205,7 +203,7 @@ if(params.get('session_id')){
   // Override generate to use session_id
   var origGenerate=generate;
   generate=async function(){
-    showOv();
+    document.getElementById('ov').classList.add('show');
     try{
       var body={
         session_id:photoFile._sid,
@@ -227,7 +225,7 @@ if(params.get('session_id')){
         '<b>Photos:</b> '+(info.count||'?')+'<br>'+
         '<b>Layout:</b> '+(info.cols||'?')+'×'+(info.rows||'?');
       toast('Print sheet ready!');
-    }catch(e){toast('Error: '+e.message,'err')}finally{hideOv()}
+    }catch(e){toast('Error: '+e.message,'err')}finally{document.getElementById('ov').classList.remove('show')}
   };
 }
 </script>

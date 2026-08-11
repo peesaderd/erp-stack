@@ -157,7 +157,6 @@ var CD={male:[],female:[]},BD=[],TD=[];
 var FL={Thailand:'\u{1F1F9}\u{1F1ED}',Japan:'\u{1F1EF}\u{1F1F5}',China:'\u{1F1E8}\u{1F1F3}','South Korea':'\u{1F1F0}\u{1F1F7}','United States':'\u{1F1FA}\u{1F1F8}','United Kingdom':'\u{1F1EC}\u{1F1E7}','European Union':'\u{1F1EA}\u{1F1FA}',Canada:'\u{1F1E8}\u{1F1E6}',Australia:'\u{1F1E6}\u{1F1FA}',India:'\u{1F1EE}\u{1F1F3}',Singapore:'\u{1F1F8}\u{1F1EC}',Malaysia:'\u{1F1F2}\u{1F1FE}',Philippines:'\u{1F1F5}\u{1F1ED}',Indonesia:'\u{1F1EE}\u{1F1E9}',Vietnam:'\u{1F1FB}\u{1F1F3}',Cambodia:'\u{1F1F0}\u{1F1ED}',Laos:'\u{1F1F1}\u{1F1E6}',Myanmar:'\u{1F1F2}\u{1F1E2}','Hong Kong':'\u{1F1ED}\u{1F1F0}',France:'\u{1F1EB}\u{1F1F7}',Germany:'\u{1F1E9}\u{1F1EA}'};
 
 function $(id){return document.getElementById(id)}
-function toggleMenu(){var m=$('hmenu');m.classList.toggle('show');document.addEventListener('click',function h(e){if(!e.target.closest('.hamburger')){m.classList.remove('show');document.removeEventListener('click',h)}})}
 
 async function boot(){
   try{

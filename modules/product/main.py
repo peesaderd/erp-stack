@@ -213,6 +213,13 @@ async def lifespan(app: FastAPI):
     scheduler_task = asyncio.create_task(start_scheduler())
     logger.info("Background scheduler started")
 
+    # Install TUS Guard — block direct writes to tus_products.db
+    try:
+        from product.tus_guard import is_guard_enabled
+        logger.info(f"TUS Guard: {'ENABLED' if is_guard_enabled() else 'DISABLED'}")
+    except Exception as e:
+        logger.warning(f"TUS Guard install skipped: {e}")
+
     yield
 
 
@@ -915,6 +922,77 @@ async def list_platforms():
         "success": True,
         "platforms": list(_platform_scrapers.keys()),
     }
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Unified Product Pipeline — Scraper → Analyzer → TUS Product
+# ═══════════════════════════════════════════════════════════════════════════
+
+class PipelineIngestRequest(BaseModel):
+    url: str
+    source: str = "url"
+    use_vision: bool = True
+
+
+class PipelineSyncRequest(BaseModel):
+    product_id: Optional[str] = None  # None = sync all
+
+
+@app.post("/api/v1/pipeline/ingest")
+async def pipeline_ingest(req: PipelineIngestRequest):
+    """Single entry point: URL → Scraper → Analyzer → TUS Product."""
+    from product.pipeline_service import ingest_from_url
+    result = await ingest_from_url(
+        url=req.url,
+        source=req.source,
+        use_vision=req.use_vision,
+    )
+    return result.to_dict()
+
+
+@app.post("/api/v1/pipeline/ingest/apify")
+async def pipeline_ingest_apify(data: dict):
+    """Single entry point: Apify data → Analyzer → TUS Product."""
+    from product.pipeline_service import ingest_from_apify
+    result = await ingest_from_apify(
+        apify_data=data,
+        source="apify",
+    )
+    return result.to_dict()
+
+
+@app.post("/api/v1/pipeline/sync")
+async def pipeline_sync(req: PipelineSyncRequest = None):
+    """Sync PostgreSQL → tus_products.db. ONLY way to update TUS products."""
+    from product.pipeline_service import sync_all_to_tus
+    result = await sync_all_to_tus()
+    return {"success": True, **result}
+
+
+@app.get("/api/v1/pipeline/status")
+async def pipeline_status(run_id: str = None):
+    """Check pipeline run status."""
+    from product.pipeline_service import get_pipeline_status
+    return get_pipeline_status(run_id)
+
+
+@app.get("/api/v1/pipeline/guard")
+async def pipeline_guard_status():
+    """Check TUS Guard status and violations."""
+    from product.tus_guard import get_violations, is_guard_enabled
+    return {
+        "guard_enabled": is_guard_enabled(),
+        "violations_count": len(get_violations()),
+        "recent_violations": get_violations()[-5:],
+    }
+
+
+@app.post("/api/v1/pipeline/guard/toggle")
+async def pipeline_guard_toggle(enabled: bool = True):
+    """Toggle TUS Guard (debugging only)."""
+    from product.tus_guard import set_guard_enabled
+    set_guard_enabled(enabled)
+    return {"guard_enabled": enabled}
 
 
 def main():

@@ -10,63 +10,73 @@ class VoicePOS {
     this._silenceTimer = null;
     this._silenceTimeout = 3000;
     this._isSpeaking = false;
-    
+    this._processing = false;       // prevent double-fire
+    this._restartQueued = false;
+    this._recognitionReady = false;
+
     this.init();
   }
 
   init() {
-    // Check browser support
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
       alert('เบราว์เซอร์นี้ไม่รองรับ Voice Recognition\nกรุณาใช้ Chrome หรือ Edge');
       return;
     }
 
-    // Setup Speech Recognition
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     this.recognition = new SpeechRecognition();
     this.recognition.lang = 'th-TH';
     this.recognition.continuous = true;
     this.recognition.interimResults = true;
+    this.recognition.maxAlternatives = 1;
 
-    // Event handlers
     this.recognition.onstart = () => {
+      this._recognitionReady = true;
       this.isRecording = true;
       this.updateUI();
     };
 
     this.recognition.onresult = (event) => {
-      const lastResult = event.results[event.results.length - 1];
-      const transcript = lastResult[0].transcript;
-      if (lastResult.isFinal) {
-        this.finalTranscript += transcript + ' ';
-        this._resetSilenceTimer();
-      } else {
-        this.setStatus('🎤 ' + transcript, 'listening');
+      // Only process new results from event.resultIndex onward
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const result = event.results[i];
+        const transcript = result[0].transcript;
+        if (result.isFinal) {
+          // Deduplicate: only add if different from what we have
+          const trimmed = transcript.trim();
+          if (trimmed && !this.finalTranscript.endsWith(trimmed)) {
+            this.finalTranscript += (this.finalTranscript ? ' ' : '') + trimmed;
+          }
+          this._resetSilenceTimer();
+        }
       }
     };
 
     this.recognition.onerror = (event) => {
-      console.error('Speech recognition error:', event.error);
-      if (event.error === 'no-speech') {
-        if (this.isRecording) this._autoRestart();
-        return;
+      console.warn('Speech error:', event.error);
+      // no-speech and aborted are NORMAL — do NOT restart, just ignore
+      // The browser will keep the recognition session alive
+      if (event.error === 'not-allowed') {
+        this.setStatus('กรุณาเปิดอนุญาตไมโครโฟน', 'error');
+        this.isRecording = false;
+        this._recognitionReady = false;
+        this.updateUI();
       }
-      this.setStatus('เกิดข้อผิดพลาด กรุณาลองใหม่', 'error');
-      this.isRecording = false;
-      this.updateUI();
+      // network and service-not-available are real errors — restart once
+      if ((event.error === 'network' || event.error === 'service-not-available') && this.isRecording && !this._processing) {
+        this._safeRestart();
+      }
     };
 
     this.recognition.onend = () => {
-      if (this.isRecording && !this._isSpeaking) {
-        const text = this.finalTranscript.trim();
-        this.finalTranscript = '';
-        if (text) {
-          this.handleVoiceInput(text);
-        } else {
-          this._autoRestart();
-        }
-      } else {
-        this.updateUI();
+      this._recognitionReady = false;
+      // Auto-restart silently — no UI flicker, no delay
+      if (this.isRecording && !this._processing && !this._isSpeaking) {
+        setTimeout(() => {
+          if (this.isRecording && !this._processing && !this._isSpeaking) {
+            try { this.recognition.start(); } catch(e) {}
+          }
+        }, 100);
       }
     };
 
@@ -78,44 +88,85 @@ class VoicePOS {
     document.getElementById('btnSendKitchen').addEventListener('click', () => this.finalizeOrder());
   }
 
+  // Safe restart — always stop first, then start after delay
+  _safeRestart() {
+    if (this._restartQueued) return;
+    this._restartQueued = true;
+    try { this.recognition.stop(); } catch(e) {}
+    setTimeout(() => {
+      this._restartQueued = false;
+      if (this.isRecording && !this._processing && !this._isSpeaking) {
+        try {
+          this.recognition.start();
+        } catch(e) {
+          console.warn('Restart failed:', e);
+          // Retry with longer delay
+          setTimeout(() => {
+            if (this.isRecording && !this._processing) {
+              try { this.recognition.start(); } catch(e2) {}
+            }
+          }, 800);
+        }
+      }
+    }, 350);
+  }
+
   _resetSilenceTimer() {
     clearTimeout(this._silenceTimer);
     this._silenceTimer = setTimeout(() => {
-      if (this.isRecording && this.finalTranscript.trim()) {
+      if (this.isRecording && this.finalTranscript.trim() && !this._processing) {
         const text = this.finalTranscript.trim();
         this.finalTranscript = '';
-        this.recognition.stop();
+        // Stop recognition to prevent onresult during processing
+        try { this.recognition.stop(); } catch(e) {}
         this.handleVoiceInput(text);
       }
     }, this._silenceTimeout);
   }
 
-  _autoRestart() {
-    setTimeout(() => {
-      if (this.isRecording && !this._isSpeaking) {
-        try { this.recognition.start(); } catch(e) { console.warn('Restart failed:', e); }
-      }
-    }, 300);
-  }
-
   toggleRecording() {
     if (this.isRecording) {
+      // === STOP ===
       this.isRecording = false;
+      this._processing = false;
       clearTimeout(this._silenceTimer);
-      this.recognition.stop();
+      try { this.recognition.stop(); } catch(e) {}
       const text = this.finalTranscript.trim();
-      if (text) this.handleVoiceInput(text);
       this.finalTranscript = '';
+      if (text) this.handleVoiceInput(text);
       this.updateUI();
     } else {
-      this.isRecording = true;
+      // === START ===
+      this._processing = false;
       this.finalTranscript = '';
-      this.recognition.start();
+      this.isRecording = true;
       this.updateUI();
+      // Wait for any pending stop
+      setTimeout(() => {
+        if (this.isRecording) {
+          try {
+            this.recognition.start();
+          } catch(e) {
+            console.warn('Start failed:', e);
+            setTimeout(() => {
+              if (this.isRecording) {
+                try { this.recognition.start(); } catch(e2) {
+                  console.warn('Retry start failed:', e2);
+                  this.isRecording = false;
+                  this.updateUI();
+                }
+              }
+            }, 800);
+          }
+        }
+      }, 350);
     }
   }
 
   async handleVoiceInput(text) {
+    if (this._processing) return; // prevent double-fire
+    this._processing = true;
+
     // Add user message
     this.addMessage(text, 'user');
     this.setStatus('⏳ กำลังประมวลผล...', 'processing');
@@ -124,7 +175,6 @@ class VoicePOS {
     this.conversationHistory.push({ role: 'user', content: text });
 
     try {
-      // Send to backend
       const response = await fetch('/api/voice/process', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -143,28 +193,36 @@ class VoicePOS {
 
         // Handle action
         if (data.action === 'identify' && data.items && data.items.length > 0) {
-          // Found items → show confirmation popup
           this.showConfirmationPopup(data.items);
         } else if (data.action === 'complete') {
-          // User wants to finalize → ask for final confirmation
-          // The cart bar "Send to Kitchen" button is always visible
           if (this.currentOrder.length > 0) {
             this.addMessage('👉 กดปุ่ม "🍳 ส่งไปครัว" ด้านล่างเพื่อยืนยันออเดอร์ครับ', 'ai');
             this.highlightSendButton();
           }
         }
-        // 'question' → nothing special, just reply shown
 
-        // Speak reply via Edge TTS
-        await this.speak(replyText);
-        // Auto-restart listening after TTS
-        if (this.isRecording) this._autoRestart();
+        this._processing = false;
+
+        // Fire TTS in background — don't block mic restart
+        this.speak(replyText).then(() => {
+          this._isSpeaking = false;
+          if (this.isRecording) this._safeRestart();
+        });
+
+        // Restart mic immediately (don't wait for TTS)
+        if (this.isRecording) {
+          setTimeout(() => this._safeRestart(), 500);
+        }
       } else {
         this.addMessage('ขออภัยครับ เกิดข้อผิดพลาด', 'ai');
+        this._processing = false;
+        if (this.isRecording) this._safeRestart();
       }
     } catch (err) {
       console.error('Error:', err);
       this.addMessage('ขออภัยครับ ไม่สามารถเชื่อมต่อได้', 'ai');
+      this._processing = false;
+      if (this.isRecording) this._safeRestart();
     }
     this.updateUI();
   }
@@ -176,7 +234,7 @@ class VoicePOS {
     const popupBody = document.getElementById('popupBody');
     let html = '';
 
-    items.forEach((item, index) => {
+    items.forEach((item) => {
       const itemName = item.nameTh || item.name || 'unknown';
       const itemNameEn = item.nameTh ? item.name : '';
       const qty = item.quantity || 1;
@@ -195,23 +253,18 @@ class VoicePOS {
       `;
     });
 
-    // Show total if multiple items
     if (items.length > 1) {
       const total = items.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0);
       html += `<div style="text-align:right;padding:8px 0;font-weight:700;font-size:16px;">รวม ${total} บาท</div>`;
     }
 
     popupBody.innerHTML = html;
-
-    // Show popup
     document.getElementById('popupOverlay').classList.add('show');
   }
 
   confirmAddToCart() {
-    // Hide popup
     document.getElementById('popupOverlay').classList.remove('show');
 
-    // Add pending items to cart
     this.pendingItems.forEach(item => {
       const itemName = item.nameTh || item.name;
       const existing = this.currentOrder.find(o => o.name === itemName);
@@ -220,6 +273,7 @@ class VoicePOS {
       } else {
         this.currentOrder.push({
           name: itemName,
+          nameEn: item.name || '',
           quantity: item.quantity || 1,
           price: item.price || 0
         });
@@ -229,15 +283,12 @@ class VoicePOS {
     this.pendingItems = [];
     this.refreshCartBar();
     this.showChatOrderSummary();
-    this.addMessage('✅ เพิ่มในตะกร้าเรียบร้อยครับ พูดต่อหรือกดส่งไปครัวได้เลย', 'ai');
     this.speak('เพิ่มในตะกร้าเรียบร้อยครับ');
   }
 
   skipItems() {
-    // Hide popup
     document.getElementById('popupOverlay').classList.remove('show');
     this.pendingItems = [];
-
     this.addMessage('👌 ไม่เป็นไรครับ พูดรายการใหม่ได้เลยครับ', 'ai');
     this.speak('ไม่เป็นไรครับ พูดรายการใหม่ได้เลย');
   }
@@ -273,9 +324,7 @@ class VoicePOS {
     if (this.currentOrder.length === 0) return;
 
     const chatArea = document.getElementById('chatArea');
-
-    // Remove existing summary if any
-    const existing = document.querySelector('.order-summary');
+    const existing = document.getElementById('orderSummary');
     if (existing) existing.remove();
 
     const summaryDiv = document.createElement('div');
@@ -310,7 +359,6 @@ class VoicePOS {
     chatArea.appendChild(summaryDiv);
     chatArea.scrollTop = chatArea.scrollHeight;
 
-    // Add remove handlers
     summaryDiv.querySelectorAll('.btn-remove-item').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const idx = parseInt(e.target.dataset.index);
@@ -326,7 +374,6 @@ class VoicePOS {
 
     if (this.currentOrder.length === 0) {
       this.addMessage('🫙 ตะกร้าว่างแล้วครับ พูดสั่งเพิ่มได้เลย', 'ai');
-      // Remove summary
       const s = document.getElementById('orderSummary');
       if (s) s.remove();
     }
@@ -343,11 +390,9 @@ class VoicePOS {
     btn.disabled = true;
     btn.textContent = '⏳ กำลังส่ง...';
 
-    // Show total in chat
     const total = this.currentOrder.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const itemList = this.currentOrder.map(i => `${i.name} ×${i.quantity}`).join(', ');
     this.addMessage(`📋 ยืนยันออเดอร์: ${itemList}\nรวม ${total.toLocaleString()} บาท`, 'user');
-
     this.setStatus('⏳ กำลังส่งออเดอร์ไปครัว...', 'processing');
 
     try {
@@ -356,27 +401,25 @@ class VoicePOS {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           items: this.currentOrder,
-          customerName: 'Voice Customer',
-          tableId: 'VOICE'
+          tableId: 'T01'
         })
       });
 
       const data = await response.json();
+      console.log('Order response:', data);
 
       if (data.success) {
         this.addMessage(`✅ ส่งออเดอร์ไปครัวแล้ว!\nรหัสออเดอร์: ${data.orderId}\nรวม: ${data.total.toLocaleString()} บาท\nขอบคุณที่ใช้บริการครับ 🎉`, 'ai');
         this.speak(`ส่งออเดอร์ไปครัวแล้วครับ รหัส ${data.orderId} รวม ${data.total} บาท`);
 
-        // Reset cart
         this.currentOrder = [];
         this.conversationHistory = [];
         this.refreshCartBar();
-        
-        // Remove summary
+
         const s = document.getElementById('orderSummary');
         if (s) s.remove();
 
-        // Sound effect feedback
+        // Sound effect
         try {
           const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
           const osc = audioCtx.createOscillator();
@@ -389,16 +432,17 @@ class VoicePOS {
           gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
           osc.start();
           osc.stop(audioCtx.currentTime + 0.3);
-        } catch(e) { /* ignore audio ctx errors */ }
+        } catch(e) {}
       } else {
-        throw new Error(data.error || 'Order creation failed');
+        this.addMessage(`❌ ส่งไม่สำเร็จ: ${data.error || 'ไม่ทราบสาเหตุ'}\nลองใหม่อีกครั้งครับ`, 'ai');
       }
     } catch (err) {
       console.error('Order error:', err);
-      this.addMessage('ขออภัยครับ ไม่สามารถส่งออเดอร์ได้ กรุณาลองใหม่', 'ai');
+      this.addMessage(`❌ เชื่อมต่อ POS ไม่ได้: ${err.message}\nลองใหม่อีกครั้งครับ`, 'ai');
     }
 
     btn.textContent = '🍳 ส่งไปครัว';
+    btn.disabled = this.currentOrder.length === 0;
     this.setStatus('🎤 กดไมค์เพื่อพูด', '');
   }
 
@@ -409,10 +453,8 @@ class VoicePOS {
     messageDiv.className = `message ${sender}`;
 
     const avatar = sender === 'ai' ? '🤖' : '👤';
-    
-    // Convert newlines to <br>
     const displayText = text.replace(/\n/g, '<br>');
-    
+
     messageDiv.innerHTML = `
       <div class="message-avatar">${avatar}</div>
       <div class="message-bubble">${displayText}</div>
@@ -445,74 +487,34 @@ class VoicePOS {
     this._isSpeaking = false;
   }
 
-  _toThai(n) {
-    const D = ['ศูนย์','หนึ่ง','สอง','สาม','สี่','ห้า','หก','เจ็ด','แปด','เก้า'];
-    if (n === 0) return D[0];
-    if (n < 10) return D[n];
-    if (n < 20) return 'สิบ' + (n === 10 ? '' : D[n-10]);
-    if (n < 100) { const t = Math.floor(n/10), o = n%10; return D[t] + 'สิบ' + (o ? D[o] : ''); }
-    if (n < 1000) { const h = Math.floor(n/100), r = n%100; return D[h] + 'ร้อย' + (r < 10 ? (r ? D[r] : '') : this._toThai(r)); }
-    return String(n);
-  }
-
   _speakBrowser(text) {
-    // Normalize numbers for Thai TTS
-    let cleanText = text.replace(/(\d{1,2}):(\d{2})/g, (m, h, min) => {
-      const H = parseInt(h), M = parseInt(min);
-      if (H < 6) return 'ตี' + (H === 0 ? 'สิบสอง' : this._toThai(H));
-      if (H < 12) return this._toThai(H) + 'โมง' + (M === 0 ? '' : M + 'นาที');
-      if (H < 13) return 'สิบสองโมง' + (M === 0 ? '' : M + 'นาที');
-      if (H < 18) return 'บ่าย' + this._toThai(H-12) + 'โมง' + (M === 0 ? '' : M + 'นาที');
-      return this._toThai(H-17) + 'ทุ่ม' + (M === 0 ? '' : this._toThai(M) + 'นาที');
-    });
-    cleanText = cleanText.replace(/(\d{1,3})(?![:\d])/g, (m, num) => {
-      const n = parseInt(num);
-      return n <= 999 ? this._toThai(n) : m;
-    });
-    cleanText = cleanText.replace(/[^\u0e00-\u0e7fa-zA-Z0-9 \t.,!?-]/g, ' ').replace(/\s+/g, ' ').trim();
+    const cleanText = text.replace(/[^\u0e00-\u0e7fa-zA-Z0-9 \t.,!?-]/g, ' ').replace(/\s+/g, ' ').trim();
     if (!cleanText) return;
     if (this.synthesis.speaking) this.synthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(cleanText);
     utterance.lang = 'th-TH';
     utterance.rate = 1.0;
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
 
-    // Try to find Thai voice
     const voices = this.synthesis.getVoices();
     const thaiVoice = voices.find(v => v.lang.startsWith('th'));
-    if (thaiVoice) {
-      utterance.voice = thaiVoice;
-    }
+    if (thaiVoice) utterance.voice = thaiVoice;
 
-    // Error handling
-    utterance.onerror = (e) => {
-      console.warn('TTS error:', e.error);
-    };
+    utterance.onerror = (e) => console.warn('TTS error:', e.error);
 
-    // On mobile Chrome, speech synthesis needs user gesture or resumes on interaction
-    try {
-      this.synthesis.speak(utterance);
-    } catch (e) {
-      console.warn('TTS failed:', e.message);
-    }
+    try { this.synthesis.speak(utterance); } catch (e) {}
   }
 
   clearChat() {
-    // Reset everything
     this.currentOrder = [];
     this.conversationHistory = [];
     this.finalTranscript = '';
     this.pendingItems = [];
-    
-    // Hide popup if open
+    this._processing = false;
+
     document.getElementById('popupOverlay').classList.remove('show');
-    
-    // Refresh cart bar
     this.refreshCartBar();
 
-    // Reset chat area
     const chatArea = document.getElementById('chatArea');
     chatArea.innerHTML = `
       <div class="message ai">
@@ -551,16 +553,13 @@ class VoicePOS {
 
 // Initialize when page loads
 window.addEventListener('load', () => {
-  // Load voices first
   window.speechSynthesis.getVoices();
   window.speechSynthesis.onvoiceschanged = () => {
     window.speechSynthesis.getVoices();
   };
 
-  // Start Voice POS
   new VoicePOS();
 
-  // Register Service Worker for PWA
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js', { scope: '/voice/' })
       .then(reg => console.log('[PWA] SW registered:', reg.scope))

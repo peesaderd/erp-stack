@@ -73,11 +73,6 @@ const App = {
             <div class="topbar-left">
               <button class="mobile-toggle" onclick="App.toggleSidebar()">☰</button>
               <h2>${title}</h2>
-              <span class="shop-name">· <strong>ArtisanCrafts</strong></span>
-            </div>
-            <div class="topbar-right">
-              <button class="btn btn-sm" onclick="DashboardPage.showConnect()">🔗 Connect Etsy API</button>
-              <div class="avatar" title="ArtisanCrafts">AC</div>
             </div>
           </header>
           <div class="content">${content}</div>

@@ -98,6 +98,12 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#f8fafc;min-height:
               </select>
             </div>
           </div>
+          <div id="copiesRow" style="display:none;margin-top:10px">
+            <label style="font-size:.68rem;color:#64748b;display:flex;align-items:center;gap:6px;cursor:pointer">
+              <input type="number" id="cp" value="2" min="1" max="10" style="width:50px;padding:6px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:.72rem;text-align:center">
+              copies per photo
+            </label>
+          </div>
           <label class="blade"><input type="checkbox" id="bm"> Blade mode (wider gaps)</label>
           <button class="gen" id="btn" disabled>🖨 Generate Print Sheet</button>
         </div>
@@ -181,31 +187,37 @@ function showResult(d){
 function toB64(f){return new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(r.result.split(',')[1])};r.onerror=rej;r.readAsDataURL(f)})}
 function toast(m,t){var e=document.getElementById('toast');e.className='toast show '+(t||'');e.textContent=m;setTimeout(function(){e.className='toast'},3000)}
 
-// Check if session_id in URL (from gallery)
+// Check if session_ids in URL (from gallery batch)
 var params=new URLSearchParams(window.location.search);
-if(params.get('session_id')){
-  var sid=params.get('session_id');
-  document.getElementById('drop').classList.add('has');
-  document.getElementById('emp').style.display='none';
-  document.getElementById('fil').style.display='';
-  document.getElementById('pth').src=API+'/download/'+sid+'_passport.jpg';
-  document.getElementById('fn').textContent=sid+'_passport.jpg';
-  document.getElementById('fm').textContent='From gallery';
+var sidsParam=params.get('session_ids');
+
+if(sidsParam){
+  var sids=sidsParam.split(',');
+  document.getElementById('drop').style.display='none';
+  document.getElementById('empty').innerHTML='<div style="font-size:2rem;margin-bottom:8px;opacity:.4">🖨</div>'+sids.length+' photos selected<br><small>From Gallery</small>';
   document.getElementById('btn').disabled=false;
-  photoFile={_sid:sid};
-  // Override generate to use session_id
-  var origGenerate=generate;
-  generate=async function(){
+  document.getElementById('copiesRow').style.display='';
+  
+  // Show thumbnails
+  var thumbHtml='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px">';
+  sids.forEach(function(sid){
+    thumbHtml+='<img src="'+API+'/download/'+sid+'_passport.jpg" style="width:60px;height:75px;object-fit:cover;border-radius:6px;border:2px solid #e2e8f0">';
+  });
+  thumbHtml+='</div>';
+  document.getElementById('drop').insertAdjacentHTML('afterend',thumbHtml);
+  
+  // Override generate for multi-photo
+  document.getElementById('btn').onclick=async function(){
     document.getElementById('ov').classList.add('show');
     try{
       var body={
-        session_id:photoFile._sid,
+        session_ids:sids,
+        copies:parseInt(document.getElementById('cp').value)||2,
         print_size:document.getElementById('ps').value,
-        photo_count:parseInt(document.getElementById('pc').value)||6,
         border:document.getElementById('bt').value,
         blade_mode:document.getElementById('bm').checked,
       };
-      var r=await fetch(API+'/print-sheet',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      var r=await fetch(API+'/multi-print',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
       var d=await r.json();
       if(!d.ok)throw new Error(d.detail||'Failed');
       document.getElementById('empty').style.display='none';
@@ -215,7 +227,8 @@ if(params.get('session_id')){
       var info=d.info||{};
       document.getElementById('infoBox').innerHTML=
         '<b>Size:</b> '+(info.print_size||'4x6')+'<br>'+
-        '<b>Photos:</b> '+(info.count||'?')+'<br>'+
+        '<b>Photos:</b> '+info.count+'/'+info.max_count+'<br>'+
+        '<b>Unique:</b> '+info.unique_photos+' photos × '+info.copies_per_photo+' copies<br>'+
         '<b>Layout:</b> '+(info.cols||'?')+'×'+(info.rows||'?');
       toast('Print sheet ready!');
     }catch(e){toast('Error: '+e.message,'err')}finally{document.getElementById('ov').classList.remove('show')}

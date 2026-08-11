@@ -316,6 +316,67 @@ async def print_sheet_v2(req: PrintSheetRequest):
     }
 
 
+# ── Multi-Photo Print Sheet ────────────────────────
+
+class MultiPrintRequest(BaseModel):
+    session_ids: list  # list of session_id strings
+    copies: int = 1    # copies per photo
+    print_size: str = "4x6"
+    border: str = "guidelines"
+    blade_mode: bool = False
+    gap_mm: float = 3.0
+    dpi: int = 300
+
+
+@app.post("/api/passport/multi-print")
+async def multi_print(req: MultiPrintRequest):
+    """Generate print sheet with multiple different photos."""
+    from .print_sheet import generate_multi_print_sheet
+    
+    if not req.session_ids:
+        raise HTTPException(400, "No photos selected")
+    if len(req.session_ids) > 20:
+        raise HTTPException(400, "Max 20 photos")
+    
+    # Load all images
+    images = []
+    dims = []
+    for sid in req.session_ids:
+        path = STORAGE_DIR / f"{sid}_passport.jpg"
+        if not path.exists():
+            raise HTTPException(404, f"Photo not found: {sid}")
+        img = cv2.imread(str(path))
+        if img is None:
+            raise HTTPException(500, f"Failed to read: {sid}")
+        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        h, w = img_rgb.shape[:2]
+        images.append(img_rgb)
+        dims.append((w / req.dpi * 25.4, h / req.dpi * 25.4))
+    
+    # Generate multi-photo sheet
+    result = generate_multi_print_sheet(
+        images, dims, req.copies, req.print_size, req.dpi,
+        req.gap_mm, req.border, req.blade_mode
+    )
+    
+    if not result["ok"]:
+        raise HTTPException(500, result.get("error", "Failed"))
+    
+    # Save with unique ID
+    batch_id = f"batch_{uuid.uuid4().hex[:8]}"
+    out_bytes = _encode_image(result["result"])
+    out_path = STORAGE_DIR / f"{batch_id}_print.jpg"
+    with open(out_path, "wb") as f:
+        f.write(out_bytes)
+    
+    return {
+        "ok": True,
+        "batch_id": batch_id,
+        "download_url": f"/api/passport/download/{batch_id}_print.jpg",
+        "info": result["info"],
+    }
+
+
 # ── Download ──────────────────────────────────────────
 
 @app.get("/api/passport/download/{filename}")

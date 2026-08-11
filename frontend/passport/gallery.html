@@ -43,6 +43,18 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#f8fafc;min-height:
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(100px);background:#0f172a;color:#fff;border-radius:20px;padding:9px 18px;z-index:999;font-size:.75rem;font-weight:500;transition:transform .3s}
 .toast.show{transform:translateX(-50%) translateY(0)}
 @media(max-width:600px){.grid{grid-template-columns:repeat(2,1fr);gap:8px}.card .info{padding:8px}.card .id{font-size:.6rem}}
+.batch-bar{position:fixed;bottom:52px;left:0;right:0;background:#fff;border-top:1px solid #e2e8f0;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;z-index:99;box-shadow:0 -4px 12px rgba(0,0,0,.08)}
+.batch-bar span{font-size:.75rem;font-weight:600;color:#6366f1}
+.batch-actions{display:flex;gap:6px}
+.batch-bar .btn{padding:7px 12px;border:none;border-radius:8px;font-size:.68rem;font-weight:600;cursor:pointer}
+.batch-print{background:#6366f1;color:#fff}
+.batch-dl{background:#10b981;color:#fff}
+.batch-del{background:#fee2e2;color:#ef4444}
+.batch-cancel{background:#f1f5f9;color:#64748b}
+.card{position:relative}
+.card .sel-check{position:absolute;top:8px;right:8px;width:22px;height:22px;border-radius:50%;border:2px solid #e2e8f0;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:5;transition:.2s}
+.card .sel-check:hover{border-color:#6366f1}
+.card .sel-check.checked{background:#6366f1;border-color:#6366f1;color:#fff;font-size:11px}
 </style>
 </head>
 <body>
@@ -51,6 +63,15 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#f8fafc;min-height:
   <div class="stats" id="stats"></div>
   <div class="grid" id="grid">
     <div class="loading">Loading...</div>
+  </div>
+  <div class="batch-bar" id="batchBar" style="display:none">
+    <span id="batchCount">0 selected</span>
+    <div class="batch-actions">
+      <button class="btn batch-print" onclick="batchPrint()">🖨 Print Selected</button>
+      <button class="btn batch-dl" onclick="batchDownload()">💾 Download All</button>
+      <button class="btn batch-del" onclick="batchDelete()">🗑 Delete</button>
+      <button class="btn batch-cancel" onclick="clearSelection()">✕ Cancel</button>
+    </div>
   </div>
 </div>
 <div class="modal" id="modal">
@@ -88,6 +109,8 @@ function renderStats(total){
     +'<div class="stat"><div class="v">'+thisWeek+'</div><div class="l">This Week</div></div>';
 }
 
+var selected=new Set();
+
 function renderGrid(photos){
   var el=document.getElementById('grid');
   if(!photos.length){el.innerHTML='<div class="empty"><div style="font-size:2rem;margin-bottom:8px">📷</div>No photos yet</div>';return}
@@ -96,8 +119,10 @@ function renderGrid(photos){
     var p=photos[i];
     var date=new Date(p.created*1000);
     var ds=date.toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'});
-    h+='<div class="card" onclick="openModal(\''+p.session_id+'\',\''+p.url+'\')">';
-    h+='<img src="'+p.url+'" loading="lazy" alt="">';
+    var chk=selected.has(p.session_id)?'checked':'';
+    h+='<div class="card" data-sid="'+p.session_id+'">';
+    h+='<div class="sel-check '+chk+'" onclick="event.stopPropagation();toggleSelect(this,\''+p.session_id+'\')">'+(chk?'✓':'')+'</div>';
+    h+='<img src="'+p.url+'" loading="lazy" alt="" onclick="openModal(\''+p.session_id+'\',\''+p.url+'\')">';
     h+='<div class="info"><div class="id">'+p.session_id+'</div>';
     h+='<div class="meta">'+ds+' · '+p.size_kb+' KB</div></div>';
     h+='<div class="actions">';
@@ -107,6 +132,50 @@ function renderGrid(photos){
     h+='</div></div>';
   }
   el.innerHTML=h;
+}
+
+function toggleCheck(){
+  document.querySelectorAll('.sel-check').forEach(function(c){c.classList.add('show-check')});
+}
+
+function toggleSelect(el,sid){
+  if(selected.has(sid)){selected.delete(sid);el.classList.remove('checked');el.innerHTML=''}
+  else{selected.add(sid);el.classList.add('checked');el.innerHTML='✓'}
+  updateBatchBar();
+}
+
+function updateBatchBar(){
+  var bar=document.getElementById('batchBar');
+  if(selected.size>0){bar.style.display='';document.getElementById('batchCount').textContent=selected.size+' selected'}
+  else bar.style.display='none';
+}
+
+function clearSelection(){selected.clear();document.querySelectorAll('.sel-check').forEach(function(c){c.classList.remove('checked');c.innerHTML=''});updateBatchBar()}
+
+function batchPrint(){
+  if(!selected.size)return;
+  var sids=Array.from(selected).join(',');
+  window.location.href='/print.html?session_ids='+sids;
+}
+
+function batchDownload(){
+  if(!selected.size)return;
+  allPhotos.forEach(function(p){
+    if(selected.has(p.session_id)){
+      var a=document.createElement('a');a.href=p.url;a.download=p.session_id+'_passport.jpg';a.click();
+    }
+  });
+  toast('Downloading '+selected.size+' photos');
+}
+
+async function batchDelete(){
+  if(!selected.size)return;
+  if(!confirm('Delete '+selected.size+' photos?'))return;
+  var ok=0,fail=0;
+  for(var sid of selected){
+    try{var r=await fetch(API+'/gallery/'+sid,{method:'DELETE'});var d=await r.json();if(d.ok)ok++;else fail++}catch(e){fail++}
+  }
+  selected.clear();updateBatchBar();toast(ok+' deleted'+(fail?' ('+fail+' failed)':''));loadGallery();
 }
 
 function openModal(sid,url){

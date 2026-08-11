@@ -239,6 +239,47 @@ def resize_to_template(img: np.ndarray, w_mm: float, h_mm: float, dpi: int = 300
 # Main Generation Function
 # ═══════════════════════════════════════════════════════════
 
+def is_ui_screenshot(image: np.ndarray) -> tuple:
+    """
+    Detect if image is a UI screenshot instead of a portrait photo.
+    Returns (is_screenshot: bool, reason: str)
+    """
+    h, w = image.shape[:2]
+    
+    # Check 1: Landscape orientation (portrait photos are usually portrait)
+    is_landscape = w > h * 1.2
+    
+    # Check 2: Horizontal sharp transitions (UI menus, toolbars)
+    gray = image.mean(axis=2) if len(image.shape) == 3 else image.astype(float)
+    row_means = gray.mean(axis=1)
+    h_trans = sum(1 for i in range(1, len(row_means)) if abs(row_means[i] - row_means[i-1]) > 20)
+    h_trans_pct = h_trans / h
+    
+    # Check 3: Uniform gray areas (UI panels)
+    gray_pixels = 0
+    total = h * w
+    for y in range(0, h, max(1, h//50)):
+        for x in range(0, w, max(1, w//50)):
+            r, g, b = image[y, x]
+            if 180 < r < 240 and abs(int(r) - int(g)) < 15 and abs(int(g) - int(b)) < 15:
+                gray_pixels += 1
+    gray_pct = gray_pixels / (min(h, 50) * min(w, 50))
+    
+    # Check 4: Face detection fails (no face = likely not a portrait)
+    face = detect_face(image)
+    has_face = face is not None
+    
+    # Decision
+    if is_landscape and h_trans_pct > 0.08:
+        return True, "Landscape image with UI-like horizontal patterns"
+    if gray_pct > 0.65 and not has_face:
+        return True, "Large uniform gray areas with no face detected"
+    if is_landscape and not has_face and gray_pct > 0.4:
+        return True, "Landscape image with no face and gray UI panels"
+    
+    return False, "OK"
+
+
 def generate_passport(
     image_bytes: bytes,
     template_info: dict = None,
@@ -277,6 +318,12 @@ def generate_passport(
     if bgr is None:
         return {"ok": False, "error": "Invalid image"}
     original = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+
+    # Screenshot validation
+    is_ss, ss_reason = is_ui_screenshot(original)
+    if is_ss:
+        logger.warning(f"Input rejected: {ss_reason}")
+        return {"ok": False, "error": f"This image appears to be a screenshot ({ss_reason}). Please upload a clear portrait photo of a person.", "is_screenshot": True}
 
     # Step 1: Crop to passport ratio
     logger.info("Step 1: Crop to passport ratio...")

@@ -1,6 +1,11 @@
-"""Product routes — scrape, list, analyze (SQLite + PostgreSQL), dashboard, sheets.
+"""Product routes — scrape, list, dashboard, sheets.
 
-Extracted from main.py monolith.
+Data flow:
+  1. Scraper → PostgreSQL products table
+  2. Enrich scripts → PostgreSQL analyzed_products table
+  3. Sync scripts → tus_products.db (frontend cache)
+
+Do NOT write to tus_products.db from endpoints.
 """
 import asyncio
 import base64
@@ -153,8 +158,6 @@ def list_products(limit: int = 200, preset: str = "all", search: str = ""):
     return {"products": products, "total": len(products)}
 
 
-PRODUCTDB_DSN = os.environ.get("PRODUCTDB_DSN", "postgresql://openhands:OpenHands%40ERP2026@127.0.0.1:5432/erp_stack")
-
 @router.get("/products/scraped")
 async def list_scraped_products(limit: int = 100, search: str = ""):
     """List products from PostgreSQL productdb.products (Gemini-scraped).
@@ -206,194 +209,6 @@ async def list_scraped_products(limit: int = 100, search: str = ""):
     except Exception as e:
         logger.error(f"list_scraped_products failed: {e}")
         return {"success": False, "products": [], "total": 0, "error": str(e)}
-
-
-@router.post("/products/analyze-scraped")
-async def analyze_scraped_products():
-    """Read scraped products -> Normalize -> Enrich (Mistral) -> Store in analyzed_products -> Write to tus_products.db.
-
-    No fallbacks. If enrichment fails, the product is skipped with error logged.
-    """
-    import sys
-    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-    from modules.product.analyze_pipeline import ProductNormalizer, ProductEnricher
-    from modules.product.analyzer_db import store_analyzed, store_analyzed_batch
-
-    # 1. Read from PostgreSQL products table
-    try:
-        conn = await asyncpg.connect(PRODUCTDB_DSN)
-        rows = await conn.fetch(
-            "SELECT id, name, description, price, category, source_url, image_urls, ai_analysis, sku FROM products ORDER BY id ASC"
-        )
-        await conn.close()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"PostgreSQL read failed: {e}")
-
-    db_path = str(BASE_DIR / "tus_products.db")
-    tus_conn = sqlite3.connect(db_path)
-    enriched = 0
-    skipped = 0
-    errors = []
-
-    for r in rows:
-        try:
-            row_id = r["id"]
-            name = r["name"]
-            price = float(r["price"] or 0)
-            description = r["description"] or ""
-            category = r["category"] or ""
-            source_url = r["source_url"] or ""
-            image_urls_raw = r["image_urls"]
-            sku = r["sku"] or ""
-            ai_analysis = r["ai_analysis"]
-
-            # Parse image_urls (might be JSON string or list)
-            if isinstance(image_urls_raw, str):
-                try:
-                    image_urls = json.loads(image_urls_raw)
-                except Exception:
-                    image_urls = [image_urls_raw] if image_urls_raw else []
-            elif isinstance(image_urls_raw, list):
-                image_urls = image_urls_raw
-            else:
-                image_urls = []
-
-            # Skip if already in analyzed_products (check via store_analyzed dedup)
-            # store_analyzed does upsert by product_id+source, so we check if enriched=True
-            # For now, just proceed - store_analyzed will handle dedup
-
-            # 2. Normalize
-            raw = {
-                "product_id": str(row_id),
-                "name": name,
-                "title": name,
-                "description": description,
-                "price": price,
-                "category": category,
-                "source_url": source_url,
-                "url": source_url,
-                "images": image_urls,
-                "sku": sku,
-                "seller_name": "",
-                "seller_id": "",
-                "commission_rate": "0",
-                "source_site": "tiktok",
-            }
-            product = await ProductNormalizer.normalize(raw, source_hint="tiktok")
-
-            # 3. Enrich (Mistral) - NO FALLBACK, let errors propagate
-            product = await ProductEnricher.enrich(product)
-            if not product.enriched:
-                raise Exception(f"Enrichment failed for product {row_id}: {product.title}")
-
-            # 4. Store in analyzed_products (SSOT)
-            product_dict = {
-                "product_id": product.product_id,
-                "title": product.title,
-                "title_th": product.title_th or product.title,
-                "description": product.description,
-                "price_min": product.price_min or 0,
-                "price_max": product.price_max or 0,
-                "price_avg": product.price_avg or 0,
-                "price_thb": product.price_avg or price or 0,
-                "source": product.source or "tiktok",
-                "category": product.category or "",
-                "commission_rate": product.commission_rate or 0,
-                "seller_name": product.seller_name or "",
-                "seller_id": product.seller_id or "",
-                "keywords": product.keywords or [],
-                "hashtags": product.hashtags or [],
-                "gender": product.gender or "",
-                "target_age": product.target_age or "",
-                "images": product.images or [],
-                "sold_total": product.sold_total or 0,
-                "viral_score": product.viral_score or 0,
-                "enriched": product.enriched or False,
-            }
-            await store_analyzed_batch([product_dict])
-
-            # 5. Write to tus_products.db
-            existing_tus = tus_conn.execute(
-                "SELECT gender, target_age, hashtags FROM tus_products WHERE product_id = ?",
-                (product.product_id,)
-            ).fetchone()
-            # Build VALUES — only overwrite fields that are better than existing
-            new_gender = product.gender or ""
-            new_age = product.target_age or ""
-            new_hashtags = json.dumps(product.hashtags)
-            new_keywords = json.dumps(product.keywords)
-            
-            # Read existing data for comparison
-            if existing_tus:
-                existing_gender = existing_tus[0] or ""
-                existing_age = existing_tus[1] or ""
-                existing_ht = existing_tus[2] or "[]"
-                # Preserve: only overwrite if new value is non-empty AND existing is empty
-                if existing_gender and not new_gender:
-                    new_gender = existing_gender
-                if existing_age and not new_age:
-                    new_age = existing_age
-                # Preserve hashtags/keywords if existing has more data
-                try:
-                    existing_kw_list = json.loads(existing_tus[3]) if len(existing_tus) > 3 else []
-                except:
-                    existing_kw_list = []
-
-            tus_conn.execute("""
-                INSERT OR REPLACE INTO tus_products
-                (product_id, title, title_th, price_thb, rating, sold_total, viral_score,
-                 trending, category, commission_rate, seller_name, seller_id, url,
-                 description, description_th, images, keywords, hashtags, gender, target_age,
-                 source, imported_at, tus_status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), 'pending')
-            """, (
-                product.product_id,
-                product.title,
-                product.title_th or product.title,
-                product.price_avg or price or 0,
-                0,
-                product.sold_total or 0,
-                product.viral_score or 0,
-                1 if (product.viral_score or 0) >= 18 else 0,
-                product.category or "",
-                product.commission_rate or 0,
-                product.seller_name or "",
-                product.seller_id or "",
-                product.url or "",
-                product.description or "",
-                product.description or "",
-                json.dumps(product.images),
-                new_keywords,
-                new_hashtags,
-                new_gender,
-                new_age,
-                product.source or "tiktok",
-            ))
-            enriched += 1
-            logger.info(f"  OK {product.product_id[:18]} | gender={product.gender!r} | age={product.target_age!r} | kw={len(product.keywords)}")
-            # Commit immediately per product (prevents data loss on timeout)
-            tus_conn.commit()
-            # Rate-limit: wait between Mistral calls to avoid 429
-            # Each product makes ~3 Mistral calls, so 10s delay between products
-            await asyncio.sleep(10)
-
-        except Exception as e:
-            error_msg = f"Row {r.get('id','?')}: {e}"
-            logger.error(f"analyze-scraped FAILED: {error_msg}")
-            errors.append(error_msg)
-
-    tus_conn.commit()
-    total = tus_conn.execute("SELECT count(*) FROM tus_products").fetchone()[0]
-    tus_conn.close()
-
-    return {
-        "success": len(errors) == 0,
-        "enriched": enriched,
-        "skipped": skipped,
-        "errors": errors,
-        "total_in_tus": total,
-        "message": f"Enriched {enriched}, skipped {skipped}, errors {len(errors)}",
-    }
 
 
 # ─── UGC Frontend API Compatibility ───────────────────────────────────────

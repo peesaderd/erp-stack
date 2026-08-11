@@ -13,6 +13,13 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#f8fafc;min-height:
 .hdr{padding:20px 16px 12px;max-width:960px;margin:0 auto;display:flex;align-items:center;gap:12px}
 .hdr h1{font-size:1.3rem;font-weight:800;flex:1;min-width:0}
 .hdr .price{font-size:.7rem;color:#6366f1;font-weight:600;background:#eef2ff;padding:5px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0}
+.hamburger{position:relative}
+.hamburger-btn{background:none;border:none;font-size:1.3rem;cursor:pointer;padding:4px 8px;border-radius:6px;transition:.2s}
+.hamburger-btn:hover{background:#f1f5f9}
+.hamburger-menu{display:none;position:absolute;top:100%;right:0;background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);min-width:160px;z-index:100;padding:6px 0}
+.hamburger-menu.show{display:block}
+.hamburger-menu a{display:flex;align-items:center;gap:8px;padding:9px 16px;color:#0f172a;text-decoration:none;font-size:.78rem;font-weight:500;transition:.15s}
+.hamburger-menu a:hover{background:#f1f5f9;color:#6366f1}
 .page{max-width:960px;width:100%;margin:0 auto;padding:0 16px 60px;overflow-x:hidden}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;max-width:100%;overflow:hidden}
 .row>*{min-width:0;overflow:hidden;width:100%}
@@ -98,7 +105,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#f8fafc;min-height:
 </style>
 </head>
 <body>
-<div class="hdr"><h1>&#x1F4F8; Passport Photo Studio</h1><div style="display:flex;gap:6px;align-items:center"><a href="/passport/gallery.html" style="padding:5px 10px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;text-decoration:none;font-size:.65rem;font-weight:600;color:#6366f1">&#x1F4F8; Gallery</a><div class="price">&#x26A1; $0.004 / photo</div></div></div>
+<div class="hdr"><h1>&#x1F4F8; Passport Photo Studio</h1><div class="price">&#x26A1; $0.004 / photo</div><div class="hamburger"><button class="hamburger-btn" onclick="toggleMenu()">&#x2630;</button><div class="hamburger-menu" id="hmenu"><a href="/passport/">&#x1F3E0; Home</a><a href="/passport/gallery.html">&#x1F4F8; Gallery</a><a href="/passport/print.html">&#x1F5A8; Print Sheet</a><a href="https://m2igen.com" target="_blank">&#x1F310; Main Site</a></div></div></div>
 <div class="ov" id="ov"><div class="sp"></div><div class="t" id="ovt">Generating...</div></div>
 <div class="toast" id="toast"></div>
 <div class="page"><div class="row">
@@ -153,6 +160,7 @@ var CD={male:[],female:[]},BD=[],TD=[];
 var FL={Thailand:'\u{1F1F9}\u{1F1ED}',Japan:'\u{1F1EF}\u{1F1F5}',China:'\u{1F1E8}\u{1F1F3}','South Korea':'\u{1F1F0}\u{1F1F7}','United States':'\u{1F1FA}\u{1F1F8}','United Kingdom':'\u{1F1EC}\u{1F1E7}','European Union':'\u{1F1EA}\u{1F1FA}',Canada:'\u{1F1E8}\u{1F1E6}',Australia:'\u{1F1E6}\u{1F1FA}',India:'\u{1F1EE}\u{1F1F3}',Singapore:'\u{1F1F8}\u{1F1EC}',Malaysia:'\u{1F1F2}\u{1F1FE}',Philippines:'\u{1F1F5}\u{1F1ED}',Indonesia:'\u{1F1EE}\u{1F1E9}',Vietnam:'\u{1F1FB}\u{1F1F3}',Cambodia:'\u{1F1F0}\u{1F1ED}',Laos:'\u{1F1F1}\u{1F1E6}',Myanmar:'\u{1F1F2}\u{1F1E2}','Hong Kong':'\u{1F1ED}\u{1F1F0}',France:'\u{1F1EB}\u{1F1F7}',Germany:'\u{1F1E9}\u{1F1EA}'};
 
 function $(id){return document.getElementById(id)}
+function toggleMenu(){var m=$('hmenu');m.classList.toggle('show');document.addEventListener('click',function h(e){if(!e.target.closest('.hamburger')){m.classList.remove('show');document.removeEventListener('click',h)}})}
 
 async function boot(){
   try{

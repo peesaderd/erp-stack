@@ -47,13 +47,20 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#f8fafc;min-height:
 @keyframes sp{to{transform:rotate(360deg)}}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(100px);background:#0f172a;color:#fff;border-radius:20px;padding:9px 18px;z-index:999;font-size:.75rem;font-weight:500;transition:transform .3s}
 .toast.show{transform:translateX(-50%) translateY(0)}
+.hamburger{position:relative}
+.hamburger-btn{background:none;border:none;font-size:1.3rem;cursor:pointer;padding:4px 8px;border-radius:6px;transition:.2s}
+.hamburger-btn:hover{background:#f1f5f9}
+.hamburger-menu{display:none;position:absolute;top:100%;right:0;background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);min-width:160px;z-index:100;padding:6px 0}
+.hamburger-menu.show{display:block}
+.hamburger-menu a{display:flex;align-items:center;gap:8px;padding:9px 16px;color:#0f172a;text-decoration:none;font-size:.78rem;font-weight:500;transition:.15s}
+.hamburger-menu a:hover{background:#f1f5f9;color:#6366f1}
 @media(max-width:768px){.row{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <div class="hdr">
   <h1>🖨 Print Sheet</h1>
-  <a href="/passport/">← Back</a>
+  <div class="hamburger"><button class="hamburger-btn" onclick="toggleMenu()">☰</button><div class="hamburger-menu" id="hmenu"><a href="/passport/">🏠 Home</a><a href="/passport/gallery.html">📸 Gallery</a><a href="/passport/print.html">🖨 Print Sheet</a><a href="https://m2igen.com" target="_blank">🌐 Main Site</a></div></div>
 </div>
 <div class="ov" id="ov"><div class="sp"></div><div class="t">Generating...</div></div>
 <div class="toast" id="toast"></div>
@@ -127,6 +134,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#f8fafc;min-height:
 <script>
 var API='/api/passport';
 var photoFile=null;
+function toggleMenu(){var m=document.getElementById('hmenu');m.classList.toggle('show');document.addEventListener('click',function h(e){if(!e.target.closest('.hamburger')){m.classList.remove('show');document.removeEventListener('click',h)}})}
 
 document.getElementById('fi').addEventListener('change',function(e){
   var f=e.target.files[0];

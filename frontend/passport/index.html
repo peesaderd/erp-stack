@@ -9,10 +9,18 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 html{overflow-x:hidden;width:100%}
-body{font-family:'Inter',-apple-system,sans-serif;background:#f8fafc;min-height:100vh;color:#0f172a;overflow-x:hidden;width:100%}
-.hdr{padding:12px 16px 0;max-width:960px;margin:0 auto;display:flex;align-items:center;gap:8px;overflow:visible;position:relative;z-index:10}
-.hdr h1{font-size:1.1rem;font-weight:800;white-space:nowrap;flex:1;min-width:0}
-.hdr .price{font-size:.65rem;color:#6366f1;font-weight:600;background:#eef2ff;padding:4px 8px;border-radius:20px;white-space:nowrap;flex-shrink:0}
+body{font-family:'Inter',-apple-system,sans-serif;background:linear-gradient(135deg,#e0e7ff 0%,#f0f9ff 50%,#fdf2f8 100%);min-height:100vh;color:#0f172a;overflow-x:hidden;width:100%}
+.logo-bar{background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:10px 16px;position:sticky;top:0;z-index:200;box-shadow:0 4px 20px rgba(99,102,241,.3)}
+.logo-inner{max-width:960px;margin:0 auto;display:flex;align-items:center;gap:10px}
+.logo-icon{width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.logo-icon svg{width:22px;height:22px;stroke:#fff;stroke-width:2;fill:none}
+.logo-text{flex:1}
+.logo-text h1{font-size:1rem;font-weight:800;color:#fff;margin:0;line-height:1.2}
+.logo-text small{font-size:.6rem;color:rgba(255,255,255,.7);font-weight:500}
+.logo-badge{background:rgba(255,255,255,.2);color:#fff;font-size:.58rem;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap;backdrop-filter:blur(4px)}
+.hdr{padding:10px 16px 0;max-width:960px;margin:0 auto;display:flex;align-items:center;gap:8px;overflow:visible;position:relative;z-index:10}
+.hdr h2{font-size:.85rem;font-weight:700;color:#334155;white-space:nowrap;flex:1;min-width:0}
+.hdr .price{font-size:.6rem;color:#6366f1;font-weight:600;background:#fff;padding:4px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0;box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .bnav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #e2e8f0;display:flex;z-index:100;padding:4px 0 max(4px,env(safe-area-inset-bottom,4px));box-shadow:0 -2px 10px rgba(0,0,0,.06);height:52px}
 .bnav a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:0;text-decoration:none;color:#94a3b8;font-size:.58rem;font-weight:500;transition:.2s;-webkit-tap-highlight-color:transparent}
 .bnav a svg{width:20px;height:20px;stroke-width:1.8;fill:none;stroke:currentColor;flex-shrink:0}
@@ -21,7 +29,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#f8fafc;min-height:
 .page{max-width:960px;width:100%;margin:0 auto;padding:0 16px 60px;overflow-x:hidden}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;max-width:100%;overflow:hidden}
 .row>*{min-width:0;overflow:hidden;width:100%}
-.card{background:#fff;border-radius:14px;border:1px solid #e2e8f0;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06);min-width:0;max-width:100%;width:100%}
+.card{background:rgba(255,255,255,.92);border-radius:14px;border:1px solid rgba(255,255,255,.8);overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.06);min-width:0;max-width:100%;width:100%;backdrop-filter:blur(8px)}
 .card-h{padding:12px 16px;border-bottom:1px solid #e2e8f0;font-size:.78rem;font-weight:700}
 .card-b{padding:16px;overflow:hidden}
 .drop{border:2px dashed #e2e8f0;border-radius:10px;padding:28px 16px;text-align:center;cursor:pointer;transition:.2s;background:#f1f5f9}
@@ -107,7 +115,12 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#f8fafc;min-height:
 </style>
 </head>
 <body>
-<div class="hdr"><h1>&#x1F4F8; Passport Photo Studio</h1><div class="price">&#x26A1; $0.004 / photo</div></div>
+<div class="logo-bar"><div class="logo-inner">
+  <div class="logo-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="12" cy="10" r="3"/><path d="M7 20v-1a5 5 0 0110 0v1"/></svg></div>
+  <div class="logo-text"><h1>Passport Photo Studio</h1><small>AI-powered ID photos in seconds</small></div>
+  <div class="logo-badge">⚡ $0.004</div>
+</div></div>
+<div class="hdr"><h2>📸 Create Photo</h2></div>
 <div class="ov" id="ov"><div class="sp"></div><div class="t" id="ovt">Generating...</div></div>
 <div class="toast" id="toast"></div>
 <div class="page"><div class="row">

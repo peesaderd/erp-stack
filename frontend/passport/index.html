@@ -13,9 +13,9 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#f8fafc;min-height:
 .hdr{padding:12px 16px 0;max-width:960px;margin:0 auto;display:flex;align-items:center;gap:8px;overflow:visible;position:relative;z-index:10}
 .hdr h1{font-size:1.1rem;font-weight:800;white-space:nowrap;flex:1;min-width:0}
 .hdr .price{font-size:.65rem;color:#6366f1;font-weight:600;background:#eef2ff;padding:4px 8px;border-radius:20px;white-space:nowrap;flex-shrink:0}
-.bnav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #e2e8f0;display:flex;z-index:100;padding:6px 0 env(safe-area-inset-bottom,8px);box-shadow:0 -2px 10px rgba(0,0,0,.06)}
-.bnav a{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;text-decoration:none;color:#94a3b8;font-size:.6rem;font-weight:500;transition:.2s;-webkit-tap-highlight-color:transparent}
-.bnav a .bi{font-size:1.2rem;line-height:1}
+.bnav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #e2e8f0;display:flex;z-index:100;padding:4px 0 max(4px,env(safe-area-inset-bottom,4px));box-shadow:0 -2px 10px rgba(0,0,0,.06);height:52px}
+.bnav a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:0;text-decoration:none;color:#94a3b8;font-size:.58rem;font-weight:500;transition:.2s;-webkit-tap-highlight-color:transparent}
+.bnav a svg{width:20px;height:20px;stroke-width:1.8;fill:none;stroke:currentColor;flex-shrink:0}
 .bnav a:hover{color:#6366f1}
 .bnav a.active{color:#6366f1;font-weight:700}
 .page{max-width:960px;width:100%;margin:0 auto;padding:0 16px 60px;overflow-x:hidden}
@@ -61,10 +61,14 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#f8fafc;min-height:
 .carro:hover{background:#6366f1;color:#fff;border-color:#6366f1}
 .carro.L{left:-6px}.carro.R{right:-6px}
 .bgrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;overflow:hidden}
+.gradrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .bgd{width:34px;height:34px;border-radius:50%;cursor:pointer;border:3px solid #e2e8f0;transition:.2s;position:relative;box-shadow:0 1px 2px rgba(0,0,0,.08)}
 .bgd:hover{transform:scale(1.1)}.bgd.on{border-color:#6366f1;box-shadow:0 0 0 2px rgba(99,102,241,.15)}
 .bgd.on::after{content:"\2713";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:.55rem;font-weight:700;color:#6366f1}
 .bgd.cust{border-style:dashed;display:flex;align-items:center;justify-content:center;font-size:.9rem;color:#94a3b8}
+.grad-item{width:50px;height:34px;border-radius:8px;cursor:pointer;border:3px solid #e2e8f0;transition:.2s;position:relative}
+.grad-item:hover{transform:scale(1.08)}.grad-item.on{border-color:#6366f1;box-shadow:0 0 0 2px rgba(99,102,241,.15)}
+.grad-item.on::after{content:"\2713";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:.55rem;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.3)}
 .cwrap{position:relative;width:34px;height:34px}
 .cwrap input[type=color]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
 .pgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;max-width:100%}
@@ -127,7 +131,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#f8fafc;min-height:
 </div>
 <div class="caro"><button class="carro L" id="cL">&#x25C0;</button><div class="caro-list" id="cl"></div><button class="carro R" id="cR">&#x25B6;</button></div>
 </div></div>
-<div class="card" style="margin-top:12px"><div class="card-h">&#x1F3A8; Background</div><div class="card-b"><div class="bgrow" id="bgr"></div></div></div>
+<div class="card" style="margin-top:12px"><div class="card-h">&#x1F3A8; Background</div><div class="card-b"><div class="bgrow" id="bgr"></div><div class="gradrow" id="grr" style="display:none"></div><div style="margin-top:6px;display:flex;gap:4px;align-items:center;"><button class="bgmode" id="bgSolid" onclick="setBgMode('solid')" style="font-size:.6rem;padding:3px 8px;border:1.5px solid #6366f1;border-radius:6px;background:#6366f1;color:#fff;cursor:pointer;font-weight:600">Solid</button><button class="bgmode" id="bgGrad" onclick="setBgMode('gradient')" style="font-size:.6rem;padding:3px 8px;border:1.5px solid #e2e8f0;border-radius:6px;background:#fff;color:#64748b;cursor:pointer;font-weight:600">Gradient</button></div></div></div>
 <div class="card" style="margin-top:12px"><div class="card-h">&#x1F5A8; Print</div><div class="card-b">
 <div class="pgrid">
 <div class="pf"><label>Paper</label><select id="ps"><option value="4x6">4&#xD7;6"</option><option value="5x7">5&#xD7;7"</option><option value="a6">A6</option><option value="a4">A4</option></select></div>
@@ -206,27 +210,74 @@ function renderClothes(){
 }
 
 function renderBG(){
+  var SOLID_COLORS=[
+    {key:'light_blue',name:'Sky Blue',hex:'#C4DCFF'},
+    {key:'white',name:'White',hex:'#FFFFFF'},
+    {key:'light_gray',name:'Light Gray',hex:'#F0F0F0'},
+    {key:'soft_blue',name:'Soft Blue',hex:'#B3D4FC'},
+    {key:'mint',name:'Mint',hex:'#D4F5E9'},
+    {key:'lavender',name:'Lavender',hex:'#E8D5F5'},
+    {key:'cream',name:'Cream',hex:'#FFF8E7'},
+    {key:'blush',name:'Blush',hex:'#FFE4E8'},
+    {key:'warm_gray',name:'Warm Gray',hex:'#E8E4E0'}
+  ];
+  var GRADIENTS=[
+    {key:'grad_sky',name:'Sky',css:'linear-gradient(180deg,#89CFF0 0%,#C4DCFF 100%)'},
+    {key:'grad_sunset',name:'Sunset',css:'linear-gradient(180deg,#FFB88C 0%,#FF8E72 100%)'},
+    {key:'grad_forest',name:'Forest',css:'linear-gradient(180deg,#A8E6CF 0%,#7BC8A4 100%)'},
+    {key:'grad_ocean',name:'Ocean',css:'linear-gradient(180deg,#667EEA 0%,#764BA2 100%)'},
+    {key:'grad_peach',name:'Peach',css:'linear-gradient(180deg,#FFECD2 0%,#FCB69F 100%)'},
+    {key:'grad_frost',name:'Frost',css:'linear-gradient(180deg,#E0EAFC 0%,#CFDEF3 100%)'},
+    {key:'grad_rose',name:'Rose',css:'linear-gradient(180deg,#FAD0C4 0%,#FFD1FF 100%)'},
+    {key:'grad_stone',name:'Stone',css:'linear-gradient(180deg,#D7DDE8 0%,#C4CCD8 100%)'}
+  ];
   var h='';
-  for(var i=0;i<BD.length;i++){
-    var b=BD[i];
-    h+='<div class="bgd'+(b.key===S.bg?' on':'')+'" style="background:'+(b.hex||'#ccc')+'" data-k="'+b.key+'" title="'+b.name+'"></div>';
+  for(var i=0;i<SOLID_COLORS.length;i++){
+    var b=SOLID_COLORS[i];
+    h+='<div class="bgd'+(b.key===S.bg?' on':'')+'" style="background:'+(b.hex||'#ccc')+'" data-k="'+b.key+'" data-hex="'+b.hex+'" title="'+b.name+'"></div>';
   }
-  h+='<div class="cwrap"><div class="bgd cust" title="Custom">+</div><input type="color" value="#C4DCFF" id="ccolor"></div>';
+  h+='<div class="cwrap"><div class="bgd cust" title="Custom Color">+</div><input type="color" value="#C4DCFF" id="ccolor"></div>';
   $('bgr').innerHTML=h;
+  // Solid colors
   var dots=$('bgr').querySelectorAll('.bgd:not(.cust)');
   for(var j=0;j<dots.length;j++){
     dots[j].addEventListener('click',function(){
-      S.bg=this.dataset.k;S.bgc=null;
+      S.bg=this.dataset.k;S.bgc=null;S.bgType='solid';S.gradient=null;
       var all=$('bgr').querySelectorAll('.bgd');
       for(var k=0;k<all.length;k++)all[k].classList.remove('on');
       this.classList.add('on');
+      document.querySelectorAll('.grad-item').forEach(function(g){g.classList.remove('on')});
     });
   }
+  // Custom color picker
   $('ccolor').addEventListener('input',function(e){
-    S.bgc=e.target.value;S.bg='custom';
+    S.bgc=e.target.value;S.bg='custom';S.bgType='solid';S.gradient=null;
     var all=$('bgr').querySelectorAll('.bgd');
     for(var k=0;k<all.length;k++)all[k].classList.remove('on');
+    document.querySelectorAll('.grad-item').forEach(function(g){g.classList.remove('on')});
   });
+  // Render gradients
+  var gh='';
+  for(var g=0;g<GRADIENTS.length;g++){
+    var gr=GRADIENTS[g];
+    gh+='<div class="grad-item" data-k="'+gr.key+'" data-css="'+gr.css+'" style="background:'+gr.css+'" title="'+gr.name+'"></div>';
+  }
+  $('grr').innerHTML=gh;
+  document.querySelectorAll('.grad-item').forEach(function(el){
+    el.addEventListener('click',function(){
+      S.bg=this.dataset.k;S.bgType='gradient';S.gradient=this.dataset.css;S.bgc=null;
+      document.querySelectorAll('.grad-item').forEach(function(g){g.classList.remove('on')});
+      this.classList.add('on');
+      var all=$('bgr').querySelectorAll('.bgd');
+      for(var k=0;k<all.length;k++)all[k].classList.remove('on');
+    });
+  });
+}
+var _bgMode='solid';
+function setBgMode(m){
+  _bgMode=m;
+  if(m==='solid'){$('bgr').style.display='';$('grr').style.display='none';$('bgSolid').style.borderColor='#6366f1';$('bgSolid').style.background='#6366f1';$('bgSolid').style.color='#fff';$('bgGrad').style.borderColor='#e2e8f0';$('bgGrad').style.background='#fff';$('bgGrad').style.color='#64748b'}
+  else{$('bgr').style.display='none';$('grr').style.display='';$('bgGrad').style.borderColor='#6366f1';$('bgGrad').style.background='#6366f1';$('bgGrad').style.color='#fff';$('bgSolid').style.borderColor='#e2e8f0';$('bgSolid').style.background='#fff';$('bgSolid').style.color='#64748b'}
 }
 
 function setupUI(){
@@ -306,8 +357,10 @@ async function generate(){
   showOv('Generating...');
   try{
     var b=await toB64(S.photo);
-    var body={image_base64:b,template_code:S.tpl,gender:S.gender,clothing:S.clothing,background:S.bg,strength:0.65};
-    if(S.bgc)body.background_color=S.bgc;if(S.cw&&S.ch){body.custom_width=S.cw;body.custom_height=S.ch}
+    var body={image_base64:b,template_code:S.tpl,gender:S.gender,clothing:S.clothing,background:S.bg,strength:0.65,bg_type:S.bgType||'solid'};
+    if(S.bgc)body.background_color=S.bgc;
+    if(S.gradient)body.background_gradient=S.gradient;
+    if(S.cw&&S.ch){body.custom_width=S.cw;body.custom_height=S.ch}
     var r=await fetch(API+'/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     var d=await r.json();if(!d.ok)throw new Error(d.detail||'Error');
     S.sid=d.session_id;showResult(d);
@@ -318,9 +371,11 @@ async function genBulk(){
   showOv('Generating '+S.photos.length+'...');
   try{
     var imgs=[];for(var i=0;i<S.photos.length;i++)imgs.push(await toB64(S.photos[i]));
-    var body={images:imgs,template_code:S.tpl,gender:S.gender,clothing:S.clothing,background:S.bg,strength:0.65,
+    var body={images:imgs,template_code:S.tpl,gender:S.gender,clothing:S.clothing,background:S.bg,strength:0.65,bg_type:S.bgType||'solid',
       print_size:$('ps').value,photo_count:parseInt($('pc').value)||6,border:$('bt').value,blade_mode:$('bm').checked};
-    if(S.bgc)body.background_color=S.bgc;if(S.cw&&S.ch){body.custom_width=S.cw;body.custom_height=S.ch}
+    if(S.bgc)body.background_color=S.bgc;
+    if(S.gradient)body.background_gradient=S.gradient;
+    if(S.cw&&S.ch){body.custom_width=S.cw;body.custom_height=S.ch}
     var r=await fetch(API+'/bulk-generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     var d=await r.json();if(!d.ok)throw new Error(d.detail||'Error');
     S.sid=d.results&&d.results[0]?d.results[0].session_id:null;showBulk(d);
@@ -363,6 +418,6 @@ var tt;function toast(m,t){clearTimeout(tt);var e=$('toast');e.className='toast 
 
 boot();
 </script>
-<div class="bnav"><a href="/" class="active"><span class="bi">&#x1F3E0;</span>Home</a><a href="/gallery.html"><span class="bi">&#x1F4F8;</span>Gallery</a><a href="/print.html"><span class="bi">&#x1F5A8;</span>Print</a></div>
+<div class="bnav"><a href="/" class="active"><svg viewBox="0 0 24 24"><path d="M3 12l9-8 9 8"/><path d="M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9"/></svg>Home</a><a href="/gallery.html"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>Gallery</a><a href="/print.html"><svg viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print</a></div>
 </body>
 </html>

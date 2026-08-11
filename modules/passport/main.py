@@ -98,7 +98,9 @@ class GenerateRequest(BaseModel):
     template_code: str = "thai_passport"
     gender: str = "auto"           # "male" | "female" | "auto"
     clothing: str = "auto"         # clothing key, "auto", or "random"
-    background: str = "light_blue" # "light_blue" | "white" | "light_gray"
+    background: str = "light_blue" # "light_blue" | "white" | "light_gray" | "custom"
+    background_color: Optional[str] = None   # custom hex color
+    background_gradient: Optional[str] = None # CSS gradient string
     strength: float = 0.65         # FLUX i2i strength
 
 class BulkGenerateRequest(BaseModel):
@@ -107,6 +109,8 @@ class BulkGenerateRequest(BaseModel):
     gender: str = "auto"
     clothing: str = "auto"
     background: str = "light_blue"
+    background_color: Optional[str] = None
+    background_gradient: Optional[str] = None
     strength: float = 0.65
     print_size: str = "4x6"
     photo_count: int = 6
@@ -210,12 +214,22 @@ async def generate_passport_v2(req: GenerateRequest):
     clothing = get_clothing(gender, req.clothing)
     bg = get_background(req.background)
 
+    # Background color/gradient override
+    bg_color = req.background_color
+    bg_gradient = req.background_gradient
+    if bg_gradient:
+        bg_prompt = f"gradient background {bg_gradient}"
+    elif bg_color:
+        bg_prompt = f"solid {bg_color} background"
+    else:
+        bg_prompt = bg["prompt"]
+
     # Generate passport photo
     result = generate_passport(
         img_bytes,
         template_info=template_info,
         clothing_prompt=clothing["prompt"],
-        bg_prompt=bg["prompt"],
+        bg_prompt=bg_prompt,
         strength=req.strength,
     )
 

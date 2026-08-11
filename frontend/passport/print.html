@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Print Sheet — Passport Photo Studio</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',-apple-system,sans-serif;background:#f8fafc;min-height:100vh;color:#0f172a}
+.hdr{padding:20px 16px 12px;max-width:960px;margin:0 auto;display:flex;align-items:center;gap:12px}
+.hdr h1{font-size:1.2rem;font-weight:800;flex:1}
+.hdr a{padding:7px 14px;background:#6366f1;color:#fff;border-radius:8px;text-decoration:none;font-size:.75rem;font-weight:600}
+.page{max-width:960px;margin:0 auto;padding:0 16px 60px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.card-h{padding:12px 16px;border-bottom:1px solid #e2e8f0;font-size:.78rem;font-weight:700}
+.card-b{padding:16px}
+.drop{border:2px dashed #e2e8f0;border-radius:10px;padding:28px 16px;text-align:center;cursor:pointer;transition:.2s;background:#f1f5f9}
+.drop:hover{border-color:#6366f1;background:#eef2ff}
+.drop.has{border-style:solid;border-color:#6366f1;padding:10px;display:flex;align-items:center;gap:12px;text-align:left}
+.drop img{width:80px;height:100px;object-fit:cover;border-radius:8px;flex-shrink:0}
+.drop .info{flex:1}.drop .nm{font-size:.75rem;font-weight:600;word-break:break-all}.drop .mt{font-size:.65rem;color:#64748b}
+.drop input{display:none}
+.drop .emp{font-size:.8rem;color:#64748b}.drop .emp .ic{font-size:28px;margin-bottom:6px;opacity:.5}
+.pgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px}
+.pf label{font-size:.6rem;color:#94a3b8;margin-bottom:2px;display:block;font-weight:500}
+.pf select,.pf input{width:100%;padding:8px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.75rem;background:#fff;color:#0f172a;outline:none}
+.blade{display:flex;align-items:center;gap:5px;margin-top:8px;font-size:.68rem;color:#64748b;cursor:pointer;user-select:none}
+.blade input{accent-color:#6366f1;width:13px;height:13px}
+.gen{width:100%;padding:13px;border:none;border-radius:10px;font-size:.88rem;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#10b981,#059669);color:#fff;margin-top:16px;box-shadow:0 4px 12px rgba(16,185,129,.15);transition:.2s}
+.gen:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(16,185,129,.2)}
+.gen:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.result{margin-top:16px}
+.result img{width:100%;border-radius:12px;background:#f1f5f9;box-shadow:0 4px 16px rgba(0,0,0,.08)}
+.rbtns{display:flex;gap:8px;margin-top:12px}
+.rbtn{flex:1;padding:10px;border:none;border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer;text-align:center}
+.rbtn.dl{background:#10b981;color:#fff}.rbtn.dl:hover{filter:brightness(1.1)}
+.rbtn.print{background:#6366f1;color:#fff}.rbtn.print:hover{filter:brightness(1.1)}
+.info{background:#f1f5f9;border-radius:8px;padding:10px 12px;margin-top:12px;font-size:.68rem;color:#64748b;line-height:1.5}
+.info b{color:#0f172a}
+.gallery-link{display:block;text-align:center;margin-top:16px;padding:10px;background:#f1f5f9;border-radius:8px;color:#6366f1;text-decoration:none;font-size:.75rem;font-weight:600;border:1px solid #e2e8f0}
+.gallery-link:hover{background:#eef2ff;border-color:#6366f1}
+.ov{display:none;position:fixed;inset:0;background:rgba(255,255,255,.92);z-index:998;justify-content:center;align-items:center;flex-direction:column;gap:12px;backdrop-filter:blur(8px)}
+.ov.show{display:flex}
+.sp{width:32px;height:32px;border:3px solid #e2e8f0;border-top-color:#10b981;border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(100px);background:#0f172a;color:#fff;border-radius:20px;padding:9px 18px;z-index:999;font-size:.75rem;font-weight:500;transition:transform .3s}
+.toast.show{transform:translateX(-50%) translateY(0)}
+@media(max-width:768px){.row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <h1>🖨 Print Sheet</h1>
+  <a href="/passport/">← Back</a>
+</div>
+<div class="ov" id="ov"><div class="sp"></div><div class="t">Generating...</div></div>
+<div class="toast" id="toast"></div>
+<div class="page">
+  <div class="row">
+    <div>
+      <div class="card">
+        <div class="card-h">📷 Upload Passport Photo</div>
+        <div class="card-b">
+          <div class="drop" id="drop" onclick="document.getElementById('fi').click()">
+            <div class="emp" id="emp"><div class="ic">📷</div>Drop passport photo here<br><small>JPG / PNG</small></div>
+            <div class="filled" id="fil" style="display:none">
+              <img id="pth" alt="">
+              <div class="info"><div class="nm" id="fn"></div><div class="mt" id="fm"></div></div>
+            </div>
+            <input type="file" id="fi" accept="image/jpeg,image/png">
+          </div>
+          <a href="/passport/gallery.html" class="gallery-link">📸 Or pick from Gallery</a>
+        </div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <div class="card-h">⚙️ Print Settings</div>
+        <div class="card-b">
+          <div class="pgrid">
+            <div class="pf"><label>Paper</label>
+              <select id="ps">
+                <option value="4x6">4×6"</option>
+                <option value="5x7">5×7"</option>
+                <option value="a6">A6</option>
+                <option value="a4">A4</option>
+              </select>
+            </div>
+            <div class="pf"><label>Photos</label>
+              <input type="number" id="pc" value="6" min="1" max="20">
+            </div>
+            <div class="pf"><label>Border</label>
+              <select id="bt">
+                <option value="guidelines">Cut lines</option>
+                <option value="none">None</option>
+                <option value="frame">Frame</option>
+              </select>
+            </div>
+          </div>
+          <label class="blade"><input type="checkbox" id="bm"> Blade mode (wider gaps)</label>
+          <button class="gen" id="btn" disabled>🖨 Generate Print Sheet</button>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-h">🖼 Result</div>
+        <div class="card-b">
+          <div id="empty" style="text-align:center;padding:40px;color:#94a3b8">
+            <div style="font-size:2rem;margin-bottom:8px;opacity:.4">🖨</div>
+            Upload photo & click Generate
+          </div>
+          <div id="result" style="display:none">
+            <img id="outImg" alt="">
+            <div id="infoBox" class="info"></div>
+            <div class="rbtns">
+              <a class="rbtn dl" id="dlBtn" href="" download>💾 Download</a>
+              <button class="rbtn print" onclick="window.print()">🖨 Print</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+var API='/api/passport';
+var photoFile=null;
+
+document.getElementById('fi').addEventListener('change',function(e){
+  var f=e.target.files[0];
+  if(!f)return;
+  photoFile=f;
+  document.getElementById('drop').classList.add('has');
+  document.getElementById('emp').style.display='none';
+  document.getElementById('fil').style.display='';
+  document.getElementById('pth').src=URL.createObjectURL(f);
+  document.getElementById('fn').textContent=f.name;
+  document.getElementById('fm').textContent=(f.size/1024).toFixed(0)+' KB';
+  document.getElementById('btn').disabled=false;
+});
+
+document.getElementById('btn').addEventListener('click',generate);
+
+async function generate(){
+  if(!photoFile)return;
+  showOv();
+  try{
+    var b64=await toB64(photoFile);
+    var body={
+      image_base64: b64,
+      print_size: document.getElementById('ps').value,
+      photo_count: parseInt(document.getElementById('pc').value)||6,
+      border: document.getElementById('bt').value,
+      blade_mode: document.getElementById('bm').checked,
+    };
+    var r=await fetch(API+'/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    var d=await r.json();
+    if(!d.ok)throw new Error(d.detail||'Generation failed');
+    showResult(d);
+  }catch(e){toast('Error: '+e.message,'err')}finally{hideOv()}
+}
+
+function showResult(d){
+  document.getElementById('empty').style.display='none';
+  document.getElementById('result').style.display='';
+  var printUrl=d.download_print||d.download_passport;
+  document.getElementById('outImg').src=API+printUrl+'?t='+Date.now();
+  document.getElementById('dlBtn').href=API+printUrl;
+  var info=d.print_info||{};
+  document.getElementById('infoBox').innerHTML=
+    '<b>Size:</b> '+(info.print_size||'4x6')+'<br>'+
+    '<b>Photos:</b> '+(info.count||'?')+'<br>'+
+    '<b>Layout:</b> '+(info.cols||'?')+'×'+(info.rows||'?')+'<br>'+
+    '<b>Border:</b> '+(info.border||'guidelines');
+  toast('Print sheet ready!');
+}
+
+function toB64(f){return new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(r.result.split(',')[1])};r.onerror=rej;r.readAsDataURL(f)})}
+function showOv(){document.getElementById('ov').classList.add('show')}
+function hideOv(){document.getElementById('ov').classList.remove('show')}
+function toast(m,t){var e=document.getElementById('toast');e.className='toast show '+(t||'');e.textContent=m;setTimeout(function(){e.className='toast'},3000)}
+
+// Check if session_id in URL (from gallery)
+var params=new URLSearchParams(window.location.search);
+if(params.get('session_id')){
+  var sid=params.get('session_id');
+  document.getElementById('drop').classList.add('has');
+  document.getElementById('emp').style.display='none';
+  document.getElementById('fil').style.display='';
+  document.getElementById('pth').src=API+'/download/'+sid+'_passport.jpg';
+  document.getElementById('fn').textContent=sid+'_passport.jpg';
+  document.getElementById('fm').textContent='From gallery';
+  document.getElementById('btn').disabled=false;
+  photoFile={_sid:sid};
+  // Override generate to use session_id
+  var origGenerate=generate;
+  generate=async function(){
+    showOv();
+    try{
+      var body={
+        session_id:photoFile._sid,
+        print_size:document.getElementById('ps').value,
+        photo_count:parseInt(document.getElementById('pc').value)||6,
+        border:document.getElementById('bt').value,
+        blade_mode:document.getElementById('bm').checked,
+      };
+      var r=await fetch(API+'/print-sheet',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      var d=await r.json();
+      if(!d.ok)throw new Error(d.detail||'Failed');
+      document.getElementById('empty').style.display='none';
+      document.getElementById('result').style.display='';
+      document.getElementById('outImg').src=API+d.download_url+'?t='+Date.now();
+      document.getElementById('dlBtn').href=API+d.download_url;
+      var info=d.info||{};
+      document.getElementById('infoBox').innerHTML=
+        '<b>Size:</b> '+(info.print_size||'4x6')+'<br>'+
+        '<b>Photos:</b> '+(info.count||'?')+'<br>'+
+        '<b>Layout:</b> '+(info.cols||'?')+'×'+(info.rows||'?');
+      toast('Print sheet ready!');
+    }catch(e){toast('Error: '+e.message,'err')}finally{hideOv()}
+  };
+}
+</script>
+</body>
+</html>

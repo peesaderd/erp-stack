@@ -422,6 +422,75 @@ async def bulk_generate(req: BulkGenerateRequest):
 
 
 # ═══════════════════════════════════════════════════════════
+# Gallery API
+# ═══════════════════════════════════════════════════════════
+
+@app.get("/api/passport/gallery")
+def list_gallery(limit: int = 50, offset: int = 0):
+    """List all passport photos in storage."""
+    files = []
+    for f in sorted(STORAGE_DIR.glob("*_passport.jpg"), key=lambda x: x.stat().st_mtime, reverse=True):
+        sid = f.stem.replace("_passport", "")
+        stat = f.stat()
+        print_file = STORAGE_DIR / f"{sid}_print.jpg"
+        files.append({
+            "session_id": sid,
+            "filename": f.name,
+            "url": f"/api/passport/download/{f.name}",
+            "print_url": f"/api/passport/download/{sid}_print.jpg" if print_file.exists() else None,
+            "size_kb": round(stat.st_size / 1024, 1),
+            "created": stat.st_mtime,
+        })
+    total = len(files)
+    return {"ok": True, "total": total, "photos": files[offset:offset+limit]}
+
+
+@app.get("/api/passport/gallery/{session_id}")
+def get_gallery_photo(session_id: str):
+    """Get one passport photo details."""
+    passport = STORAGE_DIR / f"{session_id}_passport.jpg"
+    if not passport.exists():
+        raise HTTPException(404, "Photo not found")
+    stat = passport.stat()
+    print_file = STORAGE_DIR / f"{session_id}_print.jpg"
+    return {
+        "ok": True,
+        "session_id": session_id,
+        "url": f"/api/passport/download/{session_id}_passport.jpg",
+        "print_url": f"/api/passport/download/{session_id}_print.jpg" if print_file.exists() else None,
+        "size_kb": round(stat.st_size / 1024, 1),
+        "created": stat.st_mtime,
+    }
+
+
+@app.delete("/api/passport/gallery/{session_id}")
+def delete_gallery_photo(session_id: str):
+    """Delete a passport photo."""
+    deleted = []
+    for suffix in ["_passport.jpg", "_print.jpg"]:
+        p = STORAGE_DIR / f"{session_id}{suffix}"
+        if p.exists():
+            p.unlink()
+            deleted.append(p.name)
+    if not deleted:
+        raise HTTPException(404, "Photo not found")
+    return {"ok": True, "deleted": deleted}
+
+
+@app.post("/api/passport/cleanup")
+def cleanup_old_photos(days: int = 7):
+    """Delete photos older than N days."""
+    cutoff = time.time() - (days * 86400)
+    deleted = []
+    for f in STORAGE_DIR.iterdir():
+        if f.is_file() and f.stat().st_mtime < cutoff:
+            f.unlink()
+            deleted.append(f.name)
+    logger.info(f"Cleanup: deleted {len(deleted)} files older than {days} days")
+    return {"ok": True, "deleted_count": len(deleted), "files": deleted}
+
+
+# ═══════════════════════════════════════════════════════════
 # Main
 # ═══════════════════════════════════════════════════════════
 

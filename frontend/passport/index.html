@@ -76,10 +76,11 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#f8fafc;min-height:
 .rst:last-child{border-right:none}
 .rst .v{font-size:.78rem;font-weight:700;color:#6366f1}
 .rst .l{font-size:.52rem;color:#94a3b8;margin-top:1px}
-.rbtns{display:flex;gap:5px;padding:12px}
-.rbtn{flex:1;padding:9px;border:none;border-radius:8px;font-size:.72rem;font-weight:600;cursor:pointer;text-align:center}
+.rbtns{display:flex;gap:5px;padding:12px;flex-wrap:wrap}
+.rbtn{flex:1;min-width:60px;padding:9px;border:none;border-radius:8px;font-size:.72rem;font-weight:600;cursor:pointer;text-align:center}
 .rbtn.p{background:#10b981;color:#fff}.rbtn.p:hover{filter:brightness(1.1)}
 .rbtn.s{background:#f1f5f9;color:#0f172a;border:1px solid #e2e8f0}.rbtn.s:hover{border-color:#6366f1;color:#6366f1}
+.rbtn.auto{background:#6366f1;color:#fff}.rbtn.auto:hover{filter:brightness(1.1)}
 .blist{padding:0 12px 12px}
 .bi{display:flex;align-items:center;gap:6px;padding:7px 8px;background:#f1f5f9;border-radius:6px;margin-bottom:4px;font-size:.68rem}
 .bi .n{font-weight:700;color:#94a3b8;min-width:20px}.bi .inf{flex:1}
@@ -97,7 +98,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#f8fafc;min-height:
 </style>
 </head>
 <body>
-<div class="hdr"><h1>&#x1F4F8; Passport Photo Studio</h1><div class="price">&#x26A1; $0.004 / photo</div></div>
+<div class="hdr"><h1>&#x1F4F8; Passport Photo Studio</h1><div style="display:flex;gap:6px;align-items:center"><a href="/passport/gallery.html" style="padding:5px 10px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;text-decoration:none;font-size:.65rem;font-weight:600;color:#6366f1">&#x1F4F8; Gallery</a><div class="price">&#x26A1; $0.004 / photo</div></div></div>
 <div class="ov" id="ov"><div class="sp"></div><div class="t" id="ovt">Generating...</div></div>
 <div class="toast" id="toast"></div>
 <div class="page"><div class="row">
@@ -138,7 +139,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#f8fafc;min-height:
 <div id="rc" style="display:none"><div style="background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 8px 20px rgba(0,0,0,.08);border:1px solid #e2e8f0">
 <img class="rimg" id="ri" alt="">
 <div class="rstats" id="rs"></div>
-<div class="rbtns"><button class="rbtn p" id="dp">&#x1F4BE; Download</button><button class="rbtn s" id="dpr">&#x1F5A8; Print</button><button class="rbtn s" id="rr">&#x1F504; New</button></div>
+<div class="rbtns"><button class="rbtn auto" id="dla">&#x1F4BE; Save</button><button class="rbtn p" id="dp">&#x1F4BE; Download Passport</button><button class="rbtn s" id="dpr">&#x1F5A8; Download Print</button><a class="rbtn s" id="prlink" href="/passport/print.html" style="text-decoration:none;display:none">&#x1F5A8; Print Sheet</a><button class="rbtn s" id="rr">&#x1F504; New</button></div>
 <div id="psi" style="display:none;padding:0 12px 12px"><img id="pri" alt="" style="width:100%;border-radius:10px;background:#f1f5f9"></div>
 <div class="blist" id="bl" style="display:none"></div>
 </div></div>
@@ -231,6 +232,7 @@ function setupUI(){
   $('gbn').addEventListener('click',generate);
   $('dp').addEventListener('click',function(){dl('passport')});
   $('dpr').addEventListener('click',function(){dl('print')});
+  $('dla').addEventListener('click',autoDownload);
   $('rr').addEventListener('click',clearAll);
   $('cb').addEventListener('click',function(){
     var w=parseInt($('cw').value),ht=parseInt($('ch').value);
@@ -329,6 +331,7 @@ function showResult(d){
   $('ri').src=API+'/download/'+d.session_id+'_passport.jpg?t='+Date.now();
   if(d.download_print){$('pri').src=API+'/download/'+d.session_id+'_print.jpg?t='+Date.now();$('psi').style.display=''}
   else $('psi').style.display='none';
+  $('prlink').href='/passport/print.html?session_id='+d.session_id;$('prlink').style.display='';
   $('bl').style.display='none';toast('Done!');
 }
 
@@ -348,6 +351,7 @@ function showBulk(d){
 
 function toB64(f){return new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(r.result.split(',')[1])};r.onerror=rej;r.readAsDataURL(f)})}
 function dl(t){if(!S.sid)return;var a=document.createElement('a');a.href=API+'/download/'+S.sid+'_'+t+'.jpg';a.download='passport_'+t+'.jpg';a.click()}
+function autoDownload(){if(!S.sid)return;dl('passport');setTimeout(function(){dl('print')},500);toast('Saved!')} 
 function showOv(t){$('ovt').textContent=t;$('ov').classList.add('show')}
 function hideOv(){$('ov').classList.remove('show')}
 var tt;function toast(m,t){clearTimeout(tt);var e=$('toast');e.className='toast show '+(t||'');e.textContent=m;tt=setTimeout(function(){e.classList.remove('show')},3000)}

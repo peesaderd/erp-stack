@@ -74,6 +74,18 @@ FEMALE_CLOTHING = {
         "name": "เสื้อ.blouse สีม่วง",
         "prompt": "purple formal blouse, professional business attire, modest neckline",
     },
+    "casual_cotton_top": {
+        "name": "เสื้อยืดคอกลม",
+        "prompt": "casual cotton round-neck t-shirt, soft pastel color, relaxed fit, casual everyday wear",
+    },
+    "linen_blouse": {
+        "name": "เสื้อเชิ้ต linen",
+        "prompt": "casual linen blouse, relaxed fit, natural fabric texture, comfortable everyday wear",
+    },
+    "knit_sweater_top": {
+        "name": "เสื้อกันหนาวถัก",
+        "prompt": "casual knit sweater top, soft ribbed texture, comfortable relaxed fit, everyday casual wear",
+    },
 }
 
 # ── Background Colors ──────────────────────────────────

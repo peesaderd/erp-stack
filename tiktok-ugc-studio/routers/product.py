@@ -2,6 +2,7 @@
 
 Extracted from main.py monolith.
 """
+import asyncio
 import base64
 import json
 import os
@@ -294,7 +295,7 @@ async def analyze_scraped_products():
                 "price_min": product.price_min or 0,
                 "price_max": product.price_max or 0,
                 "price_avg": product.price_avg or 0,
-                "price_thb": product.price_min or 0,
+                "price_thb": product.price_avg or price or 0,
                 "source": product.source or "tiktok",
                 "category": product.category or "",
                 "commission_rate": product.commission_rate or 0,
@@ -313,17 +314,30 @@ async def analyze_scraped_products():
 
             # 5. Write to tus_products.db
             existing_tus = tus_conn.execute(
-                "SELECT keywords FROM tus_products WHERE product_id = ?",
+                "SELECT gender, target_age, hashtags FROM tus_products WHERE product_id = ?",
                 (product.product_id,)
             ).fetchone()
+            # Build VALUES — only overwrite fields that are better than existing
+            new_gender = product.gender or ""
+            new_age = product.target_age or ""
+            new_hashtags = json.dumps(product.hashtags)
+            new_keywords = json.dumps(product.keywords)
+            
+            # Read existing data for comparison
             if existing_tus:
+                existing_gender = existing_tus[0] or ""
+                existing_age = existing_tus[1] or ""
+                existing_ht = existing_tus[2] or "[]"
+                # Preserve: only overwrite if new value is non-empty AND existing is empty
+                if existing_gender and not new_gender:
+                    new_gender = existing_gender
+                if existing_age and not new_age:
+                    new_age = existing_age
+                # Preserve hashtags/keywords if existing has more data
                 try:
-                    existing_kw = json.loads(existing_tus[0]) if existing_tus[0] else []
-                except Exception:
-                    existing_kw = []
-                if len(existing_kw) > 2:
-                    skipped += 1
-                    continue
+                    existing_kw_list = json.loads(existing_tus[3]) if len(existing_tus) > 3 else []
+                except:
+                    existing_kw_list = []
 
             tus_conn.execute("""
                 INSERT OR REPLACE INTO tus_products
@@ -336,7 +350,7 @@ async def analyze_scraped_products():
                 product.product_id,
                 product.title,
                 product.title_th or product.title,
-                product.price_min or 0,
+                product.price_avg or price or 0,
                 0,
                 product.sold_total or 0,
                 product.viral_score or 0,
@@ -349,14 +363,19 @@ async def analyze_scraped_products():
                 product.description or "",
                 product.description or "",
                 json.dumps(product.images),
-                json.dumps(product.keywords),
-                json.dumps(product.hashtags),
-                product.gender or "",
-                product.target_age or "",
+                new_keywords,
+                new_hashtags,
+                new_gender,
+                new_age,
                 product.source or "tiktok",
             ))
             enriched += 1
             logger.info(f"  OK {product.product_id[:18]} | gender={product.gender!r} | age={product.target_age!r} | kw={len(product.keywords)}")
+            # Commit immediately per product (prevents data loss on timeout)
+            tus_conn.commit()
+            # Rate-limit: wait between Mistral calls to avoid 429
+            # Each product makes ~3 Mistral calls, so 10s delay between products
+            await asyncio.sleep(10)
 
         except Exception as e:
             error_msg = f"Row {r.get('id','?')}: {e}"

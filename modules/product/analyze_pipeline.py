@@ -8,6 +8,23 @@ from dataclasses import dataclass, field, asdict
 from collections import Counter
 import os, sys
 from pathlib import Path
+
+# Load .env from erp-stack root (PM2 doesn't inject env vars)
+_erp_root = str(Path(__file__).resolve().parents[2])
+try:
+    from dotenv import load_dotenv
+    load_dotenv(os.path.join(_erp_root, '.env'))
+except ImportError:
+    # Manual .env loader if dotenv not installed
+    _env_path = os.path.join(_erp_root, '.env')
+    if os.path.exists(_env_path):
+        with open(_env_path) as _f:
+            for _line in _f:
+                _line = _line.strip()
+                if _line and not _line.startswith('#') and '=' in _line:
+                    _k, _v = _line.split('=', 1)
+                    os.environ.setdefault(_k.strip(), _v.strip())
+
 _modules_root = str(Path(__file__).resolve().parents[1])
 if _modules_root not in sys.path:
     sys.path.insert(0, _modules_root)
@@ -18,26 +35,19 @@ logger = logging.getLogger("analyze_pipeline")
 
 MISTRAL_KEY = os.environ.get("MISTRAL_API_KEY", "")
 
-# Collect all available Mistral keys for round-robin rotation
-_mistral_keys = []
-_mistral_key_index = 0
+# Mistral key rotation — use the new MistralKeyRotator
+from product.mistral_rotator import get_rotator as _get_mistral_rotator, MistralKeyRotator
+_mistral_keys = []  # kept for backward compat with code that checks len()
+
 
 def _load_mistral_keys():
-    """Load all MISTRAL_API_KEY, MISTRAL_API_KEY_2, MISTRAL_API_KEY_3, MISTRAL_API_KEY_4 from env."""
+    """Initialize rotator from env keys (called once)."""
     global _mistral_keys
-    seen = set()
-    keys = []
-    for i in range(1, 10):
-        env_name = "MISTRAL_API_KEY" if i == 1 else f"MISTRAL_API_KEY_{i}"
-        k = os.environ.get(env_name, "")
-        if k and k not in seen:
-            seen.add(k)
-            keys.append(k)
-    _mistral_keys = keys
-    if _mistral_keys:
-        logger.info(f"Loaded {len(_mistral_keys)} Mistral API keys for rotation")
-    else:
-        logger.warning("No MISTRAL_API_KEY set in environment")
+    try:
+        rotator = _get_mistral_rotator()
+        _mistral_keys = [s.key for s in rotator._slots]
+    except Exception as e:
+        logger.warning(f"Could not init MistralKeyRotator: {e}")
 
 # ─── Local Image Storage ───────────────────────────────────
 # Images are downloaded to Analysis module static dir
@@ -81,7 +91,7 @@ async def _download_images_local(product_id: str, image_urls: list) -> list:
         
         try:
             async with httpx.AsyncClient(
-                proxies=PROXY_DICT,
+                proxy=PROXY_DICT.get('http') or PROXY_DICT.get('https') if PROXY_DICT else None,
                 timeout=20,
                 verify=False
             ) as client:
@@ -634,45 +644,22 @@ class ProductExporter:
 # ─── Helper Functions ────────────────────────────────────────────────────────
 
 async def _call_mistral(prompt: str, max_tokens: int = 500) -> str:
-    """Call Mistral API with key rotation (MISTRAL_API_KEY, MISTRAL_API_KEY_2, etc).
-    Rotates round-robin through available keys. On 401/429 falls through to next key."""
-    global _mistral_key_index
+    """Call Mistral API via MistralKeyRotator with per-key cooldown.
+    
+    Key rotation features:
+    - Per-key cooldown tracking (60s default, respects Retry-After headers)
+    - Rotates to next available key on 429/401 (no sleep between retries)
+    - When all keys exhausted: waits for earliest cooldown, retries with backoff
+    - Concurrent-safe with asyncio.Lock
+    """
     if not _mistral_keys:
         _load_mistral_keys()
-    if not _mistral_keys:
+    try:
+        rotator = _get_mistral_rotator()
+        return await rotator.call(prompt, max_tokens=max_tokens)
+    except Exception as e:
+        logger.error(f"MistralKeyRotator failed: {e}")
         return ""
-    
-    start = _mistral_key_index % len(_mistral_keys)
-    for offset in range(len(_mistral_keys)):
-        idx = (start + offset) % len(_mistral_keys)
-        api_key = _mistral_keys[idx]
-        try:
-            async with httpx.AsyncClient(timeout=30) as client:
-                resp = await client.post(
-                    "https://api.mistral.ai/v1/chat/completions",
-                    headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                    json={"model": "mistral-large-latest",
-                          "messages": [{"role": "user", "content": prompt}],
-                          "max_tokens": max_tokens, "temperature": 0.3})
-                if resp.status_code == 200:
-                    _mistral_key_index += 1
-                    return resp.json()["choices"][0]["message"]["content"].strip()
-                if resp.status_code in (401, 429):
-                    logger.warning(f"Mistral key {idx+1}/{len(_mistral_keys)} rate-limited (HTTP {resp.status_code}) — rotating")
-                    continue
-                logger.warning(f"Mistral HTTP {resp.status_code}: {resp.text[:200]}")
-                return ""
-        except Exception as e:
-            msg = str(e)
-            if "429" in msg or "401" in msg or "rate" in msg.lower():
-                logger.warning(f"Mistral key {idx+1}/{len(_mistral_keys)} error ({msg[:80]}) — rotating")
-                continue
-            logger.error(f"Mistral call failed: {e}")
-            return ""
-    
-    _mistral_key_index += 1
-    logger.error(f"All {len(_mistral_keys)} Mistral keys exhausted")
-    return ""
 
 async def _detect_category(title: str, categories: list) -> str:
     if categories and categories[0]:
@@ -736,81 +723,57 @@ async def _extract_gender_age_hashtags(title: str, description: str, category: s
     if not title:
         return out
     prompt = (
-        "Analyze this product for TikTok UGC. Return ONLY valid JSON:\n"
-        '{"gender": "female|male", '
+        "Analyze this product's PRIMARY buyer/user for TikTok video content.\n"
+        "Return ONLY valid JSON:\n"
+        '{"gender": "ผู้หญิง|ผู้ชาย|ทุกเพศ", '
         '"target_age": "short age range e.g. 18-35", '
         '"hashtags": [5-8 Thai+English TikTok hashtags]}\n'
-        "Rules: gender must be female or male ONLY - return female/male if clearly for a specific gender. "
-        "If truly unknown/neutral/unisex, return gender as empty string (\"\"). "
-        "NEVER guess or force female/male when unclear.\n"
+        "Gender rules (make a definitive choice):\n"
+        "- Lipstick, skincare, beauty, makeup, serum, cream, concealer → ผู้หญิง\n"
+        "- Diapers, baby products, kids items → ผู้หญิง (mother is buyer)\n"
+        "- Shaver, razor, men's accessories → ผู้ชาย\n"
+        "- Vitamins, cleaning supplies, food, electronics, tools → ทุกเพศ\n"
+        "Only return ทุกเพศ for truly universal products. Do NOT overthink.\n"
         f"Title: {title}\n"
         f"Description: {description or 'N/A'}"
     )
     result = await _call_mistral(prompt, max_tokens=300)
 
-    # ── Female keywords: Thai + English beauty/cosmetic terms ──
-    _FEMALE_KW = (
-        # Makeup
-        "ลิปสติก", "ลิป", "ลิปจิ้มจุ่ม", "ลิปแมท", "ลิปกลอส", "บลัช", "บลัชออน",
-        "อายแชโดว์", "อายไลเนอร์", "มาสคาร่า", "คอนซีลเลอร์", "รองพื้น",
-        "แป้ง", "แป้งพัฟ", "ไฮไลท์", "คอนทัวร์", "ดินสอเขียนคิ้ว",
-        "makeup", "lipstick", "lip", "blush", "eyeshadow", "mascara",
-        "concealer", "foundation", "powder", "highlighter", "contour",
-        # Skincare
-        "เซรั่ม", "ครีม", "มอยส์เจอไรเซอร์", "เอสเซนส์", "โทนเนอร์",
-        "มาส์กหน้า", "สครับ", "เซรั่มบำรุง", "ครีมบำรุง", "น้ำตบ",
-        "เอสเซ้นส์", "อิมัลชั่น", "อายครีม", "กันแดด",
-        "serum", "cream", "moisturizer", "essence", "toner",
-        "mask", "scrub", "sunscreen", "skincare",
-        # Beauty & personal care
-        "สกินแคร์", "ความงาม", "แต่งหน้า", "เครื่องสำอาง", "เครื่องสำอางค์",
-        "ความสวยความงาม", "บำรุงผิว", "ผิวสวย", "ผิวขาว",
-        "beauty", "cosmetic", "women", "woman", "lady",
-        # Hair & body
-        "แชมพู", "ครีมนวด", "ทรีทเมนท์", "สีผม", "ยาย้อมผม",
-        "โลชั่น", "ครีมอาบน้ำ", "เจลอาบน้ำ",
-        # Fashion (female)
-        "เดรส", "กระโปรง", "ชุด", "เสื้อผ้าผู้หญิง", "กางเกงขาสั้น",
-        "dress", "skirt", "blouse",
-        # Nail & lashes
-        "ยาทาเล็บ", "เจลทาเล็บ", "เล็บ", "ขนตา", "ต่อขนตา", "eyelash", "false lash",
-        # Perfume
-        "น้ำหอม", "perfume", "fragrance",
-    )
-    _MALE_KW = (
-        "เสื้อผู้ชาย", "สูท", "กางเกงในผู้ชาย", "รองเท้าผู้ชาย",
-        "men", "man", "male", "gentleman", "boxer", "tie",
-        "shaver", "razor", "beard",
-    )
-    # Category-based gender: if keyword matching fails, use category
-    _FEMALE_CATEGORIES = (
-        "lip", "makeup", "cosmetic", "beauty", "skincare", "serum",
-        "foundation", "concealer", "eyeshadow", "mascara", "blush",
-        "nail", "perfume", "fragrance",
-    )
-    _MALE_CATEGORIES = (
-        "shaver", "razor", "beard",
-    )
-
     def _resolve_gender(g: str, category: str = "") -> str:
-        g = (g or "").strip().lower()
-        if g in ("female", "f", "women", "woman", "ladies"):
-            return "female"
-        if g in ("male", "m", "men", "man", "gentlemen"):
-            return "male"
+        """Normalize LLM gender output to Thai standard values.
+        Returns: "หญิง" / "ชาย" / "" (empty = unisex)
+        """
+        g = (g or "").strip()
+        # Thai direct match
+        if g in ("ผู้หญิง", "หญิง", "สาว", "แม่"):
+            return "หญิง"
+        if g in ("ผู้ชาย", "ชาย", "หนุ่ม"):
+            return "ชาย"
+        if g in ("ทุกเพศ", "unisex", "", "all"):
+            return ""
+        # English match (backward compat)
+        gl = g.lower()
+        if gl in ("female", "f", "women", "woman", "ladies"):
+            return "หญิง"
+        if gl in ("male", "m", "men", "man", "gentlemen"):
+            return "ชาย"
         # Keyword-based fallback from title + description
         t = f"{title} {description or ''}".lower()
+        _FEMALE_KW = (
+            "ลิปสติก", "ลิป", "เซรั่ม", "ครีม", "มาส์ก", "สกินแคร์",
+            "แต่งหน้า", "เครื่องสำอาง", "กันแดด", "โลชั่น", "น้ำหอม",
+            "ผ้าอ้อม", "diaper", "lipstick", "serum", "cream",
+            "skincare", "makeup", "cosmetic", "perfume", "sunscreen",
+        )
+        _MALE_KW = (
+            "สูท", "นาฬิกาผู้ชาย", "shaver", "razor", "beard",
+            "men", "man", "male",
+        )
         if any(k.lower() in t for k in _FEMALE_KW):
-            return "female"
+            return "หญิง"
         if any(k.lower() in t for k in _MALE_KW):
-            return "male"
-        # Category-based fallback
-        cat = (category or "").lower()
-        if any(c in cat for c in _FEMALE_CATEGORIES):
-            return "female"
-        if any(c in cat for c in _MALE_CATEGORIES):
-            return "male"
-        return ""  # truly unknown/neutral
+            return "ชาย"
+        return ""  # truly unisex
 
     if result:
         try:
@@ -827,6 +790,9 @@ async def _extract_gender_age_hashtags(title: str, description: str, category: s
                 out["target_age"] = m2.group(1)
             matches = re.findall(r'"([^"]+)"', result)
             out["hashtags"] = [x for x in matches if x.startswith("#")][:12]
+    # Final fallback: if still empty, try keyword detection on title+description
+    if not out["gender"]:
+        out["gender"] = _resolve_gender("", category)
     return out
 
 

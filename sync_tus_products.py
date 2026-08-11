@@ -22,7 +22,7 @@ async def sync():
     logger.info("=" * 60)
 
     # Get all enriched products from PostgreSQL
-    result = await get_analyzed_products(limit=50)
+    result = await get_analyzed_products(limit=200)
     products = result.get("products", [])
     logger.info(f"PostgreSQL: {len(products)} products")
 
@@ -38,7 +38,8 @@ async def sync():
     created = 0
     for p in products:
         pid = p.get("product_id", "")
-        if not pid:
+        if not pid or len(pid) < 10:
+            # Skip empty or short/junk product IDs
             continue
 
         images_raw = p.get("images", [])

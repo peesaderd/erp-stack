@@ -2449,8 +2449,13 @@ function safeProductImage(p) {
   if (!imgs.length) return null;
   const first = imgs[0];
   const fn = String(first).split('/').pop() || '';
-  const expected = String(p.product_id || '') + '.jpg';
-  return fn === expected ? first : null;
+  const pid = String(p.product_id || '');
+  // Accept local path (product_id.jpg) or CDN URL (product_id_0.webp)
+  if (fn === pid + '.jpg') return first;
+  if (fn.startsWith(pid + '_') || fn.startsWith(pid + '.')) return first;
+  // Fallback: if it's an HTTP URL, use it anyway
+  if (first.startsWith('http')) return first;
+  return null;
 }
 
 async function loadAnalyzedProducts() {

@@ -61,6 +61,9 @@ class PipelineLogger:
                     image_prompt TEXT,
                     video_prompts TEXT,     -- JSON array (one per scene)
                     script TEXT,            -- Full TTS script
+                    script_hook TEXT,
+                    script_value TEXT,
+                    script_cta TEXT,
                     negative_prompt TEXT,
                     hashtags TEXT,          -- JSON array
                     
@@ -154,12 +157,16 @@ class PipelineLogger:
             conn.execute("""
                 UPDATE pipeline_jobs 
                 SET image_prompt = ?, video_prompts = ?, script = ?, 
+                    script_hook = ?, script_value = ?, script_cta = ?,
                     negative_prompt = ?, hashtags = ?, scenes = ?
                 WHERE job_id = ?
             """, (
                 prompts.get('image_prompt', ''),
                 json.dumps(prompts.get('video_prompts', []), ensure_ascii=False),
                 prompts.get('script', ''),
+                prompts.get('script_hook', '') or prompts.get('hook', ''),
+                prompts.get('script_value', '') or prompts.get('value', ''),
+                prompts.get('script_cta', '') or prompts.get('cta', ''),
                 prompts.get('negative_prompt', ''),
                 json.dumps(prompts.get('hashtags', []), ensure_ascii=False),
                 json.dumps(prompts.get('scenes', []), ensure_ascii=False),

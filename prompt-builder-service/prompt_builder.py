@@ -29,6 +29,43 @@ from router_agent import router_decide
 logger = logging.getLogger("prompt-builder-service")
 
 
+def _generate_default_hashtags(product_name: str, description: str = "") -> list:
+    """Generate diverse default hashtags from product name and description."""
+    hashtags = []
+    
+    # Clean product name for hashtag
+    clean_name = product_name.replace(" ", "").replace("【", "").replace("】", "").replace("[", "").replace("]", "")
+    if clean_name:
+        hashtags.append(clean_name[:20])
+    
+    # Extract category-related hashtags from description
+    desc_lower = (description or "").lower()
+    category_hashtags = {
+        "beauty": ["skincare", "beauty", "glowing", "whitening"],
+        "skin": ["skincare", "skin", "glowing", "moisturizer"],
+        "food": ["food", "yummy", "delicious", "tasty"],
+        "fashion": ["fashion", "style", "outfit", "ootd"],
+        "tech": ["tech", "gadget", "smart", "innovative"],
+        "health": ["health", "wellness", "fitness", "healthy"],
+        "home": ["home", "decor", "interior", "cozy"],
+    }
+    
+    for category, tags in category_hashtags.items():
+        if category in desc_lower:
+            hashtags.extend(tags[:3])
+            break
+    
+    # Add general hashtags if not enough
+    general_tags = ["trending", "viral", "fyp", "foryou"]
+    while len(hashtags) < 5:
+        for tag in general_tags:
+            if tag not in hashtags and len(hashtags) < 5:
+                hashtags.append(tag)
+        break
+    
+    return hashtags[:5]
+
+
 def analyze_product(product_name: str, description: str = "", keywords: Optional[List[str]] = None, target_duration: int = 15, features: str = "") -> dict:
     """Analyze product via Gemini and return profile dict.
     
@@ -69,7 +106,7 @@ Keywords: {kw_str}"""
             "main_benefit": f"คุณประโยชน์ของ{product_name[:20]}",
             "packaging_action": "generic_hold",
             "action_desc": "ถือสินค้าและใช้งานทั่วไป",
-            "hashtags": keywords[:5] if len(keywords) >= 5 else [product_name.replace(" ", "")[:20]] * 5,
+            "hashtags": keywords[:5] if len(keywords) >= 5 else _generate_default_hashtags(product_name, description),
             "image_description": f"An ethnic Thai {gender_en}, 25-35 years old, porcelain white glowing skin, monolid eyes, Southeast Asian features, holding a product at chest level, in a clean modern setting",
             # Extract basic features from description when Gemini fails
             "features": _extract_features_from_description(description) if description else "",
@@ -84,7 +121,26 @@ Keywords: {kw_str}"""
         elif isinstance(h, list):
             h = [x.strip().replace("#", "") for x in h if x.strip()]
         while len(h) < 5:
-            h.append(product_name.replace(" ", "").replace("\n", "")[:20])
+            default_tag = product_name.replace(" ", "").replace("\n", "").replace("【", "").replace("】", "").replace("[", "").replace("]", "")[:20]
+            if default_tag not in h:
+                h.append(default_tag)
+            else:
+                # Add a category-specific tag instead of duplicate
+                category = profile.get("category", "other")
+                fallback_tags = {
+                    "beauty": ["skincare", "beauty", "glowing"],
+                    "food": ["food", "yummy"],
+                    "fashion": ["fashion", "style"],
+                    "tech": ["tech", "gadget"],
+                    "health": ["health", "wellness"],
+                    "home": ["home", "decor"],
+                }
+                for tag in fallback_tags.get(category, ["trending", "viral"]):
+                    if tag not in h and len(h) < 5:
+                        h.append(tag)
+                        break
+                else:
+                    h.append("trending")
         profile["hashtags"] = h[:5]
 
     if features:
@@ -652,6 +708,7 @@ async def analyze_and_build_prompts(
                 "cta": tv.get("cta", {}).get("text", "") if isinstance(tv.get("cta"), dict) else str(tv.get("cta", "")),
             }
         },
+        "hashtags": profile.get("hashtags", []),
         "image_prompt": image_prompt,
         "video_prompt": video_prompt,
         "negative_prompt": negative_prompt,

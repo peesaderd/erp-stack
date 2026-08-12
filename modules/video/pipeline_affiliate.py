@@ -832,7 +832,7 @@ def compose_video(
             "-c:a", "aac",
             "-map", "0:v:0",
             "-map", "1:a:0",
-            "-shortest",
+            "-t", str(target_duration),
             str(voiced_path)
         ]
         try:

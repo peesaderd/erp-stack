@@ -37,10 +37,12 @@ def generate_print_sheet(
     dpi: int = 300,
     margin_mm: float = 3.0,
     add_guidelines: bool = True,
-    border: str = "guidelines",
+    border: str = "none",
     gap_mm: float = 3.0,
     blade_mode: bool = False,
     photo_count: int = 0,
+    border_color: str = "#FFFFFF",
+    border_width_mm: float = 0.0,
 ) -> dict:
     """
     Generate a print-ready sheet with multiple passport photos.
@@ -52,11 +54,13 @@ def generate_print_sheet(
         print_size: "4x6" | "5x7" | "a4" | "a6"
         dpi: target print DPI
         margin_mm: margin between photos in mm (legacy, use gap_mm)
-        add_guidelines: add cut lines (legacy, use border param)
-        border: "none" | "guidelines" | "frame"
-        gap_mm: gap between photos in mm (for cutting blade)
+        add_guidelines: unused (kept for backward compat)
+        border: "none" | "white" | "frame" (frame = border_color + border_width_mm)
+        gap_mm: gap between photos in mm
         blade_mode: if True, add extra gap for cutting blade
         photo_count: 0 = auto-fill, >0 = limit photo count
+        border_color: hex color for frame border (default #FFFFFF)
+        border_width_mm: border width in mm (default 0 = no border)
 
     Returns:
         dict with ok, result, info
@@ -69,17 +73,21 @@ def generate_print_sheet(
     sheet_w = int(round(ps["width_mm"] / 25.4 * dpi))
     sheet_h = int(round(ps["height_mm"] / 25.4 * dpi))
 
-    photo_w = int(round(template_w_mm / 25.4 * dpi))
-    photo_h = int(round(template_h_mm / 25.4 * dpi))
+    # Border adds to each photo's outer dimensions
+    border_px = int(round(border_width_mm / 25.4 * dpi)) if border_width_mm > 0 else 0
+    photo_w = int(round(template_w_mm / 25.4 * dpi)) + border_px * 2
+    photo_h = int(round(template_h_mm / 25.4 * dpi)) + border_px * 2
 
     # Use gap_mm for padding (supports cutting blade)
     padding_px = int(round(gap_mm / 25.4 * dpi))
     if blade_mode:
         padding_px = int(round(max(gap_mm, 5.0) / 25.4 * dpi))
 
-    # Ensure passport_image matches expected dimensions
-    if passport_image.shape[1] != photo_w or passport_image.shape[0] != photo_h:
-        passport_image = cv2.resize(passport_image, (photo_w, photo_h), interpolation=cv2.INTER_LANCZOS4)
+    # Ensure passport_image matches expected passport dimensions (without border)
+    passport_w = int(round(template_w_mm / 25.4 * dpi))
+    passport_h = int(round(template_h_mm / 25.4 * dpi))
+    if passport_image.shape[1] != passport_w or passport_image.shape[0] != passport_h:
+        passport_image = cv2.resize(passport_image, (passport_w, passport_h), interpolation=cv2.INTER_LANCZOS4)
 
     # Calculate grid layout
     cols = (sheet_w + padding_px) // (photo_w + padding_px)
@@ -95,6 +103,15 @@ def generate_print_sheet(
     total_h = rows * photo_h + (rows - 1) * padding_px
     offset_x = (sheet_w - total_w) // 2
     offset_y = (sheet_h - total_h) // 2
+
+    # Parse border color
+    bc = (255, 255, 255)  # default white
+    if border_color and border_color.startswith("#"):
+        try:
+            h = border_color.lstrip("#")
+            bc = (int(h[4:6], 16), int(h[2:4], 16), int(h[0:2], 16))  # BGR for OpenCV
+        except Exception:
+            bc = (255, 255, 255)
 
     # Create white sheet
     sheet = np.full((sheet_h, sheet_w, 3), 255, dtype=np.uint8)
@@ -113,17 +130,23 @@ def generate_print_sheet(
             pw = x2 - x
             ph = y2 - y
             if pw > 0 and ph > 0:
-                sheet[y:y2, x:x2] = passport_image[:ph, :pw]
+                # Draw border first (if any)
+                if border_px > 0:
+                    sheet[y:y2, x:x2] = bc
+                    # Place passport photo centered inside border
+                    inner_x = x + border_px
+                    inner_y = y + border_px
+                    inner_x2 = inner_x + passport_w
+                    inner_y2 = inner_y + passport_h
+                    # Clamp to sheet bounds
+                    if inner_x2 <= sheet_w and inner_y2 <= sheet_h:
+                        sheet[inner_y:inner_y2, inner_x:inner_x2] = passport_image
+                else:
+                    sheet[y:y2, x:x2] = passport_image
                 positions.append({"x": x, "y": y, "w": pw, "h": ph})
                 placed += 1
         if placed >= count:
             break
-
-    # Add border/guidelines
-    if border == "frame":
-        sheet = _add_frame(sheet, positions)
-    elif border == "guidelines" or add_guidelines:
-        sheet = _add_guidelines(sheet, positions)
 
     info = {
         "print_size": print_size,
@@ -133,6 +156,8 @@ def generate_print_sheet(
         "count": placed,
         "max_count": max_count,
         "border": border,
+        "border_color": border_color,
+        "border_width_mm": border_width_mm,
         "gap_mm": gap_mm,
         "blade_mode": blade_mode,
         "sheet_pixels": {"w": sheet_w, "h": sheet_h},
@@ -140,7 +165,7 @@ def generate_print_sheet(
         "photo_mm": {"w": template_w_mm, "h": template_h_mm},
     }
 
-    logger.info(f"Print sheet: {cols}x{rows}={placed}/{max_count} photos on {print_size} (border={border})")
+    logger.info(f"Print sheet: {cols}x{rows}={placed}/{max_count} photos on {print_size} (border={border}, border_width={border_width_mm}mm)")
     return {"ok": True, "result": sheet, "info": info}
 
 

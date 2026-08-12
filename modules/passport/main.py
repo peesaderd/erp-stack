@@ -114,17 +114,22 @@ class BulkGenerateRequest(BaseModel):
     strength: float = 0.65
     print_size: str = "4x6"
     photo_count: int = 6
-    border: str = "guidelines"
+    border: str = "none"
     blade_mode: bool = False
+    gap_mm: float = 2.0
+    border_color: str = "#FFFFFF"
+    border_width_mm: float = 0.0
 
 class PrintSheetRequest(BaseModel):
     session_id: str
     print_size: str = "4x6"
     photo_count: int = 6           # 0 = auto
-    border: str = "guidelines"     # "none" | "guidelines" | "frame"
-    gap_mm: float = 3.0
+    border: str = "none"           # "none" | "frame"
+    gap_mm: float = 2.0
     blade_mode: bool = False
     dpi: int = 300
+    border_color: str = "#FFFFFF"
+    border_width_mm: float = 0.0
 
 
 # ═══════════════════════════════════════════════════════════
@@ -249,7 +254,7 @@ async def generate_passport_v2(req: GenerateRequest):
         from .print_sheet import generate_print_sheet
         mm_w = result["dimensions_mm"]["w"]
         mm_h = result["dimensions_mm"]["h"]
-        sheet = generate_print_sheet(out_img, mm_w, mm_h, "4x6", 300, 3.0, True, "guidelines", 3.0, False, 6)
+        sheet = generate_print_sheet(out_img, mm_w, mm_h, "4x6", 300, 2.0, False, "frame", 2.0, False, 6, "#FFFFFF", 3.0)
         if sheet.get("ok"):
             sheet_bytes = _encode_image(sheet["result"])
             with open(STORAGE_DIR / f"{session_id}_print.jpg", "wb") as f:
@@ -322,10 +327,12 @@ class MultiPrintRequest(BaseModel):
     session_ids: list  # list of session_id strings
     copies: int = 1    # copies per photo
     print_size: str = "4x6"
-    border: str = "guidelines"
+    border: str = "none"
     blade_mode: bool = False
-    gap_mm: float = 3.0
+    gap_mm: float = 2.0
     dpi: int = 300
+    border_color: str = "#FFFFFF"
+    border_width_mm: float = 0.0
 
 
 @app.post("/api/passport/multi-print")
@@ -457,8 +464,9 @@ async def bulk_generate(req: BulkGenerateRequest):
             mm_w = result["dimensions_mm"]["w"]
             mm_h = result["dimensions_mm"]["h"]
             sheet = generate_print_sheet(
-                out_img, mm_w, mm_h, req.print_size, 300, req.blade_mode and 5.0 or 3.0,
-                True, req.border, req.blade_mode and 5.0 or 3.0, req.blade_mode, req.photo_count
+                out_img, mm_w, mm_h, req.print_size, 300, req.gap_mm,
+                False, req.border, req.gap_mm, req.blade_mode, req.photo_count,
+                req.border_color, req.border_width_mm
             )
             if sheet.get("ok"):
                 sheet_bytes = _encode_image(sheet["result"])

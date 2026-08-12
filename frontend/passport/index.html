@@ -149,7 +149,15 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#4b5563;min-height:
 <div class="pgrid">
 <div class="pf"><label>Paper</label><select id="ps"><option value="4x6">4&#xD7;6"</option><option value="5x7">5&#xD7;7"</option><option value="a6">A6</option><option value="a4">A4</option></select></div>
 <div class="pf"><label>Count</label><input type="number" id="pc" value="6" min="1" max="20"></div>
-<div class="pf"><label>Border</label><select id="bt"><option value="guidelines">Cut lines</option><option value="none">None</option><option value="frame">Frame</option></select></div>
+<div class="pf"><label>Gap (mm)</label><input type="number" id="pgap" value="2" min="0" max="10" step="0.5"></div>
+</div>
+<div style="margin-top:8px">
+<label style="font-size:.6rem;color:#94a3b8;display:block;margin-bottom:4px;font-weight:500">Border</label>
+<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+<select id="bt" style="padding:6px 8px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:.7rem;background:#fff;color:#0f172a;outline:none"><option value="none">No border</option><option value="frame" selected>White border</option></select>
+<div id="borderColorWrap" style="display:flex;align-items:center;gap:4px"><input type="color" id="bclr" value="#FFFFFF" style="width:28px;height:28px;border:1.5px solid #e2e8f0;border-radius:4px;cursor:pointer;padding:0"></div>
+<div id="borderWidthWrap" style="display:flex;align-items:center;gap:4px"><input type="number" id="bwmm" value="3" min="0" max="20" step="0.5" style="width:50px;padding:5px 6px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:.7rem;text-align:center"><span style="font-size:.6rem;color:#94a3b8">mm</span></div>
+</div>
 </div>
 <label class="blade"><input type="checkbox" id="bm"> Blade mode</label>
 </div></div>
@@ -370,7 +378,9 @@ async function generate(){
   showOv('Generating...');
   try{
     var b=await toB64(S.photo);
-    var body={image_base64:b,template_code:S.tpl,gender:S.gender,clothing:S.clothing,background:S.bg,strength:0.65,bg_type:S.bgType||'solid'};
+    var body={image_base64:b,template_code:S.tpl,gender:S.gender,clothing:S.clothing,background:S.bg,strength:0.65,bg_type:S.bgType||'solid',
+      print_size:$('ps').value,photo_count:parseInt($('pc').value)||6,border:$('bt').value,blade_mode:$('bm').checked,
+      gap_mm:parseFloat($('pgap').value)||2,border_color:$('bclr').value,border_width_mm:parseFloat($('bwmm').value)||0};
     if(S.bgc)body.background_color=S.bgc;
     if(S.gradient)body.background_gradient=S.gradient;
     if(S.cw&&S.ch){body.custom_width=S.cw;body.custom_height=S.ch}
@@ -385,7 +395,8 @@ async function genBulk(){
   try{
     var imgs=[];for(var i=0;i<S.photos.length;i++)imgs.push(await toB64(S.photos[i]));
     var body={images:imgs,template_code:S.tpl,gender:S.gender,clothing:S.clothing,background:S.bg,strength:0.65,bg_type:S.bgType||'solid',
-      print_size:$('ps').value,photo_count:parseInt($('pc').value)||6,border:$('bt').value,blade_mode:$('bm').checked};
+      print_size:$('ps').value,photo_count:parseInt($('pc').value)||6,border:$('bt').value,blade_mode:$('bm').checked,
+      gap_mm:parseFloat($('pgap').value)||2,border_color:$('bclr').value,border_width_mm:parseFloat($('bwmm').value)||0};
     if(S.bgc)body.background_color=S.bgc;
     if(S.gradient)body.background_gradient=S.gradient;
     if(S.cw&&S.ch){body.custom_width=S.cw;body.custom_height=S.ch}

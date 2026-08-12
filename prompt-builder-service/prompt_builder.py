@@ -547,6 +547,10 @@ async def analyze_and_build_prompts(
     category: str = "",
     product_category: str = "",
     target_duration: int = 15,
+    target_age: Any = "",
+    target_gender: str = "",
+    country: str = "",
+    **kwargs,
 ) -> dict:
     """
     Full pipeline:

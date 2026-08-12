@@ -280,8 +280,8 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         else:
             prod_str = product_name
         scene_desc = (
-            f"{thai_base}{clothing_str}{hair_str} facing camera, head and shoulders framing, "
-            f"speaking conversationally about the product. "
+            f"{thai_base}{clothing_str}{hair_str} facing camera directly, close-up framing, "
+            f"speaking directly to camera with clear visible lip movements and mouth opening synced to speech. "
             f"{prod_str} visible resting nearby in frame. "
             f"{env_str}. Soft natural lighting, shallow depth of field."
         )
@@ -464,11 +464,11 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     elif ugc_style in ("talking", "talking_head"):
         # Head/shoulders, talking about product
         action = (
-            f"{model_intro} in medium close-up, facing camera, "
-            f"speaking naturally about {prod_desc_vid or product_name}. "
-            f"Gentle head movements, conversational tone. "
-            f"Product resting nearby, slightly blurred in foreground. "
-            f"Smooth natural motion, person talking to camera"
+            f"{model_intro} in close-up shot, facing camera directly, "
+            f"speaking directly to camera with clear visible lip movements and mouth opening synced to speech about {prod_desc_vid or product_name}. "
+            f"Clear facial expression, natural mouth motion while speaking. "
+            f"Product resting nearby in frame. "
+            f"Smooth natural motion, high quality lip sync talking head"
         )
     elif ugc_style == "unbox":
         action = (

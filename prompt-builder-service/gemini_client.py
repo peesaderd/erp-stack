@@ -90,7 +90,7 @@ def _get_gemini_key() -> str:
     return ""
 
 
-def _call_gemini(system_prompt: str, user_text: str, temperature: float = 0.3) -> Optional[str]:
+def _call_gemini(system_prompt: str, user_text: str, temperature: float = 0.3, max_output_tokens: int = 500) -> Optional[str]:
     """Call Gemini API with system instruction."""
     api_key = _get_gemini_key()
     if not api_key:
@@ -102,7 +102,7 @@ def _call_gemini(system_prompt: str, user_text: str, temperature: float = 0.3) -
         payload = {
             "system_instruction": {"parts": [{"text": system_prompt}]},
             "contents": [{"parts": [{"text": user_text}]}],
-            "generationConfig": {"temperature": temperature, "maxOutputTokens": 8192},
+            "generationConfig": {"temperature": temperature, "maxOutputTokens": max_output_tokens},
         }
         resp = requests.post(
             url,
@@ -121,7 +121,7 @@ def _call_gemini(system_prompt: str, user_text: str, temperature: float = 0.3) -
         return None
 
 
-def _call_gemini_vision(system_prompt: str, user_text: str, image_url: str, temperature: float = 0.3) -> Optional[str]:
+def _call_gemini_vision(system_prompt: str, user_text: str, image_url: str, temperature: float = 0.3, max_output_tokens: int = 500) -> Optional[str]:
     """Call Gemini API with image input (multimodal)."""
     api_key = _get_gemini_key()
     if not api_key:
@@ -143,7 +143,7 @@ def _call_gemini_vision(system_prompt: str, user_text: str, image_url: str, temp
                 {"text": user_text},
                 {"inlineData": {"mimeType": mime, "data": img_b64}}
             ]}],
-            "generationConfig": {"temperature": temperature, "maxOutputTokens": 8192},
+            "generationConfig": {"temperature": temperature, "maxOutputTokens": max_output_tokens},
         }
         resp = requests.post(
             url,
@@ -568,7 +568,7 @@ def _generate_media_prompts(
         )
 
     try:
-        raw = _call_gemini(MEDIA_GENERATION_SYSTEM, user_text, temperature=0.4)
+        raw = _call_gemini(MEDIA_GENERATION_SYSTEM, user_text, temperature=0.4, max_output_tokens=300)
         if not raw:
             return ("", "")
         result = _extract_json(raw)

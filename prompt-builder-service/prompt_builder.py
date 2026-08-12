@@ -53,7 +53,7 @@ def analyze_product(product_name: str, description: str = "", keywords: Optional
 คำอธิบาย: {description if description else 'ไม่มี'}
 Keywords: {kw_str}"""
 
-    raw = _call_gemini(PRODUCT_ANALYSIS_SYSTEM, user_text, temperature=0.3)
+    raw = _call_gemini(PRODUCT_ANALYSIS_SYSTEM, user_text, temperature=0.3, max_output_tokens=700)
     gemini_profile = _extract_json(raw) if raw else None
 
     if not gemini_profile:
@@ -943,7 +943,7 @@ def _gemini_generate_prompts(
     user_text = f"{product_block}\nGenerate prompts for Wan 2.7:"
     
     try:
-        result = _call_gemini(system_prompt, user_text, temperature=0.4)
+        result = _call_gemini(system_prompt, user_text, temperature=0.4, max_output_tokens=250)
         if not result:
             return ("", "")
         

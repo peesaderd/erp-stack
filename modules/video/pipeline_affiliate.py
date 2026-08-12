@@ -85,7 +85,9 @@ TMP_DIR.mkdir(parents=True, exist_ok=True)
 
 # Service URLs
 IMAGE_GEN_URL = "http://localhost:8110/api/v1/image/generate"
+# Use DeepSeek V4 Flash for Mistral-based prompt building
 PROMPT_BUILDER_URL = "http://localhost:8117"
+DEEPSEEK_MODEL = "opencode-go/deepseek-v4-flash"
 
 def _resolve_product_image(product_name: str) -> str:
     """Resolve product image URL from tus_products.db (SSOT) when caller omitted it."""
@@ -407,10 +409,9 @@ def generate_image(
     logger.info(f"  Reference: {product_image or 'None'}")
 
     payload = {
-        "prompt": prompt,
+        "prompt": prompt.replace("--ar 9:16", ""),
         "count": 1,
         "upscale": False,
-        "aspectRatio": aspect_ratio,
     }
 
     if product_image:

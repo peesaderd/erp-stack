@@ -502,21 +502,23 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
 
 
 def _normalize_age(raw_age) -> int:
-    """Normalize age to true uniform random 18-25 range for UGC models."""
-    import random
+    """Extract the minimum age from target_age range (e.g., '25-35' -> 25).
+    Falls back to a default age if parsing fails.
+    """
+    import re
+    if not raw_age:
+        return 25
     try:
         if isinstance(raw_age, (int, float)):
-            age = int(raw_age)
-        else:
-            parts = str(raw_age).replace(" ", "").split("-")
-            nums = [int(p) for p in parts if p.isdigit()]
-            age = nums[0] if nums else 22
-        # Clamp within 18-25 if single age provided, else generate random 18-25
-        if 18 <= age <= 25:
-            return age
+            return int(raw_age)
+        # Find all numbers in the string
+        nums = [int(n) for n in re.findall(r'\d+', str(raw_age))]
+        if nums:
+            # Take the minimum/lowest number in the range (e.g., 25 from '25-35')
+            return min(nums)
     except Exception:
         pass
-    return random.randint(18, 25)
+    return 25
 
 
 def build_negative_prompt(profile: dict, ugc_style: str = "holding") -> str:

@@ -23,7 +23,7 @@ VIDEOS_DIR = STORAGE_DIR / "videos"
 TIKTOK_ACCOUNTS_FILE = STORAGE_DIR / "tiktok_accounts.json"
 PIPELINE_DB_PATH = os.path.join(os.path.dirname(STORAGE_DIR), "pipeline.db")
 LOGS_DB_PATH = STORAGE_DIR / "pipeline_logs.db"
-SCRAPER_API_URL = os.environ.get("SCRAPER_API_URL", "http://localhost:54444")
+SCRAPER_API_URL = os.environ.get("SCRAPER_API_URL", "http://localhost:8106")
 
 PRODUCT_IMAGE_DIR = STORAGE_DIR / "product_images"
 

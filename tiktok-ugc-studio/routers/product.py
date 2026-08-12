@@ -344,3 +344,55 @@ async def sheets_status():
 
 # ─── Pipeline Recipes ────────────────────────────────────────────────────
 
+
+
+@router.post("/product/scrape-pipeline")
+async def scrape_pipeline(req: dict):
+    """URL → Pipeline (scrape+analyze+sync) → return product data for Video Wizard."""
+    url = req.get("url", "")
+    if not url:
+        raise HTTPException(status_code=400, detail="url is required")
+
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        # 1) Call pipeline/ingest on product-scraper (port 8106)
+        try:
+            resp = await client.post(
+                f"{SCRAPER_API_URL}/api/v1/pipeline/ingest",
+                json={"url": url},
+                timeout=120.0
+            )
+            data = resp.json()
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"Pipeline error: {e}")
+
+    if not data.get("success"):
+        raise HTTPException(status_code=502, detail=data.get("error", "Pipeline failed"))
+
+    # 2) Read product from tus_products.db
+    product_id = data.get("product_id", "")
+    if not product_id:
+        raise HTTPException(status_code=500, detail="No product_id returned")
+
+    import sqlite3
+    from pathlib import Path
+    db_path = str(Path(__file__).resolve().parent.parent / "tus_products.db")
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    row = conn.execute(
+        "SELECT * FROM tus_products WHERE product_id = ?", (product_id,)
+    ).fetchone()
+    conn.close()
+
+    if not row:
+        raise HTTPException(status_code=404, detail=f"Product {product_id} not found in DB")
+
+    # Convert to dict, parse JSON fields
+    product = dict(row)
+    for field in ["images", "keywords", "hashtags"]:
+        if product.get(field):
+            try:
+                product[field] = json.loads(product[field])
+            except Exception:
+                pass
+
+    return {"success": True, "product": product, "pipeline": data}

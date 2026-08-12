@@ -75,6 +75,7 @@ class PipelineLogger:
                     tts_audio_path TEXT,
                     video_path TEXT,
                     final_video_path TEXT,
+                    raw_video_path TEXT,
                     
                     -- Cost
                     cost_image REAL DEFAULT 0,
@@ -235,13 +236,15 @@ class PipelineLogger:
             """, (amount, amount, job_id))
     
     def complete_job(self, job_id: str, final_path: str, total_duration_ms: int, 
-                     total_video_duration: float = 0, total_scenes: int = 1) -> None:
+                     total_video_duration: float = 0, total_scenes: int = 1,
+                     raw_video_path: str = '') -> None:
         """Mark job as completed"""
         with self._connect() as conn:
             conn.execute("""
                 UPDATE pipeline_jobs 
                 SET status = 'completed', 
                     final_video_path = ?,
+                    raw_video_path = ?,
                     completed_at = ?,
                     duration_total_ms = ?,
                     total_duration_seconds = ?,
@@ -249,6 +252,7 @@ class PipelineLogger:
                 WHERE job_id = ?
             """, (
                 final_path,
+                raw_video_path,
                 datetime.now().isoformat(),
                 total_duration_ms,
                 total_video_duration,
@@ -393,9 +397,10 @@ def update_cost(job_id: str, cost_type: str, amount: float) -> None:
 
 
 def complete_job(job_id: str, final_path: str, total_duration_ms: int,
-                 total_video_duration: float = 0, total_scenes: int = 1) -> None:
+                 total_video_duration: float = 0, total_scenes: int = 1,
+                 raw_video_path: str = '') -> None:
     get_pipeline_logger().complete_job(
-        job_id, final_path, total_duration_ms, total_video_duration, total_scenes
+        job_id, final_path, total_duration_ms, total_video_duration, total_scenes, raw_video_path
     )
 
 

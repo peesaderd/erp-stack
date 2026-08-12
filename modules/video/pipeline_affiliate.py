@@ -818,6 +818,11 @@ def compose_video(
         concat_videos(valid_paths, concat_path)
     else:
         shutil.copy2(valid_paths[0], concat_path)
+    
+    # Save raw concatenated video (no audio) for user download
+    raw_path = STORAGE_DIR / f"affiliate_{run_id}_raw.mp4"
+    shutil.copy2(concat_path, raw_path)
+    logger.info(f"  9a: Raw video saved -> {raw_path}")
 
     # Step 9b: Force-merge Gemini TTS voiceover audio into the video
     final_path = concat_path
@@ -895,7 +900,7 @@ def compose_video(
                     logger.warning(f"    BGM-only also failed: {e2}")
 
     logger.info(f"  Final: {final_path}")
-    return str(final_path)
+    return str(final_path), str(raw_path)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1122,7 +1127,7 @@ def run_pipeline(
 
         # ── STEP 9: Compose ──
         final_duration = recipe.get("total_duration", 0)
-        final_path = compose_video(video_paths, voice_path, run_id, bgm_style, target_duration=final_duration)
+        final_path, raw_path = compose_video(video_paths, voice_path, run_id, bgm_style, target_duration=final_duration)
 
         # Cost summary
         cost_total = cost_image + cost_voice + cost_video
@@ -1141,7 +1146,8 @@ def run_pipeline(
                 final_path=str(final_path),
                 total_duration_ms=total_duration_ms,
                 total_video_duration=total_duration,
-                total_scenes=num_scenes
+                total_scenes=num_scenes,
+                raw_video_path=str(raw_path)
             )
         except Exception as e:
             logger.warning(f"Pipeline logger complete failed: {e}")

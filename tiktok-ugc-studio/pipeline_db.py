@@ -92,6 +92,9 @@ def get_job(job_id: str) -> Optional[dict]:
         "created_at": row[4],
         "updated_at": row[5],
         "steps": json.loads(row[6]),
+        "product_title": row[7] if len(row) > 7 else '',
+        "product_image": row[8] if len(row) > 8 else '',
+        "raw_video_path": row[9] if len(row) > 9 else '',
     }
 
 

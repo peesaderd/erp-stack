@@ -1180,6 +1180,13 @@ async function loadPipelineDetail(jobId) {
     if (!logs.video_web_url && job.video_url) {
       logs.video_web_url = toWebUrl(job.video_url);
     }
+    // Extract raw video path from job data
+    if (!logs.video_path && job.raw_video_path) {
+      logs.video_path = job.raw_video_path;
+    }
+    if (!logs.final_video_path && job.final_video_path) {
+      logs.final_video_path = job.final_video_path;
+    }
 
     idEl.textContent = job.job_id;
     statusEl.textContent = statusIcon(job.status) + ' ' + job.status;

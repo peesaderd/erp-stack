@@ -95,6 +95,7 @@ def get_job(job_id: str) -> Optional[dict]:
         "product_title": row[7] if len(row) > 7 else '',
         "product_image": row[8] if len(row) > 8 else '',
         "raw_video_path": row[9] if len(row) > 9 else '',
+        "final_video_path": row[10] if len(row) > 10 else '',
     }
 
 

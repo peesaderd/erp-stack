@@ -49,6 +49,12 @@ try:
 except Exception as e:
     logger.warning(f"Static mount: {e}")
 
+# Mount for /api/tiktok/static/* URLs
+try:
+    app.mount("/api/tiktok/static", StaticFiles(directory=str(STORAGE_DIR)), name="tiktok_static")
+except Exception as e:
+    logger.warning(f"TikTok static mount: {e}")
+
 PRODUCT_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
 try:
     app.mount("/ugc/static/product_images", StaticFiles(directory=str(PRODUCT_IMAGE_DIR)), name="product_images")

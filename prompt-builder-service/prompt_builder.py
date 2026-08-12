@@ -394,7 +394,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     else:
         prod_desc_vid = product_name
     
-    model_intro = f"Ethnic Thai {gender_en} {model_age} years old, porcelain white glowing skin, monolid eyes, Southeast Asian ethnic Thai features{clothing_str}{hair_str}"
+    model_intro = f"A young ethnic Thai {gender_en}, porcelain white glowing skin, monolid eyes, Southeast Asian ethnic Thai features{clothing_str}{hair_str}"
     
     # ── Style-driven video_motion (ugc_style is PRIMARY) ──────────
     if ugc_style == "product_demo":

@@ -394,7 +394,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     else:
         prod_desc_vid = product_name
     
-    model_intro = f"A young ethnic Thai {gender_en}, porcelain white glowing skin, monolid eyes, Southeast Asian ethnic Thai features{clothing_str}{hair_str}"
+    model_intro = f"{gender_en.capitalize()}{clothing_str}{hair_str}"
     
     # ── Style-driven video_motion (ugc_style is PRIMARY) ──────────
     if ugc_style == "product_demo":
@@ -465,10 +465,9 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         # Head/shoulders, talking about product
         action = (
             f"{model_intro} in close-up shot, facing camera directly, "
-            f"speaking directly to camera with clear visible lip movements and mouth opening synced to speech about {prod_desc_vid or product_name}. "
-            f"Clear facial expression, natural mouth motion while speaking. "
-            f"Product resting nearby in frame. "
-            f"Smooth natural motion, high quality lip sync talking head"
+            f"speaking to camera, lip sync, mouth moving naturally. "
+            f"Product nearby in frame. "
+            f"Smooth natural motion"
         )
     elif ugc_style == "unbox":
         action = (

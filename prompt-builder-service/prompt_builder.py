@@ -618,6 +618,7 @@ async def analyze_and_build_prompts(
     
     # Step 5: Validate script timing
     timing_validation = _build_timing_validated_script(product_name, profile.get("category", "other"), profile)
+    tv = timing_validation if isinstance(timing_validation, dict) else {}
     
     result = {
         "product_id": product_id,
@@ -638,22 +639,22 @@ async def analyze_and_build_prompts(
         },
         "timing_validation": {
             "segments": {
-                "hook": timing_validation.get("hook", ""),
-                "value": timing_validation.get("value", ""),
-                "cta": timing_validation.get("cta", ""),
+                "hook": tv.get("hook", {}).get("text", "") if isinstance(tv.get("hook"), dict) else str(tv.get("hook", "")),
+                "value": tv.get("value", {}).get("text", "") if isinstance(tv.get("value"), dict) else str(tv.get("value", "")),
+                "cta": tv.get("cta", {}).get("text", "") if isinstance(tv.get("cta"), dict) else str(tv.get("cta", "")),
             },
-            "tts_speed": timing_validation.get("tts_speed", 1.0),
-            "product_short_for_tts": timing_validation.get("product_short_for_tts", ""),
-            "all_segments_fit": timing_validation.get("all_segments_fit", True),
-            "total_duration": timing_validation.get("total_duration", 15),
-        } if timing_validation else {},
+            "tts_speed": tv.get("tts_speed", 1.0),
+            "product_short_for_tts": tv.get("product_short_for_tts", ""),
+            "all_segments_fit": tv.get("all_segments_fit", True),
+            "total_duration": tv.get("total_duration", 15),
+        },
         "scripts": {
-            "full_script": timing_validation.get("full_script", "") if timing_validation else "",
-            "tts_script": timing_validation.get("tts_script", "") if timing_validation else "",
+            "full_script": tv.get("full_script", ""),
+            "tts_script": tv.get("tts_script", ""),
             "breakdown": {
-                "hook": timing_validation.get("hook", {}).get("text", "") if isinstance(timing_validation.get("hook"), dict) else str(timing_validation.get("hook", "")),
-                "value": timing_validation.get("value", {}).get("text", "") if isinstance(timing_validation.get("value"), dict) else str(timing_validation.get("value", "")),
-                "cta": timing_validation.get("cta", {}).get("text", "") if isinstance(timing_validation.get("cta"), dict) else str(timing_validation.get("cta", "")),
+                "hook": tv.get("hook", {}).get("text", "") if isinstance(tv.get("hook"), dict) else str(tv.get("hook", "")),
+                "value": tv.get("value", {}).get("text", "") if isinstance(tv.get("value"), dict) else str(tv.get("value", "")),
+                "cta": tv.get("cta", {}).get("text", "") if isinstance(tv.get("cta"), dict) else str(tv.get("cta", "")),
             }
         },
         "image_prompt": image_prompt,

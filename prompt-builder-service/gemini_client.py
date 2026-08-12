@@ -456,20 +456,30 @@ You produce TWO separate prompts with DIFFERENT purposes:
 
 === IMAGE PROMPT (first frame / thumbnail) ===
 Purpose: a clean, beautiful still of the product (with a model ONLY for person-focused styles).
-- Keep it SHORT. Do NOT re-describe the product's appearance in detail (the product is already known).
+- Keep it SHORT. Do NOT re-describe the product's appearance in detail.
 - Focus on: framing, and LIGHTING (e.g. "natural window light", "soft diffused daylight", "warm golden-hour light").
-- PRODUCT-ONLY styles (ugc_style=product_demo/unboxing/comparison/split_comparison): NO person/model in frame — show the product ALONE on a clean surface, clearly centered, features visible. Do NOT mention any person, model, woman, man, or ethnicity.
-- For CLOTHING/FASHION products (category=fashion/clothing/skirt/dress/top/shoes): the model WEARS the product.
-- For all other person-focused styles (beauty, electronics, food, home, etc.): the model HOLDS the product at chest level, packaging facing camera.
-- Match the model ethnicity to the country field (e.g. "ethnic Thai woman") ONLY for person-focused styles.
+- CLOTHING/FASHION products (category=fashion/clothing/skirt/dress/top/shoes/apparel): The model WEARS the product elegantly on body. Never hold clothing in hands.
+- BOTTLES/COSMETICS/CONTAINERS: Model holds container steadily at chest level or sitting on an aesthetic surface.
+- PRODUCT-ONLY styles (ugc_style=product_demo/unboxing/comparison/split_comparison): NO person/model in frame — show product ALONE on clean surface.
 
-=== VIDEO PROMPT (motion / action) ===
-Purpose: describe the MOTION and ACTION, not the product's appearance.
-- Keep it SHORT (1-2 sentences). Do NOT re-describe the product's appearance or the location in detail — those are already in the image prompt.
-- For PRODUCT-ONLY styles (ugc_style=product_demo/unboxing/comparison/split_comparison): NO person/model in frame — describe only the product and camera motion (e.g. "camera slowly pans around the product on a clean surface"). Do NOT mention any person, model, woman, man, or ethnicity.
-- For other styles, structure: [Camera] + [Who] + [wearing/holding the product] + [What they do].
-- Focus on natural, subtle movements (shifting weight, gentle head turn, fabric sway, applying the product). NO fast spinning or sudden moves.
-- End with a subtle camera move (slow push-in / gentle tilt) that draws focus to the product.
+=== VIDEO PROMPT (motion / action & END SCENE CREATIVE GUIDANCE) ===
+Purpose: describe PURE MOTION, CAMERA ACTION, and a CREATIVE DYNAMIC END SCENE. Do NOT re-describe product appearance or ethnicity.
+
+1. ANALYZE THE ULTIMATE PRODUCT RESULT (End Scene / Result Scene):
+   - Reason about the most emotionally satisfying result of using this product.
+   - Fabric softener / Laundry: model touching or smelling freshly washed fabric to cheek with a relaxed, fragrant smile, sunny laundry background.
+   - Skincare / Cosmetics: model showcasing radiant glowing skin beside product with a confident happy smile.
+   - Food / Beverage: model tasting/sipping with genuine delight and presenting product.
+   - Tech / Electronics / Home: sleek device or clean environment, model showing satisfaction with product featured prominently.
+
+2. CREATIVE FREEDOM & DIVERSITY:
+   - Be creative! Invent realistic, diverse, and authentic UGC end scenes that fit the specific product.
+   - Never restrict yourself to a single repetitive scene. Use the environment, lighting, and genuine human reactions appropriate for the specific item.
+
+3. COMPOSITION & CLOTHING RULES:
+   - CLOTHING/FASHION: Pose/body movement and fabric sway ONLY. STRICTLY NO holding or hand-adjusting clothing.
+   - BOTTLES/CONTAINERS: Steady product presentation, subtle camera zoom/tilt. STRICTLY NO unscrewing caps, clicking buttons, or complex finger manipulations.
+   - Preserve lower-left composition space for TikTok basket overlay button.
 
 Output JSON only:
 {
@@ -477,8 +487,6 @@ Output JSON only:
   "video_prompt": "..."
 }"""
 
-# Styles that focus on the PRODUCT only (no person in frame).
-# For these, we do NOT pass a human subject to Gemini — the product is the star.
 PRODUCT_ONLY_STYLES = {"product_demo", "unboxing", "comparison", "split_comparison"}
 
 def _generate_media_prompts(

@@ -383,16 +383,10 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     
     # ── Product description (common) ──
     env_context = profile.get("env_context", "a modern space")
-    product_appearance = profile.get("product_appearance", "")
-    pa_clean = product_appearance
-    if pa_clean:
-        pa_clean = re.sub(r'^(The\s+)?product\s+(is\s+)?', '', pa_clean, flags=re.IGNORECASE).strip()
-        pa_clean = pa_clean[0].lower() + pa_clean[1:] if pa_clean else ""
-        pa_clean = re.sub(r'^(a|an)\s+', '', pa_clean, flags=re.IGNORECASE).strip()
-        article = "an" if pa_clean[:1].lower() in "aeiou" else "a"
-        prod_desc_vid = f"{article} {pa_clean[:200]}"
-    else:
-        prod_desc_vid = product_name
+    # NOTE: Do NOT use AI-generated product_appearance for video prompts.
+    # It often describes product incorrectly (wrong shape, color, material).
+    # Use product_name instead — the reference image will show the actual product.
+    prod_desc_vid = product_name
     
     model_intro = f"{gender_en.capitalize()}{clothing_str}{hair_str}"
     

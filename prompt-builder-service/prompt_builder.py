@@ -731,6 +731,18 @@ def _estimate_speech_duration(text: str) -> float:
     return thai_sec + non_thai_sec + (switches * 0.1)
 
 
+def _normalize_thai_gender_register(text: str, is_female: bool) -> str:
+    """Normalize Thai polite particles to match target model gender (ครับ -> ค่ะ/คะ for female)."""
+    if not text:
+        return ""
+    if is_female:
+        text = re.sub(r'ครับ', 'ค่ะ', text)
+        text = re.sub(r'นะคะ\s*นะคะ', 'นะคะ', text)
+    else:
+        text = re.sub(r'ค่ะ|คะ', 'ครับ', text)
+    return text
+
+
 def _build_timing_validated_script(product_name: str, category: str = "beauty", profile: dict = None) -> dict:
     """Build script segments with timing validation.
     Uses customer_problem + main_benefit from Gemini analysis when available.
@@ -760,18 +772,6 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
     
     if len(product_short) < 5:
         product_short = product_name[:30]
-    
-def _normalize_thai_gender_register(text: str, is_female: bool) -> str:
-    """Normalize Thai polite particles to match target model gender (ครับ -> ค่ะ/คะ for female)."""
-    if not text:
-        return ""
-    if is_female:
-        text = re.sub(r'ครับ', 'ค่ะ', text)
-        text = re.sub(r'นะคะ\s*นะคะ', 'นะคะ', text)
-    else:
-        text = re.sub(r'ค่ะ|คะ', 'ครับ', text)
-    return text
-
 
     # Gender-aware Thai register
     target_gender = profile.get("target_gender", "female") if profile else "female"

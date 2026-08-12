@@ -509,6 +509,10 @@ class ProductNormalizer:
             images=d.get("images", [d.get("primaryImage", "")]) if d.get("images") else [d.get("primaryImage", "")] if d.get("primaryImage") else [],
             commission_rate=cls._safe_float(str(d.get("commissionRate", d.get("commission_rate", "0"))).replace("%", "")),
             seller_name=d.get("shopName", d.get("seller_name", d.get("shop_name", ""))),
+            seller_id=str(d.get("sellerId", d.get("seller_id", d.get("shopId", "")))),
+            url=d.get("url", d.get("productUrl", d.get("link", ""))),
+            gender=str(d.get("gender", "") or ""),
+            target_age=str(d.get("age_group", d.get("target_age", "")) or ""),
             source="apify",
             scrape_timestamp=datetime.utcnow().isoformat(),
         )
@@ -634,6 +638,7 @@ class ProductExporter:
                 "category": p.category, "keywords": p.keywords,
                 "images": p.images, "commission": f"{p.commission_rate}%",
                 "source": p.source, "seller_name": p.seller_name,
+                "seller_id": p.seller_id, "url": p.url,
                 "gender": p.gender, "target_age": p.target_age,
                 "hashtags": p.hashtags,
                 "image_count": len(p.images),
@@ -677,10 +682,18 @@ async def _translate_to_thai(text: str) -> str:
     cached = _cache.get(cache_key)
     if cached:
         return cached
-    prompt = f"Translate this product title to Thai naturally (keep brand names):\n\n{text}"
+    prompt = "Translate to Thai. Return ONLY the translated text, nothing else. No quotes, no explanation:\n\n" + text
+
     result = await _call_mistral(prompt)
     if not result:
         result = text
+    # Clean: take first line, strip markdown/quotes/explanations
+    result = result.strip().split("\n")[0].strip()
+    result = result.strip('"').strip("'").strip("*").strip()
+    # Remove leading "Thai:" or translation prefix
+    for prefix in ["Thai:", "คำแปล:", "แปลว่า:"]:
+        if result.startswith(prefix):
+            result = result[len(prefix):].strip()
     _cache.set(cache_key, result)
     return result
 

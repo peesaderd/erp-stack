@@ -37,27 +37,23 @@ import random
 import re
 import subprocess
 import shutil
-import sqlite3
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
 import requests
 
 def get_bgm_path(bgm_style: str) -> Path:
-    """Helper to resolve BGM path. Randomly pick an available track from the BGM library."""
-    # Collect all available BGM files from both locations (module-local sounds + tiktok-ugc-studio/bgm).
-    # Exclude TTS voice samples (tts_*.mp3) which are not background music.
-    candidates = []
-    for d in (STORAGE_DIR / "sounds", _erp_stack / "tiktok-ugc-studio" / "bgm"):
-        if d.is_dir():
-            candidates.extend(
-                p for p in sorted(d.glob("*.mp3"))
-                if not p.name.startswith("tts_")
-            )
-    if candidates:
-        return random.choice(candidates)
-    # Last resort: return a path even if it doesn't exist (compose_video will skip BGM)
-    return _erp_stack / "tiktok-ugc-studio" / "bgm" / "bg_chill.mp3"
+    """Helper to resolve BGM path from style name."""
+    bgm_map = {
+        "chill_loft": "bg_chill.mp3",
+        "informative_jazz": "bg_jazz.mp3",
+        "energetic_edm": "bg_edm.mp3",
+        "upbeat_pop": "bg_upbeat.mp3",
+        "luxury_jazz": "bg_jazz.mp3",
+        "asmr": "bg_ambient.mp3",
+    }
+    bgm_filename = bgm_map.get(bgm_style, "bg_chill.mp3")
+    return STORAGE_DIR / "sounds" / bgm_filename
 
 # Add erp-stack to path for shared_config
 _erp_stack = Path(__file__).parent.parent.parent
@@ -85,38 +81,7 @@ TMP_DIR.mkdir(parents=True, exist_ok=True)
 
 # Service URLs
 IMAGE_GEN_URL = "http://localhost:8110/api/v1/image/generate"
-# Use DeepSeek V4 Flash for Mistral-based prompt building
 PROMPT_BUILDER_URL = "http://localhost:8117"
-DEEPSEEK_MODEL = "opencode-go/deepseek-v4-flash"
-
-def _resolve_product_image(product_name: str) -> str:
-    """Resolve product image URL from tus_products.db (SSOT) when caller omitted it."""
-    if not product_name:
-        return ""
-    module_dir = Path(__file__).resolve().parent          # modules/video
-    db_candidates = [
-        module_dir.parent / "tiktok-ugc-studio" / "tus_products.db",   # erp-stack/tiktok-ugc-studio
-        module_dir.parent.parent / "tiktok-ugc-studio" / "tus_products.db",
-    ]
-    for db_path in db_candidates:
-        if not db_path.exists():
-            continue
-        try:
-            con = sqlite3.connect(str(db_path))
-            rows = con.execute(
-                "SELECT images FROM tus_products WHERE product_id = ? OR title = ? OR title_th = ? LIMIT 1",
-                (product_name, product_name, product_name),
-            ).fetchall()
-            con.close()
-            if rows and rows[0][0]:
-                images = json.loads(rows[0][0])
-                if isinstance(images, list) and images:
-                    fname = Path(str(images[0])).name
-                    return f"http://localhost:8105/ugc/static/product_images/{fname}"
-        except Exception:
-            continue
-    return ""
-
 
 
 
@@ -159,7 +124,7 @@ def concat_videos(video_paths: list, output_path: Path) -> Path:
 # STEP 1: Analyze Product (Mistral)
 # ═══════════════════════════════════════════════════════════════════════════
 
-def analyze_product(product_name: str, product_image: str = None, description: str = "", ugc_style: str = "holding", gender: str = "", target_age: str = "", features: str = "") -> dict:
+def analyze_product(product_name: str, product_image: str = None, description: str = "", ugc_style: str = "holding") -> dict:
     """
     Step 1: Analyze product via Mistral → product_profile
 
@@ -189,9 +154,6 @@ def analyze_product(product_name: str, product_image: str = None, description: s
             "description": description,
             "product_image": product_image or "",
             "ugc_style": ugc_style,
-            "target_gender": gender,
-            "target_age": target_age,
-            "features": features,
         }
 
         resp = requests.post(url, json=payload, timeout=60)
@@ -210,9 +172,20 @@ def analyze_product(product_name: str, product_image: str = None, description: s
 
     except Exception as e:
         logger.error(f"Analyze failed: {e}")
-        # No fallback — fail fast so the pipeline never runs with a generic
-        # prompt that does not match the product. Re-raise to stop the job.
-        raise RuntimeError(f"Product analysis failed (no fallback): {e}")
+        # Fallback: basic profile
+        return {
+            "category": "other",
+            "target_gender": "unisex",
+            "target_age": "20-35",
+            "target_audience": "ทุกคน",
+            "customer_problem": "",
+            "main_benefit": "คุณภาพดี",
+            "hashtags": [product_name.replace(" ", "")[:20]],
+            "setting": "clean modern lifestyle",
+            "_image_prompt": f"{product_name}, product showcase, clean background",
+            "_video_prompt": f"{product_name} showcase, smooth motion",
+            "_negative_prompt": "no text, no watermark",
+        }
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -273,8 +246,6 @@ def load_recipe(recipe_name: str = "tus") -> dict:
         "image_generation": config.get("image_generation", {}),
         "video_generation": config.get("video_generation", {}),
         "tts": config.get("tts"),  # None = no voiceover
-        "scene_actions_by_category": config.get("scene_actions_by_category", {}),
-        "lighting_map": config.get("lighting_map", {}),
     }
 
     scenes = recipe.get("scenes", [])
@@ -327,7 +298,7 @@ def generate_script(
         )
 
         script = result.get("script", "")
-        logger.info(f"  Script: {script} (uses_llm={result.get('uses_llm')})")
+        logger.info(f"  Script: {script[:100]}... (uses_llm={result.get('uses_llm')})")
         return script
 
     except Exception as e:
@@ -376,7 +347,7 @@ def build_image_prompt(
     image_prompt = product_profile.get("_image_prompt", "")
 
     if image_prompt:
-        logger.info(f"  Image prompt: {image_prompt}")
+        logger.info(f"  Image prompt: {image_prompt[:60]}...")
         return image_prompt
 
     # Fallback: basic prompt
@@ -405,13 +376,14 @@ def generate_image(
         tuple: (image_url, cost_usd)
     """
     logger.info(f"Step 5/9: Generate image (Nano Banana, {aspect_ratio})")
-    logger.info(f"  Prompt: {prompt}")
+    logger.info(f"  Prompt: {prompt[:40]}...")
     logger.info(f"  Reference: {product_image or 'None'}")
 
     payload = {
-        "prompt": prompt.replace("--ar 9:16", ""),
+        "prompt": prompt,
         "count": 1,
         "upscale": False,
+        "aspectRatio": aspect_ratio,
     }
 
     if product_image:
@@ -482,30 +454,12 @@ def build_video_prompts(
     scenes = recipe.get("scenes", [])
     video_prompts = []
 
-    # Setting: prefer env_context (specific environment from Gemini analysis),
-    # fallback to setting (general location), then category-aware default.
-    # This keeps the scene consistent with the product category (no mixed scenes).
+    setting = product_profile.get("setting", "clean modern lifestyle")
     category = product_profile.get("category", "other")
     product_type = product_profile.get("product_type", "").lower()
     product_name = product_profile.get("product_name", "") or product_profile.get("_product_name", "")
 
-    # Category-aware default settings — ensures scene matches product type
-    category_setting_map = {
-        "beauty": "a vanity table with soft mirror lighting",
-        "fashion": "a bright closet or boutique with clothing racks",
-        "electronics": "a clean modern desk or office workspace",
-        "home": "a bright living room or kitchen counter",
-        "food": "a warm kitchen counter or cafe table",
-        "tools": "a functional workshop or garage bench",
-        "health": "a clean bathroom or bedroom",
-        "other": "a clean modern lifestyle setting",
-    }
-    # Setting is intentionally NOT injected into the I2V prompt: Wan 2.7 img2vid
-    # uses the first frame as conditioning image, so re-describing the setting
-    # would fight the reference frame and cause the background to warp.
-
-    # Lighting map — Schema Engine (recipe config) เป็น SSOT;
-    # hardcode ข้างล่างเป็น fallback เมื่อ recipe ไม่มีค่า
+    # Lighting map (simple version)
     lighting_map = {
         "beauty": "soft diffused natural window lighting",
         "tools": "bright functional lighting",
@@ -515,28 +469,24 @@ def build_video_prompts(
         "home": "bright natural daylight",
         "other": "soft natural lighting",
     }
-    db_lighting = (recipe.get("lighting_map") or {}).get(category)
-    lighting = db_lighting or lighting_map.get(category, "soft natural lighting")
+    lighting = lighting_map.get(category, "soft natural lighting")
     
-    # Model age is intentionally NOT injected into the I2V prompt: the model's
-    # appearance comes from the reference image (Step 5), not from re-describing
-    # age here (which would fight the first frame).
+    # Use target_age from Mistral analysis instead of hardcoded random
+    try:
+        target_age = int(product_profile.get("target_age", "25"))
+    except (ValueError, TypeError):
+        target_age = 25
+    # เล็กน้อย randomize ให้ธรรมชาติ
+    model_age = max(18, min(45, target_age + random.randint(-2, 2)))
 
-    # ── Scene descriptions — Schema Engine (recipe config) เป็น SSOT ──
-    # ถ้า recipe มี scene_actions_by_category[category] ให้ใช้ของ DB
-    # (มี {product} placeholder แทนชื่อสินค้า); fallback = hardcode เดิม
-    db_actions = (recipe.get("scene_actions_by_category") or {}).get(category, {})
-    if db_actions:
-        scene_descriptions = {
-            k: (v.replace("{product}", product_name or "product") if isinstance(v, str) else v)
-            for k, v in db_actions.items()
-        }
-    else:
-        scene_descriptions = _scene_descriptions_for_category(category, product_type, product_name)
+    # ── Scene descriptions ตาม product_type/category ──
+    # แทนที่จะใช้ "hold only, cap CLOSED" เดียวกันทุก product
+    # ใช้ product_type กำหนด action ที่เหมาะสมต่อ scene
+    scene_descriptions = _scene_descriptions_for_category(category, product_type, product_name)
 
     # ── Model look (จาก profile, ไม่ hardcode) ──
-    model_gender = product_profile.get("target_gender", "") or ""
-    gender_en = {"female": "woman", "male": "man", "": "Thai person"}.get(model_gender, "Thai person")
+    model_gender = product_profile.get("target_gender", "female")
+    gender_en = {"female": "woman", "male": "man", "unisex": "person"}.get(model_gender, "person")
     
     # ── Build per-scene prompts ──
     for i, scene in enumerate(scenes):
@@ -546,21 +496,23 @@ def build_video_prompts(
         # Get scene-specific description or default
         scene_action = scene_descriptions.get(scene_name, "product visible in frame, natural setting")
         
-        # Build the full positive prompt (Minimalist I2V formula).
-        # Wan 2.7 img2vid receives the first frame as conditioning image, so we
-        # do NOT re-describe the model's face/skin or the setting (that would
-        # fight the reference frame and cause the video to not continue).
-        # Only describe WHO does WHAT and the LIGHTING tone.
+        # Build the full positive prompt (keep clean and focused on action and character)
         enhanced = (
-            f"The {gender_en}. "
+            f"Ethnic Thai {gender_en} {model_age} years old, porcelain white glowing skin, "
+            f"monolid eyes, Southeast Asian ethnic Thai features. "
             f"{scene_action} "
-            f"{lighting}. "
-            f"9:16 portrait, smooth natural motion."
+            f"Setting: {setting}. {lighting}. "
+            f"9:16 portrait, smooth natural motion"
         )
         
-        # Action rules come from the UGC style data (Schema Engine SSOT),
-        # not from hardcoded per-category restrictions.
-        # Gemini/STYLE_MAP decide hold/use/open per the selected UGC style.
+        # For beauty products: keep "not opening" restriction
+        # For electronics/home/tools: allow natural product interaction
+        if category in ("beauty", "health") and ugc_style == "holding":
+            enhanced += (
+                " CRITICAL: Product cap is CLOSED and sealed. "
+                "Model is NOT opening or applying the product. "
+                "Just holding and showing to camera."
+            )
         
         video_prompts.append(enhanced)
 
@@ -648,38 +600,40 @@ def _scene_descriptions_for_category(category: str, product_type: str, product_n
 
 def generate_voice(
     text: str,
-    voice: str = "Aoede",
+    voice: str = "th-TH-PremwadeeNeural",
     run_id: str = "",
-    target_gender: str = "",
 ) -> str:
-    """Step 7: Generate Thai voice via Gemini TTS (Gemini-only, no fallback).
-
-    Voice is chosen by target_gender when known:
-      - male   -> Charon (Gemini deep male narrator)
-      - female -> Aoede (Gemini warm female)
-      - empty  -> verbatim 'voice' or Gemini female default (Aoede)
-    """
-    logger.info(f"Step 7/9: TTS (Gemini, gender={target_gender or 'auto'})")
+    """Step 7: Generate Thai voice via EdgeTTS."""
+    logger.info(f"Step 7/9: TTS (Thai EdgeTTS)")
     logger.info(f"  Text: {text[:50]}...")
 
-    output_path = str(TMP_DIR / f"voice_{run_id}.wav")
-
-    # Gemini-only TTS. Gender from product profile wins; no Edge TTS in this module.
-    from gemini_tts import gemini_text_to_speech, get_voice_for_gender
-    if target_gender in ("male", "female"):
-        gemini_voice = get_voice_for_gender(target_gender)
-    else:
-        gemini_voice = voice or "Aoede"
+    output_path = str(TMP_DIR / f"voice_{run_id}.mp3")
+    
+    # Try EdgeTTS first for high quality Thai voice
+    try:
+        import asyncio, edge_tts
+        tts_voice = voice if voice and "th-TH" in voice else "th-TH-PremwadeeNeural"
+        async def _run_edge_tts():
+            comm = edge_tts.Communicate(text, tts_voice)
+            await comm.save(output_path)
+        asyncio.run(_run_edge_tts())
+        if Path(output_path).exists() and Path(output_path).stat().st_size > 1000:
+            logger.info(f"  EdgeTTS OK: {output_path}")
+            return output_path
+    except Exception as e:
+        logger.warning(f"EdgeTTS failed ({e}), trying fallback Gemini TTS")
 
     try:
-        tts_path = gemini_text_to_speech(text, output_path=output_path, voice=gemini_voice)
+        from gemini_tts import gemini_text_to_speech
+        tts_path = gemini_text_to_speech(text, output_path=output_path, voice=voice)
         if tts_path and Path(tts_path).exists():
             logger.info(f"  Gemini TTS OK: {tts_path}")
             return tts_path
     except Exception as e:
-        logger.error(f"Gemini TTS failed: {e}")
+        logger.error(f"Gemini TTS fallback failed: {e}")
 
     return ""
+
 # ═══════════════════════════════════════════════════════════════════════════
 # STEP 8: Generate Video (Prodia Wan 2.7 Sync API)
 # ═══════════════════════════════════════════════════════════════════════════
@@ -721,7 +675,7 @@ def generate_video(
     Step 8: Generate video via Wan 2.7 Async API (shared ProdiaV2Client)
     """
     logger.info(f"Step 8/9: Generate video (Wan 2.7, {resolution})")
-    logger.info(f"  Prompt: {prompt}")
+    logger.info(f"  Prompt: {prompt[:80]}...")
 
     # Read image bytes
     if image_path.startswith("http://") or image_path.startswith("https://"):
@@ -744,12 +698,7 @@ def generate_video(
     client = ProdiaV2Client(token=PRODIA_TOKEN())
 
     try:
-        neg_p = (
-            negative_prompt
-            or "no text, no watermark, blurry, distorted, extra limbs, bad face, deformed, "
-            "gibberish text, fake Thai script, distorted Thai characters, illegible text, "
-            "unnatural facial features, oversaturated colors"
-        )
+        neg_p = negative_prompt or "no text, no watermark, blurry, distorted, extra limbs, bad face, deformed"
         result = client.generate_video(
             prompt=prompt,
             input_image=image_data,
@@ -838,24 +787,6 @@ def has_audio_track(video_path: str) -> bool:
     except Exception as e:
         logger.warning(f"Failed to probe audio track for {video_path}: {e}")
         return False
-
-def _probe_duration(video_path: str) -> float:
-    """Get video duration in seconds using ffprobe. Returns 0 on error."""
-    try:
-        cmd = [
-            "ffprobe", "-v", "error",
-            "-show_entries", "format=duration",
-            "-of", "default=noprint_wrappers=1:nokey=1",
-            video_path,
-        ]
-        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
-        if result.returncode == 0 and result.stdout.strip():
-            return float(result.stdout.strip())
-    except Exception as e:
-        logger.warning(f"Failed to probe duration for {video_path}: {e}")
-    return 0.0
-
-
 def compose_video(
     video_paths: list,
     voice_path: Optional[str] = None,
@@ -905,6 +836,7 @@ def compose_video(
             "-c:a", "aac",
             "-map", "0:v:0",
             "-map", "1:a:0",
+            "-shortest",
             str(voiced_path)
         ]
         try:
@@ -921,18 +853,12 @@ def compose_video(
     # Step 9c: Add BGM
     if bgm_style:
         logger.info(f"  9c: Add BGM ({bgm_style})")
-        bgm_path = get_bgm_path(bgm_style)
+        bgm_filename = f"{bgm_style}.mp3" if not bgm_style.endswith((".mp3", ".wav")) else bgm_style
+        bgm_path = STORAGE_DIR / "sounds" / bgm_filename
 
         if bgm_path.exists():
             bgm_output = STORAGE_DIR / f"affiliate_{run_id}_bgm.mp4"
-            # Probe actual video duration so BGM is trimmed to match exactly
-            actual_dur = _probe_duration(str(final_path))
-            if actual_dur <= 0:
-                actual_dur = float(target_duration) if target_duration > 0 else 15.0
-            logger.info(f"    Video duration: {actual_dur:.2f}s, BGM: {bgm_path.name}")
-
-            # Mix BGM under voiceover: BGM at low volume (0.15), voice stays full.
-            # Use amix with normalize=0 so voice volume is NOT reduced by BGM.
+            # Strategy: mix BGM with video audio. If video has no usable audio, just copy BGM
             try:
                 cmd_mix = [
                     "ffmpeg", "-y",
@@ -940,16 +866,16 @@ def compose_video(
                     "-stream_loop", "-1",
                     "-i", str(bgm_path),
                     "-filter_complex",
-                    "[1:a]volume=0.15[bg];[0:a][bg]amix=inputs=2:duration=longest:normalize=0[out]",
+                    "[1:a]volume=0.15[bg];[0:a][bg]amix=inputs=2:duration=first[out]",
                     "-map", "0:v",
                     "-map", "[out]",
                     "-c:v", "copy",
                     "-c:a", "aac",
-                    "-t", f"{actual_dur:.2f}",
+                    "-t", str(target_duration),
                     str(bgm_output),
                 ]
                 subprocess.run(cmd_mix, check=True, capture_output=True, timeout=60)
-                logger.info(f"    BGM mixed (trimmed to {actual_dur:.2f}s)")
+                logger.info(f"    BGM mixed")
                 final_path = bgm_output
             except Exception as e:
                 logger.warning(f"    BGM mix failed ({e}), trying BGM-only")
@@ -963,11 +889,11 @@ def compose_video(
                         "-c:a", "aac",
                         "-map", "0:v:0",
                         "-map", "1:a:0",
-                        "-t", f"{actual_dur:.2f}",
+                        "-shortest",
                         str(bgm_output),
                     ]
                     subprocess.run(cmd_bgm, check=True, capture_output=True, timeout=60)
-                    logger.info(f"    BGM-only added (trimmed to {actual_dur:.2f}s)")
+                    logger.info(f"    BGM-only added")
                     final_path = bgm_output
                 except Exception as e2:
                     logger.warning(f"    BGM-only also failed: {e2}")
@@ -995,8 +921,6 @@ def run_pipeline(
     video_prompts: Optional[list] = None,
     negative_prompt: Optional[str] = None,
     script: Optional[str] = None,
-    gender: Optional[str] = None,
-    age: Optional[str] = None,
     **kwargs,
 ) -> dict:
     """
@@ -1031,12 +955,6 @@ def run_pipeline(
     logger.info(f"{'='*60}")
     logger.info(f"Product: {product_name}")
     logger.info(f"Image: {product_image}")
-
-    if not product_image:
-        product_image = _resolve_product_image(product_name)
-        if product_image:
-            logger.info(f"  Image resolved from tus_products.db: {product_image}")
-
     logger.info(f"Recipe: {recipe_name}")
     logger.info(f"{'='*60}")
 
@@ -1059,7 +977,6 @@ def run_pipeline(
     if ugc_style != _orig_ugc:
         logger.warning(f"  ugc_style '{_orig_ugc}' not valid, using '{ugc_style}'")
 
-    features = kwargs.get("features", "")
     pipeline_start = time.time()
     cost_image = 0.0
     cost_voice = 0.0
@@ -1068,7 +985,7 @@ def run_pipeline(
     try:
         # ── STEP 1: Analyze ──
         step_start = time.time()
-        product_profile = analyze_product(product_name, product_image, description, ugc_style=ugc_style, gender=gender or "", target_age=age or "", features=features)
+        product_profile = analyze_product(product_name, product_image, description, ugc_style=ugc_style)
         analyze_duration = int((time.time() - step_start) * 1000)
 
         try:
@@ -1135,18 +1052,9 @@ def run_pipeline(
             vid_prompt_duration = 0
             logger.info(f"Step 6/9: Skipped (using pre-computed video_prompt)")
         elif not video_prompts:
-            # Prefer Gemini video_prompt from analyze_product() (Step 1) — it is a
-            # full descriptive narrative, not a keyword list. Fall back to the
-            # recipe-template builder only when Gemini did not produce one.
-            gemini_vp = product_profile.get("_video_prompt", "")
-            if gemini_vp:
-                video_prompts = [gemini_vp]
-                vid_prompt_duration = 0
-                logger.info(f"Step 6/9: Using Gemini video_prompt from analyze_product()")
-            else:
-                step_start = time.time()
-                video_prompts = build_video_prompts(product_profile, recipe, str(img_path), ugc_style=ugc_style)
-                vid_prompt_duration = int((time.time() - step_start) * 1000)
+            step_start = time.time()
+            video_prompts = build_video_prompts(product_profile, recipe, str(img_path), ugc_style=ugc_style)
+            vid_prompt_duration = int((time.time() - step_start) * 1000)
         else:
             vid_prompt_duration = 0
             logger.info(f"Step 6/9: Skipped (using pre-computed video_prompts)")
@@ -1162,12 +1070,6 @@ def run_pipeline(
                 'image_prompt': image_prompt,
                 'video_prompts': video_prompts,
                 'script': script,
-                'script_hook': product_profile.get('hook', ''),
-                'script_value': product_profile.get('value', ''),
-                'script_cta': product_profile.get('cta', ''),
-                'hook': product_profile.get('hook', ''),
-                'value': product_profile.get('value', ''),
-                'cta': product_profile.get('cta', ''),
                 'negative_prompt': negative_prompt if negative_prompt else '',
                 'hashtags': product_profile.get('hashtags', []),
             })
@@ -1177,7 +1079,7 @@ def run_pipeline(
         # ── STEP 7: TTS (ข้ามถ้าไม่มี voice หรือ recipe ไม่ได้ตั้งค่า tts) ──
         if script:
             step_start = time.time()
-            voice_path = generate_voice(script, voice=voice, run_id=run_id, target_gender=product_profile.get("target_gender", ""))
+            voice_path = generate_voice(script, voice=voice, run_id=run_id)
             tts_duration = int((time.time() - step_start) * 1000)
             cost_voice = (len(script) / 1000) * 0.0001
 
@@ -1263,12 +1165,6 @@ def run_pipeline(
             "hashtags": product_profile.get('hashtags', []),
             "recipe": recipe_name,
             "script": script,
-            "hook": product_profile.get('hook', ''),
-            "value": product_profile.get('value', ''),
-            "cta": product_profile.get('cta', ''),
-            "script_hook": product_profile.get('hook', ''),
-            "script_value": product_profile.get('value', ''),
-            "script_cta": product_profile.get('cta', ''),
             "image_path": str(img_path),
             "video_paths": video_paths,
             "job_id": job_id,

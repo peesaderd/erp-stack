@@ -160,6 +160,7 @@ def enrich_from_logs(job_data: dict) -> dict:
                 "negative_prompt": d.get("negative_prompt", ""),
                 "hashtags": json.loads(d.get("hashtags", "[]")) if d.get("hashtags") else [],
                 "final_video_path": d.get("final_video_path", ""),
+                "raw_video_path": d.get("raw_video_path", "") or d.get("prodia_video_path", ""),
                 "cost_total": d.get("cost_total", 0),
                 "cost_image": d.get("cost_image", 0),
                 "cost_voice": d.get("cost_voice", 0),
@@ -172,6 +173,8 @@ def enrich_from_logs(job_data: dict) -> dict:
             log = job_data["logs"]
             if log.get("final_video_path"):
                 log["video_web_url"] = _path_to_web_url(log["final_video_path"])
+            if log.get("raw_video_path"):
+                log["raw_video_web_url"] = _path_to_web_url(log["raw_video_path"])
     except Exception as e:
         logger.warning(f"Failed to enrich from logs DB: {e}")
     return job_data

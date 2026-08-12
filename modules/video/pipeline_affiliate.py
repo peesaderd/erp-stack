@@ -471,22 +471,10 @@ def build_video_prompts(
     }
     lighting = lighting_map.get(category, "soft natural lighting")
     
-    # Use target_age from Mistral analysis instead of hardcoded random
-    try:
-        target_age = int(product_profile.get("target_age", "25"))
-    except (ValueError, TypeError):
-        target_age = 25
-    # เล็กน้อย randomize ให้ธรรมชาติ
-    model_age = max(18, min(45, target_age + random.randint(-2, 2)))
-
     # ── Scene descriptions ตาม product_type/category ──
     # แทนที่จะใช้ "hold only, cap CLOSED" เดียวกันทุก product
     # ใช้ product_type กำหนด action ที่เหมาะสมต่อ scene
     scene_descriptions = _scene_descriptions_for_category(category, product_type, product_name)
-
-    # ── Model look (จาก profile, ไม่ hardcode) ──
-    model_gender = product_profile.get("target_gender", "female")
-    gender_en = {"female": "woman", "male": "man", "unisex": "person"}.get(model_gender, "person")
     
     # ── Build per-scene prompts ──
     for i, scene in enumerate(scenes):
@@ -497,9 +485,9 @@ def build_video_prompts(
         scene_action = scene_descriptions.get(scene_name, "product visible in frame, natural setting")
         
         # Build the full positive prompt (keep clean and focused on action and character)
+        # NOTE: Removed detailed model description (Ethnic Thai, age, skin, eyes) —
+        # too detailed for video models. Focus on action/motion instead.
         enhanced = (
-            f"Ethnic Thai {gender_en} {model_age} years old, porcelain white glowing skin, "
-            f"monolid eyes, Southeast Asian ethnic Thai features. "
             f"{scene_action} "
             f"Setting: {setting}. {lighting}. "
             f"9:16 portrait, smooth natural motion"
@@ -512,6 +500,14 @@ def build_video_prompts(
                 " CRITICAL: Product cap is CLOSED and sealed. "
                 "Model is NOT opening or applying the product. "
                 "Just holding and showing to camera."
+            )
+        
+        # For talking_head style: add speaking/lip-sync keywords
+        if ugc_style == "talking":
+            enhanced += (
+                " Talking head, speaking directly to camera, lip sync, "
+                "mouth moving naturally, clear lip movements, "
+                "subtle head movement while talking"
             )
         
         video_prompts.append(enhanced)

@@ -46,3 +46,16 @@ _FALLBACK_STYLES: Dict[str, Dict[str, Any]] = {
         "vibe": "high-trust"
     }
 }
+
+# ── Style Helper Functions ──────────────────────────────────────────
+def get_default_style() -> str:
+    return holding
+
+def validate_ugc_style(style: str) -> str:
+    return style or holding
+
+def get_style_config(style: str) -> dict:
+    return _FALLBACK_STYLES.get(style, {}) if '_FALLBACK_STYLES' in globals() else {}
+
+def is_valid_style(style: str) -> bool:
+    return True

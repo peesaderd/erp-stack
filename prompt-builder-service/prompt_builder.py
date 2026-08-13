@@ -30,26 +30,12 @@ logger = logging.getLogger("prompt-builder-service")
 
 
 def _clean_product_name_for_video(product_name: str) -> str:
-    """Clean product name for video prompts.
+    """Return generic 'product' for video prompts.
     
-    Removes Thai text, special characters (【】[]), and truncates to ~80 chars.
-    Video models (Wan 2.7) work best with short, English product descriptors.
-    The reference image already shows the actual product — no need for verbose name.
+    Wan 2.7 may interpret product names as instructions.
+    The reference image already shows the actual product.
     """
-    if not product_name:
-        return "product"
-    
-    # Remove Thai characters (Unicode range \u0E00-\u0E7F)
-    clean = re.sub(r'[\u0E00-\u0E7F]+', '', product_name)
-    # Remove special characters: 【】[]
-    clean = re.sub(r'[\[\]【】\[\]]', '', clean)
-    # Remove extra whitespace
-    clean = re.sub(r'\s+', ' ', clean).strip()
-    # Truncate to ~80 chars (video model sweet spot)
-    if len(clean) > 80:
-        clean = clean[:77].rsplit(' ', 1)[0] + '...'
-    
-    return clean or "product"
+    return "product"
 
 
 def _generate_default_hashtags(product_name: str, description: str = "") -> list:
@@ -536,12 +522,11 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             f"Product-centered demonstration, person gesturing"
         )
     elif ugc_style in ("talking", "talking_head"):
-        # Head/shoulders, talking about product
+        # Head/shoulders, talking about product — lip-sync focus
         action = (
-            f"{model_intro} in close-up shot, facing camera directly, "
-            f"speaking to camera, lip sync, mouth moving naturally. "
-            f"Product nearby in frame. "
-            f"Smooth natural motion"
+            f"{model_intro} close-up facing camera, "
+            f"talking, lips moving with speech, natural lip sync. "
+            f"Product visible in frame. Smooth motion"
         )
     elif ugc_style == "unbox":
         action = (
@@ -553,21 +538,16 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     else:
         # Default: holding — show product, gentle rotation
         action = (
-            f"{model_intro} gently holding {prod_desc_vid or product_name} in both hands, "
-            f"showing product to camera with slight slow rotation. "
-            f"Warm natural motion, product centered. "
-            f"Person holding product gently at chest level"
+            f"{model_intro} holding product, "
+            f"lifting toward camera, rotating slowly to show label, "
+            f"bringing closer for detail, lowering back. Smooth motion"
         )
     
-    # ── Category-specific restrictions (SECONDARY) ──
+    # ── Build final prompt ──
     video_prompt = action
-    # No more hardcoded beauty restrictions — Gemini handles appropriateness
-    
     video_prompt += (
-        f" Setting: {model_setting}. "
-        f"{env_context}. "
-        f"soft natural lighting, warm atmosphere. "
-        f"9:16 portrait, smooth natural motion"
+        f" {model_setting}. {env_context}. "
+        f"9:16 portrait, smooth motion"
     )
     
     video_prompt = re.sub(r'\s+', ' ', video_prompt).strip()

@@ -460,17 +460,8 @@ def build_video_prompts(
     product_type = product_profile.get("product_type", "").lower()
     product_name = product_profile.get("product_name", "") or product_profile.get("_product_name", "")
 
-    # Lighting map (simple version)
-    lighting_map = {
-        "beauty": "soft diffused natural window lighting",
-        "tools": "bright functional lighting",
-        "electronics": "clean bright studio lighting",
-        "food": "warm golden hour lighting",
-        "fashion": "bright studio lighting",
-        "home": "bright natural daylight",
-        "other": "soft natural lighting",
-    }
-    lighting = lighting_map.get(category, "soft natural lighting")
+    # Lighting — keep minimal for video model
+    lighting = "natural light"
     
     # ── Scene descriptions ตาม product_type/category ──
     # แทนที่จะใช้ "hold only, cap CLOSED" เดียวกันทุก product
@@ -485,13 +476,10 @@ def build_video_prompts(
         # Get scene-specific description or default
         scene_action = scene_descriptions.get(scene_name, "product visible in frame, natural setting")
         
-        # Build the full positive prompt (keep clean and focused on action and character)
-        # NOTE: Removed detailed model description (Ethnic Thai, age, skin, eyes) —
-        # too detailed for video models. Focus on action/motion instead.
+        # Build short, action-focused prompt
         enhanced = (
             f"{scene_action} "
-            f"Setting: {setting}. {lighting}. "
-            f"9:16 portrait, smooth natural motion"
+            f"{setting}. 9:16 portrait, smooth motion"
         )
         
         # For beauty products: keep "not opening" restriction
@@ -503,12 +491,11 @@ def build_video_prompts(
                 "Just holding and showing to camera."
             )
         
-        # For talking_head style: add speaking/lip-sync keywords
+        # For talking_head style: lip-sync keywords
         if ugc_style == "talking":
             enhanced += (
-                " Talking head, speaking directly to camera, lip sync, "
-                "mouth moving naturally, clear lip movements, "
-                "subtle head movement while talking"
+                " Talking, lips moving with speech, lip sync, "
+                "subtle head movement"
             )
         
         video_prompts.append(enhanced)
@@ -518,19 +505,12 @@ def build_video_prompts(
 
 
 def _clean_product_name_for_video(product_name: str) -> str:
-    """Clean product name for video prompts.
+    """Return generic 'product' for video prompts.
     
-    Removes Thai text, special characters, and truncates to ~80 chars.
-    Video models (Wan 2.7) work best with short, English product descriptors.
+    Wan 2.7 may interpret product names as instructions.
+    The reference image already shows the actual product.
     """
-    if not product_name:
-        return "product"
-    clean = re.sub(r'[\u0E00-\u0E7F]+', '', product_name)
-    clean = re.sub(r'[\[\]【】\[\]]', '', clean)
-    clean = re.sub(r'\s+', ' ', clean).strip()
-    if len(clean) > 80:
-        clean = clean[:77].rsplit(' ', 1)[0] + '...'
-    return clean or "product"
+    return "product"
 
 
 def _scene_descriptions_for_category(category: str, product_type: str, product_name: str) -> dict:

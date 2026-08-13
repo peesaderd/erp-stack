@@ -460,78 +460,6 @@ def generate_image(
 # STEP 6: Build Video Prompts (Mistral)
 # ═══════════════════════════════════════════════════════════════════════════
 
-def build_video_prompts(
-    product_profile: dict,
-    recipe: dict,
-    image_path: str,
-    ugc_style: str = "holding",
-) -> list:
-    """
-    Step 6: Build video prompts from recipe + image context
-
-    Args:
-        product_profile: ผลจาก analyze_product()
-        recipe: ผลจาก load_recipe()
-        image_path: path ของ image ที่สร้างแล้ว (Step 5)
-        ugc_style: UGC style — ใช้ product_type/category กำหนด action ที่เหมาะสม
-
-    Returns:
-        list: video_prompts (1 prompt per scene)
-    """
-    logger.info(f"Step 6/9: Build video prompts (ugc_style={ugc_style})")
-
-    scenes = recipe.get("scenes", [])
-    video_prompts = []
-
-    setting = product_profile.get("setting", "clean modern lifestyle")
-    category = product_profile.get("category", "other")
-    product_type = product_profile.get("product_type", "").lower()
-    product_name = product_profile.get("product_name", "") or product_profile.get("_product_name", "")
-
-    # Lighting — keep minimal for video model
-    lighting = "natural light"
-    
-    # ── Scene descriptions ตาม product_type/category ──
-    # แทนที่จะใช้ "hold only, cap CLOSED" เดียวกันทุก product
-    # ใช้ product_type กำหนด action ที่เหมาะสมต่อ scene
-    scene_descriptions = _scene_descriptions_for_category(category, product_type, product_name)
-    
-    # ── Build per-scene prompts ──
-    for i, scene in enumerate(scenes):
-        scene_name = scene.get("name", f"Scene{i+1}")
-        scene_dur = scene.get("duration", 2)
-        
-        # Get scene-specific description or default
-        scene_action = scene_descriptions.get(scene_name, "product visible in frame, natural setting")
-        
-        # Build short, action-focused prompt
-        enhanced = (
-            f"{scene_action} "
-            f"{setting}. 9:16 portrait, smooth motion"
-        )
-        
-        # For beauty products: keep "not opening" restriction
-        # For electronics/home/tools: allow natural product interaction
-        if category in ("beauty", "health") and ugc_style == "holding":
-            enhanced += (
-                " CRITICAL: Product cap is CLOSED and sealed. "
-                "Model is NOT opening or applying the product. "
-                "Just holding and showing to camera."
-            )
-        
-        # For talking_head style: lip-sync keywords
-        if ugc_style == "talking":
-            enhanced += (
-                " Talking, lips moving with speech, lip sync, "
-                "subtle head movement"
-            )
-        
-        video_prompts.append(enhanced)
-
-    logger.info(f"  Generated {len(video_prompts)} video prompts for category={category}")
-    return video_prompts
-
-
 def _clean_product_name_for_video(product_name: str) -> str:
     """Return generic 'product' for video prompts.
     
@@ -541,81 +469,6 @@ def _clean_product_name_for_video(product_name: str) -> str:
     return "product"
 
 
-def _scene_descriptions_for_category(category: str, product_type: str, product_name: str) -> dict:
-    """Generate scene descriptions based on product category/type.
-    
-    Returns dict {scene_name: action_description} ใช้ใน build_video_prompts()
-    """
-    pn = _clean_product_name_for_video(product_name) or "product"
-    
-    # ── Electronics ──
-    if category == "electronics":
-        return {
-            "Hook": f"Model walking toward {pn} installed on wall/counter, product clearly visible in the setting",
-            "Problem": f"Close-up of {pn} in off/inactive state, showing need for activation",
-            "Discovery": f"Hand reaching for {pn}, finger pressing button or switch, product activating with subtle indicator glow",
-            "Features": f"{pn} in active use, feature demonstration, product functionality visible and working",
-            "Transformation": f"Wide shot showing {pn} improving the space or solving the problem, room/area visibly better",
-            "CTA": f"Model with satisfied expression, {pn} in focus in the background, final product showcase",
-        }
-    
-    # ── Home / Tools ──
-    elif category in ("home", "tools"):
-        return {
-            "Hook": f"Model entering frame holding {pn}, product clearly visible and recognizable",
-            "Problem": f"Close-up showing problem or need before using {pn}, relatable struggle",
-            "Discovery": f"Model beginning to use {pn}, natural action, product solving the immediate issue",
-            "Features": f"Product detail close-up, key features of {pn} visible, texture and build quality shown",
-            "Transformation": f"Result visible after using {pn}, improved situation, problem solved",
-            "CTA": f"Model satisfied, {pn} in focus, final encouraging shot",
-        }
-    
-    # ── Food ──
-    elif category == "food":
-        return {
-            "Hook": f"{pn} packaging visible, appetizing presentation on table or counter",
-            "Problem": f"Opening or preparing {pn}, anticipation visible",
-            "Discovery": f"{pn} being revealed, poured, or displayed, texture and color visible",
-            "Features": f"Close-up of {pn} texture, ingredients or details visible, mouth-watering shot",
-            "Transformation": f"Final prepared state of {pn}, ready to enjoy, appetizing result",
-            "CTA": f"Final shot of {pn}, encouraging viewer to try it",
-        }
-    
-    # ── Fashion ──
-    elif category == "fashion":
-        return {
-            "Hook": f"Model holding {pn}, fashion-forward entrance, product clearly visible",
-            "Problem": f"Showing look without {pn}, neutral expression",
-            "Discovery": f"{pn} being shown or styled, model examining product",
-            "Features": f"Texture and detail close-up of {pn}, fabric or finish visible",
-            "Transformation": f"Complete look with {pn} styled, confident pose, full outfit visible",
-            "CTA": f"Final confident look, {pn} featured prominently",
-        }
-    
-    # ── Beauty — keep original holding restriction ──
-    elif category == "beauty":
-        return {
-            "Hook": f"Model holding {pn} in both hands, product packaging facing camera, smiling naturally, just showing",
-            "Problem": f"Model still holding {pn}, gentle expression, product clearly visible",
-            "Discovery": f"Model examining {pn}, slight head movement, product still in hands",
-            "Features": f"Close-up of {pn}, product texture and packaging detail visible",
-            "Transformation": f"Model presenting {pn} proudly, product in focus",
-            "CTA": f"Final product showcase, {pn} in frame, model smiling warmly",
-        }
-    
-    # ── Default: generic ──
-    else:
-        return {
-            "Hook": f"Model holding {pn}, product clearly visible, natural opening",
-            "Problem": f"{pn} shown in context, viewer attention drawn to product",
-            "Discovery": f"Model interacting with {pn}, natural movement",
-            "Features": f"Close-up details of {pn}, texture and build visible",
-            "Transformation": f"Result or benefit of {pn} shown, improvement visible",
-            "CTA": f"Final showcase, {pn} in focus, encouraging shot",
-        }
-
-
-# ═══════════════════════════════════════════════════════════════════════════
 # STEP 7: TTS (Gemini)
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -732,6 +585,10 @@ def generate_video(
             audio_bytes=audio_bytes,
             job_type="inference.wan2-7.img2vid.v1",
             negative_prompt=neg_p,
+            # Control motion: disable Wan 2.7's prompt_extend so the model
+            # follows our exact prompt (which now includes the end scene)
+            # instead of rewriting/expanding it into unpredictable motion.
+            prompt_extend=False,
         )
 
         output_url = result.get("output_url", "")
@@ -1120,8 +977,11 @@ def run_pipeline(
             vid_prompt_duration = 0
             logger.info(f"Step 6/9: Skipped (using pre-computed video_prompt)")
         elif not video_prompts:
+            # Fallback: single short prompt (Wan 2.7 img2vid = 1 continuous clip).
+            # No 6-scene split — one clip animates a natural open→end arc.
             step_start = time.time()
-            video_prompts = build_video_prompts(product_profile, recipe, str(img_path), ugc_style=ugc_style)
+            gender_en = {"female": "Woman", "male": "Man"}.get(product_profile.get("target_gender","female"), "Woman")
+            video_prompts = [f"{gender_en} showcasing product naturally, product clearly visible. clean setting. 9:16."]
             vid_prompt_duration = int((time.time() - step_start) * 1000)
         else:
             vid_prompt_duration = 0

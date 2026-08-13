@@ -546,7 +546,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     # ── Build final prompt ──
     video_prompt = action
     video_prompt += (
-        f" {model_setting}. {env_context}. "
+        f" {model_setting}. "
         f"9:16 portrait, smooth motion"
     )
     

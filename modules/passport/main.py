@@ -70,7 +70,7 @@ SCHEMA_ENGINE_URL = "http://localhost:8100"
 # ── Helpers ───────────────────────────────────────────
 
 def _get_template_engine():
-    from .templates import engine
+    from templates import engine
     engine.load()
     return engine
 
@@ -85,7 +85,7 @@ def _encode_image(img: np.ndarray, fmt: str = ".jpg") -> bytes:
     return buf.tobytes()
 
 def _generate_sheet(img, w_mm, h_mm, size="4x6", dpi=300, gap_mm=3.0, border="guidelines", blade_mode=False, photo_count=0):
-    from .print_sheet import generate_print_sheet
+    from print_sheet import generate_print_sheet
     return generate_print_sheet(img, w_mm, h_mm, size, dpi, gap_mm, True, border, gap_mm, blade_mode, photo_count)
 
 
@@ -102,6 +102,8 @@ class GenerateRequest(BaseModel):
     background_color: Optional[str] = None   # custom hex color
     background_gradient: Optional[str] = None # CSS gradient string
     strength: float = 0.45         # FLUX i2i strength
+    crop_preset: str = "standard"  # "standard" | "compact" | "relaxed"
+    print_size: str = "4x6"        # "4x6" | "5x7" | "a6" | "a4"
 
 class BulkGenerateRequest(BaseModel):
     images: list  # list of base64 strings
@@ -160,12 +162,12 @@ def get_template(code: str):
 
 @app.get("/api/passport/clothing")
 def list_clothing(gender: str = "male"):
-    from .clothing import list_clothing as _list
+    from clothing import list_clothing as _list
     return {"ok": True, "gender": gender, "options": _list(gender)}
 
 @app.get("/api/passport/backgrounds")
 def list_backgrounds():
-    from .clothing import list_backgrounds as _list
+    from clothing import list_backgrounds as _list
     return {"ok": True, "options": _list()}
 
 
@@ -173,7 +175,7 @@ def list_backgrounds():
 
 @app.post("/api/passport/detect-gender")
 async def detect_gender(image_base64: str = Form(...)):
-    from .gender_detector import detect_gender as _detect
+    from gender_detector import detect_gender as _detect
     try:
         img_bytes = base64.b64decode(image_base64)
     except Exception:
@@ -187,9 +189,9 @@ async def detect_gender(image_base64: str = Form(...)):
 @app.post("/api/passport/generate")
 async def generate_passport_v2(req: GenerateRequest):
     """V2: Gender detection + clothing selection + FLUX i2i + print sheet."""
-    from .ai_passport import generate_passport
-    from .gender_detector import detect_gender as _detect_gender
-    from .clothing import get_clothing, get_background
+    from ai_passport import generate_passport
+    from gender_detector import detect_gender as _detect_gender
+    from clothing import get_clothing, get_background
 
     session_id = uuid.uuid4().hex[:12]
     t0 = time.time()
@@ -249,8 +251,50 @@ async def generate_passport_v2(req: GenerateRequest):
     with open(out_path, "wb") as f:
         f.write(out_bytes)
 
-    # No auto print sheet — raw image needs cropping first
+    # Auto-crop with preset
+    crop_preset = req.crop_preset if req.crop_preset in ("standard", "compact", "relaxed") else "standard"
+    try:
+        from head_finder import crop_passport_auto
+        crop_result = crop_passport_auto(out_img, preset=crop_preset, dpi=300)
+        if crop_result["ok"]:
+            cropped = crop_result["result"]
+            crop_bytes = _encode_image(cropped)
+            crop_path = STORAGE_DIR / f"{session_id}_cropped.jpg"
+            with open(crop_path, "wb") as f:
+                f.write(crop_bytes)
+            crop_info = {
+                "preset": crop_preset,
+                "headspace": crop_result["headspace_in_crop"],
+                "output": crop_result["output"],
+            }
+        else:
+            crop_info = {"error": crop_result.get("error")}
+    except Exception as e:
+        logger.warning(f"Crop error: {e}")
+        crop_info = {"error": str(e)}
+
+    # Generate print sheet from cropped image
     print_info = None
+    try:
+        if crop_result and crop_result.get("ok"):
+            from print_sheet import generate_print_sheet
+            cropped = crop_result["result"]
+            ch, cw = cropped.shape[:2]
+            # Convert px to mm (assuming 300 DPI)
+            mm_w = cw / 300 * 25.4
+            mm_h = ch / 300 * 25.4
+            sheet = generate_print_sheet(
+                cropped, mm_w, mm_h,
+                req.print_size,
+                300, 2.0, True, 'frame', 2.0, False, 6, '#FFFFFF', 3.0
+            )
+            if sheet.get("ok"):
+                sheet_bytes = _encode_image(sheet["result"])
+                with open(STORAGE_DIR / f"{session_id}_print.jpg", "wb") as f:
+                    f.write(sheet_bytes)
+                print_info = sheet["info"]
+    except Exception as e:
+        logger.warning(f"Print sheet error: {e}")
 
     elapsed = round(time.time() - t0, 1)
     logger.info(f"[{session_id}] Done in {elapsed}s")
@@ -259,16 +303,67 @@ async def generate_passport_v2(req: GenerateRequest):
         "ok": True,
         "session_id": session_id,
         "download_passport": f"/api/passport/download/{session_id}_passport.jpg",
+        "download_cropped": f"/api/passport/download/{session_id}_cropped.jpg",
         "download_print": f"/api/passport/download/{session_id}_print.jpg",
         "gender": gender,
         "gender_info": gender_info,
         "clothing": clothing["name"],
         "background": bg["name"],
         "print_info": print_info,
+        "crop_info": crop_info,
         "dimensions_px": result["dimensions_px"],
         "face_info": result["info"].get("face_in_output"),
         "time_seconds": elapsed,
     }
+
+
+# ── Remove Background ────────────────────────────────
+
+class RemoveBgRequest(BaseModel):
+    session_id: str
+    background_color: str = "#C4DCFF"  # hex color
+
+@app.post("/api/passport/remove-bg")
+async def remove_bg(req: RemoveBgRequest):
+    """Remove background and apply selected color."""
+    src_path = STORAGE_DIR / f"{req.session_id}_cropped.jpg"
+    if not src_path.exists():
+        # Fallback to passport image
+        src_path = STORAGE_DIR / f"{req.session_id}_passport.jpg"
+    if not src_path.exists():
+        raise HTTPException(404, f"Session not found: {req.session_id}")
+    
+    # Read image
+    with open(src_path, "rb") as f:
+        img_bytes = f.read()
+    
+    # Remove background using Prodia
+    from bg_remover import remove_background, apply_background
+    try:
+        transparent_png, pil_image = remove_background(img_bytes)
+        
+        # Save transparent version
+        transparent_path = STORAGE_DIR / f"{req.session_id}_transparent.png"
+        with open(transparent_path, "wb") as f:
+            f.write(transparent_png)
+        
+        # Apply background color
+        result_img = apply_background(pil_image, req.background_color)
+        
+        # Save result
+        result_path = STORAGE_DIR / f"{req.session_id}_bg.jpg"
+        result_img.save(result_path, "JPEG", quality=95)
+        
+        return {
+            "ok": True,
+            "session_id": req.session_id,
+            "download_transparent": f"/api/passport/download/{req.session_id}_transparent.png",
+            "download_bg": f"/api/passport/download/{req.session_id}_bg.jpg",
+            "background_color": req.background_color,
+        }
+    except Exception as e:
+        logger.error(f"Remove BG error: {e}")
+        raise HTTPException(500, f"Background removal failed: {str(e)}")
 
 
 # ── Print Sheet (V2) ──────────────────────────────────
@@ -290,7 +385,7 @@ async def print_sheet_v2(req: PrintSheetRequest):
     mm_w = w / dpi * 25.4
     mm_h = h / dpi * 25.4
 
-    from .print_sheet import generate_print_sheet
+    from print_sheet import generate_print_sheet
     result = generate_print_sheet(
         img_rgb, mm_w, mm_h, req.print_size, dpi, req.gap_mm, True,
         req.border, req.gap_mm, req.blade_mode, req.photo_count
@@ -328,7 +423,7 @@ class MultiPrintRequest(BaseModel):
 @app.post("/api/passport/multi-print")
 async def multi_print(req: MultiPrintRequest):
     """Generate print sheet with multiple different photos."""
-    from .print_sheet import generate_multi_print_sheet
+    from print_sheet import generate_multi_print_sheet
     
     if not req.session_ids:
         raise HTTPException(400, "No photos selected")
@@ -389,10 +484,10 @@ def download(filename: str):
 @app.post("/api/passport/bulk-generate")
 async def bulk_generate(req: BulkGenerateRequest):
     """Generate multiple passport photos in one request."""
-    from .ai_passport import generate_passport
-    from .gender_detector import detect_gender as _detect_gender
-    from .clothing import get_clothing, get_background
-    from .print_sheet import generate_print_sheet
+    from ai_passport import generate_passport
+    from gender_detector import detect_gender as _detect_gender
+    from clothing import get_clothing, get_background
+    from print_sheet import generate_print_sheet
 
     if not req.images:
         raise HTTPException(400, "No images provided")
@@ -584,7 +679,7 @@ def recrop_photo(req: dict):
     }
     
     # Re-crop
-    from .ai_passport import crop_to_template
+    from ai_passport import crop_to_template
     final = crop_to_template(img_rgb, template, template["dpi"])
     
     # Save new result

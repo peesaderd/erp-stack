@@ -161,6 +161,43 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#4b5563;min-height:
 </div>
 <label class="blade"><input type="checkbox" id="bm"> Blade mode</label>
 </div></div>
+<div style="margin-top:10px">
+<label style="font-size:.6rem;color:#94a3b8;display:block;margin-bottom:4px;font-weight:500">Crop Style</label>
+<div style="display:flex;gap:6px;align-items:center">
+<div class="crop-opts" style="display:flex;gap:4px;flex:1">
+<div class="crop-opt active" data-preset="standard" onclick="setCropPreset('standard')" style="flex:1;padding:8px 6px;border:1.5px solid #6366f1;border-radius:8px;background:#6366f1;color:#fff;cursor:pointer;text-align:center;font-size:.65rem;font-weight:600;transition:.2s">
+<div style="font-size:1.1rem">&#x1F468;</div>
+<div>Standard</div>
+<div style="font-size:.5rem;opacity:.8;margin-top:2px">Head 20%</div>
+</div>
+<div class="crop-opt" data-preset="compact" onclick="setCropPreset('compact')" style="flex:1;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#64748b;cursor:pointer;text-align:center;font-size:.65rem;font-weight:600;transition:.2s">
+<div style="font-size:1.1rem">&#x1F468;&#x1F3C5;</div>
+<div>Compact</div>
+<div style="font-size:.5rem;opacity:.8;margin-top:2px">Head 15%</div>
+</div>
+<div class="crop-opt" data-preset="relaxed" onclick="setCropPreset('relaxed')" style="flex:1;padding:8px 6px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#64748b;cursor:pointer;text-align:center;font-size:.65rem;font-weight:600;transition:.2s">
+<div style="font-size:1.1rem">&#x1F468;&#x1F4BC;</div>
+<div>Relaxed</div>
+<div style="font-size:.5rem;opacity:.8;margin-top:2px">Head 12%</div>
+</div>
+</div>
+</div>
+</div>
+<div style="margin-top:10px">
+<label style="font-size:.6rem;color:#94a3b8;display:block;margin-bottom:4px;font-weight:500">Background Color</label>
+<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+<div class="bg-colors" style="display:flex;gap:4px;flex:1">
+<div class="bg-color active" data-color="#C4DCFF" onclick="setBgColor('#C4DCFF')" style="width:32px;height:32px;border-radius:8px;background:#C4DCFF;border:2px solid #6366f1;cursor:pointer;transition:.2s" title="Light Blue"></div>
+<div class="bg-color" data-color="#FFFFFF" onclick="setBgColor('#FFFFFF')" style="width:32px;height:32px;border-radius:8px;background:#FFFFFF;border:2px solid #e2e8f0;cursor:pointer;transition:.2s" title="White"></div>
+<div class="bg-color" data-color="#F0F0F0" onclick="setBgColor('#F0F0F0')" style="width:32px;height:32px;border-radius:8px;background:#F0F0F0;border:2px solid #e2e8f0;cursor:pointer;transition:.2s" title="Light Gray"></div>
+<div class="bg-color" data-color="#4A90D9" onclick="setBgColor('#4A90D9')" style="width:32px;height:32px;border-radius:8px;background:#4A90D9;border:2px solid #e2e8f0;cursor:pointer;transition:.2s" title="Blue"></div>
+<div class="bg-color" data-color="#FF0000" onclick="setBgColor('#FF0000')" style="width:32px;height:32px;border-radius:8px;background:#FF0000;border:2px solid #e2e8f0;cursor:pointer;transition:.2s" title="Red"></div>
+<div class="bg-color" data-color="#00AA00" onclick="setBgColor('#00AA00')" style="width:32px;height:32px;border-radius:8px;background:#00AA00;border:2px solid #e2e8f0;cursor:pointer;transition:.2s" title="Green"></div>
+<div class="bg-color" data-color="#000000" onclick="setBgColor('#000000')" style="width:32px;height:32px;border-radius:8px;background:#000000;border:2px solid #e2e8f0;cursor:pointer;transition:.2s" title="Black"></div>
+</div>
+<input type="color" id="bgclr" value="#C4DCFF" style="width:32px;height:32px;border:2px solid #e2e8f0;border-radius:8px;cursor:pointer;padding:0" onchange="setBgColor(this.value)">
+</div>
+</div>
 <button class="gen" id="gbn" disabled>&#x2728; Generate</button>
 </div>
 <div>
@@ -178,7 +215,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#4b5563;min-height:
 </div></div>
 <script>
 var API='/api/passport';
-var S={photo:null,photos:[],bulk:false,gender:'male',clothing:'white_shirt',bg:'light_blue',tpl:'us_passport',bgc:null,cw:null,ch:null,sid:null};
+var S={photo:null,photos:[],bulk:false,gender:'male',clothing:'white_shirt',bg:'light_blue',tpl:'us_passport',bgc:null,cw:null,ch:null,sid:null,cropPreset:'standard',bgColor:'#C4DCFF'};
 var CD={male:[],female:[]},BD=[],TD=[];
 var FL={Thailand:'\u{1F1F9}\u{1F1ED}',Japan:'\u{1F1EF}\u{1F1F5}',China:'\u{1F1E8}\u{1F1F3}','South Korea':'\u{1F1F0}\u{1F1F7}','United States':'\u{1F1FA}\u{1F1F8}','United Kingdom':'\u{1F1EC}\u{1F1E7}','European Union':'\u{1F1EA}\u{1F1FA}',Canada:'\u{1F1E8}\u{1F1E6}',Australia:'\u{1F1E6}\u{1F1FA}',India:'\u{1F1EE}\u{1F1F3}',Singapore:'\u{1F1F8}\u{1F1EC}',Malaysia:'\u{1F1F2}\u{1F1FE}',Philippines:'\u{1F1F5}\u{1F1ED}',Indonesia:'\u{1F1EE}\u{1F1E9}',Vietnam:'\u{1F1FB}\u{1F1F3}',Cambodia:'\u{1F1F0}\u{1F1ED}',Laos:'\u{1F1F1}\u{1F1E6}',Myanmar:'\u{1F1F2}\u{1F1E2}','Hong Kong':'\u{1F1ED}\u{1F1F0}',France:'\u{1F1EB}\u{1F1F7}',Germany:'\u{1F1E9}\u{1F1EA}'};
 
@@ -301,6 +338,46 @@ function setBgMode(m){
   else{$('bgr').style.display='none';$('grr').style.display='';$('bgGrad').style.borderColor='#6366f1';$('bgGrad').style.background='#6366f1';$('bgGrad').style.color='#fff';$('bgSolid').style.borderColor='#e2e8f0';$('bgSolid').style.background='#fff';$('bgSolid').style.color='#64748b'}
 }
 
+function setCropPreset(preset){
+  S.cropPreset=preset;
+  var opts=document.querySelectorAll('.crop-opt');
+  for(var i=0;i<opts.length;i++){
+    if(opts[i].dataset.preset===preset){
+      opts[i].style.borderColor='#6366f1';opts[i].style.background='#6366f1';opts[i].style.color='#fff';
+    }else{
+      opts[i].style.borderColor='#e2e8f0';opts[i].style.background='#fff';opts[i].style.color='#64748b';
+    }
+  }
+}
+
+function setBgColor(color){
+  S.bgColor=color;
+  $('bgclr').value=color;
+  var opts=document.querySelectorAll('.bg-color');
+  for(var i=0;i<opts.length;i++){
+    if(opts[i].dataset.color===color){
+      opts[i].style.borderColor='#6366f1';opts[i].style.transform='scale(1.1)';
+    }else{
+      opts[i].style.borderColor='#e2e8f0';opts[i].style.transform='scale(1)';
+    }
+  }
+  // If result exists, apply bg color realtime
+  if(S.sid){applyBgColor(color);}
+}
+
+async function applyBgColor(color){
+  if(!S.sid)return;
+  try{
+    var resp=await fetch(API+'/remove-bg',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({session_id:S.sid,background_color:color})});
+    var d=await resp.json();
+    if(d.ok){
+      $('ri').src=API+'/download/'+S.sid+'_bg.jpg?t='+Date.now();
+      toast('Background updated!');
+    }
+  }catch(e){console.error('Apply BG error:',e);}
+}
+
 function setupUI(){
   $('drop').addEventListener('click',function(e){if(e.target.tagName==='BUTTON')return;$('fi').click()});
   $('fi').addEventListener('change',function(e){handleFiles(e.target.files)});
@@ -378,7 +455,7 @@ async function generate(){
   showOv('Generating...');
   try{
     var b=await toB64(S.photo);
-    var body={image_base64:b,template_code:S.tpl,gender:S.gender,clothing:S.clothing,background:S.bg,strength:0.45,bg_type:S.bgType||'solid',
+    var body={image_base64:b,template_code:S.tpl,gender:S.gender,clothing:S.clothing,background:S.bg,strength:0.45,crop_preset:S.cropPreset,bg_type:S.bgType||'solid',
       print_size:$('ps').value,photo_count:parseInt($('pc').value)||6,border:$('bt').value,blade_mode:$('bm').checked,
       gap_mm:parseFloat($('pgap').value)||2,border_color:$('bclr').value,border_width_mm:parseFloat($('bwmm').value)||0};
     if(S.bgc)body.background_color=S.bgc;
@@ -394,7 +471,7 @@ async function genBulk(){
   showOv('Generating '+S.photos.length+'...');
   try{
     var imgs=[];for(var i=0;i<S.photos.length;i++)imgs.push(await toB64(S.photos[i]));
-    var body={images:imgs,template_code:S.tpl,gender:S.gender,clothing:S.clothing,background:S.bg,strength:0.45,bg_type:S.bgType||'solid',
+    var body={images:imgs,template_code:S.tpl,gender:S.gender,clothing:S.clothing,background:S.bg,strength:0.45,crop_preset:S.cropPreset,bg_type:S.bgType||'solid',
       print_size:$('ps').value,photo_count:parseInt($('pc').value)||6,border:$('bt').value,blade_mode:$('bm').checked,
       gap_mm:parseFloat($('pgap').value)||2,border_color:$('bclr').value,border_width_mm:parseFloat($('bwmm').value)||0};
     if(S.bgc)body.background_color=S.bgc;
@@ -409,10 +486,10 @@ async function genBulk(){
 function showResult(d){
   $('re').style.display='none';$('rc').style.display='';
   $('rs').innerHTML='<div class="rst"><div class="v">'+(d.time_seconds||'?')+'s</div><div class="l">Time</div></div>'
-    +'<div class="rst"><div class="v">'+d.dimensions.w+'\u00D7'+d.dimensions.h+'</div><div class="l">mm</div></div>'
+    +'<div class="rst"><div class="v">'+d.dimensions_px.w+'\u00D7'+d.dimensions_px.h+'</div><div class="l">px</div></div>'
     +'<div class="rst"><div class="v">'+(d.gender==='male'?'\u{1F468}':'\u{1F469}')+'</div><div class="l">Gender</div></div>'
-    +'<div class="rst"><div class="v">$0.004</div><div class="l">Cost</div></div>';
-  $('ri').src=API+'/download/'+d.session_id+'_passport.jpg?t='+Date.now();
+    +'<div class="rst"><div class="v">'+(d.crop_info?.preset||'-')+'</div><div class="l">Crop</div></div>';
+  $('ri').src=API+'/download/'+d.session_id+'_cropped.jpg?t='+Date.now();
   if(d.download_print){$('pri').src=API+'/download/'+d.session_id+'_print.jpg?t='+Date.now();$('psi').style.display=''}
   else $('psi').style.display='none';
   $('prlink').href='/print.html?session_id='+d.session_id;$('prlink').style.display='';

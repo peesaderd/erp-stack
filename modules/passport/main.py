@@ -517,11 +517,13 @@ def list_gallery(limit: int = 50, offset: int = 0):
         sid = f.stem.replace("_passport", "")
         stat = f.stat()
         print_file = STORAGE_DIR / f"{sid}_print.jpg"
+        flux_raw_file = STORAGE_DIR / f"{sid}_flux_raw.jpg"
         files.append({
             "session_id": sid,
             "filename": f.name,
             "url": f"/api/passport/download/{f.name}",
             "print_url": f"/api/passport/download/{sid}_print.jpg" if print_file.exists() else None,
+            "flux_raw_url": f"/api/passport/download/{sid}_flux_raw.jpg" if flux_raw_file.exists() else None,
             "size_kb": round(stat.st_size / 1024, 1),
             "created": stat.st_mtime,
         })

@@ -387,7 +387,7 @@ def generate_passport(
     info["flux_raw_size"] = [final.shape[1], final.shape[0]]
     # Save to disk for recrop later
     if session_id:
-        storage = Path(__file__).parent.parent.parent / "storage"
+        storage = Path(__file__).parent / "storage"
         storage.mkdir(exist_ok=True)
         flux_raw_path = storage / f"{session_id}_flux_raw.jpg"
         try:

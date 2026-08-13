@@ -47,9 +47,8 @@ async def generate_tts(req: TTSRequest):
         "text": req.text.strip(),
         "voice": "Aoede"
     })
-    if result.get("ok"):
-        data = result.get("data", {})
-        filepath = data.get("filepath", "")
+    if result.get("success"):
+        filepath = result.get("filepath", "")
         filename = os.path.basename(filepath)
         return {
             "success": True,
@@ -73,10 +72,9 @@ async def generate_script_tts(req: ScriptTTSRequest):
         },
         "voice": "Aoede"
     })
-    if result.get("ok"):
-        data = result.get("data", {})
-        data["success"] = True
-        return data
+    if result.get("success"):
+        result["success"] = True
+        return result
     else:
         raise HTTPException(status_code=502, detail=result.get("error", "Script TTS failed"))
 
@@ -133,8 +131,8 @@ async def run_full_pipeline(req: FullPipelineRequest):
                     "text": full_text.strip(),
                     "lang": req.tts_lang or "th",
                 })
-                if tts_result.get("ok"):
-                    tts_file = tts_result["data"].get("filepath") or tts_result["data"].get("audio_path", "")
+                if tts_result.get("success"):
+                    tts_file = tts_result.get("filepath") or tts_result.get("audio_path", "")
                     _update_pipeline_step(job_id, "tts", "success", {"filepath": tts_file})
                 else:
                     raise Exception(tts_result.get("error", "TTS proxy call failed"))
@@ -156,18 +154,14 @@ async def run_full_pipeline(req: FullPipelineRequest):
                     "recipe": req.recipe or "tus",
                     "negative_prompt": req.negative_prompt or "",
                 })
-                if vid_result.get("ok"):
-                    inner = vid_result["data"]
-                    if inner.get("success"):
-                        result_data = inner.get("result", {})
-                        final_path = result_data.get("final_path", "")
-                        _update_pipeline_step(job_id, "video_gen", "success", {
-                            "video_url": final_path,
-                            "duration": req.duration,
-                            "run_id": result_data.get("run_id", ""),
-                        })
-                    else:
-                        _update_pipeline_step(job_id, "video_gen", "error", {"error": inner.get("error", "Unknown")})
+                if vid_result.get("success"):
+                    result_data = vid_result.get("result", {})
+                    final_path = result_data.get("final_path", "")
+                    _update_pipeline_step(job_id, "video_gen", "success", {
+                        "video_url": final_path,
+                        "duration": req.duration,
+                        "run_id": result_data.get("run_id", ""),
+                    })
                 else:
                     _update_pipeline_step(job_id, "video_gen", "error", {"error": vid_result.get("error", "Proxy failed")})
             else:
@@ -228,7 +222,7 @@ async def generate_script(req: ScriptRequest):
     """Generate TikTok review script via Video Module"""
     try:
         result = await _proxy("POST", "video", "/api/v1/scripts/generate", req.model_dump())
-        if result.get("ok"):
+        if result.get("success"):
             return result.get("data", {})
         return result
     except Exception as e:

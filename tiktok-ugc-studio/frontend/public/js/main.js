@@ -1397,9 +1397,9 @@ function toWebUrl(localPath) {
       return '/api/tiktok' + localPath;
     }
     if (localPath.startsWith('/api/')) return localPath;
-    // Convert local file paths
+    // Convert local file paths — use /api/tiktok/static/ (FastAPI mount)
     if (localPath.startsWith('/home/openhands/erp-stack/modules/video/storage')) {
-      return '/static/video/' + localPath.slice('/home/openhands/erp-stack/modules/video/storage/'.length);
+      return '/api/tiktok/static/' + localPath.slice('/home/openhands/erp-stack/modules/video/storage/'.length);
     }
     if (localPath.startsWith('/home/openhands/erp-stack/tiktok-ugc-studio/storage')) {
       return '/api/tiktok/static/' + localPath.slice('/home/openhands/erp-stack/tiktok-ugc-studio/storage/'.length);

@@ -28,6 +28,7 @@ Changes from v5:
 """
 
 import os
+import re
 import sys
 import json
 import time
@@ -516,12 +517,28 @@ def build_video_prompts(
     return video_prompts
 
 
+def _clean_product_name_for_video(product_name: str) -> str:
+    """Clean product name for video prompts.
+    
+    Removes Thai text, special characters, and truncates to ~80 chars.
+    Video models (Wan 2.7) work best with short, English product descriptors.
+    """
+    if not product_name:
+        return "product"
+    clean = re.sub(r'[\u0E00-\u0E7F]+', '', product_name)
+    clean = re.sub(r'[\[\]【】\[\]]', '', clean)
+    clean = re.sub(r'\s+', ' ', clean).strip()
+    if len(clean) > 80:
+        clean = clean[:77].rsplit(' ', 1)[0] + '...'
+    return clean or "product"
+
+
 def _scene_descriptions_for_category(category: str, product_type: str, product_name: str) -> dict:
     """Generate scene descriptions based on product category/type.
     
     Returns dict {scene_name: action_description} ใช้ใน build_video_prompts()
     """
-    pn = product_name or "product"
+    pn = _clean_product_name_for_video(product_name) or "product"
     
     # ── Electronics ──
     if category == "electronics":
@@ -823,6 +840,44 @@ def compose_video(
     raw_path = STORAGE_DIR / f"affiliate_{run_id}_raw.mp4"
     shutil.copy2(concat_path, raw_path)
     logger.info(f"  9a: Raw video saved -> {raw_path}")
+
+    # Step 9a.5: If video is shorter than target_duration, loop it to fill full duration
+    if target_duration > 0:
+        # Get actual duration of concat video
+        try:
+            probe_cmd = [
+                "ffprobe", "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                str(concat_path)
+            ]
+            probe_result = subprocess.run(probe_cmd, capture_output=True, text=True, check=False)
+            actual_duration = float(probe_result.stdout.strip()) if probe_result.stdout.strip() else 0
+        except Exception:
+            actual_duration = 0
+
+        if actual_duration > 0 and actual_duration < target_duration - 1:
+            logger.info(f"  9a.5: Video is {actual_duration:.1f}s, looping to {target_duration}s")
+            looped_path = TMP_DIR / f"looped_{run_id}.mp4"
+            # Calculate how many loops needed, with slight overlap for smoothness
+            loop_count = int(target_duration / actual_duration) + 1
+            try:
+                cmd_loop = [
+                    "ffmpeg", "-y",
+                    "-stream_loop", str(loop_count),
+                    "-i", str(concat_path),
+                    "-c:v", "libx264",
+                    "-c:a", "aac",
+                    "-t", str(target_duration),
+                    "-pix_fmt", "yuv420p",
+                    str(looped_path)
+                ]
+                subprocess.run(cmd_loop, check=True, capture_output=True, timeout=120)
+                if looped_path.exists() and looped_path.stat().st_size > 1000:
+                    shutil.copy2(looped_path, concat_path)
+                    logger.info(f"  9a.5: Looped video saved -> {concat_path}")
+            except Exception as e:
+                logger.warning(f"  9a.5: Loop failed ({e}), using original concat")
 
     # Step 9b: Force-merge Gemini TTS voiceover audio into the video
     final_path = concat_path

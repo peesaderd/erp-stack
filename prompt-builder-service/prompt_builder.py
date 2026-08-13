@@ -29,6 +29,29 @@ from router_agent import router_decide
 logger = logging.getLogger("prompt-builder-service")
 
 
+def _clean_product_name_for_video(product_name: str) -> str:
+    """Clean product name for video prompts.
+    
+    Removes Thai text, special characters (【】[]), and truncates to ~80 chars.
+    Video models (Wan 2.7) work best with short, English product descriptors.
+    The reference image already shows the actual product — no need for verbose name.
+    """
+    if not product_name:
+        return "product"
+    
+    # Remove Thai characters (Unicode range \u0E00-\u0E7F)
+    clean = re.sub(r'[\u0E00-\u0E7F]+', '', product_name)
+    # Remove special characters: 【】[]
+    clean = re.sub(r'[\[\]【】\[\]]', '', clean)
+    # Remove extra whitespace
+    clean = re.sub(r'\s+', ' ', clean).strip()
+    # Truncate to ~80 chars (video model sweet spot)
+    if len(clean) > 80:
+        clean = clean[:77].rsplit(' ', 1)[0] + '...'
+    
+    return clean or "product"
+
+
 def _generate_default_hashtags(product_name: str, description: str = "") -> list:
     """Generate diverse default hashtags from product name and description."""
     hashtags = []
@@ -442,7 +465,8 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     # NOTE: Do NOT use AI-generated product_appearance for video prompts.
     # It often describes product incorrectly (wrong shape, color, material).
     # Use product_name instead — the reference image will show the actual product.
-    prod_desc_vid = product_name
+    # BUT: strip Thai text, special chars, and truncate for video model (max ~80 chars).
+    prod_desc_vid = _clean_product_name_for_video(product_name)
     
     model_intro = f"{gender_en.capitalize()}{clothing_str}{hair_str}"
     

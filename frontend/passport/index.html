@@ -378,7 +378,7 @@ async function generate(){
   showOv('Generating...');
   try{
     var b=await toB64(S.photo);
-    var body={image_base64:b,template_code:S.tpl,gender:S.gender,clothing:S.clothing,background:S.bg,strength:0.65,bg_type:S.bgType||'solid',
+    var body={image_base64:b,template_code:S.tpl,gender:S.gender,clothing:S.clothing,background:S.bg,strength:0.45,bg_type:S.bgType||'solid',
       print_size:$('ps').value,photo_count:parseInt($('pc').value)||6,border:$('bt').value,blade_mode:$('bm').checked,
       gap_mm:parseFloat($('pgap').value)||2,border_color:$('bclr').value,border_width_mm:parseFloat($('bwmm').value)||0};
     if(S.bgc)body.background_color=S.bgc;
@@ -394,7 +394,7 @@ async function genBulk(){
   showOv('Generating '+S.photos.length+'...');
   try{
     var imgs=[];for(var i=0;i<S.photos.length;i++)imgs.push(await toB64(S.photos[i]));
-    var body={images:imgs,template_code:S.tpl,gender:S.gender,clothing:S.clothing,background:S.bg,strength:0.65,bg_type:S.bgType||'solid',
+    var body={images:imgs,template_code:S.tpl,gender:S.gender,clothing:S.clothing,background:S.bg,strength:0.45,bg_type:S.bgType||'solid',
       print_size:$('ps').value,photo_count:parseInt($('pc').value)||6,border:$('bt').value,blade_mode:$('bm').checked,
       gap_mm:parseFloat($('pgap').value)||2,border_color:$('bclr').value,border_width_mm:parseFloat($('bwmm').value)||0};
     if(S.bgc)body.background_color=S.bgc;

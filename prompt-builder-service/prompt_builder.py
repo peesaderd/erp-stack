@@ -116,7 +116,6 @@ Keywords: {kw_str}"""
             "packaging_action": "generic_hold",
             "action_desc": "ถือสินค้าและใช้งานทั่วไป",
             "hashtags": keywords[:5] if len(keywords) >= 5 else _generate_default_hashtags(product_name, description),
-            "image_description": f"An ethnic Thai {gender_en}, 25-35 years old, porcelain white glowing skin, monolid eyes, Southeast Asian features, holding a product at chest level, in a clean modern setting",
             # Extract basic features from description when Gemini fails
             "features": _extract_features_from_description(description) if description else "",
             "product_appearance": _extract_appearance_from_description(description) if description else "",

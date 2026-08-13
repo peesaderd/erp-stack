@@ -101,7 +101,7 @@ class GenerateRequest(BaseModel):
     background: str = "light_blue" # "light_blue" | "white" | "light_gray" | "custom"
     background_color: Optional[str] = None   # custom hex color
     background_gradient: Optional[str] = None # CSS gradient string
-    strength: float = 0.65         # FLUX i2i strength
+    strength: float = 0.45         # FLUX i2i strength
 
 class BulkGenerateRequest(BaseModel):
     images: list  # list of base64 strings
@@ -111,7 +111,7 @@ class BulkGenerateRequest(BaseModel):
     background: str = "light_blue"
     background_color: Optional[str] = None
     background_gradient: Optional[str] = None
-    strength: float = 0.65
+    strength: float = 0.45
     print_size: str = "4x6"
     photo_count: int = 6
     border: str = "none"
@@ -236,6 +236,7 @@ async def generate_passport_v2(req: GenerateRequest):
         clothing_prompt=clothing["prompt"],
         bg_prompt=bg_prompt,
         strength=req.strength,
+        session_id=session_id,
     )
 
     if not result["ok"]:
@@ -571,6 +572,67 @@ def cleanup_old_photos(days: int = 7):
             deleted.append(f.name)
     logger.info(f"Cleanup: deleted {len(deleted)} files older than {days} days")
     return {"ok": True, "deleted_count": len(deleted), "files": deleted}
+
+
+@app.post("/api/passport/recrop")
+def recrop_photo(req: dict):
+    """
+    Re-crop a FLUX raw output with new crop parameters.
+    Does NOT regenerate via FLUX — just re-crops the saved intermediate.
+    
+    Request: { "session_id": "...", "crop_y_pct": 0.08, "crop_x_pct": 0.17, ... }
+    """
+    session_id = req.get("session_id")
+    if not session_id:
+        raise HTTPException(400, "session_id required")
+    
+    storage = STORAGE_DIR
+    flux_raw_path = storage / f"{session_id}_flux_raw.jpg"
+    if not flux_raw_path.exists():
+        raise HTTPException(404, f"FLUX raw output not found for {session_id}. Generate a photo first.")
+    
+    # Load FLUX raw output
+    img = cv2.imread(str(flux_raw_path))
+    if img is None:
+        raise HTTPException(500, "Failed to read FLUX raw image")
+    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    
+    # Build template with new crop params
+    template = {
+        "width_mm": req.get("width_mm", 35),
+        "height_mm": req.get("height_mm", 45),
+        "dpi": req.get("dpi", 300),
+        "crop_x_pct": req.get("crop_x_pct", 0.17),
+        "crop_y_pct": req.get("crop_y_pct", 0.08),
+        "crop_w_pct": req.get("crop_w_pct", 0.66),
+        "crop_h_pct": req.get("crop_h_pct", 0.65),
+    }
+    
+    # Re-crop
+    from .ai_passport import crop_to_template
+    final = crop_to_template(img_rgb, template, template["dpi"])
+    
+    # Save new result
+    out_bytes = _encode_image(final)
+    out_path = STORAGE_DIR / f"{session_id}_passport.jpg"
+    with open(out_path, "wb") as f:
+        f.write(out_bytes)
+    
+    # Check headspace
+    gray = cv2.cvtColor(final, cv2.COLOR_BGR2GRAY)
+    cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+    faces = cascade.detectMultiScale(gray, 1.1, 5, minSize=(30, 30))
+    headspace_pct = 0
+    if len(faces) > 0:
+        headspace_pct = round(faces[0][1] / final.shape[0] * 100, 1)
+    
+    return {
+        "ok": True,
+        "session_id": session_id,
+        "download_url": f"/api/passport/download/{session_id}_passport.jpg",
+        "headspace_pct": headspace_pct,
+        "size": f"{final.shape[1]}x{final.shape[0]}",
+    }
 
 
 # ═══════════════════════════════════════════════════════════

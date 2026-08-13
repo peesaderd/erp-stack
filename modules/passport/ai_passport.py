@@ -42,13 +42,13 @@ PRODIA_API_URL = "https://inference.prodia.com/v2/job"
 # ── FLUX i2i Prompt Template ──────────────────────────
 
 def build_prompt(clothing_prompt: str, bg_prompt: str) -> str:
-    """Build FLUX i2i prompt from clothing + background."""
+    """Build FLUX i2i prompt — v4 style, simple."""
     return (
-        f"keep the person's face exactly as it is, do not change facial features, "
+        f"keep the person's face and appearance exactly as it is, "
         f"{clothing_prompt}, "
         f"{bg_prompt}, "
         f"bright even studio lighting, "
-        f"remove acne and blemishes from skin, "
+        f"straighten posture slightly, "
         f"passport ID photo style, government photo"
     )
 
@@ -93,7 +93,7 @@ def _parse_multipart_response(resp_data: bytes, ct: str):
     return job_info, image_bytes
 
 
-def flux_i2i(input_image: np.ndarray, prompt: str, strength: float = 0.65) -> np.ndarray:
+def flux_i2i(input_image: np.ndarray, prompt: str, strength: float = 0.45) -> np.ndarray:
     """
     Run FLUX i2i via Prodia API.
     
@@ -177,7 +177,7 @@ def detect_face(image: np.ndarray) -> tuple:
 
 
 def crop_passport(image: np.ndarray) -> np.ndarray:
-    """Crop image to passport 35:45 ratio, centered on face."""
+    """Crop image to passport 35:45 ratio, centered on face with more body visible."""
     face = detect_face(image)
     h, w = image.shape[:2]
 
@@ -195,12 +195,13 @@ def crop_passport(image: np.ndarray) -> np.ndarray:
     face_center_x = x + fw // 2
     face_center_y = y + fh // 2
 
-    crop_h = int(fh / 0.35)  # Face smaller in frame = more space around
+    # Zoom out: show more body (face takes ~25% of height instead of 35%)
+    crop_h = int(fh / 0.25)
     crop_w = int(crop_h * target_ratio)
 
     crop_x1 = max(0, face_center_x - crop_w // 2)
-    # Place face center at 38% from top (more head space above)
-    crop_y1 = max(0, int(face_center_y - crop_h * 0.38))
+    # Place face center at 32% from top (more head space + body below)
+    crop_y1 = max(0, int(face_center_y - crop_h * 0.32))
 
     if crop_x1 + crop_w > w: crop_x1 = w - crop_w
     if crop_y1 + crop_h > h: crop_y1 = h - crop_h
@@ -213,10 +214,10 @@ def crop_passport(image: np.ndarray) -> np.ndarray:
 
 # ── Resize to Template ─────────────────────────────────
 
-def resize_to_template(img: np.ndarray, w_mm: float, h_mm: float, dpi: int = 300) -> np.ndarray:
-    """Scale image to fill template dimensions, center-crop if needed."""
-    target_w = int(round(w_mm / 25.4 * dpi))
-    target_h = int(round(h_mm / 25.4 * dpi))
+def resize_to_template(img: np.ndarray, w_mm: float, h_mm: float, dpi: int = 300, generate_scale: float = 1.5) -> np.ndarray:
+    """Scale image to fill template dimensions * generate_scale, center-crop if needed."""
+    target_w = int(round(w_mm / 25.4 * dpi * generate_scale))
+    target_h = int(round(h_mm / 25.4 * dpi * generate_scale))
     target_ratio = target_w / target_h
 
     h, w = img.shape[:2]
@@ -233,6 +234,45 @@ def resize_to_template(img: np.ndarray, w_mm: float, h_mm: float, dpi: int = 300
     x = (new_w - target_w) // 2
     y = (new_h - target_h) // 2
     return img[y:y + target_h, x:x + target_w]
+
+
+def crop_to_template(img: np.ndarray, template: dict, dpi: int = 300) -> np.ndarray:
+    """
+    Crop the generated image to exact passport size using template crop marks.
+    Guarantees 20% headspace from top.
+    """
+    target_w = int(round(template["width_mm"] / 25.4 * dpi))
+    target_h = int(round(template["height_mm"] / 25.4 * dpi))
+    
+    h, w = img.shape[:2]
+    
+    # If already correct size, return as-is
+    if w == target_w and h == target_h:
+        return img
+    
+    # Always use face detection for 20% headspace guarantee
+    face = detect_face(img)
+    
+    if face is not None:
+        fx, fy, fw, fh = face[0], face[1], face[2], face[3]
+        face_top = fy
+        
+        # 20% headspace = face top at 20% from top of cropped image
+        desired_head_y = int(target_h * 0.20)
+        y_offset = max(0, min(face_top - desired_head_y, h - target_h))
+        
+        face_center_x = fx + fw // 2
+        x_offset = max(0, min(face_center_x - target_w // 2, w - target_w))
+    else:
+        x_offset = (w - target_w) // 2
+        y_offset = int(target_h * 0.20)  # 20% headspace
+    
+    x_offset = max(0, min(x_offset, w - target_w))
+    y_offset = max(0, min(y_offset, h - target_h))
+    
+    cropped = img[y_offset:y_offset + target_h, x_offset:x_offset + target_w]
+    logger.info(f"Crop: ({x_offset},{y_offset}) -> {target_w}x{target_h}, headspace={y_offset/h*100:.1f}%")
+    return cropped
 
 
 # ═══════════════════════════════════════════════════════════
@@ -285,7 +325,8 @@ def generate_passport(
     template_info: dict = None,
     clothing_prompt: str = "white formal dress shirt",
     bg_prompt: str = "soft light blue background",
-    strength: float = 0.65,
+    strength: float = 0.45,
+    session_id: str = None,
 ) -> dict:
     """
     Generate passport photo using Prodia FLUX i2i.
@@ -307,10 +348,12 @@ def generate_passport(
     w_mm = 35
     h_mm = 45
     dpi = 300
+    generate_scale = 2.5  # Minimum for 20% headspace
     if template_info:
         w_mm = template_info.get("width_mm", 35)
         h_mm = template_info.get("height_mm", 45)
         dpi = template_info.get("dpi", 300)
+        generate_scale = max(template_info.get("generate_scale", 2.5), 2.5)
 
     # Load image
     arr = np.frombuffer(image_bytes, np.uint8)
@@ -325,20 +368,38 @@ def generate_passport(
         logger.warning(f"Input rejected: {ss_reason}")
         return {"ok": False, "error": f"This image appears to be a screenshot ({ss_reason}). Please upload a clear portrait photo of a person.", "is_screenshot": True}
 
-    # Step 1: Crop to passport ratio
+    # Step 1: Crop to passport ratio (larger for post-processing)
     logger.info("Step 1: Crop to passport ratio...")
     cropped = crop_passport(original)
     info["crop_size"] = [cropped.shape[1], cropped.shape[0]]
 
-    # Step 2: FLUX i2i
+    # Step 2: FLUX i2i (generate at larger size)
     logger.info("Step 2: FLUX i2i...")
     prompt = build_prompt(clothing_prompt, bg_prompt)
     generated = flux_i2i(cropped, prompt, strength)
     info["flux_size"] = [generated.shape[1], generated.shape[0]]
 
-    # Step 3: Resize to template
+    # Step 3: Resize to template (with generate_scale for extra space)
     logger.info("Step 3: Resize to template...")
-    final = resize_to_template(generated, w_mm, h_mm, dpi)
+    final = resize_to_template(generated, w_mm, h_mm, dpi, generate_scale)
+
+    # Save intermediate FLUX output (before crop) for re-cropping
+    info["flux_raw_size"] = [final.shape[1], final.shape[0]]
+    # Save to disk for recrop later
+    if session_id:
+        storage = Path(__file__).parent.parent.parent / "storage"
+        storage.mkdir(exist_ok=True)
+        flux_raw_path = storage / f"{session_id}_flux_raw.jpg"
+        try:
+            cv2.imwrite(str(flux_raw_path), cv2.cvtColor(final, cv2.COLOR_RGB2BGR), [cv2.IMWRITE_JPEG_QUALITY, 95])
+            info["flux_raw_saved"] = True
+        except Exception as e:
+            logger.warning(f"Failed to save FLUX raw: {e}")
+
+    # Step 4: Crop to final size using template crop marks
+    logger.info("Step 4: Crop to final size...")
+    final = crop_to_template(final, template_info or {}, dpi)
+    info["final_size"] = [final.shape[1], final.shape[0]]
 
     info["final_size"] = [final.shape[1], final.shape[0]]
     info["time_seconds"] = round(time.time() - t0, 1)

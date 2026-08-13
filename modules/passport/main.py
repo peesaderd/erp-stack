@@ -242,27 +242,15 @@ async def generate_passport_v2(req: GenerateRequest):
     if not result["ok"]:
         raise HTTPException(500, result.get("error", "Generation failed"))
 
-    # Save passport photo
+    # Save raw FLUX output (large, uncropped)
     out_img = result["result"]
     out_bytes = _encode_image(out_img)
     out_path = STORAGE_DIR / f"{session_id}_passport.jpg"
     with open(out_path, "wb") as f:
         f.write(out_bytes)
 
-    # Generate default print sheet (4x6, 6 photos, guidelines)
+    # No auto print sheet — raw image needs cropping first
     print_info = None
-    try:
-        from .print_sheet import generate_print_sheet
-        mm_w = result["dimensions_mm"]["w"]
-        mm_h = result["dimensions_mm"]["h"]
-        sheet = generate_print_sheet(out_img, mm_w, mm_h, "4x6", 300, 2.0, False, "frame", 2.0, False, 6, "#FFFFFF", 3.0)
-        if sheet.get("ok"):
-            sheet_bytes = _encode_image(sheet["result"])
-            with open(STORAGE_DIR / f"{session_id}_print.jpg", "wb") as f:
-                f.write(sheet_bytes)
-            print_info = sheet["info"]
-    except Exception as e:
-        logger.warning(f"Print sheet error: {e}")
 
     elapsed = round(time.time() - t0, 1)
     logger.info(f"[{session_id}] Done in {elapsed}s")
@@ -277,7 +265,8 @@ async def generate_passport_v2(req: GenerateRequest):
         "clothing": clothing["name"],
         "background": bg["name"],
         "print_info": print_info,
-        "dimensions": result["dimensions_mm"],
+        "dimensions_px": result["dimensions_px"],
+        "face_info": result["info"].get("face_in_output"),
         "time_seconds": elapsed,
     }
 
@@ -452,31 +441,15 @@ async def bulk_generate(req: BulkGenerateRequest):
             results.append({"ok": False, "index": i, "error": result.get("error", "Failed")})
             continue
 
-        # Save passport photo
+        # Save raw FLUX output (large, uncropped)
         out_img = result["result"]
         out_bytes = _encode_image(out_img)
         out_path = STORAGE_DIR / f"{batch_id}_passport.jpg"
         with open(out_path, "wb") as f:
             f.write(out_bytes)
 
-        # Generate print sheet
+        # No auto print sheet — raw image needs cropping first
         print_url = None
-        try:
-            mm_w = result["dimensions_mm"]["w"]
-            mm_h = result["dimensions_mm"]["h"]
-            sheet = generate_print_sheet(
-                out_img, mm_w, mm_h, req.print_size, 300, req.gap_mm,
-                False, req.border, req.gap_mm, req.blade_mode, req.photo_count,
-                req.border_color, req.border_width_mm
-            )
-            if sheet.get("ok"):
-                sheet_bytes = _encode_image(sheet["result"])
-                print_path = STORAGE_DIR / f"{batch_id}_print.jpg"
-                with open(print_path, "wb") as f:
-                    f.write(sheet_bytes)
-                print_url = f"/api/passport/download/{batch_id}_print.jpg"
-        except Exception as e:
-            logger.warning(f"Print sheet error for {i}: {e}")
 
         elapsed = round(time.time() - t0, 1)
         results.append({

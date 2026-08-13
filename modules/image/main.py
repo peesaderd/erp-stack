@@ -10,7 +10,7 @@ Prodia API is simple — all jobs use the same endpoint.
   Async models: response JSON has job ID → poll /v2/job/async/{id}/job.state.current
 """
 
-import os, sys, json, uuid, logging, requests, io, time, re
+import os, sys, json, uuid, logging, requests, io, time, re, base64
 from typing import Optional
 from pathlib import Path
 
@@ -83,8 +83,23 @@ def _save(data: bytes, prefix: str = "prodia") -> str:
 
 
 def _load_image(url: str) -> bytes:
+    """Load image from URL, file path, or base64 data."""
     if not url:
         raise ValueError("Empty image URL")
+
+    # Handle base64 data URLs (data:image/...;base64,...)
+    if url.startswith("data:image/"):
+        _, b64data = url.split(",", 1)
+        return base64.b64decode(b64data)
+
+    # Handle raw base64 strings (no data: prefix, but looks like base64)
+    if len(url) > 100 and not url.startswith(("http://", "https://", "/")) \
+            and re.match(r'^[A-Za-z0-9+/=\n\r]+$', url):
+        try:
+            return base64.b64decode(url)
+        except Exception:
+            pass  # Not valid base64, treat as URL
+
     filename = os.path.basename(url)
 
     if os.path.exists(url) and os.path.isfile(url):
@@ -104,7 +119,7 @@ def _load_image(url: str) -> bytes:
             with open(p, "rb") as f:
                 return f.read()
 
-    clean_url = re.sub(r"https?://(https?://)", r"", url)
+    clean_url = re.sub(r"https?://(https?://)", r"", url)
     if clean_url != url:
         logger.warning(f"Fixed double-prefix URL: {url} -> {clean_url}")
     logger.info(f"Downloading: {clean_url}")

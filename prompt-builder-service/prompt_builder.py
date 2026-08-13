@@ -28,6 +28,140 @@ from router_agent import router_decide
 
 logger = logging.getLogger("prompt-builder-service")
 
+# ─── JSON Prompt Sources (Data-Driven) ───────────────────────────
+import json as _json
+import random as _random
+import hashlib as _hashlib
+from pathlib import Path as _Path
+_PROMPT_SOURCES = None
+
+def _load_prompt_sources():
+    global _PROMPT_SOURCES
+    if _PROMPT_SOURCES is None:
+        src_path = _Path(__file__).parent / "prompt_sources.json"
+        with open(src_path) as f:
+            _PROMPT_SOURCES = _json.load(f)
+    return _PROMPT_SOURCES
+
+
+def _ai_select(category: str, subcategory: str, gender: str, product_name: str, loop_count: int = 0) -> dict:
+    """AI-select variables from category_mapping. Deterministic with seed+loop_count.
+    
+    Fallback chain: subcategory → category → "other"
+    Returns: {scene, action, camera, lighting, mood, persona}
+    """
+    sources = _load_prompt_sources()
+    cat_map = sources.get("category_mapping", {})
+    
+    # Fallback chain: subcategory → category → "other"
+    sub = cat_map.get(category, {}).get(subcategory, None)
+    cat_default = cat_map.get(category, {}).get("default", {})
+    other = cat_map.get("other", {}).get("default", {})
+    
+    mapping = sub or cat_default or other
+    
+    # Deterministic seed: hash(product_name) + loop_count for variation
+    base_seed = int(_hashlib.md5(product_name.encode()).hexdigest(), 16) % 1000000
+    seed = (base_seed + loop_count) % 1000000
+    rng = _random.Random(seed)
+    
+    scene = rng.choice(mapping.get("scene", ["clean modern surface"]))
+    action = mapping.get("action", "holds product")
+    camera = mapping.get("camera", "medium close-up")
+    lighting = mapping.get("lighting", "soft natural lighting")
+    mood = mapping.get("mood", "clean")
+    
+    # Select persona matching demographic
+    persona = _select_persona_fit(category, subcategory, gender, rng)
+    
+    return {
+        "scene": scene,
+        "action": action,
+        "camera": camera,
+        "lighting": lighting,
+        "mood": mood,
+        "persona": persona,
+    }
+
+
+def _select_persona_fit(category: str, subcategory: str, gender: str, rng) -> dict:
+    """Select persona that fits the product demographic. Uses category_mapping first."""
+    sources = _load_prompt_sources()
+    personas = sources.get("personas", {})
+    gender_key = "female" if gender.lower() in ("female", "woman", "หญิง") else "male"
+    pool = personas.get(gender_key, personas.get("unisex", []))
+    
+    if not pool:
+        return {"gender": "woman", "age": 25}
+    
+    p = rng.choice(pool)
+    age = rng.randint(p["age_range"][0], p["age_range"][1])
+    gender_word = "woman" if gender_key == "female" else "man"
+    
+    return {
+        "ethnicity": p.get("ethnicity", "Thai"),
+        "gender": gender_word,
+        "age": age,
+        "skin_tone": p.get("skin_tone", "medium"),
+    }
+
+
+def _pick_end_scene(category="other"):
+    """Pick end scene from JSON."""
+    sources = _load_prompt_sources()
+    end_scenes = sources.get("end_scenes", {})
+    pool = end_scenes.get(category, end_scenes.get("other", []))
+    if not pool:
+        return {"scene": "product prominently displayed", "camera": "medium shot"}
+    return _random.choice(pool)
+
+
+def _pick_transition():
+    sources = _load_prompt_sources()
+    return _random.choice(sources.get("transitions", ["fade to white"]))
+
+
+def _clean_product_name_for_video(product_name: str) -> str:
+    """Return generic 'product' for video prompts.
+    
+    Wan 2.7 may interpret product names as instructions.
+    The reference image already shows the actual product.
+    """
+    return "product"
+
+
+def _generate_default_hashtags(product_name: str, description: str = "") -> list:
+    """Generate diverse default hashtags from product name and description."""
+    hashtags = []
+    clean_name = product_name.replace(" ", "").replace("【", "").replace("】", "").replace("[", "").replace("]", "")
+    if clean_name:
+        hashtags.append(clean_name[:20])
+    
+    desc_lower = (description or "").lower()
+    category_hashtags = {
+        "beauty": ["skincare", "beauty", "glowing", "whitening"],
+        "skin": ["skincare", "skin", "glowing", "moisturizer"],
+        "food": ["food", "yummy", "delicious", "tasty"],
+        "fashion": ["fashion", "style", "outfit", "ootd"],
+        "tech": ["tech", "gadget", "smart", "innovative"],
+        "health": ["health", "wellness", "fitness", "healthy"],
+        "home": ["home", "decor", "interior", "cozy"],
+    }
+    
+    for category, tags in category_hashtags.items():
+        if category in desc_lower:
+            hashtags.extend(tags[:3])
+            break
+    
+    general_tags = ["trending", "viral", "fyp", "foryou"]
+    while len(hashtags) < 5:
+        for tag in general_tags:
+            if tag not in hashtags and len(hashtags) < 5:
+                hashtags.append(tag)
+        break
+    
+    return hashtags[:5]
+    sources = _load_prompt_sources()
 
 def _clean_product_name_for_video(product_name: str) -> str:
     """Return generic 'product' for video prompts.
@@ -107,6 +241,7 @@ Keywords: {kw_str}"""
         gender_en = "woman"
         profile = {
             "category": "other",
+            "subcategory": "",
             "target_gender": "female",
             "target_age": "25-35",
             "target_audience": f"คนที่กำลังมองหา{product_name[:20]}",
@@ -118,7 +253,6 @@ Keywords: {kw_str}"""
             "hashtags": keywords[:5] if len(keywords) >= 5 else _generate_default_hashtags(product_name, description),
             # Extract basic features from description when Gemini fails
             "features": _extract_features_from_description(description) if description else "",
-            "product_appearance": _extract_appearance_from_description(description) if description else "",
         }
     else:
         profile = gemini_profile
@@ -214,342 +348,70 @@ def _extract_appearance_from_description(description: str) -> str:
     return desc[:60]
 
 
-def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holding") -> str:
-    """Generate image prompt — style-driven, category-modulated.
-    
-    PRINCIPLE:
-    - ugc_style controls what the person DOES in the scene (holding, reviewing, using)
-    - category controls WHERE/context (home, beauty environment modifiers)
-    - Person is ALWAYS in the scene
-    - Each style produces distinctly different output
+def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holding", loop_count: int = 0) -> tuple:
+    """Generate SHORT image prompt — ~70 chars.
+
+    Uses _ai_select() to pick scene/action/camera/lighting from category_mapping.
+    No persona description in prompt — reference image handles appearance.
     """
-    templates = load_ugc_templates(ugc_style)
-    style_info = STYLE_MAP.get(ugc_style, STYLE_MAP["holding"])
     model_gender = profile.get("target_gender", "female")
-    model_age = profile.get("_normalized_age") or _normalize_age(profile.get("target_age", "20-35"))
     category = profile.get("category", "other")
+    subcategory = profile.get("subcategory", "")
 
-    gender_en = {
-        "female": "woman", "woman": "woman",
-        "male": "man", "man": "man",
-        "unisex": "person", "person": "person"
-    }.get(model_gender, "woman")
-    
-    persona_clothing = profile.get("persona_clothing", "")
-    persona_hair = profile.get("persona_hair", "")
-    env_context = profile.get("env_context", "")
-    product_appearance = profile.get("product_appearance", "")
-    image_description = profile.get("image_description", "")
-    
-    clothing_str = f", wearing {persona_clothing}" if persona_clothing else ""
-    hair_str = f", {persona_hair}" if persona_hair else ""
-    
-    # ── Clean product_appearance ──
-    pa_clean = product_appearance
-    if pa_clean:
-        pa_clean = re.sub(r'^(The\s+)?product\s+(is\s+)?', '', pa_clean, flags=re.IGNORECASE).strip()
-        pa_clean = pa_clean[0].lower() + pa_clean[1:] if pa_clean else ""
-        pa_clean = re.sub(r'^(a|an)\s+', '', pa_clean, flags=re.IGNORECASE).strip()
-        article = "an" if pa_clean[:1].lower() in "aeiou" else "a"
-    
-    env_str = (env_context or "a modern lifestyle setting")[:120]
-    thai_base = f"An ethnic Thai {gender_en}, {model_age} years old, porcelain white glowing skin, monolid eyes, Southeast Asian ethnic Thai features, small nose bridge"
-    
-    # ── Priority 1: Direct Gemini Vision Scene Description (Exact Product Visual Match) ──
-    if image_description and len(image_description) > 20:
-        scene_desc = image_description
-    # ── Priority 2: Style-driven scene fallback ─────────────────
-    elif ugc_style == "product_demo":
-        prod_desc = product_appearance or product_name
-        try:
-            from ugc_config import auto_select_preset
-            cat = profile.get("category", "other")
-            selection = auto_select_preset(cat)
-            preset_mood = selection["preset"].get("mood", "clean, informative")
-            preset_light = selection["preset"].get("lighting", "clean studio light")
-        except ImportError:
-            preset_mood = "clean, informative"
-            preset_light = "clean studio light"
-        scene_desc = (
-            f"Product placed on {env_str}. {prod_desc[:200]} — "
-            f"clean surface, product centered in frame. "
-            f"Product features clearly visible. No people in frame. "
-            f"Lighting: {preset_light}. Mood: {preset_mood}."
-        )
-    elif ugc_style in ("usage", "product_usage"):
-        # Try Gemini for natural product usage scene
-        gemini_image, _ = _gemini_generate_prompts(
-            product_name=product_name,
-            product_appearance=pa_clean or product_name,
-            features=profile.get("features", ""),
-            env_context=env_context,
-            category=category,
-            model_age=model_age,
-            model_gender=gender_en,
-            clothing=clothing_str.lstrip(", wearing "),
-            hair=hair_str.lstrip(", "),
-            ugc_style=ugc_style,
-        )
-        if gemini_image:
-            scene_desc = gemini_image
-        elif pa_clean:
-            prod_str = f"{article} {pa_clean[:200]}"
-            scene_desc = (
-                f"{env_str}. {thai_base}{clothing_str}{hair_str} beside {prod_str or product_name} — "
-                f"about to use the product. "
-                f"Product and person in frame, casual lifestyle moment."
-            )
-        else:
-            scene_desc = (
-                f"{thai_base}{clothing_str}{hair_str} beside {product_name} — "
-                f"about to use the product. "
-                f"{env_str}."
-            )
-        
-    elif ugc_style == "review":
-        # Person holding product + looking at camera, review-style
-        if pa_clean:
-            prod_str = f"{article} {pa_clean[:200]}"
-            scene_desc = (
-                f"{env_str}. {thai_base}{clothing_str}{hair_str} holds {prod_str or product_name} in hand, "
-                f"looking directly at camera with a friendly reviewing expression. "
-                f"Product clearly visible and in focus. Lifestyle setting, natural window light."
-            )
-        else:
-            scene_desc = (
-                f"{thai_base}{clothing_str}{hair_str} holds {product_name}, "
-                f"looking at camera with a reviewing expression. "
-                f"Product visible in hand, natural lighting, {env_str}."
-            )
-        
-    elif ugc_style in ("tabletop", "tabletop_demo"):
-        # Product on table, person's hands demonstrating
-        if pa_clean:
-            prod_str = f"{article} {pa_clean[:200]}"
-            scene_desc = (
-                f"{env_str}. On a table sits {prod_str}. "
-                f"{thai_base}{clothing_str}{hair_str} gestures toward it, "
-                f"hands visible demonstrating features. Product centered on tabletop, person nearby."
-            )
-        else:
-            scene_desc = (
-                f"{thai_base}{clothing_str}{hair_str} standing by a table with {product_name}. "
-                f"Hands gesturing toward product, tabletop demo style, {env_str}."
-            )
-        
-    elif ugc_style in ("talking", "talking_head"):
-        # Head/shoulders framing, talking about product
-        if pa_clean:
-            prod_str = f"{article} {pa_clean[:200]}"
-        else:
-            prod_str = product_name
-        scene_desc = (
-            f"{thai_base}{clothing_str}{hair_str} facing camera directly, close-up framing, "
-            f"speaking directly to camera with clear visible lip movements and mouth opening synced to speech. "
-            f"{prod_str} visible resting nearby in frame. "
-            f"{env_str}. Soft natural lighting, shallow depth of field."
-        )
-        
-    elif ugc_style == "unbox":
-        # Opening package
-        scene_desc = (
-            f"{thai_base}{clothing_str}{hair_str} unboxing/unpacking {product_name} — "
-            f"hands removing product from packaging, opening the box. "
-            f"Excited expression, product partially visible. {env_str}."
-        )
-        
-    else:
-        # Default: holding — person holds product, shows to camera
-        if pa_clean:
-            prod_str = f"{article} {pa_clean[:200]}"
-            scene_desc = (
-                f"{env_str}. {thai_base}{clothing_str}{hair_str} holds {prod_str or product_name} in both hands, "
-                f"showing product clearly to camera. Warm natural window lighting. "
-                f"Product centered in frame at chest level."
-            )
-        else:
-            scene_desc = (
-                f"{thai_base}{clothing_str}{hair_str} holds {product_name} in hands, "
-                f"showing the product to camera. Natural lighting, {env_str}."
-            )
-    
-    # ── Category modifiers (SECONDARY) ───────────────────────────────
-    # No hardcoded beauty restrictions — Gemini handles appropriateness
-    
-    # ── Build final prompt ──
-    data = {
-        "scene_description": scene_desc,
-        "model_gender": gender_en,
-        "model_age": model_age,
-        "style": ugc_style,
-        "tone": "casual",
-        "composition": "natural composition, eye-level angle",
-        "lighting": "soft natural lighting",
-        "atmosphere": "warm, inviting, authentic",
-        "color_palette": "natural tones, neutral background",
-        "background": "clean minimal background",
-        "model_action": style_info.get("model_action", "",),
-        "camera": style_info.get("camera", ""),
-        "vibe": style_info.get("vibe", ""),
-        "keywords": style_info.get("keywords", ""),
-        "hashtags": ", ".join(profile.get("hashtags", [])),
-    }
-    if templates.get("master"):
-        image_prompt = fill_template(templates["master"], data)
-        negative = templates.get("negative", "")
-    else:
-        image_prompt = (
-            f"{scene_desc}. "
-            f"{style_info.get('model_action', '')}. "
-            f"{style_info.get('camera', '')}, {style_info.get('vibe', '')}. "
-            f"natural composition, warm inviting atmosphere. "
-            f"The product is clearly in frame. "
-            f"soft natural lighting. "
-            f"--ar 9:16"
-        )
-        negative = templates.get("negative", "")
-    
-    # Clean up
-    image_prompt = re.sub(r'\[.*?\]\s*', '', image_prompt)
-    image_prompt = re.sub(r'\.\.+', '.', image_prompt)
-    image_prompt = re.sub(r',\s*,', ',', image_prompt)
-    image_prompt = re.sub(r'\s+', ' ', image_prompt)
-    image_prompt = image_prompt.strip()
+    # AI select from category_mapping
+    selected = _ai_select(category, subcategory, model_gender, product_name, loop_count)
 
+    scene = selected["scene"]
+    action = selected["action"]
+    lighting = selected["lighting"]
+
+    # Build short prompt
+    gender_en = {"female": "woman", "male": "man", "unisex": "person"}.get(model_gender, "woman")
+
+    if ugc_style == "product_demo":
+        image_prompt = f"{product_name} centered, {scene}. {lighting}. --ar 9:16"
+    else:
+        image_prompt = f"Thai {gender_en}, {action} {product_name}, {scene}, {lighting}. --ar 9:16"
+
+    negative = build_negative_prompt(profile, ugc_style)
+
+    logger.info(f"  Image prompt ({len(image_prompt)} chars): {image_prompt[:80]}...")
     return image_prompt, negative
 
 
 def img_desc_sentences(text: str) -> list:
     """Split image_description into sentences."""
     return [s.strip() for s in text.split(".") if s.strip()]
+def img_desc_sentences(text: str) -> list:
+    """Split image_description into sentences."""
+    return [s.strip() for s in text.split(".") if s.strip()]
 
 
-def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holding") -> str:
-    """Generate video prompt for Wan 2.7 img2vid.
-    Style-driven, category-modulated.
-    
-    PRINCIPLE:
-    - ugc_style controls person action (holding, reviewing, using)
-    - category controls environment/context detail only
-    - Person is ALWAYS in the scene
+def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holding", loop_count: int = 0) -> str:
+    """Generate SHORT video prompt — ~50 chars.
+
+    Uses action from category_mapping. Wan 2.7 handles motion details.
     """
-    style_info = STYLE_MAP.get(ugc_style, STYLE_MAP["holding"])
     model_gender = profile.get("target_gender", "female")
-    model_setting = profile.get("setting", "clean modern lifestyle setting")
     category = profile.get("category", "other")
+    subcategory = profile.get("subcategory", "")
 
-    gender_en = {"female": "woman", "male": "man", "unisex": "person"}.get(model_gender, "person")
-    # No clothing/hair descriptions for video prompts — reference image shows the model
-    model_age = profile.get("_normalized_age") or _normalize_age(profile.get("target_age", "20-35"))
-    
-    # ── Product description (common) ──
-    env_context = profile.get("env_context", "a modern space")
-    # NOTE: Do NOT use AI-generated product_appearance for video prompts.
-    # It often describes product incorrectly (wrong shape, color, material).
-    # Use product_name instead — the reference image will show the actual product.
-    # BUT: strip Thai text, special chars, and truncate for video model (max ~80 chars).
-    prod_desc_vid = _clean_product_name_for_video(product_name)
-    
-    model_intro = gender_en.capitalize()
-    
-    # ── Style-driven video_motion (ugc_style is PRIMARY) ──────────
-    if ugc_style == "product_demo":
-        # Import preset config for mood/lighting
-        try:
-            from ugc_config import auto_select_preset, build_shot_prompts
-            cat = profile.get("category", "other")
-            selection = auto_select_preset(cat)
-            preset = selection["preset"]
-            p_lighting = preset.get("lighting", "clean studio light")
-            p_mood = preset.get("mood", "clean, informative")
-            p_bgm = preset.get("bgm_style", "informative_jazz")
-        except ImportError:
-            p_lighting = "clean studio light, evenly diffused"
-            p_mood = "clean, informative"
-            p_bgm = "informative_jazz"
-        
-        # Build 3-shot prompt for product demo
-        prod = prod_desc_vid or product_name
-        shot1 = f"Shot1/0-5s: Establishing wide shot of {prod} on {env_context}. Product centered, clean surface, minimal composition. Camera slow push in. {p_lighting}."
-        shot2 = f"Shot2/5-10s: Close-up of infrared sensor on {prod}. A hand enters frame, reaches toward sensor. Sensor triggers, fine mist spray bursts from nozzle. Backlit highlighting mist particles drifting in air. Cinematic slow motion. Static camera."
-        shot3 = f"Shot3/10-15s: Wide lifestyle shot of {prod} placed on {env_context} with natural ambient setting. Product in use context — warm atmosphere, depth of field. Camera slow pan right to reveal full scene."
-        
-        action = f"{shot1} {shot2} {shot3} No people except hand in shot2. 9:16 portrait, smooth natural motion. Mood: {p_mood}. BGM: {p_bgm}."
-    elif ugc_style in ("usage", "product_usage"):
-        # Try Gemini for natural product usage description
-        gemini_image, gemini_video = _gemini_generate_prompts(
-            product_name=product_name,
-            product_appearance=pa_clean or product_name,
-            features=profile.get("features", ""),
-            env_context=env_context,
-            category=category,
-            model_age=model_age,
-            model_gender=gender_en,
-            clothing=clothing_str.lstrip(", wearing "),
-            hair=hair_str.lstrip(", "),
-            ugc_style=ugc_style,
-        )
-        if gemini_video:
-            action = gemini_video
-        else:
-            # Fallback: simple generic prompt — no is_* branches
-            action = (
-                f"{model_intro} in {env_context} with {prod_desc_vid or product_name}. "
-                f"She naturally demonstrates how to use the product — "
-                f"the key function is shown. "
-                f"Product features are visible as she uses it. "
-                f"Natural product usage demonstration"
-            )
-    elif ugc_style == "review":
-        # Person holding product + looking at camera, review-style
-        action = (
-            f"{model_intro} holds {prod_desc_vid or product_name} in hand, "
-            f"looking directly at camera with slight head tilt, casual reviewing pose. "
-            f"Slow gentle movement, showing product from slightly different angles. "
-            f"Lifestyle setting, product visible. "
-            f"Person speaking casually, product in hand"
-        )
-    elif ugc_style in ("tabletop", "tabletop_demo"):
-        # Product on table, person's hands visible
-        action = (
-            f"{prod_desc_vid or product_name} sits on table. "
-            f"{model_intro} nearby points at it and gestures with hands. "
-            f"Camera pans slowly showing product on tabletop, hands visible in frame. "
-            f"Product-centered demonstration, person gesturing"
-        )
-    elif ugc_style in ("talking", "talking_head"):
-        # Head/shoulders, talking about product — lip-sync focus
-        action = (
-            f"{model_intro} close-up facing camera, "
-            f"talking, lips moving with speech, natural lip sync. "
-            f"Product visible in frame. Smooth motion"
-        )
-    elif ugc_style == "unbox":
-        action = (
-            f"{model_intro} unboxing {prod_desc_vid or product_name}, "
-            f"hands opening packaging, lifting product out. "
-            f"Slight excitement in movement. "
-            f"Product emerging from packaging, unboxing reveal motion"
-        )
-    else:
-        # Default: holding — show product, gentle rotation
-        action = (
-            f"{model_intro} holding product, "
-            f"lifting toward camera, rotating slowly to show label, "
-            f"bringing closer for detail, lowering back. Smooth motion"
-        )
-    
-    # ── Build final prompt ──
-    video_prompt = action
-    video_prompt += (
-        f" {model_setting}. "
-        f"9:16 portrait, smooth motion"
-    )
-    
+    # AI select from category_mapping
+    selected = _ai_select(category, subcategory, model_gender, product_name, loop_count)
+
+    action = selected["action"]
+    scene = selected["scene"]
+
+    gender_en = {"female": "Woman", "male": "Man", "unisex": "Person"}.get(model_gender, "Woman")
+
+    # Build short video prompt
+    video_prompt = f"{gender_en} {action}. {scene}. 9:16."
+
+    # Clean up
     video_prompt = re.sub(r'\s+', ' ', video_prompt).strip()
+
+    logger.info(f"  Video prompt ({len(video_prompt)} chars): {video_prompt[:80]}...")
     return video_prompt
-
-
 def _normalize_age(raw_age) -> int:
     """Extract the minimum age from target_age range (e.g., '25-35' -> 25).
     Falls back to a default age if parsing fails.
@@ -596,6 +458,7 @@ async def analyze_and_build_prompts(
     price: float = 0.0,
     product_image: str = "",
     category: str = "",
+    loop_count: int = 0,
     product_category: str = "",
     target_duration: int = 15,
     target_age: Any = "",
@@ -627,12 +490,15 @@ async def analyze_and_build_prompts(
             logger.warning(f"Vision analysis failed (non-fatal): {e}")
 
     if vision_profile:
-        for key in ["category", "target_gender", "target_age", "target_audience", "setting",
-                     "customer_problem", "main_benefit", "env_context", "product_appearance",
-                     "features"]:
+        for key in ["category", "target_gender", "target_age", "target_audience",
+                     "customer_problem", "main_benefit", "features"]:
             if key in vision_profile and vision_profile[key]:
                 profile[key] = vision_profile[key]
         # product_type from vision overwrites text analysis
+        if "subcategory" in vision_profile and vision_profile["subcategory"]:
+            profile["subcategory"] = vision_profile["subcategory"]
+        if "target_skin_tone" in vision_profile and vision_profile["target_skin_tone"]:
+            profile["target_skin_tone"] = vision_profile["target_skin_tone"]
         if "product_type" in vision_profile and vision_profile["product_type"]:
             profile["product_type"] = vision_profile["product_type"]
         if "colors" in vision_profile and vision_profile["colors"]:
@@ -658,8 +524,8 @@ async def analyze_and_build_prompts(
 
     # Step 4: Clear Gemini cache for fresh prompts, then build
     _gemini_prompt_cache.clear()
-    image_prompt, neg_from_template = build_image_prompt(profile, product_name, ugc_style)
-    video_prompt = build_video_prompt(profile, product_name, ugc_style)
+    image_prompt, neg_from_template = build_image_prompt(profile, product_name, ugc_style, loop_count)
+    video_prompt = build_video_prompt(profile, product_name, ugc_style, loop_count)
     # Merge: template neg (text/watermark) + default neg (fingers/hands/distortion)
     default_neg = build_negative_prompt(profile, ugc_style)
     if neg_from_template:
@@ -683,9 +549,8 @@ async def analyze_and_build_prompts(
             "customer_problem": profile.get("customer_problem", ""),
             "main_benefit": profile.get("main_benefit", ""),
             "hashtags": profile.get("hashtags", []),
-            "image_description": profile.get("image_description", ""),
-            "env_context": profile.get("env_context", ""),
-            "product_appearance": profile.get("product_appearance", ""),
+            # image_description removed — using JSON template
+            # env_context and product_appearance removed — using JSON sources
             "features": profile.get("features", ""),
         },
         "timing_validation": {

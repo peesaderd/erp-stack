@@ -1,0 +1,419 @@
+{
+  "category_mapping": {
+    "skincare": {
+      "default": {
+        "scene": [
+          "clean modern surface with soft lighting",
+          "bright vanity area with natural light",
+          "minimalist bathroom counter",
+          "soft-lit bedroom corner",
+          "clean studio with diffused light"
+        ],
+        "action": "holds product gently near face",
+        "camera": "medium close-up",
+        "lighting": "soft diffused light",
+        "mood": "clean, fresh"
+      },
+      "underarm_cream": {
+        "scene": [
+          "clean white surface with bright light",
+          "minimalist bathroom counter",
+          "bright clean studio"
+        ],
+        "action": "holds product near underarm area",
+        "camera": "medium shot",
+        "lighting": "bright clean light",
+        "mood": "confident, clean"
+      },
+      "serum": {
+        "scene": [
+          "clean glass surface with natural light",
+          "bright vanity with soft glow",
+          "minimalist white background"
+        ],
+        "action": "holds dropper bottle, showing product to camera",
+        "camera": "close-up on hands and product",
+        "lighting": "morning sunlight",
+        "mood": "fresh, dewy"
+      },
+      "moisturizer": {
+        "scene": [
+          "clean bathroom counter",
+          "soft-lit bedroom vanity",
+          "bright minimalist surface"
+        ],
+        "action": "holds jar, showing texture to camera",
+        "camera": "medium close-up",
+        "lighting": "soft natural light",
+        "mood": "hydrating, smooth"
+      },
+      "sunscreen": {
+        "scene": [
+          "bright outdoor setting",
+          "clean beach towel surface",
+          "sunny modern bathroom"
+        ],
+        "action": "squeezes product onto hand",
+        "camera": "medium shot",
+        "lighting": "bright natural sunlight",
+        "mood": "sunny, protective"
+      }
+    },
+    "beauty": {
+      "default": {
+        "scene": [
+          "bright vanity area with soft lighting",
+          "elegant bathroom with marble surface",
+          "clean beauty studio",
+          "soft-lit dressing table",
+          "minimalist makeup station"
+        ],
+        "action": "holds product near face, showing result",
+        "camera": "medium close-up",
+        "lighting": "soft golden light",
+        "mood": "elegant, glowing"
+      },
+      "lipstick": {
+        "scene": [
+          "bright vanity mirror setup",
+          "clean marble surface",
+          "elegant makeup station"
+        ],
+        "action": "applies lipstick, showing color to camera",
+        "camera": "close-up on face",
+        "lighting": "warm vanity light",
+        "mood": "glamorous, confident"
+      },
+      "foundation": {
+        "scene": [
+          "bright bathroom with mirror",
+          "clean vanity station",
+          "soft-lit dressing area"
+        ],
+        "action": "dabs product on cheek, blending gently",
+        "camera": "close-up on face",
+        "lighting": "natural window light",
+        "mood": "natural, flawless"
+      },
+      "blush": {
+        "scene": [
+          "bright vanity with mirror",
+          "clean makeup station",
+          "soft-lit beauty corner"
+        ],
+        "action": "brushes product on cheek",
+        "camera": "medium close-up",
+        "lighting": "soft warm light",
+        "mood": "rosy, fresh"
+      },
+      "mascara": {
+        "scene": [
+          "bright vanity mirror",
+          "clean makeup station",
+          "soft-lit beauty corner"
+        ],
+        "action": "applies mascara, looking at mirror",
+        "camera": "close-up on eyes",
+        "lighting": "bright diffused light",
+        "mood": "defined, elegant"
+      }
+    },
+    "food": {
+      "default": {
+        "scene": [
+          "cozy kitchen counter",
+          "bright cafe table near window",
+          "rustic wooden dining table",
+          "modern kitchen with warm lighting",
+          "outdoor patio table"
+        ],
+        "action": "holds product, presenting to camera",
+        "camera": "eye-level shot",
+        "lighting": "warm natural light",
+        "mood": "appetizing, inviting"
+      },
+      "snack": {
+        "scene": [
+          "cozy living room coffee table",
+          "bright cafe table",
+          "casual desk setup"
+        ],
+        "action": "opens package, showing contents",
+        "camera": "medium shot",
+        "lighting": "warm ambient light",
+        "mood": "casual, enjoyable"
+      },
+      "drink": {
+        "scene": [
+          "bright kitchen counter",
+          "cafe table near window",
+          "outdoor patio"
+        ],
+        "action": "holds drink, showing label",
+        "camera": "medium close-up",
+        "lighting": "natural daylight",
+        "mood": "refreshing, cool"
+      },
+      "supplement": {
+        "scene": [
+          "clean kitchen counter",
+          "bright modern shelf",
+          "minimalist bathroom shelf"
+        ],
+        "action": "holds bottle, showing supplement",
+        "camera": "medium shot",
+        "lighting": "clean bright light",
+        "mood": "healthy, trustworthy"
+      }
+    },
+    "fashion": {
+      "default": {
+        "scene": [
+          "bright walk-in closet",
+          "minimalist bedroom with natural light",
+          "clean modern dressing room",
+          "sunlit boutique area",
+          "airy bedroom with full-length mirror"
+        ],
+        "action": "holds garment, showing fabric detail",
+        "camera": "three-quarter shot",
+        "lighting": "bright natural daylight",
+        "mood": "stylish, confident"
+      },
+      "accessory": {
+        "scene": [
+          "clean white surface",
+          "minimalist jewelry display",
+          "bright modern shelf"
+        ],
+        "action": "holds accessory, showing detail to camera",
+        "camera": "close-up on hands",
+        "lighting": "soft studio light",
+        "mood": "elegant, detailed"
+      },
+      "shoes": {
+        "scene": [
+          "clean entryway floor",
+          "bright modern closet",
+          "minimalist shoe rack"
+        ],
+        "action": "holds shoe, showing sole and design",
+        "camera": "medium shot",
+        "lighting": "bright natural light",
+        "mood": "stylish, modern"
+      }
+    },
+    "electronics": {
+      "default": {
+        "scene": [
+          "clean modern desk setup",
+          "minimalist home office",
+          "bright coworking space",
+          "sleek tech workspace",
+          "cozy living room with tech display"
+        ],
+        "action": "holds device, showing screen to camera",
+        "camera": "medium shot",
+        "lighting": "clean white light",
+        "mood": "modern, innovative"
+      },
+      "phone_case": {
+        "scene": [
+          "clean desk with phone",
+          "minimalist workspace",
+          "bright modern table"
+        ],
+        "action": "puts case on phone, showing fit",
+        "camera": "close-up on hands",
+        "lighting": "clean diffused light",
+        "mood": "sleek, protective"
+      },
+      "headphone": {
+        "scene": [
+          "modern desk setup",
+          "cozy listening corner",
+          "minimalist shelf display"
+        ],
+        "action": "holds headphones, showing design",
+        "camera": "medium close-up",
+        "lighting": "soft ambient light",
+        "mood": "immersive, premium"
+      }
+    },
+    "health": {
+      "default": {
+        "scene": [
+          "bright bathroom counter",
+          "clean minimalist shelf",
+          "spa-inspired shelf with greenery",
+          "soft-lit bedroom nightstand",
+          "natural light kitchen counter"
+        ],
+        "action": "holds product, showing label clearly",
+        "camera": "medium shot",
+        "lighting": "clean bright light",
+        "mood": "healthy, trustworthy"
+      },
+      "vitamin": {
+        "scene": [
+          "bright kitchen counter",
+          "clean bathroom shelf",
+          "modern wellness station"
+        ],
+        "action": "holds bottle, showing supplement",
+        "camera": "medium close-up",
+        "lighting": "natural daylight",
+        "mood": "vitality, energy"
+      },
+      "fitness": {
+        "scene": [
+          "bright gym surface",
+          "clean workout bench",
+          "modern fitness station"
+        ],
+        "action": "holds product near gym equipment",
+        "camera": "medium shot",
+        "lighting": "bright overhead light",
+        "mood": "energetic, active"
+      }
+    },
+    "home": {
+      "default": {
+        "scene": [
+          "bright living room with plants",
+          "cozy reading nook",
+          "modern kitchen island",
+          "sunlit balcony",
+          "minimalist shelf display area"
+        ],
+        "action": "holds product, presenting in home setting",
+        "camera": "medium shot",
+        "lighting": "warm ambient light",
+        "mood": "cozy, inviting"
+      },
+      "cleaning": {
+        "scene": [
+          "bright modern kitchen",
+          "clean bathroom",
+          "organized utility shelf"
+        ],
+        "action": "sprays product on surface",
+        "camera": "medium shot",
+        "lighting": "bright clean light",
+        "mood": "fresh, sparkling"
+      },
+      "decor": {
+        "scene": [
+          "bright living room shelf",
+          "cozy bedroom corner",
+          "minimalist display area"
+        ],
+        "action": "places product on shelf, adjusting position",
+        "camera": "medium shot",
+        "lighting": "warm natural light",
+        "mood": "stylish, homey"
+      }
+    },
+    "pet": {
+      "default": {
+        "scene": [
+          "cozy pet corner with natural light",
+          "bright modern pet area",
+          "clean kitchen with pet supplies"
+        ],
+        "action": "holds product near pet, showing label",
+        "camera": "medium shot",
+        "lighting": "warm natural light",
+        "mood": "caring, friendly"
+      }
+    },
+    "other": {
+      "default": {
+        "scene": [
+          "clean modern surface with soft lighting",
+          "minimalist table near window",
+          "bright airy space with natural light",
+          "simple clean background",
+          "warm-toned lifestyle setting"
+        ],
+        "action": "holds product, showing to camera",
+        "camera": "medium close-up",
+        "lighting": "soft natural lighting",
+        "mood": "clean, professional"
+      }
+    }
+  },
+  "personas": {
+    "female": [
+      {"ethnicity": "Thai", "age_range": [20, 26], "skin_tone": "light"},
+      {"ethnicity": "Thai", "age_range": [22, 28], "skin_tone": "medium"},
+      {"ethnicity": "Thai", "age_range": [25, 35], "skin_tone": "medium"},
+      {"ethnicity": "Thai", "age_range": [30, 40], "skin_tone": "medium"},
+      {"ethnicity": "Thai", "age_range": [18, 24], "skin_tone": "light"},
+      {"ethnicity": "Korean", "age_range": [20, 26], "skin_tone": "light"},
+      {"ethnicity": "Japanese", "age_range": [20, 26], "skin_tone": "light"},
+      {"ethnicity": "Filipino", "age_range": [20, 26], "skin_tone": "tan"},
+      {"ethnicity": "Indonesian", "age_range": [20, 25], "skin_tone": "medium"},
+      {"ethnicity": "Vietnamese", "age_range": [21, 27], "skin_tone": "light"}
+    ],
+    "male": [
+      {"ethnicity": "Thai", "age_range": [22, 30], "skin_tone": "medium"},
+      {"ethnicity": "Thai", "age_range": [20, 28], "skin_tone": "light"},
+      {"ethnicity": "Korean", "age_range": [22, 29], "skin_tone": "light"},
+      {"ethnicity": "Japanese", "age_range": [21, 28], "skin_tone": "light"},
+      {"ethnicity": "Chinese", "age_range": [23, 30], "skin_tone": "light"}
+    ],
+    "unisex": [
+      {"ethnicity": "Thai", "age_range": [20, 28], "skin_tone": "medium"},
+      {"ethnicity": "Korean", "age_range": [21, 27], "skin_tone": "light"}
+    ]
+  },
+  "end_scenes": {
+    "skincare": [
+      {"scene": "product prominently displayed on clean surface", "camera": "slow push in"},
+      {"scene": "model smiling gently, product beside her", "camera": "medium close-up"},
+      {"scene": "product on vanity with soft bokeh background", "camera": "close-up on product"}
+    ],
+    "beauty": [
+      {"scene": "model touching face gently, satisfied smile, product in frame", "camera": "medium close-up, soft focus"},
+      {"scene": "product on elegant surface with warm glow", "camera": "slow zoom in"},
+      {"scene": "model admiring result, product visible", "camera": "medium shot"}
+    ],
+    "food": [
+      {"scene": "product beautifully arranged, appetizing presentation", "camera": "top-down shot"},
+      {"scene": "model enjoying the product, genuine smile", "camera": "medium shot, lifestyle framing"},
+      {"scene": "product centerpiece with warm atmosphere", "camera": "slow pan"}
+    ],
+    "fashion": [
+      {"scene": "model in natural pose, garment clearly visible", "camera": "static medium shot"},
+      {"scene": "product detail close-up, texture visible", "camera": "slow orbit"},
+      {"scene": "model posing confidently, product featured", "camera": "three-quarter shot"}
+    ],
+    "electronics": [
+      {"scene": "sleek device prominently displayed, modern aesthetic", "camera": "slow orbit around product"},
+      {"scene": "device in use context, clean environment", "camera": "close-up on device"},
+      {"scene": "product on modern desk, tech lifestyle", "camera": "medium shot"}
+    ],
+    "health": [
+      {"scene": "product on clean shelf, wellness aesthetic", "camera": "slow push in"},
+      {"scene": "product in bright clean setting", "camera": "medium shot"},
+      {"scene": "product with healthy lifestyle context", "camera": "eye-level shot"}
+    ],
+    "home": [
+      {"scene": "product beautifully placed in home setting", "camera": "slow pan across scene"},
+      {"scene": "product in cozy environment, warm atmosphere", "camera": "medium shot"},
+      {"scene": "product centerpiece in tastefully decorated space", "camera": "static wide shot"}
+    ],
+    "other": [
+      {"scene": "product prominently displayed, clean composition", "camera": "medium shot, product centered"},
+      {"scene": "lifestyle moment with product, natural and authentic", "camera": "eye-level, candid framing"},
+      {"scene": "product in clean setting, professional look", "camera": "close-up to medium transition"}
+    ]
+  },
+  "transitions": [
+    "fade to white",
+    "smooth cross-dissolve",
+    "clean cut",
+    "gentle fade"
+  ]
+}

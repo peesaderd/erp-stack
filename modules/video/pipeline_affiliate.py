@@ -38,6 +38,7 @@ import random
 import re
 import subprocess
 import shutil
+import asyncio
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
@@ -210,19 +211,46 @@ def load_recipe(recipe_name: str = "tus") -> dict:
     logger.info(f"Step 2/9: Load recipe ({recipe_name})")
 
     schema_url = os.environ.get("SCHEMA_ENGINE_URL", "http://localhost:8100")
-    resp = requests.get(
-        f"{schema_url}/api/v1/data/video_recipe",
-        params={"search": recipe_name, "limit": 1},
-        timeout=3,
-    )
-    
-    if resp.status_code != 200:
-        raise RuntimeError(f"Schema Engine returned {resp.status_code}: {resp.text[:200]}")
+    try:
+        resp = requests.get(
+            f"{schema_url}/api/v1/data/video_recipe",
+            params={"search": recipe_name, "limit": 1},
+            timeout=3,
+        )
+        
+        if resp.status_code != 200:
+            raise RuntimeError(f"Schema Engine returned {resp.status_code}: {resp.text[:200]}")
 
-    data = resp.json()
-    records = data.get("data", [])
-    if not records:
-        raise RuntimeError(f"Recipe '{recipe_name}' not found in Schema Engine (video_recipe schema)")
+        data = resp.json()
+        records = data.get("data", [])
+        if not records:
+            raise RuntimeError(f"Recipe '{recipe_name}' not found in Schema Engine (video_recipe schema)")
+    except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+        logger.warning(f"Schema Engine unreachable ({e}) — using default recipe")
+        # Fallback: return a default recipe with standard scenes
+        default_recipe = {
+            "name": recipe_name,
+            "description": "Default recipe (Schema Engine offline)",
+            "version": "1.0",
+            "total_duration": 15,
+            "language": "th",
+            "default_style": "holding",
+            "scenes": [
+                {"name": "hook", "duration": 5, "function": "hook"},
+                {"name": "value", "duration": 5, "function": "value"},
+                {"name": "cta", "duration": 5, "function": "cta"},
+            ],
+            "video_model": "wan2.7",
+            "video_count": 1,
+            "ugc_styles": ["holding", "review", "usage", "talking"],
+            "voice_tone": "friendly, authentic, enthusiastic",
+            "target_audience": "Thai TikTok users",
+            "image_generation": {},
+            "video_generation": {},
+            "tts": {"enabled": True},
+        }
+        logger.info(f"  Recipe (default fallback): {recipe_name}, {len(default_recipe['scenes'])} scenes, {default_recipe['total_duration']}s")
+        return default_recipe
 
     record = records[0]
     row = record.get("data", record)
@@ -604,12 +632,16 @@ def generate_voice(
     
     # Try EdgeTTS first for high quality Thai voice
     try:
-        import asyncio, edge_tts
+        import edge_tts
+        import concurrent.futures
         tts_voice = voice if voice and "th-TH" in voice else "th-TH-PremwadeeNeural"
         async def _run_edge_tts():
             comm = edge_tts.Communicate(text, tts_voice)
             await comm.save(output_path)
-        asyncio.run(_run_edge_tts())
+        # Run in a new thread to avoid event loop conflicts
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            loop = asyncio.new_event_loop()
+            pool.submit(loop.run_until_complete, _run_edge_tts()).result()
         if Path(output_path).exists() and Path(output_path).stat().st_size > 1000:
             logger.info(f"  EdgeTTS OK: {output_path}")
             return output_path

@@ -440,10 +440,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     category = profile.get("category", "other")
 
     gender_en = {"female": "woman", "male": "man", "unisex": "person"}.get(model_gender, "person")
-    persona_clothing = profile.get("persona_clothing", "")
-    persona_hair = profile.get("persona_hair", "")
-    clothing_str = f", wearing {persona_clothing}" if persona_clothing else ""
-    hair_str = f", {persona_hair}" if persona_hair else ""
+    # No clothing/hair descriptions for video prompts — reference image shows the model
     model_age = profile.get("_normalized_age") or _normalize_age(profile.get("target_age", "20-35"))
     
     # ── Product description (common) ──
@@ -454,7 +451,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     # BUT: strip Thai text, special chars, and truncate for video model (max ~80 chars).
     prod_desc_vid = _clean_product_name_for_video(product_name)
     
-    model_intro = f"{gender_en.capitalize()}{clothing_str}{hair_str}"
+    model_intro = gender_en.capitalize()
     
     # ── Style-driven video_motion (ugc_style is PRIMARY) ──────────
     if ugc_style == "product_demo":

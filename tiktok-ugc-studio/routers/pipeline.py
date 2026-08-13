@@ -210,7 +210,9 @@ async def run_full_pipeline(req: FullPipelineRequest):
 
         return {"success": True, "job_id": job_id, "status": "completed"}
     except Exception as e:
+        import traceback
         logger.error(f"Pipeline {job_id} failed: {e}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         _update_pipeline_step(job_id, "pipeline", "error", {"error": str(e)})
         return {"success": False, "job_id": job_id, "status": "error", "error": str(e)}
 

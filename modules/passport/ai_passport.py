@@ -200,8 +200,8 @@ def crop_passport(image: np.ndarray) -> np.ndarray:
     crop_w = int(crop_h * target_ratio)
 
     crop_x1 = max(0, face_center_x - crop_w // 2)
-    # Place face center at 32% from top (more head space + body below)
-    crop_y1 = max(0, int(face_center_y - crop_h * 0.32))
+    # Place face center at 40% from top → face top at ~20% (passport headspace)
+    crop_y1 = max(0, int(face_center_y - crop_h * 0.40))
 
     if crop_x1 + crop_w > w: crop_x1 = w - crop_w
     if crop_y1 + crop_h > h: crop_y1 = h - crop_h
@@ -259,7 +259,9 @@ def crop_to_template(img: np.ndarray, template: dict, dpi: int = 300) -> np.ndar
         
         # 20% headspace = face top at 20% from top of cropped image
         desired_head_y = int(target_h * 0.20)
-        y_offset = max(0, min(face_top - desired_head_y, h - target_h))
+        # Clamp: can't go above image top or below image bottom
+        y_offset = face_top - desired_head_y
+        y_offset = max(0, min(y_offset, h - target_h))
         
         face_center_x = fx + fw // 2
         x_offset = max(0, min(face_center_x - target_w // 2, w - target_w))

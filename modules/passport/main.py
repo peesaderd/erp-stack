@@ -125,6 +125,7 @@ class BulkGenerateRequest(BaseModel):
 class PrintSheetRequest(BaseModel):
     session_id: str
     print_size: str = "4x6"
+    photo_size: str = "passport"  # "passport" | "25x35" | "30x40" | "50x50" | "50x70"
     photo_count: int = 6           # 0 = auto
     border: str = "none"           # "none" | "frame"
     gap_mm: float = 2.0
@@ -382,8 +383,35 @@ async def print_sheet_v2(req: PrintSheetRequest):
     h, w = img_rgb.shape[:2]
 
     dpi = req.dpi
-    mm_w = w / dpi * 25.4
-    mm_h = h / dpi * 25.4
+    
+    # Photo sizes in mm
+    PHOTO_SIZES = {
+        'passport': {'w': 35, 'h': 45},
+        '25x35': {'w': 25, 'h': 35},
+        '30x40': {'w': 30, 'h': 40},
+        '50x50': {'w': 50, 'h': 50},
+        '50x70': {'w': 50, 'h': 70},
+    }
+    
+    # Get target photo size
+    photo_size = PHOTO_SIZES.get(req.photo_size, PHOTO_SIZES['passport'])
+    target_w_mm = photo_size['w']
+    target_h_mm = photo_size['h']
+    
+    # Resize image to target size if needed
+    current_w_mm = w / dpi * 25.4
+    current_h_mm = h / dpi * 25.4
+    
+    if abs(current_w_mm - target_w_mm) > 1 or abs(current_h_mm - target_h_mm) > 1:
+        # Resize to target size
+        target_w_px = int(round(target_w_mm / 25.4 * dpi))
+        target_h_px = int(round(target_h_mm / 25.4 * dpi))
+        img_rgb = cv2.resize(img_rgb, (target_w_px, target_h_px), interpolation=cv2.INTER_LANCZOS4)
+        mm_w = target_w_mm
+        mm_h = target_h_mm
+    else:
+        mm_w = current_w_mm
+        mm_h = current_h_mm
 
     from print_sheet import generate_print_sheet
     result = generate_print_sheet(

@@ -123,6 +123,15 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#4b5563;min-height:
                 <option value="a4">A4</option>
               </select>
             </div>
+            <div class="pf"><label>Photo Size</label>
+              <select id="photoSize" onchange="currentPhotoSize=this.value;updatePreview()">
+                <option value="passport">Passport (35×45mm)</option>
+                <option value="25x35">ID Card (25×35mm)</option>
+                <option value="30x40">30×40mm</option>
+                <option value="50x50">50×50mm</option>
+                <option value="50x70">50×70mm</option>
+              </select>
+            </div>
             <div class="pf"><label>Photos</label>
               <input type="number" id="pc" value="6" min="1" max="20" onchange="updatePreview()" oninput="updatePreview()">
             </div>
@@ -196,6 +205,22 @@ var multiThumbs=[];
 /* ── Paper sizes (mm) ── */
 var PAPERS={'4x6':{w:102,h:152},'5x7':{w:127,h:178},'a6':{w:105,h:148},'a4':{w:210,h:297}};
 var orient='portrait';
+
+/* ── Photo sizes (mm) ── */
+var PHOTO_SIZES={
+  'passport':{w:35,h:45,label:'Passport (35×45mm)'},
+  '25x35':{w:25,h:35,label:'ID Card (25×35mm)'},
+  '30x40':{w:30,h:40,label:'30×40mm'},
+  '50x50':{w:50,h:50,label:'50×50mm'},
+  '50x70':{w:50,h:70,label:'50×70mm'}
+};
+var currentPhotoSize='passport';
+
+function setPhotoSize(size){
+  currentPhotoSize=size;
+  document.getElementById('photoSize').value=size;
+  updatePreview();
+}
 
 function setOrient(o){
   orient=o;
@@ -285,7 +310,8 @@ function updatePreview(){
   var isMulti=multiThumbs.length>0;
 
   /* Calculate layout */
-  var pw=PASSPORT_MM.w, ph=PASSPORT_MM.h;
+  var photoSize=PHOTO_SIZES[currentPhotoSize]||PHOTO_SIZES['passport'];
+  var pw=photoSize.w, ph=photoSize.h;
   var cols=Math.floor((paper.w+gap)/(pw+gap));
   var rows=Math.floor((paper.h+gap)/(ph+gap));
   var maxCount=cols*rows;
@@ -360,6 +386,7 @@ async function generate(){
         session_ids:window._sids,
         copies:parseInt(document.getElementById('cp').value)||2,
         print_size:document.getElementById('ps').value,
+        photo_size:currentPhotoSize,
         border:document.getElementById('bt').value,
         blade_mode:document.getElementById('bm').checked,
       };
@@ -372,6 +399,7 @@ async function generate(){
       var body={
         image_base64:b64,
         print_size:document.getElementById('ps').value,
+        photo_size:currentPhotoSize,
         photo_count:parseInt(document.getElementById('pc').value)||6,
         border:document.getElementById('bt').value,
         blade_mode:document.getElementById('bm').checked,

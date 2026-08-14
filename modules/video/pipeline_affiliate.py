@@ -173,21 +173,14 @@ def analyze_product(product_name: str, product_image: str = None, description: s
         return profile
 
     except Exception as e:
-        logger.error(f"Analyze failed: {e}")
-        # Fallback: basic profile
-        return {
-            "category": "other",
-            "target_gender": "unisex",
-            "target_age": "20-35",
-            "target_audience": "ทุกคน",
-            "customer_problem": "",
-            "main_benefit": "คุณภาพดี",
-            "hashtags": [product_name.replace(" ", "")[:20]],
-            "setting": "clean modern lifestyle",
-            "_image_prompt": f"{product_name}, product showcase, clean background",
-            "_video_prompt": f"{product_name} showcase, smooth motion",
-            "_negative_prompt": "no text, no watermark",
-        }
+        # NO hardcoded fallback profile. When the JSON-driven prompt-builder
+        # fails we must fail loudly so it's fixable — a silently-substituted
+        # hardcoded image/video/negative prompt would bypass your JSON prompt
+        # sources and quietly produce off-brand output. ("break is break")
+        logger.error(f"Analyze failed (prompt-builder unreachable/no prompt): {e}")
+        raise RuntimeError(
+            f"prompt-builder returned no usable prompt (refusing hardcoded fallback): {e}"
+        ) from e
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -331,23 +324,11 @@ def generate_script(
         return script
 
     except Exception as e:
-        logger.error(f"Script generation failed: {e}")
-        # Fallback: natural Thai narration for product_demo
-        if ugc_style == "product_demo":
-            feat = product_profile.get("features", "")
-            appear = product_profile.get("product_appearance", "")
-            if feat:
-                return f"{product_name} ตัวนี้ {feat} ใช้งานง่ายมาก"
-            elif appear:
-                return f"{product_name} ตัวนี้{appear[:100]} ใช้งานดี"
-            return f"{product_name} ตัวนี้ใช้งานดีมาก"
-        # Default: template review script
-        base = f"{product_profile.get('customer_problem', 'ปัญหาที่เจอบ่อย')} ใช่ไหมคะ? วันนี้เรามี {product_name}"
-        feat = product_profile.get("features", "")
-        if feat:
-            base += f" มี {feat}"
-        base += f" {product_profile.get('main_benefit', 'คุณภาพดี')} ค่ะ กดตะกร้าเลย!"
-        return base
+        # NO hardcoded Thai narration fallback. If script generation fails we
+        # fail loudly so it's fixable — a hardcoded script would bypass the
+        # JSON-driven content and could desync from the TTS/voiceover.
+        logger.error(f"Script generation failed (refusing hardcoded fallback): {e}")
+        raise RuntimeError(f"script generation failed (no fallback): {e}") from e
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -379,9 +360,12 @@ def build_image_prompt(
         logger.info(f"  Image prompt: {image_prompt[:60]}...")
         return image_prompt
 
-    # Fallback: basic prompt
-    logger.warning("  No image prompt from analyze, using fallback")
-    return f"{product_name}, product showcase, clean background, professional photography"
+    # NO hardcoded fallback — image prompt must come from prompt-builder (JSON).
+    # Breaking loudly beats silently generating with a generic hardcoded prompt.
+    raise ValueError(
+        "build_image_prompt: '_image_prompt' missing from product_profile — "
+        "prompt-builder (JSON-driven) must supply it; refusing hardcoded fallback"
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -576,7 +560,11 @@ def generate_video(
     client = ProdiaV2Client(token=PRODIA_TOKEN())
 
     try:
-        neg_p = negative_prompt or "no text, no watermark, blurry, distorted, extra limbs, bad face, deformed"
+        # negative_prompt must come from the JSON-driven prompt-builder.
+        # No hardcoded fallback: if missing we raise clearly (single source of truth).
+        if not negative_prompt:
+            raise ValueError("generate_video: negative_prompt is required — supply it from prompt-builder (JSON-driven); refusing hardcoded fallback")
+        neg_p = negative_prompt
         result = client.generate_video(
             prompt=prompt,
             input_image=image_data,
@@ -981,12 +969,14 @@ def run_pipeline(
             vid_prompt_duration = 0
             logger.info(f"Step 6/9: Skipped (using pre-computed video_prompt)")
         elif not video_prompts:
-            # Fallback: single short prompt (Wan 2.7 img2vid = 1 continuous clip).
-            # No 6-scene split — one clip animates a natural open→end arc.
-            step_start = time.time()
-            gender_en = {"female": "Woman", "male": "Man"}.get(product_profile.get("target_gender","female"), "Woman")
-            video_prompts = [f"{gender_en} showcasing product naturally, product clearly visible. clean setting. 9:16."]
-            vid_prompt_duration = int((time.time() - step_start) * 1000)
+            # NO hardcoded generic prompt. This exact fallback is what produced
+            # the "speaks Vietnamese/gibberish" raw video (a generic English prompt
+            # with no Thai script went to Wan). Prompts MUST come from the
+            # JSON-driven prompt-builder — break loudly instead of regressing.
+            raise ValueError(
+                "pipeline: video_prompts missing and no video_prompt supplied — "
+                "refusing hardcoded generic prompt; wire the prompt-builder output"
+            )
         else:
             vid_prompt_duration = 0
             logger.info(f"Step 6/9: Skipped (using pre-computed video_prompts)")
@@ -1033,7 +1023,12 @@ def run_pipeline(
         step_start = time.time()
         video_paths = []
         
-        vprompt = video_prompts[0] if video_prompts else "Product showcase, smooth motion, elegant presentation"
+        vprompt = video_prompts[0] if video_prompts else ""
+        if not vprompt:
+            # No hardcoded video prompt — raise clearly. Prompts must come from
+            # prompt-builder (JSON-driven). Breaking loudly beats a silent generic
+            # fallback that diverges from the JSON prompt sources.
+            raise ValueError("pipeline: video_prompts is empty/None — no prompt to generate video; refusing hardcoded fallback")
         logger.info(f"  Generating 1 continuous video ({total_duration}s): {vprompt[:80]}...")
         
         vid_path, cost_video = generate_video(

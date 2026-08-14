@@ -64,12 +64,22 @@ def _ai_select(category: str, subcategory: str, gender: str, product_name: str, 
     base_seed = int(_hashlib.md5(product_name.encode()).hexdigest(), 16) % 1000000
     seed = (base_seed + loop_count) % 1000000
     rng = _random.Random(seed)
-    
-    scene = rng.choice(mapping.get("scene", ["clean modern surface"]))
-    action = mapping.get("action", "holds product")
-    camera = mapping.get("camera", "medium close-up")
-    lighting = mapping.get("lighting", "soft natural lighting")
-    mood = mapping.get("mood", "clean")
+
+    # Strict JSON-driven: every required field must exist in prompt_sources.json.
+    # No hardcoded fallback values — if a category is missing a key we raise a
+    # clear error pointing at the JSON (single source of truth).
+    required = ("scene", "action", "camera", "lighting", "mood")
+    missing = [k for k in required if not mapping.get(k)]
+    if missing:
+        raise ValueError(
+            f"prompt_sources.json category_mapping['{category}'] missing required "
+            f"keys {missing} (sub={subcategory!r}) — add them"
+        )
+    scene = rng.choice(mapping["scene"])
+    action = mapping["action"]
+    camera = mapping["camera"]
+    lighting = mapping["lighting"]
+    mood = mapping["mood"]
     
     # Select persona matching demographic
     persona = _select_persona_fit(category, subcategory, gender, rng)
@@ -118,7 +128,10 @@ def _pick_end_scene(category="other"):
 
 def _pick_transition():
     sources = _load_prompt_sources()
-    return _random.choice(sources.get("transitions", ["fade to white"]))
+    transitions = sources.get("transitions")
+    if not isinstance(transitions, list) or not transitions:
+        raise ValueError("prompt_sources.json: missing or empty 'transitions' list — add it")
+    return _random.choice(transitions)
 
 
 def _clean_product_name_for_video(product_name: str) -> str:
@@ -484,6 +497,11 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     # Clean up
     video_prompt = re.sub(r'\s+', ' ', video_prompt).strip()
 
+    # Mouth steer (POSITIVE prompt side): for talking styles, append the
+    # steer keywords so Wan keeps lip movement small/natural/restrained.
+    # Goes on the positive prompt, never on the negative (see apply_mouth_steer).
+    video_prompt = apply_mouth_steer(video_prompt, ugc_style)
+
     logger.info(f"  Video prompt ({len(video_prompt)} chars): {video_prompt[:80]}...")
     return video_prompt
 def _normalize_age(raw_age) -> int:
@@ -506,21 +524,73 @@ def _normalize_age(raw_age) -> int:
     return 25
 
 
+def _load_mouth_control() -> dict:
+    """Load the mouth_control block from prompt_sources.json (single source of truth).
+    No hardcoded copy / no silent fallback: if the block is missing or malformed
+    we raise so the JSON (the one place to fix) is always the authority. This keeps
+    code from drifting away from the data and makes failures obvious & fixable."""
+    sources = _load_prompt_sources()
+    mc = sources.get("mouth_control")
+    if not isinstance(mc, dict):
+        raise ValueError("prompt_sources.json: missing or invalid 'mouth_control' block — add it")
+    required = ("talking_styles", "non_talking_styles", "negative_base",
+                "negative_talking", "negative_non_talking", "steer_talking_prompt")
+    missing = [k for k in required if k not in mc]
+    if missing:
+        raise ValueError(f"prompt_sources.json 'mouth_control' missing keys: {missing}")
+    return mc
+
+
+def _is_talking_style(ugc_style: str, mc: dict) -> bool:
+    """True if the ugc_style is in the talking list.
+    Unknown styles default to talk (soft) so we never risk locking a mouth
+    that actually needs to speak — harmless for non-talking (mouth just moves
+    slightly, no melt)."""
+    s = (ugc_style or "").strip().lower()
+    talking = [x.strip().lower() for x in mc["talking_styles"]]
+    non_talking = [x.strip().lower() for x in mc["non_talking_styles"]]
+    if s in talking:
+        return True
+    if s in non_talking:
+        return False
+    # Unknown style → default to talking (soft) for safety.
+    return True
+
+
 def build_negative_prompt(profile: dict, ugc_style: str = "holding") -> str:
     """Build negative prompt — defaults (text/watermark/hands/distortion)
     + Wan identity-stability terms (anti-morph / anti-melt).
-    Caller no longer needs to merge — this is the complete negative."""
-    # Identity-stability terms added for Wan 2.7 (prevents face morph/melt,
-    # finger warping, and "speaks gibberish" drifting at the tail).
-    return (
-        "no text, no watermark, no logo, no UI overlay, "
-        "no blurred face, no distorted hands, no extra fingers, "
-        "no manga, no cartoon, no illustration, no 3D render, "
-        "no low resolution, no pixelation, no artifacts, "
-        "no cluttered background, no messy room, "
-        "stable face, consistent identity, no facial morphing, "
-        "no melting, no warping, realistic proportions"
-    )
+    Caller no longer needs to merge — this is the complete negative.
+
+    Mouth-control is style-aware (data-driven from prompt_sources.json):
+      - Talking styles  → base (anti-melt only) + SOFT mouth terms.
+        NEVER "no open mouth" — that kills speech entirely.
+      - Non-talking styles → base + HARD mouth terms (lock jaw fully).
+      - Unknown style   → treated as talking (soft) for safety.
+    """
+    mc = _load_mouth_control()
+    base = mc["negative_base"]
+    if _is_talking_style(ugc_style, mc):
+        mouth_terms = ", ".join(x.strip() for x in mc["negative_talking"])
+    else:
+        mouth_terms = ", ".join(x.strip() for x in mc["negative_non_talking"])
+    parts = [p for p in (base, mouth_terms) if p]
+    return ", ".join(parts)
+
+
+def apply_mouth_steer(video_prompt: str, ugc_style: str = "holding") -> str:
+    """Append positive steer keywords to a video prompt for talking styles.
+    These go in the POSITIVE prompt (not the negative) so Wan moves the mouth
+    in small, natural, restrained ways instead of wide/jaw-heavy gesticulation.
+    Non-talking / unknown styles get no steer (they shouldn't be talking)."""
+    mc = _load_mouth_control()
+    if not _is_talking_style(ugc_style, mc):
+        return video_prompt
+    steer = [x.strip() for x in mc["steer_talking_prompt"]]
+    if not steer:
+        return video_prompt
+    steer_text = ", ".join(steer)
+    return video_prompt.rstrip() + f" {steer_text}."
 
 
 # ═══════════════════════════════════════════════════════════════════════

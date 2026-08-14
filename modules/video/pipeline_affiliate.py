@@ -1107,7 +1107,9 @@ def run_pipeline(
             # ให้ Wan พูดเอง → ไม่ส่ง TTS ทับ lip-sync
             audio_path=voice_path if not use_tus_voice else None,
             negative_prompt=negative_prompt,
-            reference_image=reference_image or None,
+            # first+last start-end interpolation per Prodia docs
+            # (ห้ามส่ง reference แยก — ทำให้ Prodia เอา reference เป็นภาพหลักแทน interpolation)
+            reference_image=None,
             first_frame=first_frame or None,
             last_frame=last_frame or None,
             thai_script=thai_script,

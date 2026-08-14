@@ -145,22 +145,11 @@ class ProdiaV2Client:
             ("job", ("job.json", json.dumps(job_payload), "application/json")),
         ]
         if has_inputs:
-            # Wan 2.7 img2vid: first frame = multipart field `image` + config["image"]
-            # (per Prodia docs: {"image":"first_frame.png","last_frame":"end_frame.png"})
-            # Fallback to `input` field when job type is not Wan img2vid.
-            use_image_field = (
-                "img2vid" in job_type
-                or job_type == "inference.wan2-7.img2vid.v1"
-            )
-            if use_image_field:
-                for i, img_bytes in enumerate(inputs):
-                    fname = f"first_frame_{i}.png" if i else "first_frame.png"
-                    config["image"] = fname
-                    files.append(("image", (fname, img_bytes, "image/png")))
-                    logger.info(f"  first_frame: {len(img_bytes)} bytes multipart + config.image={fname}")
-            else:
-                for i, img_bytes in enumerate(inputs):
-                    files.append(("input", (f"input_{i}.png", img_bytes, "image/png")))
+            # Prodia async **requires multipart field `input`** for the image
+            # (field `image` → "input image is required"). `input` = first frame.
+            for i, img_bytes in enumerate(inputs):
+                files.append(("input", (f"input_{i}.png", img_bytes, "image/png")))
+                logger.info(f"  first_frame(input): {len(img_bytes)} bytes multipart")
         if has_audio:
             # Auto-detect WAV vs MP3 header for Prodia Lip-sync compatibility
             if audio.startswith(b"RIFF"):

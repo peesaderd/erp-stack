@@ -1073,6 +1073,8 @@ async function loadPipelineJobs(force = false) {
           <div style="display:flex;align-items:center;font-size:11px;color:var(--text-secondary);gap:8px">
             <span style="white-space:nowrap">🕐 ${timeAgo}</span>
             <span style="margin-left:auto"></span>
+            ${j.raw_video_web_url ? `<button class="btn btn-sm" onclick="window.open('${j.raw_video_web_url}','_blank')" style="padding:2px 7px;font-size:10.5px;margin:0 2px;color:var(--color-violet-500)" title="ดู RAW Prodia (ยังไม่ตัดต่อ)">🎬 RAW</button>` : ''}
+            ${j.final_video_web_url ? `<button class="btn btn-sm" onclick="window.open('${j.final_video_web_url}','_blank')" style="padding:2px 7px;font-size:10.5px;margin:0 2px;color:var(--color-emerald-500)" title="ดู Final (ใส่เสียง+BGM แล้ว)">▶ FINAL</button>` : ''}
             <button class="btn btn-primary btn-sm" onclick="loadPipelineDetail('${j.job_id}')" style="padding:2px 7px;font-size:10.5px;margin:0 2px">📋 ดู</button>
             ${j.status === 'running' || j.status === 'pending' ? `<button class="btn btn-sm" onclick="cancelJobFromList('${j.job_id}')" style="padding:2px 6px;font-size:10.5px;margin:0 2px;color:var(--color-red-500)">✖</button>` : ''}
           </div>
@@ -1366,7 +1368,7 @@ async function loadPipelineDetail(jobId) {
       if (step.filepath) assetFiles.push({ label: name, path: step.filepath });
     }
     if (logs.tts_audio_path) assetFiles.push({ label: 'TTS Audio', path: logs.tts_audio_path });
-    if (logs.video_path) assetFiles.push({ label: 'Raw Video', path: logs.video_path });
+    if (logs.video_path) assetFiles.push({ label: '🎬 Prodia Raw', path: logs.video_path });
     if (logs.final_video_path) assetFiles.push({ label: 'Final Video', path: logs.final_video_path });
     if (assetFiles.length) {
       const unique = [...new Map(assetFiles.map(a => [a.path, a])).values()];

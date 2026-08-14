@@ -32,6 +32,7 @@ class BuildRequest(BaseModel):
     target_age: str = ""
     target_gender: str = ""
     country: str = ""
+    script: str = ""
 
 
 @app.get("/health")
@@ -57,6 +58,7 @@ async def build(req: BuildRequest):
             target_age=req.target_age,
             target_gender=req.target_gender,
             country=req.country,
+            script=req.script,
         )
         return result
     except Exception as e:

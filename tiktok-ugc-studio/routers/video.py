@@ -157,11 +157,15 @@ async def generate_video(req: VideoRequest):
         if not _product_title or len(_product_title) < 3:
             _product_title = "สินค้า"
 
-    if req.hook and req.value and req.cta:
+    # FIX (field precedence): an EXPLICIT user-supplied `script` must win over
+    # hook/value/cta. Previously hook+value+cta (when all present) overrode a
+    # caller-provided script, so an explicit script was silently ignored. Now:
+    # script > (hook+value+cta) > prompt > product_demo > fallback.
+    if req.script and req.script.strip():
+        full_script = req.script
+    elif req.hook and req.value and req.cta:
         script_parts = [req.hook, req.value, req.cta]
         full_script = " ".join(script_parts)
-    elif req.script:
-        full_script = req.script
     elif req.prompt:
         full_script = req.prompt
     elif req.ugc_style == "product_demo" and _product_title:
@@ -324,6 +328,7 @@ async def generate_video(req: VideoRequest):
                 "product_image": _product_image_to_web_url(_db_image),
                 "duration": req.duration or 15,
                 "target_duration": req.duration or 15,
+                "script": full_script,
             })
 
             if isinstance(pb_result, dict) and pb_result.get("image_prompt"):

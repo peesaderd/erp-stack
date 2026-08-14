@@ -564,13 +564,13 @@ def generate_video(
         with open(image_path, "rb") as f:
             image_data = f.read()
 
-    # Convert audio to clean 16kHz WAV for Prodia Lip Sync
+    # Option A: do NOT send audio to Prodia for lip-sync.
+    # Wan 2.7 lip-sync-from-audio is unreliable and drove the "speaks gibberish"
+    # bug (malformed mouth motion). The spoken Thai script is now embedded in the
+    # video prompt, so Wan moves the mouth from the prompt text and we merge the
+    # crisp Thai TTS voiceover at compose (Step 9). Keeping audio out avoids
+    # Wan latching onto a bad audio-sync and producing warped/garbled speech.
     audio_bytes = None
-    if audio_path:
-        valid_wav_path = _convert_to_wav(audio_path)
-        logger.info(f"  Audio: {Path(valid_wav_path).stat().st_size} bytes (sending 16kHz WAV to Prodia for lip-sync)")
-        with open(valid_wav_path, "rb") as f:
-            audio_bytes = f.read()
 
     # ── Generate via shared client ──
     client = ProdiaV2Client(token=PRODIA_TOKEN())
@@ -610,10 +610,10 @@ def generate_video(
         file_size = result_path.stat().st_size
         logger.info(f"  Video OK ({file_size} bytes, {resolution}): {result_path}")
         logger.info(f"  Cost: ${cost_video:.4f}")
-        # Verify that the generated video contains an audio stream for lip‑sync
+        # Option A: no audio-driven lip-sync, so a missing audio track is EXPECTED
+        # (we merge the clean Thai TTS voiceover at compose Step 9). Just log it.
         if not has_audio_track(str(result_path)):
-            logger.error("Wan 2.7 returned video without audio track – lip sync failed")
-            raise RuntimeError("Lip sync failure: generated video lacks audio track")
+            logger.info("  Wan video has no audio track (expected — Thai TTS voiceover merged in compose Step 9)")
 
         return str(result_path), cost_video
     except Exception as e:
@@ -753,10 +753,14 @@ def compose_video(
     if voice_path and Path(voice_path).exists():
         logger.info(f"  9b: Merging TTS voiceover audio {voice_path} into final video")
         voiced_path = STORAGE_DIR / f"affiliate_{run_id}_voiced.mp4"
+        # FIX (dead voice_speed): apply the voice_speed via ffmpeg atempo filter.
+        # voice_speed was declared (default 1.3) but never used — no speed filter
+        # existed, so the "speak faster" param did nothing. atempo supports 0.5-2.0.
         cmd_voice = [
             "ffmpeg", "-y",
             "-i", str(concat_path),
             "-i", str(voice_path),
+            "-filter:a", f"atempo={voice_speed}",
             "-c:v", "copy",
             "-c:a", "aac",
             "-map", "0:v:0",
@@ -768,7 +772,7 @@ def compose_video(
             subprocess.run(cmd_voice, check=True, capture_output=True, timeout=60)
             if voiced_path.exists() and voiced_path.stat().st_size > 1000:
                 final_path = voiced_path
-                logger.info(f"  9b: Voiceover merged successfully -> {final_path}")
+                logger.info(f"  9b: Voiceover merged successfully (atempo={voice_speed}) -> {final_path}")
         except Exception as ve:
             logger.error(f"  9b: Merging voiceover failed ({ve}), using concat video")
     else:
@@ -1053,8 +1057,41 @@ def run_pipeline(
             pass
 
         # ── STEP 9: Compose ──
-        final_duration = recipe.get("total_duration", 0)
+        # FIX (duration mismatch bug): use the ACTUAL Prodia Wan output duration,
+        # not the recipe total_duration. Previously final_duration was forced to
+        # recipe['total_duration']=15 even when the user requested a shorter job
+        # (e.g. 4s) — compose_video would then -stream_loop the short clip up to
+        # 15s, producing the "clip repeats / ถูกตัดซ้ำ" visual. Probing the real
+        # clip avoids that: short jobs stay short, 15s jobs are already 15s.
+        actual_video_duration = 0.0
+        try:
+            probe = subprocess.run(
+                ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                 "-of", "csv=p=0", str(vid_path)],
+                capture_output=True, text=True, timeout=20,
+            )
+            if probe.stdout.strip():
+                actual_video_duration = float(probe.stdout.strip())
+        except Exception:
+            actual_video_duration = 0.0
+        if actual_video_duration > 0:
+            final_duration = actual_video_duration
+        else:
+            # Fallback: requested duration, then recipe default
+            final_duration = total_duration if total_duration > 0 else recipe.get("total_duration", 0)
         final_path, raw_path = compose_video(video_paths, voice_path, run_id, bgm_style, target_duration=final_duration)
+
+        # Preserve the TRUE Prodia output (before any compose/edit) permanently.
+        # raw_path = affiliate_{run_id}_raw.mp4 is a POST-compose concat output.
+        # The raw Wan 2.7 Prodia file is vid_path (img2vid_*.mp4) — copy it out of
+        # TMP (which gets cleaned) so the UI "ไฟล์ที่สร้าง" can show what Prodia
+        # actually generated, letting the user see the un-edited lip-sync source.
+        prodia_src = vid_path if vid_path else (video_paths[-1] if video_paths else '')
+        prodia_raw_path = ''
+        if prodia_src and os.path.exists(prodia_src):
+            prodia_raw_path = str(STORAGE_DIR / f"raw_prodia_{run_id}.mp4")
+            shutil.copy2(prodia_src, prodia_raw_path)
+            logger.info(f"  Prodia raw preserved -> {prodia_raw_path}")
 
         # Cost summary
         cost_total = cost_image + cost_voice + cost_video
@@ -1066,7 +1103,9 @@ def run_pipeline(
         logger.info(f"Time: {total_duration_ms/1000:.1f}s")
         logger.info(f"{'='*60}")
 
-        # Log completion
+        # Log completion — raw_video_path now points at the true Prodia output
+        # (raw_prodia_{run_id}.mp4). The compose-concat output (raw_path) stays
+        # on disk for reference but is no longer exposed as "Raw Video".
         try:
             complete_job(
                 job_id,
@@ -1074,7 +1113,7 @@ def run_pipeline(
                 total_duration_ms=total_duration_ms,
                 total_video_duration=total_duration,
                 total_scenes=num_scenes,
-                raw_video_path=str(raw_path)
+                raw_video_path=prodia_raw_path or str(raw_path)
             )
         except Exception as e:
             logger.warning(f"Pipeline logger complete failed: {e}")

@@ -101,12 +101,17 @@ def pipeline_list(limit: int = 20):
         # Try to enrich with images + title from pipeline_logs.db
         try:
             lconn = sqlite3.connect(str(LOGS_DB_PATH))
-            lrow = lconn.execute("SELECT product_image_path, generated_image_path, product_title FROM pipeline_jobs WHERE job_id = ?", (r[0],)).fetchone()
+            lrow = lconn.execute("SELECT product_image_path, generated_image_path, product_title, final_video_path, raw_video_path FROM pipeline_jobs WHERE job_id = ?", (r[0],)).fetchone()
             lconn.close()
             if lrow:
                 job["product_image"] = _path_to_web_url(lrow[0]) if lrow[0] else ""
                 job["generated_image"] = _path_to_web_url(lrow[1]) if lrow[1] else ""
                 job["product_title"] = lrow[2] or ""
+                # Expose raw (true Prodia) + final video on the job card + detail
+                job["raw_video_path"] = lrow[4] or ""
+                job["raw_video_web_url"] = _path_to_web_url(lrow[4]) if lrow[4] else ""
+                job["final_video_path"] = lrow[3] or ""
+                job["final_video_web_url"] = _path_to_web_url(lrow[3]) if lrow[3] else ""
         except Exception:
             pass
         jobs.append(job)

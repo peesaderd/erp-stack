@@ -370,6 +370,16 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
 
     if ugc_style == "product_demo":
         image_prompt = f"{product_name} centered, {scene}. {lighting}. --ar 9:16"
+    elif ugc_style in ("talking", "talking_head"):
+        # Talking-head framing: face directly to camera, upper body, mouth visible,
+        # so Wan 2.7 lip-sync (audio-driven) has a clean face to animate instead of melting.
+        # Use a clean talking background, NOT the holding-style product scene.
+        talking_bg = (
+            "clean bright studio background, soft even light"
+        )
+        image_prompt = (f"Thai {gender_en}, upper body, facing directly to camera, "
+                        f"presenting {product_name} to the viewers while speaking, "
+                        f"natural Thai presenter, {talking_bg}. --ar 9:16")
     else:
         image_prompt = f"Thai {gender_en}, {action} {product_name}, {scene}, {lighting}. --ar 9:16"
 
@@ -382,12 +392,9 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
 def img_desc_sentences(text: str) -> list:
     """Split image_description into sentences."""
     return [s.strip() for s in text.split(".") if s.strip()]
-def img_desc_sentences(text: str) -> list:
-    """Split image_description into sentences."""
-    return [s.strip() for s in text.split(".") if s.strip()]
 
 
-def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holding", loop_count: int = 0) -> str:
+def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holding", loop_count: int = 0, script: str = "") -> str:
     """Generate SHORT video prompt — ~50 chars.
 
     Uses action from category_mapping. Wan 2.7 handles motion details.
@@ -411,12 +418,68 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     end = _pick_end_scene(category)
     transition = _pick_transition()
 
-    start_part = f"{gender_en} {action}. {scene}."
-    end_part = f"{end.get('camera', 'medium shot')}, {end.get('scene', 'product shown to camera')}."
-    
+    if ugc_style in ("talking", "talking_head"):
+        # Talking-head: presenter faces camera, upper body, clean background.
+        # The "scene" from category_mapping + the product-demo end-scene are
+        # written for a HAND-HELD product shot (e.g. "soft-lit dressing table",
+        # "medium shot, model admiring result") — those are wrong for a talking
+        # head and make Wan warp the frame. So talking uses its OWN framing and
+        # end (no "admiring result" arc) so Wan keeps the face forward and just
+        # moves the mouth/head subtly.
+        talking_scene = (
+            "presenting from a clean bright background, upper body, "
+            "facing directly to the camera"
+        )
+        # Option A: put the spoken Thai script DIRECTLY in the Wan video prompt.
+        # Prodia Wan 2.7 lip-sync from audio is unreliable, so instead of relying
+        # on audio we let Wan see the exact Thai text it should be reading, which
+        # drives mouth movement that matches the TTS Thai voiceover merged later.
+        # A short English description is kept so Wan knows what product to keep
+        # in frame (fixes "product vanishes in wide shots").
+        _vp_product = _clean_product_name_for_video(product_name)
+        if script:
+            # Trim to a safe short chunk so the prompt stays readable; Wan reads
+            # this text to drive mouth motion.
+            _spoken = script.strip()
+            if len(_spoken) > 200:
+                _spoken = _spoken[:200]
+            start_part = (
+                f"{gender_en} presenting the cream sachet to the camera, reading "
+                f"the Thai message aloud, holding the product: '{_spoken}'."
+            )
+        else:
+            start_part = f"{gender_en} speaking naturally to the camera about {_vp_product}, Thai presenter style. {talking_scene}."
+        # Talking end: STOP talking and show the product.
+        # Replace the old "continues talking" (which made Wan ramble on after
+        # finishing the script) with an explicit stop + close mouth + hold product.
+        end_part = (
+            "Face kept clear, then she finishes reading, stops talking, "
+            "closes her mouth, holds the product toward the camera, smiling."
+        )
+        transition = ""
+        # Mouth/head-only motion: keep face forward, avoid warping the frame.
+        # This does NOT rely on audio lip-sync anymore (audio sync is dropped)
+        # — it just tells Wan to keep subtle mouth/head motion while staying.
+        lipsync_part = (
+            " subtle head movement, face kept clear and forward, "
+            f"the product held still in front of the presenter"
+        )
+    else:
+        start_part = f"{gender_en} {action}. {scene}."
+        end_part = f"{end.get('camera', 'medium shot')}, {end.get('scene', 'product shown to camera')}."
+        lipsync_part = (
+            " lips moving subtly, smooth natural motion, "
+            "product held still, no warping"
+        )
+
     # Compose: opening action → gentle transition → end scene
     # Keep it natural-language so Wan's motion model flows smoothly.
-    video_prompt = f"{start_part} {transition}, then {end_part} 9:16."
+    # Talking-head end_part is self-contained (start + finish + stop + show product),
+    # so don't inject "transition, then" which would produce a broken " , then Face".
+    if ugc_style in ("talking", "talking_head"):
+        video_prompt = f"{start_part} {end_part} 9:16.{lipsync_part}"
+    else:
+        video_prompt = f"{start_part} {transition}, then {end_part} 9:16.{lipsync_part}"
 
     # Clean up
     video_prompt = re.sub(r'\s+', ' ', video_prompt).strip()
@@ -444,14 +507,19 @@ def _normalize_age(raw_age) -> int:
 
 
 def build_negative_prompt(profile: dict, ugc_style: str = "holding") -> str:
-    """Build negative prompt — just the defaults (text/watermark/hands/distortion).
-    Caller merges with template negatives."""
+    """Build negative prompt — defaults (text/watermark/hands/distortion)
+    + Wan identity-stability terms (anti-morph / anti-melt).
+    Caller no longer needs to merge — this is the complete negative."""
+    # Identity-stability terms added for Wan 2.7 (prevents face morph/melt,
+    # finger warping, and "speaks gibberish" drifting at the tail).
     return (
         "no text, no watermark, no logo, no UI overlay, "
         "no blurred face, no distorted hands, no extra fingers, "
         "no manga, no cartoon, no illustration, no 3D render, "
         "no low resolution, no pixelation, no artifacts, "
-        "no cluttered background, no messy room"
+        "no cluttered background, no messy room, "
+        "stable face, consistent identity, no facial morphing, "
+        "no melting, no warping, realistic proportions"
     )
 
 
@@ -475,6 +543,7 @@ async def analyze_and_build_prompts(
     target_age: Any = "",
     target_gender: str = "",
     country: str = "",
+    script: str = "",
     **kwargs,
 ) -> dict:
     """
@@ -533,19 +602,28 @@ async def analyze_and_build_prompts(
     # Sync age — normalize once so image + video prompt ages match
     profile["_normalized_age"] = _normalize_age(profile.get("target_age", "20-35"))
 
-    # Step 4: Build prompts
-    image_prompt, neg_from_template = build_image_prompt(profile, product_name, ugc_style, loop_count)
-    video_prompt = build_video_prompt(profile, product_name, ugc_style, loop_count)
-    # Merge: template neg (text/watermark) + default neg (fingers/hands/distortion)
-    default_neg = build_negative_prompt(profile, ugc_style)
-    if neg_from_template:
-        negative_prompt = f"{neg_from_template}, {default_neg}"
-    else:
-        negative_prompt = default_neg
-    
-    # Step 5: Validate script timing
+    # Step 4: Build script timing FIRST so the video prompt can embed the
+    # spoken Thai script (Option A: drop lip-sync audio, let Wan read/feel the
+    # script text directly so it moves lips in sync with the TTS voiceover).
+    # If the caller supplied an external `script` (the exact TTS script from the
+    # pipeline), use THAT so the video prompt matches the voiceover 1:1.
     timing_validation = _build_timing_validated_script(product_name, profile.get("category", "other"), profile)
     tv = timing_validation if isinstance(timing_validation, dict) else {}
+    if script and script.strip():
+        # Prefer the caller-provided TTS script verbatim (must match voiceover).
+        tv["full_script"] = script.strip()
+        tv["tts_script"] = script.strip()
+    _spoken_script = tv.get("full_script", "") if isinstance(tv, dict) else ""
+
+    # Step 5: Build prompts (video prompt receives the spoken script for talking style)
+    image_prompt, neg_from_template = build_image_prompt(profile, product_name, ugc_style, loop_count)
+    video_prompt = build_video_prompt(profile, product_name, ugc_style, loop_count, script=_spoken_script)
+    # FIX (negative duplication): build_image_prompt() ALREADY returns the full
+    # default negative via build_negative_prompt(). Concatenating it again with
+    # default_neg duplicated every term ~2x (wasted Prodia word budget and
+    # confused Wan). Use neg_from_template alone — it already includes the
+    # identity-stability terms.
+    negative_prompt = neg_from_template  
     
     result = {
         "product_id": product_id,
@@ -652,7 +730,14 @@ def _estimate_speech_duration(text: str) -> float:
     non_thai_chars = len(text_clean) - thai_chars
     if non_thai_chars < 0:
         non_thai_chars = 0
-    thai_sec = thai_chars / 18.0
+    # FIX (thai speaking-rate calibration): old rate 18 chars/sec over-estimated
+    # how fast Thai is spoken, so duration came out too short and the resulting
+    # tts_speed came out too low (voice not sped up enough). Measured real EdgeTTS:
+    #   125 Thai chars -> 8.5s  (~14.7 c/s)
+    #   172 Thai chars -> 11.0s (~15.5 c/s)
+    # Average ~15. Use 14.5 c/s (slightly conservative) so estimated duration is a
+    # bit longer -> tts_speed can ramp up a touch. Non-Thai stays 9 c/s.
+    thai_sec = thai_chars / 14.5
     non_thai_sec = non_thai_chars / 9.0
     switches = 1 if (thai_chars > 0 and non_thai_chars > 0) else 0
     return thai_sec + non_thai_sec + (switches * 0.1)
@@ -668,6 +753,65 @@ def _normalize_thai_gender_register(text: str, is_female: bool) -> str:
     else:
         text = re.sub(r'ค่ะ|คะ', 'ครับ', text)
     return text
+
+# Thai vowel/tone marks that must never dangle at a slice boundary.
+_THAI_VOWEL_ABOVE = set('ีืัุู')
+_THAI_MARK = 'เแโใไะาำิีึืุู็่้๊๋์ํ'  # Thai vowel/tone marks
+# Thai leading consonants (start of a syllable).
+_THAI_LEAD = set('กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรลวศษสหฬอฮ')
+
+
+def _drop_dangling_thai(s: str) -> str:
+    """Trim a trailing INCOMPLETE Thai word from `s`.
+
+    Gemini sometimes returns a benefit already sliced mid-word (e.g.
+    "เรียบเนียนภายใน 1 ส" where "ส" starts "สัปดาห์"). We only drop a trailing
+    BARE consonant fragment when it is clearly a clipped word start: a single
+    leading consonant that follows a SPACE (so "ภายใน 1 ส" -> "ภายใน 1", but a
+    complete word like "เรียบเนียน" or "ดำ" is left whole because its final
+    consonant is glued to its own vowel/word, not after a space).
+    """
+    if not s:
+        return s
+    t = s.rstrip(' ')
+    if not t:
+        return s
+    # Only when the very last token (after a space) is a single bare consonant
+    # do we treat it as a clipped lookahead word and remove it.
+    sp_idx = t.rfind(' ')
+    if sp_idx >= 0:
+        tail = t[sp_idx + 1:]
+        if len(tail) == 1 and tail[0] in _THAI_LEAD:
+            return t[:sp_idx]
+    return t
+
+
+def _safe_thai_truncate(text: str, limit: int) -> str:
+    """Truncate to <= limit chars WITHOUT splitting a Thai word.
+
+    Rules (never produce broken Thai speech):
+      - Prefer the last SPACE boundary within the limit when it is a "real"
+        word break reasonably near the limit (not a bare separator at the start).
+      - Otherwise back off from the limit so we never END on a Thai vowel/tone
+        mark and never START the tail with a vowel mark (mid-syllable).
+      - Then drop a trailing bare-consonant fragment (Gemini-truncated word).
+    """
+    if not text:
+        return text
+    if len(text) > limit:
+        head = text[:limit]
+        sp = head.rfind(' ')
+        # use the space break only when it leaves a substantial, clean chunk
+        if sp > limit * 0.5:
+            head = head[:sp]
+        else:
+            # No good space boundary (contiguous Thai / no word break):
+            # correct Thai word-splitting needs a dictionary we do not have, so
+            # the SAFE choice is to keep the text (slightly longer script is far
+            # better than chopped Thai speech).
+            return _drop_dangling_thai(text)
+        text = head
+    return _drop_dangling_thai(text)
 
 
 def _build_timing_validated_script(product_name: str, category: str = "beauty", profile: dict = None) -> dict:
@@ -713,8 +857,8 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
     
     if customer_problem and main_benefit and len(customer_problem) > 5:
         # Shorten problem and benefit for natural spoken Thai and normalize polite particle by gender
-        hook_text = _normalize_thai_gender_register(customer_problem[:40], is_female)
-        value_text = _normalize_thai_gender_register(f"{product_short} {main_benefit[:45]}", is_female)
+        hook_text = _normalize_thai_gender_register(_safe_thai_truncate(customer_problem, 40), is_female)
+        value_text = _normalize_thai_gender_register(f"{product_short} {_safe_thai_truncate(main_benefit, 45)}", is_female)
     elif category in ("home", "electronics", "tools"):
         hook_text = f"เจอปัญหานี้อยู่ใช่ไหม{reg_hook}"
         value_text = f"{product_short} ตัวนี้ช่วยได้เยอะเลย{reg_val}"

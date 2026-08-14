@@ -168,6 +168,11 @@ async def tus_create_full_pipeline(
     run_tts: bool = True,
     run_video_gen: bool = True,
     run_compose: bool = True,
+    first_frame: str = "",
+    reference_image: str = "",
+    last_frame: str = "",
+    thai_script: str = "",
+    use_tus_voice: bool = False,
 ) -> dict:
     """
     สร้างวิดีโอ UGC แบบ Full Pipeline (prompt-builder + image gen + video gen + TTS + compose).
@@ -192,6 +197,11 @@ async def tus_create_full_pipeline(
         run_tts: สร้างเสียงพากย์หรือไม่
         run_video_gen: สร้างวิดีโอหรือไม่
         run_compose: รวมคลิปหรือไม่
+        first_frame: path/URL ของ first frame (ให้ Wan ใช้)
+        reference_image: path/URL ของ reference image (ให้ Wan ใช้)
+        last_frame: path/URL ของ target last-frame (Wan start-end interpolation)
+        thai_script: บทพูดภาษาไทยที่ให้ Wan พูดเอง (ไม่ใช้ TTS ทับ)
+        use_tus_voice: True = ให้ Wan พูดไทยเองจาก thai_script (ไม่ส่ง TTS lip-sync ทับ)
     """
     body = {
         "product_url": product_url or None,
@@ -213,6 +223,11 @@ async def tus_create_full_pipeline(
         "run_tts": run_tts,
         "run_video_gen": run_video_gen,
         "run_compose": run_compose,
+        "first_frame": first_frame or None,
+        "reference_image": reference_image or None,
+        "last_frame": last_frame or None,
+        "thai_script": thai_script or None,
+        "use_tus_voice": use_tus_voice,
     }
     
     logger.info(f"tus_create_full_pipeline: product={product_title or product_url} style={ugc_style}")

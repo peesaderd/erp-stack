@@ -393,6 +393,12 @@ async def generate_video(req: VideoRequest):
                 "job_id": job_id,
                 "script": pb_data.get("scripts", {}).get("tts_script") or pb_data.get("full_script") or full_script or "",
                 "voice": getattr(req, "voice", None) or "",
+                # ── First/Reference/Last frame + Thai script (Wan พูดเอง) ──
+                "first_frame": getattr(req, "first_frame", None) or "",
+                "reference_image": getattr(req, "reference_image", None) or "",
+                "last_frame": getattr(req, "last_frame", None) or "",
+                "thai_script": getattr(req, "thai_script", None) or "",
+                "use_tus_voice": getattr(req, "use_tus_voice", False),
             }, timeout=300.0)  # Video pipeline takes 90-180s
 
             if isinstance(affiliate_result, dict) and (affiliate_result.get("success") or affiliate_result.get("ok")):

@@ -96,6 +96,8 @@ class ProdiaV2Client:
         inputs: Optional[List[bytes]] = None,
         accept: Optional[str] = None,
         audio: Optional[bytes] = None,
+        last_frame: Optional[bytes] = None,
+        reference: Optional[bytes] = None,
     ) -> str:
         """
         สร้าง Job ผ่าน Async API
@@ -110,6 +112,8 @@ class ProdiaV2Client:
             inputs: list ของ bytes สำหรับ input images (optional)
             accept: output format hint (optional)
             audio: bytes ของ audio file สำหรับ lip-sync (optional)
+            last_frame: bytes ของ target last-frame image (Wan 2.7 start-end interpolation; optional)
+            reference: bytes ของ reference image (optional)
         
         Returns:
             str: jobId สำหรับ polling
@@ -123,6 +127,8 @@ class ProdiaV2Client:
 
         has_inputs = inputs and len(inputs) > 0
         has_audio = audio is not None and len(audio) > 0
+        has_last_frame = last_frame is not None and len(last_frame) > 0
+        has_reference = reference is not None and len(reference) > 0
 
         # Build job payload
         job_payload: Dict[str, Any] = {
@@ -151,7 +157,19 @@ class ProdiaV2Client:
                 audio_mime = "audio/mpeg"
             files.append(("audio", (audio_filename, audio, audio_mime)))
 
-        if has_inputs or has_audio:
+        if has_last_frame:
+            # Wan 2.7 start-end interpolation: last_frame แยก multipart field
+            config["last_frame"] = "last_frame.png"
+            files.append(("last_frame", ("last_frame.png", last_frame, "image/png")))
+            logger.info(f"  last_frame: {len(last_frame)} bytes multipart + config.last_frame=last_frame.png")
+
+        if has_reference:
+            # reference image แยก multipart field
+            config["reference_image"] = "reference.png"
+            files.append(("reference", ("reference.png", reference, "image/png")))
+            logger.info(f"  reference: {len(reference)} bytes multipart + config.reference_image=reference.png")
+
+        if has_inputs or has_audio or has_last_frame or has_reference:
             # ── Multipart (image ± audio) ──
             logger.info(f"[Prodia] Creating job (multipart): {job_type}")
             logger.debug(f"  Config: {json.dumps(config)[:200]}")
@@ -401,6 +419,8 @@ class ProdiaV2Client:
         resolution: str = "720P",
         ratio: str = "9:16",
         audio_bytes: Optional[bytes] = None,
+        last_frame: Optional[bytes] = None,
+        reference: Optional[bytes] = None,
         job_type: Optional[str] = None,
         **extra_config,
     ) -> dict:
@@ -414,6 +434,8 @@ class ProdiaV2Client:
             resolution: 720P / 1080P
             ratio: aspect ratio (txt2vid only)
             audio_bytes: bytes ของ audio file สำหรับ lip-sync (optional)
+            last_frame: bytes ของ target last-frame image (Wan 2.7 start-end interpolation; optional)
+            reference: bytes ของ reference image (optional)
             job_type: override job type (auto-detect by default)
             **extra_config: ส่งผ่านไปยัง config
 
@@ -452,6 +474,8 @@ class ProdiaV2Client:
             inputs=inputs,
             accept="video/mp4",
             audio=audio_bytes,
+            last_frame=last_frame,
+            reference=reference,
         )
 
         result = self.wait_for_result(job_id)

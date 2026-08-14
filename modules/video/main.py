@@ -142,6 +142,12 @@ class VideoRequest(BaseModel):
     image_prompt: str = ""
     video_prompt: str = ""
     video_prompts: list[str] = []
+    # ── First/Reference/Last frame + Thai script (Wan พูดเอง) ──
+    first_frame: Optional[str] = None
+    reference_image: Optional[str] = None
+    last_frame: Optional[str] = None
+    thai_script: Optional[str] = None
+    use_tus_voice: bool = False
 
 class AffiliateScriptRequest(ScriptRequest):
     platforms: list[str] = []
@@ -301,6 +307,11 @@ async def generate_video(req: VideoRequest):
             video_prompts=req.video_prompts or [],
             negative_prompt=req.negative_prompt or "",
             script=script or "",
+            first_frame=req.first_frame or "",
+            reference_image=req.reference_image or "",
+            last_frame=req.last_frame or "",
+            thai_script=req.thai_script or "",
+            use_tus_voice=req.use_tus_voice,
 
         )
         return {"success": True, "result": result}

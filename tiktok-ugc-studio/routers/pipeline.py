@@ -158,6 +158,11 @@ async def run_full_pipeline(req: FullPipelineRequest):
                     "ugc_style": req.ugc_style or "holding",
                     "recipe": req.recipe or "tus",
                     "negative_prompt": req.negative_prompt or "",
+                    "first_frame": req.first_frame or "",
+                    "reference_image": req.reference_image or "",
+                    "last_frame": req.last_frame or "",
+                    "thai_script": req.thai_script or "",
+                    "use_tus_voice": req.use_tus_voice,
                 })
                 if vid_result.get("success"):
                     result_data = vid_result.get("result", {})

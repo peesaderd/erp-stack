@@ -89,6 +89,12 @@ class VideoRequest(BaseModel):
     image_prompt: str = ""
     video_prompt: str = ""
     video_prompts: list[str] = []
+    # ── First/Reference/Last frame + Thai script (Wan พูดเอง) ──
+    first_frame: Optional[str] = None
+    reference_image: Optional[str] = None
+    last_frame: Optional[str] = None
+    thai_script: Optional[str] = None
+    use_tus_voice: bool = False
 
 
 class VideoPostRequest(BaseModel):
@@ -140,6 +146,12 @@ class FullPipelineRequest(BaseModel):
     run_compose: bool = True
     platforms: Optional[list] = None
     schedule_time: Optional[str] = "immediate"
+    # ── First/Reference/Last frame + Thai script (Wan พูดเอง) ──
+    first_frame: Optional[str] = None
+    reference_image: Optional[str] = None
+    last_frame: Optional[str] = None
+    thai_script: Optional[str] = None
+    use_tus_voice: bool = False
 
 
 class ScrapeAndGenerateRequest(BaseModel):

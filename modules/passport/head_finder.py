@@ -6,8 +6,11 @@ import cv2
 import numpy as np
 import sys
 
-sys.path.insert(0, '/home/openhands/erp-stack')
-from modules.passport.ai_passport import detect_face
+try:
+    from .ai_passport import detect_face
+except ImportError:
+    sys.path.insert(0, '/home/openhands/erp-stack')
+    from modules.passport.ai_passport import detect_face
 
 
 def find_head_top(image, bg_sample_rows=15, threshold=30, min_head_width=0.03):

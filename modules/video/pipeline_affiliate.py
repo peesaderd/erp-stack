@@ -532,6 +532,11 @@ def generate_video(
     resolution: str = "720P",
     audio_path: Optional[str] = None,
     negative_prompt: Optional[str] = None,
+    reference_image: Optional[str] = None,
+    first_frame: Optional[str] = None,
+    last_frame: Optional[str] = None,
+    thai_script: Optional[str] = None,
+    use_tus_voice: bool = False,
 ) -> tuple:
     """
     Step 8: Generate video via Wan 2.7 Async API (shared ProdiaV2Client)
@@ -539,22 +544,62 @@ def generate_video(
     logger.info(f"Step 8/9: Generate video (Wan 2.7, {resolution})")
     logger.info(f"  Prompt: {prompt[:80]}...")
 
-    # Read image bytes
-    if image_path.startswith("http://") or image_path.startswith("https://"):
-        resp = requests.get(image_path, timeout=30)
-        resp.raise_for_status()
-        image_data = resp.content
-    else:
-        with open(image_path, "rb") as f:
-            image_data = f.read()
+    # First frame หลัก: ใช้ first_frame (ถ้าระบุ) แทน image_path
+    main_img = first_frame or image_path
+    if not main_img:
+        raise RuntimeError("generate_video: ต้องมี image_path หรือ first_frame")
+    if first_frame:
+        logger.info(f"  ▶ first_frame: {first_frame}")
 
-    # Option A: do NOT send audio to Prodia for lip-sync.
-    # Wan 2.7 lip-sync-from-audio is unreliable and drove the "speaks gibberish"
-    # bug (malformed mouth motion). The spoken Thai script is now embedded in the
-    # video prompt, so Wan moves the mouth from the prompt text and we merge the
-    # crisp Thai TTS voiceover at compose (Step 9). Keeping audio out avoids
-    # Wan latching onto a bad audio-sync and producing warped/garbled speech.
+    # Helper อ่าน bytes จาก path หรือ URL
+    def _read_bytes(src: Optional[str]) -> Optional[bytes]:
+        if not src:
+            return None
+        try:
+            if src.startswith("http://") or src.startswith("https://"):
+                r = requests.get(src, timeout=30)
+                r.raise_for_status()
+                return r.content
+            with open(src, "rb") as f:
+                return f.read()
+        except Exception as e:
+            logger.warning(f"  อ่านภาพผิดพลาด ({src}): {e}")
+            return None
+
+    # Read first frame bytes
+    image_data = _read_bytes(main_img)
+    if not image_data:
+        raise RuntimeError(f"generate_video: อ่าน first frame ไม่ได้: {main_img}")
+
+    # last_frame + reference_image bytes (Wan 2.7 start-end interpolation + reference)
+    last_bytes = _read_bytes(last_frame) if last_frame else None
+    ref_bytes = _read_bytes(reference_image) if reference_image else None
+    if last_bytes:
+        logger.info(f"  ▶ last_frame: {len(last_bytes)} bytes — start-end interpolation")
+    if ref_bytes:
+        logger.info(f"  ▶ reference_image: {len(ref_bytes)} bytes")
+
+    # Option A: do NOT send audio to Prodia for lip-sync (except when NOT use_tus_voice
+    # and TTS audio provided explicitly for lip-sync).
+    # Default path: ฝัง Thai script ลง prompt ให้ Wan ขยับปากเอง ไม่ส่ง audio ทับ
     audio_bytes = None
+    if audio_path and not use_tus_voice:
+        ap = Path(audio_path)
+        if ap.exists():
+            with open(ap, "rb") as af:
+                audio_bytes = af.read()
+            logger.info(f"  🎤 Lip-Sync (TTS): {len(audio_bytes)} bytes — ส่ง audio ให้ Wan")
+
+    # ── Thai script: ให้ Wan พูดไทยเอง (embed ลง prompt, ไม่ใช้ TTS lip-sync ทับ) ──
+    final_prompt = prompt
+    if use_tus_voice and thai_script and thai_script.strip():
+        final_prompt = (
+            f"{prompt.strip()}. "
+            f"The person in the video clearly speaks the following Thai script aloud "
+            f"in natural Thai language, mouth moving in sync with the words: "
+            f"\"{thai_script.strip()}\""
+        )
+        logger.info(f"  🗣 ให้ Wan พูดไทยเอง: {thai_script.strip()[:60]}...")
 
     # ── Generate via shared client ──
     client = ProdiaV2Client(token=PRODIA_TOKEN())
@@ -566,13 +611,15 @@ def generate_video(
             raise ValueError("generate_video: negative_prompt is required — supply it from prompt-builder (JSON-driven); refusing hardcoded fallback")
         neg_p = negative_prompt
         result = client.generate_video(
-            prompt=prompt,
+            prompt=final_prompt,
             input_image=image_data,
             duration=duration,
             resolution=resolution,
             audio_bytes=audio_bytes,
             job_type="inference.wan2-7.img2vid.v1",
             negative_prompt=neg_p,
+            last_frame=last_bytes,
+            reference=ref_bytes,
             # Control motion: disable Wan 2.7's prompt_extend so the model
             # follows our exact prompt (which now includes the end scene)
             # instead of rewriting/expanding it into unpredictable motion.
@@ -838,6 +885,12 @@ def run_pipeline(
     video_prompts: Optional[list] = None,
     negative_prompt: Optional[str] = None,
     script: Optional[str] = None,
+    # ── First/Reference/Last frame + Thai script (Wan พูดเอง ไม่ใช้ TTS lip-sync ทับ) ──
+    first_frame: Optional[str] = None,
+    reference_image: Optional[str] = None,
+    last_frame: Optional[str] = None,
+    thai_script: Optional[str] = None,
+    use_tus_voice: bool = False,
     **kwargs,
 ) -> dict:
     """
@@ -857,6 +910,11 @@ def run_pipeline(
         video_prompts: รายการวิดีโอ prompts ต่อ scene (ถ้ามีจะไม่ gen ใหม่)
         negative_prompt: negative prompt ที่เตรียมมาแล้ว
         script: script ที่เตรียมมาแล้ว (ถ้ามีจะไม่ gen ใหม่)
+        first_frame: path/URL ของ first frame image (ใช้แทน image ที่ gen สำหรับ Wan)
+        reference_image: path/URL ของ reference image (ส่งให้ Wan เป็น reference)
+        last_frame: path/URL ของ target last-frame image (Wan 2.7 start-end interpolation)
+        thai_script: บทพูดภาษาไทยที่ให้ Wan พูดเองในคลิป (ไม่ใช้ TTS lip-sync ทับ)
+        use_tus_voice: True = ให้ Wan พูดไทยเองจาก thai_script (ไม่ส่ง audio TTS ทับ)
 
     Returns:
         dict: {
@@ -968,6 +1026,17 @@ def run_pipeline(
             video_prompts = [video_prompt]
             vid_prompt_duration = 0
             logger.info(f"Step 6/9: Skipped (using pre-computed video_prompt)")
+        elif not video_prompts and use_tus_voice and thai_script and thai_script.strip():
+            # ให้ Wan พูดไทยเองจาก thai_script → สร้าง video prompt ที่ฝังบทพูดจริง (ไม่ใช่ generic)
+            video_prompts = [
+                (
+                    "A Thai woman naturally speaks the following Thai lines aloud to camera "
+                    "while showing the product:\n"
+                    f"\"{thai_script.strip()}\""
+                )
+            ]
+            vid_prompt_duration = 0
+            logger.info(f"Step 6/9: สร้าง video_prompt จาก thai_script (Wan พูดไทยเอง): {thai_script.strip()[:60]}...")
         elif not video_prompts:
             # NO hardcoded generic prompt. This exact fallback is what produced
             # the "speaks Vietnamese/gibberish" raw video (a generic English prompt
@@ -1035,8 +1104,14 @@ def run_pipeline(
             image_path=str(img_path),
             prompt=vprompt,
             duration=total_duration,
-            audio_path=voice_path,
+            # ให้ Wan พูดเอง → ไม่ส่ง TTS ทับ lip-sync
+            audio_path=voice_path if not use_tus_voice else None,
             negative_prompt=negative_prompt,
+            reference_image=reference_image or None,
+            first_frame=first_frame or None,
+            last_frame=last_frame or None,
+            thai_script=thai_script,
+            use_tus_voice=use_tus_voice,
         )
         video_paths.append(vid_path)
         
@@ -1074,7 +1149,9 @@ def run_pipeline(
         else:
             # Fallback: requested duration, then recipe default
             final_duration = total_duration if total_duration > 0 else recipe.get("total_duration", 0)
-        final_path, raw_path = compose_video(video_paths, voice_path, run_id, bgm_style, target_duration=final_duration)
+        # ถ้าให้ Wan พูดเอง → ไม่เอา TTS voiceover มา compose ทับอีก (เสียงอยู่ในคลิปแล้ว)
+        compose_voice = None if use_tus_voice else voice_path
+        final_path, raw_path = compose_video(video_paths, compose_voice, run_id, bgm_style, target_duration=final_duration)
 
         # Preserve the TRUE Prodia output (before any compose/edit) permanently.
         # raw_path = affiliate_{run_id}_raw.mp4 is a POST-compose concat output.

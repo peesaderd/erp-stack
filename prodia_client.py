@@ -145,11 +145,16 @@ class ProdiaV2Client:
             ("job", ("job.json", json.dumps(job_payload), "application/json")),
         ]
         if has_inputs:
-            # Prodia async **requires multipart field `input`** for the image
-            # (field `image` → "input image is required"). `input` = first frame.
+            # Prodia async requires multipart field `input` for the image bytes,
+            # AND config["image"] must reference that filename so Wan 2.7 knows it
+            # is the first frame (per docs: config.image = first_frame).
+            # Match config["image"] to the multipart filename.
             for i, img_bytes in enumerate(inputs):
-                files.append(("input", (f"input_{i}.png", img_bytes, "image/png")))
-                logger.info(f"  first_frame(input): {len(img_bytes)} bytes multipart")
+                fname = f"input_{i}.png"
+                files.append(("input", (fname, img_bytes, "image/png")))
+                if i == 0:
+                    config["image"] = fname  # first frame for img2vid
+                logger.info(f"  first_frame(input): {len(img_bytes)} bytes multipart + config.image={fname}")
         if has_audio:
             # Auto-detect WAV vs MP3 header for Prodia Lip-sync compatibility
             if audio.startswith(b"RIFF"):

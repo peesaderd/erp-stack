@@ -1028,15 +1028,27 @@ def run_pipeline(
             logger.info(f"Step 6/9: Skipped (using pre-computed video_prompt)")
         elif not video_prompts and use_tus_voice and thai_script and thai_script.strip():
             # ให้ Wan พูดไทยเองจาก thai_script → สร้าง video prompt ที่ฝังบทพูดจริง (ไม่ใช่ generic)
+            # + บรรยายลำดับฉาก (scene-by-scene) ให้ Wan ใช้ image เป็นแนวทางเปลี่ยนฉาก
+            # (first frame = ฉากเปิด, last frame = ฉากจบ; prompt สั่งให้ขยับผ่านฉากกลาง)
+            scene_guide = (
+                "Compose a smooth multi-scene transition through 3 beats using the image(s) as keyframes: "
+                "BEAT 1 — open on the woman holding the underarm cream product toward camera; "
+                "BEAT 2 — she squeezes cream onto her palm and begins applying; "
+                "BEAT 3 — she raises her arm to reveal a bright smooth underarm, product beside her. "
+                "Keep the same woman and product in every beat; natural flowing motion between beats; "
+                "speak the Thai lines naturally and continuously throughout."
+            )
             video_prompts = [
                 (
                     "A Thai woman naturally speaks the following Thai lines aloud to camera "
-                    "while showing the product:\n"
+                    "while going through the full scene transition:\n"
+                    f"{scene_guide}\n\n"
+                    "Thai script to speak aloud:\n"
                     f"\"{thai_script.strip()}\""
                 )
             ]
             vid_prompt_duration = 0
-            logger.info(f"Step 6/9: สร้าง video_prompt จาก thai_script (Wan พูดไทยเอง): {thai_script.strip()[:60]}...")
+            logger.info(f"Step 6/9: video_prompt ฝังบทไทย + บรรยาย 3 ฉาก (first→mid→last): {thai_script.strip()[:50]}...")
         elif not video_prompts:
             # NO hardcoded generic prompt. This exact fallback is what produced
             # the "speaks Vietnamese/gibberish" raw video (a generic English prompt

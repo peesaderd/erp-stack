@@ -161,6 +161,22 @@ def get_template(code: str):
 
 # ── Clothing ──────────────────────────────────────────
 
+@app.get("/api/passport/options")
+def get_all_options():
+    """All options in one call: countries, clothing (both genders), backgrounds."""
+    from clothing import list_clothing as _list_clothing, list_backgrounds as _list_bg
+    engine = _get_template_engine()
+    return {
+        "ok": True,
+        "templates": engine.get_all(),
+        "clothing": {
+            "male": _list_clothing("male"),
+            "female": _list_clothing("female"),
+        },
+        "backgrounds": _list_bg(),
+    }
+
+
 @app.get("/api/passport/clothing")
 def list_clothing(gender: str = "male"):
     from clothing import list_clothing as _list
@@ -170,6 +186,44 @@ def list_clothing(gender: str = "male"):
 def list_backgrounds():
     from clothing import list_backgrounds as _list
     return {"ok": True, "options": _list()}
+
+
+@app.post("/api/passport/preview")
+async def preview_photo(req: GenerateRequest):
+    """Fast preview: client-side bg simulation is used for instant feedback; this endpoint
+    validates the image + returns face/screenshot check WITHOUT burning a FLUX credit.
+    Returns pass/fail + metadata so the UI can show a live preview badge."""
+    from ai_passport import is_ui_screenshot
+    import io as _io
+    try:
+        img_bytes = base64.b64decode(req.image_base64)
+    except Exception:
+        raise HTTPException(400, "Invalid base64")
+    arr = np.frombuffer(img_bytes, np.uint8)
+    bgr = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    if bgr is None:
+        raise HTTPException(400, "Cannot decode image")
+    rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+    is_ss, reason = is_ui_screenshot(rgb)
+    try:
+        from ai_passport import detect_face
+        face = detect_face(rgb)
+        face_info = None
+        if face is not None:
+            x, y, w, h = face
+            face_info = {
+                "x": int(x), "y": int(y), "w": int(w), "h": int(h),
+                "headspace_pct": round(y / rgb.shape[0] * 100, 1),
+            }
+    except Exception:
+        face_info = None
+    return {
+        "ok": True,
+        "is_screenshot": is_ss,
+        "screenshot_reason": reason if is_ss else None,
+        "face": face_info,
+        "size": {"w": rgb.shape[1], "h": rgb.shape[0]},
+    }
 
 
 # ── Gender Detection ──────────────────────────────────

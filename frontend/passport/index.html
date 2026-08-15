@@ -28,6 +28,9 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#0f172a;min-height:
 .step .lb{font-size:.7rem;font-weight:600;color:#64748b;white-space:nowrap}
 .step.active .lb{color:#fff}
 .step.done .lb{color:#10b981}
+.step.locked{cursor:not-allowed;opacity:.45}
+.step.locked:hover .num{border-color:#334155}
+.step.locked .lb{color:#475569}
 .step-line{width:40px;height:2px;background:#334155;flex-shrink:0}
 .step-line.done{background:#10b981}
 /* ── Page ── */
@@ -55,10 +58,11 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#0f172a;min-height:
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
 @media(max-width:900px){.grid2{grid-template-columns:1fr}}
 .pv-wrap{position:sticky;top:80px}
-@media(max-width:900px){.pv-wrap{position:static}}
-.pv-box{aspect-ratio:3/4;max-height:480px;margin:0 auto;border-radius:12px;overflow:hidden;background:#f1f5f9;display:flex;align-items:center;justify-content:center;border:3px solid #e2e8f0;transition:.2s}
-.pv-box img{width:100%;height:100%;object-fit:cover;display:block}
-.pv-box .ph{color:#94a3b8;font-size:.8rem;text-align:center;padding:20px}
+@media(max-width:900px){.pv-wrap{position:static;display:flex;justify-content:center}}
+.pv-box{width:100%;max-width:320px;aspect-ratio:3/4;max-height:460px;margin:0 auto;border-radius:12px;overflow:hidden;background:#fff;display:flex;align-items:center;justify-content:center;border:2px solid #e2e8f0;transition:.2s;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.pv-box img{width:100%;height:100%;object-fit:contain;display:block}
+.pv-box .ph{color:#94a3b8;font-size:.78rem;text-align:center;padding:16px;line-height:1.6}
+@media(max-width:900px){.pv-box{max-width:230px;max-height:300px}}
 .pv-meta{display:flex;justify-content:center;gap:8px;margin-top:10px;flex-wrap:wrap}
 .pv-badge{font-size:.62rem;font-weight:600;padding:4px 10px;border-radius:12px;background:#f1f5f9;color:#475569}
 .opt-sec{margin-bottom:14px}
@@ -357,6 +361,7 @@ async function boot(){
     }
   }catch(e){console.error('Load data error:',e)}
   renderCountry();renderGenderTabs();renderClothes();renderBG();
+  setMaxStep(0);
   // Set Thai as default if available
   if(TD.length){
     var found=TD.filter(function(t){return t.code==='thai_passport'});
@@ -365,16 +370,21 @@ async function boot(){
 }
 
 /* ══════════ STEP NAV ══════════ */
+var MAX_STEP=0; // highest reachable step (0=upload only)
 function goStep(i){
+  // Lock: cannot jump to step 2 without photo, step 3 without result
+  if(i>MAX_STEP)return;
+  if(i===2&&!S.sid){toast('Generate a photo first','err');return}
   var panes=document.querySelectorAll('.pane');
   for(var p=0;p<panes.length;p++)panes[p].classList.remove('act');
   $('pane'+i).classList.add('act');
   var steps=document.querySelectorAll('.step');
   for(var s=0;s<steps.length;s++){
     var idx=parseInt(steps[s].dataset.idx);
-    steps[s].classList.remove('active','done');
+    steps[s].classList.remove('active','done','locked');
     if(idx<i)steps[s].classList.add('done');
     if(idx===i)steps[s].classList.add('active');
+    if(idx>MAX_STEP)steps[s].classList.add('locked');
     $('sn'+idx).textContent=idx<i?'✓':(idx+1);
   }
   for(var l=0;l<2;l++){
@@ -382,6 +392,15 @@ function goStep(i){
     if(line){line.className='step-line'+(l<i?' done':'');}
   }
   window.scrollTo(0,0);
+}
+function setMaxStep(i){
+  if(i>MAX_STEP)MAX_STEP=i;
+  // Refresh stepper lock states
+  var steps=document.querySelectorAll('.step');
+  for(var s=0;s<steps.length;s++){
+    var idx=parseInt(steps[s].dataset.idx);
+    steps[s].classList.toggle('locked',idx>MAX_STEP);
+  }
 }
 
 /* ══════════ UPLOAD ══════════ */
@@ -404,6 +423,7 @@ function handleFiles(files){
   else{S.photos=a.slice(0,20);S.photo=a[0];S.bulk=true}
   showUploaded();detectGender();
   $('next0').disabled=false;
+  setMaxStep(1);
 }
 
 function showUploaded(){
@@ -572,6 +592,7 @@ async function generate(){
     var d=await r.json();
     if(!d.ok)throw new Error(d.detail||'Generation failed');
     S.sid=d.session_id;
+    setMaxStep(2);
     showResult(d);
   }catch(e){
     console.error(e);
@@ -593,7 +614,10 @@ async function genBulk(){
     var d=await r.json();
     if(!d.ok)throw new Error(d.detail||'Generation failed');
     S.sid=d.results&&d.results[0]?d.results[0].session_id:null;
-    if(S.sid){$('ri').src=API+'/download/'+S.sid+'_passport.jpg?t='+Date.now()}
+    if(S.sid){
+      setMaxStep(2);
+      $('ri').src=API+'/download/'+S.sid+'_passport.jpg?t='+Date.now()
+    }
     showResult(d,true);
   }catch(e){console.error(e);toast('Error: '+e.message,'err')}finally{hideOv()}
 }
@@ -669,6 +693,7 @@ function newPhoto(){
 
 function clearAll(){
   S.photo=null;S.photos=[];S.bulk=false;S.sid=null;
+  MAX_STEP=0;
   $('fi').value='';
   $('drop').classList.remove('hidden');
   $('uploaded').classList.add('hidden');
@@ -677,6 +702,7 @@ function clearAll(){
   $('resEmpty').classList.remove('hidden');
   $('resBody').classList.add('hidden');
   updatePreview();
+  goStep(0);
 }
 
 /* ══════════ UTILS ══════════ */

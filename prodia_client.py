@@ -504,6 +504,148 @@ class ProdiaV2Client:
 
     # ────────────────────────────────────────────────────────────────────────
 
+    def upscale_image(
+        self,
+        input_image: bytes,
+        factor: int = 2,
+        job_type: str = "inference.upscale.v1",
+    ) -> dict:
+        """
+        Upscale image ผ่าน Prodia SYNC API (inference.upscale.v1)
+        
+        VALIDATED 2026-08-16:
+        - Endpoint: /v2/job (sync, NOT async)
+        - Multipart format (per prodia-js source):
+          - field "input" (file, mime image/jpeg, filename image.jpg)
+          - field "job" (JSON blob: {type, config})
+        - Response: multipart/form-data with parts "job" (JSON) + "output" (image bytes)
+        - Cost: $0.0010 (default-up2x v1)
+        - Duration: ~2s for 1344×768 → 2688×1536
+        
+        Args:
+            input_image: PNG/JPEG bytes
+            factor: 2, 4, or 8
+        
+        Returns:
+            dict: {
+                "job_id": str,
+                "output_bytes": bytes,    # upscaled JPEG
+                "output_url": None,        # sync API doesn't return URL, only bytes
+                "price": {...},
+                "metrics": {...}
+            }
+        """
+        import uuid as _uuid
+        from PIL import Image as _Image
+        import io as _io
+
+        endpoint = f"{self.base_url}/job"  # SYNC, not async
+        boundary = "----FormBoundary" + _uuid.uuid4().hex
+
+        # Convert PNG → JPEG if needed (prodia-js uses image/jpeg)
+        if input_image.startswith(b"\x89PNG"):
+            im = _Image.open(_io.BytesIO(input_image)).convert("RGB")
+            jpg_buf = _io.BytesIO()
+            im.save(jpg_buf, "JPEG", quality=95)
+            img_bytes = jpg_buf.getvalue()
+        else:
+            img_bytes = input_image
+
+        job_json = json.dumps({
+            "type": job_type,
+            "config": {"upscale": factor},
+        })
+
+        body = (
+            f"--{boundary}\r\n"
+            f"Content-Disposition: form-data; name=\"input\"; filename=\"image.jpg\"\r\n"
+            f"Content-Type: image/jpeg\r\n\r\n"
+        ).encode() + img_bytes + b"\r\n"
+        body += (
+            f"--{boundary}\r\n"
+            f"Content-Disposition: form-data; name=\"job\"; filename=\"job.json\"\r\n"
+            f"Content-Type: application/json\r\n\r\n"
+            f"{job_json}\r\n"
+            f"--{boundary}--\r\n"
+        ).encode()
+
+        logger.info(f"[Prodia] Upscale sync: {job_type} factor={factor}")
+
+        try:
+            resp = self._session.post(
+                endpoint,
+                data=body,
+                headers={
+                    "Content-Type": f"multipart/form-data; boundary={boundary}",
+                    "Accept": "multipart/form-data",
+                },
+                timeout=180,
+            )
+        except requests.exceptions.Timeout:
+            raise ProdiaV2Error("Prodia API timeout (upscale)")
+        except requests.exceptions.ConnectionError as e:
+            raise ProdiaV2Error(f"Prodia connection failed: {e}")
+
+        if resp.status_code != 200:
+            raise ProdiaV2Error(
+                f"Upscale failed ({resp.status_code}): {resp.text[:300]}"
+            )
+
+        # Parse multipart response
+        content_type = resp.headers.get("Content-Type", "")
+        if not content_type.startswith("multipart/form-data"):
+            raise ProdiaV2Error(f"Unexpected response type: {content_type}")
+
+        import re as _re
+        m = _re.search(r'boundary=([^;]+)', content_type)
+        if not m:
+            raise ProdiaV2Error(f"No boundary in response: {content_type}")
+        rb = m.group(1).strip().strip('"').encode()
+
+        # Parse multipart parts manually
+        parts = resp.content.split(b"--" + rb)
+        job_data = None
+        output_bytes = None
+        for p in parts:
+            head_end = p.find(b"\r\n\r\n")
+            if head_end < 0:
+                continue
+            head = p[:head_end]
+            data = p[head_end + 4:].rstrip(b"\r\n")
+            if b'name="job"' in head:
+                try:
+                    job_data = json.loads(data)
+                except Exception:
+                    pass
+            elif b'name="output"' in head:
+                output_bytes = data
+
+        if job_data is None:
+            raise ProdiaV2Error(f"No job data in response. parts={len(parts)}")
+
+        if job_data.get("state", {}).get("current") == "failed":
+            err = job_data.get("error", "unknown")
+            raise ProdiaV2Error(f"Upscale failed: {err}")
+
+        if output_bytes is None:
+            raise ProdiaV2Error(f"No output in response")
+
+        price = job_data.get("price", {})
+        metrics = job_data.get("metrics", {})
+        logger.info(
+            f"  Upscale OK: {len(output_bytes)} bytes, "
+            f"{price.get('dollars', '?')}$ ({price.get('product', '?')})"
+        )
+
+        return {
+            "job_id": job_data.get("id"),
+            "output_bytes": output_bytes,
+            "output_url": None,
+            "price": price,
+            "metrics": metrics,
+            "result_raw": job_data,
+        }
+
     def generate_image(
         self,
         prompt: str,

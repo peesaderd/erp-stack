@@ -163,6 +163,7 @@ async def run_full_pipeline(req: FullPipelineRequest):
                     "last_frame": req.last_frame or "",
                     "thai_script": req.thai_script or "",
                     "use_tus_voice": req.use_tus_voice,
+                    "audio": req.audio or "",
                 })
                 if vid_result.get("success"):
                     result_data = vid_result.get("result", {})

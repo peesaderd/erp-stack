@@ -399,6 +399,7 @@ async def generate_video(req: VideoRequest):
                 "last_frame": getattr(req, "last_frame", None) or "",
                 "thai_script": getattr(req, "thai_script", None) or "",
                 "use_tus_voice": getattr(req, "use_tus_voice", False),
+                "audio": getattr(req, "audio", None) or "",
             }, timeout=300.0)  # Video pipeline takes 90-180s
 
             if isinstance(affiliate_result, dict) and (affiliate_result.get("success") or affiliate_result.get("ok")):

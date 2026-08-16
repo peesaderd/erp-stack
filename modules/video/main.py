@@ -148,6 +148,8 @@ class VideoRequest(BaseModel):
     last_frame: Optional[str] = None
     thai_script: Optional[str] = None
     use_tus_voice: bool = False
+    # ── FL2V+Audio (Wan 2.7 start-end interpolation + 16kHz mono WAV lip-sync) ──
+    audio: Optional[str] = None  # path/URL ของไฟล์เสียง 16kHz mono WAV (Prodia lip-sync)
 
 class AffiliateScriptRequest(ScriptRequest):
     platforms: list[str] = []
@@ -312,6 +314,7 @@ async def generate_video(req: VideoRequest):
             last_frame=req.last_frame or "",
             thai_script=req.thai_script or "",
             use_tus_voice=req.use_tus_voice,
+            audio_path=req.audio or "",
 
         )
         return {"success": True, "result": result}

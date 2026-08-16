@@ -453,46 +453,31 @@ def _clean_product_name_for_video(product_name: str) -> str:
     return "product"
 
 
-# STEP 7: TTS (Gemini)
+# STEP 7: TTS (Gemini only — NO Edge TTS)
 # ═══════════════════════════════════════════════════════════════════════════
+# 2026-08-15: Edge TTS ถูกถอดออกจาก TUS แล้ว — ใช้ Gemini TTS อย่างเดียว
+# (เสียง Thai คุณภาพสูง + ไม่มี dependency กับ Microsoft endpoint)
 
 def generate_voice(
     text: str,
-    voice: str = "th-TH-PremwadeeNeural",
+    voice: str = "Aoede",
     run_id: str = "",
 ) -> str:
-    """Step 7: Generate Thai voice via EdgeTTS."""
-    logger.info(f"Step 7/9: TTS (Thai EdgeTTS)")
+    """Step 7: Generate Thai voice via Gemini TTS only. NO Edge TTS."""
+    logger.info(f"Step 7/9: TTS (Gemini — No Edge TTS)")
     logger.info(f"  Text: {text[:50]}...")
 
     output_path = str(TMP_DIR / f"voice_{run_id}.mp3")
-    
-    # Try EdgeTTS first for high quality Thai voice
-    try:
-        import edge_tts
-        import concurrent.futures
-        tts_voice = voice if voice and "th-TH" in voice else "th-TH-PremwadeeNeural"
-        async def _run_edge_tts():
-            comm = edge_tts.Communicate(text, tts_voice)
-            await comm.save(output_path)
-        # Run in a new thread to avoid event loop conflicts
-        with concurrent.futures.ThreadPoolExecutor() as pool:
-            loop = asyncio.new_event_loop()
-            pool.submit(loop.run_until_complete, _run_edge_tts()).result()
-        if Path(output_path).exists() and Path(output_path).stat().st_size > 1000:
-            logger.info(f"  EdgeTTS OK: {output_path}")
-            return output_path
-    except Exception as e:
-        logger.warning(f"EdgeTTS failed ({e}), trying fallback Gemini TTS")
 
     try:
-        from gemini_tts import gemini_text_to_speech
+        from video.gemini_tts import gemini_text_to_speech
         tts_path = gemini_text_to_speech(text, output_path=output_path, voice=voice)
         if tts_path and Path(tts_path).exists():
             logger.info(f"  Gemini TTS OK: {tts_path}")
             return tts_path
+        logger.error(f"  Gemini TTS returned empty path: {tts_path}")
     except Exception as e:
-        logger.error(f"Gemini TTS fallback failed: {e}")
+        logger.error(f"  Gemini TTS failed: {e}")
 
     return ""
 
@@ -579,27 +564,22 @@ def generate_video(
     if ref_bytes:
         logger.info(f"  ▶ reference_image: {len(ref_bytes)} bytes")
 
-    # Option A: do NOT send audio to Prodia for lip-sync (except when NOT use_tus_voice
-    # and TTS audio provided explicitly for lip-sync).
-    # Default path: ฝัง Thai script ลง prompt ให้ Wan ขยับปากเอง ไม่ส่ง audio ทับ
+    # Docs-exact lip-sync (VALIDATED 2026-08-15, job abf8a2b2):
+    # ส่ง TTS audio ให้ Wan เสมอเมื่อมีไฟล์เสียง (16k mono wav) — ขับปาก + ฝัง soundtrack
+    # เสียงจริงที่ user ได้ยิน = TTS+BGM ทับที่ compose Step 9b/9c (แทนที่ audio track)
     audio_bytes = None
-    if audio_path and not use_tus_voice:
+    if audio_path:
         ap = Path(audio_path)
         if ap.exists():
             with open(ap, "rb") as af:
                 audio_bytes = af.read()
-            logger.info(f"  🎤 Lip-Sync (TTS): {len(audio_bytes)} bytes — ส่ง audio ให้ Wan")
+            logger.info(f"  🎤 Lip-Sync (TTS): {len(audio_bytes)} bytes — ส่ง audio ให้ Wan (docs-exact)")
+        else:
+            logger.warning(f"  ⚠️ audio_path ไม่พบ: {audio_path} — ข้าม lip-sync")
 
-    # ── Thai script: ให้ Wan พูดไทยเอง (embed ลง prompt, ไม่ใช้ TTS lip-sync ทับ) ──
+    # ── Thai script: ห้ามฝังลง prompt (docs-exact — script ใน prompt = ปากพูดคนละแบบ)
+    # script ไปอยู่ที่ TTS อย่างเดียว (Step 7) แล้วทับที่ compose Step 9b
     final_prompt = prompt
-    if use_tus_voice and thai_script and thai_script.strip():
-        final_prompt = (
-            f"{prompt.strip()}. "
-            f"The person in the video clearly speaks the following Thai script aloud "
-            f"in natural Thai language, mouth moving in sync with the words: "
-            f"\"{thai_script.strip()}\""
-        )
-        logger.info(f"  🗣 ให้ Wan พูดไทยเอง: {thai_script.strip()[:60]}...")
 
     # ── Generate via shared client ──
     client = ProdiaV2Client(token=PRODIA_TOKEN())
@@ -645,10 +625,10 @@ def generate_video(
         file_size = result_path.stat().st_size
         logger.info(f"  Video OK ({file_size} bytes, {resolution}): {result_path}")
         logger.info(f"  Cost: ${cost_video:.4f}")
-        # Option A: no audio-driven lip-sync, so a missing audio track is EXPECTED
-        # (we merge the clean Thai TTS voiceover at compose Step 9). Just log it.
+        # Docs-exact: audio ส่งให้ Wan แล้ว → วิดีโอควรมี audio track (TTS ที่ส่งไป)
+        # ยังไง compose Step 9b ก็จะแทนที่ด้วย TTS+BGM อยู่ดี (กันเสียงสองชั้น)
         if not has_audio_track(str(result_path)):
-            logger.info("  Wan video has no audio track (expected — Thai TTS voiceover merged in compose Step 9)")
+            logger.info("  Wan video has no audio track (compose Step 9b จะใส่ TTS+BGM ให้)")
 
         return str(result_path), cost_video
     except Exception as e:
@@ -891,6 +871,7 @@ def run_pipeline(
     last_frame: Optional[str] = None,
     thai_script: Optional[str] = None,
     use_tus_voice: bool = False,
+    audio_path: Optional[str] = None,
     **kwargs,
 ) -> dict:
     """
@@ -914,7 +895,9 @@ def run_pipeline(
         reference_image: path/URL ของ reference image (ส่งให้ Wan เป็น reference)
         last_frame: path/URL ของ target last-frame image (Wan 2.7 start-end interpolation)
         thai_script: บทพูดภาษาไทยที่ให้ Wan พูดเองในคลิป (ไม่ใช้ TTS lip-sync ทับ)
-        use_tus_voice: True = ให้ Wan พูดไทยเองจาก thai_script (ไม่ส่ง audio TTS ทับ)
+        use_tus_voice: DEPRECATED (ทิศทางเก่า "ให้ Wan พูดเอง" ปิดแล้ว 2026-08-15) —
+            เก็บไว้รับค่า backward-compat เท่านั้น ไม่มีผลต่อ pipeline แล้ว
+            ทิศทางใหม่: ส่ง TTS audio ให้ Wan เสมอ (lip-sync) + TTS/BGM ทับที่ compose
 
     Returns:
         dict: {
@@ -1026,34 +1009,12 @@ def run_pipeline(
             video_prompts = [video_prompt]
             vid_prompt_duration = 0
             logger.info(f"Step 6/9: Skipped (using pre-computed video_prompt)")
-        elif not video_prompts and use_tus_voice and thai_script and thai_script.strip():
-            # ให้ Wan พูดไทยเองจาก thai_script → สร้าง video prompt ที่ฝังบทพูดจริง (ไม่ใช่ generic)
-            # + บรรยายลำดับฉาก (scene-by-scene) ให้ Wan ใช้ image เป็นแนวทางเปลี่ยนฉาก
-            # (first frame = ฉากเปิด, last frame = ฉากจบ; prompt สั่งให้ขยับผ่านฉากกลาง)
-            scene_guide = (
-                "Compose a smooth multi-scene transition through 3 beats using the image(s) as keyframes: "
-                "BEAT 1 — open on the woman holding the underarm cream product toward camera; "
-                "BEAT 2 — she squeezes cream onto her palm and begins applying; "
-                "BEAT 3 — she raises her arm to reveal a bright smooth underarm, product beside her. "
-                "Keep the same woman and product in every beat; natural flowing motion between beats; "
-                "speak the Thai lines naturally and continuously throughout."
-            )
-            video_prompts = [
-                (
-                    "A Thai woman naturally speaks the following Thai lines aloud to camera "
-                    "while going through the full scene transition:\n"
-                    f"{scene_guide}\n\n"
-                    "Thai script to speak aloud:\n"
-                    f"\"{thai_script.strip()}\""
-                )
-            ]
-            vid_prompt_duration = 0
-            logger.info(f"Step 6/9: video_prompt ฝังบทไทย + บรรยาย 3 ฉาก (first→mid→last): {thai_script.strip()[:50]}...")
         elif not video_prompts:
             # NO hardcoded generic prompt. This exact fallback is what produced
             # the "speaks Vietnamese/gibberish" raw video (a generic English prompt
             # with no Thai script went to Wan). Prompts MUST come from the
             # JSON-driven prompt-builder — break loudly instead of regressing.
+            # (docs-exact 2026-08-15: ห้ามฝัง script ลง prompt — ไปอยู่ TTS อย่างเดียว)
             raise ValueError(
                 "pipeline: video_prompts missing and no video_prompt supplied — "
                 "refusing hardcoded generic prompt; wire the prompt-builder output"
@@ -1116,8 +1077,9 @@ def run_pipeline(
             image_path=str(img_path),
             prompt=vprompt,
             duration=total_duration,
-            # ให้ Wan พูดเอง → ไม่ส่ง TTS ทับ lip-sync
-            audio_path=voice_path if not use_tus_voice else None,
+            # docs-exact: ส่ง TTS audio ให้ Wan เสมอ (lip-sync ขับปาก)
+            # override: ถ้า client �่ง audio_path มาใช้ของ client (FL2V+Audio path)
+            audio_path=_convert_to_wav(audio_path or voice_path) if (audio_path or voice_path) else None,
             negative_prompt=negative_prompt,
             # first+last start-end interpolation per Prodia docs
             # (ห้ามส่ง reference แยก — ทำให้ Prodia เอา reference เป็นภาพหลักแทน interpolation)
@@ -1163,8 +1125,8 @@ def run_pipeline(
         else:
             # Fallback: requested duration, then recipe default
             final_duration = total_duration if total_duration > 0 else recipe.get("total_duration", 0)
-        # ถ้าให้ Wan พูดเอง → ไม่เอา TTS voiceover มา compose ทับอีก (เสียงอยู่ในคลิปแล้ว)
-        compose_voice = None if use_tus_voice else voice_path
+        # เสียงจริง = TTS voiceover ทับที่ compose (docs-exact: TTS+BGM ที่ FFmpeg)
+        compose_voice = voice_path
         final_path, raw_path = compose_video(video_paths, compose_voice, run_id, bgm_style, target_duration=final_duration)
 
         # Preserve the TRUE Prodia output (before any compose/edit) permanently.

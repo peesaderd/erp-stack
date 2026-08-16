@@ -95,6 +95,8 @@ class VideoRequest(BaseModel):
     last_frame: Optional[str] = None
     thai_script: Optional[str] = None
     use_tus_voice: bool = False
+    # ── FL2V+Audio (forward ไป video-gen) ──
+    audio: Optional[str] = None  # path/URL ของไฟล์เสียง 16kHz mono WAV
 
 
 class VideoPostRequest(BaseModel):
@@ -152,6 +154,8 @@ class FullPipelineRequest(BaseModel):
     last_frame: Optional[str] = None
     thai_script: Optional[str] = None
     use_tus_voice: bool = False
+    # ── FL2V+Audio (forward ไป video-gen) ──
+    audio: Optional[str] = None  # path/URL ของไฟล์เสียง 16kHz mono WAV
 
 
 class ScrapeAndGenerateRequest(BaseModel):

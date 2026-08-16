@@ -32,7 +32,7 @@ from pydantic import BaseModel
 
 # Local imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from modules.image_triptych.pipeline import run_triptych
+from modules.image_triptych.pipeline import run_triptych, REMBG_MODELS
 
 # ─── Config ────────────────────────────────────────────────────────────────
 
@@ -50,6 +50,7 @@ class TriptychRequest(BaseModel):
     reference_image: str  # URL, path, or data:image/...;base64,...
     aspect_ratio: str = "16:9"
     rembg_panels: Optional[List[int]] = None
+    rembg_model: str = "birefnet-general-lite"  # see REMBG_MODELS
     use_realesrgan: bool = False  # off by default (CPU is slow)
 
 
@@ -92,8 +93,9 @@ def health():
     return {
         "status": "ok",
         "service": "image-triptych",
-        "version": "1.0.0",
+        "version": "1.1.0",
         "providers": ["prodia:nano-banana.img2img.v2", "local:realesrgan+lanczos", "local:rembg"],
+        "rembg_models": REMBG_MODELS,
     }
 
 
@@ -110,6 +112,7 @@ def generate(req: TriptychRequest):
             out_dir=str(out_dir),
             aspect_ratio=req.aspect_ratio,
             rembg_panels=req.rembg_panels,
+            rembg_model=req.rembg_model,
             use_realesrgan=req.use_realesrgan,
         )
     except Exception as e:

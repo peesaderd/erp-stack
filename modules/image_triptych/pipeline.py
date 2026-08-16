@@ -114,12 +114,30 @@ def cut_to_panels(img: Image.Image, n: int = 3) -> list:
     return panels
 
 
-# ─── REMBG (foreground only) ───────────────────────────────────────────────
+# ─── REMBG (multiple models) ───────────────────────────────────────────────
 
-def rembg(img: Image.Image) -> Image.Image:
-    """Background removal → RGBA, foreground=opaque, background=transparent."""
-    from rembg import remove
-    return remove(img.convert("RGB"))
+# Available rembg models (verified 2026-08-16, rembg==2.0.76)
+REMBG_MODELS = {
+    "u2net": "176 MB — general purpose, fast",
+    "u2netp": "4.7 MB — lightweight",
+    "silueta": "43 MB — general, sharper edges",
+    "isnet-general-use": "168 MB — high quality",
+    "birefnet-general": "973 MB — BiRefNet 2 (highest quality)",
+    "birefnet-general-lite": "224 MB — BiRefNet lite (fast + good)",
+    "sam": "375 MB — SAM ViT-B (segment anything, slow)",
+}
+
+
+def rembg(img: Image.Image, model: str = "birefnet-general-lite") -> Image.Image:
+    """Background removal → RGBA, foreground=opaque, background=transparent.
+
+    Args:
+        img: PIL Image (RGB).
+        model: rembg model name. Default 'birefnet-general-lite' (fast + good).
+    """
+    from rembg import remove, new_session
+    session = new_session(model)
+    return remove(img.convert("RGB"), session=session)
 
 
 # ─── Pipeline entry point ──────────────────────────────────────────────────
@@ -130,7 +148,8 @@ def run_triptych(
     out_dir: str,
     aspect_ratio: str = "16:9",
     rembg_panels: list = None,
-    use_realesrgan: bool = True,
+    rembg_model: str = "birefnet-general-lite",
+    use_realesrgan: bool = False,
 ) -> dict:
     """
     Full pipeline:
@@ -142,6 +161,7 @@ def run_triptych(
         out_dir: where to write outputs.
         aspect_ratio: "16:9" (default).
         rembg_panels: list of panel indices (1,2,3) to rembg; default = [1].
+        rembg_model: one of REMBG_MODELS; default = 'birefnet-general-lite'.
         use_realesrgan: try Real-ESRGAN first, fallback to Lanczos.
 
     Returns:
@@ -187,10 +207,10 @@ def run_triptych(
     # ── 4. REMBG requested panels ──────────────────────────────────────
     rembg_paths = {}
     if rembg_panels:
-        print(f"[4/4] REMBG panels: {rembg_panels}", flush=True)
+        print(f"[4/4] REMBG panels: {rembg_panels} (model={rembg_model})", flush=True)
         for idx in rembg_panels:
             p = panels[idx - 1]
-            rmbg = rembg(p)
+            rmbg = rembg(p, model=rembg_model)
             path = out_dir / f"panel_{idx}_rmbg.png"
             rmbg.save(path, "PNG")
             rembg_paths[idx] = str(path)
@@ -217,6 +237,9 @@ if __name__ == "__main__":
                     help="panel index(es) to rembg, can repeat (default: [1])")
     ap.add_argument("--no-realesrgan", action="store_true",
                     help="skip Real-ESRGAN, use Lanczos")
+    ap.add_argument("--rembg-model", default="birefnet-general-lite",
+                    choices=list(REMBG_MODELS.keys()),
+                    help="rembg model to use (default: birefnet-general-lite)")
     args = ap.parse_args()
 
     result = run_triptych(
@@ -225,6 +248,7 @@ if __name__ == "__main__":
         out_dir=args.out_dir,
         aspect_ratio=args.aspect_ratio,
         rembg_panels=args.rembg_panel,
+        rembg_model=args.rembg_model,
         use_realesrgan=not args.no_realesrgan,
     )
     print("\n=== RESULT ===")

@@ -115,14 +115,11 @@ async def mistral_tts(text: str, voice_id: str) -> bytes:
         raise HTTPException(status_code=resp.status_code, detail=resp.text)
 
 async def edge_tts(text: str, voice: str = "th-TH-PremwadeeNeural") -> bytes:
-    """Generate Thai speech using edge-tts."""
-    import edge_tts
-    communicate = edge_tts.Communicate(text, voice)
-    result = b""
-    async for chunk in communicate.stream():
-        if chunk["type"] == "audio":
-            result += chunk["data"]
-    return result
+    """NO Edge TTS (removed 2026-08-15) — ใช้ Gemini TTS อย่างเดียว.
+    คงฟังก์ชันไว้เป็น stub ที่ raise ชัดเจน กันโค้ดเก่าเรียกแล้วเงียบ."""
+    raise NotImplementedError(
+        "Edge TTS ถูกถอดออกจาก TUS แล้ว (2026-08-15) — ใช้ Gemini TTS ผ่าน video module (/api/v1/tts/generate)"
+    )
 
 # ── Endpoints ──────────────────────────────────────────────────────────────
 
@@ -223,12 +220,8 @@ async def list_voices():
     """List all available TTS voices."""
     return {
         "mistral": PRESET_VOICES,
-        "edge_tts": [
-            "th-TH-Premwadee (Thai female)",
-            "th-TH-Niwat (Thai male)",
-            "en-US-JennyNeural",
-            "en-US-GuyNeural",
-        ]
+        # NO Edge TTS (removed 2026-08-15) — ใช้ Gemini TTS ผ่าน video module
+        "note": "NO Edge TTS — ใช้ Gemini TTS ผ่าน /api/v1/tts/generate",
     }
 
 @router.post("/transcribe")
@@ -316,10 +309,5 @@ async def synthesize(req: TTSRequest):
             headers={"Content-Disposition": "inline; filename=speech.mp3"}
         )
     else:
-        # Fallback to edge-tts
-        audio_data = await edge_tts(req.text)
-        return Response(
-            content=audio_data,
-            media_type="audio/mpeg",
-            headers={"Content-Disposition": "inline; filename=speech.mp3"}
-        )
+        # NO Edge TTS (removed 2026-08-15) — ต้องมี voice_map ที่ถูกต้องเสมอ
+        raise HTTPException(status_code=400, detail=f"Unknown voice: {req.voice} — NO Edge TTS fallback (removed 2026-08-15)")

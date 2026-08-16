@@ -1150,3 +1150,51 @@
 
 </body>
 </html>
+<script>
+// ── Pull-to-Refresh for Mobile ──
+// ใช้ gesture swipe down ที่ขอบบนเพื่อ refresh หน้าปัจจุบัน
+(function() {
+  var ptr = document.createElement('div');
+  ptr.id = 'ptr-indicator';
+  ptr.style.cssText = 'position:fixed;top:-60px;left:0;right:0;z-index:9999;display:flex;align-items:center;justify-content:center;height:50px;background:var(--bg-primary);color:var(--text-secondary);font-size:13px;font-weight:600;transition:top .2s;border-bottom:1px solid var(--border-primary);-webkit-user-select:none;user-select:none;transform:translateY(-100%)';
+  ptr.textContent = '↓ ดึงเพื่อรีเฟรช';
+  document.body.appendChild(ptr);
+
+  var main = document.querySelector('.main');
+  if (!main) return;
+
+  var sy = 0, pulling = false, firstMoved = false;
+  main.addEventListener('touchstart', function(e) {
+    if (main.scrollTop <= 0) { sy = e.touches[0].clientY; pulling = true; firstMoved = false; }
+  }, {passive:true});
+
+  main.addEventListener('touchmove', function(e) {
+    if (!pulling) return;
+    var dy = e.touches[0].clientY - sy;
+    if (dy > 80 && !firstMoved) firstMoved = true;
+    if (firstMoved && dy > 80) {
+      ptr.style.top = Math.min(Math.max(dy - 60, -60), 0) + 'px';
+      ptr.textContent = dy >= 200 ? '↻ ปล่อยเพื่อรีเฟรช' : '↓ ดึงเพื่อรีเฟรช';
+    }
+  }, {passive:true});
+
+  main.addEventListener('touchend', function(e) {
+    if (!pulling) return;
+    var dy = e.changedTouches[0].clientY - sy;
+    pulling = false;
+    if (firstMoved && dy >= 200) {
+      ptr.textContent = '↻ กำลังรีเฟรช...';
+      ptr.style.top = '0';
+      var active = document.querySelector('.page.active');
+      if (active) {
+        var id = active.id;
+        if (id === 'page-publisher') { loadPublisherVideos(); loadPublisherQueue(); }
+        else if (typeof window['switchTab'] === 'function') { location.reload(); }
+      }
+      setTimeout(function() { ptr.style.top = '-60px'; }, 1200);
+    } else {
+      ptr.style.top = '-60px';
+    }
+  }, {passive:true});
+})();
+</script>

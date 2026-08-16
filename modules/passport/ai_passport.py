@@ -94,6 +94,26 @@ def _parse_multipart_response(resp_data: bytes, ct: str):
     return job_info, image_bytes
 
 
+def _compose_with_clothing(person: np.ndarray, clothing: np.ndarray) -> np.ndarray:
+    """Side-by-side composite: person on left, clothing reference on right.
+    Returns image with max dimension <= 1024 (FLUX input limit)."""
+    person_h, person_w = person.shape[:2]
+    cloth_h, cloth_w = clothing.shape[:2]
+    scale = person_h / cloth_h
+    cw2 = max(1, int(cloth_w * scale))
+    cloth_w2 = min(cw2, int(person_w * 0.6))  # keep clothing panel smaller than person
+    clothing_r = cv2.resize(clothing, (cloth_w2, person_h), interpolation=cv2.INTER_LANCZOS4)
+    canvas = np.full((person_h, person_w + cloth_w2 + 8, 3), 240, dtype=np.uint8)
+    canvas[:, :person_w] = person
+    canvas[:, person_w + 8:] = clothing_r
+    # Downscale to fit FLUX 1024 limit
+    h, w = canvas.shape[:2]
+    if max(h, w) > 1024:
+        s = 1024 / max(h, w)
+        canvas = cv2.resize(canvas, (int(w * s), int(h * s)), interpolation=cv2.INTER_LANCZOS4)
+    return canvas
+
+
 def flux_i2i(input_image: np.ndarray, prompt: str, strength: float = 0.30) -> np.ndarray:
     """
     Run FLUX i2i via Prodia API.
@@ -377,10 +397,13 @@ def generate_passport(
     bg_prompt: str = "soft light blue background",
     strength: float = 0.45,
     session_id: str = None,
+    custom_clothing_bytes: bytes = None,
 ) -> dict:
     """
     Generate passport photo source using Prodia FLUX i2i.
     Output: large image with headroom, NO crop. Crop is a separate step.
+    
+    custom_clothing_bytes: optional photo of the outfit the person should wear.
     """
     t0 = time.time()
     info = {}
@@ -403,9 +426,31 @@ def generate_passport(
     prepared = prepare_for_flux(original)
     info["prepared_size"] = [prepared.shape[1], prepared.shape[0]]
 
+    # Step 1.5: Optional custom clothing — composite side-by-side with person
+    custom_clothing = None
+    if custom_clothing_bytes:
+        try:
+            arr_c = np.frombuffer(custom_clothing_bytes, np.uint8)
+            bgr_c = cv2.imdecode(arr_c, cv2.IMREAD_COLOR)
+            if bgr_c is not None:
+                clothing_rgb = cv2.cvtColor(bgr_c, cv2.COLOR_BGR2RGB)
+                prepared = _compose_with_clothing(prepared, clothing_rgb)
+                info["custom_clothing"] = True
+                logger.info("Custom clothing reference composited side-by-side")
+        except Exception as e:
+            logger.warning(f"Custom clothing composite failed: {e}")
+
     # Step 2: FLUX i2i (generate at full size)
     logger.info("Step 2: FLUX i2i...")
-    prompt = build_prompt(clothing_prompt, bg_prompt)
+    if custom_clothing:
+        prompt = build_prompt(
+            "the person is wearing the exact outfit shown in the reference image on the right side, "
+            "match the clothing style, colors and details precisely, "
+            "the reference panel itself must not appear in the final photo",
+            bg_prompt,
+        )
+    else:
+        prompt = build_prompt(clothing_prompt, bg_prompt)
     generated = flux_i2i(prepared, prompt, strength)
     info["flux_size"] = [generated.shape[1], generated.shape[0]]
 

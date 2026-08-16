@@ -320,7 +320,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#0f172a;min-height:
 <script>
 /* ══════════ STATE ══════════ */
 var API='/api/passport';
-var S={photo:null,photos:[],bulk:false,gender:'male',clothing:'keep_original',bg:'light_blue',bgType:'solid',gradient:null,bgc:null,tpl:'thai_passport',cw:null,ch:null,sid:null,cropPreset:'standard'};
+var S={photo:null,photos:[],bulk:false,gender:'male',clothing:'keep_original',bg:'light_blue',bgType:'solid',gradient:null,bgc:null,tpl:'thai_passport',cw:null,ch:null,sid:null,cropPreset:'standard',customClothing:null,customClothingUrl:null,customClothingName:null};
 var CD={male:[],female:[]},BD=[],TD=[];
 var FLAGS={Thailand:'🇹🇭',Japan:'🇯🇵',China:'🇨🇳','South Korea':'🇰🇷','United States':'🇺🇸','United Kingdom':'🇬🇧','European Union':'🇪🇺',Canada:'🇨🇦',Australia:'🇦🇺',India:'🇮🇳',Singapore:'🇸🇬',Malaysia:'🇲🇾',Philippines:'🇵🇭',Indonesia:'🇮🇩',Vietnam:'🇻🇳',Cambodia:'🇰🇭',Laos:'🇱🇦',Myanmar:'🇲🇲','Hong Kong':'🇭🇰',France:'🇫🇷',Germany:'🇩🇪'};
 var SOLID_COLORS=[
@@ -508,6 +508,14 @@ function renderClothes(){
   var d=S.gender==='male'?CD.male:CD.female;
   if(!d||!d.length){$('cl').innerHTML='<div style="padding:12px;color:#94a3b8;font-size:.72rem">No data</div>';return}
   var h='';
+  // Custom clothing upload card (always first)
+  h+='<div class="citem'+(S.customClothing?' on':'')+'" data-k="__custom__" onclick="pickCustomClothing()" style="border-style:dashed;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#fafbff">';
+  h+='<div style="font-size:20px;color:#6366f1;margin-top:18px">👚</div>';
+  h+='<div class="lb" style="color:#6366f1;font-weight:700">เพิ่มชุดเอง</div>';
+  if(S.customClothing){
+    h+='<img src="'+S.customClothingUrl+'" style="width:100%;height:60px;object-fit:cover;border-radius:0 0 8px 8px;margin-top:auto">';
+  }
+  h+='<div class="ck">✓</div></div>';
   for(var i=0;i<d.length;i++){
     var c=d[i];
     h+='<div class="citem'+(c.key===S.clothing?' on':'')+'" data-k="'+c.key+'" onclick="setClothes(\''+c.key+'\')">';
@@ -517,8 +525,25 @@ function renderClothes(){
   }
   $('cl').innerHTML=h;
 }
+function pickCustomClothing(){
+  var inp=document.createElement('input');
+  inp.type='file';inp.accept='image/jpeg,image/png';
+  inp.onchange=function(){
+    var f=inp.files&&inp.files[0];
+    if(!f)return;
+    S.customClothing=f;
+    S.customClothingUrl=URL.createObjectURL(f);
+    S.customClothingName=f.name;
+    S.clothing='__custom__';
+    toast('👚 ใส่ชุดนี้ให้','');
+    renderClothes();
+  };
+  inp.click();
+}
 function setClothes(k){
   S.clothing=k;
+  if(k==='__custom__'){pickCustomClothing();return}
+  if(k!=='__custom__'){/* keep S.customClothing so user can toggle back */}
   var items=$('cl').querySelectorAll('.citem');
   for(var j=0;j<items.length;j++)items[j].classList.remove('on');
   var el=$('cl').querySelector('.citem[data-k="'+k+'"]');
@@ -597,6 +622,7 @@ async function generate(){
     if(S.bgc)body.background_color=S.bgc;
     if(S.gradient)body.background_gradient=S.gradient;
     if(S.cw&&S.ch){body.custom_width=S.cw;body.custom_height=S.ch}
+    if(S.customClothing){body.custom_clothing_base64=await toB64(S.customClothing)}
     var r=await fetch(API+'/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     var d=await r.json();
     if(!d.ok)throw new Error(d.detail||'Generation failed');
@@ -702,6 +728,7 @@ function newPhoto(){
 
 function clearAll(){
   S.photo=null;S.photos=[];S.bulk=false;S.sid=null;
+  S.customClothing=null;S.customClothingUrl=null;S.customClothingName=null;
   MAX_STEP=0;
   $('fi').value='';
   $('drop').classList.remove('hidden');

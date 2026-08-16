@@ -104,6 +104,7 @@ class GenerateRequest(BaseModel):
     strength: float = 0.45         # FLUX i2i strength
     crop_preset: str = "standard"  # "standard" | "compact" | "relaxed"
     print_size: str = "4x6"        # "4x6" | "5x7" | "a6" | "a4"
+    custom_clothing_base64: Optional[str] = None  # user's own outfit photo
 
 class BulkGenerateRequest(BaseModel):
     images: list  # list of base64 strings
@@ -276,6 +277,14 @@ async def generate_passport_v2(req: GenerateRequest):
     clothing = get_clothing(gender, req.clothing)
     bg = get_background(req.background)
 
+    # Decode custom clothing if provided
+    custom_clothing_bytes = None
+    if req.custom_clothing_base64:
+        try:
+            custom_clothing_bytes = base64.b64decode(req.custom_clothing_base64)
+        except Exception:
+            logger.warning("Invalid custom_clothing_base64, ignoring")
+
     # Background color/gradient override
     bg_color = req.background_color
     bg_gradient = req.background_gradient
@@ -294,6 +303,7 @@ async def generate_passport_v2(req: GenerateRequest):
         bg_prompt=bg_prompt,
         strength=req.strength,
         session_id=session_id,
+        custom_clothing_bytes=custom_clothing_bytes,
     )
 
     if not result["ok"]:
@@ -363,6 +373,7 @@ async def generate_passport_v2(req: GenerateRequest):
         "gender": gender,
         "gender_info": gender_info,
         "clothing": clothing["name"],
+        "custom_clothing": custom_clothing_bytes is not None,
         "background": bg["name"],
         "print_info": print_info,
         "crop_info": crop_info,

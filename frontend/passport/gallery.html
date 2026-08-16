@@ -27,24 +27,24 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#0f172a;min-height:
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
 @media(max-width:1000px){.grid{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:700px){.grid{grid-template-columns:repeat(2,1fr);gap:10px}}
-/* ── Card ── */
-.card{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:16px;overflow:hidden;transition:all .25s;cursor:pointer;position:relative;backdrop-filter:blur(8px)}
-.card:hover{transform:translateY(-4px);border-color:rgba(129,140,248,.5);box-shadow:0 12px 32px rgba(0,0,0,.35);background:rgba(255,255,255,.1)}
-.card img{width:100%;aspect-ratio:3/4;object-fit:cover;display:block;background:#1e293b;transition:transform .3s}
+/* ── Card (light like Home) ── */
+.card{background:#fff;border:1px solid rgba(226,232,240,.9);border-radius:16px;overflow:hidden;transition:all .25s;cursor:pointer;position:relative;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.card:hover{transform:translateY(-4px);border-color:#6366f1;box-shadow:0 12px 32px rgba(0,0,0,.3)}
+.card img{width:100%;aspect-ratio:3/4;object-fit:cover;display:block;background:#f1f5f9;transition:transform .3s}
 .card:hover img{transform:scale(1.03)}
 .card .info{padding:10px 12px}
-.card .id{font-size:.68rem;font-weight:700;color:#a5b4fc;word-break:break-all;font-family:monospace}
-.card .meta{font-size:.6rem;color:#64748b;margin-top:3px}
+.card .id{font-size:.68rem;font-weight:700;color:#6366f1;word-break:break-all;font-family:monospace}
+.card .meta{font-size:.6rem;color:#94a3b8;margin-top:3px}
 .card .actions{display:flex;gap:6px;padding:0 12px 12px}
 .btn{padding:6px 8px;border:none;border-radius:8px;font-size:.62rem;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:3px;flex:1;justify-content:center;transition:.2s;white-space:nowrap}
 .btn.dl{background:linear-gradient(135deg,#10b981,#059669);color:#fff}
 .btn.print{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff}
 .btn.del{background:rgba(239,68,68,.15);color:#f87171;flex:0 0 auto;padding:6px 10px}
 .btn:hover{filter:brightness(1.15);transform:translateY(-1px)}
-/* Selection */
-.card .sel-check{position:absolute;top:10px;right:10px;width:24px;height:24px;border-radius:50%;border:2px solid rgba(255,255,255,.6);background:rgba(15,23,42,.6);cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:5;transition:.2s;font-size:12px;color:#fff}
-.card .sel-check:hover{border-color:#818cf8;background:rgba(99,102,241,.4)}
-.card .sel-check.checked{background:#6366f1;border-color:#6366f1;color:#fff;box-shadow:0 0 0 3px rgba(99,102,241,.3)}
+/* Selection (light card) */
+.card .sel-check{position:absolute;top:10px;right:10px;width:24px;height:24px;border-radius:50%;border:2px solid #cbd5e1;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:5;transition:.2s;font-size:12px;color:#fff;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.card .sel-check:hover{border-color:#818cf8}
+.card .sel-check.checked{background:#6366f1;border-color:#6366f1;color:#fff;box-shadow:0 0 0 3px rgba(99,102,241,.25)}
 /* Empty / Loading */
 .empty{text-align:center;padding:60px 16px;color:#64748b}
 .empty .ic{font-size:3rem;margin-bottom:12px;opacity:.5}

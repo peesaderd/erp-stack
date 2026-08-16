@@ -12,10 +12,11 @@ label: "Talking Head — พูดหน้ากล้อง"
 generation:
   job_type: wan2-7.img2vid.v1
   needs_audio: true                    # KEY: ต้องส่ง audio_bytes → lip-sync
-  audio_field: audio                   # multipart field name
+  audio_field: audio                   # docs-exact: input part + config ref (VALIDATED 08-15)
+  prompt_extend: false                 # ปิด — physical เพี้ยนเมื่อเปิด (VALIDATED 08:02)
   image_requirement: person_with_product  # รูปต้องมีคน + สินค้า
   image_model: nano-banana             # สร้างรูปคนก่อน → img2img
-  negative_prompt: "deformed face, extra fingers, blurry, low quality, text watermark"
+  negative_prompt: "low resolution, error, worst quality, deformed"
 
 # ═══════════════════════════════════════════════════════
 # Scene Prompts — {product} และ {variations} inject ตอน runtime

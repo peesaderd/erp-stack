@@ -1,0 +1,132 @@
+# 🎬 Multi-Beat Cutscene — 4-Beat UGC Pipeline Template v2 (VALIDATED 2026-08-15)
+# Wan 2.7 img2vid, docs-exact lip-sync pattern (VALIDATED job abf8a2b2):
+#   - ส่ง audio (TTS 16k) ให้ Wan → ปากขยับตามเสียง (ครั้งแรกที่สำเร็จ)
+#   - prompt สั้น ภาษาบวก ไม่มี script, ไม่มี do/not/never
+#   - prompt_extend: false (ตัวการทำให้ physical เพี้ยน — user ยืนยัน 08:02)
+#   - ทุกไฟล์เป็น input parts + config อ้างชื่อไฟล์ (docs guide pattern)
+# 4 beat: ถือสินค้า → action → result/sensory → end scene (FLF2V: first+last keyframes)
+# Beat 2,3 ไม่เน้นสินค้า — action/result สากล (ใช้ได้ทุกสินค้า: เทน้ำยา/ทาครีม/ดมผ้า/ยิ้ม)
+# เสียงจริง: TTS + BGM ใส่ทับที่ FFmpeg compose (ไม่พึ่งเสียงในคลิป Wan)
+
+name: multi_beat_cutscene
+description: "Wan 2.7 4-beat cutscene — docs-exact lip-sync (audio→Wan) + TTS/BGM overlay at compose, prompt_extend off"
+emoji: 🎬
+label: "Multi-Beat Cutscene v2 — 4 จังหวะ Lip-Sync (docs-exact)"
+
+# ═══════════════════════════════════════════════════════
+# Generation Config
+# ═══════════════════════════════════════════════════════
+generation:
+  job_type: wan2-7.img2vid.v1
+  needs_audio: true                    # ✅ ส่ง audio (TTS 16k) ให้ Wan — lip-sync (VALIDATED abf8a2b2)
+  audio_field: audio                   # config.audio = filename ref (docs-exact)
+  prompt_extend: false                 # ❌ ปิด — ทำให้ physical เพี้ยน (user ยืนยัน 08:02)
+  image_requirement: person_with_product
+  image_model: nano-banana
+  negative_prompt: "low resolution, error, worst quality, deformed"
+  # กฎ negative (user 05:35): ไม่มี text/watermark/logo/UI overlay — ใส่แค่ quality terms
+
+# ═══════════════════════════════════════════════════════
+# Scene Prompts — 4 BEAT cut-scene (สั้น บวก ไม่มี script)
+# ตัวแปร {product} {model} {lighting} {background} {action_verb} {sensory} inject ตอน runtime
+# ⚠️ KEY: prompt สั้น — ไม่สั่งเยอะ (Wan ตาม packaging รายละเอียดเยอะไม่ทัน → เพี้ยน)
+# ⚠️ KEY: ไม่มี script ไทยใน prompt (script ไปอยู่ TTS อย่างเดียว — ตัวทำลาย sync)
+# ⚠️ KEY: ไม่มีรายละเอียดฝา/ปากขวด/ลวดลาย (reference image carry identity)
+# ═══════════════════════════════════════════════════════
+scene_prompts:
+  beat1: |
+    BEAT 1: {model} holding the {product} toward the camera in {background}, {lighting}
+
+  beat2: |
+    BEAT 2: she {action_verb} naturally, same room, {lighting}
+
+  beat3: |
+    BEAT 3: she {sensory}, a soft happy smile, same room, {lighting}
+
+  beat4: |
+    BEAT 4: {model} with the {product} beside her, freshly washed colourful clothes hanging
+    to dry on a rack behind her, matching the last image, {lighting}
+
+# ═══════════════════════════════════════════════════════
+# Prompt Assembly — สั้น ภาษาบวก ไม่มี do/not/never, ไม่มี script
+# ═══════════════════════════════════════════════════════
+prompt_assembly: |
+  A smooth cut-scene video through 4 beats, the same young Thai woman and the same room throughout.
+
+  {beat1}
+
+  {beat2}
+
+  {beat3}
+
+  {beat4}
+
+  She speaks naturally with subtle head movement, holding the product toward the camera.
+
+# ═══════════════════════════════════════════════════════
+# Variations — randomize ทุกครั้งที่ generate
+# ═══════════════════════════════════════════════════════
+variations:
+  lighting:
+    - soft natural window light
+    - bright daylight interior
+    - warm golden hour sunlight
+    - clean daylight indoor
+
+  background:
+    - modern bright home
+    - bright modern living room
+    - airy home interior with soft daylight
+
+  model:
+    - the young Thai woman age 23
+    - the same young Thai woman
+
+  # action/result สากล — ใช้ได้ทุกสินค้า (ไม่แตะรายละเอียดสินค้า)
+  action_verb:
+    - pours a small amount of the product onto her palm
+    - applies the product gently
+    - presses the product pump once
+    - opens the product and uses it naturally
+
+  sensory:
+    - brings her hand close to her face and inhales the fresh scent, closing her eyes
+    - lifts a freshly washed piece of clothing, inhales deeply and smiles
+    - smells the fresh fragrance on her wrist and smiles softly
+
+# ═══════════════════════════════════════════════════════
+# Video Generation Params
+# ═══════════════════════════════════════════════════════
+video_params:
+  duration: [15]                        # duration:15 → ได้ 15.02s จริง (VALIDATED 2026-08-15)
+  resolution: 720P
+  ratio: "9:16"
+  default_duration: 15
+  prompt_extend: false                  # ❌ ปิด — physical เพี้ยนเมื่อเปิด (VALIDATED 08:02)
+
+# ═══════════════════════════════════════════════════════
+# Keyframe Rules (FLF2V — first + last)
+# ═══════════════════════════════════════════════════════
+keyframes:
+  first: "shot_1 (ถือสินค้าในบ้าน)"
+  middle: "ไม่ส่งรูป — ใส่แค่ prompt (Wan รับแค่ 2 รูป)"
+  last: "shot_3 (ถือสินค้า หลังผ้าตาก)"
+  rule: "Beat กลาง ไม่ส่งรูป ใส่ prompt อย่างเดียว; beat4 ต้อง match last image"
+
+# ═══════════════════════════════════════════════════════
+# Audio / Lip-sync (docs-exact — VALIDATED 2026-08-15)
+# ═══════════════════════════════════════════════════════
+audio:
+  send_to_wan: true                     # ส่ง TTS 16k ให้ Wan ขับปาก (lip-sync)
+  wan_format: "wav 16k mono"            # _convert_to_wav ใน pipeline
+  prompt_script: false                  # ❌ ห้ามใส่ script ไทยใน prompt — ตัวทำลาย sync
+  final_overlay: true                   # ✅ เสียงจริง = TTS+BGM ทับที่ FFmpeg compose
+
+# ═══════════════════════════════════════════════════════
+# CTA Strategy
+# ═══════════════════════════════════════════════════════
+cta_strategy:
+  pool: [direct, social_proof, urgent]
+  position: end_of_video
+  max_length_chars: 60
+  note: "CTA อยู่ใน TTS (script) — ไม่ต้องใส่ใน prompt"

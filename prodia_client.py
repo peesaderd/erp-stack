@@ -135,8 +135,7 @@ class ProdiaV2Client:
             "type": job_type,
             "config": config,
         }
-        # NOTE: Don't set config["audio"] — async API auto-detects audio from multipart field name "audio"
-        # config.audio is for advanced routing (not needed for standard lip-sync)
+        # Docs-exact (VALIDATED 2026-08-15): config["audio"] = filename ref + ส่งเป็น input part
         if accept:
             job_payload["accept"] = accept
 
@@ -156,20 +155,24 @@ class ProdiaV2Client:
                     config["image"] = fname  # first frame for img2vid
                 logger.info(f"  first_frame(input): {len(img_bytes)} bytes multipart + config.image={fname}")
         if has_audio:
-            # Auto-detect WAV vs MP3 header for Prodia Lip-sync compatibility
+            # Docs-exact pattern (VALIDATED 2026-08-15, job abf8a2b2):
+            # ทุกไฟล์เป็น multipart field `input` + config อ้างชื่อไฟล์.
+            # (field แยก "audio" ไม่ใช่ pattern ของ docs — ส่งแบบนี้เสียงไม่เข้า lip-sync path)
             if audio.startswith(b"RIFF"):
                 audio_filename = "audio.wav"
                 audio_mime = "audio/wav"
             else:
                 audio_filename = "audio.mp3"
                 audio_mime = "audio/mpeg"
-            files.append(("audio", (audio_filename, audio, audio_mime)))
+            config["audio"] = audio_filename
+            files.append(("input", (audio_filename, audio, audio_mime)))
+            logger.info(f"  audio(input): {len(audio)} bytes multipart + config.audio={audio_filename}")
 
         if has_last_frame:
-            # Wan 2.7 start-end interpolation: last_frame แยก multipart field
+            # Wan 2.7 start-end interpolation: docs-exact pattern = input part + config ref
             config["last_frame"] = "last_frame.png"
-            files.append(("last_frame", ("last_frame.png", last_frame, "image/png")))
-            logger.info(f"  last_frame: {len(last_frame)} bytes multipart + config.last_frame=last_frame.png")
+            files.append(("input", ("last_frame.png", last_frame, "image/png")))
+            logger.info(f"  last_frame(input): {len(last_frame)} bytes multipart + config.last_frame=last_frame.png")
 
         if has_reference:
             # reference image — Wan 2.7 img2vid ไม่มี field แยกสำหรับ reference กลาง

@@ -8,10 +8,12 @@ label: "Holding Product — ถือสินค้าพูด"
 
 generation:
   job_type: wan2-7.img2vid.v1
-  needs_audio: false
+  needs_audio: true                    # ส่ง audio (TTS 16k) ให้ Wan — lip-sync
+  audio_field: audio
+  prompt_extend: false                 # ปิด — physical เพี้ยนเมื่อเปิด (VALIDATED 08:02)
   image_requirement: product_only
   image_model: nano-banana
-  negative_prompt: "deformed product, blurry, low quality, text watermark, distorted"
+  negative_prompt: "low resolution, error, worst quality, deformed"
 
 scene_prompts:
   hook: |

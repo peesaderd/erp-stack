@@ -433,46 +433,27 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
 
     if ugc_style in ("talking", "talking_head"):
         # Talking-head: presenter faces camera, upper body, clean background.
-        # The "scene" from category_mapping + the product-demo end-scene are
-        # written for a HAND-HELD product shot (e.g. "soft-lit dressing table",
-        # "medium shot, model admiring result") — those are wrong for a talking
-        # head and make Wan warp the frame. So talking uses its OWN framing and
-        # end (no "admiring result" arc) so Wan keeps the face forward and just
-        # moves the mouth/head subtly.
+        # Docs-exact pattern (VALIDATED 2026-08-15, job abf8a2b2):
+        #   - ห้ามใส่ script ไทยใน prompt — script ทำให้ Wan พูดของมันเอง ปากไม่ตรงเสียง
+        #   - prompt สั้น ภาษาบวก ไม่มี do/not/never
+        #   - เสียงขับปากมาจาก audio param (TTS 16k) ที่ pipeline ส่งให้ Wan
         talking_scene = (
             "presenting from a clean bright background, upper body, "
             "facing directly to the camera"
         )
-        # Option A: put the spoken Thai script DIRECTLY in the Wan video prompt.
-        # Prodia Wan 2.7 lip-sync from audio is unreliable, so instead of relying
-        # on audio we let Wan see the exact Thai text it should be reading, which
-        # drives mouth movement that matches the TTS Thai voiceover merged later.
-        # A short English description is kept so Wan knows what product to keep
-        # in frame (fixes "product vanishes in wide shots").
         _vp_product = _clean_product_name_for_video(product_name)
-        if script:
-            # Trim to a safe short chunk so the prompt stays readable; Wan reads
-            # this text to drive mouth motion.
-            _spoken = script.strip()
-            if len(_spoken) > 200:
-                _spoken = _spoken[:200]
-            start_part = (
-                f"{gender_en} presenting the cream sachet to the camera, reading "
-                f"the Thai message aloud, holding the product: '{_spoken}'."
-            )
-        else:
-            start_part = f"{gender_en} speaking naturally to the camera about {_vp_product}, Thai presenter style. {talking_scene}."
+        start_part = (
+            f"{gender_en} speaking naturally, subtle head movement, "
+            f"holding the {_vp_product} toward the camera, {talking_scene}"
+        )
         # Talking end: STOP talking and show the product.
-        # Replace the old "continues talking" (which made Wan ramble on after
-        # finishing the script) with an explicit stop + close mouth + hold product.
         end_part = (
-            "Face kept clear, then she finishes reading, stops talking, "
-            "closes her mouth, holds the product toward the camera, smiling."
+            "Face kept clear, then she finishes speaking, "
+            "holds the product toward the camera, smiling"
         )
         transition = ""
         # Mouth/head-only motion: keep face forward, avoid warping the frame.
-        # This does NOT rely on audio lip-sync anymore (audio sync is dropped)
-        # — it just tells Wan to keep subtle mouth/head motion while staying.
+        # Audio (not script) drives the mouth — audio param ส่งแยกที่ create_job.
         lipsync_part = (
             " subtle head movement, face kept clear and forward, "
             f"the product held still in front of the presenter"
@@ -802,7 +783,8 @@ def _estimate_speech_duration(text: str) -> float:
         non_thai_chars = 0
     # FIX (thai speaking-rate calibration): old rate 18 chars/sec over-estimated
     # how fast Thai is spoken, so duration came out too short and the resulting
-    # tts_speed came out too low (voice not sped up enough). Measured real EdgeTTS:
+    # tts_speed came out too low (voice not sped up enough). Measured (Gemini TTS,
+    # No Edge TTS — Edge ถูกถอดออก 2026-08-15):
     #   125 Thai chars -> 8.5s  (~14.7 c/s)
     #   172 Thai chars -> 11.0s (~15.5 c/s)
     # Average ~15. Use 14.5 c/s (slightly conservative) so estimated duration is a

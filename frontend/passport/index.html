@@ -165,7 +165,8 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#0f172a;min-height:
 .warn-box{margin-top:8px;padding:10px 12px;border-radius:8px;background:#fefce8;border:1px solid #fef08a;color:#a16207;font-size:.72rem;font-weight:500}
 .center{text-align:center}
 /* ── Bottom Nav ── */
-.bnav{position:fixed;bottom:0;left:0;right:0;background:rgba(15,23,42,.92);backdrop-filter:blur(12px);border-top:1px solid rgba(255,255,255,.08);display:flex;z-index:300;padding:4px 0 max(4px,env(safe-area-inset-bottom,4px));height:56px}
+.bnav{position:fixed;bottom:0;left:0;right:0;background:rgba(15,23,42,.92);backdrop-filter:blur(12px);display:flex;z-index:300;padding:4px 0 max(4px,env(safe-area-inset-bottom,4px));height:56px}
+.bnav::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.45) 18%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.45) 82%,transparent 100%);pointer-events:none;z-index:1}
 .bnav a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-decoration:none;color:#94a3b8;font-size:.6rem;font-weight:600;transition:.2s;-webkit-tap-highlight-color:transparent}
 .bnav a svg{width:20px;height:20px;stroke-width:1.8;fill:none;stroke:currentColor}
 .bnav a:hover{color:#a5b4fc}

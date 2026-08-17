@@ -38,6 +38,10 @@ PORT = int(os.environ.get("PORT", 8110))
 STORAGE_DIR = Path(__file__).parent / "storage" / "images"
 STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
+# Mirror to shared storage so nginx /storage/ alias can serve it
+SHARED_STORAGE_DIR = Path("/home/openhands/erp-stack/tiktok-ugc-studio/storage/images")
+SHARED_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+
 PRODIA_BASE = "https://inference.prodia.com"
 PRODIA_ASYNC = f"{PRODIA_BASE}/v2/job/async"
 PRODIA_SYNC = f"{PRODIA_BASE}/v2/job"
@@ -79,6 +83,12 @@ def _save(data: bytes, prefix: str = "prodia") -> str:
     path = STORAGE_DIR / filename
     with open(path, "wb") as f:
         f.write(data)
+    # Mirror to shared storage so nginx /storage/ alias can serve it
+    try:
+        import shutil
+        shutil.copy2(path, SHARED_STORAGE_DIR / filename)
+    except Exception as e:
+        logger.warning(f"Mirror to shared storage failed: {e}")
     return f"/storage/images/{filename}"
 
 
@@ -399,15 +409,40 @@ def get_active_model():
 async def generate_image(req: ImageGenRequest):
     logger.info(f"Image gen: {req.model} | {req.prompt[:60]}...")
 
-    if not req.inputImage:
-        raise HTTPException(status_code=400, detail="Missing input image for img2img")
+    if req.inputImage:
+        # img2img path — nano-banana anchored to reference image
+        return nano_banana_img2img(
+            prompt=req.prompt,
+            input_image=req.inputImage,
+            negative_prompt=req.negative_prompt or "",
+            aspect_ratio=req.aspectRatio or "9:16",
+        )
 
-    return nano_banana_img2img(
-        prompt=req.prompt,
-        input_image=req.inputImage,
-        negative_prompt=req.negative_prompt or "",
-        aspect_ratio=req.aspectRatio or "9:16",
+    # txt2img fallback — no reference image, use Flux 2 Dev
+    aspect = req.aspectRatio or "9:16"
+    cfg = {"prompt": req.prompt, "aspect_ratio": aspect}
+    if req.negative_prompt:
+        cfg["negative_prompt"] = req.negative_prompt
+    result_bytes = _call_prodia(
+        type_="inference.flux-2.dev.txt2img.v1",
+        config=cfg,
+        timeout=180,
     )
+    path = _save(result_bytes, prefix="flux")
+    cost = get_price_for_sync_image("flux-2.dev.txt2img.v1")
+    logger.info(f"  Txt2Img OK ({len(result_bytes)}B) | cost=${cost['dollars']}")
+    return {
+        "ok": True,
+        "images": [{"url": path, "full_url": f"http://localhost:{PORT}{path}"}],
+        "provider": "prodia",
+        "model": "flux-2.dev.txt2img.v1",
+        "cost": cost,
+    }
+
+# Backward-compatible alias for older clients that sent /api/v1/image/img2img
+@app.post("/api/v1/image/img2img")
+async def legacy_img2img(req: ImageGenRequest):
+    return await generate_image(req)
 
 
 @app.post("/api/v1/image/lipsync")

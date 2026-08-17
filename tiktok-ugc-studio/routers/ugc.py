@@ -204,7 +204,9 @@ async def ugc_images_generate(req: dict):
         gen_req["inputImage"] = req["image_url"]
     result = await _proxy("POST", "image-gen", "/api/v1/image/generate", gen_req)
     if result.get("ok"):
-        return result.get("data", {})
+        # image-gen returns the full image record directly (no envelope)
+        # Wrap it as {"data": <record>} so frontend can read data.images[0].url
+        return {"data": result}
     raise HTTPException(status_code=500, detail=result.get("error", "Image generation failed"))
 
 @router.post("/ugc/videos/build-prompt")

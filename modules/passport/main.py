@@ -620,11 +620,13 @@ async def multi_print(req: MultiPrintRequest):
     if len(req.session_ids) > 20:
         raise HTTPException(400, "Max 20 photos")
     
-    # Load all images
+    # Load all images — prefer cropped (35x45mm Thai passport), fall back to passport.jpg
     images = []
     dims = []
     for sid in req.session_ids:
-        path = STORAGE_DIR / f"{sid}_passport.jpg"
+        path = STORAGE_DIR / f"{sid}_cropped.jpg"
+        if not path.exists():
+            path = STORAGE_DIR / f"{sid}_passport.jpg"
         if not path.exists():
             raise HTTPException(404, f"Photo not found: {sid}")
         img = cv2.imread(str(path))

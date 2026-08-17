@@ -105,6 +105,12 @@ class GenerateRequest(BaseModel):
     crop_preset: str = "standard"  # "standard" | "compact" | "relaxed"
     print_size: str = "4x6"        # "4x6" | "5x7" | "a6" | "a4"
     custom_clothing_base64: Optional[str] = None  # user's own outfit photo
+    photo_count: int = 6           # total photos on print sheet (multi-sheet if > max)
+    border: str = "frame"          # "none" | "guidelines" | "frame"
+    blade_mode: bool = False
+    gap_mm: float = 2.0
+    border_color: str = "#FFFFFF"
+    border_width_mm: float = 3.0
 
 class BulkGenerateRequest(BaseModel):
     images: list  # list of base64 strings
@@ -127,13 +133,13 @@ class PrintSheetRequest(BaseModel):
     session_id: str
     print_size: str = "4x6"
     photo_size: str = "passport"  # "passport" | "25x35" | "30x40" | "50x50" | "50x70"
-    photo_count: int = 6           # 0 = auto
-    border: str = "none"           # "none" | "frame"
+    photo_count: int = 6           # 0 = auto, >0 = how many photos total. If > max per sheet, multi-sheet concat.
+    border: str = "none"           # "none" | "guidelines" | "frame" | "white"
     gap_mm: float = 2.0
     blade_mode: bool = False
     dpi: int = 300
     border_color: str = "#FFFFFF"
-    border_width_mm: float = 0.0
+    border_width_mm: float = 3.0   # default 3mm frame
 
 
 # ═══════════════════════════════════════════════════════════
@@ -348,16 +354,57 @@ async def generate_passport_v2(req: GenerateRequest):
             # Convert px to mm (assuming 300 DPI)
             mm_w = cw / 300 * 25.4
             mm_h = ch / 300 * 25.4
-            sheet = generate_print_sheet(
-                cropped, mm_w, mm_h,
-                req.print_size,
-                300, 2.0, True, 'frame', 2.0, False, 6, '#FFFFFF', 3.0
+
+            # Probe max per sheet
+            gap_mm = req.gap_mm if req.gap_mm else 2.0
+            if req.blade_mode:
+                gap_mm = max(gap_mm, 5.0)
+            probe = generate_print_sheet(
+                cropped, mm_w, mm_h, req.print_size, 300, gap_mm, True,
+                req.border, gap_mm, req.blade_mode, 0,
+                req.border_color, req.border_width_mm,
             )
-            if sheet.get("ok"):
-                sheet_bytes = _encode_image(sheet["result"])
+            if probe.get("ok"):
+                max_per_sheet = probe["info"]["max_count"]
+                requested = req.photo_count if req.photo_count and req.photo_count > 0 else max_per_sheet
+                if requested > max_per_sheet:
+                    sheets = []
+                    remaining = requested
+                    while remaining > 0:
+                        this_count = min(remaining, max_per_sheet)
+                        r = generate_print_sheet(
+                            cropped, mm_w, mm_h, req.print_size, 300, gap_mm, True,
+                            req.border, gap_mm, req.blade_mode, this_count,
+                            req.border_color, req.border_width_mm,
+                        )
+                        if r.get("ok"):
+                            sheets.append(r["result"])
+                        remaining -= this_count
+                    gap = 20
+                    total_h = sum(s.shape[0] for s in sheets) + gap * (len(sheets) - 1)
+                    total_w = max(s.shape[1] for s in sheets)
+                    combined = np.full((total_h, total_w, 3), 255, dtype=np.uint8)
+                    y = 0
+                    for s in sheets:
+                        combined[y:y + s.shape[0], :s.shape[1]] = s
+                        y += s.shape[0] + gap
+                    sheet_bytes = _encode_image(combined)
+                    probe["info"]["count"] = requested
+                    probe["info"]["max_count"] = max_per_sheet
+                    probe["info"]["sheets"] = len(sheets)
+                    probe["info"]["multi_sheet"] = True
+                else:
+                    sheet = generate_print_sheet(
+                        cropped, mm_w, mm_h, req.print_size, 300, gap_mm, True,
+                        req.border, gap_mm, req.blade_mode, requested,
+                        req.border_color, req.border_width_mm,
+                    )
+                    if sheet.get("ok"):
+                        sheet_bytes = _encode_image(sheet["result"])
+                        probe["info"]["multi_sheet"] = False
                 with open(STORAGE_DIR / f"{session_id}_print.jpg", "wb") as f:
                     f.write(sheet_bytes)
-                print_info = sheet["info"]
+                print_info = probe["info"]
     except Exception as e:
         logger.warning(f"Print sheet error: {e}")
 
@@ -479,14 +526,64 @@ async def print_sheet_v2(req: PrintSheetRequest):
         mm_h = current_h_mm
 
     from print_sheet import generate_print_sheet
-    result = generate_print_sheet(
-        img_rgb, mm_w, mm_h, req.print_size, dpi, req.gap_mm, True,
-        req.border, req.gap_mm, req.blade_mode, req.photo_count
-    )
-    if not result["ok"]:
-        raise HTTPException(400, result.get("error", "Print sheet failed"))
 
-    out_bytes = _encode_image(result["result"])
+    # First call to learn max_count per sheet
+    probe = generate_print_sheet(
+        img_rgb, mm_w, mm_h, req.print_size, dpi, req.gap_mm, True,
+        req.border, req.gap_mm, req.blade_mode, 0,  # 0 = auto-fill one sheet
+        req.border_color, req.border_width_mm,
+    )
+    if not probe["ok"]:
+        raise HTTPException(400, probe.get("error", "Print sheet failed"))
+    max_per_sheet = probe["info"]["max_count"]
+
+    requested = req.photo_count if req.photo_count and req.photo_count > 0 else max_per_sheet
+    if requested > max_per_sheet:
+        # Multi-sheet: concat vertically
+        sheets = []
+        remaining = requested
+        while remaining > 0:
+            this_count = min(remaining, max_per_sheet)
+            r = generate_print_sheet(
+                img_rgb, mm_w, mm_h, req.print_size, dpi, req.gap_mm, True,
+                req.border, req.gap_mm, req.blade_mode, this_count,
+                req.border_color, req.border_width_mm,
+            )
+            if not r["ok"]:
+                raise HTTPException(400, r.get("error", "Print sheet failed"))
+            sheets.append(r["result"])
+            remaining -= this_count
+        # Concat vertically with small gap
+        gap = 20
+        total_h = sum(s.shape[0] for s in sheets) + gap * (len(sheets) - 1)
+        total_w = max(s.shape[1] for s in sheets)
+        combined = np.full((total_h, total_w, 3), 255, dtype=np.uint8)
+        y = 0
+        for s in sheets:
+            combined[y:y + s.shape[0], :s.shape[1]] = s
+            y += s.shape[0] + gap
+        result_img = combined
+        info = {
+            **probe["info"],
+            "count": requested,
+            "max_count": max_per_sheet,
+            "sheets": len(sheets),
+            "multi_sheet": True,
+        }
+    else:
+        # Single sheet
+        result = generate_print_sheet(
+            img_rgb, mm_w, mm_h, req.print_size, dpi, req.gap_mm, True,
+            req.border, req.gap_mm, req.blade_mode, requested,
+            req.border_color, req.border_width_mm,
+        )
+        if not result["ok"]:
+            raise HTTPException(400, result.get("error", "Print sheet failed"))
+        result_img = result["result"]
+        info = result["info"]
+        info["multi_sheet"] = False
+
+    out_bytes = _encode_image(result_img)
     out_path = STORAGE_DIR / f"{req.session_id}_print.jpg"
     with open(out_path, "wb") as f:
         f.write(out_bytes)
@@ -495,7 +592,7 @@ async def print_sheet_v2(req: PrintSheetRequest):
         "ok": True,
         "session_id": req.session_id,
         "download_url": f"/api/passport/download/{req.session_id}_print.jpg",
-        "info": result["info"],
+        "info": info,
     }
 
 

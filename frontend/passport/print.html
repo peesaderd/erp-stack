@@ -151,7 +151,8 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#0f172a;min-height:
               </select>
             </div>
             <div class="pf"><label>Photos</label>
-              <input type="number" id="pc" value="6" min="1" max="20" onchange="updatePreview()" oninput="updatePreview()">
+              <input type="number" id="pc" value="6" min="1" max="200" onchange="updatePreview()" oninput="updatePreview()">
+              <div style="font-size:.62rem;color:#94a3b8;margin-top:3px">More than max/sheet = multi-sheet stacked</div>
             </div>
             <div class="pf"><label>Border</label>
               <select id="bt" onchange="updatePreview()">
@@ -159,6 +160,9 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#0f172a;min-height:
                 <option value="none">None</option>
                 <option value="frame">Frame</option>
               </select>
+            </div>
+            <div class="pf"><label>Border width (mm)</label>
+              <input type="number" id="bwmm" value="3" min="0" max="20" step="0.5" onchange="updatePreview()" oninput="updatePreview()">
             </div>
           </div>
           <div class="orient-btns">
@@ -419,6 +423,8 @@ async function generate(){
         border:document.getElementById('bt').value,
         blade_mode:document.getElementById('bm').checked,
         gap_mm:document.getElementById('bm').checked?5:3,
+        border_color:'#FFFFFF',
+        border_width_mm:parseFloat(document.getElementById('bwmm').value)||0,
       };
       var r2=await fetch(API+'/print-sheet',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(psBody)});
       var d2=await r2.json();
@@ -437,10 +443,10 @@ function showResult(d){
   var info=d.print_info||{};
   document.getElementById('infoBox').innerHTML=
     '<b>Size:</b> '+(info.print_size||'4x6')+'<br>'+
-    '<b>Photos:</b> '+(info.count||'?')+'<br>'+
+    '<b>Photos:</b> '+(info.count||'?')+(info.sheets?' ('+info.sheets+' sheets)':'')+'<br>'+
     '<b>Layout:</b> '+(info.cols||'?')+'×'+(info.rows||'?')+'<br>'+
     '<b>Photo:</b> '+(info.photo_mm?info.photo_mm.w+'×'+info.photo_mm.h+'mm':'?')+'<br>'+
-    '<b>Border:</b> '+(info.border||'guidelines');
+    '<b>Border:</b> '+(info.border||'guidelines')+(info.border_width_mm?' @ '+(info.border_width_mm||0)+'mm':'');
   toast('Print sheet ready!');
 }
 

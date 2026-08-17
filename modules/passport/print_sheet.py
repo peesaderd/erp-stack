@@ -317,6 +317,9 @@ def generate_multi_print_sheet(
         "border": border,
         "gap_mm": gap_mm,
         "blade_mode": blade_mode,
+        "sheet_pixels": {"w": sheet_w, "h": sheet_h},
+        "sheet_mm": {"w": sheet_w / dpi * 25.4, "h": sheet_h / dpi * 25.4},
+        "photo_mm": {"w": dims_mm[0][0] if dims_mm else 0, "h": dims_mm[0][1] if dims_mm else 0},
     }
     
     logger.info(f"Multi-print: {cols}x{rows}={placed}/{max_count} photos ({len(images)} unique x {copies} copies) on {print_size}")

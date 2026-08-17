@@ -150,6 +150,23 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#0f172a;min-height:
 .print-prev-grid{display:grid;gap:4px;background:#fff;padding:8px;border-radius:8px;border:1px solid #e2e8f0}
 .pp-cell{aspect-ratio:3/4;border-radius:3px;overflow:hidden;background:#e2e8f0}
 .pp-cell img{width:100%;height:100%;object-fit:cover}
+/* ── Customize Panel (added 2026-08-17) ── */
+.cust-row{margin-bottom:12px}
+.cust-lab{font-size:.66rem;font-weight:700;color:#0f172a;margin-bottom:5px}
+.cust-ctrl{font-size:.7rem}
+.bg-presets,.size-presets{display:flex;gap:6px;flex-wrap:wrap}
+.bg-p{width:38px;height:38px;border-radius:8px;border:2px solid #cbd5e1;cursor:pointer;padding:0;transition:.15s;font-size:.6rem}
+.bg-p:hover{border-color:#6366f1;transform:translateY(-1px)}
+.bg-p.active{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.25)}
+.sz-p,.cnt-p,.pap-p{padding:7px 10px;border:1.5px solid #cbd5e1;border-radius:8px;background:#fff;font-size:.66rem;font-weight:600;cursor:pointer;color:#475569;transition:.15s}
+.sz-p:hover,.cnt-p:hover,.pap-p:hover{border-color:#6366f1;color:#6366f1}
+.sz-p.active,.cnt-p.active,.pap-p.active{border-color:#6366f1;background:#eef2ff;color:#6366f1}
+.cust-btn{padding:8px 14px;border:none;border-radius:8px;font-size:.7rem;font-weight:700;cursor:pointer;color:#fff;background:linear-gradient(135deg,#6366f1,#8b5cf6);transition:.15s}
+.cust-btn:hover{filter:brightness(1.1)}
+.cust-btn.ghost{background:#fff;color:#6366f1;border:1.5px solid #c7d2fe}
+.customize-panel input[type="number"]{padding:6px 8px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:.7rem;outline:none;color:#0f172a;width:100%}
+.customize-panel input[type="number"]:focus{border-color:#6366f1}
+.customize-panel input[type="checkbox"]{cursor:pointer}
 /* ── Overlay & Toast ── */
 .ov{display:none;position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:998;justify-content:center;align-items:center;flex-direction:column;gap:14px;backdrop-filter:blur(8px)}
 .ov.show{display:flex}
@@ -306,6 +323,97 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#0f172a;min-height:
           <h4>Print Sheet Preview</h4>
           <div class="print-prev-grid" id="ppGrid"></div>
         </div>
+
+        <!-- ══════ Customize (Reuse AI Output) — added 2026-08-17 12:40 ══════ -->
+        <div id="customizePanel" class="customize-panel hidden" style="margin-top:18px;border-top:2px dashed #cbd5e1;padding-top:16px">
+          <div class="opt-h" style="margin-bottom:10px"><span class="e">🎨</span> Customize (Reuse AI Output)</div>
+          <div style="font-size:.66rem;color:#64748b;margin-bottom:12px">ปรับแต่งต่อโดยไม่เรียก AI ใหม่ — ทุกการเปลี่ยนจะแสดงผลทันที</div>
+
+          <!-- 1. Cut BG / Background -->
+          <div class="cust-row">
+            <div class="cust-lab">✂️ Background</div>
+            <div class="cust-ctrl">
+              <div class="bg-presets" id="bgPresets">
+                <button class="bg-p" data-bg="" onclick="setCustomBG('',this)" style="background:repeating-conic-gradient(#ddd 0% 25%,#fff 0% 50%) 50% / 8px 8px" title="ไม่ตัด">⊘ ไม่ตัด</button>
+                <button class="bg-p" data-bg="#FFFFFF" onclick="setCustomBG('#FFFFFF',this)" style="background:#FFFFFF" title="ขาว"></button>
+                <button class="bg-p" data-bg="#C4DCFF" onclick="setCustomBG('#C4DCFF',this)" style="background:#C4DCFF;border-color:#3b82f6" title="ฟ้า"></button>
+                <button class="bg-p" data-bg="#D4E5D4" onclick="setCustomBG('#D4E5D4',this)" style="background:#D4E5D4" title="เขียวอ่อน"></button>
+                <button class="bg-p" data-bg="#FFE4E1" onclick="setCustomBG('#FFE4E1',this)" style="background:#FFE4E1" title="ชมพูอ่อน"></button>
+                <button class="bg-p" data-bg="#F5F5F5" onclick="setCustomBG('#F5F5F5',this)" style="background:#F5F5F5" title="เทา"></button>
+              </div>
+              <div style="display:flex;gap:6px;align-items:center;margin-top:6px">
+                <input type="checkbox" id="cutBg" checked style="accent-color:#6366f1">
+                <label for="cutBg" style="font-size:.65rem;color:#475569;cursor:pointer">ตัด BG ออกด้วย AI (BiRefNet $0.0025)</label>
+                <input type="color" id="bgColorPick" value="#C4DCFF" style="width:36px;height:26px;border:1px solid #cbd5e1;border-radius:6px;padding:0;cursor:pointer;margin-left:auto">
+                <button class="cust-btn ghost" onclick="applyBG()" style="margin-left:6px">Apply</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. Size -->
+          <div class="cust-row">
+            <div class="cust-lab">📐 Size</div>
+            <div class="cust-ctrl">
+              <div class="size-presets" id="sizePresets">
+                <button class="sz-p" onclick="setCustomSize(35,45,this)" data-w="35" data-h="45" style="border-color:#10b981">Thai Passport 35×45mm</button>
+                <button class="sz-p" onclick="setCustomSize(25,35,this)" data-w="25" data-h="35">ID Card 25×35mm</button>
+                <button class="sz-p" onclick="setCustomSize(33,48,this)" data-w="33" data-h="48">US 33×48mm</button>
+                <button class="sz-p" onclick="setCustomSize(51,51,this)" data-w="51" data-h="51">Square 51×51mm</button>
+                <button class="sz-p" onclick="setCustomSize(38,50,this)" data-w="38" data-h="50">EU 38×50mm</button>
+              </div>
+              <div style="display:flex;gap:6px;align-items:center;margin-top:6px">
+                <input type="number" id="customW" placeholder="W" min="10" max="200" style="width:60px">
+                <span style="color:#94a3b8">×</span>
+                <input type="number" id="customH" placeholder="H" min="10" max="200" style="width:60px">
+                <span style="font-size:.65rem;color:#94a3b8">mm</span>
+                <button class="cust-btn ghost" onclick="applySize()" style="margin-left:auto">Apply Size</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. Photo count + 4. Paper size + Save/Print -->
+          <div class="cust-row" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div>
+              <div class="cust-lab">🔢 Count</div>
+              <div class="cust-ctrl">
+                <div class="size-presets" id="countPresets">
+                  <button class="cnt-p" onclick="setCount(1,this)">1</button>
+                  <button class="cnt-p" onclick="setCount(4,this)">4</button>
+                  <button class="cnt-p active" onclick="setCount(6,this)">6</button>
+                  <button class="cnt-p" onclick="setCount(9,this)">9</button>
+                  <button class="cnt-p" onclick="setCount(20,this)">20</button>
+                </div>
+                <input type="number" id="customCount" min="1" max="200" placeholder="หรือระบุเอง" style="width:100%;margin-top:6px">
+              </div>
+            </div>
+            <div>
+              <div class="cust-lab">📄 Paper</div>
+              <div class="cust-ctrl">
+                <div class="size-presets" id="paperPresets">
+                  <button class="pap-p active" onclick="setPaper('4x6',this)">4×6</button>
+                  <button class="pap-p" onclick="setPaper('5x7',this)">5×7</button>
+                  <button class="pap-p" onclick="setPaper('a6',this)">A6</button>
+                  <button class="pap-p" onclick="setPaper('a4',this)">A4</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Save / Print buttons -->
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:14px">
+            <button class="rbtn s" onclick="dl('passport')">📥 Save JPG</button>
+            <button class="rbtn s" onclick="dlTransparent()" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none">💎 Save PNG (Transparent)</button>
+            <button class="rbtn g" onclick="genPrintSheet()">🖨️ Print Sheet</button>
+          </div>
+
+          <!-- Live preview of customized image -->
+          <div id="custPreviewWrap" class="hidden" style="margin-top:14px;border:2px solid #10b981;border-radius:12px;padding:12px;background:#f0fdf4">
+            <div style="font-size:.72rem;font-weight:700;color:#10b981;margin-bottom:8px">✅ Last Update</div>
+            <img id="custPreviewImg" style="max-width:100%;height:auto;border-radius:8px;display:block;margin:0 auto">
+            <div id="custPreviewInfo" style="font-size:.65rem;color:#64748b;margin-top:6px;text-align:center"></div>
+          </div>
+        </div>
+        <!-- ══════ End Customize Panel ══════ -->
       </div>
     </div>
     <div class="card" style="padding:16px">
@@ -687,6 +795,7 @@ function showResult(d,isBulk){
   sum+='<div style="display:flex;justify-content:space-between;padding:6px 0"><span style="color:#94a3b8">Background</span><b>'+(S.gradient?'Gradient':(S.bgc||S.bg))+'</b></div>';
   $('sumBody').innerHTML=sum;
   goStep(2);
+  showCustomizePanel();
   toast('Done! Photo ready 🎉');
 }
 
@@ -758,6 +867,246 @@ function hideErr(){$('upErr').classList.add('hidden')}
 var tt;function toast(m,t){clearTimeout(tt);var e=$('toast');e.className='toast show '+(t||'');e.textContent=m;tt=setTimeout(function(){e.classList.remove('show')},3000)}
 
 boot();
+
+/* ══════════ CUSTOMIZE AFTER GENERATE ══════════ */
+// State (extends existing S object)
+S.bgColor = '#C4DCFF';
+S.cutBg = true;
+S.photoSize = '35x45';
+S.customW = null;
+S.customH = null;
+S.count = 6;
+S.paperSize = '4x6';
+
+function showCustomizePanel() {
+  if (!S.sid) {
+    toast('Generate first', 'err');
+    return;
+  }
+  var panel = $('customizePanel');
+  if (panel) panel.classList.remove('hidden');
+}
+
+async function applyBG() {
+  if (!S.sid) {
+    toast('Generate first', 'err');
+    return;
+  }
+  var color = $('bgColorPick').value || '#C4DCFF';
+  var cutEnabled = $('cutBg').checked;
+
+  showOv(cutEnabled ? '✂️ Cutting BG + applying color...' : '🎨 Applying color...', S.cutBg ? '$0.0025' : 'free');
+
+  try {
+    var payload = { session_id: S.sid, background_color: color };
+    if (cutEnabled) {
+      // Use /remove-bg endpoint
+      var resp = await fetch(API + '/remove-bg', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      var d = await resp.json();
+      if (!d.ok) {
+        hideOv();
+        toast('BG remove failed', 'err');
+        return;
+      }
+      var url = window.location.origin + d.download_bg + '?t=' + Date.now();
+      // Update preview image
+      var previewImg = $('custPreviewImg');
+      var previewWrap = $('custPreviewWrap');
+      previewImg.src = url;
+      previewWrap.classList.remove('hidden');
+      $('custPreviewInfo').textContent = 'Color: ' + color + (cutEnabled ? ' • BG cut' : ' • BG replaced');
+
+      // Also refresh main result
+      $('ri').src = url;
+      toast('✅ BG updated');
+    } else {
+      // Just render with custom bg color via existing flow
+      // (Could call /generate again, but that calls AI - skip per spec)
+      toast('🎨 Color set to ' + color + ' (apply via regenerate)', 'ok');
+    }
+  } catch (e) {
+    toast('Error: ' + e.message, 'err');
+  } finally {
+    hideOv();
+  }
+}
+
+function setCustomBG(color, btn) {
+  S.bgColor = color || '';
+  var all = document.querySelectorAll('.bg-p');
+  for (var i = 0; i < all.length; i++) all[i].classList.remove('active');
+  if (btn) btn.classList.add('active');
+  if (color) $('bgColorPick').value = color;
+}
+
+function setCustomSize(w, h, btn) {
+  S.customW = w;
+  S.customH = h;
+  S.photoSize = w + 'x' + h;
+  var all = document.querySelectorAll('.sz-p');
+  for (var i = 0; i < all.length; i++) all[i].classList.remove('active');
+  if (btn) btn.classList.add('active');
+  $('customW').value = w;
+  $('customH').value = h;
+}
+
+async function applySize() {
+  if (!S.sid) {
+    toast('Generate first', 'err');
+    return;
+  }
+  var w = parseFloat($('customW').value);
+  var h = parseFloat($('customH').value);
+  if (!w || !h || w < 10 || h < 10) {
+    toast('Size 10–200 mm', 'err');
+    return;
+  }
+  showOv('📐 Cropping to ' + w + '×' + h + 'mm...', 'cache hit');
+  try {
+    // Try /recrop endpoint first (for cache hit on existing session)
+    var resp = await fetch(API + '/recrop', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        session_id: S.sid,
+        template_code: 'custom',
+        target_w_mm: w,
+        target_h_mm: h,
+      }),
+    });
+    var d = await resp.json();
+    if (d.ok) {
+      S.customW = w;
+      S.customH = h;
+      var url = window.location.origin + d.download_url + '?t=' + Date.now();
+      $('custPreviewImg').src = url;
+      $('custPreviewWrap').classList.remove('hidden');
+      $('custPreviewInfo').textContent = '✅ Cropped: ' + w + '×' + h + 'mm';
+      // Also update main result
+      $('ri').src = url;
+      toast('✅ Size updated');
+    } else {
+      toast(d.error || 'Crop failed', 'err');
+    }
+  } catch (e) {
+    toast('Error: ' + e.message, 'err');
+  } finally {
+    hideOv();
+  }
+}
+
+function setCount(n, btn) {
+  S.count = n;
+  var all = document.querySelectorAll('.cnt-p');
+  for (var i = 0; i < all.length; i++) all[i].classList.remove('active');
+  if (btn) btn.classList.add('active');
+  $('customCount').value = n;
+}
+
+function setPaper(p, btn) {
+  S.paperSize = p;
+  var all = document.querySelectorAll('.pap-p');
+  for (var i = 0; i < all.length; i++) all[i].classList.remove('active');
+  if (btn) btn.classList.add('active');
+}
+
+async function genPrintSheet() {
+  if (!S.sid) {
+    toast('Generate first', 'err');
+    return;
+  }
+  var count = parseInt($('customCount').value) || S.count || 6;
+  var paper = S.paperSize || '4x6';
+  var w = S.customW || 35;
+  var h = S.customH || 45;
+  var borderMm = parseFloat($('bwmm') ? $('bwmm').value : 0) || 0;
+  var blade = $('bm') ? $('bm').checked : false;
+  var photoSizeCode = (w == 35 && h == 45) ? 'passport' : (w + 'x' + h);
+
+  showOv('🖨️ Building print sheet...', count + ' photos on ' + paper);
+
+  try {
+    var resp = await fetch(API + '/print-sheet', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        session_id: S.sid,
+        print_size: paper,
+        photo_size: photoSizeCode,
+        photo_count: count,
+        border: 'frame',
+        blade_mode: blade,
+        gap_mm: 2.0,
+        border_color: '#FFFFFF',
+        border_width_mm: borderMm,
+      }),
+    });
+    var d = await resp.json();
+    if (!d.ok) {
+      hideOv();
+      toast('Print sheet failed', 'err');
+      return;
+    }
+    var url = window.location.origin + d.download_url + '?t=' + Date.now();
+    // Update preview img
+    $('custPreviewImg').src = url;
+    $('custPreviewWrap').classList.remove('hidden');
+    var info = d.info || {};
+    $('custPreviewInfo').innerHTML =
+      '✅ <b>' + (info.count || count) + ' photos</b> on <b>' + (info.sheets || 1) + ' sheet' + ((info.sheets || 1) > 1 ? 's' : '') + '</b> ' +
+      (paper + ' • ' + (info.photo_mm ? info.photo_mm.w.toFixed(0) + '×' + info.photo_mm.h.toFixed(0) + 'mm' : ''));
+
+    // Save to storage URL for downloads
+    S.lastSheetUrl = url;
+    toast('✅ Print sheet ready');
+  } catch (e) {
+    toast('Error: ' + e.message, 'err');
+  } finally {
+    hideOv();
+  }
+}
+
+async function dlTransparent() {
+  if (!S.sid) {
+    toast('Generate first', 'err');
+    return;
+  }
+  showOv('💎 Generating transparent PNG...', '$0.0025');
+  try {
+    // First ensure we have transparent.png — call /remove-bg with no color
+    var resp = await fetch(API + '/remove-bg', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        session_id: S.sid,
+        background_color: '#FFFFFF',
+      }),
+    });
+    var d = await resp.json();
+    if (!d.ok) {
+      hideOv();
+      toast('Failed to cut BG', 'err');
+      return;
+    }
+    var url = window.location.origin + d.download_transparent + '?t=' + Date.now();
+    // Auto-download
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'passport_' + S.sid + '_transparent.png';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    toast('💎 Transparent PNG saved');
+  } catch (e) {
+    toast('Error: ' + e.message, 'err');
+  } finally {
+    hideOv();
+  }
+}
 </script>
 <div class="bnav"><a href="/" class="active"><svg viewBox="0 0 24 24"><path d="M3 12l9-8 9 8"/><path d="M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9"/></svg>Home</a><a href="/gallery.html"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>Gallery</a><a href="/print.html"><svg viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print</a></div>
 </body>

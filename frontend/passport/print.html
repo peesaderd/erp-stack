@@ -438,8 +438,13 @@ function showResult(d){
   document.getElementById('empty').style.display='none';
   document.getElementById('result').style.display='';
   var printUrl=d.download_print||d.download_passport;
-  document.getElementById('outImg').src=API+printUrl+'?t='+Date.now();
-  document.getElementById('dlBtn').href=API+printUrl;
+  // Backend returns paths that already start with '/api/passport'
+  // (e.g. /api/passport/download/xxx_print.jpg), so prefix with origin only,
+  // not with the API base — that would create /api/passport/api/passport/...
+  var base=window.location.origin;
+  var abs=printUrl.startsWith('http')?printUrl:(base+printUrl);
+  document.getElementById('outImg').src=abs+'?t='+Date.now();
+  document.getElementById('dlBtn').href=abs;
   var info=d.print_info||{};
   document.getElementById('infoBox').innerHTML=
     '<b>Size:</b> '+(info.print_size||'4x6')+'<br>'+

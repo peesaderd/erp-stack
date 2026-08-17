@@ -38,6 +38,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#0f172a;min-height:
 .card .actions{display:flex;gap:6px;padding:0 12px 12px}
 .btn{padding:6px 8px;border:none;border-radius:8px;font-size:.62rem;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:3px;flex:1;justify-content:center;transition:.2s;white-space:nowrap}
 .btn.dl{background:linear-gradient(135deg,#10b981,#059669);color:#fff}
+.btn.trans{background:linear-gradient(135deg,#0ea5e9,#06b6d4);color:#fff}
 .btn.print{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff}
 .btn.del{background:rgba(239,68,68,.15);color:#f87171;flex:0 0 auto;padding:6px 10px}
 .btn:hover{filter:brightness(1.15);transform:translateY(-1px)}
@@ -65,6 +66,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#0f172a;min-height:
 .batch-actions{display:flex;gap:6px;flex-wrap:wrap}
 .batch-bar .btn{padding:8px 12px;border:none;border-radius:10px;font-size:.68rem;font-weight:700;cursor:pointer;white-space:nowrap}
 .batch-print{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff}
+.batch-trans{background:linear-gradient(135deg,#0ea5e9,#06b6d4);color:#fff}
 .batch-dl{background:linear-gradient(135deg,#10b981,#059669);color:#fff}
 .batch-del{background:rgba(239,68,68,.2);color:#f87171}
 .batch-cancel{background:rgba(255,255,255,.1);color:#cbd5e1}
@@ -99,6 +101,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#0f172a;min-height:
 <div class="batch-bar" id="batchBar" style="display:none">
   <span id="batchCount">0 selected</span>
   <div class="batch-actions">
+    <button class="btn batch-trans" onclick="batchTransparent()">💎 Transparent</button>
     <button class="btn batch-print" onclick="batchPrint()">🖨 Print</button>
     <button class="btn batch-dl" onclick="batchDownload()">💾 Download</button>
     <button class="btn batch-del" onclick="batchDelete()">🗑 Delete</button>
@@ -152,6 +155,7 @@ function renderGrid(photos){
     h+='<div class="meta">'+ds+' · '+p.size_kb+' KB</div></div>';
     h+='<div class="actions">';
     h+='<a class="btn dl" href="'+p.url+'" download onclick="event.stopPropagation()">⬇ Save</a>';
+    if(p.transparent_url)h+='<a class="btn trans" href="'+p.transparent_url+'" download onclick="event.stopPropagation()">💎 Transparent</a>';
     if(p.print_url)h+='<a class="btn print" href="'+p.print_url+'" download onclick="event.stopPropagation()">🖨 Print</a>';
     h+='<button class="btn del" onclick="event.stopPropagation();delPhoto(\''+p.session_id+'\')">🗑</button>';
     h+='</div></div>';
@@ -187,6 +191,26 @@ function batchDownload(){
     }
   });
   toast('Downloading '+selected.size+' photos');
+}
+
+function batchTransparent(){
+  if(!selected.size)return;
+  var found=0,missing=0;
+  allPhotos.forEach(function(p){
+    if(selected.has(p.session_id)){
+      if(p.transparent_url){
+        var a=document.createElement('a');
+        a.href=p.transparent_url;
+        a.download=p.session_id+'_transparent.png';
+        a.click();
+        found++;
+      }else{
+        missing++;
+      }
+    }
+  });
+  if(missing&&!found){toast('No transparent files — apply Cut BG first','err');return}
+  toast('Downloading '+found+' transparent PNG'+(missing?' ('+missing+' missing)':''));
 }
 
 async function batchDelete(){

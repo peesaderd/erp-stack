@@ -778,12 +778,20 @@ def list_gallery(limit: int = 50, offset: int = 0):
         stat = f.stat()
         print_file = STORAGE_DIR / f"{sid}_print.jpg"
         flux_raw_file = STORAGE_DIR / f"{sid}_flux_raw.jpg"
+        transparent_file = STORAGE_DIR / f"{sid}_transparent.png"
+        bg_file = STORAGE_DIR / f"{sid}_bg.jpg"
+        cropped_file = STORAGE_DIR / f"{sid}_cropped.jpg"
         files.append({
             "session_id": sid,
             "filename": f.name,
             "url": f"/api/passport/download/{f.name}",
             "print_url": f"/api/passport/download/{sid}_print.jpg" if print_file.exists() else None,
             "flux_raw_url": f"/api/passport/download/{sid}_flux_raw.jpg" if flux_raw_file.exists() else None,
+            "transparent_url": f"/api/passport/download/{sid}_transparent.png" if transparent_file.exists() else None,
+            "bg_url": f"/api/passport/download/{sid}_bg.jpg" if bg_file.exists() else None,
+            "cropped_url": f"/api/passport/download/{sid}_cropped.jpg" if cropped_file.exists() else None,
+            "has_transparent": transparent_file.exists(),
+            "has_bg": bg_file.exists(),
             "size_kb": round(stat.st_size / 1024, 1),
             "created": stat.st_mtime,
         })
@@ -799,11 +807,17 @@ def get_gallery_photo(session_id: str):
         raise HTTPException(404, "Photo not found")
     stat = passport.stat()
     print_file = STORAGE_DIR / f"{session_id}_print.jpg"
+    transparent_file = STORAGE_DIR / f"{session_id}_transparent.png"
+    bg_file = STORAGE_DIR / f"{session_id}_bg.jpg"
+    cropped_file = STORAGE_DIR / f"{session_id}_cropped.jpg"
     return {
         "ok": True,
         "session_id": session_id,
         "url": f"/api/passport/download/{session_id}_passport.jpg",
         "print_url": f"/api/passport/download/{session_id}_print.jpg" if print_file.exists() else None,
+        "transparent_url": f"/api/passport/download/{session_id}_transparent.png" if transparent_file.exists() else None,
+        "bg_url": f"/api/passport/download/{session_id}_bg.jpg" if bg_file.exists() else None,
+        "cropped_url": f"/api/passport/download/{session_id}_cropped.jpg" if cropped_file.exists() else None,
         "size_kb": round(stat.st_size / 1024, 1),
         "created": stat.st_mtime,
     }

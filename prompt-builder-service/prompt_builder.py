@@ -430,8 +430,13 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     if use_triptych:
         beat_ids = [s.get("id", "").lower() for s in scenes]
         cover_hint = "eye-catching product cover, bold, clean, attention-grabbing"
-        mid_hint = f"{model_desc} holding {product_name}, {action}, {room_desc}"
-        result_hint = f"{model_desc} smiling showing the result, {product_name} in hand, bright happy end"
+        # Hold/show the actual product(s) exactly as in the reference image, instead
+        # of forcing a single product name (the reference may contain several items
+        # e.g. Vitamin C + Gluta — never enumerate just one).
+        _ref_prod = "the product(s) exactly as shown in the reference image"
+        mid_hint = f"{model_desc} holding {_ref_prod} in both hands, showing all items clearly, {room_desc}"
+        # Panel 3 = the SAME woman from panel 2 smiling with the result.
+        result_hint = f"the same {model_desc} from panel 2 smiling showing the result, with {_ref_prod} in hand, bright happy end"
 
         for idx, bid in enumerate(beat_ids):
             if bid in ("hook", "reveal"):
@@ -450,13 +455,15 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             appearance_part += f"color palette: {colors}. "
 
         image_prompt = (
-            f"16:9 vertical triptych, three equal panels side by side. "
+            f"16:9 landscape triptych, three equal horizontal panels side by side. "
             f"Panel 1 (left): {cover_hint}. "
-            f"Panel 2 (center): {mid_hint}. "
-            f"Panel 3 (right): {result_hint}. "
-            f"Product: {product_name}. {appearance_part}{lighting}. "
-            f"Use the provided reference product image as ground truth — "
-            f"hold and show the product exactly as it appears there. "
+            f"Panel 2 (center): {mid_hint} (same Thai woman appears in panels 2 and 3). "
+            f"Panel 3 (right): {result_hint} "
+            f"Product: use the provided reference product image to show ALL product items "
+            f"exactly as they appear there (hold them in the woman's hands). "
+            f"{appearance_part}{lighting}. "
+            f"Use the provided reference product image as ground truth — hold and show "
+            f"the product(s) exactly as they appear there. "
             f"Cohesive consistent style, high quality product photography."
         )
         logger.info(f"  Image prompt (triptych {len(image_prompt)} chars): {image_prompt[:100]}...")
@@ -495,12 +502,15 @@ def _beat_panel_hint(profile, product_name, model_desc, action, scene, panel_rol
     """
     appearance = (profile or {}).get("product_appearance", "") or ""
     appearance = appearance[:80] if appearance else ""
+    # Reference-driven product (may contain several items e.g. Vitamin C + Gluta):
+    # don't hardcode a single product name — the reference image is the ground truth.
+    _ref_prod = "the product(s) exactly as shown in the reference image"
     if panel_role == "cover":
-        base = f"hero product shot of {product_name}, bold clean cover"
+        base = f"hero product shot, bold clean cover — {_ref_prod}"
     elif panel_role == "middle":
-        base = f"{model_desc} holding {product_name}, {action}, {scene}"
+        base = f"{model_desc} holding {_ref_prod} in both hands, showing all items clearly, {action}, {scene}"
     else:  # right
-        base = f"{model_desc} smiling showing result with {product_name} in hand"
+        base = f"the same Thai woman from panel 2 smiling showing the result, with {_ref_prod} in hand"
     if appearance:
         base += f", {appearance}"
     return base

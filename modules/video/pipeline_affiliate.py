@@ -170,6 +170,14 @@ def analyze_product(product_name: str, product_image: str = None, description: s
         profile["_video_prompt"] = data.get("video_prompt", "")
         profile["_negative_prompt"] = data.get("negative_prompt", "")
 
+        # ── Beat-timed script จาก service (single source of truth) ──
+        # timing_validation/scripts.full_script สร้างจาก router_config.scenes
+        # (4-beat: hook→agitate→solve→cta) แล้ว → ใช้เป็น script หลักให้ sync กับ
+        # 4-beat video prompt แทนการให้ Gemini gen ใหม่ที่หลุด beat
+        _scripts = data.get("scripts", {}) or {}
+        profile["_beat_timed_script"] = _scripts.get("full_script", "")
+        profile["_script_tts_speed"] = (data.get("timing_validation", {}) or {}).get("tts_speed", 1.0)
+
         return profile
 
     except Exception as e:
@@ -298,6 +306,15 @@ def generate_script(
         str: full_script
     """
     logger.info(f"Step 3/9: Generate script (Gemini, style={ugc_style})")
+
+    # ── Beat-timed script จาก service (single source of truth) ──────────
+    # timing_validation/scripts.full_script ถูก build จาก router_config.scenes
+    # (4-beat: hook→agitate→solve→cta) แล้ว → ใช้เลยให้ sync กับ 4-beat video prompt
+    # ไม่งั้น Gemini gen ใหม่จะหลุด beat ไม่ตรงกับ cut ของวิดีโอ
+    beat_timed = product_profile.get("_beat_timed_script", "")
+    if beat_timed:
+        logger.info(f"  Script: beat-timed จาก prompt-builder-service (sync 4-beat): {beat_timed[:80]}...")
+        return beat_timed
 
     try:
         sys.path.insert(0, str(Path(__file__).parent))

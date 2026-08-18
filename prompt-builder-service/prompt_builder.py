@@ -520,13 +520,18 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             beat_parts.append(_visual)
 
         # Compose as one flowing arc: beat1, then beat2, then beat3, beat4
-        joined = ", then ".join(beat_parts)
+        # Keep each beat on its OWN line for readability (display-friendly);
+        # callers that send to Wan will flatten to a single line via
+        # .replace('\n', ' '). The `video_prompt_readable` field keeps this.
+        joined = ".\n".join(beat_parts)
         video_prompt = (
-            f"Single continuous shot: {joined}. "
+            f"Single continuous shot:\n{joined}.\n"
             f"Smooth natural motion, lips moving subtly, product held still, no warping, 9:16."
         )
-        video_prompt = re.sub(r'\s+', ' ', video_prompt).strip()
-        logger.info(f"  Video prompt (4-beat {len(video_prompt)} chars): {video_prompt[:100]}...")
+        video_prompt = re.sub(r'[ \t]+', ' ', video_prompt).strip()
+        logger.info(f"  Video prompt (4-beat, {len(video_prompt)} chars multi-line):")
+        for l in video_prompt.split('\n'):
+            logger.info(f"    {l}")
         return video_prompt
 
     # Build short video prompt with end scene (start + transition + end)
@@ -821,7 +826,8 @@ async def analyze_and_build_prompts(
         },
         "hashtags": profile.get("hashtags", []),
         "image_prompt": image_prompt,
-        "video_prompt": video_prompt,
+        "video_prompt": video_prompt.replace("\n", " ") if video_prompt else video_prompt,
+        "video_prompt_readable": video_prompt,
         "negative_prompt": negative_prompt,
         "metadata": {
             "ugc_style": ugc_style,

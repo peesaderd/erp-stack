@@ -199,12 +199,9 @@ def _call_prodia(type_: str, config: dict, accept: str = "image/png", files: dic
 # exactly the same"). Re-describing the person's look/outfit overrides the real photo with
 # guessed text. Anchor the reference instead.
 IMG2IMG_ANCHOR = (
-    "Keep the reference composition, pose, and framing exactly as shown. "
-    "If a person is present, keep that same person's pose, face, expression, and "
-    "position — do NOT redraw or replace them. Keep the product exactly as shown "
-    "in the reference image, unchanged and clearly visible. Only make subtle "
-    "lighting/quality refinements. Do NOT change the product's appearance and do "
-    "NOT replace or remodel the person in the scene."
+    "Keep the product exactly as shown in the reference image, and keep the same "
+    "person, pose, outfit, and setting. Only adjust the scene as described. "
+    "Do NOT change the product or the person's look."
 )
 
 THAI_NEGATIVE = (
@@ -215,15 +212,22 @@ THAI_NEGATIVE = (
 )
 
 
-def nano_banana_img2img(prompt: str, input_image: str, negative_prompt: str = "", aspect_ratio: str = "9:16") -> dict:
+def nano_banana_img2img(prompt: str, input_image: str, negative_prompt: str = "", aspect_ratio: str = "9:16", width: int = None, height: int = None) -> dict:
     """Generate Thai product image via Nano Banana img2img.
 
     Prodia sync model: POST /v2/job with multipart → image/png response.
     No polling. No async. Single call.
     """
-    # Prodia img2img: describe the CHANGE anchored to the reference image
+    # Prodia img2img: describe the CHANGE anchored to the reference image.
+    # Only prepend the preserve-anchor when the caller did NOT already request an
+    # explicit composition (e.g. 'triptych' / '3 panels' / 'side by side'); otherwise
+    # anchoring to 'keep composition exactly' would override the requested layout.
     prompt = prompt.rstrip(",. ")
-    if not any(k in prompt.lower() for k in ("keep", "same as", "reference")):
+    _lower = prompt.lower()
+    _wants_layout = any(
+        k in _lower for k in ("triptych", "panel", "side by side", "split into", "collage", "three equal")
+    )
+    if not _wants_layout and not any(k in _lower for k in ("keep", "same as", "reference")):
         prompt = IMG2IMG_ANCHOR + " " + prompt
     if not negative_prompt:
         negative_prompt = THAI_NEGATIVE
@@ -235,9 +239,13 @@ def nano_banana_img2img(prompt: str, input_image: str, negative_prompt: str = ""
         ("input", ("image.png", image_data, "image/png")),
     ]
 
+    config = {"prompt": prompt, "aspect_ratio": aspect_ratio}
+    # Nano Banana reads aspect_ratio directly (per Prodia API); width/height aren't
+    # supported params for this model — rely on aspect_ratio only so 16:9 actually sticks.
+
     result_bytes = _call_prodia(
         type_="inference.nano-banana.img2img.v2",
-        config={"prompt": prompt, "aspect_ratio": aspect_ratio},
+        config=config,
         files=files,
     )
 
@@ -416,6 +424,8 @@ async def generate_image(req: ImageGenRequest):
             input_image=req.inputImage,
             negative_prompt=req.negative_prompt or "",
             aspect_ratio=req.aspectRatio or "9:16",
+            width=req.width,
+            height=req.height,
         )
 
     # txt2img fallback — no reference image, use Flux 2 Dev

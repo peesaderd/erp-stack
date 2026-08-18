@@ -157,7 +157,7 @@ def _validate_audio(data: bytes, label: str = "audio") -> bool:
 def gemini_text_to_speech(text: str, output_path: Optional[str] = None,
                           voice: str = VOICE,
                           target_sample_rate: Optional[int] = None,
-                          speaking_rate: float = 1.25) -> str:
+                          speaking_rate: float = 1.3) -> str:
     """
     Generate speech from text using Gemini 3.1 Flash TTS Preview.
 
@@ -169,7 +169,7 @@ def gemini_text_to_speech(text: str, output_path: Optional[str] = None,
         output_path: Where to save the WAV file (default: temp file)
         voice: Gemini voice name (Aoede, Fenrir, Charon, Puck, etc.)
         target_sample_rate: If set, resample output to this Hz (e.g. 16000 for Wan)
-        speaking_rate: Speech speed (0.25-4.0, default 1.25 for TikTok pacing)
+        speaking_rate: Speech speed (0.25-4.0, default 1.3 for TikTok pacing)
 
     Returns:
         Path to the saved WAV file

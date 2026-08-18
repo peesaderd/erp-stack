@@ -1002,6 +1002,8 @@ def _fit_beat_text(text: str, dur_sec: float, thai_cps: float = 14.5, non_thai_c
             break
         running = candidate
     trimmed = running.rstrip()
+    # Drop a dangling dash/separator left at the tail (e.g. '... —' with nothing after)
+    trimmed = re.sub(r"[\s\u2014\u2013\-]+$", "", trimmed)
     if not trimmed:
         # even the first word overflows — return first word (best effort)
         return tokens[0] if tokens else text

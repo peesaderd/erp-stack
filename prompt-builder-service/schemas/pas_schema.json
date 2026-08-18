@@ -8,7 +8,7 @@
       "id": "hook",
       "timing_ratio": 0.2,
       "purpose": "เปิดด้วยปัญหา '{problem}' ให้คนดูรู้สึกว่าใช่เลย",
-      "prompt": "เปิดด้วยปัญหาที่คนดูเจอ — {problem}"
+      "prompt": "{problem} อยู่ไหม ลองเช็คดู"
     },
     {
       "id": "agitate",

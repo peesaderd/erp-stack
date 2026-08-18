@@ -410,7 +410,14 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     action = selected["action"]
     lighting = selected["lighting"]
 
+    # ── Model identity: Thai + age + room from profile (fallback to ai_select) ──
     gender_en = {"female": "woman", "male": "man", "unisex": "person"}.get(model_gender, "woman")
+    age = profile.get("target_age", "") or ""
+    age_desc = f", {age} years old" if age else ""
+    model_desc = f"Thai {gender_en}{age_desc}"
+    # Room/setting: prefer profile['setting'] (user set), else ai_select scene
+    room = (profile.get("setting") or "").strip() or scene
+    room_desc = room
 
     # ── NEW (P2): triptych / 3-panel composition from router beats ──
     router_config = profile.get("router_config", {}) if isinstance(profile, dict) else {}
@@ -423,16 +430,16 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     if use_triptych:
         beat_ids = [s.get("id", "").lower() for s in scenes]
         cover_hint = "eye-catching product cover, bold, clean, attention-grabbing"
-        mid_hint = f"{gender_en} holding {product_name}, {action}, {scene}"
-        result_hint = f"{gender_en} showing the result, {product_name} in hand, bright happy end"
+        mid_hint = f"{model_desc} holding {product_name}, {action}, {room_desc}"
+        result_hint = f"{model_desc} smiling showing the result, {product_name} in hand, bright happy end"
 
         for idx, bid in enumerate(beat_ids):
             if bid in ("hook", "reveal"):
-                cover_hint = _beat_panel_hint(profile, product_name, gender_en, action, scene, "cover")
+                cover_hint = _beat_panel_hint(profile, product_name, model_desc, action, room_desc, "cover")
             elif bid in ("solve", "us", "value"):
-                mid_hint = _beat_panel_hint(profile, product_name, gender_en, action, scene, "middle")
+                mid_hint = _beat_panel_hint(profile, product_name, model_desc, action, room_desc, "middle")
             elif bid in ("cta", "agitate", "them"):
-                result_hint = _beat_panel_hint(profile, product_name, gender_en, action, scene, "right")
+                result_hint = _beat_panel_hint(profile, product_name, model_desc, action, room_desc, "right")
 
         appearance = profile.get("product_appearance", "") or ""
         colors = profile.get("colors", "") or ""
@@ -448,6 +455,8 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             f"Panel 2 (center): {mid_hint}. "
             f"Panel 3 (right): {result_hint}. "
             f"Product: {product_name}. {appearance_part}{lighting}. "
+            f"Use the provided reference product image as ground truth — "
+            f"hold and show the product exactly as it appears there. "
             f"Cohesive consistent style, high quality product photography."
         )
         logger.info(f"  Image prompt (triptych {len(image_prompt)} chars): {image_prompt[:100]}...")
@@ -476,21 +485,22 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     return image_prompt, negative
 
 
-def _beat_panel_hint(profile, product_name, gender_en, action, scene, panel_role: str) -> str:
+def _beat_panel_hint(profile, product_name, model_desc, action, scene, panel_role: str) -> str:
     """Derive a clean English visual hint for one triptych panel.
 
     Builds a compact visual instruction Nano Banana understands — panel_role is
     cover / middle / right. Uses the product's appearance (Mistral) to add detail.
     Keeps hints visual (English) rather than raw Thai script text.
+    model_desc = e.g. 'Thai woman, 25-35 years old' (already age/demographic).
     """
     appearance = (profile or {}).get("product_appearance", "") or ""
     appearance = appearance[:80] if appearance else ""
     if panel_role == "cover":
         base = f"hero product shot of {product_name}, bold clean cover"
     elif panel_role == "middle":
-        base = f"{gender_en} holding {product_name}, {action}, {scene}"
+        base = f"{model_desc} holding {product_name}, {action}, {scene}"
     else:  # right
-        base = f"{gender_en} smiling showing result with {product_name} in hand"
+        base = f"{model_desc} smiling showing result with {product_name} in hand"
     if appearance:
         base += f", {appearance}"
     return base

@@ -140,8 +140,12 @@ class ProdiaV2Client:
             job_payload["accept"] = accept
 
         # ── Multipart form-data ──
+        # NOTE (FIXED 2026-08-18): DO NOT json.dumps(job_payload) here.
+        # config.["audio"|"image"|"last_frame"] จะถูก set ด้านล่าง (loop inputs/audio/last_frame)
+        # ถ้า serialize ตอนนี้ config จะเป็น {} ว่างเปล่า → audio/lip-sync/image ไม่เข้า Prodia
+        # => ต้อง dumps ใหม่ตอนหลังสุด (ก่อน post) ด้วย _build_job_json()
         files = [
-            ("job", ("job.json", json.dumps(job_payload), "application/json")),
+            ("job", ("job.json", "__PLACEHOLDER__", "application/json")),
         ]
         if has_inputs:
             # Prodia async requires multipart field `input` for the image bytes,
@@ -191,6 +195,8 @@ class ProdiaV2Client:
                 logger.debug(f"  Audio: {len(audio)} bytes")
 
             try:
+                # FIXED: serialize job_payload NOW (after config was populated by loops above)
+                files[0] = ("job", ("job.json", json.dumps(job_payload), "application/json"))
                 resp = self._session.post(endpoint, files=files, timeout=120)
             except requests.exceptions.Timeout:
                 raise ProdiaV2Error("Prodia API timeout (create_job multipart)")
@@ -226,8 +232,10 @@ class ProdiaV2Client:
                 _time.sleep(_delay)
                 # Re-send the request
                 try:
-                    if has_inputs or has_audio:
-                        # Rebuild files tuple (original may be consumed)
+                    if has_inputs or has_audio or has_last_frame or has_reference:
+                        # Rebuild files tuple with SAME pattern as main path
+                        # (FIXED 2026-08-18: serialize job_payload AFTER config populated;
+                        #  audio ส่งเป็น multipart field "input" + config.audio ref — docs-exact)
                         _files = [("job", ("job.json", json.dumps(job_payload), "application/json"))]
                         if has_inputs:
                             for _i, _img in enumerate(inputs):
@@ -236,7 +244,12 @@ class ProdiaV2Client:
                             is_mp3 = audio.startswith(b'ID3') or (len(audio) > 2 and audio[0] == 0xFF and (audio[1] & 0xE0) == 0xE0)
                             ext = "mp3" if is_mp3 else "wav"
                             mime = "audio/mpeg" if is_mp3 else "audio/wav"
-                            _files.append(("audio", (f"audio.{ext}", audio, mime)))
+                            # docs-exact: ใช้ field "input" เหมือน main path (config.audio อ้างชื่อไฟล์)
+                            _files.append(("input", (f"audio.{ext}", audio, mime)))
+                        if has_last_frame:
+                            _files.append(("input", ("last_frame.png", last_frame, "image/png")))
+                        if has_reference:
+                            _files.append(("input", ("reference.png", reference, "image/png")))
                         resp = self._session.post(endpoint, files=_files, timeout=120)
                     else:
                         resp = self._session.post(endpoint, json=job_payload, timeout=60)

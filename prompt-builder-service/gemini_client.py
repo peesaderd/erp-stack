@@ -90,8 +90,13 @@ def _get_gemini_key() -> str:
     return ""
 
 
-def _call_gemini(system_prompt: str, user_text: str, temperature: float = 0.3, max_output_tokens: int = 500) -> Optional[str]:
-    """Call Gemini API with system instruction."""
+def _call_gemini(system_prompt: str, user_text: str, temperature: float = 0.3, max_output_tokens: int = 500, response_mime_type: str = "") -> Optional[str]:
+    """Call Gemini API with system instruction.
+
+    thinking_config: disables Gemini 2.5 thinking tokens so long/JSON responses
+    are not cut mid-way by MAX_TOKENS (finishReason=MAX_TOKENS bug where the
+    model spends its budget on hidden thoughts, then output gets truncated).
+    """
     api_key = _get_gemini_key()
     if not api_key:
         logger.warning("No GEMINI_API_KEY set in environment")
@@ -99,10 +104,17 @@ def _call_gemini(system_prompt: str, user_text: str, temperature: float = 0.3, m
     try:
         model = GEMINI_MODEL_NAME
         url = f"{GEMINI_API_URL}/{model}:generateContent"
+        gen_config = {
+            "temperature": temperature,
+            "maxOutputTokens": max_output_tokens,
+            "thinkingConfig": {"thinkingBudget": 0},
+        }
+        if response_mime_type:
+            gen_config["responseMimeType"] = response_mime_type
         payload = {
             "system_instruction": {"parts": [{"text": system_prompt}]},
             "contents": [{"parts": [{"text": user_text}]}],
-            "generationConfig": {"temperature": temperature, "maxOutputTokens": max_output_tokens},
+            "generationConfig": gen_config,
         }
         resp = requests.post(
             url,
@@ -121,7 +133,7 @@ def _call_gemini(system_prompt: str, user_text: str, temperature: float = 0.3, m
         return None
 
 
-def _call_gemini_vision(system_prompt: str, user_text: str, image_url: str, temperature: float = 0.3, max_output_tokens: int = 500) -> Optional[str]:
+def _call_gemini_vision(system_prompt: str, user_text: str, image_url: str, temperature: float = 0.3, max_output_tokens: int = 500, response_mime_type: str = "") -> Optional[str]:
     """Call Gemini API with image input (multimodal)."""
     api_key = _get_gemini_key()
     if not api_key:
@@ -137,13 +149,20 @@ def _call_gemini_vision(system_prompt: str, user_text: str, image_url: str, temp
         mime = img_resp.headers.get("content-type", "image/jpeg")
         model = GEMINI_MODEL_NAME
         url = f"{GEMINI_API_URL}/{model}:generateContent"
+        gen_config = {
+            "temperature": temperature,
+            "maxOutputTokens": max_output_tokens,
+            "thinkingConfig": {"thinkingBudget": 0},
+        }
+        if response_mime_type:
+            gen_config["responseMimeType"] = response_mime_type
         payload = {
             "system_instruction": {"parts": [{"text": system_prompt}]},
             "contents": [{"parts": [
                 {"text": user_text},
                 {"inlineData": {"mimeType": mime, "data": img_b64}}
             ]}],
-            "generationConfig": {"temperature": temperature, "maxOutputTokens": max_output_tokens},
+            "generationConfig": gen_config,
         }
         resp = requests.post(
             url,

@@ -30,10 +30,10 @@ FALLBACK_CONFIG = {
 }
 
 
-def _call_gemini_router(system_prompt: str, user_prompt: str) -> Optional[str]:
+def _call_gemini_router(system_prompt: str, user_prompt: str, response_mime_type: str = "") -> Optional[str]:
     """Call Gemini API for router decision. Returns raw JSON text."""
     from gemini_client import _call_gemini
-    return _call_gemini(system_prompt, user_prompt)
+    return _call_gemini(system_prompt, user_prompt, response_mime_type=response_mime_type)
 
 
 def _extract_json(text: str) -> Optional[dict]:
@@ -145,11 +145,11 @@ def router_decide(
     if image_base64:
         # Vision call — analyze image + text
         from gemini_client import _call_gemini_vision
-        raw = _call_gemini_vision(system, user, image_base64)
+        raw = _call_gemini_vision(system, user, image_base64, response_mime_type="application/json")
         result = _extract_json(raw)
     else:
         # Text-only call
-        raw = _call_gemini_router(system, user)
+        raw = _call_gemini_router(system, user, response_mime_type="application/json")
         result = _extract_json(raw)
 
     if not result:

@@ -246,7 +246,7 @@ def analyze_product(product_name: str, description: str = "", keywords: Optional
 คำอธิบาย: {description if description else 'ไม่มี'}
 Keywords: {kw_str}"""
 
-    raw = _call_gemini(PRODUCT_ANALYSIS_SYSTEM, user_text, temperature=0.3, max_output_tokens=700)
+    raw = _call_gemini(PRODUCT_ANALYSIS_SYSTEM, user_text, temperature=0.3, max_output_tokens=1500, response_mime_type="application/json")
     gemini_profile = _extract_json(raw) if raw else None
 
     if not gemini_profile:
@@ -309,7 +309,12 @@ Keywords: {kw_str}"""
         "persona": router_config.get("persona", "gen_z_trendy"),
         "reason": router_config.get("reason", ""),
     }
-    profile["scenes"] = router_config.get("scenes", [])
+    _router_scenes = router_config.get("scenes", [])
+    profile["scenes"] = _router_scenes
+    # <KEY>: put scenes INSIDE router_config too so P1/P2/P4 readers
+    # (which read router_config.scenes) activate on the real pipeline.
+    if isinstance(_router_scenes, list) and len(_router_scenes) >= 2:
+        profile["router_config"]["scenes"] = _router_scenes
 
     return profile
 
@@ -362,10 +367,12 @@ def _extract_appearance_from_description(description: str) -> str:
 
 
 def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holding", loop_count: int = 0) -> tuple:
-    """Generate SHORT image prompt — ~70 chars.
+    """Generate image prompt — triptych 16:9 (3-panel) when router scenes exist.
 
-    Uses _ai_select() to pick scene/action/camera/lighting from category_mapping.
-    No persona description in prompt — reference image handles appearance.
+    Left = cover/hook, middle = model + product (solve), right = result/end (cta).
+    Falls back to a single 9:16 frame when the profile has no router scenes / triptych.
+    Uses _ai_select() for scene/action/camera/lighting from category_mapping, plus
+    product_appearance / colors from Mistral analysis (P3).
     """
     model_gender = profile.get("target_gender", "female")
     category = profile.get("category", "other")
@@ -378,9 +385,51 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     action = selected["action"]
     lighting = selected["lighting"]
 
-    # Build short prompt
     gender_en = {"female": "woman", "male": "man", "unisex": "person"}.get(model_gender, "woman")
 
+    # ── NEW (P2): triptych / 3-panel composition from router beats ──
+    router_config = profile.get("router_config", {}) if isinstance(profile, dict) else {}
+    scenes = router_config.get("scenes") if isinstance(router_config, dict) else None
+    use_triptych = (
+        isinstance(scenes, list) and len(scenes) >= 2
+        and profile.get("use_triptych") is not False
+    )
+
+    if use_triptych:
+        beat_ids = [s.get("id", "").lower() for s in scenes]
+        cover_hint = "eye-catching product cover, bold, clean, attention-grabbing"
+        mid_hint = f"{gender_en} holding {product_name}, {action}, {scene}"
+        result_hint = f"{gender_en} showing the result, {product_name} in hand, bright happy end"
+
+        for idx, bid in enumerate(beat_ids):
+            if bid in ("hook", "reveal"):
+                cover_hint = _beat_panel_hint(profile, product_name, gender_en, action, scene, "cover")
+            elif bid in ("solve", "us", "value"):
+                mid_hint = _beat_panel_hint(profile, product_name, gender_en, action, scene, "middle")
+            elif bid in ("cta", "agitate", "them"):
+                result_hint = _beat_panel_hint(profile, product_name, gender_en, action, scene, "right")
+
+        appearance = profile.get("product_appearance", "") or ""
+        colors = profile.get("colors", "") or ""
+        appearance_part = ""
+        if appearance:
+            appearance_part = f"{appearance}. "
+        if colors:
+            appearance_part += f"color palette: {colors}. "
+
+        image_prompt = (
+            f"16:9 vertical triptych, three equal panels side by side. "
+            f"Panel 1 (left): {cover_hint}. "
+            f"Panel 2 (center): {mid_hint}. "
+            f"Panel 3 (right): {result_hint}. "
+            f"Product: {product_name}. {appearance_part}{lighting}. "
+            f"Cohesive consistent style, high quality product photography."
+        )
+        logger.info(f"  Image prompt (triptych {len(image_prompt)} chars): {image_prompt[:100]}...")
+        negative = build_negative_prompt(profile, ugc_style)
+        return image_prompt, negative
+
+    # ── Legacy single-frame path (no triptych) ──
     if ugc_style == "product_demo":
         image_prompt = f"{product_name} centered, {scene}. {lighting}. --ar 9:16"
     elif ugc_style in ("talking", "talking_head"):
@@ -400,6 +449,26 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
 
     logger.info(f"  Image prompt ({len(image_prompt)} chars): {image_prompt[:80]}...")
     return image_prompt, negative
+
+
+def _beat_panel_hint(profile, product_name, gender_en, action, scene, panel_role: str) -> str:
+    """Derive a clean English visual hint for one triptych panel.
+
+    Builds a compact visual instruction Nano Banana understands — panel_role is
+    cover / middle / right. Uses the product's appearance (Mistral) to add detail.
+    Keeps hints visual (English) rather than raw Thai script text.
+    """
+    appearance = (profile or {}).get("product_appearance", "") or ""
+    appearance = appearance[:80] if appearance else ""
+    if panel_role == "cover":
+        base = f"hero product shot of {product_name}, bold clean cover"
+    elif panel_role == "middle":
+        base = f"{gender_en} holding {product_name}, {action}, {scene}"
+    else:  # right
+        base = f"{gender_en} smiling showing result with {product_name} in hand"
+    if appearance:
+        base += f", {appearance}"
+    return base
 
 
 def img_desc_sentences(text: str) -> list:
@@ -423,6 +492,42 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     scene = selected["scene"]
 
     gender_en = {"female": "Woman", "male": "Man", "unisex": "Person"}.get(model_gender, "Woman")
+
+    # ── NEW (P4): 4-beat cut-scene video prompt from router scenes ──
+    # When the profile has router scenes (4-beat recipe), describe the beat
+    # progression as a single continuous arc (Wan 2.7 = 1 clip, no blending).
+    # Timing cues anchor each beat so the cut feels intentional, not random.
+    router_config = profile.get("router_config", {}) if isinstance(profile, dict) else {}
+    scenes = router_config.get("scenes") if isinstance(router_config, dict) else None
+    if (
+        isinstance(scenes, list) and len(scenes) >= 2
+        and product_name and ugc_style not in ("talking", "talking_head")
+    ):
+        vp_product = _clean_product_name_for_video(product_name)
+        beat_parts = []
+        for sc in scenes:
+            bid = (sc.get("id") or "").lower()
+            _visual = {
+                "hook": f"{gender_en} catches attention, {action}, {scene}",
+                "agitate": f"{gender_en} shows the downside, concerned look, {scene}",
+                "solve": f"{gender_en} uses {vp_product}, smooth action, {scene}",
+                "cta": f"{gender_en} holds {vp_product} to camera, smiling, inviting",
+                "reveal": f"{gender_en} reveals a secret, {vp_product} in hand, {scene}",
+                "them": f"{gender_en} shows the old way, flat, {scene}",
+                "us": f"{gender_en} shows our {vp_product}, bright, better, {scene}",
+                "value": f"{gender_en} enjoying the benefit, glowing, {scene}",
+            }.get(bid, f"{gender_en} {action}, {scene}")
+            beat_parts.append(_visual)
+
+        # Compose as one flowing arc: beat1, then beat2, then beat3, beat4
+        joined = ", then ".join(beat_parts)
+        video_prompt = (
+            f"Single continuous shot: {joined}. "
+            f"Smooth natural motion, lips moving subtly, product held still, no warping, 9:16."
+        )
+        video_prompt = re.sub(r'\s+', ' ', video_prompt).strip()
+        logger.info(f"  Video prompt (4-beat {len(video_prompt)} chars): {video_prompt[:100]}...")
+        return video_prompt
 
     # Build short video prompt with end scene (start + transition + end)
     # Wan 2.7 generates 1 continuous clip from a single image ref.
@@ -694,22 +799,24 @@ async def analyze_and_build_prompts(
         },
         "timing_validation": {
             "segments": {
-                "hook": tv.get("hook", {}).get("text", "") if isinstance(tv.get("hook"), dict) else str(tv.get("hook", "")),
-                "value": tv.get("value", {}).get("text", "") if isinstance(tv.get("value"), dict) else str(tv.get("value", "")),
-                "cta": tv.get("cta", {}).get("text", "") if isinstance(tv.get("cta"), dict) else str(tv.get("cta", "")),
+                "hook": _tv_seg_text(tv, "hook"),
+                "value": _tv_seg_text(tv, "value"),
+                "cta": _tv_seg_text(tv, "cta"),
             },
             "tts_speed": tv.get("tts_speed", 1.0),
             "product_short_for_tts": tv.get("product_short_for_tts", ""),
             "all_segments_fit": tv.get("all_segments_fit", True),
             "total_duration": tv.get("total_duration", 15),
+            "beats": tv.get("beats", []),
+            "recipe": tv.get("recipe", ""),
         },
         "scripts": {
             "full_script": tv.get("full_script", ""),
             "tts_script": tv.get("tts_script", ""),
             "breakdown": {
-                "hook": tv.get("hook", {}).get("text", "") if isinstance(tv.get("hook"), dict) else str(tv.get("hook", "")),
-                "value": tv.get("value", {}).get("text", "") if isinstance(tv.get("value"), dict) else str(tv.get("value", "")),
-                "cta": tv.get("cta", {}).get("text", "") if isinstance(tv.get("cta"), dict) else str(tv.get("cta", "")),
+                "hook": _tv_seg_text(tv, "hook"),
+                "value": _tv_seg_text(tv, "value"),
+                "cta": _tv_seg_text(tv, "cta"),
             }
         },
         "hashtags": profile.get("hashtags", []),
@@ -866,9 +973,85 @@ def _safe_thai_truncate(text: str, limit: int) -> str:
     return _drop_dangling_thai(text)
 
 
+def _fit_beat_text(text: str, dur_sec: float, thai_cps: float = 14.5, non_thai_cps: float = 9.0) -> str:
+    """Trim a beat's spoken text so it fits its scene duration WITHOUT speeding
+    the voice up aggressively.
+
+    Budget = how many chars fit in `dur_sec` at the calibrated speech rates
+    (Thai 14.5 c/s, non-Thai 9 c/s — see _estimate_speech_duration). We walk
+    backward from the end, dropping whole words/phrases (space / Thai-dash
+    separators) until the estimate <= dur_sec. Never breaks mid-word: if no
+    separator is found we fall back to the raw text (better long than chopped
+    Thai speech) and let tts_speed handle it.
+    """
+    if not text or not dur_sec or dur_sec <= 0:
+        return text or ""
+    # Fast path: already fits
+    if _estimate_speech_duration(text) <= dur_sec:
+        return text
+    # Walk backward over the whole text, truncating at natural breaks
+    tokens = re.split(r"(\s+)", text)
+    # tokens: [word0, sep0, word1, sep1, ...] — rebuild from the front
+    running = ""
+    for i in range(0, len(tokens) - 1, 2):
+        word = tokens[i]
+        sep = tokens[i + 1] if i + 1 < len(tokens) else ""
+        candidate = running + word + sep
+        if _estimate_speech_duration(candidate.rstrip()) > dur_sec:
+            # This word would overflow — stop; keep whatever fit so far.
+            break
+        running = candidate
+    trimmed = running.rstrip()
+    if not trimmed:
+        # even the first word overflows — return first word (best effort)
+        return tokens[0] if tokens else text
+    return trimmed or text
+
+
+def _tv_seg_text(tv, key):
+    """Safely extract segment text from a timing_validation dict (handles beats)."""
+    if not isinstance(tv, dict):
+        return ""
+    seg = tv.get(key)
+    if isinstance(seg, dict):
+        return seg.get("text", "")
+    # 4-beat path: fall back to matching beat by id
+    for b in tv.get("beats", []) or []:
+        if isinstance(b, dict) and b.get("key") == key:
+            return b.get("text", "")
+    return str(seg) if seg else ""
+
+
+def _resolve_scene_text(scene, product_short, customer_problem, main_benefit, target_audience, profile_feature=""):
+    """Fill a 4-beat scene prompt_template with real values.
+
+    Scene dict comes from router_config.scenes (built by router_agent._build_scenes),
+    with keys: id / duration / purpose / prompt_template.
+    Placeholders come from the product profile (Mistral/Gemini analysis).
+    Falls back to purpose text if template is empty/invalid.
+    """
+    tpl = scene.get("prompt_template") or scene.get("purpose") or ""
+    # Keep only {placeholder} tokens we can actually fill (drop unknown ones)
+    def _fill(m):
+        key = m.group(1).strip()
+        vals = {
+            "problem": customer_problem or "",
+            "product": product_short or "",
+            "benefit": main_benefit or "",
+            "target_audience": target_audience or "",
+            "feature": (profile_feature or ""),
+        }
+        return vals.get(key, "")
+    return re.sub(r"\{(\w[^}]*)\}\??", _fill, tpl).strip()
+
+
 def _build_timing_validated_script(product_name: str, category: str = "beauty", profile: dict = None) -> dict:
     """Build script segments with timing validation.
-    Uses customer_problem + main_benefit from Gemini analysis when available.
+
+    Prefers the Router Agent's 4-beat scenes (router_config.scenes) so the script
+    matches the chosen recipe (pas/comparison/secret_hook). Falls back to the old
+    3-segment hook/value/cta structure when no scenes are present.
+    Uses customer_problem + main_benefit from Gemini/Mistral analysis when available.
     Gender-aware: female register (คะ/ค่ะ) for female target_gender.
     """
     product_short = product_name
@@ -933,7 +1116,7 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
         hook_text = f"ของดีต้องบอกต่อ{reg_hook}"
         value_text = f"{product_short} ใช้งานง่าย คุ้มค่ามาก{reg_val}"
     cta_text = f"สนใจพิกัดในตะกร้าซ้ายล่างได้เลย{reg_val}"
-    
+
     target_dur_sec = 15
     if profile and profile.get("target_duration"):
         try:
@@ -941,6 +1124,66 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
         except ValueError:
             target_dur_sec = 15
 
+    # ── NEW (P1): prefer Router Agent 4-beat scenes when available ──
+    # router_config.scenes = [{id, duration, purpose, prompt_template}, ...] from the
+    # chosen recipe schema (pas/comparison/secret_hook). This makes the script follow
+    # the actual recipe beats (hook→agitate→solve→cta etc.) instead of hardcoded 3 segments.
+    router_config = profile.get("router_config", {}) if profile else {}
+    scenes = router_config.get("scenes") if isinstance(router_config, dict) else None
+
+    if isinstance(scenes, list) and len(scenes) >= 2:
+        target_audience = profile.get("target_audience", "") if profile else ""
+        profile_feature = profile.get("features", "") if profile else ""
+        segments = []
+        for sc in scenes:
+            beat_text = _resolve_scene_text(
+                sc, product_short, customer_problem, main_benefit, target_audience, profile_feature
+            )
+            # Gender-register normalize for spoken Thai
+            beat_text = _normalize_thai_gender_register(beat_text, is_female)
+            dur = sc.get("duration", 0) or 0
+            if not beat_text:
+                continue
+            # Trim the beat so it fits its scene duration (keeps tts_speed near 1.0x
+            # instead of the old fallback that overshoots -> forces 1.3x fast speech).
+            beat_text = _fit_beat_text(beat_text, dur)
+            segments.append({"key": sc.get("id", "beat"), "text": beat_text, "duration_sec": dur, "timing": ""})
+
+        # Recompute timings sequentially from durations (sum of scene durations ≈ duration)
+        if segments:
+            acc = 0.0
+            for seg in segments:
+                seg["timing"] = f"{int(round(acc))}-{int(round(acc + seg['duration_sec']))}"
+                acc += seg["duration_sec"]
+            total_ok = True
+            max_speed_needed = 1.0
+            for seg in segments:
+                estimated = _estimate_speech_duration(seg["text"])
+                seg["estimated_sec"] = round(estimated, 1)
+                dur = seg["duration_sec"] if seg["duration_sec"] else target_dur_sec
+                seg["ok"] = estimated <= max(dur, 1)
+                if not seg["ok"]:
+                    total_ok = False
+                    needed = estimated / max(dur, 1)
+                    if needed > max_speed_needed:
+                        max_speed_needed = needed
+            tts_speed = min(max(max_speed_needed, 1.0), 1.3)
+            full = " ".join(s["text"] for s in segments)
+            # Keep backward-compat keys (hook/value/cta) so downstream consumers don't break
+            out = {"segments": segments, "beats": segments,
+                   "tts_speed": tts_speed, "full_script": full, "tts_script": full,
+                   "product_short_for_tts": product_short,
+                   "all_segments_fit": total_ok, "total_duration": target_dur_sec,
+                   "recipe": router_config.get("recipe_type", "")}
+            # Map common beat ids → legacy keys where present
+            for legacy_key in ("hook", "value", "cta"):
+                for seg in segments:
+                    if seg["key"] == legacy_key:
+                        out[legacy_key] = seg
+                        break
+            return out
+
+    # ── Fallback: original 3-segment hook/value/cta (no router scenes) ──
     # Scale segment timing proportionally based on target duration
     # Hook (~25%), Value (~50%), CTA (~25%)
     hook_dur = max(2, int(target_dur_sec * 0.25))

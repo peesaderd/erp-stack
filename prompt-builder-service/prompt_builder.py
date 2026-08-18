@@ -366,6 +366,31 @@ def _extract_appearance_from_description(description: str) -> str:
     return desc[:60]
 
 
+def _image_prompt_readable(image_prompt: str) -> str:
+    """Return a line-broken version of a triptych/3-panel image prompt for
+    readability (display only). Wan/image API still uses the single-line
+    `image_prompt`. Splits at 'Panel N (...): ' boundaries and the header.
+    """
+    if not image_prompt:
+        return image_prompt
+    # Split at each 'Panel N (...): ' marker into separate lines.
+    parts = re.split(r"(?=Panel \d+\s*\()", image_prompt)
+    lines = []
+    for p in parts:
+        p = p.strip()
+        if not p:
+            continue
+        lines.append(p)
+    # First line is the header (may contain '16:9 vertical triptych...')
+    # Force the 'Product:' / appearance into its own line for readability.
+    # Do the split BEFORE joining so 'Product:' doesn't get glued to Panel 3.
+    rebuilt = "\n".join(lines)
+    rebuilt = rebuilt.replace(" Product:", "\nProduct:")
+    # Keep each Panel on its own line; ensure no stray double newlines.
+    rebuilt = re.sub(r"\n{2,}", "\n", rebuilt)
+    return rebuilt.strip()
+
+
 def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holding", loop_count: int = 0) -> tuple:
     """Generate image prompt — triptych 16:9 (3-panel) when router scenes exist.
 
@@ -826,6 +851,7 @@ async def analyze_and_build_prompts(
         },
         "hashtags": profile.get("hashtags", []),
         "image_prompt": image_prompt,
+        "image_prompt_readable": _image_prompt_readable(image_prompt),
         "video_prompt": video_prompt.replace("\n", " ") if video_prompt else video_prompt,
         "video_prompt_readable": video_prompt,
         "negative_prompt": negative_prompt,

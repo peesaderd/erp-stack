@@ -464,7 +464,9 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             f"{appearance_part}{lighting}. "
             f"Use the provided reference product image as ground truth — hold and show "
             f"the product(s) exactly as they appear there. "
-            f"Cohesive consistent style, high quality product photography."
+            f"Cohesive consistent style, high quality product photography. "
+            f"Fill the ENTIRE 16:9 frame edge to edge M-bM-^@M-^S NO white bars, NO padding, "
+            f"NO empty borders; the three panels must fully bleed to all edges."
         )
         logger.info(f"  Image prompt (triptych {len(image_prompt)} chars): {image_prompt[:100]}...")
         negative = build_negative_prompt(profile, ugc_style)

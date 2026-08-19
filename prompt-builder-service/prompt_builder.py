@@ -490,18 +490,22 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         # image model compose the cover itself (no hardcoded count).
         cover_hint = _cover_product_desc(profile, product_name)
 
-        # Panel 2 (model + product): the model shows the product as it appears in
-        # the reference — we do NOT hardcode how many items/variants; the image
-        # model reads the reference and renders them all.
+        # Panel 2 (model + product): model holds the product(s) EXACTLY as shown
+        # in the reference image — we do NOT hardcode the item count/variants
+        # (that hardcoding made Wan render two identical items). "as shown in the
+        # reference image" keeps count + labels + colors from the ground truth.
         mid_hint = (
-            f"{model_desc} showcasing the product from the reference image in "
-            f"both hands, showing all items/variants clearly, {action}, {room_desc}"
+            f"{model_desc} holding the product(s) exactly as shown in the reference "
+            f"image in both hands, showing all items clearly, holds product, "
+            f"showing to camera, {room_desc}"
         )
 
-        # Panel 3 (result/end): the SAME model from panel 2, happy end.
+        # Panel 3 (result/end): the SAME model from panel 2, happy end, product
+        # as shown in reference.
         result_hint = (
             f"the same {model_desc} from panel 2 smiling showing the result, "
-            f"holding up the product from the reference image, bright happy end scene"
+            f"with the product(s) exactly as shown in the reference image in hand, "
+            f"bright happy end scene"
         )
 
         # Map recipe beats onto the three panels — but only where it fits the
@@ -518,7 +522,7 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
 
         image_prompt = (
             f"16:9 landscape triptych, three equal horizontal panels side by side, "
-            f"no gap between them. "
+            f"no gap, edge to edge, no border. "
             f"Panel 1 (left): {cover_hint}. "
             f"Panel 2 (center): {mid_hint} (same model appears in panels 2 and 3). "
             f"Panel 3 (right): {result_hint}. "
@@ -529,7 +533,7 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             f"labels, colors and packaging. "
             f"Cohesive consistent style, high quality product photography. "
             f"Fill the ENTIRE 16:9 frame edge to edge M-bM-^@M-^S NO white bars, NO padding, "
-            f"NO empty borders, NO gap; the three panels must fully bleed to all edges "
+            f"NO empty borders; the three panels must fully bleed to all edges "
             f"so the image is full-frame with no border."
         )
         logger.info(f"  Image prompt (triptych {len(image_prompt)} chars): {image_prompt[:100]}...")
@@ -621,17 +625,19 @@ def _beat_panel_hint(profile, product_name, model_desc, action, scene, panel_rol
     if panel_role == "cover":
         base = _cover_product_desc(profile, product_name)
     elif panel_role == "middle":
-        # Reference-driven, no hardcoded item count (product may have any number
-        # of variants). Tagline only names labels/colors when known.
+        # Reference-driven (USER TEMPLATE vid_b43d89ab): model holds the product(s)
+        # EXACTLY as shown in the reference — no hardcoded item count / "all variants"
+        # (that made Wan render two identical items). Reference image names count.
         base = (
-            f"{model_desc} showcasing the product from the reference image, "
-            f"holding it so all variants/colors are clearly visible, "
-            f"{action}, {scene}"
+            f"{model_desc} holding the product(s) exactly as shown in the reference "
+            f"image in both hands, showing all items clearly, holds product, "
+            f"showing to camera, {scene}"
         )
     else:  # right
         base = (
             f"the same {model_desc} from panel 2 smiling showing the result, "
-            f"holding up the product from the reference image, bright happy end scene"
+            f"with the product(s) exactly as shown in the reference image in hand, "
+            f"bright happy end scene"
         )
     return base
 
@@ -668,17 +674,17 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         isinstance(scenes, list) and len(scenes) >= 2
         and product_name and ugc_style not in ("talking", "talking_head")
     ):
+        # USER-DEFINED TEMPLATE (2026-08-19, based on vid_b43d89ab):
+        # talking/talking_head goes through the talking-style template below so
+        # the presenter speaks naturally with clean lip-sync (NOT the 4-beat
+        # cut-scene branch, which was editing the beat movements ad-hoc until the
+        # output drifted and warped the product). Only non-talking styles get the
+        # 4-beat cut-scene arc here.
         vp_product = _clean_product_name_for_video(product_name)
-        # ── Opening line (NO label, NO negative instructions — those live in negative_prompt) ──
-        # User rule: must order the model to speak Thai aloud (otherwise Wan may not talk),
-        # but keep it voice-level only (no Thai script) — the audio (TTS 16k) drives the speech.
-        opening = (
-            "a Thai {0} speaks the Thai narration aloud to camera while going through the scene. "
-            "Begin from the first frame where she is already holding {1} in position; "
-            "move forward naturally."
-        ).format(gender_en.lower(), vp_product)
-        # ── Build each beat: Beat 1 opens the shot; beats 2+ are NEW SHOTS (sharp cut) so
+        # ── Build each beat: beat 1 opens the shot; beats 2+ are NEW SHOTS (sharp cut) so
         #    Wan does NOT try to smooth-morph the motion (which warps/forgets the product).
+        #    No meta labels (opening/Beat N:/Closing:) — keep image actions + new shot/sharp
+        #    cut for a sharp, non-blurry video.
         beat_parts = []
         beat_order = ["hook", "agitate", "solve", "cta", "reveal", "them", "us", "value"]
         placed = set()
@@ -710,17 +716,17 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
                     "us": ", brighter expression, confident nod",
                     "value": ", relaxed content smile, gentle exhale",
                 }.get(bid, ", subtle natural body movement")
-            beat_parts.append(f"Beat {idx}: {shot}")
-        # ── Closing directive: keep product on screen, hold the end frame. ──
-        closing = (
-            "Closing: end on the model holding {0} toward the camera, smiling, product clearly visible. "
+            beat_parts.append(shot)
+        # ── End frame: keep product on screen, hold the end frame (no "Closing:" label). ──
+        end_frame = (
+            "end on the model holding {0} toward the camera, smiling, product clearly visible. "
             "Smooth natural motion, lips moving subtly with the speech, product held still, no warping, 9:16 portrait."
         ).format(vp_product)
 
-        # Compose as labelled beats with opening + closing directives.
+        # Compose the beats + end frame (no meta labels — image actions only).
         # Keep each line for readability (display-friendly); callers that send to Wan
         # flatten to a single line via .replace('\n', ' '). `video_prompt_readable` keeps this.
-        parts = [opening] + beat_parts + [closing]
+        parts = beat_parts + [end_frame]
         video_prompt = "\n".join(parts)
         video_prompt = re.sub(r'[ \t]+', ' ', video_prompt).strip()
         logger.info(f"  Video prompt (4-beat, {len(video_prompt)} chars multi-line):")
@@ -741,6 +747,10 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         #   - ห้ามใส่ script ไทยใน prompt — script ทำให้ Wan พูดของมันเอง ปากไม่ตรงเสียง
         #   - prompt สั้น ภาษาบวก ไม่มี do/not/never
         #   - เสียงขับปากมาจาก audio param (TTS 16k) ที่ pipeline ส่งให้ Wan
+        # USER TEMPLATE (vid_b43d89ab): "speaking naturally, subtle head movement,
+        # holding the product toward the camera, ... then finishes speaking, holds
+        # the product toward the camera, smiling" + micro-expressions for clean
+        # restrained lip-sync (small natural mouth movement, minimal jaw, soft spoken).
         talking_scene = (
             "presenting from a clean bright background, upper body, "
             "facing directly to the camera"
@@ -752,15 +762,18 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         )
         # Talking end: STOP talking and show the product.
         end_part = (
-            "Face kept clear, then she finishes speaking, "
+            "Face kept clear, then finishes speaking, "
             "holds the product toward the camera, smiling"
         )
         transition = ""
         # Mouth/head-only motion: keep face forward, avoid warping the frame.
         # Audio (not script) drives the mouth — audio param ส่งแยกที่ create_job.
+        # Micro-expression steer comes once from apply_mouth_steer() below
+        # (mouth_control.steer_talking_prompt from prompt_sources.json) — do NOT
+        # duplicate it here or it appends twice.
         lipsync_part = (
             " subtle head movement, face kept clear and forward, "
-            f"the product held still in front of the presenter"
+            f"the {_vp_product} held still in front of the presenter"
         )
     else:
         start_part = f"{gender_en} {action}. {scene}."

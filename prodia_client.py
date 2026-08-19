@@ -158,20 +158,22 @@ class ProdiaV2Client:
                 if i == 0:
                     config["image"] = fname  # first frame for img2vid
                 logger.info(f"  first_frame(input): {len(img_bytes)} bytes multipart + config.image={fname}")
-        if has_audio:
-            # audio สำหรับ lip-sync → docs-exact ใช้ชื่อ speech.mp3 + mime image/jpeg
-            # (VALIDATED 2026-08-19: ส่ง audio.wav/mp3 แบบอื่น Prodia reject)
-            audio_filename = "speech.mp3"
-            audio_mime = "image/jpeg"
-            config["audio"] = audio_filename
-            files.append(("input", (audio_filename, audio, audio_mime)))
-            logger.info(f"  audio(input): {len(audio)} bytes multipart + config.audio={audio_filename}")
-
         if has_last_frame:
             # Wan 2.7 start-end interpolation: docs-exact pattern = input part + config ref
             config["last_frame"] = "last_frame.png"
             files.append(("input", ("last_frame.png", last_frame, "image/png")))
             logger.info(f"  last_frame(input): {len(last_frame)} bytes multipart + config.last_frame=last_frame.png")
+
+        if has_audio:
+            # audio สำหรับ lip-sync → docs-exact ใช้ชื่อ speech.mp3 + mime image/jpeg
+            # (VALIDATED 2026-08-19: ส่ง audio.wav/mp3 แบบอื่น Prodia reject)
+            # ORDER fix (2026-08-19): ย้าย audio ไปหลัง last_frame — ตาม official sample
+            # inputs = [first_frame.png, last_frame.png, speech.mp3] (audio อยู่ท้ายสุด)
+            audio_filename = "speech.mp3"
+            audio_mime = "image/jpeg"
+            config["audio"] = audio_filename
+            files.append(("input", (audio_filename, audio, audio_mime)))
+            logger.info(f"  audio(input): {len(audio)} bytes multipart + config.audio={audio_filename}")
 
         if has_reference:
             # reference image — Wan 2.7 img2vid ไม่มี field แยกสำหรับ reference กลาง
@@ -235,11 +237,12 @@ class ProdiaV2Client:
                             for _i, _img in enumerate(inputs):
                                 _fname = "first_frame.png" if _i == 0 else f"input_{_i}.png"
                                 _files.append(("input", (_fname, _img, "image/jpeg")))
-                        if has_audio:
-                            # docs-exact: speech.mp3 + mime image/jpeg (เหมือน main path)
-                            _files.append(("input", ("speech.mp3", audio, "image/jpeg")))
                         if has_last_frame:
                             _files.append(("input", ("last_frame.png", last_frame, "image/png")))
+                        if has_audio:
+                            # docs-exact: speech.mp3 + mime image/jpeg (เหมือน main path)
+                            # ORDER fix: audio หลัง last_frame ตาม official sample
+                            _files.append(("input", ("speech.mp3", audio, "image/jpeg")))
                         if has_reference:
                             _files.append(("input", ("reference.png", reference, "image/png")))
                         resp = self._session.post(endpoint, files=_files, timeout=120)

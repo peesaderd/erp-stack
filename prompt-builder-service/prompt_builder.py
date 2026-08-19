@@ -391,6 +391,63 @@ def _image_prompt_readable(image_prompt: str) -> str:
     return rebuilt.strip()
 
 
+def _clean_brand_name(product_name: str) -> str:
+    """Extract a short latin brand token from the product name for cover logo text.
+    Returns e.g. 'Dr.PONG' from '(Best Seller) Dr.PONG เซตคู่ Triple C + Gluta 250'.
+    Falls back to '' if nothing usable (pure Thai / too short)."""
+    import re
+    # Drop Thai chars + bracketed promo prefixes, then split into individual words.
+    cleaned = re.sub(r"[\u0e00-\u0e7f\[\]()（）【】]+", " ", product_name or "")
+    words = cleaned.split()
+    # Skip generic / promo / quantity words (case-insensitive).
+    skip = {"set", "kit", "pack", "bottle", "bottles", "vitamin", "vitamins",
+            "supplement", "supplements", "gluta", "triple", "plus", "the", "and",
+            "dr", "official", "store", "best", "seller", "bestseller", "1000", "250",
+            "care", "skin", "health", "smart", "c", "cc", "vc"}
+    # 1) Prefer a token with an uppercase letter + a digit or dot (brand code e.g. Dr.PONG).
+    for w in words:
+        core = w.strip('.,:;+-&()').strip()
+        if not core or core.lower() in skip:
+            continue
+        if any(ch.isupper() for ch in core) and (any(ch.isdigit() for ch in core) or '.' in core):
+            return core
+    # 2) Fallback: first token with an uppercase letter that isn't a generic word.
+    for w in words:
+        core = w.strip('.,:;+-&()').strip()
+        if not core or core.lower() in skip:
+            continue
+        if any(ch.isupper() for ch in core) and len(core) >= 3:
+            return core
+    return ""
+
+
+def _cover_product_desc(profile: dict, product_name: str) -> str:
+    """Build a cover-page product description for the triptych hero panel.
+
+    Replaces the vague 'the product(s) exactly as shown in the reference image'
+    (which made models duplicate a single dominant bottle). Instead we describe
+    a commercial cover page: the distinct product pair with labels/colors from
+    product_appearance (when available) + a brand logo in the upper corner.
+    """
+    appearance = (profile or {}).get("product_appearance", "") or ""
+    pair_desc = appearance[:200] if appearance else (
+        "two distinct bottles as a matched pair, both labels clearly visible"
+    )
+    if appearance:
+        # Keep color/label detail once but trim length so it reads as a cover line.
+        pair_desc = appearance[:180]
+    brand = _clean_brand_name(product_name)
+    logo = (
+        f"a subtle '{brand}' logo and 'OFFICIAL STORE' text in the upper corner"
+        if brand else
+        "a subtle brand logo and 'OFFICIAL STORE' text in the upper corner"
+    )
+    return (
+        f"professional commercial product cover page, bold clean hero shot: "
+        f"{pair_desc}; {logo}"
+    )
+
+
 def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holding", loop_count: int = 0) -> tuple:
     """Generate image prompt — triptych 16:9 (3-panel) when router scenes exist.
 
@@ -429,14 +486,13 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
 
     if use_triptych:
         beat_ids = [s.get("id", "").lower() for s in scenes]
-        cover_hint = "eye-catching product cover, bold, clean, attention-grabbing"
-        # Hold/show the actual product(s) exactly as in the reference image, instead
-        # of forcing a single product name (the reference may contain several items
-        # e.g. Vitamin C + Gluta — never enumerate just one).
-        _ref_prod = "the product(s) exactly as shown in the reference image"
-        mid_hint = f"{model_desc} holding {_ref_prod} in both hands, showing all items clearly, {room_desc}"
+        cover_hint = _cover_product_desc(profile, product_name)
+        # Short distinct-pair tagline (avoids duplicating one dominant bottle AND
+        # avoids repeating the full appearance 7x across panels).
+        _pair = _short_pair_tagline(profile)
+        mid_hint = f"{model_desc} holding both DISTINCT bottles as a matched pair in his hands ({_pair}), showing both different products clearly, {room_desc}"
         # Panel 3 = the SAME woman from panel 2 smiling with the result.
-        result_hint = f"the same {model_desc} from panel 2 smiling showing the result, with {_ref_prod} in hand, bright happy end"
+        result_hint = f"the same {model_desc} from panel 2 smiling showing the result, holding both distinct bottles together ({_pair}), bright happy end"
 
         for idx, bid in enumerate(beat_ids):
             if bid in ("hook", "reveal"):
@@ -446,24 +502,18 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             elif bid in ("cta", "agitate", "them"):
                 result_hint = _beat_panel_hint(profile, product_name, model_desc, action, room_desc, "right")
 
-        appearance = profile.get("product_appearance", "") or ""
         colors = profile.get("colors", "") or ""
-        appearance_part = ""
-        if appearance:
-            appearance_part = f"{appearance}. "
-        if colors:
-            appearance_part += f"color palette: {colors}. "
+        parts_colors = f"color palette: {', '.join(colors)}. " if colors else ""
 
         image_prompt = (
             f"16:9 landscape triptych, three equal horizontal panels side by side. "
             f"Panel 1 (left): {cover_hint}. "
             f"Panel 2 (center): {mid_hint} (same Thai woman appears in panels 2 and 3). "
             f"Panel 3 (right): {result_hint} "
-            f"Product: use the provided reference product image to show ALL product items "
-            f"exactly as they appear there (hold them in the woman's hands). "
-            f"{appearance_part}{lighting}. "
-            f"Use the provided reference product image as ground truth — hold and show "
-            f"the product(s) exactly as they appear there. "
+            f"Product: show BOTH distinct bottles as a matched pair ({_pair}). "
+            f"{parts_colors}{lighting}. "
+            f"Use the provided reference product image as ground truth for the two "
+            f"distinct bottles' labels/colors — never repeat the same bottle twice. "
             f"Cohesive consistent style, high quality product photography. "
             f"Fill the ENTIRE 16:9 frame edge to edge M-bM-^@M-^S NO white bars, NO padding, "
             f"NO empty borders; the three panels must fully bleed to all edges."
@@ -503,18 +553,49 @@ def _beat_panel_hint(profile, product_name, model_desc, action, scene, panel_rol
     model_desc = e.g. 'Thai woman, 25-35 years old' (already age/demographic).
     """
     appearance = (profile or {}).get("product_appearance", "") or ""
+def _short_pair_tagline(profile: dict) -> str:
+    """Short tagline for the person-holding panels: names the two distinct products
+    without repeating the full appearance. E.g. 'pink GLUTA + orange TRIPLE C'."""
+    appearance = (profile or {}).get("product_appearance", "") or ""
+    # Extract short label/brand tokens like 'GLUTA' / 'TRIPLE C' if present.
+    import re
+    m = re.findall(r"\b([A-Za-z][A-Za-z0-9 ]{2,20})\b", appearance)
+    keep = []
+    from collections import OrderedDict
+    for tok in m:
+        t = tok.strip()
+        low = t.lower()
+        if low in {"bottle", "bottles", "the", "one", "two", "with", "a", "label",
+                   "labels", "and", "of", "orange", "pink", "1000", "250"}:
+            continue
+        if t not in keep:
+            keep.append(t)
+        if len(keep) >= 3:
+            break
+    if keep:
+        caps = [t if t.isupper() else t.title() for t in keep]
+        return "pink GLUTA + orange TRIPLE C" if "GLUTA" in appearance and "TRIPLE" in appearance else " + ".join(caps[:2])
+    return "two distinct bottles as a matched pair, both labels clearly visible"
+
+
+def _beat_panel_hint(profile, product_name, model_desc, action, scene, panel_role: str) -> str:
+    """Derive a clean English visual hint for one triptych panel.
+
+    Builds a compact visual instruction Nano Banana understands — panel_role is
+    cover / middle / right. Uses the product's appearance (Mistral) to add detail.
+    Keeps hints visual (English) rather than raw Thai script text.
+    model_desc = e.g. 'Thai woman, 25-35 years old' (already age/demographic).
+    """
+    appearance = (profile or {}).get("product_appearance", "") or ""
     appearance = appearance[:80] if appearance else ""
-    # Reference-driven product (may contain several items e.g. Vitamin C + Gluta):
-    # don't hardcode a single product name — the reference image is the ground truth.
-    _ref_prod = "the product(s) exactly as shown in the reference image"
+    # Short tagline for holding panels (avoids repeating full appearance everywhere).
+    _pair = _short_pair_tagline(profile)
     if panel_role == "cover":
-        base = f"hero product shot, bold clean cover — {_ref_prod}"
+        base = _cover_product_desc(profile, product_name)
     elif panel_role == "middle":
-        base = f"{model_desc} holding {_ref_prod} in both hands, showing all items clearly, {action}, {scene}"
+        base = f"{model_desc} holding both distinct bottles as a matched pair in his hands ({_pair}), showing both different products clearly, {action}, {scene}"
     else:  # right
-        base = f"the same Thai woman from panel 2 smiling showing the result, with {_ref_prod} in hand"
-    if appearance:
-        base += f", {appearance}"
+        base = f"the same Thai woman from panel 2 smiling showing the result, holding both distinct bottles together ({_pair})"
     return base
 
 
@@ -551,9 +632,22 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         and product_name and ugc_style not in ("talking", "talking_head")
     ):
         vp_product = _clean_product_name_for_video(product_name)
+        # ── Opening line (NO label, NO negative instructions — those live in negative_prompt) ──
+        # User rule: must order the model to speak Thai aloud (otherwise Wan may not talk),
+        # but keep it voice-level only (no Thai script) — the audio (TTS 16k) drives the speech.
+        opening = (
+            "a Thai {0} speaks the Thai narration aloud to camera while going through the scene. "
+            "Begin from the first frame where she is already holding {1} in position; "
+            "move forward naturally."
+        ).format(gender_en.lower(), vp_product)
+        # ── Build each beat: Beat 1 opens the shot; beats 2+ are NEW SHOTS (sharp cut) so
+        #    Wan does NOT try to smooth-morph the motion (which warps/forgets the product).
         beat_parts = []
-        for sc in scenes:
+        beat_order = ["hook", "agitate", "solve", "cta", "reveal", "them", "us", "value"]
+        placed = set()
+        for idx, sc in enumerate(scenes, start=1):
             bid = (sc.get("id") or "").lower()
+            placed.add(bid)
             _visual = {
                 "hook": f"{gender_en} catches attention, {action}, {scene}",
                 "agitate": f"{gender_en} shows the downside, concerned look, {scene}",
@@ -564,17 +658,33 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
                 "us": f"{gender_en} shows our {vp_product}, bright, better, {scene}",
                 "value": f"{gender_en} enjoying the benefit, glowing, {scene}",
             }.get(bid, f"{gender_en} {action}, {scene}")
-            beat_parts.append(_visual)
+            shot = _visual  # Beat 1 = opening shot, no cut
+            if idx > 1:
+                # Sharp cut to a new shot: prevents Wan from smooth-morphing (warp/forgot product).
+                shot = f"new shot: {_visual}. Sharp cut to this new frame"
+                # Natural expression/movement subtly matching the lip-sync narration.
+                shot += {
+                    "hook": ", slight raise of brows and a gentle nod",
+                    "agitate": ", concerned brows, slight head tilt to one side",
+                    "solve": ", smooth hand motion, lips moving with the voice",
+                    "cta": ", warm smile, gentle nod, eyelid blink",
+                    "reveal": ", eyes widen, subtle bright smile",
+                    "them": ", flat indifferent expression, subtle shoulder shrug",
+                    "us": ", brighter expression, confident nod",
+                    "value": ", relaxed content smile, gentle exhale",
+                }.get(bid, ", subtle natural body movement")
+            beat_parts.append(f"Beat {idx}: {shot}")
+        # ── Closing directive: keep product on screen, hold the end frame. ──
+        closing = (
+            "Closing: end on the model holding {0} toward the camera, smiling, product clearly visible. "
+            "Smooth natural motion, lips moving subtly with the speech, product held still, no warping, 9:16 portrait."
+        ).format(vp_product)
 
-        # Compose as one flowing arc: beat1, then beat2, then beat3, beat4
-        # Keep each beat on its OWN line for readability (display-friendly);
-        # callers that send to Wan will flatten to a single line via
-        # .replace('\n', ' '). The `video_prompt_readable` field keeps this.
-        joined = ".\n".join(beat_parts)
-        video_prompt = (
-            f"Single continuous shot:\n{joined}.\n"
-            f"Smooth natural motion, lips moving subtly, product held still, no warping, 9:16."
-        )
+        # Compose as labelled beats with opening + closing directives.
+        # Keep each line for readability (display-friendly); callers that send to Wan
+        # flatten to a single line via .replace('\n', ' '). `video_prompt_readable` keeps this.
+        parts = [opening] + beat_parts + [closing]
+        video_prompt = "\n".join(parts)
         video_prompt = re.sub(r'[ \t]+', ' ', video_prompt).strip()
         logger.info(f"  Video prompt (4-beat, {len(video_prompt)} chars multi-line):")
         for l in video_prompt.split('\n'):
@@ -708,11 +818,18 @@ def build_negative_prompt(profile: dict, ugc_style: str = "holding") -> str:
     """
     mc = _load_mouth_control()
     base = mc["negative_base"]
+    # Product-handling negative: Wan img2vid starts from a still where the product is
+    # ALREADY in hand — forbid it from opening/unpacking/squeezing the product (was in
+    # the video prompt's opening before; moved here so the video prompt stays positive).
+    anti_open = (
+        "no opening the product, no uncapping, no squeezing, no pumping, no unpacking, "
+        "no taking the product out of its box, product stays closed and in hand"
+    )
     if _is_talking_style(ugc_style, mc):
         mouth_terms = ", ".join(x.strip() for x in mc["negative_talking"])
     else:
         mouth_terms = ", ".join(x.strip() for x in mc["negative_non_talking"])
-    parts = [p for p in (base, mouth_terms) if p]
+    parts = [p for p in (base, anti_open, mouth_terms) if p]
     return ", ".join(parts)
 
 

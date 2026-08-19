@@ -389,6 +389,22 @@ def build_image_prompt(
 # STEP 5: Generate Image (Prodia Nano Banana)
 # ═══════════════════════════════════════════════════════════════════════════
 
+def _image_prompt_is_triptych(prompt: str) -> bool:
+    """Return True if the image_prompt requests a 16:9 triptych / multi-panel layout.
+
+    Mirror of the layout-detection in modules/image/main.py: when the prompt says
+    "triptych / 3 panels / side by side / split into / collage", assume the caller
+    (prompt-builder) wants a landscape 16:9 frame — NOT the default 9:16 portrait.
+    """
+    if not prompt:
+        return False
+    _lower = prompt.lower()
+    return any(
+        k in _lower
+        for k in ("triptych", "panel", "side by side", "split into", "collage", "three equal")
+    )
+
+
 def generate_image(
     prompt: str,
     product_image: str = None,
@@ -417,10 +433,12 @@ def generate_image(
     }
 
     if product_image:
+        # 8110 (image-module) request schema: inputImage + model + style.
+        # modelTier/provider/thaiModel were removed from the service's ImageGenRequest;
+        # sending them triggers Pydantic 422/500. Use the model field to select nano-banana.
         payload["inputImage"] = product_image
-        payload["modelTier"] = "nano.banana"
-        payload["provider"] = "prodia"
-        payload["thaiModel"] = True
+        payload["model"] = "nano-banana"
+        payload["style"] = "thai_realistic"
 
     last_exc = None
     for attempt in range(3):
@@ -1010,7 +1028,12 @@ def run_pipeline(
 
         # ── STEP 5: Generate Image ──
         step_start = time.time()
-        img_url, cost_image = generate_image(image_prompt, product_image)
+        # Triptych (16:9) vs single 9:16: prompt-builder ระบุ layout ใน image_prompt
+        # (เช่น "16:9 landscape triptych, three equal horizontal panels"). ถ้าเป็น triptych
+        # ให้ส่ง aspect_ratio="16:9" แทนค่า default 9:16 เพื่อให้ 8110 gen แนวนอนจริง
+        # (ก่อนหน้า hardcode 9:16 เสมอ → ภาพออกมา 3 ช่องแนวตั้ง — bug ตรวจพบ 2026-08-19)
+        img_aspect = "16:9" if _image_prompt_is_triptych(image_prompt) else "9:16"
+        img_url, cost_image = generate_image(image_prompt, product_image, aspect_ratio=img_aspect)
         img_path = TMP_DIR / f"image_{run_id}.png"
         download_file(img_url, img_path)
         image_duration = int((time.time() - step_start) * 1000)

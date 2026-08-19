@@ -260,7 +260,7 @@ class ProdiaV2Client:
         self,
         job_id: str,
         max_retries: int = 120,
-        initial_delay: float = 2.0,
+        initial_delay: float = 5.0,
         backoff_factor: float = 1.0,
         max_delay: float = 5.0,
     ) -> dict:
@@ -275,7 +275,7 @@ class ProdiaV2Client:
         Args:
             job_id: jobId จาก create_job()
             max_retries: สูงสุด 120 retries
-            initial_delay: 2s
+            initial_delay: 5s (Wan2-7 15s/720P ใช้เวลา ~3.5-6+ นาที; เดิม 2s×120=240s สั้นไป ถูก timeout กลางคัน)
             backoff_factor: 1.0 (fixed interval)
             max_delay: 5s
         

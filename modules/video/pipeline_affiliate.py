@@ -767,7 +767,7 @@ def compose_video(
     run_id: str = "",
     bgm_style: str = "chill_loft",
     target_duration: int = 0,
-    voice_speed: float = 1.2,
+    voice_speed: float = 1.0,
 ) -> str:
     """
     Step 9: Compose final video (merge voice + BGM + concat scenes)
@@ -779,7 +779,7 @@ def compose_video(
         voice_path: path ของ voice จาก Step 7 (None = ไม่มี voiceover)
         run_id: สำหรับสร้าง filename
         bgm_style: สไตล์เพลงพื้นหลัง
-        voice_speed: ความเร็วเสียง 1.0=ปกติ 1.2=เร่งสปีด (default ASMR/Sale voice)
+        voice_speed: ความเร็วเสียง 1.0=ปกติ (TTS speed จาก speaking_rate 1.2 แล้ว อย่าเร่งซ้ำ)
 
     Returns:
         str: path ของ final video
@@ -848,8 +848,9 @@ def compose_video(
         logger.info(f"  9b: Merging TTS voiceover audio {voice_path} into final video")
         voiced_path = STORAGE_DIR / f"affiliate_{run_id}_voiced.mp4"
         # FIX (dead voice_speed): apply the voice_speed via ffmpeg atempo filter.
-        # voice_speed was declared (default 1.2) but never used — no speed filter
-        # existed, so the "speak faster" param did nothing. atempo supports 0.5-2.0.
+        # voice_speed=1.0 by default — Gemini TTS already speaks at speaking_rate
+        # (1.2); do NOT atempo-speed it again or the audio shortens (~9s in a 15s
+        # clip) and the tail goes silent. atempo supports 0.5-2.0.
         cmd_voice = [
             "ffmpeg", "-y",
             "-i", str(concat_path),

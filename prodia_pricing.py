@@ -8,7 +8,7 @@ Usage:
     from prodia_pricing import get_price
 
     cost = get_price("nano-banana.img2img.v2")  # → 0.039
-    cost = get_price("wan2-7.txt2vid.v1")       # → 0.030
+    cost = get_price("wan2-7.img2vid.v1")       # → 0.035  (text2video removed 2026-08-19)
 """
 
 import json
@@ -32,12 +32,10 @@ CACHE_TTL_SECONDS = 3600  # Refresh every hour
 DEFAULT_PRICES: dict[str, float] = {
     # Image models
     "nano-banana.img2img.v2": 0.039,    # Nano Banana (Gemini 2.5 Flash, 1K)
-    "flux-2.dev.txt2img.v1": 0.010,     # Flux 2 Dev (1K) — deprecated, removed from our code
-    "sdxl.txt2img.v1": 0.004,           # SDXL (1K)
+    "sdxl.txt2img.v1": 0.004,           # SDXL (1K) — legacy reference only
     
-    # Video models  
-    "wan2-7.txt2vid.v1": 0.030,         # Wan 2.7 txt2vid
-    "wan2-7.img2vid.v1": 0.035,         # Wan 2.7 img2vid
+    # Video models
+    "wan2-7.img2vid.v1": 0.035,         # Wan 2.7 img2vid (FL2V — text2video removed 2026-08-19)
     
     # Default/unknown
     "default": 0.005,

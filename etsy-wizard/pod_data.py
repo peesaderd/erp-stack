@@ -240,7 +240,8 @@ def get_product_catalog(provider_id: str = "printful", category: str = None) -> 
                 colors = {}
                 sizes = set()
                 pricing = {"min": None, "max": None, "variants_count": len(variants)}
-                
+                # Track slim pf_variants list with id/name/size/color for client wizard use
+                pf_variants_slim = []
                 for v in variants:
                     color = v.get("color")
                     size = v.get("size")
@@ -256,7 +257,16 @@ def get_product_catalog(provider_id: str = "printful", category: str = None) -> 
                         pricing["min"] = price
                     if pricing["max"] is None or price > pricing["max"]:
                         pricing["max"] = price
+                    # Keep raw pf variant id for mockup calls
+                    pf_variants_slim.append({
+                        "id": v.get("id"),
+                        "name": v.get("name") or (f"{color} {size}" if color or size else "Variant"),
+                        "size": size,
+                        "color": color,
+                        "color_code": v.get("color_code"),
+                    })
                 
+                product["pf_variants"] = pf_variants_slim
                 product["pf_colors"] = list(colors.values())
                 product["pf_sizes"] = sorted(sizes, key=lambda s: ["XS","S","M","L","XL","2XL","3XL","4XL","5XL"].index(s) if s in ["XS","S","M","L","XL","2XL","3XL","4XL","5XL"] else 99)
                 product["pf_pricing"] = pricing

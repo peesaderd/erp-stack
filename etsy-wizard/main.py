@@ -791,6 +791,42 @@ def ai_assist_wizard_step(shop_id: str, step: str, context: dict = {}):
 
 # ─── Stats ─────────────────────────────────────────────────────────────────
 
+
+@app.get("/api/pod/designs")
+def api_pod_designs():
+    """List available designs in /var/www/podwizard/designs/ (auto-detected
+    via filesystem scan). Returns [{name, url, size, modified, is_image}]."""
+    import os, json
+    from pathlib import Path
+    base = Path("/var/www/podwizard/designs")
+    if not base.exists():
+        return {"ok": False, "error": "designs directory not found", "designs": []}
+    items = []
+    for p in sorted(base.iterdir()):
+        if p.name.startswith('.'):
+            continue
+        if p.suffix.lower() not in ('.jpg', '.jpeg', '.png', '.webp', '.gif'):
+            # Include metadata files
+            if p.suffix.lower() == '.json':
+                try:
+                    meta = json.loads(p.read_text())
+                    items.append({
+                        "name": p.name, "type": "metadata", "url": None,
+                        "size": p.stat().st_size, "modified": p.stat().st_mtime,
+                        "meta": meta,
+                    })
+                except Exception:
+                    pass
+            continue
+        items.append({
+            "name": p.name, "type": "image",
+            "url": f"https://podwizard.m2igen.com/designs/{p.name}",
+            "size": p.stat().st_size, "modified": p.stat().st_mtime,
+            "is_image": True,
+        })
+    return {"ok": True, "count": len(items), "designs": items}
+
+
 @app.get("/stats")
 def stats():
     return {
@@ -1122,6 +1158,28 @@ def pod_list_products(category: Optional[str] = None):
     }
 
 
+# Category metadata for frontend wizard
+_CATEGORY_META = {
+    "apparel":     {"id": "apparel",     "name": "เสื้อผ้า",            "icon": "👕"},
+    "drinkware":   {"id": "drinkware",   "name": "แก้ว/เครื่องดื่ม",     "icon": "☕"},
+    "home":        {"id": "home",        "name": "ของตกแต่งบ้าน",       "icon": "🏠"},
+    "accessories": {"id": "accessories", "name": "เครื่องประดับ/กระเป๋า", "icon": "👜"},
+    "stationery":  {"id": "stationery",  "name": "สินค้ากระดาษ",        "icon": "📒"},
+}
+
+
+@app.get("/api/pod/categories")
+def api_pod_categories():
+    """
+    List POD categories for frontend wizard (returns id + name + icon).
+    Frontend index.html calls 'api/pod/categories' after provider selection.
+    """
+    from pod_sizes import get_categories
+    cats = get_categories()
+    result = [_CATEGORY_META.get(c, {"id": c, "name": c.title(), "icon": "📦"}) for c in cats]
+    return {"ok": True, "result": result, "total": len(result)}
+
+
 @app.get("/pod/products/{category}")
 def pod_products_by_category(category: str):
     """รายการสินค้า POD ตามหมวดหมู่"""
@@ -1235,6 +1293,358 @@ def pod_get_product(product_id: str):
         if not product:
             raise HTTPException(status_code=404, detail=f"ไม่พบ Product ID: {product_id}")
     return {"ok": True, "product": product}
+
+
+# ──────────────────────────────────────────────────────────────────
+# Legacy API aliases — frontend index.html (Minecraft theme) calls
+# these endpoints with /api/pod/* prefix. We expose them as thin
+# wrappers around the canonical /pod/* routes so the existing UI
+# keeps working without changing the theme.
+# ──────────────────────────────────────────────────────────────────
+
+
+@app.get("/api/pod/products")
+def api_pod_products(category_id: Optional[str] = None):
+    """Legacy: GET /api/pod/products?category_id=X
+    Wraps /pod/products?category=X and returns {result: [...]} shape
+    expected by index.html loadProducts().
+    """
+    from pod_sizes import list_products, get_categories
+    prods = list_products(category_id)
+    return {
+        "ok": True,
+        "result": prods,
+        "total": len(prods),
+        "categories": get_categories(),
+        "category": category_id,
+    }
+
+
+@app.get("/api/pod/products/{product_id}")
+def api_pod_product_detail(product_id: str):
+    """Legacy: GET /api/pod/products/{id}
+    Wraps /pod/product/{id} — frontend reads data.result.product.
+    Synthesizes a flat `variants` array from pf_colors + pf_sizes for
+    the index.html wizard variant picker.
+    """
+    from pod_data import get_product_detail
+    from pod_sizes import get_product
+    product = get_product_detail(product_id)
+    if not product:
+        product = get_product(product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail=f"ไม่พบ Product ID: {product_id}")
+
+    # Build a flat variants array if backend doesn't have one
+    if not product.get("variants"):
+        pf_variants = product.get("pf_variants") or []
+        if pf_variants:
+            # Use real Printful variant ids so mockup API works
+            product["variants"] = [{
+                "id": v.get("id"),
+                "name": v.get("name"),
+                "size": v.get("size"),
+                "color": v.get("color"),
+                "color_code": v.get("color_code"),
+            } for v in pf_variants if v.get("id")]
+        else:
+            # Fallback: synthesize from colors/sizes with sequential ids
+            colors = product.get("pf_colors") or []
+            sizes = product.get("pf_sizes") or []
+            synthesized = []
+            vid = 1
+            for color in colors:
+                cname = color.get("name") if isinstance(color, dict) else str(color)
+                ccode = color.get("code") if isinstance(color, dict) else ""
+                for size in sizes:
+                    synthesized.append({
+                        "id": vid,
+                        "name": f"{cname} - {size}" if cname else size,
+                        "size": size,
+                        "color": cname,
+                        "color_code": ccode,
+                    })
+                    vid += 1
+            if not synthesized and sizes:
+                synthesized = [{"id": 1, "name": sizes[0], "size": sizes[0], "color": ""}]
+            product["variants"] = synthesized
+    return {"ok": True, "result": {"product": product}}
+
+
+@app.get("/api/pod/print-info/{product_id}")
+def api_pod_print_info(product_id: str):
+    """Legacy: GET /api/pod/print-info/{id}
+    Re-uses /pod/print-info response but reshapes to {result: ...}.
+    """
+    # Inline implementation (can't easily redirect with body shaping)
+    from pod_data import get_product_detail, get_printful_printfiles, get_printful_mockup_templates
+    product = get_product_detail(product_id)
+    if not product:
+        from pod_sizes import get_product
+        product = get_product(product_id)
+    if not product:
+        return {"ok": False, "result": {}, "error": f"ไม่พบ Product ID: {product_id}"}
+    pf_id = product.get("pf_product_id")
+    if not pf_id:
+        return {"ok": False, "result": {"placements": [], "printfiles": []},
+                "error": "ไม่มี Printful product ID"}
+
+    pf_data = get_printful_printfiles(pf_id) or {}
+    templates_data = get_printful_mockup_templates(pf_id) or {}
+    placements = pf_data.get("available_placements", {})
+    printfiles = pf_data.get("printfiles", [])
+
+    return {
+        "ok": True,
+        "result": {
+            "placements": placements,
+            "printfiles": printfiles,
+            "variant_mapping": (templates_data.get("variant_mapping", []) or [])[:3],
+            "product_id": product_id,
+            "pf_product_id": pf_id,
+        },
+    }
+
+
+@app.post("/api/pod/generate-design")
+async def api_pod_generate_design(req: dict):
+    """Legacy: POST /api/pod/generate-design
+    Body: {product_name, prompt, style}
+    Calls the AI image service (port 8110) directly to keep the same
+    flow as /ai/generate-image but shaped for index.html (data.result.image_url).
+    """
+    import httpx
+    prompt = req.get("prompt") or req.get("style") or "minimalist design"
+    product_name = req.get("product_name") or "Design"
+    full_prompt = f"Design for {product_name}: {prompt}"
+
+    # Width/height from artwork spec if product known, else defaults
+    width = int(req.get("width") or 1024)
+    height = int(req.get("height") or 1024)
+
+    try:
+        async with httpx.AsyncClient(timeout=120) as client:
+            r = await client.post(
+                "http://127.0.0.1:8110/api/v1/image/generate",
+                json={"prompt": full_prompt, "width": width, "height": height},
+            )
+        if r.status_code != 200:
+            raise HTTPException(status_code=502, detail=f"AI service error: {r.status_code}")
+        data = r.json()
+        images = data.get("images") or []
+        if not images:
+            raise HTTPException(status_code=502, detail="AI returned no image")
+        first = images[0]
+        raw_url = first.get("full_url") or first.get("url") or ""
+        # Rewrite http://localhost:8110/storage/images/X → /storage/images/X
+        # so the image loads via the podwizard subdomain (avoids browser
+        # CORS loopback policy that blocks http://localhost from https pages).
+        image_url = raw_url
+        if "localhost:8110" in image_url:
+            image_url = "/storage/images/" + raw_url.rsplit("/storage/images/", 1)[-1]
+        elif image_url.startswith("http://localhost"):
+            image_url = image_url.replace("http://localhost:8110", "")
+        return {"ok": True, "result": {"image_url": image_url, "prompt": full_prompt}}
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=502, detail=f"AI service unreachable: {e}")
+
+
+def _to_absolute_url(url: str) -> str:
+    """Convert relative image URLs to absolute Printful-fetchable URLs.
+
+    Printful's mockup generator fetches the image by URL. Relative paths
+    and http://localhost references both fail ("Invalid URL"). Always
+    return a fully qualified https URL pointing to the podwizard subdomain
+    where /storage/images/ is reverse-proxied to port 8110.
+    """
+    if not url:
+        return url
+    if url.startswith("http://localhost:8110"):
+        return url.replace("http://localhost:8110", "https://podwizard.m2igen.com")
+    if url.startswith("http://127.0.0.1:8110"):
+        return url.replace("http://127.0.0.1:8110", "https://podwizard.m2igen.com")
+    if url.startswith("/"):
+        return f"https://podwizard.m2igen.com{url}"
+    return url
+
+
+@app.post("/api/pod/mockup")
+async def api_pod_create_mockup(req: dict):
+    """Legacy: POST /api/pod/mockup
+    Body: {product_id, variant_ids, format, files: [{placement, image_url}]}
+    Returns {result: {task_key}} shape for index.html.
+    """
+    import httpx
+    from pod_data import get_product_detail, get_printful_printfiles
+
+    variant_ids = req.get("variant_ids") or []
+    if not variant_ids:
+        raise HTTPException(status_code=400, detail="variant_ids required")
+
+    product_id_raw = req.get("product_id")
+    product_id = None
+    if product_id_raw is not None:
+        try:
+            product_id = int(product_id_raw)
+        except (TypeError, ValueError):
+            # Resolve from string id like "tshirt_standard" or numeric string
+            from pod_sizes import get_product as _get_pod_product
+            product = get_product_detail(str(product_id_raw)) if product_id_raw else None
+            if not product:
+                product = _get_pod_product(str(product_id_raw)) if product_id_raw else None
+            if product and product.get("pf_product_id"):
+                product_id = int(product["pf_product_id"])
+
+    # If product_id is still None (frontend sent null because parseInt("tshirt_standard")
+    # returned NaN), reverse-resolve from the first variant id via Printful catalog.
+    if product_id is None:
+        first_variant_id = int(variant_ids[0])
+        # Try common Printful products in POD catalog
+        from pod_data import get_product_catalog
+        catalog = get_product_catalog() or []
+        for prod in catalog:
+            pf_variants = prod.get("pf_variants") or prod.get("pf_variants_slim") or []
+            if any(int(v.get("id")) == first_variant_id for v in pf_variants if isinstance(v, dict) and v.get("id")):
+                pf_pid = prod.get("pf_product_id")
+                if pf_pid:
+                    product_id = int(pf_pid)
+                    break
+        if product_id is None:
+            raise HTTPException(status_code=400, detail=f"ไม่พบ Printful product ID for {product_id_raw} / variant {first_variant_id}")
+
+    # Resolve printfile_id from printfiles
+    pf_data = get_printful_printfiles(product_id) or {}
+    printfiles = pf_data.get("printfiles", [])
+    placements = pf_data.get("available_placements", {})
+
+    # Determine valid placements for this product
+    if isinstance(placements, dict):
+        valid_placements = list(placements.keys())
+    elif isinstance(placements, list):
+        valid_placements = placements
+    else:
+        valid_placements = []
+
+    if not printfiles:
+        # No detailed printfiles — use placements only (e.g. "default")
+        if not valid_placements:
+            raise HTTPException(status_code=502, detail="ไม่พบข้อมูล print area สำหรับสินค้านี้")
+        files_in = req.get("files") or []
+        files_out = []
+        for f in files_in:
+            image_url = f.get("image_url")
+            if not image_url:
+                continue
+            image_url = _to_absolute_url(image_url)
+            placement = f.get("placement")
+            if not placement or placement not in valid_placements:
+                placement = valid_placements[0]
+            files_out.append({
+                "placement": placement,
+                "image_url": image_url,
+                "position": {
+                    "area_width": 3000,
+                    "area_height": 3000,
+                    "width": 3000,
+                    "height": 3000,
+                    "top": 0,
+                    "left": 0,
+                },
+            })
+    else:
+        files_in = req.get("files") or []
+        files_out = []
+        for f in files_in:
+            placement = f.get("placement") or "front"
+            image_url = f.get("image_url")
+            if not image_url:
+                continue
+            image_url = _to_absolute_url(image_url)
+            # find matching printfile
+            match = next((pf for pf in printfiles if pf.get("placement") == placement), None)
+            if not match and valid_placements:
+                # pick first valid placement as fallback
+                placement = valid_placements[0]
+                match = next((pf for pf in printfiles if pf.get("placement") == placement), None)
+            if not match:
+                match = printfiles[0]
+                placement = match.get("placement") or placement
+            position = {
+                "area_width": match.get("width", 3000),
+                "area_height": match.get("height", 3000),
+                "width": match.get("width", 3000),
+                "height": match.get("height", 3000),
+                "top": 0,
+                "left": 0,
+            }
+            files_out.append({
+                "placement": placement,
+                "image_url": image_url,
+                "position": position,
+                "printfile_id": match.get("id"),
+            })
+
+    if not files_out:
+        raise HTTPException(status_code=400, detail="files with image_url required")
+
+    from pod_data import create_printful_mockup
+    fmt = req.get("format") or "jpg"
+    result = create_printful_mockup(product_id, variant_ids, files_out, fmt)
+    if not result or not result.get("task_key"):
+        raise HTTPException(status_code=502, detail="Printful mockup task creation failed")
+    return {"ok": True, "result": result}
+
+
+@app.get("/api/pod/mockup/status/{task_key}")
+def api_pod_mockup_status(task_key: str):
+    """Legacy: GET /api/pod/mockup/status/{key}
+    Returns {result: {status, mockups}} shape for index.html.
+    """
+    from pod_data import check_mockup_task
+    result = check_mockup_task(task_key)
+    if not result:
+        # Return pending so frontend keeps polling
+        return {"ok": True, "result": {"status": "pending", "mockups": []}}
+    # Normalise: ensure mockups array shape {mockup_url}
+    mockups = result.get("mockups") or []
+    return {"ok": True, "result": {
+        "status": result.get("status", "pending"),
+        "mockups": mockups,
+    }}
+
+
+@app.post("/api/ai/generate-listing")
+async def api_ai_generate_listing(req: dict):
+    """Legacy: POST /api/ai/generate-listing
+    Wraps /ai/generate-listing with {result: {title, description, tags}} shape.
+    Maps frontend's product_name → backend's name.
+    """
+    import httpx
+    # Map frontend field names → backend ProductInfo schema
+    payload = {
+        "name": req.get("product_name") or req.get("name") or "",
+        "category": req.get("category") or "",
+        "size": req.get("variant") or req.get("size") or "",
+        "style": "product",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            r = await client.post(
+                "http://127.0.0.1:8104/ai/generate-listing",
+                json=payload,
+            )
+        if r.status_code != 200:
+            raise HTTPException(status_code=502, detail=f"AI listing service error: {r.status_code}")
+        data = r.json()
+        # Backend /ai/generate-listing returns shape with title/description/tags at root or in result
+        result = data.get("result") or data
+        return {"ok": True, "result": {
+            "title": result.get("title", ""),
+            "description": result.get("description") or result.get("desc", ""),
+            "tags": result.get("tags") or [],
+        }}
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=502, detail=f"AI listing service unreachable: {e}")
 
 
 @app.post("/pod/validate-artwork")

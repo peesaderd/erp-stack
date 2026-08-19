@@ -624,7 +624,12 @@ def generate_video(
         # No hardcoded fallback: if missing we raise clearly (single source of truth).
         if not negative_prompt:
             raise ValueError("generate_video: negative_prompt is required — supply it from prompt-builder (JSON-driven); refusing hardcoded fallback")
-        neg_p = negative_prompt
+        # 🔴 HARD CAP 500 — Prodia wan2-7.img2vid.v1 schema รับ negative_prompt ได้สูงสุด 500 chars เป๊ะ
+        # (len=500 ผ่าน / len=501 → failed: error ปลอม type must be txt2img + field not allowed)
+        # ห้ามเกิน 500 เด็ดขาด ระบบพัง. ต้นทาง build_negative_prompt ควรแก้ให้สั้นเองด้วย.
+        if len(negative_prompt) > 500:
+            logger.warning(f"generate_video: negative_prompt len={len(negative_prompt)} > 500 → truncating to 500 (Prodia cap)")
+        neg_p = negative_prompt[:500]
         result = client.generate_video(
             prompt=final_prompt,
             input_image=image_data,

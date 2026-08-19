@@ -159,7 +159,11 @@ def _apply_persona_to_profile(profile: dict, persona: dict) -> dict:
     if persona.get("vibe"):
         profile["persona_vibe"] = persona["vibe"]
     if persona.get("environment"):
-        profile["setting"] = persona["environment"]
+        # Room/setting: pick ONE option (persona environments are comma-separated
+        # options like 'a, b, c'); a single coherent room reads better for the
+        # image model than concatenating every option.
+        profile["setting"] = _pick_random_option(persona["environment"])
+        profile["persona_setting_used"] = profile["setting"]
     if persona.get("lighting_variation"):
         profile["persona_lighting"] = persona["lighting_variation"]
     if persona.get("motion_speed"):

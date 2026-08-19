@@ -422,20 +422,16 @@ def _clean_brand_name(product_name: str) -> str:
 
 
 def _cover_product_desc(profile: dict, product_name: str) -> str:
-    """Build a cover-page product description for the triptych hero panel.
+    """Build a cover-page product description for the triptych cover panel.
 
-    Replaces the vague 'the product(s) exactly as shown in the reference image'
-    (which made models duplicate a single dominant bottle). Instead we describe
-    a commercial cover page: the distinct product pair with labels/colors from
-    product_appearance (when available) + a brand logo in the upper corner.
+    Clear "hero" wording is removed: it made the image model pick a single
+    dominant item. Keep it reference-driven: a clean commercial cover page with
+    the product(s) from the reference + brand logo — no hardcoded item count.
     """
     appearance = (profile or {}).get("product_appearance", "") or ""
-    pair_desc = appearance[:200] if appearance else (
-        "two distinct bottles as a matched pair, both labels clearly visible"
+    pair_desc = appearance[:180] if appearance else (
+        "the product(s) from the provided reference image, all variants clearly shown"
     )
-    if appearance:
-        # Keep color/label detail once but trim length so it reads as a cover line.
-        pair_desc = appearance[:180]
     brand = _clean_brand_name(product_name)
     logo = (
         f"a subtle '{brand}' logo and 'OFFICIAL STORE' text in the upper corner"
@@ -443,7 +439,7 @@ def _cover_product_desc(profile: dict, product_name: str) -> str:
         "a subtle brand logo and 'OFFICIAL STORE' text in the upper corner"
     )
     return (
-        f"professional commercial product cover page, bold clean hero shot: "
+        f"clean professional commercial product cover page: "
         f"{pair_desc}; {logo}"
     )
 
@@ -470,7 +466,10 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     # ── Model identity: Thai + age + room from profile (fallback to ai_select) ──
     gender_en = {"female": "woman", "male": "man", "unisex": "person"}.get(model_gender, "woman")
     age = profile.get("target_age", "") or ""
-    age_desc = f", {age} years old" if age else ""
+    # User rule: use the YOUNGEST age from the range (e.g. "25-50" -> "25") so the
+    # demo model looks as young/appealing as the target allows.
+    age_young = _youngest_age(age)
+    age_desc = f", {age_young} years old" if age_young else ""
     model_desc = f"Thai {gender_en}{age_desc}"
     # Room/setting: prefer profile['setting'] (user set), else ai_select scene
     room = (profile.get("setting") or "").strip() or scene
@@ -486,37 +485,52 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
 
     if use_triptych:
         beat_ids = [s.get("id", "").lower() for s in scenes]
-        cover_hint = _cover_product_desc(profile, product_name)
-        # Short distinct-pair tagline (avoids duplicating one dominant bottle AND
-        # avoids repeating the full appearance 7x across panels).
-        _pair = _short_pair_tagline(profile)
-        mid_hint = f"{model_desc} holding both DISTINCT bottles as a matched pair in his hands ({_pair}), showing both different products clearly, {room_desc}"
-        # Panel 3 = the SAME woman from panel 2 smiling with the result.
-        result_hint = f"the same {model_desc} from panel 2 smiling showing the result, holding both distinct bottles together ({_pair}), bright happy end"
 
+        # Panel 1 (cover): designed from the reference product image — let the
+        # image model compose the cover itself (no hardcoded count).
+        cover_hint = _cover_product_desc(profile, product_name)
+
+        # Panel 2 (model + product): the model shows the product as it appears in
+        # the reference — we do NOT hardcode how many items/variants; the image
+        # model reads the reference and renders them all.
+        mid_hint = (
+            f"{model_desc} showcasing the product from the reference image in "
+            f"both hands, showing all items/variants clearly, {action}, {room_desc}"
+        )
+
+        # Panel 3 (result/end): the SAME model from panel 2, happy end.
+        result_hint = (
+            f"the same {model_desc} from panel 2 smiling showing the result, "
+            f"holding up the product from the reference image, bright happy end scene"
+        )
+
+        # Map recipe beats onto the three panels — but only where it fits the
+        # recipe meaning (solve/us/value → panel 2, cta → panel 3). We deliberately
+        # do NOT force agitate/them into the image (that belongs in the video script).
         for idx, bid in enumerate(beat_ids):
-            if bid in ("hook", "reveal"):
-                cover_hint = _beat_panel_hint(profile, product_name, model_desc, action, room_desc, "cover")
-            elif bid in ("solve", "us", "value"):
+            if bid in ("solve", "us", "value"):
                 mid_hint = _beat_panel_hint(profile, product_name, model_desc, action, room_desc, "middle")
-            elif bid in ("cta", "agitate", "them"):
+            elif bid == "cta":
                 result_hint = _beat_panel_hint(profile, product_name, model_desc, action, room_desc, "right")
 
         colors = profile.get("colors", "") or ""
         parts_colors = f"color palette: {', '.join(colors)}. " if colors else ""
 
         image_prompt = (
-            f"16:9 landscape triptych, three equal horizontal panels side by side. "
+            f"16:9 landscape triptych, three equal horizontal panels side by side, "
+            f"no gap between them. "
             f"Panel 1 (left): {cover_hint}. "
-            f"Panel 2 (center): {mid_hint} (same Thai woman appears in panels 2 and 3). "
-            f"Panel 3 (right): {result_hint} "
-            f"Product: show BOTH distinct bottles as a matched pair ({_pair}). "
+            f"Panel 2 (center): {mid_hint} (same model appears in panels 2 and 3). "
+            f"Panel 3 (right): {result_hint}. "
+            f"Product: show exactly the item(s) from the provided reference product "
+            f"image — render every variant/color that appears in it. "
             f"{parts_colors}{lighting}. "
-            f"Use the provided reference product image as ground truth for the two "
-            f"distinct bottles' labels/colors — never repeat the same bottle twice. "
+            f"Use the provided reference product image as ground truth for the product's "
+            f"labels, colors and packaging. "
             f"Cohesive consistent style, high quality product photography. "
             f"Fill the ENTIRE 16:9 frame edge to edge M-bM-^@M-^S NO white bars, NO padding, "
-            f"NO empty borders; the three panels must fully bleed to all edges."
+            f"NO empty borders, NO gap; the three panels must fully bleed to all edges "
+            f"so the image is full-frame with no border."
         )
         logger.info(f"  Image prompt (triptych {len(image_prompt)} chars): {image_prompt[:100]}...")
         negative = build_negative_prompt(profile, ugc_style)
@@ -553,6 +567,20 @@ def _beat_panel_hint(profile, product_name, model_desc, action, scene, panel_rol
     model_desc = e.g. 'Thai woman, 25-35 years old' (already age/demographic).
     """
     appearance = (profile or {}).get("product_appearance", "") or ""
+def _youngest_age(age_str: str) -> str:
+    """Return the youngest age from a range string.
+
+    '25-50' -> '25', '25+' -> '25', '30' -> '30', '' -> ''.
+    The demo model should look as young as the target audience allows.
+    """
+    if not age_str:
+        return ""
+    s = str(age_str).strip().lower()
+    # Take the first number found (youngest end of any range).
+    m = __import__("re").search(r"\d+", s)
+    return m.group(0) if m else ""
+
+
 def _short_pair_tagline(profile: dict) -> str:
     """Short tagline for the person-holding panels: names the two distinct products
     without repeating the full appearance. E.g. 'pink GLUTA + orange TRIPLE C'."""
@@ -588,14 +616,23 @@ def _beat_panel_hint(profile, product_name, model_desc, action, scene, panel_rol
     """
     appearance = (profile or {}).get("product_appearance", "") or ""
     appearance = appearance[:80] if appearance else ""
-    # Short tagline for holding panels (avoids repeating full appearance everywhere).
-    _pair = _short_pair_tagline(profile)
+    # NOTE: no hardcoded item count / tagline here — the reference image is the
+    # ground truth for how many variants and which labels/colors to show.
     if panel_role == "cover":
         base = _cover_product_desc(profile, product_name)
     elif panel_role == "middle":
-        base = f"{model_desc} holding both distinct bottles as a matched pair in his hands ({_pair}), showing both different products clearly, {action}, {scene}"
+        # Reference-driven, no hardcoded item count (product may have any number
+        # of variants). Tagline only names labels/colors when known.
+        base = (
+            f"{model_desc} showcasing the product from the reference image, "
+            f"holding it so all variants/colors are clearly visible, "
+            f"{action}, {scene}"
+        )
     else:  # right
-        base = f"the same Thai woman from panel 2 smiling showing the result, holding both distinct bottles together ({_pair})"
+        base = (
+            f"the same {model_desc} from panel 2 smiling showing the result, "
+            f"holding up the product from the reference image, bright happy end scene"
+        )
     return base
 
 
@@ -918,6 +955,12 @@ async def analyze_and_build_prompts(
         profile["category"] = category
     if product_category:
         profile["product_category"] = product_category
+    # Explicit target_gender / target_age must be authoritative (user choice),
+    # otherwise Gemini's auto-analysis of the product often defaults to female.
+    if target_gender and target_gender.strip():
+        profile["target_gender"] = target_gender.strip()
+    if target_age not in ("", None):
+        profile["target_age"] = str(target_age)
     
     # Step 3: Inject persona for diversity
     persona = _select_persona(profile.get("category", "other"), product_name, profile.get("target_gender"))

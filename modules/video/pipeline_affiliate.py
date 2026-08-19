@@ -100,6 +100,43 @@ def download_file(url: str, output_path: Path) -> Path:
     return output_path
 
 
+def _split_triptych_into_panels(image_path_local, run_id="panel"):
+    """Split a 16:9 triptych image (1 file, 3 side-by-side panels) into 3 separate
+    vertical 9:16 panel images (PIL crop).
+
+    Args:
+        image_path_local: local path to the triptych image (must exist on disk)
+        run_id: suffix for the output filenames
+
+    Returns:
+        dict: {"panel1": Path, "panel2": Path, "panel3": Path, "width", "height"}
+              panel1 = leftmost (Cover page), panel2 = middle (First frame),
+              panel3 = rightmost (Last frame). Vertical crop keeps the full panel
+              height; each panel is (w/3) wide.
+    """
+    from PIL import Image
+    img = Image.open(str(image_path_local)).convert("RGB")
+    w, h = img.size
+    pw = w // 3
+    out = {}
+    for idx in (1, 2, 3):
+        left = (idx - 1) * pw
+        # crop exact third; last panel takes the remainder to avoid gap
+        right = w if idx == 3 else left + pw
+        panel = img.crop((left, 0, right, h))
+        p = TMP_DIR / f"triptych_{idx}_{run_id}.png"
+        panel.save(str(p))
+        out[f"panel{idx}"] = p
+    out["width"] = w
+    out["height"] = h
+    logger.info(
+        f"  Split triptych {w}x{h} -> 3 panels: "
+        f"panel1={out['panel1'].name} panel2={out['panel2'].name} panel3={out['panel3'].name} "
+        f"(each {pw}px wide)"
+    )
+    return out
+
+
 def concat_videos(video_paths: list, output_path: Path) -> Path:
     """Concat multiple videos with FFmpeg. Skip None entries."""
     valid_paths = [vp for vp in video_paths if vp is not None]
@@ -1117,7 +1154,28 @@ def run_pipeline(
             # fallback that diverges from the JSON prompt sources.
             raise ValueError("pipeline: video_prompts is empty/None — no prompt to generate video; refusing hardcoded fallback")
         logger.info(f"  Generating 1 continuous video ({total_duration}s): {vprompt[:80]}...")
-        
+
+        # ── FL2V+Audio manual frames: split triptych → panel2=first, panel3=last ──
+        # Owner workflow (2026-08-19): gen 16:9 triptych (3 panels) → panel1=cover,
+        # panel2=first frame, panel3=last frame → start-end interpolation + audio.
+        # ถ้า client ไม่ส่ง first/last frame มาเอง เราตัดจาก triptych ที่ gen เอง.
+        ff = first_frame or None
+        lf = last_frame or None
+        if not (ff and lf) and img_path.exists() and _image_prompt_is_triptych(image_prompt):
+            try:
+                panels = _split_triptych_into_panels(str(img_path), run_id=run_id)
+                # panel2 (กลาง) = first frame, panel3 (ขวา) = last frame
+                if not ff:
+                    ff = str(panels["panel2"])
+                if not lf:
+                    lf = str(panels["panel3"])
+                logger.info(
+                    f"  ▶ FL2V frames from triptych: first=panel2 ({Path(ff).name}), "
+                    f"last=panel3 ({Path(lf).name})"
+                )
+            except Exception as e:
+                logger.warning(f"  ⚠️ Triptych split failed ({e}) — ใช้ image เดียว (ไม่ตั้ง start/end)")
+
         vid_path, cost_video = generate_video(
             image_path=str(img_path),
             prompt=vprompt,
@@ -1129,8 +1187,8 @@ def run_pipeline(
             # first+last start-end interpolation per Prodia docs
             # (ห้ามส่ง reference แยก — ทำให้ Prodia เอา reference เป็นภาพหลักแทน interpolation)
             reference_image=None,
-            first_frame=first_frame or None,
-            last_frame=last_frame or None,
+            first_frame=ff,
+            last_frame=lf,
             thai_script=thai_script,
             use_tus_voice=use_tus_voice,
         )

@@ -635,10 +635,10 @@ def generate_video(
             negative_prompt=neg_p,
             last_frame=last_bytes,
             reference=ref_bytes,
-            # Control motion: disable Wan 2.7's prompt_extend so the model
-            # follows our exact prompt (which now includes the end scene)
-            # instead of rewriting/expanding it into unpredictable motion.
-            prompt_extend=False,
+            # VALIDATED 2026-08-19 (owner test, job 26ae0b8f got mp4 200):
+            # wan2-7.img2vid.v1 ต้องใช้ prompt_extend=True + multipart first_frame/speech
+            # ถ้า False/ปิด → Prodia reject (type mismatch / additional properties)
+            prompt_extend=True,
         )
 
         output_url = result.get("output_url", "")

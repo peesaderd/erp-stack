@@ -14,13 +14,10 @@ Usage:
 
     client = ProdiaV2Client(token="...")
     
-    # txt2vid (JSON)
-    job_id = client.create_job("inference.wan2-7.txt2vid.v1", {
-        "prompt": "...", "duration": 8, "resolution": "720P", "ratio": "9:16"
-    })
-    
-    # img2vid (multipart + input image)
-    job_id = client.create_job("inference.wan2-7.img2vid.v1", {...}, inputs=[image_bytes])
+    # img2vid (multipart + input image) — text2video removed 2026-08-19
+    job_id = client.create_job("inference.wan2-7.img2vid.v1", {
+        "prompt": "...", "duration": 8, "resolution": "720P"
+    }, inputs=[image_bytes])
     
     # poll → result + price
     result = client.wait_for_result(job_id)
@@ -72,7 +69,7 @@ class ProdiaV2Client:
     Prodia v2 Async API Client
     
     รองรับ:
-      - txt2img / img2img / txt2vid / img2vid
+      - img2img / img2vid
       - ?price=true → cost tracking
       - Exponential backoff polling
       - Auto-detect JSON vs multipart based on inputs
@@ -147,27 +144,25 @@ class ProdiaV2Client:
         files = [
             ("job", ("job.json", "__PLACEHOLDER__", "application/json")),
         ]
+        # ── Wan 2.7 img2vid (FL2V) — PROVEN pattern (VALIDATED 2026-08-19 by owner test) ──
+        # Example ที่พิสูจน์แล้วว่า Prodia รับ (ได้ mp4 กลับมา):
+        #   multipart field `input` ชื่อ first_frame.png / last_frame.png / speech.mp3
+        #   config.image="first_frame.png", config.audio="speech.mp3"
+        #   mime = image/jpeg (docs-exact, ใช้กับทุกไฟล์รวม audio)
+        # อย่าเปลี่ยนชื่อไฟล์/field — Prodia จับคู่ config.<field> กับ multipart filename ตรงๆ
         if has_inputs:
-            # Prodia async requires multipart field `input` for the image bytes,
-            # AND config["image"] must reference that filename so Wan 2.7 knows it
-            # is the first frame (per docs: config.image = first_frame).
-            # Match config["image"] to the multipart filename.
             for i, img_bytes in enumerate(inputs):
-                fname = f"input_{i}.png"
-                files.append(("input", (fname, img_bytes, "image/png")))
+                # ไฟล์แรก = first frame → ต้องชื่อ first_frame.png (Prodia ต้องการ field นั้น)
+                fname = "first_frame.png" if i == 0 else f"input_{i}.png"
+                files.append(("input", (fname, img_bytes, "image/jpeg")))
                 if i == 0:
                     config["image"] = fname  # first frame for img2vid
                 logger.info(f"  first_frame(input): {len(img_bytes)} bytes multipart + config.image={fname}")
         if has_audio:
-            # Docs-exact pattern (VALIDATED 2026-08-15, job abf8a2b2):
-            # ทุกไฟล์เป็น multipart field `input` + config อ้างชื่อไฟล์.
-            # (field แยก "audio" ไม่ใช่ pattern ของ docs — ส่งแบบนี้เสียงไม่เข้า lip-sync path)
-            if audio.startswith(b"RIFF"):
-                audio_filename = "audio.wav"
-                audio_mime = "audio/wav"
-            else:
-                audio_filename = "audio.mp3"
-                audio_mime = "audio/mpeg"
+            # audio สำหรับ lip-sync → docs-exact ใช้ชื่อ speech.mp3 + mime image/jpeg
+            # (VALIDATED 2026-08-19: ส่ง audio.wav/mp3 แบบอื่น Prodia reject)
+            audio_filename = "speech.mp3"
+            audio_mime = "image/jpeg"
             config["audio"] = audio_filename
             files.append(("input", (audio_filename, audio, audio_mime)))
             logger.info(f"  audio(input): {len(audio)} bytes multipart + config.audio={audio_filename}")
@@ -203,7 +198,7 @@ class ProdiaV2Client:
             except requests.exceptions.ConnectionError as e:
                 raise ProdiaV2Error(f"Prodia connection failed: {e}")
         else:
-            # ── JSON (txt2vid, txt2img — no inputs) ──
+            # ── JSON (img2img — no inputs required past prompt; text-only types removed) ──
             logger.info(f"[Prodia] Creating job (JSON): {job_type}")
             logger.debug(f"  Config: {json.dumps(config)[:200]}")
 
@@ -234,18 +229,15 @@ class ProdiaV2Client:
                 try:
                     if has_inputs or has_audio or has_last_frame or has_reference:
                         # Rebuild files tuple with SAME pattern as main path
-                        # (FIXED 2026-08-18: serialize job_payload AFTER config populated;
-                        #  audio ส่งเป็น multipart field "input" + config.audio ref — docs-exact)
+                        # (VALIDATED 2026-08-19: first_frame.png/speech.mp3 + mime image/jpeg)
                         _files = [("job", ("job.json", json.dumps(job_payload), "application/json"))]
                         if has_inputs:
                             for _i, _img in enumerate(inputs):
-                                _files.append(("input", (f"input_{_i}.png", _img, "image/png")))
+                                _fname = "first_frame.png" if _i == 0 else f"input_{_i}.png"
+                                _files.append(("input", (_fname, _img, "image/jpeg")))
                         if has_audio:
-                            is_mp3 = audio.startswith(b'ID3') or (len(audio) > 2 and audio[0] == 0xFF and (audio[1] & 0xE0) == 0xE0)
-                            ext = "mp3" if is_mp3 else "wav"
-                            mime = "audio/mpeg" if is_mp3 else "audio/wav"
-                            # docs-exact: ใช้ field "input" เหมือน main path (config.audio อ้างชื่อไฟล์)
-                            _files.append(("input", (f"audio.{ext}", audio, mime)))
+                            # docs-exact: speech.mp3 + mime image/jpeg (เหมือน main path)
+                            _files.append(("input", ("speech.mp3", audio, "image/jpeg")))
                         if has_last_frame:
                             _files.append(("input", ("last_frame.png", last_frame, "image/png")))
                         if has_reference:
@@ -455,10 +447,10 @@ class ProdiaV2Client:
         
         Args:
             prompt: video prompt
-            input_image: bytes ของ input image (optional — omit for txt2vid)
+            input_image: bytes ของ input image (required — text2video removed; img2vid only)
             duration: วินาที
             resolution: 720P / 1080P
-            ratio: aspect ratio (txt2vid only)
+            ratio: aspect ratio (legacy; img2vid uses resolution)
             audio_bytes: bytes ของ audio file สำหรับ lip-sync (optional)
             last_frame: bytes ของ target last-frame image (Wan 2.7 start-end interpolation; optional)
             reference: bytes ของ reference image (optional)
@@ -474,22 +466,29 @@ class ProdiaV2Client:
                 "result_raw": dict
             }
         """
+        # text2video (txt2vid) removed from server by owner (2026-08-19).
+        # Video gen now requires an input image — FL2V (img2vid) only.
         if job_type is None:
-            job_type = (
-                "inference.wan2-7.img2vid.v1"
-                if input_image
-                else "inference.wan2-7.txt2vid.v1"
-            )
+            if not input_image:
+                raise ValueError(
+                    "prodia_client: text2video (txt2vid) removed from server. "
+                    "Must provide input_image (img2vid FL2V only)."
+                )
+            job_type = "inference.wan2-7.img2vid.v1"
 
         config = {
             "prompt": prompt,
+            # PROVEN (2026-08-19 owner test): wan2-7.img2vid.v1 ต้องการ prompt_extend + negative_prompt
+            # ถ้าขาด Prodia reject (additional properties not allowed / type mismatch)
+            "prompt_extend": True,
+            "negative_prompt": extra_config.pop("negative_prompt", None)
+            or "low resolution, error, worst quality, deformed, extra limbs, blurry, distorted, bad anatomy",
         }
         if duration:
             config["duration"] = duration
         if resolution:
             config["resolution"] = resolution
-            
-            
+
         config.update(extra_config)
 
         inputs = [input_image] if input_image else None
@@ -679,12 +678,16 @@ class ProdiaV2Client:
                 "result_raw": dict
             }
         """
+        # Text-only (txt2img/txt2vid) removed from server by owner (2026-08-19).
+        # Image gen now requires an input image — no text2image fallback.
         if job_type is None:
-            job_type = (
-                "inference.nano-banana.img2img.v2"
-                if input_image
-                else "inference.flux-2.dev.txt2img.v1"
-            )
+            if input_image:
+                job_type = "inference.nano-banana.img2img.v2"
+            else:
+                raise ValueError(
+                    "prodia_client: text2image/text2video removed from server. "
+                    "Must provide input_image (img2img/img2vid only)."
+                )
 
         config = {"prompt": prompt}
         config.update(extra_config)
@@ -861,9 +864,9 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Test Prodia v2 Async API")
     parser.add_argument("--prompt", required=True, help="Prompt")
-    parser.add_argument("--type", default="txt2vid",
-                        choices=["txt2vid", "img2vid", "txt2img", "img2img"],
-                        help="Job type")
+    parser.add_argument("--type", default="img2vid",
+                        choices=["img2vid", "img2img"],
+                        help="Job type (text-only types removed — img2vid/img2img only)")
     parser.add_argument("--image", help="Input image path")
     parser.add_argument("--duration", type=int, default=8)
     parser.add_argument("--resolution", default="720P")
@@ -871,15 +874,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     type_map = {
-        "txt2vid": "inference.wan2-7.txt2vid.v1",
         "img2vid": "inference.wan2-7.img2vid.v1",
-        "txt2img": "inference.flux-2.dev.txt2img.v1",
         "img2img": "inference.nano-banana.img2img.v2",
     }
     accept_map = {
-        "txt2vid": "video/mp4",
         "img2vid": "video/mp4",
-        "txt2img": "image/png",
         "img2img": "image/png",
     }
 
@@ -899,7 +898,7 @@ if __name__ == "__main__":
 
     try:
         config = {"prompt": args.prompt}
-        if args.type in ("txt2vid", "img2vid"):
+        if args.type == "img2vid":
             config.update(duration=args.duration, resolution=args.resolution, ratio=args.ratio)
 
         job_id = client.create_job(job_type, config,

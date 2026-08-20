@@ -82,7 +82,7 @@
 
 <!-- TAB 2: OPTIONS -->
 <div class="pane" id="pane1">
-  <!-- BEFORE GENERATE: Clothing + Crop + Country + Generate -->
+  <!-- BEFORE GENERATE: Clothing + Generate ONLY -->
   <div class="card" style="padding:16px" id="sec1Card">
     <div class="opt-sec">
       <div class="opt-h"><span class="e">👔</span> Clothing</div>
@@ -90,22 +90,7 @@
       <div class="caro"><button class="carro-btn" onclick="scrollCar('cl',-1)">◀</button><div class="caro-list" id="cl"></div><button class="carro-btn" onclick="scrollCar('cl',1)">▶</button></div>
     </div>
     <div class="sec-divider"></div>
-    <div class="opt-sec">
-      <div class="opt-h"><span class="e">✂️</span> Crop Style</div>
-      <div class="crop-opts">
-        <div class="crop-opt active" data-preset="standard" onclick="setCrop('standard')">Standard</div>
-        <div class="crop-opt" data-preset="compact" onclick="setCrop('compact')">Compact</div>
-        <div class="crop-opt" data-preset="relaxed" onclick="setCrop('relaxed')">Relaxed</div>
-      </div>
-    </div>
-    <div class="sec-divider"></div>
-    <div class="opt-sec">
-      <div class="opt-h"><span class="e">🌍</span> Country / Size</div>
-      <select id="cs" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:.78rem;background:#fff;color:#0f172a;outline:none"></select>
-    </div>
-    <div class="sec-divider"></div>
-    <button class="gen-btn" id="genBtn" disabled onclick="generate()"><span class="ico">🚀</span> Generate Passport Photo</button>
-    <div style="text-align:center;margin-top:8px;font-size:.62rem;color:#94a3b8">เลือกเสื้อก่อน → กด Generate</div>
+    <button class="gen-btn" id="genBtn" disabled onclick="generate()"><span class="ico">🚀</span> Generate</button>
   </div>
 
   <!-- AFTER GENERATE: Preview + thumbnails + option tabs -->
@@ -113,7 +98,7 @@
     <!-- Preview photo ON TOP (big) -->
     <div class="card" style="padding:14px;margin-bottom:10px">
       <div style="width:100%;text-align:center">
-        <img class="res-img" id="ri" src="" alt="Generated" style="max-width:260px">
+        <img class="res-img" id="ri" src="" alt="Generated" style="max-width:260px;aspect-ratio:1/1;object-fit:cover">
       </div>
       <div class="res-stats" id="rs"></div>
       <div class="res-btns">
@@ -129,10 +114,12 @@
     </div>
 
     <!-- Option tabs -->
-    <div style="display:flex;gap:4px;margin-bottom:10px;background:#1e293b;border-radius:12px;padding:3px">
+    <div style="display:flex;gap:4px;margin-bottom:10px;background:#1e293b;border-radius:12px;padding:3px;overflow-x:auto;scrollbar-width:none">
       <div class="opt-tab active" onclick="switchOptTab(0)">🎨 BG</div>
-      <div class="opt-tab" onclick="switchOptTab(1)">📐 Size</div>
-      <div class="opt-tab" onclick="switchOptTab(2)">🖨️ Print</div>
+      <div class="opt-tab" onclick="switchOptTab(1)">🌍 Country</div>
+      <div class="opt-tab" onclick="switchOptTab(2)">✂️ Crop</div>
+      <div class="opt-tab" onclick="switchOptTab(3)">📐 Size</div>
+      <div class="opt-tab" onclick="switchOptTab(4)">🖨️ Print</div>
     </div>
 
     <!-- Tab 0: Background -->
@@ -145,8 +132,28 @@
       </div>
     </div>
 
-    <!-- Tab 1: Photo Size -->
+    <!-- Tab 1: Country -->
     <div class="card opt-pane" id="optPane1" style="padding:14px">
+      <div class="opt-sec">
+        <div class="opt-h"><span class="e">🌍</span> Country / Size</div>
+        <select id="cs" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:.78rem;background:#fff;color:#0f172a;outline:none"></select>
+      </div>
+    </div>
+
+    <!-- Tab 2: Crop -->
+    <div class="card opt-pane" id="optPane2" style="padding:14px">
+      <div class="opt-sec">
+        <div class="opt-h"><span class="e">✂️</span> Crop Style</div>
+        <div class="crop-opts">
+          <div class="crop-opt active" data-preset="standard" onclick="setCrop('standard')">Standard</div>
+          <div class="crop-opt" data-preset="compact" onclick="setCrop('compact')">Compact</div>
+          <div class="crop-opt" data-preset="relaxed" onclick="setCrop('relaxed')">Relaxed</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 3: Photo Size -->
+    <div class="card opt-pane" id="optPane3" style="padding:14px">
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
         <div class="sz-p active" onclick="setCustomSize(35,45,this)">35×45mm</div>
         <div class="sz-p" onclick="setCustomSize(25,35,this)">25×35mm</div>
@@ -163,8 +170,8 @@
       </div>
     </div>
 
-    <!-- Tab 2: Print Sheet -->
-    <div class="card opt-pane" id="optPane2" style="padding:14px">
+    <!-- Tab 4: Print Sheet -->
+    <div class="card opt-pane" id="optPane4" style="padding:14px">
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
         <div class="pap-p active" onclick="setPaper('4x6',this)">4×6"</div>
         <div class="pap-p" onclick="setPaper('5x7',this)">5×7"</div>

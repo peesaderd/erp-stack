@@ -228,7 +228,7 @@ function switchOptTab(n){
   var panes=document.querySelectorAll('.opt-pane');
   for(var i=0;i<tabs.length;i++){
     tabs[i].classList.toggle('active',i===n);
-    panes[i].classList.toggle('act',i===n);
+    if(panes[i])panes[i].classList.toggle('act',i===n);
   }
 }
 

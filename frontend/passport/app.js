@@ -283,9 +283,11 @@ function showResult(d,isBulk){
     stats+='<div class="rst"><div class="v">'+okCount+'/'+d.results.length+'</div><div class="l">Batch</div></div>';
   }
   $('rs').innerHTML=stats;
-  $('ri').src=API+'/download/'+S.sid+'_cropped.jpg?t='+Date.now();
+  $('ri').src=API+'/download/'+S.sid+'_passport.jpg?t='+Date.now();
+  // Hide sec1Card, show sec2 at top
+  $('sec1Card').classList.add('hidden');
   $('sec2').classList.remove('hidden');
-  // Build batch thumbnails below big preview
+  // Build batch thumbnails
   if(isBulk&&d.results&&d.results.length>1){
     $('batchPreview').classList.remove('hidden');
     var sh='';
@@ -301,8 +303,10 @@ function showResult(d,isBulk){
   }else{
     $('batchPreview').classList.add('hidden');
   }
-  // Scroll to section 2
-  setTimeout(function(){var el=$('sec2');if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},200);
+  // Scroll to top of sec2
+  setTimeout(function(){window.scrollTo(0,0)},200);
+  // Auto cut BG
+  autoRemoveBG();
   toast('Done! Photo ready 🎉');
 }
 
@@ -331,6 +335,21 @@ function selectBatchPhoto(idx){
 
 function toggleSelectAll(checked){
   // placeholder for batch select all
+}
+
+/* ══════════ AUTO REMOVE BG ══════════ */
+async function autoRemoveBG(){
+  if(!S.sid)return;
+  try{
+    var color=$('bgColorPick').value||'#C4DCFF';
+    var resp=await fetch(API+'/remove-bg',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:S.sid,background_color:color})});
+    var d=await resp.json();
+    if(d.ok){
+      var url=location.origin+(d.download_transparent||d.download_bg)+'?t='+Date.now();
+      $('ri').src=url;
+      toast('✂️ Background removed');
+    }
+  }catch(e){console.error('autoRemoveBG:',e)}
 }
 
 /* ══════════ CUSTOMIZE ══════════ */
@@ -436,6 +455,7 @@ function clearAll(){
   $('drop').classList.remove('hidden');
   $('uploaded').classList.add('hidden');
   $('upErr').classList.add('hidden');
+  $('sec1Card').classList.remove('hidden');
   $('sec2').classList.add('hidden');
   $('batchPreview').classList.add('hidden');
   $('custPreviewWrap').classList.add('hidden');

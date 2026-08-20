@@ -82,13 +82,8 @@
 
 <!-- TAB 2: OPTIONS -->
 <div class="pane" id="pane1">
-  <!-- Section 1: Clothing + Generate -->
+  <!-- BEFORE GENERATE: Clothing + Crop + Country + Generate -->
   <div class="card" style="padding:16px" id="sec1Card">
-    <div class="opt-sec">
-      <div class="opt-h"><span class="e">🌍</span> Country / Size</div>
-      <select id="cs" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:.78rem;background:#fff;color:#0f172a;outline:none"></select>
-    </div>
-    <div class="sec-divider"></div>
     <div class="opt-sec">
       <div class="opt-h"><span class="e">👔</span> Clothing</div>
       <div class="gender-tabs" id="gt"></div>
@@ -104,15 +99,19 @@
       </div>
     </div>
     <div class="sec-divider"></div>
+    <div class="opt-sec">
+      <div class="opt-h"><span class="e">🌍</span> Country / Size</div>
+      <select id="cs" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:.78rem;background:#fff;color:#0f172a;outline:none"></select>
+    </div>
+    <div class="sec-divider"></div>
     <button class="gen-btn" id="genBtn" disabled onclick="generate()"><span class="ico">🚀</span> Generate Passport Photo</button>
     <div style="text-align:center;margin-top:8px;font-size:.62rem;color:#94a3b8">เลือกเสื้อก่อน → กด Generate</div>
   </div>
 
-  <!-- Section 2: Post-generate -->
-  <!-- Section 2: Post-generate — tabs -->
+  <!-- AFTER GENERATE: Preview + thumbnails + option tabs -->
   <div class="sec2-wrap hidden" id="sec2">
     <!-- Preview photo ON TOP (big) -->
-    <div class="card" style="padding:14px;margin-bottom:0">
+    <div class="card" style="padding:14px;margin-bottom:10px">
       <div style="width:100%;text-align:center">
         <img class="res-img" id="ri" src="" alt="Generated" style="max-width:260px">
       </div>
@@ -125,11 +124,11 @@
     </div>
 
     <!-- Batch thumbnails below big preview -->
-    <div id="batchPreview" class="hidden" style="margin:10px 0">
+    <div id="batchPreview" class="hidden" style="margin-bottom:10px">
       <div class="slider-wrap" id="sliderWrap" style="justify-content:center"></div>
     </div>
 
-    <!-- Option tabs (like clothing tabs) -->
+    <!-- Option tabs -->
     <div style="display:flex;gap:4px;margin-bottom:10px;background:#1e293b;border-radius:12px;padding:3px">
       <div class="opt-tab active" onclick="switchOptTab(0)">🎨 BG</div>
       <div class="opt-tab" onclick="switchOptTab(1)">📐 Size</div>
@@ -178,7 +177,6 @@
         <div style="flex:0;display:flex;align-items:flex-end;padding-bottom:2px"><label style="display:flex;align-items:center;gap:3px;font-size:.6rem;font-weight:600;color:#94a3b8;cursor:pointer"><input type="checkbox" id="bmPrint" style="accent-color:#6366f1;width:13px;height:13px"> Blade</label></div>
       </div>
       <button class="btn-p" style="width:100%;padding:9px;font-size:.72rem" onclick="genPrintSheet()">🖨️ Generate Print Sheet</button>
-      <!-- Print preview inline -->
       <div class="hidden" id="custPreviewWrap" style="margin-top:10px;text-align:center">
         <img id="custPreviewImg" style="max-width:100%;border-radius:8px;border:1px solid #e2e8f0" src="">
         <div id="custPreviewInfo" style="font-size:.62rem;color:#94a3b8;margin-top:4px"></div>

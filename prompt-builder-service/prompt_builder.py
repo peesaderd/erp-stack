@@ -697,6 +697,26 @@ def img_desc_sentences(text: str) -> list:
     return [s.strip() for s in text.split(".") if s.strip()]
 
 
+def _apply_hint(subcategory=None, category=None):
+    """BEAT 2 'apply' action - concise, no squeeze/cap/scoop (Wan 2.7 warps).
+    Always 'a little' so Wan doesn't smear too much."""
+    key = (subcategory or "").lower()
+    area = {
+        "underarm_cream": "her underarm", "deodorant": "her underarm",
+        "face_whitening": "her face", "body_whitening": "her arm",
+        "acne": "the affected spot", "serum": "her face",
+        "moisturizer": "her skin", "sunscreen": "her face",
+        "lipstick": "her lips", "foundation": "her face",
+        "mascara": "her lashes", "blush": "her cheeks",
+        "hair_care": "her hair", "shampoo": "her hair",
+        "conditioner": "her hair", "stretch_marks": "the stretch marks",
+        "eye_cream": "around her eyes", "toner": "her face",
+    }.get(key)
+    if not area:
+        area = {"skincare": "her face", "beauty": "her face"}.get((category or "").lower(), "her skin")
+    return "she applies a little on " + area
+
+
 def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holding", loop_count: int = 0, script: str = "") -> str:
     """Generate SHORT video prompt — ~50 chars.
 
@@ -714,78 +734,48 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
 
     gender_en = {"female": "Woman", "male": "Man", "unisex": "Person"}.get(model_gender, "Woman")
 
-    # ── NEW (P4): 4-beat cut-scene video prompt from router scenes ──
-    # When the profile has router scenes (4-beat recipe), describe the beat
-    # progression as a single continuous arc (Wan 2.7 = 1 clip, no blending).
-    # Timing cues anchor each beat so the cut feels intentional, not random.
+    # ── NEW (P4): 4-beat natural video prompt ──
+    # Owner-defined template (2026-08-20). Wan 2.7 = FL2V only (first/last frame),
+    # no mid-sequence image reference. So we keep a tight 4-beat arc with minimal
+    # expression words — specifically NO agitate/concerned/downside drama, and NO
+    # squeeze-bottle/open-cap/scoop actions (Wan warps those). Each beat shifts
+    # camera/action slightly so Wan doesn't repeat the same motion. The result
+    # reveal lives in the beat + end scene, while the "problem/agitation" is told
+    # through the AUDIO script, not the visuals.
     router_config = profile.get("router_config", {}) if isinstance(profile, dict) else {}
     scenes = router_config.get("scenes") if isinstance(router_config, dict) else None
     if (
         isinstance(scenes, list) and len(scenes) >= 2
         and product_name and ugc_style not in ("talking", "talking_head")
     ):
-        # USER-DEFINED TEMPLATE (2026-08-19, based on vid_b43d89ab):
-        # talking/talking_head goes through the talking-style template below so
-        # the presenter speaks naturally with clean lip-sync (NOT the 4-beat
-        # cut-scene branch, which was editing the beat movements ad-hoc until the
-        # output drifted and warped the product). Only non-talking styles get the
-        # 4-beat cut-scene arc here.
         vp_product = _clean_product_name_for_video(product_name)
-        # ── Build each beat: beat 1 opens the shot; beats 2+ are NEW SHOTS (sharp cut) so
-        #    Wan does NOT try to smooth-morph the motion (which warps/forgets the product).
-        #    No meta labels (opening/Beat N:/Closing:) — keep image actions + new shot/sharp
-        #    cut for a sharp, non-blurry video.
-        beat_parts = []
-        beat_order = ["hook", "agitate", "solve", "cta", "reveal", "them", "us", "value"]
-        placed = set()
-        for idx, sc in enumerate(scenes, start=1):
-            bid = (sc.get("id") or "").lower()
-            placed.add(bid)
-            _visual = {
-                "hook": f"{gender_en} catches attention, {action}, {scene}",
-                "agitate": f"{gender_en} shows the downside, concerned look, {scene}",
-                "solve": f"{gender_en} uses {vp_product}, smooth action, {scene}",
-                "cta": f"{gender_en} holds {vp_product} to camera, smiling, inviting",
-                "reveal": f"{gender_en} reveals a secret, {vp_product} in hand, {scene}",
-                "them": f"{gender_en} shows the old way, flat, {scene}",
-                "us": f"{gender_en} shows our {vp_product}, bright, better, {scene}",
-                "value": f"{gender_en} enjoying the benefit, glowing, {scene}",
-            }.get(bid, f"{gender_en} {action}, {scene}")
-            shot = _visual  # Beat 1 = opening shot, no cut
-            if idx > 1:
-                # Sharp cut to a new shot: prevents Wan from smooth-morphing (warp/forgot product).
-                shot = f"new shot: {_visual}. Sharp cut to this new frame"
-                # Natural expression/movement subtly matching the lip-sync narration.
-                shot += {
-                    "hook": ", slight raise of brows and a gentle nod",
-                    "agitate": ", concerned brows, slight head tilt to one side",
-                    "solve": ", smooth hand motion, lips moving with the voice",
-                    "cta": ", warm smile, gentle nod, eyelid blink",
-                    "reveal": ", eyes widen, subtle bright smile",
-                    "them": ", flat indifferent expression, subtle shoulder shrug",
-                    "us": ", brighter expression, confident nod",
-                    "value": ", relaxed content smile, gentle exhale",
-                }.get(bid, ", subtle natural body movement")
-            beat_parts.append(shot)
-        # ── End frame: show the product-specific RESULT from the SSOT Library
-        # (same end scene the image panel 3 uses) so the video closes on the actual
-        # product benefit (e.g. white underarms), not just "holding product".
+        gender_en = {"female": "Woman", "male": "Man", "unisex": "Person"}.get(model_gender, "Woman")
+
+        # SSOT end scene (same one image panel 3 uses) → beat 3 result + closing.
         es = profile.get("_end_scene") or _pick_end_scene(category, subcategory=subcategory, profile=profile)
         profile["_end_scene"] = es
-        _result = es.get("result_focus") or "a happy result"
-        _expr = es.get("expression") or "smiling"
+        _result = es.get("result_focus") or "the result"
         _outfit = ", wearing " + es["outfit"] if es.get("outfit") else ""
-        end_frame = (
-            f"end on the model{_outfit}, {_expr}, clearly showing {_result}, "
-            f"the product held still and visible in the frame. "
-            f"Smooth natural motion, lips moving subtly with the speech, product held still, no warping, 9:16 portrait."
-        )
 
-        # Compose the beats + end frame (no meta labels — image actions only).
-        # Keep each line for readability (display-friendly); callers that send to Wan
-        # flatten to a single line via .replace('\n', ' '). `video_prompt_readable` keeps this.
-        parts = beat_parts + [end_frame]
-        video_prompt = "\n".join(parts)
+        # apply-lotion hint: keep it "a little" so Wan doesn't smear too much;
+        # no bottle-squeeze / cap / scoop (Wan warps those).
+        apply_hint = _apply_hint(subcategory, category)  # e.g. "she applies a little on her underarm"
+
+        beats = [
+            f"BEAT 1 — open on the {gender_en} holding {vp_product} toward the camera",
+            f"BEAT 2 — {apply_hint}, smooth light hand motion",
+            f"BEAT 3 — she reveals the result, clearly showing {_result}, {vp_product} beside her",
+            f"BEAT 4 — she holds {vp_product} toward the camera, smiling invitingly",
+        ]
+
+        video_prompt = (
+            "A Thai woman naturally speaks the following Thai lines aloud to camera "
+            "while going through the full scene transition:\n\n"
+            + "\n".join(beats)
+            + "\n\nKeep the same woman and product in every beat; natural flowing motion "
+            "between beats; speak the Thai lines naturally and continuously throughout."
+        )
+        logger.info(f"  Video prompt (4-beat, {len(video_prompt)} chars):")
         video_prompt = re.sub(r'[ \t]+', ' ', video_prompt).strip()
         logger.info(f"  Video prompt (4-beat, {len(video_prompt)} chars multi-line):")
         for l in video_prompt.split('\n'):

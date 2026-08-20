@@ -429,8 +429,9 @@ def _cover_product_desc(profile: dict, product_name: str) -> str:
     the product(s) from the reference + brand logo — no hardcoded item count.
     """
     appearance = (profile or {}).get("product_appearance", "") or ""
-    pair_desc = appearance[:180] if appearance else (
-        "the product(s) from the provided reference image, all variants clearly shown"
+    pair_desc = (
+        "the product(s) exactly as shown in the provided reference image, "
+        "rendering every item, label and variant that appears in it"
     )
     brand = _clean_brand_name(product_name)
     logo = (
@@ -500,10 +501,11 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             f"showing to camera, {room_desc}"
         )
 
-        # Panel 3 (result/end): the SAME model from panel 2, happy end, product
-        # as shown in reference.
+        # Panel 3 (result/end): the SAME model from panel 2 (same outfit so the
+        # model stays consistent across panels), happy end, product in hand.
         result_hint = (
-            f"the same {model_desc} from panel 2 smiling showing the result, "
+            f"the same {model_desc} from panel 2, wearing the same outfit as "
+            f"panel 2, smiling showing the result, "
             f"with the product(s) exactly as shown in the reference image in hand, "
             f"bright happy end scene"
         )
@@ -522,7 +524,7 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
 
         image_prompt = (
             f"16:9 landscape triptych, three equal horizontal panels side by side, "
-            f"no gap, edge to edge, no border. "
+            f"no gap, no border between the panels, seamless edge to edge. "
             f"Panel 1 (left): {cover_hint}. "
             f"Panel 2 (center): {mid_hint} (same model appears in panels 2 and 3). "
             f"Panel 3 (right): {result_hint}. "
@@ -533,8 +535,9 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             f"labels, colors and packaging. "
             f"Cohesive consistent style, high quality product photography. "
             f"Fill the ENTIRE 16:9 frame edge to edge M-bM-^@M-^S NO white bars, NO padding, "
-            f"NO empty borders; the three panels must fully bleed to all edges "
-            f"so the image is full-frame with no border."
+            f"NO borders, NO empty gaps between the three panels; the panels must fully "
+            f"bleed together edge to edge so the image is one continuous full-frame "
+            f"with no white margin or divider line."
         )
         logger.info(f"  Image prompt (triptych {len(image_prompt)} chars): {image_prompt[:100]}...")
         negative = build_negative_prompt(profile, ugc_style)
@@ -635,7 +638,8 @@ def _beat_panel_hint(profile, product_name, model_desc, action, scene, panel_rol
         )
     else:  # right
         base = (
-            f"the same {model_desc} from panel 2 smiling showing the result, "
+            f"the same {model_desc} from panel 2, wearing the same outfit as "
+            f"panel 2, smiling showing the result, "
             f"with the product(s) exactly as shown in the reference image in hand, "
             f"bright happy end scene"
         )

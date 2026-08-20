@@ -45,17 +45,26 @@ from typing import Optional, List, Dict, Any
 import requests
 
 def get_bgm_path(bgm_style: str) -> Path:
-    """Helper to resolve BGM path from style name."""
+    """Helper to resolve BGM path from style name.
+
+    The actual BGM mp3 files live in the TUS studio dir (tiktok-ugc-studio/bgm),
+    NOT in modules/video/storage/sounds (which is empty). Map styles to the real
+    filenames that exist there.
+    """
     bgm_map = {
-        "chill_loft": "bg_chill.mp3",
+        "chill_loft": "bg_upbeat_02.mp3",   # no bg_chill.mp3 — reuse upbeat_02
         "informative_jazz": "bg_jazz.mp3",
         "energetic_edm": "bg_edm.mp3",
         "upbeat_pop": "bg_upbeat.mp3",
         "luxury_jazz": "bg_jazz.mp3",
-        "asmr": "bg_ambient.mp3",
+        "asmr": "bg_upbeat_02.mp3",          # no bg_ambient.mp3 — fallback
     }
-    bgm_filename = bgm_map.get(bgm_style, "bg_chill.mp3")
-    return STORAGE_DIR / "sounds" / bgm_filename
+    bgm_filename = bgm_map.get(bgm_style, "bg_upbeat.mp3")
+    # BGM lives in the TUS studio dir: erp-stack/tiktok-ugc-studio/bgm
+    # (pipeline_affiliate.py is at erp-stack/modules/video/ -> up 3 = erp-stack)
+    repo_root = Path(__file__).resolve().parent.parent.parent
+    tus_studio_bgm = repo_root / "tiktok-ugc-studio" / "bgm"
+    return tus_studio_bgm / bgm_filename
 
 # Add erp-stack to path for shared_config
 _erp_stack = Path(__file__).parent.parent.parent
@@ -877,8 +886,12 @@ def compose_video(
     # Step 9c: Add BGM
     if bgm_style:
         logger.info(f"  9c: Add BGM ({bgm_style})")
-        bgm_filename = f"{bgm_style}.mp3" if not bgm_style.endswith((".mp3", ".wav")) else bgm_style
-        bgm_path = STORAGE_DIR / "sounds" / bgm_filename
+        # Resolve the real BGM file via get_bgm_path() (lives in tiktok-ugc-studio/bgm)
+        bgm_path = get_bgm_path(bgm_style)
+        if not bgm_path.exists():
+            logger.warning(f"    BGM file not found: {bgm_path}, trying sibling names")
+            bgm_filename = f"{bgm_style}.mp3" if not bgm_style.endswith((".mp3", ".wav")) else bgm_style
+            bgm_path = STORAGE_DIR / "sounds" / bgm_filename
 
         if bgm_path.exists():
             bgm_output = STORAGE_DIR / f"affiliate_{run_id}_bgm.mp4"

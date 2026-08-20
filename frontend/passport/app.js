@@ -86,7 +86,8 @@ function renderClothing(){
   list.forEach(function(c){
     var d=document.createElement('div');
     d.className='citem'+(S.clothing===c.key?' on':'');
-    var imgHtml=c.image?'<img src="'+c.image+'" loading="lazy" alt="'+c.name+'">':'<div style="width:100%;height:84px;display:flex;align-items:center;justify-content:center;background:#f1f5f9;font-size:1.5rem">👔</div>';
+    var imgPath=c.image||('img/clothing/'+S.gender+'/'+c.key+'.png');
+    var imgHtml='<img src="'+imgPath+'" loading="lazy" alt="'+c.name+'" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"><div style="width:100%;height:84px;display:none;align-items:center;justify-content:center;background:#f1f5f9;font-size:1.5rem">👔</div>';
     d.innerHTML=imgHtml+'<div class="lb">'+c.name+'</div><div class="ck">✓</div>';
     d.onclick=function(){S.clothing=c.key;$$('.citem').forEach(function(x){x.classList.remove('on')});d.classList.add('on');$('genBtn').disabled=false};
     el.appendChild(d);

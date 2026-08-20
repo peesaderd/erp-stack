@@ -14,6 +14,10 @@ var SOLID_COLORS=[
   {key:'custom',name:'Custom',hex:null}
 ];
 
+/* ══════════ HELPERS (must be early!) ══════════ */
+function $(id){return document.getElementById(id)}
+function $$(sel){return document.querySelectorAll(sel)}
+
 /* ══════════ INIT ══════════ */
 window.addEventListener('DOMContentLoaded',function(){
   loadOptions();loadBgs();
@@ -25,8 +29,6 @@ window.addEventListener('DOMContentLoaded',function(){
   $('bgColorPick').addEventListener('input',function(){previewBGColor(this.value)});
   loadCustomClothing();
 });
-
-function $(id){return document.getElementById(id)}
 
 /* ══════════ API HELPERS ══════════ */
 async function api(path,body){
@@ -57,9 +59,11 @@ async function loadOptions(){
 }
 async function loadBgs(){
   try{
-    var d=await fetch(API+'/backgrounds').then(function(r){return r.json()});
+    var r=await fetch(API+'/backgrounds');
+    var d=await r.json();
+    var list=d.options||d.backgrounds||d.solid||[];
     var el=$('bgPresets');el.innerHTML='';
-    (d.backgrounds||d.solid||[]).forEach(function(b){
+    list.forEach(function(b){
       if(b.type!=='solid')return;
       var div=document.createElement('div');
       div.className='bg-d'+(S.bgc===b.key?' on':'');
@@ -74,7 +78,6 @@ async function loadBgs(){
 /* ══════════ CLOTHING ══════════ */
 function renderClothing(){
   var list=CD[S.gender]||[];
-  // Add custom at end if exists
   if(S.customClothingUrl){
     list=list.concat([{id:'custom',name:S.customClothingName||'My Outfit',image:S.customClothingUrl}]);
   }
@@ -95,21 +98,16 @@ function renderClothing(){
     d.onclick=function(){S.gender=g.k;$$('.gtab').forEach(function(x){x.classList.remove('on')});d.classList.add('on');S.clothing='keep_original';renderClothing()};
     gt.appendChild(d);
   });
-  // Enable gen button if clothing selected
-  if(S.clothing&&S.clothing!=='keep_original')$('genBtn').disabled=false;
-  else $('genBtn').disabled=false; // keep_original is valid
+  $('genBtn').disabled=false;
 }
 
 function scrollCar(id,dir){
   var el=$(id);el.scrollBy({left:dir*120,behavior:'smooth'});
 }
 
-function $$(sel){return document.querySelectorAll(sel)}
-
-/* ══════════ COUNTRY SELECT ══════════ */
+/* ══════════ COUNTRY SELECT (now in sec3) ══════════ */
 function renderCountrySelect(){
-  var sel=$('cs');sel.innerHTML='';
-  // Use BD (backgrounds with country info) or fallback
+  var sel=$('cs');if(!sel)return;sel.innerHTML='';
   var countries=[{value:'thai_passport',label:'🇹🇭 Thailand (35×45mm)'},{value:'japan_passport',label:'🇯🇵 Japan (35×45mm)'},{value:'china_passport',label:'🇨🇳 China (33×48mm)'},{value:'korea_passport',label:'🇰🇷 South Korea (35×45mm)'},{value:'us_visa',label:'🇺🇸 US Visa (51×51mm)'},{value:'uk_passport',label:'🇬🇧 UK (35×45mm)'},{value:'eu_passport',label:'🇪🇺 EU (35×45mm)'},{value:'custom',label:'✏️ Custom Size'}];
   countries.forEach(function(c){
     var o=document.createElement('option');
@@ -141,31 +139,6 @@ function loadCustomClothing(){
   }
 }
 
-async function uploadCustomClothing(){
-  var input=document.createElement('input');input.type='file';input.accept='image/*';
-  input.onchange=async function(){
-    var file=input.files[0];if(!file)return;
-    var fd=new FormData();fd.append('file',file);
-    try{
-      showOv('Uploading...');
-      var r=await fetch(API+'/upload-custom-clothing',{method:'POST',body:fd});
-      var d=await r.json();
-      if(d.ok){
-        S.customClothing=d.id;S.customClothingUrl=API+'/download/'+d.id+'_custom.png';S.customClothingName=file.name.replace(/\.[^.]+$/,'');
-        localStorage.setItem('passport_custom_clothing',JSON.stringify({id:d.id,url:S.customClothingUrl,name:S.customClothingName}));
-        $('custPreviewWrap').classList.remove('hidden');
-        $('custPreviewImg').src=S.customClothingUrl;
-        $('custPreviewName').textContent=S.customClothingName;
-        S.clothing=d.id;
-        renderClothing();
-        toast('Custom clothing uploaded! 👔','ok');
-      }
-    }catch(e){toast('Upload failed','err')}
-    hideOv();
-  };
-  input.click();
-}
-
 function removeCustomClothing(){
   S.customClothing=null;S.customClothingUrl=null;S.customClothingName=null;S.clothing='keep_original';
   localStorage.removeItem('passport_custom_clothing');
@@ -186,7 +159,6 @@ async function handleFiles(e){
     $('upName').textContent=files.length+' photos';
     $('upMeta').textContent='Batch mode';
     $('upErr').classList.add('hidden');
-    // Show multi thumbnails
     var mp=$('multiPreview');mp.innerHTML='';
     files.forEach(function(f,i){
       var img=document.createElement('img');
@@ -194,7 +166,6 @@ async function handleFiles(e){
       img.src=URL.createObjectURL(f);
       mp.appendChild(img);
     });
-    // Upload first file for session
     var fd=new FormData();fd.append('file',files[0]);
     showOv('Uploading...');
     try{
@@ -205,7 +176,6 @@ async function handleFiles(e){
         $('upThumb').src=API+'/download/'+S.sid+'_passport.jpg';
         $('upGender').textContent=(S.gender==='male'?'👨':'👩')+' '+S.gender;
         $('upGender').style.display='inline-flex';
-        // Upload rest in background
         for(var i=1;i<files.length;i++){
           var ffd=new FormData();ffd.append('file',files[i]);
           var rr=await fetch(API+'/upload',{method:'POST',body:ffd});
@@ -309,9 +279,7 @@ function showResult(d,isBulk){
   }
   $('rs').innerHTML=stats;
   $('ri').src=API+'/download/'+S.sid+'_passport.jpg?t='+Date.now();
-  // Show sec3, hide sec2
   $('sec3').classList.remove('hidden');
-  // Batch thumbnails
   if(isBulk&&d.results&&d.results.length>1){
     $('batchPreview').classList.remove('hidden');
     var sh='';
@@ -327,7 +295,6 @@ function showResult(d,isBulk){
   }else{
     $('batchPreview').classList.add('hidden');
   }
-  // Auto cut BG
   autoRemoveBG();
   toast('Done! Photo ready 🎉');
 }
@@ -349,7 +316,6 @@ async function autoRemoveBG(){
     var resp=await fetch(API+'/remove-bg',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:S.sid,background_color:color})});
     var d=await resp.json();
     if(d.ok){
-      // Show transparent + BG color overlay
       var url=location.origin+(d.download_transparent||'');
       $('ri').src=url+'?t='+Date.now();
       previewBGColor(color);
@@ -364,12 +330,11 @@ function previewBGColor(hex){
   $('bgColorPick').value=hex;
 }
 
-/* ══════════ APPLY BG (FREE after first remove-bg) ══════════ */
+/* ══════════ APPLY BG ══════════ */
 async function applyBG(){
   if(!S.sid)return;
   var color=$('bgColorPick').value||'#FFFFFF';
   previewBGColor(color);
-  // Call apply-bg (FREE — uses transparent PNG + PIL)
   try{
     var resp=await fetch(API+'/apply-bg',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:S.sid,background_color:color})});
     var d=await resp.json();
@@ -379,7 +344,6 @@ async function applyBG(){
       toast('Background applied! 🎨','ok');
     }
   }catch(e){
-    // Fallback to remove-bg
     try{
       var resp2=await fetch(API+'/remove-bg',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:S.sid,background_color:color})});
       var d2=await resp2.json();

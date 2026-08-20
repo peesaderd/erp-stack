@@ -8,192 +8,170 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}html,body{overflow-x:hidden;width:100%}body{font-family:'Inter',-apple-system,sans-serif;background:#0f172a;min-height:100vh;color:#0f172a;overflow-x:hidden;width:100%}
-.hdr{position:fixed;top:0;left:0;right:0;z-index:200;background:rgba(15,23,42,.92);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,.08);padding:8px 16px}.hdr-in{max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:12px}.hdr-logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 12px rgba(99,102,241,.4)}.hdr-logo svg{width:20px;height:20px;stroke:#fff;stroke-width:2;fill:none}.hdr-txt{flex:1;min-width:0}.hdr-txt h1{font-size:.95rem;font-weight:800;color:#fff;margin:0;line-height:1.2}.hdr-txt small{font-size:.6rem;color:rgba(255,255,255,.6);font-weight:500;display:block}.hdr-badge{background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-size:.6rem;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap}
-.pill-wrap{padding:72px 16px 0;max-width:500px;margin:0 auto}.pill-tabs{display:flex;gap:4px;background:#1e293b;border-radius:16px;padding:4px}.pill-tab{flex:1;padding:12px 20px;text-align:center;font-size:.82rem;font-weight:700;color:#64748b;cursor:pointer;border-radius:12px;transition:.25s;user-select:none;-webkit-tap-highlight-color:transparent}.pill-tab.active{background:#6366f1;color:#fff;box-shadow:0 4px 12px rgba(99,102,241,.4)}.pill-tab:hover:not(.active){color:#94a3b8;background:rgba(99,102,241,.08)}.pill-tab.disabled{opacity:.35;cursor:not-allowed;pointer-events:none}
-.page{max-width:1100px;width:100%;margin:0 auto;padding:16px;overflow-x:hidden}.pane{display:none;animation:fadeIn .3s}.pane.act{display:block}@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}.card{background:#fff;border-radius:16px;border:1px solid rgba(255,255,255,.06);overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.12);max-width:100%}
-.drop{border:2px dashed #cbd5e1;border-radius:16px;padding:52px 20px;text-align:center;cursor:pointer;transition:.2s;background:#f8fafc}.drop:hover{border-color:#6366f1;background:#eef2ff}.drop .ic{font-size:48px;margin-bottom:12px;opacity:.6}.drop h3{font-size:1rem;font-weight:700;color:#0f172a;margin-bottom:4px}.drop p{font-size:.72rem;color:#64748b;margin-bottom:16px}.drop input{display:none}.drop-btns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}.drop-btns button{padding:10px 20px;border:none;border-radius:10px;font-size:.8rem;font-weight:600;cursor:pointer}
-.btn-p{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;box-shadow:0 4px 12px rgba(99,102,241,.3)}.btn-p:hover{transform:translateY(-1px)}.btn-c{background:#e2e8f0;color:#475569}.btn-c:hover{background:#cbd5e1}.gbadge{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border-radius:16px;font-size:.7rem;font-weight:600;background:#eef2ff;color:#6366f1}
-.opt-sec{margin-bottom:14px;min-width:0;max-width:100%}.opt-h{display:flex;align-items:center;gap:8px;font-size:.75rem;font-weight:700;color:#0f172a;margin-bottom:8px}.opt-h .e{font-size:1rem}
-.gender-tabs{display:flex;gap:6px;margin-bottom:10px}.gtab{flex:1;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;background:#f8fafc;cursor:pointer;font-size:.72rem;font-weight:600;color:#64748b;transition:.2s}.gtab.active{background:#6366f1;color:#fff;border-color:#6366f1}
-.caro{position:relative;overflow:hidden;width:100%}.caro-list{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:4px 2px 8px}.caro-list::-webkit-scrollbar{display:none}.citem{flex:0 0 76px;min-width:0;cursor:pointer;border:2px solid #e2e8f0;border-radius:10px;overflow:hidden;transition:.2s;background:#fff;position:relative}.citem:hover{border-color:#6366f1;transform:translateY(-1px)}.citem.on{border-color:#6366f1;box-shadow:0 0 0 2px rgba(99,102,241,.15)}.citem img{width:100%;height:84px;object-fit:cover;display:block;background:#f1f5f9}.citem .lb{text-align:center;padding:5px 2px;font-size:.58rem;font-weight:600;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.citem.on .lb{color:#6366f1}.citem .ck{position:absolute;top:3px;right:3px;width:16px;height:16px;border-radius:50%;background:#6366f1;color:#fff;display:none;align-items:center;justify-content:center;font-size:8px;font-weight:700}.citem.on .ck{display:flex}
-.carro-btn{position:absolute;top:50%;transform:translateY(-50%);width:26px;height:26px;border-radius:50%;background:#fff;border:1px solid #e2e8f0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:10px;color:#64748b;z-index:2;box-shadow:0 2px 6px rgba(0,0,0,.1)}
-.crop-opts{display:flex;gap:6px;flex-wrap:wrap}.crop-opt{padding:8px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:.72rem;font-weight:600;color:#64748b;cursor:pointer;background:#fff;transition:.2s}.crop-opt:hover{border-color:#6366f1}.crop-opt.active{background:#6366f1;color:#fff;border-color:#6366f1}
-.sec-divider{height:1px;background:linear-gradient(90deg,transparent,#e2e8f0,transparent);margin:20px 0}
-.gen-btn{width:100%;padding:16px;border:none;border-radius:14px;font-size:.95rem;font-weight:800;cursor:pointer;transition:.2s;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;box-shadow:0 4px 16px rgba(99,102,241,.4);display:flex;align-items:center;justify-content:center;gap:10px}.gen-btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(99,102,241,.5)}.gen-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}.gen-btn .ico{font-size:1.2rem}
-.sec2-wrap{margin-top:20px}.sec2-wrap.hidden{display:none}.sec2-header{display:flex;align-items:center;gap:8px;padding:12px 16px;background:linear-gradient(135deg,#f0fdf4,#ecfdf5);border-radius:12px;margin-bottom:14px;border:1px solid #bbf7d0}.sec2-header .ico{font-size:1.2rem}.sec2-header .txt{font-size:.78rem;font-weight:700;color:#166534}
-.preview-bar{position:sticky;top:64px;z-index:10;background:#0f172a;padding:12px 0;margin-bottom:12px}.slider-wrap{display:flex;gap:10px;align-items:flex-start;overflow-x:auto;scrollbar-width:none;padding:4px}.slider-wrap::-webkit-scrollbar{display:none}.slide-item{flex:0 0 auto;cursor:pointer;text-align:center;transition:.2s}.slide-item img{width:80px;height:106px;object-fit:cover;border-radius:10px;border:2px solid #334155;transition:.2s}.slide-item.active img{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.3)}.slide-item .name{font-size:.55rem;color:#64748b;margin-top:4px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.slide-item.active .name{color:#818cf8}
-.res-img{max-width:280px;width:100%;border-radius:12px;margin:0 auto;display:block;border:2px solid #e2e8f0}.res-stats{display:flex;justify-content:center;gap:12px;margin-top:10px;flex-wrap:wrap}.rst{text-align:center;padding:8px 14px;background:#f8fafc;border-radius:10px;min-width:60px}.rst .v{font-size:.85rem;font-weight:700;color:#0f172a}.rst .l{font-size:.58rem;color:#94a3b8;margin-top:2px}.res-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;justify-content:center}.res-btns button{padding:10px 18px;border:none;border-radius:10px;font-size:.75rem;font-weight:600;cursor:pointer;transition:.2s}
-.bg-d{width:28px;height:28px;border-radius:50%;border:2px solid #e2e8f0;cursor:pointer;transition:.2s;display:inline-block}.bg-d:hover{border-color:#6366f1;transform:scale(1.1)}.bg-d.on{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.3)}.bg-p{padding:8px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:.72rem;font-weight:600;color:#64748b;cursor:pointer;background:#fff;transition:.2s}.bg-p:hover{border-color:#6366f1}.bg-p.active{background:#6366f1;color:#fff;border-color:#6366f1}
-.sz-p,.pap-p{padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:.72rem;font-weight:600;color:#64748b;cursor:pointer;background:#fff;transition:.2s}.sz-p:hover,.pap-p:hover{border-color:#6366f1}.sz-p.active,.pap-p.active{background:#6366f1;color:#fff;border-color:#6366f1}
+.hdr{position:fixed;top:0;left:0;right:0;z-index:200;background:rgba(15,23,42,.92);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,.08);padding:8px 16px}.hdr-in{max-width:600px;margin:0 auto;display:flex;align-items:center;gap:12px}.hdr-logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 12px rgba(99,102,241,.4)}.hdr-logo svg{width:20px;height:20px;stroke:#fff;stroke-width:2;fill:none}.hdr-txt{flex:1;min-width:0}.hdr-txt h1{font-size:.95rem;font-weight:800;color:#fff;margin:0;line-height:1.2}.hdr-txt small{font-size:.6rem;color:rgba(255,255,255,.6);font-weight:500;display:block}.hdr-badge{background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-size:.6rem;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap}
+.page{max-width:600px;width:100%;margin:0 auto;padding:62px 16px 76px;overflow-x:hidden}
+.card{background:#fff;border-radius:16px;border:1px solid rgba(255,255,255,.06);overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.12);max-width:100%;margin-bottom:14px}
+.drop{border:2px dashed #cbd5e1;border-radius:16px;padding:40px 20px;text-align:center;cursor:pointer;transition:.2s;background:#f8fafc}.drop:hover{border-color:#6366f1;background:#eef2ff}.drop .ic{font-size:40px;margin-bottom:8px;opacity:.6}.drop h3{font-size:.9rem;font-weight:700;color:#0f172a;margin-bottom:4px}.drop p{font-size:.68rem;color:#64748b;margin-bottom:12px}.drop input{display:none}.drop-btns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}.drop-btns button{padding:10px 18px;border:none;border-radius:10px;font-size:.78rem;font-weight:600;cursor:pointer}
+.btn-p{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;box-shadow:0 4px 12px rgba(99,102,241,.3)}.btn-p:hover{transform:translateY(-1px)}.btn-c{background:#e2e8f0;color:#475569}.btn-c:hover{background:#cbd5e1}.gbadge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:16px;font-size:.65rem;font-weight:600;background:#eef2ff;color:#6366f1}
+.section{padding:14px}.sec-title{display:flex;align-items:center;gap:6px;font-size:.78rem;font-weight:700;color:#0f172a;margin-bottom:10px}.sec-title .e{font-size:1rem}
+.gender-tabs{display:flex;gap:6px;margin-bottom:8px}.gtab{flex:1;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:8px;background:#f8fafc;cursor:pointer;font-size:.7rem;font-weight:600;color:#64748b;transition:.2s;text-align:center}.gtab.active{background:#6366f1;color:#fff;border-color:#6366f1}
+.caro{position:relative;overflow:hidden;width:100%}.caro-list{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:4px 2px 8px;-webkit-overflow-scrolling:touch}.caro-list::-webkit-scrollbar{display:none}.citem{flex:0 0 72px;min-width:0;cursor:pointer;border:2px solid #e2e8f0;border-radius:10px;overflow:hidden;transition:.2s;background:#fff;position:relative}.citem:hover{border-color:#6366f1}.citem.on{border-color:#6366f1;box-shadow:0 0 0 2px rgba(99,102,241,.15)}.citem img{width:100%;height:78px;object-fit:cover;display:block;background:#f1f5f9}.citem .lb{text-align:center;padding:4px 2px;font-size:.55rem;font-weight:600;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.citem.on .lb{color:#6366f1}.citem .ck{position:absolute;top:3px;right:3px;width:16px;height:16px;border-radius:50%;background:#6366f1;color:#fff;display:none;align-items:center;justify-content:center;font-size:8px;font-weight:700}.citem.on .ck{display:flex}
+.bg-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px}.bg-d{width:28px;height:28px;border-radius:50%;border:2px solid #e2e8f0;cursor:pointer;transition:.2s;flex-shrink:0}.bg-d:hover{border-color:#6366f1;transform:scale(1.1)}.bg-d.on{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.3)}
+.gen-btn{width:100%;padding:14px;border:none;border-radius:14px;font-size:.9rem;font-weight:800;cursor:pointer;transition:.2s;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;box-shadow:0 4px 16px rgba(99,102,241,.4);display:flex;align-items:center;justify-content:center;gap:8px}.gen-btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(99,102,241,.5)}.gen-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
 .hidden{display:none!important}
-.ov{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,.92);z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:.3s}.ov.show{opacity:1;pointer-events:auto}.sp{width:40px;height:40px;border:3px solid #334155;border-top-color:#6366f1;border-radius:50%;animation:spin .7s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.ov .t{color:#fff;font-size:.95rem;font-weight:700;margin-top:16px}.ov .sub{color:#94a3b8;font-size:.72rem;margin-top:4px}
-.toast{position:fixed;bottom:72px;left:50%;transform:translateX(-50%) translateY(20px);background:#1e293b;color:#fff;padding:10px 20px;border-radius:12px;font-size:.78rem;font-weight:600;opacity:0;transition:.3s;z-index:600;pointer-events:none;white-space:nowrap;max-width:90vw}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}.toast.err{background:#dc2626}.toast.ok{background:#10b981}
-.bnav{position:fixed;bottom:0;left:0;right:0;background:rgba(15,23,42,.92);backdrop-filter:blur(12px);display:flex;z-index:300;padding:4px 0 max(4px,env(safe-area-inset-bottom,4px));height:56px}.bnav::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.45) 18%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.45) 82%,transparent 100%);pointer-events:none;z-index:1}.bnav a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-decoration:none;color:#94a3b8;font-size:.6rem;font-weight:600;transition:.2s;-webkit-tap-highlight-color:transparent}.bnav a svg{width:20px;height:20px;stroke-width:1.8;fill:none;stroke:currentColor}.bnav a:hover{color:#a5b4fc}.bnav a.active{color:#818cf8}.page{padding-bottom:76px}
-.err-box{padding:12px 16px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;color:#dc2626;font-size:.75rem;margin-top:10px}
+/* Preview */
+.preview-card{text-align:center;padding:16px}.preview-frame{width:200px;height:200px;margin:0 auto 12px;border-radius:12px;overflow:hidden;border:2px solid #e2e8f0;position:relative;background:repeating-conic-gradient(#f0f0f0 0% 25%,#fff 0% 50%) 50%/12px 12px}.preview-frame img{width:100%;height:100%;object-fit:contain}
+/* Country pills */
+.pill-caro{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:4px 2px 8px;-webkit-overflow-scrolling:touch}.pill-caro::-webkit-scrollbar{display:none}.pill-item{flex:0 0 auto;padding:8px 14px;border:1.5px solid #e2e8f0;border-radius:20px;font-size:.68rem;font-weight:600;color:#64748b;cursor:pointer;background:#fff;transition:.2s;white-space:nowrap;display:flex;align-items:center;gap:4px}.pill-item:hover{border-color:#6366f1}.pill-item.on{background:#6366f1;color:#fff;border-color:#6366f1}
+.sz-row{display:flex;gap:6px;flex-wrap:wrap}.sz-p{padding:7px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:.68rem;font-weight:600;color:#64748b;cursor:pointer;background:#fff;transition:.2s}.sz-p:hover{border-color:#6366f1}.sz-p.active{background:#6366f1;color:#fff;border-color:#6366f1}
+.res-btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;justify-content:center}.res-btns button{padding:9px 16px;border:none;border-radius:10px;font-size:.72rem;font-weight:600;cursor:pointer;transition:.2s}
+.ov{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,.92);z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:.3s}.ov.show{opacity:1;pointer-events:auto}.sp{width:40px;height:40px;border:3px solid #334155;border-top-color:#6366f1;border-radius:50%;animation:spin .7s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.ov .t{color:#fff;font-size:.9rem;font-weight:700;margin-top:16px}.ov .sub{color:#94a3b8;font-size:.68rem;margin-top:4px}
+.toast{position:fixed;bottom:72px;left:50%;transform:translateX(-50%) translateY(20px);background:#1e293b;color:#fff;padding:10px 20px;border-radius:12px;font-size:.75rem;font-weight:600;opacity:0;transition:.3s;z-index:600;pointer-events:none;white-space:nowrap;max-width:90vw}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}.toast.err{background:#dc2626}.toast.ok{background:#10b981}
+.bnav{position:fixed;bottom:0;left:0;right:0;background:rgba(15,23,42,.92);backdrop-filter:blur(12px);display:flex;z-index:300;padding:4px 0 max(4px,env(safe-area-inset-bottom,4px));height:56px}.bnav::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.45) 18%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.45) 82%,transparent 100%);pointer-events:none;z-index:1}.bnav a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-decoration:none;color:#94a3b8;font-size:.6rem;font-weight:600;transition:.2s;-webkit-tap-highlight-color:transparent}.bnav a svg{width:20px;height:20px;stroke-width:1.8;fill:none;stroke:currentColor}.bnav a:hover{color:#a5b4fc}.bnav a.active{color:#818cf8}
+.crop-opts{display:flex;gap:6px;flex-wrap:wrap}.crop-opt{padding:7px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:.68rem;font-weight:600;color:#64748b;cursor:pointer;background:#fff;transition:.2s}.crop-opt:hover{border-color:#6366f1}.crop-opt.active{background:#6366f1;color:#fff;border-color:#6366f1}
 </style>
 </head>
 <body>
 <div class="hdr"><div class="hdr-in">
   <div class="hdr-logo"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="12" cy="10" r="3"/><path d="M7 20v-1a5 5 0 0110 0v1"/></svg></div>
-  <div class="hdr-txt"><h1>Passport Photo Studio</h1><small>AI-powered ID photos in seconds</small></div>
+  <div class="hdr-txt"><h1>Passport Photo Studio</h1><small>AI-powered ID photos · one tap</small></div>
   <div class="hdr-badge">⚡ ~$0.004</div>
 </div></div>
 
-<div class="pill-wrap"><div class="pill-tabs">
-  <div class="pill-tab active" onclick="switchTab(0)">📁 Upload</div>
-  <div class="pill-tab disabled" id="tabOptions" onclick="switchTab(1)">⚙️ Options</div>
-</div></div>
-
 <div class="page">
-<!-- TAB 1: UPLOAD -->
-<div class="pane act" id="pane0">
-  <div class="card" style="padding:24px">
+
+<!-- 1. UPLOAD -->
+<div class="card" id="uploadCard">
+  <div class="section">
     <div id="dropZone">
       <div class="drop" id="drop">
         <div class="ic">📷</div>
-        <h3>Upload your photo</h3>
-        <p>Drag &amp; drop or click to browse<br><small>JPG / PNG · Single or multiple (max 20)</small></p>
+        <h3>Upload photo</h3>
+        <p>Drag &amp; drop or tap to browse<br><small>JPG/PNG · Single or batch (max 20)</small></p>
         <div class="drop-btns">
-          <button class="btn-p" type="button" onclick="pickFile()">📁 Choose Photo</button>
-          <button class="btn-c" type="button" onclick="pickFile(true)">📚 Choose Multiple</button>
+          <button class="btn-p" type="button" onclick="pickFile()">📁 Photo</button>
+          <button class="btn-c" type="button" onclick="pickFile(true)">📚 Batch</button>
         </div>
         <input type="file" id="fi" accept="image/jpeg,image/png" multiple>
       </div>
     </div>
-    <div id="uploaded" class="hidden" style="margin-top:16px;text-align:center">
-      <div style="display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap">
-        <div style="flex:0 0 72px;aspect-ratio:3/4;border-radius:10px;overflow:hidden;border:2px solid #6366f1;box-shadow:0 4px 12px rgba(99,102,241,.3)"><img id="upThumb" style="width:100%;height:100%;object-fit:cover"></div>
-        <div style="text-align:left">
-          <div id="upName" style="font-size:.8rem;font-weight:700"></div>
-          <div id="upMeta" style="font-size:.68rem;color:#64748b;margin:2px 0 6px"></div>
+    <div id="uploaded" class="hidden" style="margin-top:12px">
+      <div style="display:flex;gap:10px;align-items:center">
+        <div style="flex:0 0 60px;aspect-ratio:3/4;border-radius:8px;overflow:hidden;border:2px solid #6366f1"><img id="upThumb" style="width:100%;height:100%;object-fit:cover"></div>
+        <div style="flex:1;min-width:0">
+          <div id="upName" style="font-size:.75rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+          <div id="upMeta" style="font-size:.62rem;color:#64748b;margin:2px 0 4px"></div>
           <span class="gbadge" id="upGender" style="display:none"></span>
-          <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
-            <button class="btn-c" style="padding:8px 14px;border:none;border-radius:8px;font-size:.7rem;font-weight:600;cursor:pointer" onclick="clearAll()">↺ Remove</button>
-            <button class="btn-c" style="padding:8px 14px;border:none;border-radius:8px;font-size:.7rem;font-weight:600;cursor:pointer" onclick="pickFile()">🔄 Change</button>
-            <button class="btn-p" style="padding:8px 18px;border:none;border-radius:8px;font-size:.7rem;font-weight:600;cursor:pointer" onclick="goOptions()">Next ⏩</button>
+          <div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap">
+            <button class="btn-c" style="padding:6px 10px;border:none;border-radius:6px;font-size:.62rem;font-weight:600;cursor:pointer" onclick="clearAll()">↺ Remove</button>
+            <button class="btn-c" style="padding:6px 10px;border:none;border-radius:6px;font-size:.62rem;font-weight:600;cursor:pointer" onclick="pickFile()">🔄 Change</button>
           </div>
         </div>
       </div>
-      <div id="multiPreview" style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:12px"></div>
+      <div id="multiPreview" style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap;margin-top:8px"></div>
     </div>
-    <div class="err-box hidden" id="upErr"></div>
+    <div class="hidden" id="upErr" style="padding:10px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#dc2626;font-size:.68rem;margin-top:8px"></div>
   </div>
 </div>
 
-<!-- TAB 2: OPTIONS -->
-<div class="pane" id="pane1">
-  <div id="batchPreview" class="hidden" style="margin-bottom:12px">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-      <div style="flex:1;font-size:.72rem;font-weight:700;color:#fff">🖼️ Photos</div>
-      <label style="display:flex;align-items:center;gap:5px;font-size:.65rem;color:#94a3b8;font-weight:600;cursor:pointer"><input type="checkbox" id="selectAllCb" onchange="toggleSelectAll(this.checked)" style="accent-color:#6366f1;width:14px;height:14px"> All</label>
+<!-- 2. OPTIONS (hidden until upload) -->
+<div class="card hidden" id="optionsCard">
+  <div class="section">
+    <!-- Gender -->
+    <div class="sec-title"><span class="e">👔</span> Clothing</div>
+    <div class="gender-tabs" id="gt"></div>
+    <!-- Clothing carousel -->
+    <div class="caro"><div class="caro-list" id="cl"></div></div>
+
+    <div style="height:1px;background:linear-gradient(90deg,transparent,#e2e8f0,transparent);margin:14px 0"></div>
+
+    <!-- Background color -->
+    <div class="sec-title"><span class="e">🎨</span> Background</div>
+    <div class="bg-row" id="bgPresets"></div>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
+      <input type="color" id="bgColorPick" value="#C4DCFF" style="width:32px;height:24px;border:1px solid #cbd5e1;border-radius:6px;padding:0;cursor:pointer">
+      <span style="font-size:.6rem;color:#94a3b8">Custom</span>
     </div>
-    <div class="slider-wrap" id="sliderWrap"></div>
+
+    <div style="height:1px;background:linear-gradient(90deg,transparent,#e2e8f0,transparent);margin:14px 0"></div>
+
+    <!-- Crop -->
+    <div class="sec-title"><span class="e">✂️</span> Crop</div>
+    <div class="crop-opts">
+      <div class="crop-opt active" data-preset="standard" onclick="setCrop('standard')">Standard</div>
+      <div class="crop-opt" data-preset="compact" onclick="setCrop('compact')">Compact</div>
+      <div class="crop-opt" data-preset="relaxed" onclick="setCrop('relaxed')">Relaxed</div>
+    </div>
   </div>
-
-  <!-- Section 1: Clothing + Generate -->
-  <div class="card" style="padding:16px" id="sec1Card">
-    <div class="opt-sec">
-      <div class="opt-h"><span class="e">🌍</span> Country / Size</div>
-      <select id="cs" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:.78rem;background:#fff;color:#0f172a;outline:none"></select>
-    </div>
-    <div class="sec-divider"></div>
-    <div class="opt-sec">
-      <div class="opt-h"><span class="e">👔</span> Clothing</div>
-      <div class="gender-tabs" id="gt"></div>
-      <div class="caro"><button class="carro-btn" onclick="scrollCar('cl',-1)">◀</button><div class="caro-list" id="cl"></div><button class="carro-btn" onclick="scrollCar('cl',1)">▶</button></div>
-    </div>
-    <div class="sec-divider"></div>
-    <div class="opt-sec">
-      <div class="opt-h"><span class="e">✂️</span> Crop Style</div>
-      <div class="crop-opts">
-        <div class="crop-opt active" data-preset="standard" onclick="setCrop('standard')">Standard</div>
-        <div class="crop-opt" data-preset="compact" onclick="setCrop('compact')">Compact</div>
-        <div class="crop-opt" data-preset="relaxed" onclick="setCrop('relaxed')">Relaxed</div>
-      </div>
-    </div>
-    <div class="sec-divider"></div>
-    <button class="gen-btn" id="genBtn" disabled onclick="generate()"><span class="ico">🚀</span> Generate Passport Photo</button>
-    <div style="text-align:center;margin-top:8px;font-size:.62rem;color:#94a3b8">เลือกเสื้อก่อน → กด Generate</div>
+  <!-- Generate -->
+  <div style="padding:0 14px 14px">
+    <button class="gen-btn" id="genBtn" onclick="generate()"><span>🚀</span> Generate Passport Photo</button>
   </div>
+</div>
 
-  <!-- Section 2: Post-generate -->
-  <div class="sec2-wrap hidden" id="sec2">
-    <div class="sec2-header"><span class="ico">✅</span><span class="txt">Photo generated! Customize below.</span></div>
-
-    <!-- Result -->
-    <div class="card" style="padding:16px;margin-bottom:14px">
-      <img class="res-img" id="ri" src="" alt="Generated">
-      <div class="res-stats" id="rs"></div>
-      <div class="res-btns">
-        <button class="btn-p" style="padding:10px 18px;font-size:.75rem" onclick="dl('passport')">⬇️ Download</button>
-        <button class="btn-c" style="padding:10px 18px;font-size:.75rem" onclick="dlTransparent()">💎 Transparent</button>
-        <button class="btn-c" style="padding:10px 18px;font-size:.75rem" onclick="dl('print')">🖨️ Print Sheet</button>
-        <button class="btn-c" style="padding:10px 18px;font-size:.75rem" onclick="newPhoto()">🔄 New</button>
-      </div>
-    </div>
-
-    <!-- Background Color -->
-    <div class="card" style="padding:16px;margin-bottom:14px">
-      <div class="opt-sec">
-        <div class="opt-h"><span class="e">🎨</span> Background Color</div>
-        <div id="bgPresets" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px"></div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <input type="color" id="bgColorPick" value="#C4DCFF" style="width:36px;height:28px;border:1px solid #cbd5e1;border-radius:6px;padding:0;cursor:pointer">
-          <label style="display:flex;align-items:center;gap:4px;font-size:.65rem;color:#475569;cursor:pointer"><input type="checkbox" id="cutBg" checked style="accent-color:#6366f1;width:14px;height:14px"> Cut BG (AI $0.0025)</label>
-          <button class="btn-p" style="padding:8px 16px;font-size:.72rem;margin-left:auto" onclick="applyBG()">✂️ Apply</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Photo Size -->
-    <div class="card" style="padding:16px;margin-bottom:14px">
-      <div class="opt-sec">
-        <div class="opt-h"><span class="e">📐</span> Photo Size</div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
-          <div class="sz-p active" onclick="setCustomSize(35,45,this)">35×45mm</div>
-          <div class="sz-p" onclick="setCustomSize(25,35,this)">25×35mm</div>
-          <div class="sz-p" onclick="setCustomSize(33,48,this)">33×48mm</div>
-          <div class="sz-p" onclick="setCustomSize(51,51,this)">51×51mm</div>
-          <div class="sz-p" onclick="setCustomSize(38,50,this)">38×50mm</div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <input type="number" id="customW" value="35" min="10" max="200" style="flex:1;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.75rem;text-align:center;outline:none">
-          <span style="color:#94a3b8;font-weight:600">×</span>
-          <input type="number" id="customH" value="45" min="10" max="200" style="flex:1;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.75rem;text-align:center;outline:none">
-          <span style="font-size:.65rem;color:#94a3b8">mm</span>
-          <button class="btn-c" style="padding:8px 14px;font-size:.72rem;border:none;border-radius:8px;cursor:pointer" onclick="applySize()">📐 Apply</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Print Sheet -->
-    <div class="card" style="padding:16px;margin-bottom:14px">
-      <div class="opt-sec">
-        <div class="opt-h"><span class="e">🖨️</span> Print Sheet</div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
-          <div class="pap-p active" onclick="setPaper('4x6',this)">4×6"</div>
-          <div class="pap-p" onclick="setPaper('5x7',this)">5×7"</div>
-          <div class="pap-p" onclick="setPaper('a6',this)">A6</div>
-          <div class="pap-p" onclick="setPaper('a4',this)">A4</div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
-          <div style="flex:1"><label style="font-size:.65rem;font-weight:600;color:#94a3b8;display:block;margin-bottom:4px">Count</label><input type="number" id="customCount" value="6" min="1" max="200" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.72rem;text-align:center;outline:none"></div>
-          <div style="flex:1"><label style="font-size:.65rem;font-weight:600;color:#94a3b8;display:block;margin-bottom:4px">Border mm</label><input type="number" id="bwmmPrint" value="3" min="0" max="20" step="0.5" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.72rem;text-align:center;outline:none"></div>
-          <div style="flex:0;display:flex;align-items:flex-end;padding-bottom:2px"><label style="display:flex;align-items:center;gap:4px;font-size:.65rem;font-weight:600;color:#94a3b8;cursor:pointer"><input type="checkbox" id="bmPrint" style="accent-color:#6366f1;width:14px;height:14px"> Blade</label></div>
-        </div>
-        <button class="btn-p" style="padding:10px 20px;font-size:.78rem" onclick="genPrintSheet()">🖨️ Generate Print Sheet</button>
-      </div>
-    </div>
-
-    <!-- Live preview -->
-    <div class="card hidden" style="padding:16px;margin-bottom:14px" id="custPreviewWrap">
-      <div style="font-size:.75rem;font-weight:700;color:#0f172a;margin-bottom:8px">Preview</div>
-      <img id="custPreviewImg" style="max-width:100%;border-radius:10px;border:1px solid #e2e8f0" src="">
-      <div id="custPreviewInfo" style="font-size:.68rem;color:#94a3b8;margin-top:8px"></div>
+<!-- 3. RESULT (hidden until generate) -->
+<div class="card hidden" id="resultCard">
+  <!-- Square transparent preview -->
+  <div class="preview-card">
+    <div style="font-size:.72rem;font-weight:700;color:#166534;margin-bottom:8px">✅ Preview</div>
+    <div class="preview-frame" id="previewFrame"><img id="previewImg" src=""></div>
+    <div id="resultStats" style="display:flex;justify-content:center;gap:10px;margin-bottom:8px"></div>
+    <div class="res-btns">
+      <button class="btn-p" style="padding:9px 16px;font-size:.72rem" onclick="dl('passport')">⬇️ Download</button>
+      <button class="btn-c" style="padding:9px 16px;font-size:.72rem" onclick="dlTransparent()">💎 Transparent</button>
+      <button class="btn-c" style="padding:9px 16px;font-size:.72rem" onclick="dl('print')">🖨️ Print</button>
+      <button class="btn-c" style="padding:9px 16px;font-size:.72rem" onclick="newPhoto()">🔄 New</button>
     </div>
   </div>
 </div>
+
+<!-- 4. COUNTRY / SIZE (hidden until generate) -->
+<div class="card hidden" id="countryCard">
+  <div class="section">
+    <div class="sec-title"><span class="e">🌍</span> Country / Size</div>
+    <div class="pill-caro" id="countryPills"></div>
+    <div style="height:1px;background:linear-gradient(90deg,transparent,#e2e8f0,transparent);margin:14px 0"></div>
+    <div class="sec-title"><span class="e">📐</span> Photo Size</div>
+    <div class="sz-row" id="sizeRow"></div>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+      <input type="number" id="customW" value="35" min="10" max="200" style="flex:1;padding:7px 8px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.72rem;text-align:center;outline:none">
+      <span style="color:#94a3b8;font-weight:600">×</span>
+      <input type="number" id="customH" value="45" min="10" max="200" style="flex:1;padding:7px 8px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.72rem;text-align:center;outline:none">
+      <span style="font-size:.6rem;color:#94a3b8">mm</span>
+      <button class="btn-c" style="padding:7px 12px;font-size:.68rem;border:none;border-radius:8px;cursor:pointer" onclick="applySize()">📐 Apply</button>
+    </div>
+  </div>
 </div>
+
+<!-- 5. PRINT SHEET (hidden until generate) -->
+<div class="card hidden" id="printCard">
+  <div class="section">
+    <div class="sec-title"><span class="e">🖨️</span> Print Sheet</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+      <div class="sz-p active" onclick="setPaper('4x6',this)">4×6"</div>
+      <div class="sz-p" onclick="setPaper('5x7',this)">5×7"</div>
+      <div class="sz-p" onclick="setPaper('a6',this)">A6</div>
+      <div class="sz-p" onclick="setPaper('a4',this)">A4</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+      <div style="flex:1"><label style="font-size:.6rem;font-weight:600;color:#94a3b8;display:block;margin-bottom:3px">Count</label><input type="number" id="customCount" value="6" min="1" max="200" style="width:100%;padding:7px 8px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.68rem;text-align:center;outline:none"></div>
+      <div style="flex:1"><label style="font-size:.6rem;font-weight:600;color:#94a3b8;display:block;margin-bottom:3px">Border mm</label><input type="number" id="bwmmPrint" value="3" min="0" max="20" step="0.5" style="width:100%;padding:7px 8px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.68rem;text-align:center;outline:none"></div>
+      <div style="flex:0;display:flex;align-items:flex-end;padding-bottom:2px"><label style="display:flex;align-items:center;gap:3px;font-size:.6rem;font-weight:600;color:#94a3b8;cursor:pointer"><input type="checkbox" id="bmPrint" style="accent-color:#6366f1;width:13px;height:13px"> Blade</label></div>
+    </div>
+    <button class="btn-p" style="width:100%;padding:10px;font-size:.75rem" onclick="genPrintSheet()">🖨️ Generate Print Sheet</button>
+  </div>
+</div>
+
+<!-- 6. PRINT PREVIEW (hidden until print sheet generated) -->
+<div class="card hidden" id="printPreviewCard">
+  <div class="section" style="text-align:center">
+    <div style="font-size:.72rem;font-weight:700;color:#0f172a;margin-bottom:8px">Print Preview</div>
+    <img id="custPreviewImg" style="max-width:100%;border-radius:10px;border:1px solid #e2e8f0" src="">
+    <div id="custPreviewInfo" style="font-size:.62rem;color:#94a3b8;margin-top:6px"></div>
+  </div>
+</div>
+
+</div><!-- end .page -->
 
 <div class="ov" id="ov"><div class="sp"></div><div class="t" id="ovt">Generating...</div><div class="sub" id="ovs"></div></div>
 <div class="toast" id="toast"></div>

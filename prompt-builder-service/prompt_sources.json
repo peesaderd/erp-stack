@@ -345,69 +345,542 @@
   },
   "personas": {
     "female": [
-      {"ethnicity": "Thai", "age_range": [20, 26], "skin_tone": "light"},
-      {"ethnicity": "Thai", "age_range": [22, 28], "skin_tone": "medium"},
-      {"ethnicity": "Thai", "age_range": [25, 35], "skin_tone": "medium"},
-      {"ethnicity": "Thai", "age_range": [30, 40], "skin_tone": "medium"},
-      {"ethnicity": "Thai", "age_range": [18, 24], "skin_tone": "light"},
-      {"ethnicity": "Korean", "age_range": [20, 26], "skin_tone": "light"},
-      {"ethnicity": "Japanese", "age_range": [20, 26], "skin_tone": "light"},
-      {"ethnicity": "Filipino", "age_range": [20, 26], "skin_tone": "tan"},
-      {"ethnicity": "Indonesian", "age_range": [20, 25], "skin_tone": "medium"},
-      {"ethnicity": "Vietnamese", "age_range": [21, 27], "skin_tone": "light"}
+      {
+        "ethnicity": "Thai",
+        "age_range": [
+          20,
+          26
+        ],
+        "skin_tone": "light"
+      },
+      {
+        "ethnicity": "Thai",
+        "age_range": [
+          22,
+          28
+        ],
+        "skin_tone": "medium"
+      },
+      {
+        "ethnicity": "Thai",
+        "age_range": [
+          25,
+          35
+        ],
+        "skin_tone": "medium"
+      },
+      {
+        "ethnicity": "Thai",
+        "age_range": [
+          30,
+          40
+        ],
+        "skin_tone": "medium"
+      },
+      {
+        "ethnicity": "Thai",
+        "age_range": [
+          18,
+          24
+        ],
+        "skin_tone": "light"
+      },
+      {
+        "ethnicity": "Korean",
+        "age_range": [
+          20,
+          26
+        ],
+        "skin_tone": "light"
+      },
+      {
+        "ethnicity": "Japanese",
+        "age_range": [
+          20,
+          26
+        ],
+        "skin_tone": "light"
+      },
+      {
+        "ethnicity": "Filipino",
+        "age_range": [
+          20,
+          26
+        ],
+        "skin_tone": "tan"
+      },
+      {
+        "ethnicity": "Indonesian",
+        "age_range": [
+          20,
+          25
+        ],
+        "skin_tone": "medium"
+      },
+      {
+        "ethnicity": "Vietnamese",
+        "age_range": [
+          21,
+          27
+        ],
+        "skin_tone": "light"
+      }
     ],
     "male": [
-      {"ethnicity": "Thai", "age_range": [22, 30], "skin_tone": "medium"},
-      {"ethnicity": "Thai", "age_range": [20, 28], "skin_tone": "light"},
-      {"ethnicity": "Korean", "age_range": [22, 29], "skin_tone": "light"},
-      {"ethnicity": "Japanese", "age_range": [21, 28], "skin_tone": "light"},
-      {"ethnicity": "Chinese", "age_range": [23, 30], "skin_tone": "light"}
+      {
+        "ethnicity": "Thai",
+        "age_range": [
+          22,
+          30
+        ],
+        "skin_tone": "medium"
+      },
+      {
+        "ethnicity": "Thai",
+        "age_range": [
+          20,
+          28
+        ],
+        "skin_tone": "light"
+      },
+      {
+        "ethnicity": "Korean",
+        "age_range": [
+          22,
+          29
+        ],
+        "skin_tone": "light"
+      },
+      {
+        "ethnicity": "Japanese",
+        "age_range": [
+          21,
+          28
+        ],
+        "skin_tone": "light"
+      },
+      {
+        "ethnicity": "Chinese",
+        "age_range": [
+          23,
+          30
+        ],
+        "skin_tone": "light"
+      }
     ],
     "unisex": [
-      {"ethnicity": "Thai", "age_range": [20, 28], "skin_tone": "medium"},
-      {"ethnicity": "Korean", "age_range": [21, 27], "skin_tone": "light"}
+      {
+        "ethnicity": "Thai",
+        "age_range": [
+          20,
+          28
+        ],
+        "skin_tone": "medium"
+      },
+      {
+        "ethnicity": "Korean",
+        "age_range": [
+          21,
+          27
+        ],
+        "skin_tone": "light"
+      }
     ]
   },
   "end_scenes": {
     "skincare": [
-      {"scene": "product prominently displayed on clean surface", "camera": "slow push in"},
-      {"scene": "model smiling gently, product beside her", "camera": "medium close-up"},
-      {"scene": "product on vanity with soft bokeh background", "camera": "close-up on product"}
+      {
+        "scene": "product prominently displayed on clean surface",
+        "camera": "slow push in"
+      },
+      {
+        "scene": "model smiling gently, product beside her",
+        "camera": "medium close-up"
+      },
+      {
+        "scene": "product on vanity with soft bokeh background",
+        "camera": "close-up on product"
+      }
     ],
     "beauty": [
-      {"scene": "model touching face gently, satisfied smile, product in frame", "camera": "medium close-up, soft focus"},
-      {"scene": "product on elegant surface with warm glow", "camera": "slow zoom in"},
-      {"scene": "model admiring result, product visible", "camera": "medium shot"}
+      {
+        "scene": "model touching face gently, satisfied smile, product in frame",
+        "camera": "medium close-up, soft focus"
+      },
+      {
+        "scene": "product on elegant surface with warm glow",
+        "camera": "slow zoom in"
+      },
+      {
+        "scene": "model admiring result, product visible",
+        "camera": "medium shot"
+      }
     ],
     "food": [
-      {"scene": "product beautifully arranged, appetizing presentation", "camera": "top-down shot"},
-      {"scene": "model enjoying the product, genuine smile", "camera": "medium shot, lifestyle framing"},
-      {"scene": "product centerpiece with warm atmosphere", "camera": "slow pan"}
+      {
+        "scene": "product beautifully arranged, appetizing presentation",
+        "camera": "top-down shot"
+      },
+      {
+        "scene": "model enjoying the product, genuine smile",
+        "camera": "medium shot, lifestyle framing"
+      },
+      {
+        "scene": "product centerpiece with warm atmosphere",
+        "camera": "slow pan"
+      }
     ],
     "fashion": [
-      {"scene": "model in natural pose, garment clearly visible", "camera": "static medium shot"},
-      {"scene": "product detail close-up, texture visible", "camera": "slow orbit"},
-      {"scene": "model posing confidently, product featured", "camera": "three-quarter shot"}
+      {
+        "scene": "model in natural pose, garment clearly visible",
+        "camera": "static medium shot"
+      },
+      {
+        "scene": "product detail close-up, texture visible",
+        "camera": "slow orbit"
+      },
+      {
+        "scene": "model posing confidently, product featured",
+        "camera": "three-quarter shot"
+      }
     ],
     "electronics": [
-      {"scene": "sleek device prominently displayed, modern aesthetic", "camera": "slow orbit around product"},
-      {"scene": "device in use context, clean environment", "camera": "close-up on device"},
-      {"scene": "product on modern desk, tech lifestyle", "camera": "medium shot"}
+      {
+        "scene": "sleek device prominently displayed, modern aesthetic",
+        "camera": "slow orbit around product"
+      },
+      {
+        "scene": "device in use context, clean environment",
+        "camera": "close-up on device"
+      },
+      {
+        "scene": "product on modern desk, tech lifestyle",
+        "camera": "medium shot"
+      }
     ],
     "health": [
-      {"scene": "product on clean shelf, wellness aesthetic", "camera": "slow push in"},
-      {"scene": "product in bright clean setting", "camera": "medium shot"},
-      {"scene": "product with healthy lifestyle context", "camera": "eye-level shot"}
+      {
+        "scene": "product on clean shelf, wellness aesthetic",
+        "camera": "slow push in"
+      },
+      {
+        "scene": "product in bright clean setting",
+        "camera": "medium shot"
+      },
+      {
+        "scene": "product with healthy lifestyle context",
+        "camera": "eye-level shot"
+      }
     ],
     "home": [
-      {"scene": "product beautifully placed in home setting", "camera": "slow pan across scene"},
-      {"scene": "product in cozy environment, warm atmosphere", "camera": "medium shot"},
-      {"scene": "product centerpiece in tastefully decorated space", "camera": "static wide shot"}
+      {
+        "scene": "product beautifully placed in home setting",
+        "camera": "slow pan across scene"
+      },
+      {
+        "scene": "product in cozy environment, warm atmosphere",
+        "camera": "medium shot"
+      },
+      {
+        "scene": "product centerpiece in tastefully decorated space",
+        "camera": "static wide shot"
+      }
     ],
     "other": [
-      {"scene": "product prominently displayed, clean composition", "camera": "medium shot, product centered"},
-      {"scene": "lifestyle moment with product, natural and authentic", "camera": "eye-level, candid framing"},
-      {"scene": "product in clean setting, professional look", "camera": "close-up to medium transition"}
+      {
+        "scene": "product prominently displayed, clean composition",
+        "camera": "medium shot, product centered"
+      },
+      {
+        "scene": "lifestyle moment with product, natural and authentic",
+        "camera": "eye-level, candid framing"
+      },
+      {
+        "scene": "product in clean setting, professional look",
+        "camera": "close-up to medium transition"
+      }
+    ],
+    "underarm_cream": [
+      {
+        "scene": "the model raises her arm and smiles, revealing smooth bright white underarms",
+        "camera": "medium close-up on the raised arm, soft even light",
+        "outfit": "sleeveless off-shoulder top, arms fully exposed",
+        "result_focus": "bright white smooth underarms clearly visible, no darkness",
+        "expression": "confident satisfied smile, slight head tilt",
+        "product_placement": "the cream tube placed on the surface beside her"
+      },
+      {
+        "scene": "the model lifts her arm over her head showing the whitened underarm result",
+        "camera": "medium shot, arm raised, face and underarm both in frame",
+        "outfit": "sleeveless tank top",
+        "result_focus": "underarm visibly brighter and smoother than start",
+        "expression": "happy proud smile, eyes bright",
+        "product_placement": "model gently holding the cream tube in her other hand"
+      }
+    ],
+    "face_whitening": [
+      {
+        "scene": "the model's bright clear glowing face fills the frame, radiant even skin",
+        "camera": "close-up on the face, soft flattering light",
+        "outfit": "clean top with open neckline",
+        "result_focus": "smooth bright even-toned glowing skin on the face",
+        "expression": "radiant confident smile",
+        "product_placement": "the whitening cream jar held up near her cheek"
+      }
+    ],
+    "body_whitening": [
+      {
+        "scene": "the model shows her smooth bright white legs and arms, glowing even skin",
+        "camera": "medium shot, model turning to show skin, bright light",
+        "outfit": "tank top and shorts showing arms and legs",
+        "result_focus": "smooth visibly brighter even-toned body skin",
+        "expression": "proud happy smile",
+        "product_placement": "body lotion bottle placed visibly in frame"
+      }
+    ],
+    "acne": [
+      {
+        "scene": "close smooth clear skin, blemishes faded, model gently touching her now-clear cheek",
+        "camera": "close-up on cheek, soft diffused light",
+        "outfit": "simple clean top",
+        "result_focus": "clear smooth poreless skin, acne marks visibly reduced",
+        "expression": "calm relieved confident smile",
+        "product_placement": "acne cream tube in hand"
+      }
+    ],
+    "serum": [
+      {
+        "scene": "dewy glowing hydrated skin, model smiling, skin looks plump and luminous",
+        "camera": "close-up, dewy glow lighting",
+        "outfit": "clean minimal top",
+        "result_focus": "plump hydrated dewy glowing skin",
+        "expression": "fresh natural smile",
+        "product_placement": "serum bottle beside her / in hand"
+      }
+    ],
+    "moisturizer": [
+      {
+        "scene": "soft supple luminous skin, model relaxed satisfied, healthy glow",
+        "camera": "medium close-up, soft warm light",
+        "outfit": "casual clean top",
+        "result_focus": "smooth hydrated healthy-looking skin",
+        "expression": "relaxed content smile",
+        "product_placement": "moisturizer jar held to frame"
+      }
+    ],
+    "sunscreen": [
+      {
+        "scene": "model outdoors in daylight, skin protected and even, no redness or tan",
+        "camera": "medium shot, natural daylight, model turns face to light",
+        "outfit": "light summer clothing, shoulder exposed",
+        "result_focus": "even protected non-reddened bright skin under the sun",
+        "expression": "confident carefree smile",
+        "product_placement": "sunscreen bottle in hand"
+      }
+    ],
+    "lipstick": [
+      {
+        "scene": "close-up of the model's lips in strong even lipstick color, glossy finish, confident smile",
+        "camera": "close-up on lips, crisp focus",
+        "outfit": "makeup-flattering neckline",
+        "result_focus": "vivid even long-lasting lip color, defined lips",
+        "expression": "confident smile with lips clearly shown",
+        "product_placement": "lipstick bullet held beside lips / in hand"
+      }
+    ],
+    "foundation": [
+      {
+        "scene": "model's flawless even foundation finish, smooth matte skin, soft beauty light",
+        "camera": "close-up on face, beauty lighting",
+        "outfit": "clean top",
+        "result_focus": "flawless even-toned smooth base makeup",
+        "expression": "natural confident smile",
+        "product_placement": "foundation bottle beside face"
+      }
+    ],
+    "mascara": [
+      {
+        "scene": "close-up of the eyes with long defined lifted lashes, bright open gaze",
+        "camera": "extreme close-up on eyes, crisp lash detail",
+        "outfit": "n/a",
+        "result_focus": "long voluminous defined lifted lashes",
+        "expression": "bright open confident eyes",
+        "product_placement": "mascara wand held near lashes"
+      }
+    ],
+    "blush": [
+      {
+        "scene": "model's cheeks with natural healthy rosy blush, fresh youthful glow, soft smile",
+        "camera": "close-up on cheeks, soft light",
+        "outfit": "fresh simple top",
+        "result_focus": "natural healthy rosy blush blending on cheeks",
+        "expression": "fresh bright smile",
+        "product_placement": "blush compact in hand"
+      }
+    ],
+    "hair_care": [
+      {
+        "scene": "model runs her hand through long shiny smooth glossy hair, hair swings with movement",
+        "camera": "medium shot, hair in motion, bright clean light",
+        "outfit": "clean neckline showing hair",
+        "result_focus": "long silky shiny smooth glossy tangle-free hair",
+        "expression": "happy confident smile, subtle hair flip",
+        "product_placement": "shampoo bottle on the surface beside her"
+      },
+      {
+        "scene": "model's healthy voluminous frizz-free hair shown from side and back, shiny",
+        "camera": "three-quarter shot, hair flowing, soft light",
+        "outfit": "simple top",
+        "result_focus": "voluminous smooth shiny frizz-free hair",
+        "expression": "content satisfied smile",
+        "product_placement": "haircare product in hand"
+      }
+    ],
+    "slimming": [
+      {
+        "scene": "model shows a slimmer toned waistline, standing pose, product benefit visible",
+        "camera": "medium shot, side profile showing waist, bright light",
+        "outfit": "fitted sporty top and shorts",
+        "result_focus": "slimmer toned defined waistline",
+        "expression": "confident proud smile",
+        "product_placement": "slimming cream device placed beside her"
+      }
+    ],
+    "stretch_marks": [
+      {
+        "scene": "model shows smooth even skin on belly/thighs where stretch marks were, soothed",
+        "camera": "medium close-up on the area, soft even light",
+        "outfit": "crop top / shorts showing the treated area",
+        "result_focus": "smooth even-toned skin, marks visibly faded",
+        "expression": "relieved confident smile",
+        "product_placement": "treatment cream tube in hand"
+      }
+    ],
+    "supplement": [
+      {
+        "scene": "model energetic healthy and glowing, vitality shown, product beside her",
+        "camera": "medium shot, bright fresh lifestyle light",
+        "outfit": "casual active wear",
+        "result_focus": "energetic healthy glowing vitality",
+        "expression": "refreshed energetic smile",
+        "product_placement": "supplement bottle clearly visible / held up"
+      }
+    ],
+    "vitamin": [
+      {
+        "scene": "model bright-eyed healthy and well-rested, natural glow, vitamins in frame",
+        "camera": "medium close-up, soft healthy light",
+        "outfit": "clean comfortable top",
+        "result_focus": "healthy bright rested glowing complexion",
+        "expression": "fresh bright smile",
+        "product_placement": "vitamin bottle placed on surface"
+      }
+    ],
+    "collagen": [
+      {
+        "scene": "model's skin looks firm bouncy and youthful, radiant, collagen benefits shown",
+        "camera": "close-up on skin, dewy light",
+        "outfit": "clean top",
+        "result_focus": "firm bouncy elastic youthful glowing skin",
+        "expression": "confident glow smile",
+        "product_placement": "collagen sachet/bottle in frame"
+      }
+    ],
+    "shampoo": [
+      {
+        "scene": "model runs her hand through long shiny smooth glossy hair, hair swings with movement",
+        "camera": "medium shot, hair in motion, bright clean light",
+        "outfit": "clean neckline showing hair",
+        "result_focus": "long silky shiny smooth glossy tangle-free hair",
+        "expression": "happy confident smile, subtle hair flip",
+        "product_placement": "shampoo bottle on the surface beside her"
+      },
+      {
+        "scene": "model's healthy voluminous frizz-free hair shown from side and back, shiny",
+        "camera": "three-quarter shot, hair flowing, soft light",
+        "outfit": "simple top",
+        "result_focus": "voluminous smooth shiny frizz-free hair",
+        "expression": "content satisfied smile",
+        "product_placement": "haircare product in hand"
+      }
+    ],
+    "conditioner": [
+      {
+        "scene": "model runs her hand through long shiny smooth glossy hair, hair swings with movement",
+        "camera": "medium shot, hair in motion, bright clean light",
+        "outfit": "clean neckline showing hair",
+        "result_focus": "long silky shiny smooth glossy tangle-free hair",
+        "expression": "happy confident smile, subtle hair flip",
+        "product_placement": "shampoo bottle on the surface beside her"
+      },
+      {
+        "scene": "model's healthy voluminous frizz-free hair shown from side and back, shiny",
+        "camera": "three-quarter shot, hair flowing, soft light",
+        "outfit": "simple top",
+        "result_focus": "voluminous smooth shiny frizz-free hair",
+        "expression": "content satisfied smile",
+        "product_placement": "haircare product in hand"
+      }
+    ],
+    "whitening": [
+      {
+        "scene": "the model's skin looks visibly brighter and more even, glowing result",
+        "camera": "medium close-up, bright fresh light",
+        "outfit": "clean open-neck top",
+        "result_focus": "bright even radiant glowing skin",
+        "expression": "confident satisfied smile",
+        "product_placement": "whitening product placed visibly in frame"
+      }
+    ],
+    "deodorant": [
+      {
+        "scene": "the model arms up, confident fresh feel, clean bright underarms",
+        "camera": "medium shot, model arms raised, bright light",
+        "outfit": "sleeveless top",
+        "result_focus": "fresh clean dry confident underarms",
+        "expression": "fresh confident smile",
+        "product_placement": "deodorant stick placed beside her"
+      }
+    ],
+    "eye_cream": [
+      {
+        "scene": "close-up of the model's bright awake eyes, reduced puffiness and dark circles",
+        "camera": "close-up on eye area, soft light",
+        "outfit": "clean top",
+        "result_focus": "bright awake eyes, puffiness and dark circles visibly reduced",
+        "expression": "fresh wide awake smile",
+        "product_placement": "eye cream tube in hand"
+      }
+    ],
+    "toner": [
+      {
+        "scene": "model's pores look refined and skin feels fresh and clear",
+        "camera": "close-up on skin, clean crisp light",
+        "outfit": "clean minimal top",
+        "result_focus": "refined pores, fresh clear balanced skin",
+        "expression": "fresh natural smile",
+        "product_placement": "toner bottle beside her"
+      }
+    ],
+    "apparel": [
+      {
+        "scene": "model in the garment, confident flattering fit, stylish full look",
+        "camera": "three-quarter shot, model posing naturally",
+        "outfit": "the garment itself shown as the focus",
+        "result_focus": "flattering comfortable fit, stylish coordinated look",
+        "expression": "confident happy smile",
+        "product_placement": "garment styled on the model"
+      }
+    ],
+    "footwear": [
+      {
+        "scene": "model standing confidently in the shoes, stylish complete look",
+        "camera": "medium shot showing full shoes and stance",
+        "outfit": "outfit matching the shoes",
+        "result_focus": "stylish comfortable shoes completing the look",
+        "expression": "confident smile",
+        "product_placement": "the shoes worn on model's feet"
+      }
     ]
   },
   "transitions": [
@@ -417,11 +890,49 @@
     "gentle fade"
   ],
   "mouth_control": {
-    "talking_styles": ["talking_head", "talking"],
-    "non_talking_styles": ["product_demo", "product_usage", "holding_product", "holding", "usage", "unbox", "unboxing", "comparison", "review", "fashion_lookbook", "asmr"],
+    "talking_styles": [
+      "talking_head",
+      "talking"
+    ],
+    "non_talking_styles": [
+      "product_demo",
+      "product_usage",
+      "holding_product",
+      "holding",
+      "usage",
+      "unbox",
+      "unboxing",
+      "comparison",
+      "review",
+      "fashion_lookbook",
+      "asmr"
+    ],
     "negative_base": "no text, no watermark, no logo, no UI overlay, no blurred face, no distorted hands, no extra fingers, no manga, no cartoon, no illustration, no 3D render, no low resolution, no pixelation, no artifacts, no cluttered background, no messy room, stable face, consistent identity, no facial morphing, no melting, no warping, realistic proportions",
-    "negative_talking": ["no exaggerated jaw movement", "no shouting", "no gaping mouth", "no unnaturally wide open mouth"],
-    "negative_non_talking": ["no open mouth", "no wide open mouth", "no gaping mouth", "no dropped jaw", "no unhinged mouth", "no shouting", "no screaming", "no over-acting", "no dynamic expression"],
-    "steer_talking_prompt": ["micro-expressions", "small natural mouth movements", "minimal jaw motion", "soft spoken", "calm restrained", "barely parted lips", "subtle lip separation"]
+    "negative_talking": [
+      "no exaggerated jaw movement",
+      "no shouting",
+      "no gaping mouth",
+      "no unnaturally wide open mouth"
+    ],
+    "negative_non_talking": [
+      "no open mouth",
+      "no wide open mouth",
+      "no gaping mouth",
+      "no dropped jaw",
+      "no unhinged mouth",
+      "no shouting",
+      "no screaming",
+      "no over-acting",
+      "no dynamic expression"
+    ],
+    "steer_talking_prompt": [
+      "micro-expressions",
+      "small natural mouth movements",
+      "minimal jaw motion",
+      "soft spoken",
+      "calm restrained",
+      "barely parted lips",
+      "subtle lip separation"
+    ]
   }
 }

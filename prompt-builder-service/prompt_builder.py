@@ -116,14 +116,52 @@ def _select_persona_fit(category: str, subcategory: str, gender: str, rng) -> di
     }
 
 
-def _pick_end_scene(category="other"):
-    """Pick end scene from JSON."""
+def _pick_end_scene(category="other", subcategory=None, profile=None):
+    """Pick a result-specific end scene from the SSOT Prompt Library (prompt_sources.json).
+
+    Resolution chain (single source of truth, data-driven):
+      1. subcategory (result-specific key, e.g. underarm_cream) → most precise end scene
+      2. category → generic per-category pool
+      3. "other" → final fallback
+
+    Returns a full blueprint dict: {scene, camera, outfit, result_focus,
+    expression, product_placement}. Legacy pools (category) only have
+    {scene, camera} — the missing keys are filled with sane defaults so
+    callers can rely on the full shape.
+    """
     sources = _load_prompt_sources()
     end_scenes = sources.get("end_scenes", {})
-    pool = end_scenes.get(category, end_scenes.get("other", []))
+
+    # Resolve pool: subcategory (result library) → category → other
+    pool = None
+    if subcategory and subcategory in end_scenes:
+        pool = end_scenes.get(subcategory)
+    if not pool and category in end_scenes:
+        pool = end_scenes.get(category)
     if not pool:
-        return {"scene": "product prominently displayed", "camera": "medium shot"}
-    return _random.choice(pool)
+        pool = end_scenes.get("other", [])
+
+    if not pool:
+        return {
+            "scene": "product prominently displayed",
+            "camera": "medium shot",
+            "outfit": "",
+            "result_focus": "",
+            "expression": "",
+            "product_placement": "",
+        }
+
+    chosen = _random.choice(pool)
+    # Normalize to the full blueprint shape (legacy category entries lack the
+    # result-specific keys — fill defaults so callers never KeyError).
+    return {
+        "scene": chosen.get("scene", "product prominently displayed"),
+        "camera": chosen.get("camera", "medium shot"),
+        "outfit": chosen.get("outfit", ""),
+        "result_focus": chosen.get("result_focus", ""),
+        "expression": chosen.get("expression", "satisfied smile"),
+        "product_placement": chosen.get("product_placement", "product placed visibly in frame"),
+    }
 
 
 def _pick_transition():
@@ -505,21 +543,31 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             f"bottles facing the camera, {room_desc}"
         )
 
-        # Panel 3 (result/end): the SAME model from panel 2 (same outfit so the
-        # model stays consistent across panels), happy end, product in hand.
+        # Panel 3 (result/end): pick the result-specific end scene from the SSOT
+        # Prompt Library (keyed by subcategory → category → other) and STORE it on
+        # the profile so build_video_prompt() reuses the SAME blueprint → image &
+        # video end scenes stay consistent (they no longer drift apart).
+        es = _pick_end_scene(category, subcategory=subcategory, profile=profile)
+        profile["_end_scene"] = es  # bind: video prompt reuses this same instance
+        _outfit = f"; outfit: {es['outfit']}" if es.get("outfit") else ""
+        _result = es.get("result_focus") or "a happy result"
+        _expr = es.get("expression") or "smiling"
+        _placement = es.get("product_placement") or "product still in hand"
         result_hint = (
             f"the same {model_desc} from panel 2, wearing the same outfit as "
-            f"panel 2, smiling showing a happy result, product(s) still in hand"
+            f"panel 2, {_expr}, showing {_result}; {_placement}{_outfit}"
         )
 
         # Map recipe beats onto the three panels — but only where it fits the
         # recipe meaning (solve/us/value → panel 2, cta → panel 3). We deliberately
         # do NOT force agitate/them into the image (that belongs in the video script).
+        # NOTE: panel 3 (result) already carries the product-specific end scene from
+        # the SSOT Library (outfit + result_focus + expression + product_placement),
+        # which is richer + product-specific than the generic "cta" beat hint — so we
+        # do NOT let the cta beat override it. Only middle panel reads beat hints.
         for idx, bid in enumerate(beat_ids):
             if bid in ("solve", "us", "value"):
                 mid_hint = _beat_panel_hint(profile, product_name, model_desc, action, room_desc, "middle")
-            elif bid == "cta":
-                result_hint = _beat_panel_hint(profile, product_name, model_desc, action, room_desc, "right")
 
         colors = profile.get("colors", "") or ""
         parts_colors = f"color palette: {', '.join(colors)}. " if colors else ""
@@ -719,11 +767,19 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
                     "value": ", relaxed content smile, gentle exhale",
                 }.get(bid, ", subtle natural body movement")
             beat_parts.append(shot)
-        # ── End frame: keep product on screen, hold the end frame (no "Closing:" label). ──
+        # ── End frame: show the product-specific RESULT from the SSOT Library
+        # (same end scene the image panel 3 uses) so the video closes on the actual
+        # product benefit (e.g. white underarms), not just "holding product".
+        es = profile.get("_end_scene") or _pick_end_scene(category, subcategory=subcategory, profile=profile)
+        profile["_end_scene"] = es
+        _result = es.get("result_focus") or "a happy result"
+        _expr = es.get("expression") or "smiling"
+        _outfit = ", wearing " + es["outfit"] if es.get("outfit") else ""
         end_frame = (
-            "end on the model holding {0} toward the camera, smiling, product clearly visible. "
-            "Smooth natural motion, lips moving subtly with the speech, product held still, no warping, 9:16 portrait."
-        ).format(vp_product)
+            f"end on the model{_outfit}, {_expr}, clearly showing {_result}, "
+            f"the product held still and visible in the frame. "
+            f"Smooth natural motion, lips moving subtly with the speech, product held still, no warping, 9:16 portrait."
+        )
 
         # Compose the beats + end frame (no meta labels — image actions only).
         # Keep each line for readability (display-friendly); callers that send to Wan
@@ -740,7 +796,9 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     # Wan 2.7 generates 1 continuous clip from a single image ref.
     # Integrating the end scene into the SAME prompt lets the model
     # animate a natural open → close arc in one pass (no separate clips).
-    end = _pick_end_scene(category)
+    # If build_image_prompt() already bound an end scene (same profile), reuse it so
+    # image & video end scenes stay EXACTLY consistent; otherwise pick fresh here.
+    end = profile.get("_end_scene") or _pick_end_scene(category, subcategory=subcategory, profile=profile)
     transition = _pick_transition()
 
     if ugc_style in ("talking", "talking_head"):

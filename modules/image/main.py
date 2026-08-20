@@ -263,6 +263,110 @@ def nano_banana_img2img(prompt: str, input_image: str, negative_prompt: str = ""
 
 
 # ═══════════════════════════════════════════════════════════════════
+#  FLUX.2 [klein] 4B img2img — separate pipeline (NOT PassportPhoto)
+#  Used for the video end-scene (Last image): takes the Nano Banana
+#  first-frame image as input → produces a fresh end-scene image (9:16).
+#  Prodia sync job, multipart response: job_info (JSON) + image bytes.
+# ═══════════════════════════════════════════════════════════════════
+
+def _parse_multipart_response(resp_data: bytes, ct: str):
+    """Parse Prodia multipart response → (job_info dict|None, image_bytes|None).
+
+    Scans every part (job JSON + image may both be present) and returns the
+    first JSON part as job_info and the first binary/file part as image_bytes.
+    """
+    m = re.search(r'boundary=([^;]+)', ct or "")
+    if not m:
+        return None, resp_data
+    boundary = m.group(1).strip('"')
+    job_info, image_bytes = None, None
+    for part in resp_data.split(('--' + boundary).encode()):
+        if b'Content-Disposition' not in part:
+            continue
+        hdr, _, body = part.partition(b'\r\n\r\n')
+        body = body.rstrip(b'\r\n') if body.endswith(b'\r\n') else body
+        if b'application/json' in hdr and job_info is None:
+            try:
+                job_info = json.loads(body)
+            except Exception:
+                pass
+        elif b'filename=' in hdr and image_bytes is None:
+            image_bytes = body
+    return job_info, image_bytes
+
+
+def flux_klein_img2img(
+    prompt: str,
+    input_image: str,
+    aspect_ratio: str = "9:16",
+    steps: int = 4,
+    strength: float = 0.30,
+) -> dict:
+    """Generate end-scene image via FLUX.2 [klein] 4B img2img.
+
+    Our own pipeline (separate from PassportPhoto). Uses the klein 4B model
+    to transform the Nano Banana first-frame into a fresh end-scene (Last).
+
+    Args:
+        prompt: desired end-scene description
+        input_image: URL / disk path / base64 of the Nano Banana first-frame
+        aspect_ratio: 9:16 for TikTok portrait
+        steps: diffusion steps (klein is fast — 4 default)
+        strength: 0.0-1.0, how freely to change composition vs the reference
+
+    Returns:
+        dict: {ok, images:[{url, full_url}], provider, model, cost}
+    """
+    logger.info(f"FLUX.2 klein 4B img2img | {aspect_ratio} | steps={steps} strength={strength}")
+    image_data = _load_image(input_image)
+    image_data = _resize(image_data)
+
+    job = {
+        "type": "inference.flux-2.klein.4b.img2img.v1",
+        "config": {
+            "prompt": prompt,
+            "steps": steps,
+            "strength": strength,
+        },
+    }
+
+    resp = requests.post(
+        f"{PRODIA_SYNC}?price=true",
+        headers={"Authorization": f"Bearer {_token()}", "Accept": "multipart/form-data"},
+        files=[
+            ("job", ("job.json", json.dumps(job), "application/json")),
+            ("input", ("image.png", image_data, "image/png")),
+        ],
+        timeout=150,
+    )
+
+    job_info, image_bytes = _parse_multipart_response(resp.content, resp.headers.get("content-type", ""))
+
+    state = (job_info or {}).get("state", {}).get("current", "unknown") if job_info else "unknown"
+    price = (job_info or {}).get("price", {}).get("dollars") if job_info else None
+    logger.info(f"  FLUX klein state={state} | price=${price}")
+
+    if resp.status_code != 200 or not image_bytes:
+        detail = resp.text[:300] or json.dumps(job_info or {})[:300]
+        raise HTTPException(
+            status_code=resp.status_code if resp.status_code != 200 else 502,
+            detail=f"FLUX klein img2img failed (state={state}): {detail}",
+        )
+
+    path = _save(image_bytes, prefix="klein")
+    cost_data = get_price_for_sync_image("flux-2.klein.4b.img2img.v1") if not price else {"dollars": price}
+    logger.info(f"  Klein OK ({len(image_bytes)}B) | cost=${cost_data['dollars']}")
+
+    return {
+        "ok": True,
+        "images": [{"url": path, "full_url": f"http://localhost:{PORT}{path}"}],
+        "provider": "prodia",
+        "model": "flux-2.klein.4b.img2img.v1",
+        "cost": cost_data,
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════
 #  Wan 2.7 Lip Sync — Async API (img2vid with audio input)
 # ═══════════════════════════════════════════════════════════════════
 
@@ -416,6 +520,17 @@ def get_active_model():
 @app.post("/api/v1/image/generate")
 async def generate_image(req: ImageGenRequest):
     logger.info(f"Image gen: {req.model} | {req.prompt[:60]}...")
+
+    # FLUX.2 [klein] 4B — separate pipeline for the video end-scene (Last image).
+    # Takes the nano-banana first-frame as input and produces a fresh end-scene.
+    if req.model and "klein" in req.model.lower():
+        if not req.inputImage:
+            raise HTTPException(status_code=400, detail="flux-2-klein img2img requires inputImage")
+        return flux_klein_img2img(
+            prompt=req.prompt,
+            input_image=req.inputImage,
+            aspect_ratio=req.aspectRatio or "9:16",
+        )
 
     if req.inputImage:
         # img2img path — nano-banana anchored to reference image

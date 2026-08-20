@@ -455,19 +455,21 @@ def generate_image(
     prompt: str,
     product_image: str = None,
     aspect_ratio: str = "9:16",
+    model: str = "nano-banana",
 ) -> tuple:
     """
-    Step 5: Generate image via Prodia Nano Banana Img2Img
+    Step 5: Generate image via Prodia.
 
     Args:
         prompt: image_prompt จาก Step 4
         product_image: URL ของรูปสินค้า (reference)
-        aspect_ratio: 9:16 (TikTok portrait)
+        aspect_ratio: 9:16 (TikTok portrait) or 16:9 (triptych)
+        model: "nano-banana" (default) or "flux-2-klein" (klein 4B img2img)
 
     Returns:
         tuple: (image_url, cost_usd)
     """
-    logger.info(f"Step 5/9: Generate image (Nano Banana, {aspect_ratio})")
+    logger.info(f"Step 5/9: Generate image ({model}, {aspect_ratio})")
     logger.info(f"  Prompt: {prompt[:40]}...")
     logger.info(f"  Reference: {product_image or 'None'}")
 
@@ -476,14 +478,12 @@ def generate_image(
         "count": 1,
         "upscale": False,
         "aspectRatio": aspect_ratio,
+        "model": model,
     }
 
     if product_image:
         # 8110 (image-module) request schema: inputImage + model + style.
-        # modelTier/provider/thaiModel were removed from the service's ImageGenRequest;
-        # sending them triggers Pydantic 422/500. Use the model field to select nano-banana.
         payload["inputImage"] = product_image
-        payload["model"] = "nano-banana"
         payload["style"] = "thai_realistic"
 
     last_exc = None

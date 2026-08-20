@@ -211,13 +211,9 @@ def health():
 
 @app.get("/pod-wizard")
 def pod_wizard_page():
-    """POD Create Product Wizard UI"""
-    from fastapi.responses import HTMLResponse
-    import os
-    html_path = os.path.join(os.path.dirname(__file__), "static", "pod-wizard.html")
-    with open(html_path, "r", encoding="utf-8") as f:
-        content = f.read()
-    return HTMLResponse(content=content)
+    """Redirect to main wizard page (unified theme)"""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/", status_code=302)
 
 @app.post("/validate/listing")
 def check_listing(listing: Listing):

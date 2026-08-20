@@ -436,47 +436,70 @@ class RemoveBgRequest(BaseModel):
     session_id: str
     background_color: str = "#C4DCFF"  # hex color
 
+class ApplyBgRequest(BaseModel):
+    session_id: str
+    background_color: str = "#C4DCFF"
+
 @app.post("/api/passport/remove-bg")
 async def remove_bg(req: RemoveBgRequest):
-    """Remove background and apply selected color."""
-    src_path = STORAGE_DIR / f"{req.session_id}_cropped.jpg"
-    if not src_path.exists():
-        # Fallback to passport image
-        src_path = STORAGE_DIR / f"{req.session_id}_passport.jpg"
-    if not src_path.exists():
-        raise HTTPException(404, f"Session not found: {req.session_id}")
-    
-    # Read image
-    with open(src_path, "rb") as f:
-        img_bytes = f.read()
-    
-    # Remove background using Prodia
+    """Remove background and apply selected color.
+    If transparent PNG already exists, skip Prodia (free color swap)."""
+    transparent_path = STORAGE_DIR / f"{req.session_id}_transparent.png"
     from bg_remover import remove_background, apply_background
-    try:
-        transparent_png, pil_image = remove_background(img_bytes)
-        
-        # Save transparent version
-        transparent_path = STORAGE_DIR / f"{req.session_id}_transparent.png"
-        with open(transparent_path, "wb") as f:
-            f.write(transparent_png)
-        
-        # Apply background color
-        result_img = apply_background(pil_image, req.background_color)
-        
-        # Save result
-        result_path = STORAGE_DIR / f"{req.session_id}_bg.jpg"
-        result_img.save(result_path, "JPEG", quality=95)
-        
-        return {
-            "ok": True,
-            "session_id": req.session_id,
-            "download_transparent": f"/api/passport/download/{req.session_id}_transparent.png",
-            "download_bg": f"/api/passport/download/{req.session_id}_bg.jpg",
-            "background_color": req.background_color,
-        }
-    except Exception as e:
-        logger.error(f"Remove BG error: {e}")
-        raise HTTPException(500, f"Background removal failed: {str(e)}")
+    
+    if transparent_path.exists():
+        # Already have transparent PNG — skip Prodia (FREE)
+        logger.info(f"Reusing existing transparent PNG for {req.session_id}")
+        pil_image = Image.open(transparent_path).convert('RGBA')
+    else:
+        # First time — call Prodia ($0.0025)
+        src_path = STORAGE_DIR / f"{req.session_id}_cropped.jpg"
+        if not src_path.exists():
+            src_path = STORAGE_DIR / f"{req.session_id}_passport.jpg"
+        if not src_path.exists():
+            raise HTTPException(404, f"Session not found: {req.session_id}")
+        with open(src_path, "rb") as f:
+            img_bytes = f.read()
+        try:
+            transparent_png, pil_image = remove_background(img_bytes)
+            with open(transparent_path, "wb") as f:
+                f.write(transparent_png)
+        except Exception as e:
+            logger.error(f"Remove BG error: {e}")
+            raise HTTPException(500, f"Background removal failed: {str(e)}")
+    
+    # Apply background color (PIL local = FREE)
+    result_img = apply_background(pil_image, req.background_color)
+    result_path = STORAGE_DIR / f"{req.session_id}_bg.jpg"
+    result_img.save(result_path, "JPEG", quality=95)
+    
+    return {
+        "ok": True,
+        "session_id": req.session_id,
+        "download_transparent": f"/api/passport/download/{req.session_id}_transparent.png",
+        "download_bg": f"/api/passport/download/{req.session_id}_bg.jpg",
+        "background_color": req.background_color,
+    }
+
+@app.post("/api/passport/apply-bg")
+async def apply_bg(req: ApplyBgRequest):
+    """Apply background color to existing transparent PNG (FREE, no Prodia)."""
+    transparent_path = STORAGE_DIR / f"{req.session_id}_transparent.png"
+    if not transparent_path.exists():
+        raise HTTPException(404, "No transparent image. Run remove-bg first.")
+    
+    from bg_remover import apply_background
+    pil_image = Image.open(transparent_path).convert('RGBA')
+    result_img = apply_background(pil_image, req.background_color)
+    result_path = STORAGE_DIR / f"{req.session_id}_bg.jpg"
+    result_img.save(result_path, "JPEG", quality=95)
+    
+    return {
+        "ok": True,
+        "session_id": req.session_id,
+        "download_bg": f"/api/passport/download/{req.session_id}_bg.jpg",
+        "background_color": req.background_color,
+    }
 
 
 # ── Print Sheet (V2) ──────────────────────────────────

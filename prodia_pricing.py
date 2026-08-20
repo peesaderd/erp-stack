@@ -33,6 +33,7 @@ DEFAULT_PRICES: dict[str, float] = {
     # Image models
     "nano-banana.img2img.v2": 0.039,    # Nano Banana (Gemini 2.5 Flash, 1K)
     "sdxl.txt2img.v1": 0.004,           # SDXL (1K) — legacy reference only
+    "flux-2.klein.4b.img2img.v1": 0.005,  # FLUX.2 [klein] 4B img2img (fast, 4 steps)
     
     # Video models
     "wan2-7.img2vid.v1": 0.035,         # Wan 2.7 img2vid (FL2V — text2video removed 2026-08-19)

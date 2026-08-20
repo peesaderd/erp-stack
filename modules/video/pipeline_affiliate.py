@@ -895,7 +895,10 @@ def compose_video(
 
         if bgm_path.exists():
             bgm_output = STORAGE_DIR / f"affiliate_{run_id}_bgm.mp4"
-            # Strategy: mix BGM with video audio. If video has no usable audio, just copy BGM
+            # Strategy: mix BGM with video audio so BGM fills the whole clip.
+            # audio track (voice) may be shorter than the video (e.g. 11s in 15s),
+            # so apad the video audio to target_duration and mix with the looped
+            # BGM using duration=longest — covers the silent tail.
             try:
                 cmd_mix = [
                     "ffmpeg", "-y",
@@ -903,7 +906,9 @@ def compose_video(
                     "-stream_loop", "-1",
                     "-i", str(bgm_path),
                     "-filter_complex",
-                    "[1:a]volume=0.15[bg];[0:a][bg]amix=inputs=2:duration=first[out]",
+                    "[0:a]apad=pad_dur=20[va];"
+                    "[1:a]volume=0.15[bg];"
+                    "[va][bg]amix=inputs=2:duration=longest:dropout_transition=0[out]",
                     "-map", "0:v",
                     "-map", "[out]",
                     "-c:v", "copy",

@@ -222,6 +222,16 @@ function setCrop(p){
   for(var i=0;i<opts.length;i++)opts[i].classList.toggle('active',opts[i].dataset.preset===p);
 }
 
+/* ══════════ OPTION TABS ══════════ */
+function switchOptTab(n){
+  var tabs=document.querySelectorAll('.opt-tab');
+  var panes=document.querySelectorAll('.opt-pane');
+  for(var i=0;i<tabs.length;i++){
+    tabs[i].classList.toggle('active',i===n);
+    panes[i].classList.toggle('act',i===n);
+  }
+}
+
 /* ══════════ GENERATE ══════════ */
 async function generate(){
   if(!S.photo){toast('Please upload a photo first','err');return}

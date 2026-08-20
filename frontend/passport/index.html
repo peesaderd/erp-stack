@@ -18,6 +18,7 @@
 .caro{position:relative;overflow:hidden;width:100%}.caro-list{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:4px 2px 8px}.caro-list::-webkit-scrollbar{display:none}.citem{flex:0 0 76px;min-width:0;cursor:pointer;border:2px solid #e2e8f0;border-radius:10px;overflow:hidden;transition:.2s;background:#fff;position:relative}.citem:hover{border-color:#6366f1;transform:translateY(-1px)}.citem.on{border-color:#6366f1;box-shadow:0 0 0 2px rgba(99,102,241,.15)}.citem img{width:100%;height:84px;object-fit:cover;display:block;background:#f1f5f9}.citem .lb{text-align:center;padding:5px 2px;font-size:.58rem;font-weight:600;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.citem.on .lb{color:#6366f1}.citem .ck{position:absolute;top:3px;right:3px;width:16px;height:16px;border-radius:50%;background:#6366f1;color:#fff;display:none;align-items:center;justify-content:center;font-size:8px;font-weight:700}.citem.on .ck{display:flex}
 .carro-btn{position:absolute;top:50%;transform:translateY(-50%);width:26px;height:26px;border-radius:50%;background:#fff;border:1px solid #e2e8f0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:10px;color:#64748b;z-index:2;box-shadow:0 2px 6px rgba(0,0,0,.1)}
 .crop-opts{display:flex;gap:6px;flex-wrap:wrap}.crop-opt{padding:8px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:.72rem;font-weight:600;color:#64748b;cursor:pointer;background:#fff;transition:.2s}.crop-opt:hover{border-color:#6366f1}.crop-opt.active{background:#6366f1;color:#fff;border-color:#6366f1}
+.opt-tab{flex:1;padding:9px 8px;text-align:center;font-size:.72rem;font-weight:700;color:#64748b;cursor:pointer;border-radius:10px;transition:.2s;user-select:none;-webkit-tap-highlight-color:transparent}.opt-tab.active{background:#6366f1;color:#fff;box-shadow:0 4px 12px rgba(99,102,241,.4)}.opt-pane{display:none;animation:fadeIn .2s}.opt-pane.act{display:block}
 .sec-divider{height:1px;background:linear-gradient(90deg,transparent,#e2e8f0,transparent);margin:20px 0}
 .gen-btn{width:100%;padding:16px;border:none;border-radius:14px;font-size:.95rem;font-weight:800;cursor:pointer;transition:.2s;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;box-shadow:0 4px 16px rgba(99,102,241,.4);display:flex;align-items:center;justify-content:center;gap:10px}.gen-btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(99,102,241,.5)}.gen-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}.gen-btn .ico{font-size:1.2rem}
 .sec2-wrap{margin-top:20px}.sec2-wrap.hidden{display:none}.sec2-header{display:flex;align-items:center;gap:8px;padding:12px 16px;background:linear-gradient(135deg,#f0fdf4,#ecfdf5);border-radius:12px;margin-bottom:14px;border:1px solid #bbf7d0}.sec2-header .ico{font-size:1.2rem}.sec2-header .txt{font-size:.78rem;font-weight:700;color:#166534}
@@ -117,79 +118,75 @@
   </div>
 
   <!-- Section 2: Post-generate -->
+  <!-- Section 2: Post-generate — tabs -->
   <div class="sec2-wrap hidden" id="sec2">
-    <!-- Result preview FIRST -->
-    <div class="card" style="padding:16px;margin-bottom:14px">
-      <img class="res-img" id="ri" src="" alt="Generated">
+    <!-- Preview photo ON TOP -->
+    <div class="card" style="padding:14px;margin-bottom:10px">
+      <div style="position:relative;display:inline-block;width:100%;text-align:center">
+        <img class="res-img" id="ri" src="" alt="Generated" style="max-width:260px">
+      </div>
       <div class="res-stats" id="rs"></div>
       <div class="res-btns">
-        <button class="btn-p" style="padding:10px 18px;font-size:.75rem" onclick="dl('passport')">⬇️ Download</button>
-        <button class="btn-c" style="padding:10px 18px;font-size:.75rem" onclick="dlTransparent()">💎 Transparent</button>
-        <button class="btn-c" style="padding:10px 18px;font-size:.75rem" onclick="dl('print')">🖨️ Print Sheet</button>
-        <button class="btn-c" style="padding:10px 18px;font-size:.75rem" onclick="newPhoto()">🔄 New</button>
+        <button class="btn-p" style="padding:9px 16px;font-size:.72rem" onclick="dl('passport')">⬇️ Download</button>
+        <button class="btn-c" style="padding:9px 16px;font-size:.72rem" onclick="dlTransparent()">💎 Transparent</button>
+        <button class="btn-c" style="padding:9px 16px;font-size:.72rem" onclick="newPhoto()">🔄 New</button>
       </div>
     </div>
 
-    <div class="sec2-header"><span class="ico">✅</span><span class="txt">Photo generated! Customize below.</span></div>
+    <!-- Option tabs (like clothing tabs) -->
+    <div style="display:flex;gap:4px;margin-bottom:10px;background:#1e293b;border-radius:12px;padding:3px">
+      <div class="opt-tab active" onclick="switchOptTab(0)">🎨 BG</div>
+      <div class="opt-tab" onclick="switchOptTab(1)">📐 Size</div>
+      <div class="opt-tab" onclick="switchOptTab(2)">🖨️ Print</div>
+    </div>
 
-    <!-- Background Color -->
-    <div class="card" style="padding:16px;margin-bottom:14px">
-      <div class="opt-sec">
-        <div class="opt-h"><span class="e">🎨</span> Background Color</div>
-        <div id="bgPresets" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px"></div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <input type="color" id="bgColorPick" value="#C4DCFF" style="width:36px;height:28px;border:1px solid #cbd5e1;border-radius:6px;padding:0;cursor:pointer">
-          <label style="display:flex;align-items:center;gap:4px;font-size:.65rem;color:#475569;cursor:pointer"><input type="checkbox" id="cutBg" checked style="accent-color:#6366f1;width:14px;height:14px"> Cut BG (AI $0.0025)</label>
-          <button class="btn-p" style="padding:8px 16px;font-size:.72rem;margin-left:auto" onclick="applyBG()">✂️ Apply</button>
-        </div>
+    <!-- Tab 0: Background -->
+    <div class="card opt-pane act" id="optPane0" style="padding:14px">
+      <div id="bgPresets" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px"></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="color" id="bgColorPick" value="#C4DCFF" style="width:32px;height:26px;border:1px solid #cbd5e1;border-radius:6px;padding:0;cursor:pointer">
+        <label style="display:flex;align-items:center;gap:4px;font-size:.65rem;color:#475569;cursor:pointer"><input type="checkbox" id="cutBg" checked style="accent-color:#6366f1;width:13px;height:13px"> Cut BG</label>
+        <button class="btn-p" style="padding:7px 14px;font-size:.7rem;margin-left:auto" onclick="applyBG()">✂️ Apply</button>
       </div>
     </div>
 
-    <!-- Photo Size -->
-    <div class="card" style="padding:16px;margin-bottom:14px">
-      <div class="opt-sec">
-        <div class="opt-h"><span class="e">📐</span> Photo Size</div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
-          <div class="sz-p active" onclick="setCustomSize(35,45,this)">35×45mm</div>
-          <div class="sz-p" onclick="setCustomSize(25,35,this)">25×35mm</div>
-          <div class="sz-p" onclick="setCustomSize(33,48,this)">33×48mm</div>
-          <div class="sz-p" onclick="setCustomSize(51,51,this)">51×51mm</div>
-          <div class="sz-p" onclick="setCustomSize(38,50,this)">38×50mm</div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <input type="number" id="customW" value="35" min="10" max="200" style="flex:1;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.75rem;text-align:center;outline:none">
-          <span style="color:#94a3b8;font-weight:600">×</span>
-          <input type="number" id="customH" value="45" min="10" max="200" style="flex:1;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.75rem;text-align:center;outline:none">
-          <span style="font-size:.65rem;color:#94a3b8">mm</span>
-          <button class="btn-c" style="padding:8px 14px;font-size:.72rem;border:none;border-radius:8px;cursor:pointer" onclick="applySize()">📐 Apply</button>
-        </div>
+    <!-- Tab 1: Photo Size -->
+    <div class="card opt-pane" id="optPane1" style="padding:14px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+        <div class="sz-p active" onclick="setCustomSize(35,45,this)">35×45mm</div>
+        <div class="sz-p" onclick="setCustomSize(25,35,this)">25×35mm</div>
+        <div class="sz-p" onclick="setCustomSize(33,48,this)">33×48mm</div>
+        <div class="sz-p" onclick="setCustomSize(51,51,this)">51×51mm</div>
+        <div class="sz-p" onclick="setCustomSize(38,50,this)">38×50mm</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="number" id="customW" value="35" min="10" max="200" style="flex:1;padding:7px 8px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.72rem;text-align:center;outline:none">
+        <span style="color:#94a3b8;font-weight:600">×</span>
+        <input type="number" id="customH" value="45" min="10" max="200" style="flex:1;padding:7px 8px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.72rem;text-align:center;outline:none">
+        <span style="font-size:.6rem;color:#94a3b8">mm</span>
+        <button class="btn-p" style="padding:7px 12px;font-size:.68rem" onclick="applySize()">📐 Apply</button>
       </div>
     </div>
 
-    <!-- Print Sheet -->
-    <div class="card" style="padding:16px;margin-bottom:14px">
-      <div class="opt-sec">
-        <div class="opt-h"><span class="e">🖨️</span> Print Sheet</div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
-          <div class="pap-p active" onclick="setPaper('4x6',this)">4×6"</div>
-          <div class="pap-p" onclick="setPaper('5x7',this)">5×7"</div>
-          <div class="pap-p" onclick="setPaper('a6',this)">A6</div>
-          <div class="pap-p" onclick="setPaper('a4',this)">A4</div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
-          <div style="flex:1"><label style="font-size:.65rem;font-weight:600;color:#94a3b8;display:block;margin-bottom:4px">Count</label><input type="number" id="customCount" value="6" min="1" max="200" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.72rem;text-align:center;outline:none"></div>
-          <div style="flex:1"><label style="font-size:.65rem;font-weight:600;color:#94a3b8;display:block;margin-bottom:4px">Border mm</label><input type="number" id="bwmmPrint" value="3" min="0" max="20" step="0.5" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.72rem;text-align:center;outline:none"></div>
-          <div style="flex:0;display:flex;align-items:flex-end;padding-bottom:2px"><label style="display:flex;align-items:center;gap:4px;font-size:.65rem;font-weight:600;color:#94a3b8;cursor:pointer"><input type="checkbox" id="bmPrint" style="accent-color:#6366f1;width:14px;height:14px"> Blade</label></div>
-        </div>
-        <button class="btn-p" style="padding:10px 20px;font-size:.78rem" onclick="genPrintSheet()">🖨️ Generate Print Sheet</button>
+    <!-- Tab 2: Print Sheet -->
+    <div class="card opt-pane" id="optPane2" style="padding:14px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+        <div class="pap-p active" onclick="setPaper('4x6',this)">4×6"</div>
+        <div class="pap-p" onclick="setPaper('5x7',this)">5×7"</div>
+        <div class="pap-p" onclick="setPaper('a6',this)">A6</div>
+        <div class="pap-p" onclick="setPaper('a4',this)">A4</div>
       </div>
-    </div>
-
-    <!-- Live preview -->
-    <div class="card hidden" style="padding:16px;margin-bottom:14px" id="custPreviewWrap">
-      <div style="font-size:.75rem;font-weight:700;color:#0f172a;margin-bottom:8px">Preview</div>
-      <img id="custPreviewImg" style="max-width:100%;border-radius:10px;border:1px solid #e2e8f0" src="">
-      <div id="custPreviewInfo" style="font-size:.68rem;color:#94a3b8;margin-top:8px"></div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+        <div style="flex:1"><label style="font-size:.6rem;font-weight:600;color:#94a3b8;display:block;margin-bottom:3px">Count</label><input type="number" id="customCount" value="6" min="1" max="200" style="width:100%;padding:7px 8px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.68rem;text-align:center;outline:none"></div>
+        <div style="flex:1"><label style="font-size:.6rem;font-weight:600;color:#94a3b8;display:block;margin-bottom:3px">Border</label><input type="number" id="bwmmPrint" value="3" min="0" max="20" step="0.5" style="width:100%;padding:7px 8px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.68rem;text-align:center;outline:none"></div>
+        <div style="flex:0;display:flex;align-items:flex-end;padding-bottom:2px"><label style="display:flex;align-items:center;gap:3px;font-size:.6rem;font-weight:600;color:#94a3b8;cursor:pointer"><input type="checkbox" id="bmPrint" style="accent-color:#6366f1;width:13px;height:13px"> Blade</label></div>
+      </div>
+      <button class="btn-p" style="width:100%;padding:9px;font-size:.72rem" onclick="genPrintSheet()">🖨️ Generate Print Sheet</button>
+      <!-- Print preview inline -->
+      <div class="hidden" id="custPreviewWrap" style="margin-top:10px;text-align:center">
+        <img id="custPreviewImg" style="max-width:100%;border-radius:8px;border:1px solid #e2e8f0" src="">
+        <div id="custPreviewInfo" style="font-size:.62rem;color:#94a3b8;margin-top:4px"></div>
+      </div>
     </div>
   </div>
 </div>

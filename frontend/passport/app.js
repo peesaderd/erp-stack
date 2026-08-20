@@ -78,9 +78,9 @@ async function boot(){
 }
 
 /* ══════════ UPLOAD ══════════ */
-function pickFile(multi){
+function pickFile(){
   var fi=$('fi');
-  fi.multiple=!!multi;
+  fi.multiple=true;
   fi.click();
 }
 $('fi').addEventListener('change',function(e){handleFiles(e.target.files)});
@@ -285,7 +285,7 @@ function showResult(d,isBulk){
   $('rs').innerHTML=stats;
   $('ri').src=API+'/download/'+S.sid+'_cropped.jpg?t='+Date.now();
   $('sec2').classList.remove('hidden');
-  // Build batch preview slider for bulk results
+  // Build batch thumbnails below big preview
   if(isBulk&&d.results&&d.results.length>1){
     $('batchPreview').classList.remove('hidden');
     var sh='';
@@ -293,16 +293,13 @@ function showResult(d,isBulk){
       var res=d.results[i];
       if(!res.ok)continue;
       var imgUrl=(res.download_passport?location.origin+res.download_passport:API+'/download/'+res.session_id+'_passport.jpg')+'?t='+Date.now();
-      sh+='<div class="slide-item'+(res.session_id===S.sid?' active':'')+'" onclick="selectBatchResult(\''+res.session_id+'\','+i+')"><img src="'+imgUrl+'"><div class="name">Photo '+(i+1)+'</div></div>';
+      sh+='<div style="flex:0 0 60px;cursor:pointer;text-align:center" onclick="selectBatchResult(\''+res.session_id+'\','+i+')">';
+      sh+='<img src="'+imgUrl+'" style="width:60px;height:80px;object-fit:cover;border-radius:8px;border:2px solid '+(res.session_id===S.sid?'#6366f1':'#334155')+';transition:.2s">';
+      sh+='<div style="font-size:.5rem;color:#64748b;margin-top:2px">'+(i+1)+'</div></div>';
     }
     $('sliderWrap').innerHTML=sh;
-  }else if(S.bulk&&S.photos.length>1){
-    $('batchPreview').classList.remove('hidden');
-    var sh='';
-    for(var i=0;i<S.photos.length;i++){
-      sh+='<div class="slide-item'+(i===0?' active':'')+'" onclick="selectBatchPhoto('+i+')"><img src="'+URL.createObjectURL(S.photos[i])+'"><div class="name">'+S.photos[i].name+'</div></div>';
-    }
-    $('sliderWrap').innerHTML=sh;
+  }else{
+    $('batchPreview').classList.add('hidden');
   }
   // Scroll to section 2
   setTimeout(function(){var el=$('sec2');if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},200);
@@ -311,11 +308,13 @@ function showResult(d,isBulk){
 
 function selectBatchResult(sid,idx){
   S.sid=sid;
-  // Try _passport.jpg first (bulk uses this), fallback to _cropped.jpg
   $('ri').src=API+'/download/'+sid+'_passport.jpg?t='+Date.now();
-  var items=document.querySelectorAll('.slide-item');
-  for(var i=0;i<items.length;i++)items[i].classList.remove('active');
-  if(items[idx])items[idx].classList.add('active');
+  // Highlight selected thumbnail
+  var thumbs=$('sliderWrap').children;
+  for(var i=0;i<thumbs.length;i++){
+    var img=thumbs[i].querySelector('img');
+    if(img)img.style.borderColor=i===idx?'#6366f1':'#334155';
+  }
 }
 
 function selectBatchPhoto(idx){

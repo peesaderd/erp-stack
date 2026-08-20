@@ -56,7 +56,6 @@
         <p>Drag &amp; drop or click to browse<br><small>JPG / PNG · Single or multiple (max 20)</small></p>
         <div class="drop-btns">
           <button class="btn-p" type="button" onclick="pickFile()">📁 Choose Photo</button>
-          <button class="btn-c" type="button" onclick="pickFile(true)">📚 Choose Multiple</button>
         </div>
         <input type="file" id="fi" accept="image/jpeg,image/png" multiple>
       </div>
@@ -83,14 +82,6 @@
 
 <!-- TAB 2: OPTIONS -->
 <div class="pane" id="pane1">
-  <div id="batchPreview" class="hidden" style="margin-bottom:12px">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-      <div style="flex:1;font-size:.72rem;font-weight:700;color:#fff">🖼️ Photos</div>
-      <label style="display:flex;align-items:center;gap:5px;font-size:.65rem;color:#94a3b8;font-weight:600;cursor:pointer"><input type="checkbox" id="selectAllCb" onchange="toggleSelectAll(this.checked)" style="accent-color:#6366f1;width:14px;height:14px"> All</label>
-    </div>
-    <div class="slider-wrap" id="sliderWrap"></div>
-  </div>
-
   <!-- Section 1: Clothing + Generate -->
   <div class="card" style="padding:16px" id="sec1Card">
     <div class="opt-sec">
@@ -120,9 +111,9 @@
   <!-- Section 2: Post-generate -->
   <!-- Section 2: Post-generate — tabs -->
   <div class="sec2-wrap hidden" id="sec2">
-    <!-- Preview photo ON TOP -->
-    <div class="card" style="padding:14px;margin-bottom:10px">
-      <div style="position:relative;display:inline-block;width:100%;text-align:center">
+    <!-- Preview photo ON TOP (big) -->
+    <div class="card" style="padding:14px;margin-bottom:0">
+      <div style="width:100%;text-align:center">
         <img class="res-img" id="ri" src="" alt="Generated" style="max-width:260px">
       </div>
       <div class="res-stats" id="rs"></div>
@@ -131,6 +122,11 @@
         <button class="btn-c" style="padding:9px 16px;font-size:.72rem" onclick="dlTransparent()">💎 Transparent</button>
         <button class="btn-c" style="padding:9px 16px;font-size:.72rem" onclick="newPhoto()">🔄 New</button>
       </div>
+    </div>
+
+    <!-- Batch thumbnails below big preview -->
+    <div id="batchPreview" class="hidden" style="margin:10px 0">
+      <div class="slider-wrap" id="sliderWrap" style="justify-content:center"></div>
     </div>
 
     <!-- Option tabs (like clothing tabs) -->

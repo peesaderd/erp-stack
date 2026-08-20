@@ -7,219 +7,58 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{overflow-x:hidden;width:100%}
-body{font-family:'Inter',-apple-system,sans-serif;background:#0f172a;min-height:100vh;color:#0f172a;overflow-x:hidden;width:100%}
-/* ── Top Header ── */
-.hdr{position:fixed;top:0;left:0;right:0;z-index:200;background:rgba(15,23,42,.85);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,.08);padding:8px 16px}
-.hdr-in{max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:12px}
-.hdr-logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 12px rgba(99,102,241,.4)}
-.hdr-logo svg{width:20px;height:20px;stroke:#fff;stroke-width:2;fill:none}
-.hdr-txt{flex:1;min-width:0}
-.hdr-txt h1{font-size:.95rem;font-weight:800;color:#fff;margin:0;line-height:1.2;white-space:nowrap}
-.hdr-txt small{font-size:.6rem;color:rgba(255,255,255,.6);font-weight:500;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hdr-badge{background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-size:.6rem;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap}
-/* ── Stepper ── */
-.stepper{display:flex;align-items:center;justify-content:center;gap:6px;padding:72px 16px 0;max-width:1100px;margin:0 auto}
-.step{display:flex;align-items:center;gap:8px;cursor:pointer}
-.step .num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;background:#1e293b;color:#64748b;border:2px solid #334155;transition:.2s}
-.step.active .num{background:#6366f1;color:#fff;border-color:#6366f1;box-shadow:0 0 0 4px rgba(99,102,241,.2)}
-.step.done .num{background:#10b981;color:#fff;border-color:#10b981}
-.step .lb{font-size:.7rem;font-weight:600;color:#64748b;white-space:nowrap}
-.step.active .lb{color:#fff}
-.step.done .lb{color:#10b981}
-.step.locked{cursor:not-allowed;opacity:.45}
-.step.locked:hover .num{border-color:#334155}
-.step.locked .lb{color:#475569}
-.step-line{width:40px;height:2px;background:#334155;flex-shrink:0}
-.step-line.done{background:#10b981}
-/* ── Page ── */
-.page{max-width:1100px;width:100%;margin:0 auto;padding:16px;overflow-x:hidden}
-.pane{display:none;animation:fadeIn .3s}
-.pane.act{display:block}
-@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-.card{background:#fff;border-radius:16px;border:1px solid rgba(255,255,255,.06);overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.12);max-width:100%}
-.card-b-wrap{padding:16px;max-width:100%;overflow:hidden}
-/* ── Step 1: Upload ── */
-.drop{border:2px dashed #cbd5e1;border-radius:16px;padding:52px 20px;text-align:center;cursor:pointer;transition:.2s;background:#f8fafc}
-.drop:hover{border-color:#6366f1;background:#eef2ff}
-.drop.has{border-style:solid;border-color:#6366f1;padding:20px;background:#fff}
-.drop .ic{font-size:48px;margin-bottom:12px;opacity:.6}
-.drop h3{font-size:1rem;font-weight:700;color:#0f172a;margin-bottom:4px}
-.drop p{font-size:.72rem;color:#64748b;margin-bottom:16px}
-.drop input{display:none}
-.drop-btns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
-.drop-btns button{padding:10px 20px;border:none;border-radius:10px;font-size:.8rem;font-weight:600;cursor:pointer}
-.btn-p{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;box-shadow:0 4px 12px rgba(99,102,241,.3)}
-.btn-p:hover{transform:translateY(-1px)}
-.btn-c{background:#e2e8f0;color:#475569}
-.btn-c:hover{background:#cbd5e1}
-.gbadge{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border-radius:16px;font-size:.7rem;font-weight:600;background:#eef2ff;color:#6366f1}
-/* ── Step 2: Customize ── */
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;max-width:100%}
-.grid2>*{min-width:0;max-width:100%;overflow:hidden}
-@media(max-width:900px){.grid2{grid-template-columns:1fr}}
-/* ── Hard overflow guard for step 2 ── */
-.pane{overflow-x:hidden;width:100%}
-.caro-list{width:100%}
-#pane1 .card{padding:16px!important;overflow:hidden;min-width:0}
-#pane1 .card-b,#pane1 .opt-sec,#pane1 .pgrid,#pane1 .crow,#pane1 .crop-opts,#pane1 .bgrow,#pane1 .gradrow,#pane1 .mode-tabs,#pane1 .gender-tabs{overflow:hidden;max-width:100%}
-#pane1 select,#pane1 input,#pane1 button{max-width:100%}
-.pv-wrap{position:sticky;top:80px}
-@media(max-width:900px){.pv-wrap{position:static;display:flex;justify-content:center}}
-.pv-box{width:100%;max-width:320px;aspect-ratio:3/4;max-height:460px;margin:0 auto;border-radius:12px;overflow:hidden;background:#fff;display:flex;align-items:center;justify-content:center;border:2px solid #e2e8f0;transition:.2s;box-shadow:0 2px 8px rgba(0,0,0,.08)}
-.pv-box img{width:100%;height:100%;object-fit:contain;display:block}
-.pv-box .ph{color:#94a3b8;font-size:.78rem;text-align:center;padding:16px;line-height:1.6}
-@media(max-width:900px){.pv-box{max-width:230px;max-height:300px}}
-.pv-meta{display:flex;justify-content:center;gap:8px;margin-top:10px;flex-wrap:wrap}
-.pv-badge{font-size:.62rem;font-weight:600;padding:4px 10px;border-radius:12px;background:#f1f5f9;color:#475569}
-.opt-sec{margin-bottom:14px;min-width:0;max-width:100%}
-.opt-sec:last-child{margin-bottom:0}
-.opt-h{display:flex;align-items:center;gap:8px;font-size:.75rem;font-weight:700;color:#0f172a;margin-bottom:8px;min-width:0}
-.opt-h .e{font-size:1rem}
-.csel{width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:.78rem;background:#fff;color:#0f172a;outline:none;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
-.csel:focus{border-color:#6366f1}
-.crow{display:flex;gap:6px;align-items:center;margin-top:6px;max-width:100%}
-.crow input{flex:1;min-width:0;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.75rem;outline:none;text-align:center}
-.crow span{color:#94a3b8;font-weight:600;font-size:.75rem}
-.crow button{padding:8px 14px;border:none;border-radius:8px;font-size:.7rem;font-weight:600;cursor:pointer;background:#eef2ff;color:#6366f1}
-.gender-tabs{display:flex;gap:6px;margin-bottom:10px}
-.gtab{flex:1;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;background:#f8fafc;cursor:pointer;font-size:.72rem;font-weight:600;color:#64748b;transition:.2s}
-.gtab.active{background:#6366f1;color:#fff;border-color:#6366f1}
-.caro{position:relative;overflow:hidden;width:100%}
-.caro-list{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:4px 2px 8px}
-.caro-list::-webkit-scrollbar{display:none}
-.citem{flex:0 0 76px;min-width:0;cursor:pointer;border:2px solid #e2e8f0;border-radius:10px;overflow:hidden;transition:.2s;background:#fff;position:relative}
-.citem:hover{border-color:#6366f1;transform:translateY(-1px)}
-.citem.on{border-color:#6366f1;box-shadow:0 0 0 2px rgba(99,102,241,.15)}
-.citem img{width:100%;height:84px;object-fit:cover;display:block;background:#f1f5f9}
-.citem .lb{text-align:center;padding:5px 2px;font-size:.58rem;font-weight:600;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.citem.on .lb{color:#6366f1}
-.citem .ck{position:absolute;top:3px;right:3px;width:16px;height:16px;border-radius:50%;background:#6366f1;color:#fff;display:none;align-items:center;justify-content:center;font-size:8px;font-weight:700}
-.citem.on .ck{display:flex}
+*{box-sizing:border-box;margin:0;padding:0}html,body{overflow-x:hidden;width:100%}body{font-family:'Inter',-apple-system,sans-serif;background:#0f172a;min-height:100vh;color:#0f172a;overflow-x:hidden;width:100%}
+.hdr{position:fixed;top:0;left:0;right:0;z-index:200;background:rgba(15,23,42,.92);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,.08);padding:8px 16px}.hdr-in{max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:12px}.hdr-logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 12px rgba(99,102,241,.4)}.hdr-logo svg{width:20px;height:20px;stroke:#fff;stroke-width:2;fill:none}.hdr-txt{flex:1;min-width:0}.hdr-txt h1{font-size:.95rem;font-weight:800;color:#fff;margin:0;line-height:1.2}.hdr-txt small{font-size:.6rem;color:rgba(255,255,255,.6);font-weight:500;display:block}.hdr-badge{background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-size:.6rem;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap}
+.pill-wrap{padding:72px 16px 0;max-width:500px;margin:0 auto}.pill-tabs{display:flex;gap:4px;background:#1e293b;border-radius:16px;padding:4px}.pill-tab{flex:1;padding:12px 20px;text-align:center;font-size:.82rem;font-weight:700;color:#64748b;cursor:pointer;border-radius:12px;transition:.25s;user-select:none;-webkit-tap-highlight-color:transparent}.pill-tab.active{background:#6366f1;color:#fff;box-shadow:0 4px 12px rgba(99,102,241,.4)}.pill-tab:hover:not(.active){color:#94a3b8;background:rgba(99,102,241,.08)}.pill-tab.disabled{opacity:.35;cursor:not-allowed;pointer-events:none}
+.page{max-width:1100px;width:100%;margin:0 auto;padding:16px;overflow-x:hidden}.pane{display:none;animation:fadeIn .3s}.pane.act{display:block}@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}.card{background:#fff;border-radius:16px;border:1px solid rgba(255,255,255,.06);overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.12);max-width:100%}
+.drop{border:2px dashed #cbd5e1;border-radius:16px;padding:52px 20px;text-align:center;cursor:pointer;transition:.2s;background:#f8fafc}.drop:hover{border-color:#6366f1;background:#eef2ff}.drop .ic{font-size:48px;margin-bottom:12px;opacity:.6}.drop h3{font-size:1rem;font-weight:700;color:#0f172a;margin-bottom:4px}.drop p{font-size:.72rem;color:#64748b;margin-bottom:16px}.drop input{display:none}.drop-btns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}.drop-btns button{padding:10px 20px;border:none;border-radius:10px;font-size:.8rem;font-weight:600;cursor:pointer}
+.btn-p{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;box-shadow:0 4px 12px rgba(99,102,241,.3)}.btn-p:hover{transform:translateY(-1px)}.btn-c{background:#e2e8f0;color:#475569}.btn-c:hover{background:#cbd5e1}.gbadge{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border-radius:16px;font-size:.7rem;font-weight:600;background:#eef2ff;color:#6366f1}
+.opt-sec{margin-bottom:14px;min-width:0;max-width:100%}.opt-h{display:flex;align-items:center;gap:8px;font-size:.75rem;font-weight:700;color:#0f172a;margin-bottom:8px}.opt-h .e{font-size:1rem}
+.gender-tabs{display:flex;gap:6px;margin-bottom:10px}.gtab{flex:1;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;background:#f8fafc;cursor:pointer;font-size:.72rem;font-weight:600;color:#64748b;transition:.2s}.gtab.active{background:#6366f1;color:#fff;border-color:#6366f1}
+.caro{position:relative;overflow:hidden;width:100%}.caro-list{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:4px 2px 8px}.caro-list::-webkit-scrollbar{display:none}.citem{flex:0 0 76px;min-width:0;cursor:pointer;border:2px solid #e2e8f0;border-radius:10px;overflow:hidden;transition:.2s;background:#fff;position:relative}.citem:hover{border-color:#6366f1;transform:translateY(-1px)}.citem.on{border-color:#6366f1;box-shadow:0 0 0 2px rgba(99,102,241,.15)}.citem img{width:100%;height:84px;object-fit:cover;display:block;background:#f1f5f9}.citem .lb{text-align:center;padding:5px 2px;font-size:.58rem;font-weight:600;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.citem.on .lb{color:#6366f1}.citem .ck{position:absolute;top:3px;right:3px;width:16px;height:16px;border-radius:50%;background:#6366f1;color:#fff;display:none;align-items:center;justify-content:center;font-size:8px;font-weight:700}.citem.on .ck{display:flex}
 .carro-btn{position:absolute;top:50%;transform:translateY(-50%);width:26px;height:26px;border-radius:50%;background:#fff;border:1px solid #e2e8f0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:10px;color:#64748b;z-index:2;box-shadow:0 2px 6px rgba(0,0,0,.1)}
-.carro-btn:hover{background:#6366f1;color:#fff;border-color:#6366f1}
-.carro-btn.L{left:-4px}.carro-btn.R{right:-4px}
-.bgrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;max-width:100%}
-.bgd{width:36px;height:36px;border-radius:50%;cursor:pointer;border:3px solid #e2e8f0;transition:.2s;position:relative;box-shadow:0 1px 3px rgba(0,0,0,.1)}
-.bgd:hover{transform:scale(1.1)}.bgd.on{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.2)}
-.bgd.on::after{content:"✓";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;color:#6366f1}
-.bgd.cust{border-style:dashed;display:flex;align-items:center;justify-content:center;font-size:.9rem;color:#94a3b8}
-.cwrap{position:relative;width:36px;height:36px}
-.cwrap input[type=color]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
-.gradrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;max-width:100%}
-.grad-item{width:52px;height:36px;border-radius:8px;cursor:pointer;border:3px solid #e2e8f0;transition:.2s;position:relative}
-.grad-item:hover{transform:scale(1.08)}.grad-item.on{border-color:#6366f1;box-shadow:0 0 0 2px rgba(99,102,241,.15)}
-.mode-tabs{display:flex;gap:6px;margin-bottom:8px}
-.mtab{flex:1;padding:7px;border:1.5px solid #e2e8f0;border-radius:8px;background:#f8fafc;cursor:pointer;font-size:.68rem;font-weight:600;color:#64748b;transition:.2s}
-.mtab.active{background:#6366f1;color:#fff;border-color:#6366f1}
-.pgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;max-width:100%}
-.pf{min-width:0}
-.pf label{font-size:.6rem;color:#64748b;margin-bottom:3px;display:block;font-weight:600}
-.pf select,.pf input{width:100%;min-width:0;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.72rem;background:#fff;color:#0f172a;outline:none}
-.pf select:focus,.pf input:focus{border-color:#6366f1}
-.crop-opts{display:flex;gap:6px;max-width:100%}
-.crop-opt{flex:1 1 0;min-width:0;padding:8px 4px;border:1.5px solid #e2e8f0;border-radius:10px;background:#fff;color:#64748b;cursor:pointer;text-align:center;font-size:.6rem;font-weight:600;transition:.2s;overflow:hidden}
-.crop-opt.active{background:#6366f1;color:#fff;border-color:#6366f1}
-.crop-opt .e{font-size:1.1rem;margin-bottom:2px}
-/* ── Nav Buttons ── */
-.navbtns{display:flex;gap:10px;margin-top:16px}
-.navbtns button{flex:1;padding:14px;border:none;border-radius:12px;font-size:.88rem;font-weight:700;cursor:pointer;transition:.2s}
-.nxt{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;box-shadow:0 4px 14px rgba(99,102,241,.3)}
-.nxt:hover{transform:translateY(-1px)}
-.nxt:disabled{opacity:.4;cursor:not-allowed;transform:none}
-.bck{background:#e2e8f0;color:#475569;max-width:120px}
-.bck:hover{background:#cbd5e1}
-/* ── Step 3: Result ── */
-.result-wrap{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
-@media(max-width:900px){.result-wrap{grid-template-columns:1fr}}
-.res-img{width:100%;border-radius:12px;background:#f1f5f9;display:block}
-.rstats{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid #e2e8f0;margin-top:12px}
-.rst{padding:10px 4px;text-align:center;border-right:1px solid #e2e8f0}
-.rst:last-child{border-right:none}
-.rst .v{font-size:.8rem;font-weight:700;color:#6366f1}
-.rst .l{font-size:.55rem;color:#94a3b8;margin-top:2px}
-.rbtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-.rbtn{flex:1;min-width:110px;padding:12px;border:none;border-radius:10px;font-size:.76rem;font-weight:600;cursor:pointer;text-align:center;transition:.2s}
-.rbtn.p{background:#10b981;color:#fff}.rbtn.p:hover{filter:brightness(1.1)}
-.rbtn.g{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff}.rbtn.g:hover{filter:brightness(1.1)}
-.rbtn.s{background:#f1f5f9;color:#0f172a;border:1px solid #e2e8f0}.rbtn.s:hover{border-color:#6366f1;color:#6366f1}
-.rbtn.r{background:#ef4444;color:#fff}.rbtn.r:hover{filter:brightness(1.1)}
-.print-prev{margin-top:12px;padding:12px;background:#f8fafc;border-radius:12px}
-.print-prev h4{font-size:.7rem;font-weight:700;color:#64748b;margin-bottom:8px}
-.print-prev-grid{display:grid;gap:4px;background:#fff;padding:8px;border-radius:8px;border:1px solid #e2e8f0}
-.pp-cell{aspect-ratio:3/4;border-radius:3px;overflow:hidden;background:#e2e8f0}
-.pp-cell img{width:100%;height:100%;object-fit:cover}
-/* ── Customize Panel (added 2026-08-17) ── */
-.cust-row{margin-bottom:12px}
-.cust-lab{font-size:.66rem;font-weight:700;color:#0f172a;margin-bottom:5px}
-.cust-ctrl{font-size:.7rem}
-.bg-presets,.size-presets{display:flex;gap:6px;flex-wrap:wrap}
-.bg-p{width:38px;height:38px;border-radius:8px;border:2px solid #cbd5e1;cursor:pointer;padding:0;transition:.15s;font-size:.6rem}
-.bg-p:hover{border-color:#6366f1;transform:translateY(-1px)}
-.bg-p.active{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.25)}
-.sz-p,.cnt-p,.pap-p{padding:7px 10px;border:1.5px solid #cbd5e1;border-radius:8px;background:#fff;font-size:.66rem;font-weight:600;cursor:pointer;color:#475569;transition:.15s}
-.sz-p:hover,.cnt-p:hover,.pap-p:hover{border-color:#6366f1;color:#6366f1}
-.sz-p.active,.cnt-p.active,.pap-p.active{border-color:#6366f1;background:#eef2ff;color:#6366f1}
-.cust-btn{padding:8px 14px;border:none;border-radius:8px;font-size:.7rem;font-weight:700;cursor:pointer;color:#fff;background:linear-gradient(135deg,#6366f1,#8b5cf6);transition:.15s}
-.cust-btn:hover{filter:brightness(1.1)}
-.cust-btn.ghost{background:#fff;color:#6366f1;border:1.5px solid #c7d2fe}
-.customize-panel input[type="number"]{padding:6px 8px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:.7rem;outline:none;color:#0f172a;width:100%}
-.customize-panel input[type="number"]:focus{border-color:#6366f1}
-.customize-panel input[type="checkbox"]{cursor:pointer}
-/* ── Overlay & Toast ── */
-.ov{display:none;position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:998;justify-content:center;align-items:center;flex-direction:column;gap:14px;backdrop-filter:blur(8px)}
-.ov.show{display:flex}
-.sp{width:40px;height:40px;border:4px solid rgba(255,255,255,.2);border-top-color:#8b5cf6;border-radius:50%;animation:sp .8s linear infinite}
-@keyframes sp{to{transform:rotate(360deg)}}
-.ov .t{font-size:.85rem;color:#fff;font-weight:500;text-align:center;padding:0 24px}
-.ov .sub{font-size:.68rem;color:rgba(255,255,255,.6)}
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:#0f172a;color:#fff;border-radius:20px;padding:10px 20px;z-index:999;font-size:.78rem;font-weight:500;transition:transform .3s;box-shadow:0 8px 24px rgba(0,0,0,.2)}
-.toast.show{transform:translateX(-50%) translateY(0)}.toast.err{background:#ef4444}
-/* ── Misc ── */
+.crop-opts{display:flex;gap:6px;flex-wrap:wrap}.crop-opt{padding:8px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:.72rem;font-weight:600;color:#64748b;cursor:pointer;background:#fff;transition:.2s}.crop-opt:hover{border-color:#6366f1}.crop-opt.active{background:#6366f1;color:#fff;border-color:#6366f1}
+.sec-divider{height:1px;background:linear-gradient(90deg,transparent,#e2e8f0,transparent);margin:20px 0}
+.gen-btn{width:100%;padding:16px;border:none;border-radius:14px;font-size:.95rem;font-weight:800;cursor:pointer;transition:.2s;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;box-shadow:0 4px 16px rgba(99,102,241,.4);display:flex;align-items:center;justify-content:center;gap:10px}.gen-btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(99,102,241,.5)}.gen-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}.gen-btn .ico{font-size:1.2rem}
+.sec2-wrap{margin-top:20px}.sec2-wrap.hidden{display:none}.sec2-header{display:flex;align-items:center;gap:8px;padding:12px 16px;background:linear-gradient(135deg,#f0fdf4,#ecfdf5);border-radius:12px;margin-bottom:14px;border:1px solid #bbf7d0}.sec2-header .ico{font-size:1.2rem}.sec2-header .txt{font-size:.78rem;font-weight:700;color:#166534}
+.preview-bar{position:sticky;top:64px;z-index:10;background:#0f172a;padding:12px 0;margin-bottom:12px}.slider-wrap{display:flex;gap:10px;align-items:flex-start;overflow-x:auto;scrollbar-width:none;padding:4px}.slider-wrap::-webkit-scrollbar{display:none}.slide-item{flex:0 0 auto;cursor:pointer;text-align:center;transition:.2s}.slide-item img{width:80px;height:106px;object-fit:cover;border-radius:10px;border:2px solid #334155;transition:.2s}.slide-item.active img{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.3)}.slide-item .name{font-size:.55rem;color:#64748b;margin-top:4px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.slide-item.active .name{color:#818cf8}
+.res-img{max-width:280px;width:100%;border-radius:12px;margin:0 auto;display:block;border:2px solid #e2e8f0}.res-stats{display:flex;justify-content:center;gap:12px;margin-top:10px;flex-wrap:wrap}.rst{text-align:center;padding:8px 14px;background:#f8fafc;border-radius:10px;min-width:60px}.rst .v{font-size:.85rem;font-weight:700;color:#0f172a}.rst .l{font-size:.58rem;color:#94a3b8;margin-top:2px}.res-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;justify-content:center}.res-btns button{padding:10px 18px;border:none;border-radius:10px;font-size:.75rem;font-weight:600;cursor:pointer;transition:.2s}
+.bg-d{width:28px;height:28px;border-radius:50%;border:2px solid #e2e8f0;cursor:pointer;transition:.2s;display:inline-block}.bg-d:hover{border-color:#6366f1;transform:scale(1.1)}.bg-d.on{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.3)}.bg-p{padding:8px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:.72rem;font-weight:600;color:#64748b;cursor:pointer;background:#fff;transition:.2s}.bg-p:hover{border-color:#6366f1}.bg-p.active{background:#6366f1;color:#fff;border-color:#6366f1}
+.sz-p,.pap-p{padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:.72rem;font-weight:600;color:#64748b;cursor:pointer;background:#fff;transition:.2s}.sz-p:hover,.pap-p:hover{border-color:#6366f1}.sz-p.active,.pap-p.active{background:#6366f1;color:#fff;border-color:#6366f1}
 .hidden{display:none!important}
-.err-box{margin-top:8px;padding:10px 12px;border-radius:8px;background:#fef2f2;border:1px solid #fecaca;color:#dc2626;font-size:.72rem;font-weight:500}
-.warn-box{margin-top:8px;padding:10px 12px;border-radius:8px;background:#fefce8;border:1px solid #fef08a;color:#a16207;font-size:.72rem;font-weight:500}
-.center{text-align:center}
-/* ── Bottom Nav ── */
-.bnav{position:fixed;bottom:0;left:0;right:0;background:rgba(15,23,42,.92);backdrop-filter:blur(12px);display:flex;z-index:300;padding:4px 0 max(4px,env(safe-area-inset-bottom,4px));height:56px}
-.bnav::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.45) 18%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.45) 82%,transparent 100%);pointer-events:none;z-index:1}
-.bnav a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-decoration:none;color:#94a3b8;font-size:.6rem;font-weight:600;transition:.2s;-webkit-tap-highlight-color:transparent}
-.bnav a svg{width:20px;height:20px;stroke-width:1.8;fill:none;stroke:currentColor}
-.bnav a:hover{color:#a5b4fc}
-.bnav a.active{color:#818cf8}
-.page{padding-bottom:76px}
+.ov{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,.92);z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:.3s}.ov.show{opacity:1;pointer-events:auto}.sp{width:40px;height:40px;border:3px solid #334155;border-top-color:#6366f1;border-radius:50%;animation:spin .7s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.ov .t{color:#fff;font-size:.95rem;font-weight:700;margin-top:16px}.ov .sub{color:#94a3b8;font-size:.72rem;margin-top:4px}
+.toast{position:fixed;bottom:72px;left:50%;transform:translateX(-50%) translateY(20px);background:#1e293b;color:#fff;padding:10px 20px;border-radius:12px;font-size:.78rem;font-weight:600;opacity:0;transition:.3s;z-index:600;pointer-events:none;white-space:nowrap;max-width:90vw}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}.toast.err{background:#dc2626}.toast.ok{background:#10b981}
+.bnav{position:fixed;bottom:0;left:0;right:0;background:rgba(15,23,42,.92);backdrop-filter:blur(12px);display:flex;z-index:300;padding:4px 0 max(4px,env(safe-area-inset-bottom,4px));height:56px}.bnav::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.45) 18%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.45) 82%,transparent 100%);pointer-events:none;z-index:1}.bnav a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-decoration:none;color:#94a3b8;font-size:.6rem;font-weight:600;transition:.2s;-webkit-tap-highlight-color:transparent}.bnav a svg{width:20px;height:20px;stroke-width:1.8;fill:none;stroke:currentColor}.bnav a:hover{color:#a5b4fc}.bnav a.active{color:#818cf8}.page{padding-bottom:76px}
+.err-box{padding:12px 16px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;color:#dc2626;font-size:.75rem;margin-top:10px}
 </style>
 </head>
 <body>
-
-<!-- Header -->
 <div class="hdr"><div class="hdr-in">
   <div class="hdr-logo"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="12" cy="10" r="3"/><path d="M7 20v-1a5 5 0 0110 0v1"/></svg></div>
   <div class="hdr-txt"><h1>Passport Photo Studio</h1><small>AI-powered ID photos in seconds</small></div>
   <div class="hdr-badge">⚡ ~$0.004</div>
 </div></div>
 
-<!-- Stepper -->
-<div class="stepper">
-  <div class="step active" data-idx="0" onclick="goStep(0)"><div class="num" id="sn0">1</div><div class="lb">Upload</div></div>
-  <div class="step-line" id="sl0"></div>
-  <div class="step" data-idx="1" onclick="goStep(1)"><div class="num" id="sn1">2</div><div class="lb">Customize</div></div>
-  <div class="step-line" id="sl1"></div>
-  <div class="step" data-idx="2" onclick="goStep(2)"><div class="num" id="sn2">3</div><div class="lb">Result</div></div>
-</div>
+<div class="pill-wrap"><div class="pill-tabs">
+  <div class="pill-tab active" onclick="switchTab(0)">📁 Upload</div>
+  <div class="pill-tab disabled" id="tabOptions" onclick="switchTab(1)">⚙️ Options</div>
+</div></div>
 
 <div class="page">
-
-<!-- ══ STEP 1: UPLOAD ══ -->
+<!-- TAB 1: UPLOAD -->
 <div class="pane act" id="pane0">
   <div class="card" style="padding:24px">
-    <div class="drop" id="drop">
-      <div class="ic" id="dropIc">📷</div>
-      <h3 id="dropTitle">Upload your photo</h3>
-      <p id="dropSub">Drag &amp; drop or click to browse<br><small>JPG / PNG · Single or multiple (max 20)</small></p>
-      <div id="dropSel" class="drop-btns"><button class="btn-p" type="button" onclick="pickFile()">📁 Choose Photo</button><button class="btn-c" type="button" onclick="pickFile(true)">📚 Choose Multiple</button></div>
-      <input type="file" id="fi" accept="image/jpeg,image/png" multiple>
+    <div id="dropZone">
+      <div class="drop" id="drop">
+        <div class="ic">📷</div>
+        <h3>Upload your photo</h3>
+        <p>Drag &amp; drop or click to browse<br><small>JPG / PNG · Single or multiple (max 20)</small></p>
+        <div class="drop-btns">
+          <button class="btn-p" type="button" onclick="pickFile()">📁 Choose Photo</button>
+          <button class="btn-c" type="button" onclick="pickFile(true)">📚 Choose Multiple</button>
+        </div>
+        <input type="file" id="fi" accept="image/jpeg,image/png" multiple>
+      </div>
     </div>
     <div id="uploaded" class="hidden" style="margin-top:16px;text-align:center">
       <div style="display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap">
@@ -231,883 +70,136 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#0f172a;min-height:
           <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
             <button class="btn-c" style="padding:8px 14px;border:none;border-radius:8px;font-size:.7rem;font-weight:600;cursor:pointer" onclick="clearAll()">↺ Remove</button>
             <button class="btn-c" style="padding:8px 14px;border:none;border-radius:8px;font-size:.7rem;font-weight:600;cursor:pointer" onclick="pickFile()">🔄 Change</button>
+            <button class="btn-p" style="padding:8px 18px;border:none;border-radius:8px;font-size:.7rem;font-weight:600;cursor:pointer" onclick="goOptions()">Next ⏩</button>
           </div>
         </div>
       </div>
       <div id="multiPreview" style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:12px"></div>
     </div>
     <div class="err-box hidden" id="upErr"></div>
-    <div class="navbtns"><button class="nxt" id="next0" disabled onclick="goStep(1)">Continue →</button></div>
   </div>
 </div>
 
-<!-- ══ STEP 2: CUSTOMIZE ══ -->
+<!-- TAB 2: OPTIONS -->
 <div class="pane" id="pane1">
-  <div class="grid2">
-    <div class="pv-wrap">
-      <div class="card" style="padding:16px">
-        <div class="pv-box" id="pvBox"><div class="ph">Preview appears here</div></div>
-        <div class="pv-meta" id="pvMeta"></div>
+  <div id="batchPreview" class="hidden" style="margin-bottom:12px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+      <div style="flex:1;font-size:.72rem;font-weight:700;color:#fff">🖼️ Photos</div>
+      <label style="display:flex;align-items:center;gap:5px;font-size:.65rem;color:#94a3b8;font-weight:600;cursor:pointer"><input type="checkbox" id="selectAllCb" onchange="toggleSelectAll(this.checked)" style="accent-color:#6366f1;width:14px;height:14px"> All</label>
+    </div>
+    <div class="slider-wrap" id="sliderWrap"></div>
+  </div>
+
+  <!-- Section 1: Clothing + Generate -->
+  <div class="card" style="padding:16px" id="sec1Card">
+    <div class="opt-sec">
+      <div class="opt-h"><span class="e">🌍</span> Country / Size</div>
+      <select id="cs" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:.78rem;background:#fff;color:#0f172a;outline:none"></select>
+    </div>
+    <div class="sec-divider"></div>
+    <div class="opt-sec">
+      <div class="opt-h"><span class="e">👔</span> Clothing</div>
+      <div class="gender-tabs" id="gt"></div>
+      <div class="caro"><button class="carro-btn" onclick="scrollCar('cl',-1)">◀</button><div class="caro-list" id="cl"></div><button class="carro-btn" onclick="scrollCar('cl',1)">▶</button></div>
+    </div>
+    <div class="sec-divider"></div>
+    <div class="opt-sec">
+      <div class="opt-h"><span class="e">✂️</span> Crop Style</div>
+      <div class="crop-opts">
+        <div class="crop-opt active" data-preset="standard" onclick="setCrop('standard')">Standard</div>
+        <div class="crop-opt" data-preset="compact" onclick="setCrop('compact')">Compact</div>
+        <div class="crop-opt" data-preset="relaxed" onclick="setCrop('relaxed')">Relaxed</div>
       </div>
     </div>
-    <div>
-      <div class="card" style="padding:16px">
-        <div class="opt-sec">
-          <div class="opt-h"><span class="e">🌍</span> Country / Size</div>
-          <select class="csel" id="cs"></select>
-          <div class="crow"><input type="number" id="cw" placeholder="W mm" min="10" max="200"><span>×</span><input type="number" id="ch" placeholder="H mm" min="10" max="200"><button onclick="setCustom()">Custom</button></div>
-        </div>
-        <div class="opt-sec">
-          <div class="opt-h"><span class="e">👔</span> Clothing</div>
-          <div class="gender-tabs" id="gt"></div>
-          <div class="caro"><button class="carro-btn L" onclick="scrollCar('cl',-1)">◀</button><div class="caro-list" id="cl"></div><button class="carro-btn R" onclick="scrollCar('cl',1)">▶</button></div>
-        </div>
-        <div class="opt-sec">
-          <div class="opt-h"><span class="e">🎨</span> Background</div>
-          <div class="mode-tabs" id="bgModeTabs">
-            <button class="mtab active" data-m="solid" onclick="setBgMode('solid')">Solid</button>
-            <button class="mtab" data-m="gradient" onclick="setBgMode('gradient')">Gradient</button>
-          </div>
-          <div class="bgrow" id="bgr"></div>
-          <div class="gradrow hidden" id="grr"></div>
-        </div>
-        <div class="opt-sec">
-          <div class="opt-h"><span class="e">🖨️</span> Print Settings</div>
-          <div class="pgrid">
-            <div class="pf"><label>Paper</label><select id="ps"><option value="4x6">4×6"</option><option value="5x7">5×7"</option><option value="a6">A6</option><option value="a4">A4</option></select></div>
-            <div class="pf"><label>Count</label><input type="number" id="pc" value="6" min="1" max="20"></div>
-            <div class="pf"><label>Gap (mm)</label><input type="number" id="pgap" value="2" min="0" max="10" step="0.5"></div>
-          </div>
-          <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-            <div class="pf" style="flex:1;min-width:100px"><label>Border</label><select id="bt" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.72rem;background:#fff;color:#0f172a;outline:none"><option value="none">None</option><option value="frame" selected>White frame</option></select></div>
-            <div class="pf" style="flex:1;min-width:90px"><label>Border mm</label><input type="number" id="bwmm" value="3" min="0" max="20" step="0.5"></div>
-            <label style="display:flex;align-items:center;gap:5px;font-size:.68rem;font-weight:600;color:#64748b;cursor:pointer;margin-top:14px"><input type="checkbox" id="bm" style="accent-color:#6366f1;width:14px;height:14px"> Blade mode</label>
-          </div>
-        </div>
-        <div class="opt-sec">
-          <div class="opt-h"><span class="e">✂️</span> Crop Style</div>
-          <div class="crop-opts">
-            <div class="crop-opt active" data-preset="standard" onclick="setCrop('standard')"><div class="e">👤</div>Standard<br><small>Head 20%</small></div>
-            <div class="crop-opt" data-preset="compact" onclick="setCrop('compact')"><div class="e">👤</div>Compact<br><small>Head 15%</small></div>
-            <div class="crop-opt" data-preset="relaxed" onclick="setCrop('relaxed')"><div class="e">🧍</div>Relaxed<br><small>Head 12%</small></div>
-          </div>
+    <div class="sec-divider"></div>
+    <button class="gen-btn" id="genBtn" disabled onclick="generate()"><span class="ico">🚀</span> Generate Passport Photo</button>
+    <div style="text-align:center;margin-top:8px;font-size:.62rem;color:#94a3b8">เลือกเสื้อก่อน → กด Generate</div>
+  </div>
+
+  <!-- Section 2: Post-generate -->
+  <div class="sec2-wrap hidden" id="sec2">
+    <div class="sec2-header"><span class="ico">✅</span><span class="txt">Photo generated! Customize below.</span></div>
+
+    <!-- Result -->
+    <div class="card" style="padding:16px;margin-bottom:14px">
+      <img class="res-img" id="ri" src="" alt="Generated">
+      <div class="res-stats" id="rs"></div>
+      <div class="res-btns">
+        <button class="btn-p" style="padding:10px 18px;font-size:.75rem" onclick="dl('passport')">⬇️ Download</button>
+        <button class="btn-c" style="padding:10px 18px;font-size:.75rem" onclick="dlTransparent()">💎 Transparent</button>
+        <button class="btn-c" style="padding:10px 18px;font-size:.75rem" onclick="dl('print')">🖨️ Print Sheet</button>
+        <button class="btn-c" style="padding:10px 18px;font-size:.75rem" onclick="newPhoto()">🔄 New</button>
+      </div>
+    </div>
+
+    <!-- Background Color -->
+    <div class="card" style="padding:16px;margin-bottom:14px">
+      <div class="opt-sec">
+        <div class="opt-h"><span class="e">🎨</span> Background Color</div>
+        <div id="bgPresets" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px"></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="color" id="bgColorPick" value="#C4DCFF" style="width:36px;height:28px;border:1px solid #cbd5e1;border-radius:6px;padding:0;cursor:pointer">
+          <label style="display:flex;align-items:center;gap:4px;font-size:.65rem;color:#475569;cursor:pointer"><input type="checkbox" id="cutBg" checked style="accent-color:#6366f1;width:14px;height:14px"> Cut BG (AI $0.0025)</label>
+          <button class="btn-p" style="padding:8px 16px;font-size:.72rem;margin-left:auto" onclick="applyBG()">✂️ Apply</button>
         </div>
       </div>
-      <div class="navbtns">
-        <button class="bck" onclick="goStep(0)">← Back</button>
-        <button class="nxt" id="genBtn" onclick="generate()">⚡ Generate</button>
+    </div>
+
+    <!-- Photo Size -->
+    <div class="card" style="padding:16px;margin-bottom:14px">
+      <div class="opt-sec">
+        <div class="opt-h"><span class="e">📐</span> Photo Size</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+          <div class="sz-p active" onclick="setCustomSize(35,45,this)">35×45mm</div>
+          <div class="sz-p" onclick="setCustomSize(25,35,this)">25×35mm</div>
+          <div class="sz-p" onclick="setCustomSize(33,48,this)">33×48mm</div>
+          <div class="sz-p" onclick="setCustomSize(51,51,this)">51×51mm</div>
+          <div class="sz-p" onclick="setCustomSize(38,50,this)">38×50mm</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="number" id="customW" value="35" min="10" max="200" style="flex:1;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.75rem;text-align:center;outline:none">
+          <span style="color:#94a3b8;font-weight:600">×</span>
+          <input type="number" id="customH" value="45" min="10" max="200" style="flex:1;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.75rem;text-align:center;outline:none">
+          <span style="font-size:.65rem;color:#94a3b8">mm</span>
+          <button class="btn-c" style="padding:8px 14px;font-size:.72rem;border:none;border-radius:8px;cursor:pointer" onclick="applySize()">📐 Apply</button>
+        </div>
       </div>
+    </div>
+
+    <!-- Print Sheet -->
+    <div class="card" style="padding:16px;margin-bottom:14px">
+      <div class="opt-sec">
+        <div class="opt-h"><span class="e">🖨️</span> Print Sheet</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+          <div class="pap-p active" onclick="setPaper('4x6',this)">4×6"</div>
+          <div class="pap-p" onclick="setPaper('5x7',this)">5×7"</div>
+          <div class="pap-p" onclick="setPaper('a6',this)">A6</div>
+          <div class="pap-p" onclick="setPaper('a4',this)">A4</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+          <div style="flex:1"><label style="font-size:.65rem;font-weight:600;color:#94a3b8;display:block;margin-bottom:4px">Count</label><input type="number" id="customCount" value="6" min="1" max="200" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.72rem;text-align:center;outline:none"></div>
+          <div style="flex:1"><label style="font-size:.65rem;font-weight:600;color:#94a3b8;display:block;margin-bottom:4px">Border mm</label><input type="number" id="bwmmPrint" value="3" min="0" max="20" step="0.5" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.72rem;text-align:center;outline:none"></div>
+          <div style="flex:0;display:flex;align-items:flex-end;padding-bottom:2px"><label style="display:flex;align-items:center;gap:4px;font-size:.65rem;font-weight:600;color:#94a3b8;cursor:pointer"><input type="checkbox" id="bmPrint" style="accent-color:#6366f1;width:14px;height:14px"> Blade</label></div>
+        </div>
+        <button class="btn-p" style="padding:10px 20px;font-size:.78rem" onclick="genPrintSheet()">🖨️ Generate Print Sheet</button>
+      </div>
+    </div>
+
+    <!-- Live preview -->
+    <div class="card hidden" style="padding:16px;margin-bottom:14px" id="custPreviewWrap">
+      <div style="font-size:.75rem;font-weight:700;color:#0f172a;margin-bottom:8px">Preview</div>
+      <img id="custPreviewImg" style="max-width:100%;border-radius:10px;border:1px solid #e2e8f0" src="">
+      <div id="custPreviewInfo" style="font-size:.68rem;color:#94a3b8;margin-top:8px"></div>
     </div>
   </div>
 </div>
-
-<!-- ══ STEP 3: RESULT ══ -->
-<div class="pane" id="pane2">
-  <div class="result-wrap">
-    <div class="card" style="padding:16px">
-      <div id="resEmpty" style="text-align:center;padding:60px 20px;color:#94a3b8">
-        <div style="font-size:3rem;margin-bottom:12px;opacity:.5">🖼️</div>
-        <div style="font-size:.85rem;font-weight:600">No result yet</div>
-        <div style="font-size:.7rem;margin-top:4px">Generate a photo to see it here</div>
-      </div>
-      <div id="resBody" class="hidden">
-        <img class="res-img" id="ri" alt="">
-        <div class="rstats" id="rs"></div>
-        <div class="rbtns">
-          <button class="rbtn p" onclick="dl('passport')">📥 Passport</button>
-          <button class="rbtn g" onclick="dl('print')">🖨️ Print Sheet</button>
-          <button class="rbtn s" onclick="showPrintPreview()">👁 Preview</button>
-          <button class="rbtn s" onclick="newPhoto()">🔄 New</button>
-        </div>
-        <div class="print-prev hidden" id="pprev">
-          <h4>Print Sheet Preview</h4>
-          <div class="print-prev-grid" id="ppGrid"></div>
-        </div>
-
-        <!-- ══════ Customize (Reuse AI Output) — added 2026-08-17 12:40 ══════ -->
-        <div id="customizePanel" class="customize-panel hidden" style="margin-top:18px;border-top:2px dashed #cbd5e1;padding-top:16px">
-          <div class="opt-h" style="margin-bottom:10px"><span class="e">🎨</span> Customize (Reuse AI Output)</div>
-          <div style="font-size:.66rem;color:#64748b;margin-bottom:12px">ปรับแต่งต่อโดยไม่เรียก AI ใหม่ — ทุกการเปลี่ยนจะแสดงผลทันที</div>
-
-          <!-- 1. Cut BG / Background -->
-          <div class="cust-row">
-            <div class="cust-lab">✂️ Background</div>
-            <div class="cust-ctrl">
-              <div class="bg-presets" id="bgPresets">
-                <button class="bg-p" data-bg="" onclick="setCustomBG('',this)" style="background:repeating-conic-gradient(#ddd 0% 25%,#fff 0% 50%) 50% / 8px 8px" title="ไม่ตัด">⊘ ไม่ตัด</button>
-                <button class="bg-p" data-bg="#FFFFFF" onclick="setCustomBG('#FFFFFF',this)" style="background:#FFFFFF" title="ขาว"></button>
-                <button class="bg-p" data-bg="#C4DCFF" onclick="setCustomBG('#C4DCFF',this)" style="background:#C4DCFF;border-color:#3b82f6" title="ฟ้า"></button>
-                <button class="bg-p" data-bg="#D4E5D4" onclick="setCustomBG('#D4E5D4',this)" style="background:#D4E5D4" title="เขียวอ่อน"></button>
-                <button class="bg-p" data-bg="#FFE4E1" onclick="setCustomBG('#FFE4E1',this)" style="background:#FFE4E1" title="ชมพูอ่อน"></button>
-                <button class="bg-p" data-bg="#F5F5F5" onclick="setCustomBG('#F5F5F5',this)" style="background:#F5F5F5" title="เทา"></button>
-              </div>
-              <div style="display:flex;gap:6px;align-items:center;margin-top:6px">
-                <input type="checkbox" id="cutBg" checked style="accent-color:#6366f1">
-                <label for="cutBg" style="font-size:.65rem;color:#475569;cursor:pointer">ตัด BG ออกด้วย AI (BiRefNet $0.0025)</label>
-                <input type="color" id="bgColorPick" value="#C4DCFF" style="width:36px;height:26px;border:1px solid #cbd5e1;border-radius:6px;padding:0;cursor:pointer;margin-left:auto">
-                <button class="cust-btn ghost" onclick="applyBG()" style="margin-left:6px">Apply</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- 2. Size -->
-          <div class="cust-row">
-            <div class="cust-lab">📐 Size</div>
-            <div class="cust-ctrl">
-              <div class="size-presets" id="sizePresets">
-                <button class="sz-p" onclick="setCustomSize(35,45,this)" data-w="35" data-h="45" style="border-color:#10b981">Thai Passport 35×45mm</button>
-                <button class="sz-p" onclick="setCustomSize(25,35,this)" data-w="25" data-h="35">ID Card 25×35mm</button>
-                <button class="sz-p" onclick="setCustomSize(33,48,this)" data-w="33" data-h="48">US 33×48mm</button>
-                <button class="sz-p" onclick="setCustomSize(51,51,this)" data-w="51" data-h="51">Square 51×51mm</button>
-                <button class="sz-p" onclick="setCustomSize(38,50,this)" data-w="38" data-h="50">EU 38×50mm</button>
-              </div>
-              <div style="display:flex;gap:6px;align-items:center;margin-top:6px">
-                <input type="number" id="customW" placeholder="W" min="10" max="200" style="width:60px">
-                <span style="color:#94a3b8">×</span>
-                <input type="number" id="customH" placeholder="H" min="10" max="200" style="width:60px">
-                <span style="font-size:.65rem;color:#94a3b8">mm</span>
-                <button class="cust-btn ghost" onclick="applySize()" style="margin-left:auto">Apply Size</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- 3. Photo count + 4. Paper size + Save/Print -->
-          <div class="cust-row" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-            <div>
-              <div class="cust-lab">🔢 Count</div>
-              <div class="cust-ctrl">
-                <div class="size-presets" id="countPresets">
-                  <button class="cnt-p" onclick="setCount(1,this)">1</button>
-                  <button class="cnt-p" onclick="setCount(4,this)">4</button>
-                  <button class="cnt-p active" onclick="setCount(6,this)">6</button>
-                  <button class="cnt-p" onclick="setCount(9,this)">9</button>
-                  <button class="cnt-p" onclick="setCount(20,this)">20</button>
-                </div>
-                <input type="number" id="customCount" min="1" max="200" placeholder="หรือระบุเอง" style="width:100%;margin-top:6px">
-              </div>
-            </div>
-            <div>
-              <div class="cust-lab">📄 Paper</div>
-              <div class="cust-ctrl">
-                <div class="size-presets" id="paperPresets">
-                  <button class="pap-p active" onclick="setPaper('4x6',this)">4×6</button>
-                  <button class="pap-p" onclick="setPaper('5x7',this)">5×7</button>
-                  <button class="pap-p" onclick="setPaper('a6',this)">A6</button>
-                  <button class="pap-p" onclick="setPaper('a4',this)">A4</button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Save / Print buttons -->
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:14px">
-            <button class="rbtn s" onclick="dl('passport')">📥 Save JPG</button>
-            <button class="rbtn s" onclick="dlTransparent()" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none">💎 Save PNG (Transparent)</button>
-            <button class="rbtn g" onclick="genPrintSheet()">🖨️ Print Sheet</button>
-          </div>
-
-          <!-- Live preview of customized image -->
-          <div id="custPreviewWrap" class="hidden" style="margin-top:14px;border:2px solid #10b981;border-radius:12px;padding:12px;background:#f0fdf4">
-            <div style="font-size:.72rem;font-weight:700;color:#10b981;margin-bottom:8px">✅ Last Update</div>
-            <img id="custPreviewImg" style="max-width:100%;height:auto;border-radius:8px;display:block;margin:0 auto">
-            <div id="custPreviewInfo" style="font-size:.65rem;color:#64748b;margin-top:6px;text-align:center"></div>
-          </div>
-        </div>
-        <!-- ══════ End Customize Panel ══════ -->
-      </div>
-    </div>
-    <div class="card" style="padding:16px">
-      <div class="opt-h" style="margin-bottom:12px"><span class="e">📋</span> Summary</div>
-      <div id="sumBody" style="font-size:.78rem;line-height:1.9;color:#334155"></div>
-      <div class="navbtns" style="margin-top:16px">
-        <button class="bck" onclick="goStep(1)">← Back</button>
-        <button class="nxt" onclick="goStep(0)">New Photo</button>
-      </div>
-    </div>
-  </div>
 </div>
 
-</div>
-
-<!-- Overlay -->
 <div class="ov" id="ov"><div class="sp"></div><div class="t" id="ovt">Generating...</div><div class="sub" id="ovs"></div></div>
 <div class="toast" id="toast"></div>
 
-<script>
-/* ══════════ STATE ══════════ */
-var API='/api/passport';
-var S={photo:null,photos:[],bulk:false,gender:'male',clothing:'keep_original',bg:'light_blue',bgType:'solid',gradient:null,bgc:null,tpl:'thai_passport',cw:null,ch:null,sid:null,cropPreset:'standard',customClothing:null,customClothingUrl:null,customClothingName:null};
-var CD={male:[],female:[]},BD=[],TD=[];
-var FLAGS={Thailand:'🇹🇭',Japan:'🇯🇵',China:'🇨🇳','South Korea':'🇰🇷','United States':'🇺🇸','United Kingdom':'🇬🇧','European Union':'🇪🇺',Canada:'🇨🇦',Australia:'🇦🇺',India:'🇮🇳',Singapore:'🇸🇬',Malaysia:'🇲🇾',Philippines:'🇵🇭',Indonesia:'🇮🇩',Vietnam:'🇻🇳',Cambodia:'🇰🇭',Laos:'🇱🇦',Myanmar:'🇲🇲','Hong Kong':'🇭🇰',France:'🇫🇷',Germany:'🇩🇪'};
-var SOLID_COLORS=[
-  {key:'light_blue',name:'Sky Blue',hex:'#C4DCFF'},
-  {key:'white',name:'White',hex:'#FFFFFF'},
-  {key:'light_gray',name:'Light Gray',hex:'#F0F0F0'},
-  {key:'soft_blue',name:'Soft Blue',hex:'#B3D4FC'},
-  {key:'mint',name:'Mint',hex:'#D4F5E9'},
-  {key:'lavender',name:'Lavender',hex:'#E8D5F5'},
-  {key:'cream',name:'Cream',hex:'#FFF8E7'},
-  {key:'blush',name:'Blush',hex:'#FFE4E8'},
-  {key:'warm_gray',name:'Warm Gray',hex:'#E8E4E0'}
-];
-var GRADIENTS=[
-  {key:'grad_sky',name:'Sky',css:'linear-gradient(180deg,#89CFF0 0%,#C4DCFF 100%)'},
-  {key:'grad_sunset',name:'Sunset',css:'linear-gradient(180deg,#FFB88C 0%,#FF8E72 100%)'},
-  {key:'grad_forest',name:'Forest',css:'linear-gradient(180deg,#A8E6CF 0%,#7BC8A4 100%)'},
-  {key:'grad_ocean',name:'Ocean',css:'linear-gradient(180deg,#667EEA 0%,#764BA2 100%)'},
-  {key:'grad_peach',name:'Peach',css:'linear-gradient(180deg,#FFECD2 0%,#FCB69F 100%)'},
-  {key:'grad_frost',name:'Frost',css:'linear-gradient(180deg,#E0EAFC 0%,#CFDEF3 100%)'},
-  {key:'grad_rose',name:'Rose',css:'linear-gradient(180deg,#FAD0C4 0%,#FFD1FF 100%)'},
-  {key:'grad_stone',name:'Stone',css:'linear-gradient(180deg,#D7DDE8 0%,#C4CCD8 100%)'}
-];
-
-function $(id){return document.getElementById(id)}
-
-/* ══════════ BOOT ══════════ */
-async function boot(){
-  try{
-    // Try unified options endpoint first (fast, single call)
-    var r=await fetch(API+'/options');
-    if(r.ok){
-      var j=await r.json();
-      if(j.ok){
-        TD=j.templates||[];
-        CD.male=j.clothing&&j.clothing.male?j.clothing.male:[];
-        CD.female=j.clothing&&j.clothing.female?j.clothing.female:[];
-        BD=j.backgrounds||[];
-      }
-    }
-    // Fallback: load individually
-    if(!TD.length||(!CD.male.length&&!CD.female.length)){
-      var m=await fetch(API+'/clothing?gender=male');var mj=await m.json();CD.male=mj.options||mj;
-      var f=await fetch(API+'/clothing?gender=female');var fj=await f.json();CD.female=fj.options||fj;
-      var b=await fetch(API+'/backgrounds');var bj=await b.json();BD=bj.options||bj;
-      var t=await fetch(API+'/templates');var tj=await t.json();TD=tj.templates||tj;
-    }
-  }catch(e){console.error('Load data error:',e)}
-  renderCountry();renderGenderTabs();renderClothes();renderBG();
-  setMaxStep(0);
-  // Set Thai as default if available
-  if(TD.length){
-    var found=TD.filter(function(t){return t.code==='thai_passport'});
-    if(found.length){S.tpl='thai_passport';$('cs').value='thai_passport'}
-  }
-}
-
-/* ══════════ STEP NAV ══════════ */
-var MAX_STEP=0; // highest reachable step (0=upload only)
-function goStep(i){
-  // Lock: cannot jump to step 2 without photo, step 3 without result
-  if(i>MAX_STEP)return;
-  if(i===2&&!S.sid){toast('Generate a photo first','err');return}
-  var panes=document.querySelectorAll('.pane');
-  for(var p=0;p<panes.length;p++)panes[p].classList.remove('act');
-  $('pane'+i).classList.add('act');
-  var steps=document.querySelectorAll('.step');
-  for(var s=0;s<steps.length;s++){
-    var idx=parseInt(steps[s].dataset.idx);
-    steps[s].classList.remove('active','done','locked');
-    if(idx<i)steps[s].classList.add('done');
-    if(idx===i)steps[s].classList.add('active');
-    if(idx>MAX_STEP)steps[s].classList.add('locked');
-    $('sn'+idx).textContent=idx<i?'✓':(idx+1);
-  }
-  for(var l=0;l<2;l++){
-    var line=$('sl'+l);
-    if(line){line.className='step-line'+(l<i?' done':'');}
-  }
-  window.scrollTo(0,0);
-}
-function setMaxStep(i){
-  if(i>MAX_STEP)MAX_STEP=i;
-  // Refresh stepper lock states
-  var steps=document.querySelectorAll('.step');
-  for(var s=0;s<steps.length;s++){
-    var idx=parseInt(steps[s].dataset.idx);
-    steps[s].classList.toggle('locked',idx>MAX_STEP);
-  }
-}
-
-/* ══════════ UPLOAD ══════════ */
-function pickFile(multi){
-  var fi=$('fi');
-  fi.multiple=!!multi;
-  fi.click();
-}
-$('fi').addEventListener('change',function(e){handleFiles(e.target.files)});
-$('drop').addEventListener('click',function(e){if(e.target.id==='next0')return;if(e.target.closest('button'))return;$('fi').click()});
-$('drop').addEventListener('dragover',function(e){e.preventDefault();e.stopPropagation()});
-$('drop').addEventListener('drop',function(e){e.preventDefault();e.stopPropagation();handleFiles(e.dataTransfer.files)});
-
-function handleFiles(files){
-  if(!files||!files.length)return;
-  var a=[];for(var i=0;i<files.length;i++){if(files[i].type.startsWith('image/'))a.push(files[i])}
-  if(!a.length){showErr('No valid images found. Please upload JPG or PNG.');return}
-  hideErr();
-  if(a.length===1){S.photo=a[0];S.photos=[a[0]];S.bulk=false}
-  else{S.photos=a.slice(0,20);S.photo=a[0];S.bulk=true}
-  showUploaded();detectGender();
-  $('next0').disabled=false;
-  setMaxStep(1);
-}
-
-function showUploaded(){
-  var z=$('drop'),up=$('uploaded');
-  z.classList.add('hidden');
-  up.classList.remove('hidden');
-  $('upThumb').src=URL.createObjectURL(S.photo);
-  $('upName').textContent=S.photo.name;
-  $('upMeta').textContent=S.bulk?(S.photos.length+' photos · '+(S.photo.size/1024).toFixed(0)+' KB'):((S.photo.size/1024).toFixed(0)+' KB');
-  $('upGender').style.display='none';
-  if(S.photos.length>1){
-    var h='';
-    for(var i=0;i<Math.min(8,S.photos.length);i++){
-      h+='<div style="flex:0 0 52px;aspect-ratio:3/4;border-radius:6px;overflow:hidden;border:2px solid #e2e8f0"><img src="'+URL.createObjectURL(S.photos[i])+'" style="width:100%;height:100%;object-fit:cover"></div>';
-    }
-    if(S.photos.length>8)h+='<div style="flex:0 0 52px;aspect-ratio:3/4;border-radius:6px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:700;color:#94a3b8">+'+(S.photos.length-8)+'</div>';
-    $('multiPreview').innerHTML=h;
-  }else{
-    $('multiPreview').innerHTML='';
-  }
-  updatePreview();
-}
-
-function updatePreview(){
-  if(!S.photo){$('pvBox').innerHTML='<div class="ph">Preview appears here</div>';return}
-  $('pvBox').innerHTML='<img src="'+URL.createObjectURL(S.photo)+'">';
-}
-
-async function detectGender(){
-  if(!S.photo)return;
-  try{
-    var b=await toB64(S.photo);
-    var fd=new FormData();fd.append('image_base64',b);
-    var r=await fetch(API+'/detect-gender',{method:'POST',body:fd});
-    var d=await r.json();
-    if(d.ok&&d.gender&&d.gender!=='unknown'){
-      S.gender=d.gender;
-      S.clothing=S.gender==='male'?'keep_original':'keep_original';
-      $('upGender').style.display='inline-flex';
-      $('upGender').textContent=(S.gender==='male'?'👨':'👩')+' '+S.gender+(d.confidence?(' · '+Math.round(d.confidence*100)+'%'):'');
-      renderGenderTabs();renderClothes();
-    }
-  }catch(e){console.error('detectGender:',e)}
-}
-
-/* ══════════ COUNTRY ══════════ */
-function renderCountry(){
-  var h='';
-  for(var i=0;i<TD.length;i++){
-    var t=TD[i],f=FLAGS[t.country]||'';
-    h+='<option value="'+t.code+'"'+(t.code===S.tpl?' selected':'')+'>'+f+' '+t.name+' ('+t.width_mm+'×'+t.height_mm+'mm)</option>';
-  }
-  $('cs').innerHTML=h;
-}
-$('cs').addEventListener('change',function(){S.tpl=this.value;S.cw=null;S.ch=null});
-function setCustom(){
-  var w=parseInt($('cw').value),ht=parseInt($('ch').value);
-  if(w>0&&ht>0){S.cw=w;S.ch=ht;S.tpl='custom';$('cs').value='';toast(w+'×'+ht+'mm set','')}
-}
-
-/* ══════════ CLOTHING ══════════ */
-function renderGenderTabs(){
-  var h='<button class="gtab'+(S.gender==='male'?' active':'')+'" data-g="male" onclick="setGender(\'male\')">👨 Men</button>';
-  h+='<button class="gtab'+(S.gender==='female'?' active':'')+'" data-g="female" onclick="setGender(\'female\')">👩 Women</button>';
-  $('gt').innerHTML=h;
-}
-function setGender(g){
-  S.gender=g;
-  S.clothing='keep_original';
-  renderGenderTabs();renderClothes();
-}
-function renderClothes(){
-  var d=S.gender==='male'?CD.male:CD.female;
-  if(!d||!d.length){$('cl').innerHTML='<div style="padding:12px;color:#94a3b8;font-size:.72rem">No data</div>';return}
-  var h='';
-  // Custom clothing upload card (always first)
-  h+='<div class="citem'+(S.customClothing?' on':'')+'" data-k="__custom__" onclick="pickCustomClothing()" style="border-style:dashed;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#fafbff">';
-  h+='<div style="font-size:20px;color:#6366f1;margin-top:18px">👚</div>';
-  h+='<div class="lb" style="color:#6366f1;font-weight:700">เพิ่มชุดเอง</div>';
-  if(S.customClothing){
-    h+='<img src="'+S.customClothingUrl+'" style="width:100%;height:60px;object-fit:cover;border-radius:0 0 8px 8px;margin-top:auto">';
-  }
-  h+='<div class="ck">✓</div></div>';
-  for(var i=0;i<d.length;i++){
-    var c=d[i];
-    h+='<div class="citem'+(c.key===S.clothing?' on':'')+'" data-k="'+c.key+'" onclick="setClothes(\''+c.key+'\')">';
-    h+='<img src="/img/clothing/'+S.gender+'/'+c.key+'.png" loading="lazy" onerror="this.style.background=\'#f1f5f9\'">';
-    h+='<div class="lb">'+c.name+'</div>';
-    h+='<div class="ck">✓</div></div>';
-  }
-  $('cl').innerHTML=h;
-}
-function pickCustomClothing(){
-  var inp=document.createElement('input');
-  inp.type='file';inp.accept='image/jpeg,image/png';
-  inp.onchange=function(){
-    var f=inp.files&&inp.files[0];
-    if(!f)return;
-    S.customClothing=f;
-    S.customClothingUrl=URL.createObjectURL(f);
-    S.customClothingName=f.name;
-    S.clothing='__custom__';
-    toast('👚 ใส่ชุดนี้ให้','');
-    renderClothes();
-  };
-  inp.click();
-}
-function setClothes(k){
-  S.clothing=k;
-  if(k==='__custom__'){pickCustomClothing();return}
-  if(k!=='__custom__'){/* keep S.customClothing so user can toggle back */}
-  var items=$('cl').querySelectorAll('.citem');
-  for(var j=0;j<items.length;j++)items[j].classList.remove('on');
-  var el=$('cl').querySelector('.citem[data-k="'+k+'"]');
-  if(el)el.classList.add('on');
-}
-function scrollCar(id,dir){
-  var el=$(id);if(!el)return;
-  el.scrollBy({left:dir*160,behavior:'smooth'});
-}
-
-/* ══════════ BACKGROUND ══════════ */
-function setBgMode(m){
-  S.bgType=m;
-  var tabs=$('bgModeTabs').querySelectorAll('.mtab');
-  for(var i=0;i<tabs.length;i++){
-    tabs[i].classList.toggle('active',tabs[i].dataset.m===m);
-  }
-  $('bgr').classList.toggle('hidden',m!=='solid');
-  $('grr').classList.toggle('hidden',m!=='gradient');
-}
-function renderBG(){
-  var h='';
-  for(var i=0;i<SOLID_COLORS.length;i++){
-    var b=SOLID_COLORS[i];
-    h+='<div class="bgd'+(b.key===S.bg?' on':'')+'" style="background:'+(b.hex||'#ccc')+'" data-k="'+b.key+'" data-hex="'+b.hex+'" title="'+b.name+'" onclick="setBg(\''+b.key+'\')"></div>';
-  }
-  h+='<div class="cwrap"><div class="bgd cust" title="Custom Color">+</div><input type="color" value="#C4DCFF" onchange="setBgCustom(this.value)"></div>';
-  $('bgr').innerHTML=h;
-  var gh='';
-  for(var g=0;g<GRADIENTS.length;g++){
-    var gr=GRADIENTS[g];
-    gh+='<div class="grad-item'+(S.bg===gr.key?' on':'')+'" data-k="'+gr.key+'" data-css="'+gr.css+'" style="background:'+gr.css+'" title="'+gr.name+'" onclick="setBgGrad(\''+gr.key+'\',\''+gr.css+'\')"></div>';
-  }
-  $('grr').innerHTML=gh;
-}
-function setBg(k){
-  S.bg=k;S.bgc=null;S.gradient=null;
-  var dots=$('bgr').querySelectorAll('.bgd');
-  for(var i=0;i<dots.length;i++)dots[i].classList.remove('on');
-  var el=$('bgr').querySelector('.bgd[data-k="'+k+'"]');
-  if(el)el.classList.add('on');
-  document.querySelectorAll('.grad-item').forEach(function(g){g.classList.remove('on')});
-}
-function setBgCustom(v){
-  S.bgc=v;S.bg='custom';S.gradient=null;
-  var dots=$('bgr').querySelectorAll('.bgd');
-  for(var i=0;i<dots.length;i++)dots[i].classList.remove('on');
-  document.querySelectorAll('.grad-item').forEach(function(g){g.classList.remove('on')});
-}
-function setBgGrad(k,css){
-  S.bg=k;S.bgType='gradient';S.gradient=css;S.bgc=null;
-  document.querySelectorAll('.grad-item').forEach(function(g){g.classList.remove('on')});
-  var el=$('grr').querySelector('.grad-item[data-k="'+k+'"]');
-  if(el)el.classList.add('on');
-  var dots=$('bgr').querySelectorAll('.bgd');
-  for(var i=0;i<dots.length;i++)dots[i].classList.remove('on');
-}
-
-/* ══════════ CROP ══════════ */
-function setCrop(p){
-  S.cropPreset=p;
-  var opts=document.querySelectorAll('.crop-opt');
-  for(var i=0;i<opts.length;i++)opts[i].classList.toggle('active',opts[i].dataset.preset===p);
-}
-
-/* ══════════ GENERATE ══════════ */
-async function generate(){
-  if(!S.photo){toast('Please upload a photo first','err');return}
-  if(S.bulk&&S.photos.length>1)return genBulk();
-  showOv('Generating your passport photo...','This takes ~10 seconds');
-  try{
-    var b=await toB64(S.photo);
-    var body={image_base64:b,template_code:S.tpl,gender:S.gender,clothing:S.clothing,background:S.bg,strength:0.45,crop_preset:S.cropPreset,bg_type:S.bgType||'solid',
-      print_size:$('ps').value,photo_count:parseInt($('pc').value)||6,border:$('bt').value,blade_mode:$('bm').checked,
-      gap_mm:parseFloat($('pgap').value)||2,border_color:'#FFFFFF',border_width_mm:parseFloat($('bwmm').value)||0};
-    if(S.bgc)body.background_color=S.bgc;
-    if(S.gradient)body.background_gradient=S.gradient;
-    if(S.cw&&S.ch){body.custom_width=S.cw;body.custom_height=S.ch}
-    if(S.customClothing){body.custom_clothing_base64=await toB64(S.customClothing)}
-    var r=await fetch(API+'/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-    var d=await r.json();
-    if(!d.ok)throw new Error(d.detail||'Generation failed');
-    S.sid=d.session_id;
-    setMaxStep(2);
-    showResult(d);
-  }catch(e){
-    console.error(e);
-    toast('Error: '+e.message,'err');
-  }finally{hideOv()}
-}
-
-async function genBulk(){
-  showOv('Generating '+S.photos.length+' photos...','This takes ~'+ (S.photos.length*10)+' seconds');
-  try{
-    var imgs=[];for(var i=0;i<S.photos.length;i++)imgs.push(await toB64(S.photos[i]));
-    var body={images:imgs,template_code:S.tpl,gender:S.gender,clothing:S.clothing,background:S.bg,strength:0.45,crop_preset:S.cropPreset,bg_type:S.bgType||'solid',
-      print_size:$('ps').value,photo_count:parseInt($('pc').value)||6,border:$('bt').value,blade_mode:$('bm').checked,
-      gap_mm:parseFloat($('pgap').value)||2,border_color:'#FFFFFF',border_width_mm:parseFloat($('bwmm').value)||0};
-    if(S.bgc)body.background_color=S.bgc;
-    if(S.gradient)body.background_gradient=S.gradient;
-    if(S.cw&&S.ch){body.custom_width=S.cw;body.custom_height=S.ch}
-    var r=await fetch(API+'/bulk-generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-    var d=await r.json();
-    if(!d.ok)throw new Error(d.detail||'Generation failed');
-    S.sid=d.results&&d.results[0]?d.results[0].session_id:null;
-    if(S.sid){
-      setMaxStep(2);
-      $('ri').src=API+'/download/'+S.sid+'_passport.jpg?t='+Date.now()
-    }
-    showResult(d,true);
-  }catch(e){console.error(e);toast('Error: '+e.message,'err')}finally{hideOv()}
-}
-
-function showResult(d,isBulk){
-  $('resEmpty').classList.add('hidden');
-  $('resBody').classList.remove('hidden');
-  var dt=d.dimensions_px?d.dimensions_px:{};
-  var stats='';
-  stats+='<div class="rst"><div class="v">'+(d.time_seconds||'?')+'s</div><div class="l">Time</div></div>';
-  stats+='<div class="rst"><div class="v">'+(dt.w||'?')+'×'+(dt.h||'?')+'</div><div class="l">px</div></div>';
-  stats+='<div class="rst"><div class="v">'+(d.gender==='male'?'👨':d.gender==='female'?'👩':'—')+'</div><div class="l">Gender</div></div>';
-  $('rs').innerHTML=stats;
-  var imgSrc=API+'/download/'+S.sid+'_cropped.jpg?t='+Date.now();
-  $('ri').src=imgSrc;
-  $('pprev').classList.add('hidden');
-  // Summary
-  var tplName=S.tpl;
-  for(var i=0;i<TD.length;i++){if(TD[i].code===S.tpl)tplName=TD[i].name}
-  var sum='';
-  sum+='<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f1f5f9"><span style="color:#94a3b8">Size</span><b>'+(tplName||'Custom')+'</b></div>';
-  sum+='<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f1f5f9"><span style="color:#94a3b8">Paper</span><b>'+$('ps').value+'</b></div>';
-  sum+='<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f1f5f9"><span style="color:#94a3b8">Count</span><b>'+($('pc').value||6)+'</b></div>';
-  sum+='<div style="display:flex;justify-content:space-between;padding:6px 0"><span style="color:#94a3b8">Background</span><b>'+(S.gradient?'Gradient':(S.bgc||S.bg))+'</b></div>';
-  $('sumBody').innerHTML=sum;
-  goStep(2);
-  showCustomizePanel();
-  toast('Done! Photo ready 🎉');
-}
-
-function showPrintPreview(){
-  var pv=$('pprev'),grid=$('ppGrid');
-  if(!pv.classList.contains('hidden')){pv.classList.add('hidden');return}
-  // Load print sheet as preview grid
-  grid.innerHTML='';
-  var img=new Image();
-  img.src=API+'/download/'+S.sid+'_print.jpg?t='+Date.now();
-  img.onload=function(){
-    // Estimate grid from print size
-    var cols=2,rows=3;
-    if($('ps').value==='4x6'){cols=2;rows=3}
-    else if($('ps').value==='5x7'){cols=2;rows=2}
-    else{cols=3;rows=4}
-    var h='';
-    for(var i=0;i<cols*rows;i++){
-      h+='<div class="pp-cell"><img src="'+img.src+'"></div>';
-    }
-    grid.style.gridTemplateColumns='repeat('+cols+',1fr)';
-    grid.innerHTML=h;
-  };
-  pv.classList.remove('hidden');
-}
-
-function dl(t){
-  if(!S.sid)return;
-  if(t==='print'){
-    // Try print sheet, fall back to passport
-    var a=document.createElement('a');
-    a.href=API+'/download/'+S.sid+'_print.jpg';
-    a.download='passport_print_sheet.jpg';
-    a.click();
-  }else{
-    var b=document.createElement('a');
-    b.href=API+'/download/'+S.sid+'_passport.jpg';
-    b.download='passport_photo.jpg';
-    b.click();
-  }
-}
-
-function newPhoto(){
-  clearAll();
-  goStep(0);
-}
-
-function clearAll(){
-  S.photo=null;S.photos=[];S.bulk=false;S.sid=null;
-  S.customClothing=null;S.customClothingUrl=null;S.customClothingName=null;
-  MAX_STEP=0;
-  $('fi').value='';
-  $('drop').classList.remove('hidden');
-  $('uploaded').classList.add('hidden');
-  $('upErr').classList.add('hidden');
-  $('next0').disabled=true;
-  $('resEmpty').classList.remove('hidden');
-  $('resBody').classList.add('hidden');
-  updatePreview();
-  goStep(0);
-}
-
-/* ══════════ UTILS ══════════ */
-function toB64(f){return new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(r.result.split(',')[1])};r.onerror=rej;r.readAsDataURL(f)})}
-function showOv(t,s){$('ovt').textContent=t;$('ovs').textContent=s||'';$('ov').classList.add('show')}
-function hideOv(){$('ov').classList.remove('show')}
-function showErr(m){var e=$('upErr');e.textContent=m;e.classList.remove('hidden')}
-function hideErr(){$('upErr').classList.add('hidden')}
-var tt;function toast(m,t){clearTimeout(tt);var e=$('toast');e.className='toast show '+(t||'');e.textContent=m;tt=setTimeout(function(){e.classList.remove('show')},3000)}
-
-boot();
-
-/* ══════════ CUSTOMIZE AFTER GENERATE ══════════ */
-// State (extends existing S object)
-S.bgColor = '#C4DCFF';
-S.cutBg = true;
-S.photoSize = '35x45';
-S.customW = null;
-S.customH = null;
-S.count = 6;
-S.paperSize = '4x6';
-
-function showCustomizePanel() {
-  if (!S.sid) {
-    toast('Generate first', 'err');
-    return;
-  }
-  var panel = $('customizePanel');
-  if (panel) panel.classList.remove('hidden');
-}
-
-async function applyBG() {
-  if (!S.sid) {
-    toast('Generate first', 'err');
-    return;
-  }
-  var color = $('bgColorPick').value || '#C4DCFF';
-  var cutEnabled = $('cutBg').checked;
-
-  showOv(cutEnabled ? '✂️ Cutting BG + applying color...' : '🎨 Applying color...', S.cutBg ? '$0.0025' : 'free');
-
-  try {
-    var payload = { session_id: S.sid, background_color: color };
-    if (cutEnabled) {
-      // Use /remove-bg endpoint
-      var resp = await fetch(API + '/remove-bg', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      var d = await resp.json();
-      if (!d.ok) {
-        hideOv();
-        toast('BG remove failed', 'err');
-        return;
-      }
-      var url = window.location.origin + d.download_bg + '?t=' + Date.now();
-      // Update preview image
-      var previewImg = $('custPreviewImg');
-      var previewWrap = $('custPreviewWrap');
-      previewImg.src = url;
-      previewWrap.classList.remove('hidden');
-      $('custPreviewInfo').textContent = 'Color: ' + color + (cutEnabled ? ' • BG cut' : ' • BG replaced');
-
-      // Also refresh main result
-      $('ri').src = url;
-      toast('✅ BG updated');
-    } else {
-      // Just render with custom bg color via existing flow
-      // (Could call /generate again, but that calls AI - skip per spec)
-      toast('🎨 Color set to ' + color + ' (apply via regenerate)', 'ok');
-    }
-  } catch (e) {
-    toast('Error: ' + e.message, 'err');
-  } finally {
-    hideOv();
-  }
-}
-
-function setCustomBG(color, btn) {
-  S.bgColor = color || '';
-  var all = document.querySelectorAll('.bg-p');
-  for (var i = 0; i < all.length; i++) all[i].classList.remove('active');
-  if (btn) btn.classList.add('active');
-  if (color) $('bgColorPick').value = color;
-}
-
-function setCustomSize(w, h, btn) {
-  S.customW = w;
-  S.customH = h;
-  S.photoSize = w + 'x' + h;
-  var all = document.querySelectorAll('.sz-p');
-  for (var i = 0; i < all.length; i++) all[i].classList.remove('active');
-  if (btn) btn.classList.add('active');
-  $('customW').value = w;
-  $('customH').value = h;
-}
-
-async function applySize() {
-  if (!S.sid) {
-    toast('Generate first', 'err');
-    return;
-  }
-  var w = parseFloat($('customW').value);
-  var h = parseFloat($('customH').value);
-  if (!w || !h || w < 10 || h < 10) {
-    toast('Size 10–200 mm', 'err');
-    return;
-  }
-  showOv('📐 Cropping to ' + w + '×' + h + 'mm...', 'cache hit');
-  try {
-    // Try /recrop endpoint first (for cache hit on existing session)
-    var resp = await fetch(API + '/recrop', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        session_id: S.sid,
-        template_code: 'custom',
-        target_w_mm: w,
-        target_h_mm: h,
-      }),
-    });
-    var d = await resp.json();
-    if (d.ok) {
-      S.customW = w;
-      S.customH = h;
-      var url = window.location.origin + d.download_url + '?t=' + Date.now();
-      $('custPreviewImg').src = url;
-      $('custPreviewWrap').classList.remove('hidden');
-      $('custPreviewInfo').textContent = '✅ Cropped: ' + w + '×' + h + 'mm';
-      // Also update main result
-      $('ri').src = url;
-      toast('✅ Size updated');
-    } else {
-      toast(d.error || 'Crop failed', 'err');
-    }
-  } catch (e) {
-    toast('Error: ' + e.message, 'err');
-  } finally {
-    hideOv();
-  }
-}
-
-function setCount(n, btn) {
-  S.count = n;
-  var all = document.querySelectorAll('.cnt-p');
-  for (var i = 0; i < all.length; i++) all[i].classList.remove('active');
-  if (btn) btn.classList.add('active');
-  $('customCount').value = n;
-}
-
-function setPaper(p, btn) {
-  S.paperSize = p;
-  var all = document.querySelectorAll('.pap-p');
-  for (var i = 0; i < all.length; i++) all[i].classList.remove('active');
-  if (btn) btn.classList.add('active');
-}
-
-async function genPrintSheet() {
-  if (!S.sid) {
-    toast('Generate first', 'err');
-    return;
-  }
-  var count = parseInt($('customCount').value) || S.count || 6;
-  var paper = S.paperSize || '4x6';
-  var w = S.customW || 35;
-  var h = S.customH || 45;
-  var borderMm = parseFloat($('bwmm') ? $('bwmm').value : 0) || 0;
-  var blade = $('bm') ? $('bm').checked : false;
-  var photoSizeCode = (w == 35 && h == 45) ? 'passport' : (w + 'x' + h);
-
-  showOv('🖨️ Building print sheet...', count + ' photos on ' + paper);
-
-  try {
-    var resp = await fetch(API + '/print-sheet', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        session_id: S.sid,
-        print_size: paper,
-        photo_size: photoSizeCode,
-        photo_count: count,
-        border: 'frame',
-        blade_mode: blade,
-        gap_mm: 2.0,
-        border_color: '#FFFFFF',
-        border_width_mm: borderMm,
-      }),
-    });
-    var d = await resp.json();
-    if (!d.ok) {
-      hideOv();
-      toast('Print sheet failed', 'err');
-      return;
-    }
-    var url = window.location.origin + d.download_url + '?t=' + Date.now();
-    // Update preview img
-    $('custPreviewImg').src = url;
-    $('custPreviewWrap').classList.remove('hidden');
-    var info = d.info || {};
-    $('custPreviewInfo').innerHTML =
-      '✅ <b>' + (info.count || count) + ' photos</b> on <b>' + (info.sheets || 1) + ' sheet' + ((info.sheets || 1) > 1 ? 's' : '') + '</b> ' +
-      (paper + ' • ' + (info.photo_mm ? info.photo_mm.w.toFixed(0) + '×' + info.photo_mm.h.toFixed(0) + 'mm' : ''));
-
-    // Save to storage URL for downloads
-    S.lastSheetUrl = url;
-    toast('✅ Print sheet ready');
-  } catch (e) {
-    toast('Error: ' + e.message, 'err');
-  } finally {
-    hideOv();
-  }
-}
-
-async function dlTransparent() {
-  if (!S.sid) {
-    toast('Generate first', 'err');
-    return;
-  }
-  showOv('💎 Generating transparent PNG...', '$0.0025');
-  try {
-    // First ensure we have transparent.png — call /remove-bg with no color
-    var resp = await fetch(API + '/remove-bg', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        session_id: S.sid,
-        background_color: '#FFFFFF',
-      }),
-    });
-    var d = await resp.json();
-    if (!d.ok) {
-      hideOv();
-      toast('Failed to cut BG', 'err');
-      return;
-    }
-    var url = window.location.origin + d.download_transparent + '?t=' + Date.now();
-    // Auto-download
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = 'passport_' + S.sid + '_transparent.png';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    toast('💎 Transparent PNG saved');
-  } catch (e) {
-    toast('Error: ' + e.message, 'err');
-  } finally {
-    hideOv();
-  }
-}
-</script>
 <div class="bnav"><a href="/" class="active"><svg viewBox="0 0 24 24"><path d="M3 12l9-8 9 8"/><path d="M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9"/></svg>Home</a><a href="/gallery.html"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>Gallery</a><a href="/print.html"><svg viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print</a></div>
+
+<script src="app.js"></script>
 </body>
 </html>

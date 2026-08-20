@@ -43,6 +43,8 @@ function goOptions(){
   if(!S.photo){toast('Upload a photo first','err');return}
   $('tabOptions').classList.remove('disabled');
   switchTab(1);
+  // Enable Generate if clothing is already selected (keep_original is default)
+  if(S.clothing){$('genBtn').disabled=false}
 }
 
 /* ══════════ BOOT ══════════ */
@@ -57,14 +59,17 @@ async function boot(){
         CD.female=j.clothing&&j.clothing.female?j.clothing.female:[];
         BD=j.backgrounds||[];
       }
+    }else{
+      console.error('OPTIONS failed: HTTP',r.status);
+      toast('⚠️ Server connection failed','err');
     }
     if(!TD.length||(!CD.male.length&&!CD.female.length)){
-      var m=await fetch(API+'/clothing?gender=male');var mj=await m.json();CD.male=mj.options||mj;
-      var f=await fetch(API+'/clothing?gender=female');var fj=await f.json();CD.female=fj.options||fj;
-      var b=await fetch(API+'/backgrounds');var bj=await b.json();BD=bj.options||bj;
-      var t=await fetch(API+'/templates');var tj=await t.json();TD=tj.templates||tj;
+      try{var m=await fetch(API+'/clothing?gender=male');var mj=await m.json();CD.male=mj.options||mj}catch(e){}
+      try{var f=await fetch(API+'/clothing?gender=female');var fj=await f.json();CD.female=fj.options||fj}catch(e){}
+      try{var b=await fetch(API+'/backgrounds');var bj=await b.json();BD=bj.options||bj}catch(e){}
+      try{var t=await fetch(API+'/templates');var tj=await t.json();TD=tj.templates||tj}catch(e){}
     }
-  }catch(e){console.error('Load data error:',e)}
+  }catch(e){console.error('Load data error:',e);toast('⚠️ Cannot connect to server','err')}
   renderCountry();renderGenderTabs();renderClothes();renderBG();
   if(TD.length){
     var found=TD.filter(function(t){return t.code==='thai_passport'});
@@ -151,6 +156,7 @@ function renderGenderTabs(){
 function setGender(g){
   S.gender=g;S.clothing='keep_original';
   renderGenderTabs();renderClothes();
+  $('genBtn').disabled=false;
 }
 function renderClothes(){
   var d=S.gender==='male'?CD.male:CD.female;
@@ -190,7 +196,7 @@ function setClothes(k){
   if(el)el.classList.add('on');
   $('genBtn').disabled=false;
 }
-function scrollCar(id,dir){var el=$(id);if(!el)el.scrollBy({left:dir*160,behavior:'smooth'})}
+function scrollCar(id,dir){var el=$(id);if(!el)return;el.scrollBy({left:dir*160,behavior:'smooth'})}
 
 /* ══════════ BACKGROUND ══════════ */
 function renderBG(){
@@ -229,11 +235,12 @@ async function generate(){
     if(S.cw&&S.ch){body.custom_width=S.cw;body.custom_height=S.ch}
     if(S.customClothing){body.custom_clothing_base64=await toB64(S.customClothing)}
     var r=await fetch(API+'/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(!r.ok){var errText=await r.text();throw new Error('Server error '+r.status+': '+errText)}
     var d=await r.json();
-    if(!d.ok)throw new Error(d.detail||'Generation failed');
+    if(!d.ok)throw new Error(d.detail||d.error||'Generation failed');
     S.sid=d.session_id;
     showResult(d);
-  }catch(e){console.error(e);toast('Error: '+e.message,'err')}finally{hideOv()}
+  }catch(e){console.error('generate error:',e);toast('Error: '+e.message,'err')}finally{hideOv()}
 }
 
 async function genBulk(){
@@ -245,12 +252,14 @@ async function genBulk(){
     if(S.gradient)body.background_gradient=S.gradient;
     if(S.cw&&S.ch){body.custom_width=S.cw;body.custom_height=S.ch}
     var r=await fetch(API+'/bulk-generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(!r.ok){var errText=await r.text();throw new Error('Server error '+r.status+': '+errText)}
     var d=await r.json();
-    if(!d.ok)throw new Error(d.detail||'Generation failed');
+    if(!d.ok)throw new Error(d.detail||d.error||'Generation failed');
+    S.bulkResults=d.results||[];
     S.sid=d.results&&d.results[0]?d.results[0].session_id:null;
     if(S.sid)$('ri').src=API+'/download/'+S.sid+'_passport.jpg?t='+Date.now();
     showResult(d,true);
-  }catch(e){console.error(e);toast('Error: '+e.message,'err')}finally{hideOv()}
+  }catch(e){console.error('genBulk error:',e);toast('Error: '+e.message,'err')}finally{hideOv()}
 }
 
 function showResult(d,isBulk){
@@ -259,11 +268,25 @@ function showResult(d,isBulk){
   stats+='<div class="rst"><div class="v">'+(d.time_seconds||'?')+'s</div><div class="l">Time</div></div>';
   stats+='<div class="rst"><div class="v">'+(dt.w||'?')+'×'+(dt.h||'?')+'</div><div class="l">px</div></div>';
   stats+='<div class="rst"><div class="v">'+(d.gender==='male'?'👨':d.gender==='female'?'👩':'—')+'</div><div class="l">Gender</div></div>';
+  if(isBulk&&d.results){
+    var okCount=d.results.filter(function(r){return r.ok}).length;
+    stats+='<div class="rst"><div class="v">'+okCount+'/'+d.results.length+'</div><div class="l">Batch</div></div>';
+  }
   $('rs').innerHTML=stats;
   $('ri').src=API+'/download/'+S.sid+'_cropped.jpg?t='+Date.now();
   $('sec2').classList.remove('hidden');
-  // Build batch preview slider
-  if(S.bulk&&S.photos.length>1){
+  // Build batch preview slider for bulk results
+  if(isBulk&&d.results&&d.results.length>1){
+    $('batchPreview').classList.remove('hidden');
+    var sh='';
+    for(var i=0;i<d.results.length;i++){
+      var res=d.results[i];
+      if(!res.ok)continue;
+      var imgUrl=(res.download_passport?location.origin+res.download_passport:API+'/download/'+res.session_id+'_passport.jpg')+'?t='+Date.now();
+      sh+='<div class="slide-item'+(res.session_id===S.sid?' active':'')+'" onclick="selectBatchResult(\''+res.session_id+'\','+i+')"><img src="'+imgUrl+'"><div class="name">Photo '+(i+1)+'</div></div>';
+    }
+    $('sliderWrap').innerHTML=sh;
+  }else if(S.bulk&&S.photos.length>1){
     $('batchPreview').classList.remove('hidden');
     var sh='';
     for(var i=0;i<S.photos.length;i++){
@@ -276,9 +299,23 @@ function showResult(d,isBulk){
   toast('Done! Photo ready 🎉');
 }
 
+function selectBatchResult(sid,idx){
+  S.sid=sid;
+  // Try _passport.jpg first (bulk uses this), fallback to _cropped.jpg
+  $('ri').src=API+'/download/'+sid+'_passport.jpg?t='+Date.now();
+  var items=document.querySelectorAll('.slide-item');
+  for(var i=0;i<items.length;i++)items[i].classList.remove('active');
+  if(items[idx])items[idx].classList.add('active');
+}
+
 function selectBatchPhoto(idx){
   if(idx<0||idx>=S.photos.length)return;
   S.photo=S.photos[idx];
+  // Also update S.sid to match this photo's result
+  if(S.bulkResults&&S.bulkResults[idx]&&S.bulkResults[idx].ok){
+    S.sid=S.bulkResults[idx].session_id;
+    $('ri').src=API+'/download/'+S.sid+'_cropped.jpg?t='+Date.now();
+  }
   var items=document.querySelectorAll('.slide-item');
   for(var i=0;i<items.length;i++)items[i].classList.toggle('active',i===idx);
 }

@@ -3250,21 +3250,59 @@ async function loadPipelineDetail(jobId) {
       scEl.innerHTML = '<span class="text-secondary" style="font-size:12px">ไม่มีข้อมูล Script</span>';
     }
 
-    // ── Prompts Section ──
+    // ── Prompts Section (FULL text + copy + expand/collapse, nothing truncated) ──
     const imgPrompt = logs.image_prompt || '';
     const vidPrompt = logs.video_prompts || '';
     const negPrompt = logs.negative_prompt || '';
+    const vpText = typeof vidPrompt === 'string' ? vidPrompt : Array.isArray(vidPrompt) ? vidPrompt.join('\n') : JSON.stringify(vidPrompt, null, 2);
     const promptEl = document.getElementById('pdPrompts');
+    const copyAllBtn = '<div class="mb-3" style="text-align:right"><button data-copy="all" class="btn btn-sm prompt-copy-btn" style="font-size:11px;padding:3px 10px">📋 คัดลอกทั้งหมด</button></div>';
+    const btnStyle = 'font-size:11px;padding:2px 8px;margin-left:6px;cursor:pointer;background:rgba(127,127,127,0.12);border:1px solid var(--border-primary);border-radius:6px;color:var(--text-primary)';
+    const hdr = (label, badgeStyle) => '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span class="badge" style="' + badgeStyle + ';font-size:10px">' + label + '</span><span style="white-space:nowrap"><button class="prompt-copy-btn sb" data-copy="__SELF__" style="' + btnStyle + '" title="คัดลอก prompt นี้">📋 คัดลอก</button><button class="prompt-toggle sb" style="' + btnStyle + '" title="แสดง/ย่อ">▶ ย่อ</button></span></div>';
+    const box = (txt, expanded) => '<div class="prompt-text" style="margin-top:6px;font-size:12.5px;color:var(--text-primary);line-height:1.55;white-space:pre-wrap;word-break:break-word;font-family:inherit;background:rgba(127,127,127,0.06);border:1px solid var(--border-primary);border-radius:8px;padding:8px 10px;max-height:' + (expanded ? '45vh' : '28vh') + ';overflow-y:auto">' + txt + '</div>';
     const pParts = [];
-    if (imgPrompt) pParts.push('<div class="mb-3"><span class="badge" style="background:rgba(99,102,241,0.1);color:var(--brand);font-size:10px">🖼 Image Prompt</span><div style="margin-top:4px;font-size:12.5px;color:var(--text-primary);line-height:1.5">' + escapeHtml(imgPrompt.slice(0, 500)) + '</div></div>');
-    if (vidPrompt) {
-      const vpText = typeof vidPrompt === 'string' ? vidPrompt : Array.isArray(vidPrompt) ? vidPrompt.join(' | ') : JSON.stringify(vidPrompt);
-      pParts.push('<div class="mb-3"><span class="badge" style="background:rgba(16,185,129,0.1);color:var(--accent-green);font-size:10px">🎬 Video Prompt</span><div style="margin-top:4px;font-size:12.5px;color:var(--text-primary);line-height:1.5">' + escapeHtml(vpText.slice(0, 500)) + '</div></div>');
-    }
-    if (negPrompt) pParts.push('<div><span class="badge badge-red" style="font-size:10px">🚫 Negative Prompt</span><div style="margin-top:4px;font-size:12.5px;color:var(--text-secondary);line-height:1.5">' + escapeHtml(negPrompt.slice(0, 300)) + '</div></div>');
+    if (imgPrompt) pParts.push('<div class="mb-3 prompt-block" data-label="🖼 Image Prompt">' + hdr('🖼 Image Prompt', 'background:rgba(99,102,241,0.1);color:var(--brand)') + box(escapeHtml(imgPrompt), true) + '</div>');
+    if (vpText) pParts.push('<div class="mb-3 prompt-block" data-label="🎬 Video Prompt">' + hdr('🎬 Video Prompt', 'background:rgba(16,185,129,0.1);color:var(--accent-green)') + box(escapeHtml(vpText), true) + '</div>');
+    if (negPrompt) pParts.push('<div class="prompt-block" data-label="🚫 Negative Prompt">' + hdr('🚫 Negative Prompt', 'background:rgba(239,68,68,0.1);color:#f87171') + box(escapeHtml(negPrompt), true) + '</div>');
     if (pParts.length) {
-      promptEl.innerHTML = pParts.join('');
+      promptEl.innerHTML = copyAllBtn + pParts.join('');
       promptsSection.style.display = 'block';
+      const blocks = promptEl.querySelectorAll('.prompt-block');
+      blocks.forEach(blk => {
+        const selfBtn = blk.querySelector('.prompt-copy-btn[data-copy="__SELF__"]');
+        if (selfBtn) selfBtn.setAttribute('data-copy', 'self');
+        const toggle = blk.querySelector('.prompt-toggle');
+        const txtEl = blk.querySelector('.prompt-text');
+        if (toggle && txtEl) {
+          txtEl.__expanded = true;
+          toggle.addEventListener('click', () => {
+            txtEl.__expanded = !txtEl.__expanded;
+            txtEl.style.maxHeight = txtEl.__expanded ? '45vh' : '28vh';
+            toggle.textContent = txtEl.__expanded ? '▶ ย่อ' : '▼ ขยาย';
+            toggle.title = txtEl.__expanded ? 'แสดง/ย่อ' : 'แสดงเต็ม';
+          });
+        }
+      });
+      promptEl.addEventListener('click', (e) => {
+        const cbtn = e.target.closest('.prompt-copy-btn');
+        if (!cbtn) return;
+        let text = '';
+        if (cbtn.dataset.copy === 'all') {
+          text = blocks.map(b => b.dataset.label + '\n' + b.querySelector('.prompt-text').innerText).join('\n\n');
+        } else {
+          const blk = cbtn.closest('.prompt-block');
+          text = (blk ? blk.dataset.label + '\n' : '') + (blk ? blk.querySelector('.prompt-text').innerText : '');
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(() => { showToast('Copied ✔'); }).catch(() => fallbackCopy(text));
+        } else { fallbackCopy(text); }
+      });
+      function fallbackCopy(txt) {
+        const ta = document.createElement('textarea');
+        ta.value = txt; document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); showToast('Copied ✔'); } catch (_) { showToast('copy ไม่ได้', 'error'); }
+        document.body.removeChild(ta);
+      }
     } else {
       promptEl.innerHTML = '<span class="text-secondary" style="font-size:12px">ไม่มีข้อมูล Prompt</span>';
     }

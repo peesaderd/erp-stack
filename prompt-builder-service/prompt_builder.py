@@ -424,20 +424,24 @@ def _clean_brand_name(product_name: str) -> str:
 def _cover_product_desc(profile: dict, product_name: str) -> str:
     """Build a cover-page product description for the triptych cover panel.
 
-    Clear "hero" wording is removed: it made the image model pick a single
-    dominant item. Keep it reference-driven: a clean commercial cover page with
-    the product(s) from the reference + brand logo — no hardcoded item count.
+    Panel 1 is a DESIGNED cover page — NOT a raw "exactly as shown in reference"
+    (that made the model cram the product photo in whole and clip the label text).
+    Tell the model to design a clean commercial cover using the brand from the
+    reference, with the product(s) placed on it as a styled studio shot.
     """
     appearance = (profile or {}).get("product_appearance", "") or ""
-    pair_desc = (
-        "the product(s) exactly as shown in the provided reference image, "
-        "rendering every item, label and variant that appears in it"
-    )
     brand = _clean_brand_name(product_name)
     logo = (
         f"a subtle '{brand}' logo and 'OFFICIAL STORE' text in the upper corner"
         if brand else
         "a subtle brand logo and 'OFFICIAL STORE' text in the upper corner"
+    )
+    # Design a cover, don't copy the reference wholesale. Reference defines the
+    # product/brand only; the model composes the layout so text stays legible.
+    pair_desc = (
+        "designed as a clean studio product cover featuring the product(s) from "
+        "the reference image (Dr.PONG-style packaging, crisp unclipped labels); "
+        "render every item, label and variant that appears, laid out neatly side by side"
     )
     return (
         f"clean professional commercial product cover page: "
@@ -495,19 +499,17 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         # in the reference image — we do NOT hardcode the item count/variants
         # (that hardcoding made Wan render two identical items). "as shown in the
         # reference image" keeps count + labels + colors from the ground truth.
+        # Compact wording (owner: too wordy) — one clean visual line.
         mid_hint = (
-            f"{model_desc} holding the product(s) exactly as shown in the reference "
-            f"image in both hands, showing all items clearly, holds product, "
-            f"showing to camera, {room_desc}"
+            f"{model_desc} holding the product(s) from the reference image, "
+            f"bottles facing the camera, {room_desc}"
         )
 
         # Panel 3 (result/end): the SAME model from panel 2 (same outfit so the
         # model stays consistent across panels), happy end, product in hand.
         result_hint = (
             f"the same {model_desc} from panel 2, wearing the same outfit as "
-            f"panel 2, smiling showing the result, "
-            f"with the product(s) exactly as shown in the reference image in hand, "
-            f"bright happy end scene"
+            f"panel 2, smiling showing a happy result, product(s) still in hand"
         )
 
         # Map recipe beats onto the three panels — but only where it fits the
@@ -628,20 +630,16 @@ def _beat_panel_hint(profile, product_name, model_desc, action, scene, panel_rol
     if panel_role == "cover":
         base = _cover_product_desc(profile, product_name)
     elif panel_role == "middle":
-        # Reference-driven (USER TEMPLATE vid_b43d89ab): model holds the product(s)
-        # EXACTLY as shown in the reference — no hardcoded item count / "all variants"
-        # (that made Wan render two identical items). Reference image names count.
+        # Reference-driven (USER TEMPLATE vid_b43d89ab). Compact wording
+        # (owner: too wordy) — one clean line, no hardcoded item count.
         base = (
-            f"{model_desc} holding the product(s) exactly as shown in the reference "
-            f"image in both hands, showing all items clearly, holds product, "
-            f"showing to camera, {scene}"
+            f"{model_desc} holding the product(s) from the reference image, "
+            f"bottles facing the camera, {scene}"
         )
     else:  # right
         base = (
             f"the same {model_desc} from panel 2, wearing the same outfit as "
-            f"panel 2, smiling showing the result, "
-            f"with the product(s) exactly as shown in the reference image in hand, "
-            f"bright happy end scene"
+            f"panel 2, smiling showing a happy result, product(s) still in hand"
         )
     return base
 

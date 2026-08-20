@@ -50,7 +50,8 @@ function hideOv(){$('ov').classList.remove('show')}
 /* ══════════ OPTIONS DATA ══════════ */
 async function loadOptions(){
   try{
-    var d=await api('/options',{});
+    var r=await fetch(API+'/options');
+    var d=await r.json();
     CD=d.clothing||{male:[],female:[]};
     BD=d.backgrounds||[];
     TD=d.templates||[];

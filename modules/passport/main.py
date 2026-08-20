@@ -94,7 +94,8 @@ def _generate_sheet(img, w_mm, h_mm, size="4x6", dpi=300, gap_mm=3.0, border="gu
 # ═══════════════════════════════════════════════════════════
 
 class GenerateRequest(BaseModel):
-    image_base64: str
+    image_base64: Optional[str] = None     # direct base64 (backward compat)
+    session_id: Optional[str] = None       # upload session (preferred)
     template_code: str = "thai_passport"
     gender: str = "auto"           # "male" | "female" | "auto"
     clothing: str = "auto"         # clothing key, "auto", or "random"
@@ -113,7 +114,8 @@ class GenerateRequest(BaseModel):
     border_width_mm: float = 3.0
 
 class BulkGenerateRequest(BaseModel):
-    images: list  # list of base64 strings
+    images: Optional[list] = None  # list of base64 strings (backward compat)
+    bulk_sessions: Optional[list] = None  # list of session_ids (preferred)
     template_code: str = "thai_passport"
     gender: str = "auto"
     clothing: str = "auto"
@@ -195,6 +197,39 @@ def list_backgrounds():
     return {"ok": True, "options": _list()}
 
 
+@app.post("/api/passport/upload")
+async def upload_photo(file: UploadFile = File(...)):
+    """Upload photo, save as session, detect gender. Returns session_id."""
+    session_id = uuid.uuid4().hex[:12]
+    img_bytes = await file.read()
+
+    # Save original
+    orig_path = STORAGE_DIR / f"{session_id}_original.jpg"
+    with open(orig_path, "wb") as f:
+        f.write(img_bytes)
+
+    # Also save as passport.jpg (used by other endpoints)
+    passport_path = STORAGE_DIR / f"{session_id}_passport.jpg"
+    with open(passport_path, "wb") as f:
+        f.write(img_bytes)
+
+    # Gender detection
+    try:
+        from gender_detector import detect_gender as _detect
+        result = _detect(img_bytes)
+        gender = result.get("gender", "male")
+    except Exception:
+        gender = "male"
+
+    logger.info(f"[{session_id}] Uploaded: {file.filename}, gender: {gender}")
+    return {
+        "ok": True,
+        "session_id": session_id,
+        "gender": gender,
+        "filename": file.filename,
+    }
+
+
 @app.post("/api/passport/preview")
 async def preview_photo(req: GenerateRequest):
     """Fast preview: client-side bg simulation is used for instant feedback; this endpoint
@@ -265,11 +300,23 @@ async def generate_passport_v2(req: GenerateRequest):
     if not template_info:
         raise HTTPException(404, f"Template '{req.template_code}' not found")
 
-    # Decode image
-    try:
-        img_bytes = base64.b64decode(req.image_base64)
-    except Exception:
-        raise HTTPException(400, "Invalid base64")
+    # Decode image — support both session_id (file) and image_base64
+    if req.session_id:
+        src_path = STORAGE_DIR / f"{req.session_id}_original.jpg"
+        if not src_path.exists():
+            src_path = STORAGE_DIR / f"{req.session_id}_passport.jpg"
+        if not src_path.exists():
+            raise HTTPException(404, f"Session not found: {req.session_id}")
+        with open(src_path, "rb") as f:
+            img_bytes = f.read()
+        session_id = req.session_id  # reuse existing session
+    elif req.image_base64:
+        try:
+            img_bytes = base64.b64decode(req.image_base64)
+        except Exception:
+            raise HTTPException(400, "Invalid base64")
+    else:
+        raise HTTPException(400, "Provide session_id or image_base64")
 
     # Gender detection
     gender = req.gender
@@ -704,9 +751,11 @@ async def bulk_generate(req: BulkGenerateRequest):
     from clothing import get_clothing, get_background
     from print_sheet import generate_print_sheet
 
-    if not req.images:
+    if not req.images and not req.bulk_sessions:
         raise HTTPException(400, "No images provided")
-    if len(req.images) > 20:
+    if req.images and len(req.images) > 20:
+        raise HTTPException(400, "Max 20 images per batch")
+    if req.bulk_sessions and len(req.bulk_sessions) > 20:
         raise HTTPException(400, "Max 20 images per batch")
 
     engine = _get_template_engine()
@@ -718,15 +767,28 @@ async def bulk_generate(req: BulkGenerateRequest):
     results = []
     total_t0 = time.time()
 
-    for i, img_b64 in enumerate(req.images):
-        batch_id = uuid.uuid4().hex[:12]
-        t0 = time.time()
-        logger.info(f"[BULK {i+1}/{len(req.images)}] Processing...")
+    # Build image list: from bulk_sessions or images
+    image_list = []
+    if req.bulk_sessions:
+        for sid in req.bulk_sessions:
+            src_path = STORAGE_DIR / f"{sid}_original.jpg"
+            if not src_path.exists():
+                src_path = STORAGE_DIR / f"{sid}_passport.jpg"
+            if src_path.exists():
+                with open(src_path, "rb") as f:
+                    image_list.append((sid, f.read()))
+            else:
+                image_list.append((sid, None))
+    elif req.images:
+        for i, img_b64 in enumerate(req.images):
+            try:
+                image_list.append((uuid.uuid4().hex[:12], base64.b64decode(img_b64)))
+            except Exception:
+                image_list.append((uuid.uuid4().hex[:12], None))
 
-        try:
-            img_bytes = base64.b64decode(img_b64)
-        except Exception:
-            results.append({"ok": False, "index": i, "error": "Invalid base64"})
+    for idx, (sid, img_bytes) in enumerate(image_list):
+        if img_bytes is None:
+            results.append({"ok": False, "index": idx, "error": "Image not found"})
             continue
 
         # Gender detection
@@ -748,13 +810,13 @@ async def bulk_generate(req: BulkGenerateRequest):
         )
 
         if not result["ok"]:
-            results.append({"ok": False, "index": i, "error": result.get("error", "Failed")})
+            results.append({"ok": False, "index": idx, "error": result.get("error", "Failed")})
             continue
 
         # Save raw FLUX output (large, uncropped)
         out_img = result["result"]
         out_bytes = _encode_image(out_img)
-        out_path = STORAGE_DIR / f"{batch_id}_passport.jpg"
+        out_path = STORAGE_DIR / f"{sid}_passport.jpg"
         with open(out_path, "wb") as f:
             f.write(out_bytes)
 
@@ -764,9 +826,9 @@ async def bulk_generate(req: BulkGenerateRequest):
         elapsed = round(time.time() - t0, 1)
         results.append({
             "ok": True,
-            "index": i,
-            "session_id": batch_id,
-            "download_passport": f"/api/passport/download/{batch_id}_passport.jpg",
+            "index": idx,
+            "session_id": sid,
+            "download_passport": f"/api/passport/download/{sid}_passport.jpg",
             "download_print": print_url,
             "gender": gender,
             "clothing": clothing["name"],

@@ -25,6 +25,7 @@ from persona_engine import (
     PERSONA_TEMPLATES, _select_persona, _apply_persona_to_profile,
 )
 from router_agent import router_decide
+from ugc_config import UGC_STYLES
 
 logger = logging.getLogger("prompt-builder-service")
 
@@ -527,8 +528,6 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     )
 
     if use_triptych:
-        beat_ids = [s.get("id", "").lower() for s in scenes]
-
         # Panel 1 (cover): designed from the reference product image — let the
         # image model compose the cover itself (no hardcoded count).
         cover_hint = _cover_product_desc(profile, product_name)
@@ -565,9 +564,21 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         # the SSOT Library (outfit + result_focus + expression + product_placement),
         # which is richer + product-specific than the generic "cta" beat hint — so we
         # do NOT let the cta beat override it. Only middle panel reads beat hints.
-        for idx, bid in enumerate(beat_ids):
+        # NEW (A): when the recipe scene carries a "visual" hint (e.g. the solve/us/value
+        # beat), prefer it over the generic holding template so the center panel follows
+        # the recipe (pas=solve, comparison=us, secret_hook=value). Resolve placeholders.
+        for sidx, sc in enumerate(scenes):
+            bid = (sc.get("id") or "").lower()
             if bid in ("solve", "us", "value"):
-                mid_hint = _beat_panel_hint(profile, product_name, model_desc, action, room_desc, "middle")
+                vis = (sc.get("visual") or "").strip()
+                if vis:
+                    vis = (vis
+                           .replace("{gender_en}", gender_en)
+                           .replace("{vp_product}", product_name or "the product")
+                           .replace("{apply_hint}", ""))
+                    mid_hint = f"{model_desc}, {vis}"
+                else:
+                    mid_hint = _beat_panel_hint(profile, product_name, model_desc, action, room_desc, "middle")
 
         colors = profile.get("colors", "") or ""
         parts_colors = f"color palette: {', '.join(colors)}. " if colors else ""
@@ -717,6 +728,30 @@ def _apply_hint(subcategory=None, category=None):
     return "she applies a little on " + area
 
 
+def _apply_prompt_anchor(
+    ugc_style: str, video_prompt: str, vp_product: str = ""
+) -> str:
+    """Append the per-style prompt_anchor (from UGC_STYLES config) to the video
+    prompt so Wan knows the shot/composition anchor it must follow. The anchor
+    substitutes {product} / [product] placeholders with the (cleaned) product
+    name. Falls back to the original prompt if the style has no anchor.
+    """
+    style = (ugc_style or "").strip().lower()
+    if style in ("talking", "talking_head"):
+        style = "talking_head"
+    anchor = None
+    try:
+        anchor = (UGC_STYLES.get(style, {}) or {}).get("prompt_anchor")
+    except Exception:
+        anchor = None
+    if not anchor:
+        return video_prompt
+    # Resolve placeholders with the cleaned product name.
+    prod = vp_product.strip() or "the product"
+    anchor = anchor.replace("[product]", prod).replace("{product}", prod)
+    return video_prompt.rstrip() + f" Composition: {anchor.strip()}".rstrip()
+
+
 def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holding", loop_count: int = 0, script: str = "") -> str:
     """Generate SHORT video prompt — ~50 chars.
 
@@ -761,12 +796,47 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         # no bottle-squeeze / cap / scoop (Wan warps those).
         apply_hint = _apply_hint(subcategory, category)  # e.g. "she applies a little on her underarm"
 
-        beats = [
-            f"BEAT 1 — open on the {gender_en} holding {vp_product} toward the camera",
-            f"BEAT 2 — {apply_hint}, smooth light hand motion",
-            f"BEAT 3 — she reveals the result, clearly showing {_result}, {vp_product} beside her",
-            f"BEAT 4 — she holds {vp_product} toward the camera, smiling invitingly",
-        ]
+        # ── NEW (A): 4-beat driven by recipe scene visuals (scenes[].visual) ──
+        # Each recipe schema (pas/comparison/secret_hook) defines a per-scene
+        # English "visual" beat hint + optional "visual_pre" (camera move). We map
+        # those onto numbered beats so the video prompt actually follows the recipe
+        # (pas = open/apply/solve/cta, comparison = hook/them/us/cta, secret_hook =
+        # hook/reveal/value/cta) instead of a hardcoded hold→apply→reveal→hold.
+        # Rules kept from owner: no squeeze/cap/scoop, no agitate drama in the
+        # visual (the pain lives in the AUDIO script), “a little” apply, every beat
+        # shifts camera/action. The end scene (result) is bound to the same instance
+        # build_image_prompt used, so image & video stay consistent.
+        visual_scenes = [s for s in scenes if (s.get("visual") or "").strip()]
+        if visual_scenes:
+            preview = []
+            for i, s in enumerate(visual_scenes, start=1):
+                vid = (s.get("id") or "").lower()
+                vis = s.get("visual") or ""
+                pre = (s.get("visual_pre") or "").strip()
+                # Resolve placeholders from the recipe scene visual:
+                vis = vis.replace("{gender_en}", gender_en)
+                vis = vis.replace("{vp_product}", vp_product)
+                vis = vis.replace("{apply_hint}", apply_hint)
+                vis = vis.replace("{result_focus}", _result)
+                # A scene whose job is the "problem/agitate" shouldn't paint drama:
+                # its meaning already rides on the audio script; keep the image beat neutral.
+                if vid in ("agitate",):
+                    vis = (
+                        f"she pauses briefly with a slight thoughtful look, "
+                        f"{gender_en} still holding {vp_product} toward the camera"
+                    )
+                if pre:
+                    vis = f"{pre}; {vis}"
+                preview.append(f"BEAT {i} — {vis.strip()}")
+            beats = preview
+        else:
+            # Fallback: owner template (same 4-beat arc) if scene visuals missing.
+            beats = [
+                f"BEAT 1 — open on the {gender_en} holding {vp_product} toward the camera",
+                f"BEAT 2 — {apply_hint}, smooth light hand motion",
+                f"BEAT 3 — she reveals the result, clearly showing {_result}, {vp_product} beside her",
+                f"BEAT 4 — she holds {vp_product} toward the camera, smiling invitingly",
+            ]
 
         video_prompt = (
             "A Thai woman naturally speaks the following Thai lines aloud to camera "
@@ -780,7 +850,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         logger.info(f"  Video prompt (4-beat, {len(video_prompt)} chars multi-line):")
         for l in video_prompt.split('\n'):
             logger.info(f"    {l}")
-        return video_prompt
+        return _apply_prompt_anchor(ugc_style, video_prompt, vp_product)
 
     # Build short video prompt with end scene (start + transition + end)
     # Wan 2.7 generates 1 continuous clip from a single image ref.
@@ -851,7 +921,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     video_prompt = apply_mouth_steer(video_prompt, ugc_style)
 
     logger.info(f"  Video prompt ({len(video_prompt)} chars): {video_prompt[:80]}...")
-    return video_prompt
+    return _apply_prompt_anchor(ugc_style, video_prompt, _clean_product_name_for_video(product_name))
 def _normalize_age(raw_age) -> int:
     """Extract the minimum age from target_age range (e.g., '25-35' -> 25).
     Falls back to a default age if parsing fails.

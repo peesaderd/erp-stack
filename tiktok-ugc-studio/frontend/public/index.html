@@ -3388,6 +3388,9 @@ function fmtCost(c) {
 }
 
 function closePipelineDetail() {
+  // Pause video before closing so audio stops when the work window is closed
+  var vp = document.getElementById('pdVideoPlayer');
+  if (vp) { try { vp.pause(); } catch(e){} }
   document.getElementById('pipelineDetailModal').classList.remove('open');
   currentDetailJobId = '';
 }

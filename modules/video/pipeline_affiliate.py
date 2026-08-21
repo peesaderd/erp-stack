@@ -1269,8 +1269,14 @@ def run_pipeline(
         else:
             # Fallback: requested duration, then recipe default
             final_duration = total_duration if total_duration > 0 else recipe.get("total_duration", 0)
+        # ── Voice mode split (owner rule 2026-08-21) ─────────────
+        # โหมด A (thai_script + use_tus_voice): ให้ Wan พูดเองตามบทไทย → ไม่ mix TTS
+        #   voiceover ที่ compose (กัน TTS ทับ Wan 2 ชั้น ไม่สนิท)
+        thai_voice_mode = bool(thai_script and use_tus_voice)
+        compose_voice = None if thai_voice_mode else voice_path
+        if thai_voice_mode:
+            logger.info("  🎙 Voice mode A: ข้าม TTS voiceover ที่ compose (Wan พูดเองแล้ว)")
         # เสียงจริง = TTS voiceover ทับที่ compose (docs-exact: TTS+BGM ที่ FFmpeg)
-        compose_voice = voice_path
         final_path, raw_path = compose_video(video_paths, compose_voice, run_id, bgm_style, target_duration=final_duration)
 
         # Preserve the TRUE Prodia output (before any compose/edit) permanently.

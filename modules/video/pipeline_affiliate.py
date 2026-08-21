@@ -55,11 +55,11 @@ def get_bgm_path(bgm_style: str) -> Path:
         "chill_loft": "bg_upbeat_02.mp3",   # no bg_chill.mp3 — reuse upbeat_02
         "informative_jazz": "bg_jazz.mp3",
         "energetic_edm": "bg_edm.mp3",
-        "upbeat_pop": "bg_upbeat.mp3",
+        "upbeat_pop": "bg_upbeat_02.mp3",
         "luxury_jazz": "bg_jazz.mp3",
         "asmr": "bg_upbeat_02.mp3",          # no bg_ambient.mp3 — fallback
     }
-    bgm_filename = bgm_map.get(bgm_style, "bg_upbeat.mp3")
+    bgm_filename = bgm_map.get(bgm_style, "bg_upbeat_02.mp3")
     # BGM lives in the TUS studio dir: erp-stack/tiktok-ugc-studio/bgm
     # (pipeline_affiliate.py is at erp-stack/modules/video/ -> up 3 = erp-stack)
     repo_root = Path(__file__).resolve().parent.parent.parent

@@ -52,14 +52,14 @@ def get_bgm_path(bgm_style: str) -> Path:
     filenames that exist there.
     """
     bgm_map = {
-        "chill_loft": "bg_upbeat_02.mp3",   # no bg_chill.mp3 — reuse upbeat_02
+        "chill_loft": "kontraa_water.mp3",   # no bg_chill.mp3 — reuse upbeat_02
         "informative_jazz": "bg_jazz.mp3",
         "energetic_edm": "bg_edm.mp3",
-        "upbeat_pop": "bg_upbeat_02.mp3",
+        "upbeat_pop": "kontraa_water.mp3",
         "luxury_jazz": "bg_jazz.mp3",
-        "asmr": "bg_upbeat_02.mp3",          # no bg_ambient.mp3 — fallback
+        "asmr": "kontraa_water.mp3",          # no bg_ambient.mp3 — fallback
     }
-    bgm_filename = bgm_map.get(bgm_style, "bg_upbeat_02.mp3")
+    bgm_filename = bgm_map.get(bgm_style, "kontraa_water.mp3")
     # BGM lives in the TUS studio dir: erp-stack/tiktok-ugc-studio/bgm
     # (pipeline_affiliate.py is at erp-stack/modules/video/ -> up 3 = erp-stack)
     repo_root = Path(__file__).resolve().parent.parent.parent
@@ -645,11 +645,16 @@ def generate_video(
     if ref_bytes:
         logger.info(f"  ▶ reference_image: {len(ref_bytes)} bytes")
 
-    # Docs-exact lip-sync (VALIDATED 2026-08-15, job abf8a2b2):
-    # ส่ง TTS audio ให้ Wan เสมอเมื่อมีไฟล์เสียง (16k mono wav) — ขับปาก + ฝัง soundtrack
-    # เสียงจริงที่ user ได้ยิน = TTS+BGM ทับที่ compose Step 9b/9c (แทนที่ audio track)
+    # ── Voice mode split (owner rule 2026-08-21) ─────────────────────────────
+    # โหมด A (thai_script + use_tus_voice): ให้ Wan พูดเองตามบทไทย → ห้ามส่ง audio
+    #   (ส่ง script ใน prompt อย่างเดียว, ไม่ lip-sync audio — ป้องกันทับกันไม่สนิท)
+    # โหมด B (default): lip-sync ตาม TTS audio → ห้ามฝัง script ใน prompt (กันปากมั่ว)
+    thai_voice_mode = bool(thai_script and use_tus_voice)
+
     audio_bytes = None
-    if audio_path:
+    if thai_voice_mode:
+        logger.info("  🎙 Voice mode A: thai_script ให้ Wan พูดเอง → ข้าม audio TTS (ไม่ lip-sync)")
+    elif audio_path:
         ap = Path(audio_path)
         if ap.exists():
             with open(ap, "rb") as af:
@@ -658,9 +663,24 @@ def generate_video(
         else:
             logger.warning(f"  ⚠️ audio_path ไม่พบ: {audio_path} — ข้าม lip-sync")
 
-    # ── Thai script: ห้ามฝังลง prompt (docs-exact — script ใน prompt = ปากพูดคนละแบบ)
-    # script ไปอยู่ที่ TTS อย่างเดียว (Step 7) แล้วทับที่ compose Step 9b
+    # ── Thai script (Thai-voice mode): ฝังบทพูดไทยใน prompt เพื่อให้ Wan ขยับปาก
+    # ตรงตามเสียง Thai voiceover จริง (ไม่ใช่เดาเสียงจาก audio อย่างเดียว)
+    # thai_script = บทภาษาไทย; มีเมื่อ client เปิดโหมดให้ Wan พูดเองตามบท
     final_prompt = prompt
+    if thai_voice_mode:
+        # โหมด A: ฝังบทไทย + สั่งเงียบหลังพูด + ยิ้ม + zoom out (กัน Wan พูดมั่วต่อ)
+        final_prompt = (
+            f"{prompt} "
+            f"THAI VOICEOVER: The man speaks this THAI script aloud word-for-word to the camera: "
+            f"\"{thai_script}\". His mouth and lips move in exact sync with this Thai narration. "
+            f"After he finishes speaking he STOPS talking, stays completely silent with his mouth "
+            f"closed, gives a warm cheerful smile to the camera, and holds the pose. "
+            f"The camera slowly zooms out. NO talking and NO lip movement after the speech ends."
+        )
+        logger.info(f"  🎙 Voice mode A: ฝัง thai_script ใน prompt + สั่งเงียบ/ยิ้ม/zoom out (len={len(final_prompt)})")
+
+# ลบ comment เดิม "ห้ามฝัง" แล้วแทนด้วยโหมดฝังเมื่อเปิด
+
 
     # ── Generate via shared client ──
     client = ProdiaV2Client(token=PRODIA_TOKEN())

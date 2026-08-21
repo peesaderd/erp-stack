@@ -891,23 +891,23 @@
   ],
   "mouth_control": {
     "talking_styles": [
-      "talking_head",
-      "talking"
+      "review",
+      "talking",
+      "talking_head"
     ],
     "non_talking_styles": [
+      "asmr",
+      "comparison",
+      "fashion_lookbook",
+      "holding",
+      "holding_product",
       "product_demo",
       "product_usage",
-      "holding_product",
-      "holding",
-      "usage",
       "unbox",
       "unboxing",
-      "comparison",
-      "review",
-      "fashion_lookbook",
-      "asmr"
+      "usage"
     ],
-    "negative_base": "no text, no watermark, no logo, no UI overlay, no blurred face, no distorted hands, no extra fingers, no manga, no cartoon, no illustration, no 3D render, no low resolution, no pixelation, no artifacts, no cluttered background, no messy room, stable face, consistent identity, no facial morphing, no melting, no warping, realistic proportions",
+    "negative_base": "no gibberish speech, no fake language, no meaningless dialogue, no nonsensical talking, no distorted hands, no extra fingers, no warping, no facial morphing, no melting, stable face, consistent identity, realistic proportions",
     "negative_talking": [
       "no exaggerated jaw movement",
       "no shouting",

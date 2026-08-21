@@ -603,6 +603,7 @@ def generate_video(
     last_frame: Optional[str] = None,
     thai_script: Optional[str] = None,
     use_tus_voice: bool = False,
+    prompt_extend: bool = True,
 ) -> tuple:
     """
     Step 8: Generate video via Wan 2.7 Async API (shared ProdiaV2Client)
@@ -706,10 +707,10 @@ def generate_video(
             negative_prompt=neg_p,
             last_frame=last_bytes,
             reference=ref_bytes,
-            # VALIDATED 2026-08-19 (owner test, job 26ae0b8f got mp4 200):
-            # wan2-7.img2vid.v1 ต้องใช้ prompt_extend=True + multipart first_frame/speech
-            # ถ้า False/ปิด → Prodia reject (type mismatch / additional properties)
-            prompt_extend=True,
+            # prompt_extend: default True (VALIDATED 2026-08-19 job 26ae0b8f ต้อง True)
+            # แต่ให้ owner  override เป็น False ได้ (v10 ท้ายเปลี่ยนมุมกล้อง/ลิ้นชักขยับเอง
+            # = prompt_extend เติมเอง → ลองปิด 2026-08-21)
+            prompt_extend=prompt_extend,
         )
 
         output_url = result.get("output_url", "")
@@ -990,6 +991,7 @@ def run_pipeline(
     thai_script: Optional[str] = None,
     use_tus_voice: bool = False,
     audio_path: Optional[str] = None,
+    prompt_extend: bool = True,
     **kwargs,
 ) -> dict:
     """
@@ -1202,7 +1204,10 @@ def run_pipeline(
         # ถ้า client ไม่ส่ง first/last frame มาเอง เราตัดจาก triptych ที่ gen เอง.
         ff = first_frame or None
         lf = last_frame or None
-        if not (ff and lf) and img_path.exists() and _image_prompt_is_triptych(image_prompt):
+        # Fix (2026-08-21): ให้ client บังคับ "ภาพเดียว ไม่ interpolation" ได้
+        # ถ้า client ส่ง first_frame มาเองแต่ไม่ต้องการ last_frame → กัน auto-split triptych
+        # ที่ทำให้ Prodia รับ last_frame=panel3 ที่ตัดผิด → unknown error
+        if not (ff and lf) and img_path.exists() and _image_prompt_is_triptych(image_prompt) and not first_frame:
             try:
                 panels = _split_triptych_into_panels(str(img_path), run_id=run_id)
                 # panel2 (กลาง) = first frame, panel3 (ขวา) = last frame
@@ -1232,6 +1237,7 @@ def run_pipeline(
             last_frame=lf,
             thai_script=thai_script,
             use_tus_voice=use_tus_voice,
+            prompt_extend=prompt_extend,
         )
         video_paths.append(vid_path)
         

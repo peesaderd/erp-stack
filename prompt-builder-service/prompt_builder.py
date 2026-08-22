@@ -737,7 +737,9 @@ def _apply_prompt_anchor(
     name. Falls back to the original prompt if the style has no anchor.
     """
     style = (ugc_style or "").strip().lower()
-    if style in ("talking", "talking_head"):
+    # review is a TALKING style (mouth_control.talking_styles) — treat it as
+    # talking_head so it uses the stable / fixed-framing anchor + talking path.
+    if style in ("talking", "talking_head", "review"):
         style = "talking_head"
     anchor = None
     try:
@@ -781,7 +783,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     scenes = router_config.get("scenes") if isinstance(router_config, dict) else None
     if (
         isinstance(scenes, list) and len(scenes) >= 2
-        and product_name and ugc_style not in ("talking", "talking_head")
+        and product_name and ugc_style not in ("talking", "talking_head", "review")
     ):
         vp_product = _clean_product_name_for_video(product_name)
         gender_en = {"female": "Woman", "male": "Man", "unisex": "Person"}.get(model_gender, "Woman")
@@ -861,7 +863,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     end = profile.get("_end_scene") or _pick_end_scene(category, subcategory=subcategory, profile=profile)
     transition = _pick_transition()
 
-    if ugc_style in ("talking", "talking_head"):
+    if ugc_style in ("talking", "talking_head", "review"):
         # Talking-head: presenter faces camera, upper body, clean background.
         # Docs-exact pattern (VALIDATED 2026-08-15, job abf8a2b2):
         #   - ห้ามใส่ script ไทยใน prompt — script ทำให้ Wan พูดของมันเอง ปากไม่ตรงเสียง
@@ -907,7 +909,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     # Keep it natural-language so Wan's motion model flows smoothly.
     # Talking-head end_part is self-contained (start + finish + stop + show product),
     # so don't inject "transition, then" which would produce a broken " , then Face".
-    if ugc_style in ("talking", "talking_head"):
+    if ugc_style in ("talking", "talking_head", "review"):
         video_prompt = f"{start_part} {end_part} 9:16.{lipsync_part}"
     else:
         video_prompt = f"{start_part} {transition}, then {end_part} 9:16.{lipsync_part}"

@@ -676,7 +676,7 @@ def generate_video(
             f"\"{thai_script}\". His mouth and lips move in exact sync with this Thai narration. "
             f"After he finishes speaking he STOPS talking, stays completely silent with his mouth "
             f"closed, gives a warm cheerful smile to the camera, and holds the pose. "
-            f"The camera slowly zooms out. NO talking and NO lip movement after the speech ends."
+            f"Static camera, no zoom, no camera movement. NO talking and NO lip movement after the speech ends."
         )
         logger.info(f"  🎙 Voice mode A: ฝัง thai_script ใน prompt + สั่งเงียบ/ยิ้ม/zoom out (len={len(final_prompt)})")
 

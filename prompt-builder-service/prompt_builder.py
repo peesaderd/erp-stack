@@ -710,6 +710,11 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             f"with no white margin or divider line."
         )
         logger.info(f"  Image prompt (triptych {len(image_prompt)} chars): {image_prompt[:100]}...")
+        # Append the style's image anchor (from SSOT ugc_styles.json) so the first
+        # frame matches the video's composition — video already applies it for every
+        # style, image now does too (holding/usage/review/talking_head/… all read the
+        # same anchor source -> image & video stay aligned).
+        image_prompt = _apply_prompt_anchor(ugc_style, image_prompt, product_name)
         negative = build_negative_prompt(profile, ugc_style)
         return image_prompt, negative
 

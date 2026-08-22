@@ -740,15 +740,6 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     return image_prompt, negative
 
 
-def _beat_panel_hint(profile, product_name, model_desc, action, scene, panel_role: str) -> str:
-    """Derive a clean English visual hint for one triptych panel.
-
-    Builds a compact visual instruction Nano Banana understands — panel_role is
-    cover / middle / right. Uses the product's appearance (Mistral) to add detail.
-    Keeps hints visual (English) rather than raw Thai script text.
-    model_desc = e.g. 'Thai woman, 25-35 years old' (already age/demographic).
-    """
-    appearance = (profile or {}).get("product_appearance", "") or ""
 def _youngest_age(age_str: str) -> str:
     """Return the youngest age from a range string.
 

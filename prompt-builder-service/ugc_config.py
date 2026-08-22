@@ -6,6 +6,28 @@ This replaces the flat 11-style system with structured:
   Preset → Style → Shot Plan → Prompt
 """
 
+import json as _json
+from pathlib import Path as _Path
+
+_UGC_JSON = None
+def _load_ugc_styles_json():
+    """Load UGC_STYLES + UGC_COMBOS from ugc_styles.json (SSOT).
+
+    Single source of truth — shared with prompt_builder.py. Kept here so
+    auto_select_preset/auto_select_style/build_shot_prompts still work while
+    the data itself lives in one JSON file (no duplicated Python dicts).
+    """
+    global _UGC_JSON
+    if _UGC_JSON is None:
+        p = _Path(__file__).parent / "ugc_styles.json"
+        with open(p) as f:
+            _UGC_JSON = _json.load(f)
+        if "UGC_STYLES" not in _UGC_JSON:
+            raise ValueError("ugc_styles.json: missing 'UGC_STYLES'")
+    return _UGC_JSON
+
+
+
 # ─────────────────────────────────────────────────────────────────────
 # 1. RECIPE PRESETS (หมวดหมู่สินค้า & Mood)
 # ─────────────────────────────────────────────────────────────────────
@@ -171,175 +193,14 @@ UGC_PRESETS = {
 # ─────────────────────────────────────────────────────────────────────
 # 2. UGC CONTENT STYLES (รูปแบบการเสนอ & มุมกล้อง)
 # ─────────────────────────────────────────────────────────────────────
-UGC_STYLES = {
-    "holding": {
-        "name": "Holding Product",
-        "description": "ถือสินค้าในมือพูดกับกล้อง แนะนำสินค้า",
-        "prompt_anchor": "Hand holding [product] in foreground, facing camera, slight hand movement to show angles",
-        "script_structure": "แนะนำตัวแบบเป็นกันเอง อธิบายข้อดีของสินค้า",
-        "has_person": True,
-        "shot_count": 1,
-        "shots": [
-            {"time": "0-8s", "desc": "Person holding product, showing to camera", "camera": "medium shot, stable"},
-        ],
-    },
-    "usage": {
-        "name": "Product Usage",
-        "description": "สาธิตการใช้งานสินค้าจริง",
-        "prompt_anchor": "Medium close-up of hands actively operating [product], demonstrating its primary function",
-        "script_structure": "โฟกัสขั้นตอนการใช้งาน 1-2-3 ชัดเจน รวดเร็ว",
-        "has_person": True,
-        "shot_count": 2,
-        "shots": [
-            {"time": "0-4s", "desc": "Hands reaching for product, picking it up", "camera": "close-up hands"},
-            {"time": "4-8s", "desc": "Demonstrating product function", "camera": "medium close-up, following action"},
-        ],
-    },
-    "review": {
-        "name": "UGC Review",
-        "description": "รีวิวสินค้าหลังใช้จริง",
-        "prompt_anchor": "Creator holding product, speaking to camera with genuine expression",
-        "script_structure": "เล่าความรู้สึกหลังใช้จริง (Pros/Cons) แบบจริงใจ ไม่อวยเกินไป",
-        "has_person": True,
-        "shot_count": 1,
-        "shots": [
-            {"time": "0-8s", "desc": "Person speaking to camera while holding product", "camera": "medium close-up, eye-level"},
-        ],
-    },
-    "talking_head": {
-        "name": "Talking Head",
-        "description": "พูดหน้ากล้องตรงๆ สร้างความสนิทสนม",
-        "prompt_anchor": "Creator looking directly into camera, speaking naturally in a home or studio setting",
-        "script_structure": "เล่าเรื่องแบบปะฉะดะ สร้างความสนิทสนมกับผู้ชม",
-        "has_person": True,
-        "shot_count": 1,
-        "shots": [
-            {"time": "0-8s", "desc": "Person speaking directly to camera", "camera": "medium close-up, locked-off"},
-        ],
-    },
-    "product_demo": {
-        "name": "Product Demo",
-        "description": "โชว์สินค้าไม่มีคน ถ่าย closestudio",
-        "prompt_anchor": "Pure product shot on clean background, close-up details, no humans in frame",
-        "script_structure": "Voiceover อธิบายสเปกและฟีเจอร์เด่นของสินค้าล้วนๆ",
-        "has_person": False,
-        "shot_count": 3,
-        "shots": [
-            {"time": "0-5s", "desc": "Establishing product shot on table", "camera": "slow push in, centered framing"},
-            {"time": "5-10s", "desc": "Core function demonstration — hand trigger sensor, spray", "camera": "close-up, static"},
-            {"time": "10-15s", "desc": "Lifestyle placement — product in use context", "camera": "wide, slow pan right"},
-        ],
-    },
-    "problem_solution": {
-        "name": "Problem-Solution",
-        "description": "เปิดด้วยปัญหา → เฉลยทางแก้",
-        "prompt_anchor": "Frustrated expression/problem situation first, transitioning to smooth usage of [product]",
-        "script_structure": "0-3s: ชี้ปัญหา, 3-10s: เปิดตัวสินค้า, 10-15s: ผลลัพธ์",
-        "has_person": True,
-        "shot_count": 2,
-        "shots": [
-            {"time": "0-3s", "desc": "Frustrated/problem expression", "camera": "close-up on face"},
-            {"time": "3-10s", "desc": "Transition to using product, happy result", "camera": "medium, dynamic pan"},
-        ],
-    },
-    "comparison": {
-        "name": "Comparison / Test",
-        "description": "เปรียบเทียบ/ทดสอบประสิทธิภาพ",
-        "prompt_anchor": "Split-screen or side-by-side comparison testing [product] vs standard alternative",
-        "script_structure": "ท้าพิสูจน์ด้วยการทดสอบจริง (ความทนทาน ความเร็ว ประสิทธิภาพ)",
-        "has_person": True,
-        "shot_count": 2,
-        "shots": [
-            {"time": "0-5s", "desc": "Two products side by side, starting test", "camera": "wide, two-shot"},
-            {"time": "5-10s", "desc": "Result of comparison, winner highlighted", "camera": "close-up on winning product"},
-        ],
-    },
-    "unboxing": {
-        "name": "Unboxing & First Impression",
-        "description": "แกะกล่องลองเลย เปิดกล่องครั้งแรก",
-        "prompt_anchor": "Top-down angle (overhead shot) opening product box, revealing contents and accessories",
-        "script_structure": "ความรู้สึกแรกเห็น แพ็กเกจจิ้ง ของแถม และสัมผัสแรก",
-        "has_person": True,
-        "shot_count": 2,
-        "shots": [
-            {"time": "0-4s", "desc": "Top-down shot of unboxing, opening box", "camera": "overhead, stable"},
-            {"time": "4-8s", "desc": "Holding product, showing accessories", "camera": "medium close-up, hand-held"},
-        ],
-    },
-    "pov": {
-        "name": "POV / Day in the Life",
-        "description": "มุมมองบุคคลที่ 1 สอดแทรกสินค้าในชีวิตประจำวัน",
-        "prompt_anchor": "First-person perspective (POV), showing creator's point of view while seamlessly integrating [product]",
-        "script_structure": "สอดแทรกสินค้าเข้าไปในกิจวัตรประจำวันอย่างเป็นธรรมชาติ",
-        "has_person": False,
-        "shot_count": 2,
-        "shots": [
-            {"time": "0-4s", "desc": "POV walking into room, picking up product", "camera": "first-person, natural movement"},
-            {"time": "4-8s", "desc": "POV using product in daily context", "camera": "first-person, hands visible"},
-        ],
-    },
-}
+UGC_STYLES = _load_ugc_styles_json()["UGC_STYLES"]
+# (SSOT: values live in ugc_styles.json — do NOT hardcode here)
 
 # ─────────────────────────────────────────────────────────────────────
 # 3. RECOMMENDED COMBINATIONS
 # ─────────────────────────────────────────────────────────────────────
-UGC_COMBOS = {
-    "electronics_gadget": {
-        "preset": "gadget_unboxing",
-        "styles": ["product_demo", "unboxing", "problem_solution"],
-        "personas": ["tech_enthusiast"],
-    },
-    "home_appliance": {
-        "preset": "product_demo",
-        "styles": ["product_demo", "usage", "pov"],
-        "personas": ["calm_professional", "mom_at_home"],
-    },
-    "home_decor": {
-        "preset": "home_living",
-        "styles": ["pov", "product_demo", "usage"],
-        "personas": ["minimalist_zen", "mom_at_home"],
-    },
-    "food_beverage": {
-        "preset": "food_review",
-        "styles": ["review", "pov", "usage"],
-        "personas": ["mom_at_home", "college_student", "energetic_young"],
-    },
-    "skincare_beauty": {
-        "preset": "skincare_glow",
-        "styles": ["review", "usage", "talking_head"],
-        "personas": ["energetic_young", "calm_professional"],
-    },
-    "fashion_accessory": {
-        "preset": "fashion_lookbook",
-        "styles": ["holding", "pov", "review"],
-        "personas": ["minimalist_zen", "calm_professional", "energetic_young"],
-    },
-    "health_hygiene": {
-        "preset": "product_demo",
-        "styles": ["product_demo", "usage", "review"],
-        "personas": ["calm_professional", "minimalist_zen", "mom_at_home"],
-    },
-    "fitness_sport": {
-        "preset": "fitness_supplement",
-        "styles": ["usage", "talking_head", "comparison"],
-        "personas": ["tech_enthusiast", "energetic_young"],
-    },
-    "pet_supply": {
-        "preset": "pet_care",
-        "styles": ["usage", "pov", "review"],
-        "personas": ["mom_at_home", "energetic_young"],
-    },
-    "baby_kids": {
-        "preset": "mom_baby",
-        "styles": ["talking_head", "usage", "review"],
-        "personas": ["mom_at_home", "calm_professional"],
-    },
-    "travel_edc": {
-        "preset": "travel_edc",
-        "styles": ["pov", "usage", "product_demo"],
-        "personas": ["energetic_young", "tech_enthusiast"],
-    },
-}
+UGC_COMBOS = _load_ugc_styles_json()["UGC_COMBOS"]
+# (SSOT: values live in ugc_styles.json — do NOT hardcode here)
 
 
 # ─────────────────────────────────────────────────────────────────────

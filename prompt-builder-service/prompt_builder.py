@@ -25,8 +25,6 @@ from persona_engine import (
     PERSONA_TEMPLATES, _select_persona, _apply_persona_to_profile,
 )
 from router_agent import router_decide
-from ugc_config import UGC_STYLES
-
 logger = logging.getLogger("prompt-builder-service")
 
 # ─── JSON Prompt Sources (Data-Driven) ───────────────────────────
@@ -35,6 +33,29 @@ import random as _random
 import hashlib as _hashlib
 from pathlib import Path as _Path
 _PROMPT_SOURCES = None
+_UGC_STYLES = None
+
+# ─── SSOT: UGC styles & combos (ugc_styles.json) ─────────────────
+# Single source of truth for style prompt_anchor / has_person / shots.
+# Moved out of ugc_config.py (Python dict) into ugc_styles.json so edits
+# to the schema auto-reflect in the Prodia video/image anchors. This is the
+# ONLY entry point — do NOT add a second UGC_STYLES copy elsewhere.
+def _load_ugc_styles():
+    """Load UGC_STYLES + UGC_COMBOS from ugc_styles.json (SSOT).
+    
+    Cache after first read. Raises if the file is missing/malformed so we
+    break loudly rather than silently generate with an empty anchor map.
+    """
+    global _UGC_STYLES
+    if _UGC_STYLES is None:
+        src_path = _Path(__file__).parent / "ugc_styles.json"
+        with open(src_path) as f:
+            _UGC_STYLES = _json.load(f)
+        # Validate the keys prompt_builder depends on.
+        if "UGC_STYLES" not in _UGC_STYLES:
+            raise ValueError("ugc_styles.json: missing 'UGC_STYLES' — add it")
+    return _UGC_STYLES
+
 
 def _load_prompt_sources():
     global _PROMPT_SOURCES
@@ -743,7 +764,8 @@ def _apply_prompt_anchor(
         style = "talking_head"
     anchor = None
     try:
-        anchor = (UGC_STYLES.get(style, {}) or {}).get("prompt_anchor")
+        _styles = _load_ugc_styles().get("UGC_STYLES", {})
+        anchor = (_styles.get(style, {}) or {}).get("prompt_anchor")
     except Exception:
         anchor = None
     if not anchor:

@@ -57,6 +57,25 @@ def _load_ugc_styles():
     return _UGC_STYLES
 
 
+def _is_no_human_style(ugc_style: str) -> bool:
+    """True when the style's has_person flag (SSOT ugc_styles.json) is False.
+
+    Used to route no-human styles (currently product_demo + pov) to the
+    product-only triptych + no-human video branch instead of the holding/
+    talking template that would inject a person into the frame. Reads the SSOT
+    flag so we never hardcode a second style list here (single source of truth).
+    Falls back to False (assume has a person) if the style is unknown, so we
+    never accidentally drop the person from a style that needs one.
+    """
+    style = (ugc_style or "").strip().lower()
+    try:
+        _styles = _load_ugc_styles().get("UGC_STYLES", {})
+        entry = _styles.get(style, {}) or {}
+        return entry.get("has_person") is False
+    except Exception:
+        return False
+
+
 def _load_prompt_sources():
     global _PROMPT_SOURCES
     if _PROMPT_SOURCES is None:
@@ -549,31 +568,54 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     )
 
     if use_triptych:
-        # ── product_demo: 3-panel triptych with NO humans ──
-        # When the style is product_demo we must NOT show a person holding the
-        # product (that's what the old code did — all styles entered the triptych
-        # holding-template before the legacy `if ugc_style == "product_demo"`
-        # branch could run, so product_demo got people). We now build a pure
-        # product-only triptych and append the style's image anchor (from the SSOT
-        # ugc_styles.json) so the first frame matches the video's "no human" shot.
-        if (ugc_style or "").strip().lower() == "product_demo":
-            cover_hint = _cover_product_desc(profile, product_name)
-            # Panel 2 = close-up product detail (rotate to show packaging/label)
-            mid_hint = (
-                f"{product_name} close-up product shot showing label and packaging "
-                f"details, product centered on clean background, {room_desc}"
-            )
-            # Panel 3 = feature/hero product shot (no person)
-            result_hint = (
-                f"{product_name} feature product shot, product standing upright "
-                f"center frame, clean studio lighting, {lighting}"
-            )
+        # ── No-human styles (product_demo, pov): 3-panel triptych with NO person ──
+        # Styles whose SSOT has_person flag is False must NOT show a person in
+        # frame. The old code let every style enter the holding triptych template
+        # before the legacy no-human branch could run, so no-human styles ended up
+        # with people. We now build a dedicated no-human triptych and append the
+        # style's prompt_anchor (SSOT ugc_styles.json) so the first frame matches
+        # the video's no-human shot. product_demo = pure product; pov = first-person
+        # (only the hands visible, no face), which is how POV video reads.
+        if _is_no_human_style(ugc_style):
+            style_l = (ugc_style or "").strip().lower()
+            if style_l == "product_demo":
+                cover_hint = _cover_product_desc(profile, product_name)
+                # Panel 2 = close-up product detail (rotate to show packaging/label)
+                mid_hint = (
+                    f"{product_name} close-up product shot showing label and packaging "
+                    f"details, product centered on clean background, {room_desc}"
+                )
+                # Panel 3 = feature/hero product shot (no person)
+                result_hint = (
+                    f"{product_name} feature product shot, product standing upright "
+                    f"center frame, clean studio lighting, {lighting}"
+                )
+                no_human_clause = (
+                    "NO humans, NO people, NO hands in any panel; pure product photography."
+                )
+            else:  # pov — first-person, hands visible holding/using the product
+                cover_hint = _cover_product_desc(profile, product_name)
+                # Panel 2 = first-person hands holding the product in a daily scene
+                mid_hint = (
+                    f"first-person POV of the user holding "
+                    f"{product_name}, only the hands and product visible in frame, "
+                    f"natural daily setting {room_desc}"
+                )
+                # Panel 3 = first-person using the product in daily context
+                result_hint = (
+                    f"first-person POV using {product_name} in a daily lifestyle context, "
+                    f"only hands and product in frame, no face visible, {lighting}"
+                )
+                no_human_clause = (
+                    "First-person POV throughout; no face of the person in any panel, "
+                    "only hands and product visible."
+                )
             colors = profile.get("colors", "") or ""
             parts_colors = f"color palette: {', '.join(colors)}. " if colors else ""
             image_prompt = (
                 f"16:9 landscape triptych, three equal horizontal panels side by side, "
                 f"no gap, no border between the panels, seamless edge to edge. "
-                f"NO humans, NO people, NO hands in any panel; pure product photography. "
+                f"{no_human_clause} "
                 f"Panel 1 (left): {cover_hint}. "
                 f"Panel 2 (center): {mid_hint}. "
                 f"Panel 3 (right): {result_hint}. "
@@ -588,9 +630,9 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
                 f"bleed together edge to edge so the image is one continuous full-frame "
                 f"with no white margin or divider line."
             )
-            logger.info(f"  Image prompt (product_demo triptych, {len(image_prompt)} chars)")
+            logger.info(f"  Image prompt (no-human {style_l} triptych, {len(image_prompt)} chars)")
             # Append the style's image anchor (from SSOT ugc_styles.json) so the
-            # composition matches the video's "no human" product shot.
+            # composition matches the video's no-human shot.
             image_prompt = _apply_prompt_anchor(ugc_style, image_prompt, product_name)
             negative = build_negative_prompt(profile, ugc_style)
             return image_prompt, negative
@@ -851,9 +893,8 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     scenes = router_config.get("scenes") if isinstance(router_config, dict) else None
     if (
         isinstance(scenes, list) and len(scenes) >= 2
-        and product_name and ugc_style not in (
-            "talking", "talking_head", "review", "product_demo"
-        )
+        and product_name and ugc_style not in ("talking", "talking_head", "review")
+        and not _is_no_human_style(ugc_style)
     ):
         vp_product = _clean_product_name_for_video(product_name)
         gender_en = {"female": "Woman", "male": "Man", "unisex": "Person"}.get(model_gender, "Woman")
@@ -933,25 +974,37 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     end = profile.get("_end_scene") or _pick_end_scene(category, subcategory=subcategory, profile=profile)
     transition = _pick_transition()
 
-    # ── product_demo: NO-human product video prompt ──
-    # Wan 2.7 animates the product rotating / revealing itself, no person, no
-    # hands. The first/only frame comes from the product_demo triptych (image) so
-    # video + image stay consistent. (We deliberately exclude product_demo from the
-    # 4-beat path above and give it its own branch here rather than falling through
-    # to the legacy `else` which would inject a person.)
-    if (ugc_style or "").strip().lower() == "product_demo":
+    # ── No-human styles: NO-human product video prompt ──
+    # Wan 2.7 animates the product rotating / revealing itself (product_demo) or a
+    # first-person POV using the product (pov), without showing a person's face.
+    # The first/only frame comes from the matching no-human triptych (image) so
+    # video + image stay consistent. (We deliberately exclude no-human styles from
+    # the 4-beat path above and give them their own branch here rather than falling
+    # through to the legacy `else` which would inject a person.)
+    if _is_no_human_style(ugc_style):
+        style_l = (ugc_style or "").strip().lower()
         _vp_product = _clean_product_name_for_video(product_name)
         _result = end.get("result_focus") or "the product detailing"
         _end_cam = end.get("camera", "medium shot")
-        video_prompt = (
-            f"Pure product shot of the {_vp_product}, clean studio background, "
-            f"the product slowly rotates 360 degrees showing its label and packaging, "
-            f"smooth continuous rotation, no human, no hands in frame, crisp focus, "
-            f"then settles centered showing {_result} at {_end_cam}, 9:16, smooth motion"
-        )
+        if style_l == "pov":
+            # First-person POV: only hands + product visible, no face. The user
+            # picks up & uses the product in a natural daily scene.
+            video_prompt = (
+                f"First-person POV footage, the user's hands holding the {_vp_product} "
+                f"and using it naturally in a daily setting, only hands and product in "
+                f"frame, no face visible, natural hand movement, smooth stable motion, "
+                f"then {_result} at {_end_cam}, 9:16"
+            )
+        else:  # product_demo
+            video_prompt = (
+                f"Pure product shot of the {_vp_product}, clean studio background, "
+                f"the product slowly rotates 360 degrees showing its label and packaging, "
+                f"smooth continuous rotation, no human, no hands in frame, crisp focus, "
+                f"then settles centered showing {_result} at {_end_cam}, 9:16, smooth motion"
+            )
         video_prompt = _apply_prompt_anchor(ugc_style, video_prompt, _vp_product)
         video_prompt = apply_mouth_steer(video_prompt, ugc_style)
-        logger.info(f"  Video prompt (product_demo, no-human, {len(video_prompt)} chars): {video_prompt[:80]}...")
+        logger.info(f"  Video prompt (no-human {style_l}, {len(video_prompt)} chars): {video_prompt[:80]}...")
         return video_prompt
 
     if ugc_style in ("talking", "talking_head", "review"):
@@ -1082,10 +1135,10 @@ def build_negative_prompt(profile: dict, ugc_style: str = "holding") -> str:
     mc = _load_mouth_control()
     base = mc["negative_base"]
     style_l = (ugc_style or "").strip().lower()
-    # product_demo has NO person/hands in frame, so the "stays closed and in hand"
-    # anti_open term would contradict the "no hands" composition. Drop it for
-    # product_demo (and any no-human style) and rely on the base + mouth terms.
-    is_no_human_style = style_l == "product_demo"
+    # No-human styles (product_demo, pov) have no person/hands in frame, so the
+    # "stays closed and in hand" anti_open term would contradict the composition.
+    # Drop it for those styles and rely on the base + mouth terms.
+    is_no_human_style = _is_no_human_style(ugc_style)
     # Product-handling negative: Wan img2vid starts from a still where the product is
     # ALREADY in hand — forbid it from opening/unpacking/squeezing the product (was in
     # the video prompt's opening before; moved here so the video prompt stays positive).

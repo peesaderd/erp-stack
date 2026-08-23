@@ -951,7 +951,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         isinstance(scenes, list) and len(scenes) >= 2
         and product_name and ugc_style not in ("talking", "talking_head", "review")
         and not _is_no_human_style(ugc_style)
-    ):
+    ) and False:  # 4-beat ปิด — owner 2026-08-23: video ใช้ single long prompt ไม่แบ่ง scene
         vp_product = _clean_product_name_for_video(product_name)
         gender_en = {"female": "Woman", "male": "Man", "unisex": "Person"}.get(model_gender, "Woman")
 
@@ -1007,20 +1007,24 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
                 preview.append(f"Scene {i}: {vis.strip()}")
             beats = preview
         else:
-            # Fallback: owner template (same 4-beat arc) if scene visuals missing.
+            # Fallback: owner template (same hold arc) if scene visuals missing.
+            # Product must stay SHARP and STILL — Wan warps the label when the
+            # prompt asks for scene transitions / flowing camera motion in 10s.
+            # (owner bug report 2026-08-23: zoom in/out made product blur/morph)
             beats = [
-                f"Scene 1: open on the {gender_en} holding {vp_product} toward the camera",
-                f"Scene 2: {apply_hint}, smooth light hand motion",
-                f"Scene 3: she reveals the result, clearly showing {_result}, {vp_product} beside her",
-                f"Scene 4: she holds {vp_product} toward the camera, smiling invitingly",
+                f"Scene 1: {gender_en} holds {vp_product} steady toward the camera, product stays sharp and centered",
+                f"Scene 2: keep holding {vp_product} steady, only a gentle slight hand motion, product stays sharp",
+                f"Scene 3: still holding {vp_product}, same framing, product remains sharp and readable",
+                f"Scene 4: {gender_en} holds {vp_product} toward the camera, smiling, same framing, product sharp",
             ]
 
         video_prompt = (
             "A Thai woman naturally speaks the following Thai lines aloud to camera "
-            "while going through the full scene transition:\n\n"
+            "while staying in the same steady framing throughout:\n\n"
             + "\n".join(beats)
-            + "\n\nKeep the same woman and product in every scene; natural flowing motion "
-            "between scenes; speak the Thai lines naturally and continuously throughout."
+            + "\n\nKeep the same woman and product in every scene, staying in one steady framing "
+            "throughout, the product stays sharp and clearly readable, "
+            "speak the Thai lines naturally and continuously throughout."
         )
         logger.info(f"  Video prompt (4-beat, {len(video_prompt)} chars):")
         video_prompt = re.sub(r'[ \t]+', ' ', video_prompt).strip()
@@ -1110,7 +1114,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         end_part = f"{end.get('camera', 'medium shot')}, {end.get('scene', 'product shown to camera')}."
         lipsync_part = (
             " lips moving subtly, smooth natural motion, "
-            "product held still, no warping"
+            "product held still and sharp"
         )
 
     # Compose: opening action → gentle transition → end scene

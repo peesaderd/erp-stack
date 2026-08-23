@@ -509,7 +509,7 @@
       },
       {
         "scene": "product on elegant surface with warm glow",
-        "camera": "slow zoom in"
+        "camera": "steady hold, no zoom"
       },
       {
         "scene": "model admiring result, product visible",
@@ -1229,7 +1229,7 @@
       "unboxing",
       "usage"
     ],
-    "negative_base": "no gibberish speech, no fake language, no meaningless dialogue, no nonsensical talking, no distorted hands, no extra fingers, no warping, no facial morphing, no melting, stable face, consistent identity, realistic proportions",
+    "negative_base": "no gibberish speech, no fake language, no meaningless dialogue, no nonsensical talking, no distorted hands, no extra fingers, no warping, no facial morphing, no melting, stable face, consistent identity, realistic proportions, no camera zoom in or out, no pan, no camera movement, no blurred product, no warped product, no distorted label text, no unreadable text",
     "negative_talking": [
       "no exaggerated jaw movement",
       "no shouting",

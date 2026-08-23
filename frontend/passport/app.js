@@ -283,6 +283,8 @@ function showResult(d,isBulk){
   $('rs').innerHTML=stats;
   $('ri').src=API+'/download/'+S.sid+'_passport.jpg?t='+Date.now();
   $('sec3').classList.remove('hidden');
+  // Owner flow: preview always square, full image, no forced crop
+  updatePreviewAspect(null);
   if(isBulk&&d.results&&d.results.length>1){
     $('batchPreview').classList.remove('hidden');
     var sh='';
@@ -383,6 +385,7 @@ async function applySize(){
     var d=await api('/recrop',{session_id:S.sid,custom_width:w,custom_height:h});
     if(d.ok){
       $('ri').src=API+'/download/'+S.sid+'_passport.jpg?t='+Date.now();
+      updatePreviewAspect(w/h);
       toast('Size applied: '+w+'×'+h+'mm 📐','ok');
     }
   }catch(e){toast('Resize failed','err')}
@@ -390,7 +393,20 @@ async function applySize(){
 }
 
 /* ══════════ PRINT SHEET ══════════ */
+function switchOptTab(idx){
+  for(var i=0;i<5;i++){
+    var pane=$('optPane'+i);
+    var tab=document.querySelectorAll('.opt-tab')[i];
+    if(pane)pane.classList.toggle('act',i===idx);
+    if(tab)tab.classList.toggle('active',i===idx);
+  }
+  // scroll preview into view on tab switch
+  var box=$('previewBox');
+  if(box)box.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
 function setPaper(type,el){
+  S.paper=type;
   $$('.pap-p').forEach(function(x){x.classList.remove('active')});
   if(el)el.classList.add('active');
 }
@@ -399,9 +415,11 @@ async function genPrintSheet(){
   if(!S.sid)return;
   showOv('Generating print sheet...');
   try{
+    var paperType=S.paper||'4x6';
+    var paperLabel=paperType;
     var body={
       session_id:S.sid,
-      paper:$('.pap-p.active')?$('.pap-p.active').textContent.trim():'4x6"',
+      paper:paperLabel,
       count:parseInt($('customCount').value)||6,
       border_width_mm:parseFloat($('bwmmPrint').value)||3,
       blade_mode:$('bmPrint').checked
@@ -417,6 +435,25 @@ async function genPrintSheet(){
     }
   }catch(e){toast('Print sheet failed','err')}
   hideOv();
+}
+
+/* ══════════ PREVIEW ASPECT (owner flow) ══════════ */
+/* Preview always shows the square image full. When a size/ratio is chosen,
+   we adapt the display ratio but the image stays unchanged (no re-gen). */
+function updatePreviewAspect(ratio){
+  var box=$('previewBox');
+  if(!box)return;
+  if(ratio && ratio>0){
+    box.style.aspectRatio=ratio;
+  }else{
+    box.style.aspectRatio='1/1';
+  }
+  var bg=$('previewBg');
+  if(bg){
+    bg.style.width='100%';
+    bg.style.height='100%';
+    bg.style.aspectRatio=box.style.aspectRatio;
+  }
 }
 
 /* ══════════ DOWNLOADS ══════════ */

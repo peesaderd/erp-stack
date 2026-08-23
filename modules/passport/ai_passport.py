@@ -214,11 +214,10 @@ def prepare_for_flux(image: np.ndarray) -> np.ndarray:
     face_cx = x + fw // 2
     face_cy = y + fh // 2
 
-    # Calculate padding: generous headroom + sides
-    # Face should be ~20% of final height, centered horizontally
-    # Add 3x face height above, 2x below, 2x on each side
-    pad_top = int(fh * 5.0)
-    pad_bottom = int(fh * 2.0)
+    # Calculate padding: balanced headroom so chin never gets cut
+    # Top 3x face height, bottom 3x face height (chin+neck safe), sides 2x
+    pad_top = int(fh * 3.0)
+    pad_bottom = int(fh * 3.0)
     pad_side = int(fw * 2.0)
 
     # Expand canvas
@@ -309,19 +308,34 @@ def crop_to_template(img: np.ndarray, template: dict, dpi: int = 300) -> np.ndar
         fx, fy, fw, fh = face[0], face[1], face[2], face[3]
         face_top = fy
         
-        # Guarantee: face top must be at ≥20% from top of final crop
-        min_head_y = int(target_h * 0.20)
+        # Guarantee: face top at ≥15% from top (was 20% — cut chins)
+        min_head_y = int(target_h * 0.15)
+        
+        # Chin guard: face bottom must be ≤ 88% of crop height (leave chin+neck)
+        max_chin_y = int(target_h * 0.88)
         
         if face_top <= min_head_y:
-            # Face is already high enough — crop from top, face will be ≥20%
+            # Face is already high enough — crop from top
             y_offset = 0
         else:
-            # Face is too low — push crop down so face lands at 20%
+            # Face is too low — push crop down so face lands at 15%
             y_offset = face_top - min_head_y
         
         # Ensure we don't crop past image bottom
         y_offset = min(y_offset, h - target_h)
         y_offset = max(0, y_offset)
+        
+        # ── Chin guard: face bottom (chin) must stay inside crop ──
+        # In crop coordinates, chin is at (face_top + fh) - y_offset.
+        # Require chin to be ≤ max_chin_y (88% of crop height) so chin+neck remain.
+        chin_in_crop = (fy + fh) - y_offset
+        if chin_in_crop > max_chin_y:
+            # push crop UP (reduce y_offset) until chin fits
+            y_offset = max(0, (fy + fh) - max_chin_y)
+        # Also fallback: if headspace would then be <8%, keep at least 8%
+        min_head_y_hard = int(target_h * 0.08)
+        if (fy - y_offset) < min_head_y_hard:
+            y_offset = max(0, fy - min_head_y_hard)
         
         face_center_x = fx + fw // 2
         x_offset = max(0, min(face_center_x - target_w // 2, w - target_w))

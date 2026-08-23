@@ -369,11 +369,11 @@ async def generate_passport_v2(req: GenerateRequest):
     with open(out_path, "wb") as f:
         f.write(out_bytes)
 
-    # Auto-crop with preset
+    # Auto-crop with preset — SQUARE mode (no forced passport ratio, no chin cut)
     crop_preset = req.crop_preset if req.crop_preset in ("standard", "compact", "relaxed") else "standard"
     try:
         from head_finder import crop_passport_auto
-        crop_result = crop_passport_auto(out_img, preset=crop_preset, dpi=300)
+        crop_result = crop_passport_auto(out_img, preset=crop_preset, dpi=300, square=True)
         if crop_result["ok"]:
             cropped = crop_result["result"]
             crop_bytes = _encode_image(cropped)
@@ -500,9 +500,10 @@ async def remove_bg(req: RemoveBgRequest):
         pil_image = Image.open(transparent_path).convert('RGBA')
     else:
         # First time — call Prodia ($0.0025)
-        src_path = STORAGE_DIR / f"{req.session_id}_cropped.jpg"
+        # Prefer _passport.jpg (square, uncropped) — NOT _cropped.jpg (may have cut chin)
+        src_path = STORAGE_DIR / f"{req.session_id}_passport.jpg"
         if not src_path.exists():
-            src_path = STORAGE_DIR / f"{req.session_id}_passport.jpg"
+            src_path = STORAGE_DIR / f"{req.session_id}_cropped.jpg"
         if not src_path.exists():
             raise HTTPException(404, f"Session not found: {req.session_id}")
         with open(src_path, "rb") as f:

@@ -52,10 +52,12 @@ CROP_PRESETS = {
 }
 
 
-def crop_passport_auto(image, preset="standard", dpi=300):
+def crop_passport_auto(image, preset="standard", dpi=300, square=True, size_px=None):
     """
     Auto-crop passport photo.
-    เลือก preset: standard, compact, relaxed
+    square=True (default): keep the square image, only center/trim, do NOT force
+    35x45 ratio. size_px: optional exact output size (e.g. 1024). If None, keep
+    the largest square that fits (min(w,h)).
     """
     h, w = image.shape[:2]
     target_w_mm, target_h_mm = 35, 45
@@ -64,6 +66,30 @@ def crop_passport_auto(image, preset="standard", dpi=300):
     cfg = CROP_PRESETS.get(preset, CROP_PRESETS["standard"])
     target_head_top_pct = cfg["target_head_top_pct"]
     face_width_ratio = cfg["face_width_ratio"]
+
+    if square:
+        # ── SQUARE MODE: keep full square, no forced passport ratio ──
+        side = size_px if size_px else min(h, w)
+        side = min(side, h, w)
+        # center crop square from the image
+        x1 = max(0, (w - side) // 2)
+        y1 = max(0, (h - side) // 2)
+        cropped = image[y1:y1 + side, x1:x1 + side]
+        # if requested size differs, resize
+        if size_px and size_px != side:
+            cropped = cv2.resize(cropped, (size_px, size_px), interpolation=cv2.INTER_LANCZOS4)
+        face = detect_face(cv2.cvtColor(cropped, cv2.COLOR_BGR2RGB))
+        head = find_head_top(cropped)
+        return {
+            "ok": True,
+            "result": cropped,
+            "headspace_in_crop": (head["headspace_from_top"] if head else "n/a"),
+            "crop_region": {"x": x1, "y": y1, "w": side, "h": side},
+            "output": f"{cropped.shape[1]}x{cropped.shape[0]}px (square, no passport-ratio crop)",
+            "square": True,
+            "face": [int(v) for v in face] if face is not None else None,
+        }
+    # ── LEGACY RATIO MODE (unchanged, only used if square=False) ──
 
     # หาหัว
     head = find_head_top(image)

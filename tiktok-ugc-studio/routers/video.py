@@ -113,6 +113,63 @@ _STYLE_CATEGORY_MAP = [
 ]
 
 
+def _product_short_name(product_name: str) -> str:
+    """ย่อชื่อสินค้าสำหรับ TTS — ตัด [xxx]/【xxx】 prefix, ตัดชื่ออังกฤษซ้ำท้าย
+    และส่วนที่เกิน 25 ตัวอักษร เพื่อให้พากย์ไม่อ่านชื่อยาวทื่อ.
+    ตัวอย่าง: '[ใหม่] วาสลีน สปอตเลส โกลว์ 170มล VASELINE SPOTLESS GLOW 170ML'
+              -> 'วาสลีน สปอตเลส โกลว์ 170มล'"""
+    if not product_name:
+        return product_name
+    import re
+    t = product_name.strip()
+    # ตัด [xxx] / 【xxx】 / (xxx) แบบ prefix
+    t = re.sub(r'^\s*[\[【（(][^\]】）)]*[\]】）)]\s*', '', t)
+
+    # ถ้ายังขึ้นต้นด้วยคำโปรโมท/จำนวน (ยกลัง/เซ็ต/50กล่อง...) ก็ตัดทิ้ง เหลือชื่อสินค้าจริง
+    m = re.match(r'^(?:ยกลัง|เซ็ต|ชุด|แพ็ก|คลัง|ลัง|ชิ้น|[0-9]+\s*(?:ชิ้น|กล่อง|ขวด|ลัง|ชุด|เซ็ต))\s*', t, re.I)
+    if m:
+        t = t[m.end():].strip()
+
+    # ตัดส่วนภาษาอังกฤษซ้ำท้าย (ตัวพิมพ์ใหญ่ติดกัน >=4 ตัว เช่น 'VASELINE SPOTLESS GLOW 170ML')
+    t = re.sub(r'\s+[A-Z][A-Z0-9\s\-]{4,}$', '', t).strip()
+    # ถ้ายังยาวเกิน 25 ให้ตัดเหลือ 25 (ไม่ตัดกลางคำไทย)
+    if len(t) > 25:
+        cut = t[:25].rsplit(' ', 1)[0] if ' ' in t[:25] else t[:25]
+        t = cut.strip(',.:')
+    # ลบอักขระพิเศษที่เหลือท้าย (เช่น ! . ,) และอักษรที่ไม่ใช่ไทย/อังกฤษ/ตัวเลข
+    t = re.sub(r'[!@#$%^&*+=~`<>|“”"\']+\s*$', '', t).strip()
+    # ลบอักษรที่ไม่ใช่ ไทย/ละติน/ตัวเลข/เว้นวรรค ออกจากชื่อย่อ (เช่น ตัวจีน 防水)
+    t = re.sub(r'[^\u0E00-\u0E7Fa-zA-Z0-9\s]+', '', t).strip()
+    return t if len(t) >= 3 else (product_name.strip() or "สินค้า")
+
+
+def _dedupe_product_name_inline(script: str, product_name: str) -> str:
+    """ให้พูดชื่อสินค้าแค่ครั้งเดียว (ครั้งแรกที่เจอ) ครั้งที่เหลือแทนด้วย "ตัวนี้".
+    ใช้ logic เดียวกับ modules/video/script_gen.py:_dedupe_product_name — กัน TTS
+    อ่านชื่อยาวซ้ำหน้าทื่อใน fallback script (video/generate)."""
+    if not product_name or not script:
+        return script
+    name = product_name.strip()
+    if name in script:
+        target = name
+    else:
+        words = [w for w in name.split() if len(w) >= 4]
+        target = None
+        for w in sorted(words, key=len, reverse=True):
+            if w in script:
+                target = w
+                break
+        if target is None:
+            return script
+    first_idx = script.find(target)
+    if first_idx == -1:
+        return script
+    result = script[:first_idx + len(target)]
+    rest = script[first_idx + len(target):]
+    result += rest.replace(target, "ตัวนี้")
+    return result
+
+
 def _map_category(category: str) -> str:
     """Map a TUS product category (Thai full label or English) to an English key."""
     if not category:
@@ -175,7 +232,11 @@ async def generate_video(req: VideoRequest):
         desc = req.product_description or ""
         full_script = f"{_product_title}: {desc}" if desc else f"{_product_title}"
     elif _product_title:
-        full_script = f"{_product_title} ตัวนี้ใช้งานดีมาก คุณภาพดี คุ้มค่าสุดๆ แนะนำเลยค่ะ กดสั่งในตะกร้าได้เลยนะคะ"
+        # ใช้ชื่อย่อ (ตัด [ใหม่]/ชื่ออังกฤษซ้ำ) + พูดชื่อแค่ครั้งเดียว แล้วแทนที่เหลือด้วย "ตัวนี้" —
+        # กัน TTS อ่านชื่อยาวๆ ซ้ำ/ทื่อ เช่น "วาสลีน สปอตเลส โกลว์ 170มล VASELINE SPOTLESS GLOW 170ML ตัวนี้..."
+        _short = _product_short_name(_product_title)
+        full_script = f"{_short} ตัวนี้ใช้งานดีมาก คุณภาพดี คุ้มค่าสุดๆ แนะนำเลยค่ะ กดสั่งในตะกร้าได้เลยนะคะ"
+        full_script = _dedupe_product_name_inline(full_script, _short)
     else:
         full_script = "สินค้าตัวนี้ใช้งานดีมาก คุณภาพดี คุ้มค่าสุดๆ แนะนำเลยค่ะ กดสั่งในตะกร้าได้เลยนะคะ"
 

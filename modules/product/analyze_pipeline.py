@@ -91,7 +91,9 @@ async def _download_images_local(product_id: str, image_urls: list) -> list:
         
         try:
             async with httpx.AsyncClient(
-                proxy=PROXY_DICT.get('http') or PROXY_DICT.get('https') if PROXY_DICT else None,
+                # NOTE: Do NOT use the DataImpulse proxy for product image downloads.
+                # TikTok's CDN (ibyteimg.com) rejects the proxy with HTTP 407 TRAFFIC_EXHAUSTED.
+                # Use a direct connection instead (verified HTTP 200).
                 timeout=20,
                 verify=False
             ) as client:
@@ -633,7 +635,9 @@ class ProductExporter:
             if filters.get("category") and p.category != filters["category"]: continue
             result.append({
                 "product_id": p.product_id, "title": p.title, "title_th": p.title_th,
-                "price_thb": p.price_avg, "rating": p.rating, "sold_total": p.sold_total,
+                "price_thb": p.price_avg,
+                "price_min": p.price_min, "price_max": p.price_max, "price_avg": p.price_avg,
+                "rating": p.rating, "sold_total": p.sold_total,
                 "viral_score": p.viral_score, "trending": p.trending,
                 "category": p.category, "keywords": p.keywords,
                 "images": p.images, "commission": f"{p.commission_rate}%",

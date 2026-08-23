@@ -510,7 +510,8 @@ async def generate_video(req: VideoRequest):
                 "reference_image": getattr(req, "reference_image", None) or "",
                 "last_frame": getattr(req, "last_frame", None) or "",
                 "thai_script": getattr(req, "thai_script", None) or "",
-                "use_tus_voice": getattr(req, "use_tus_voice", False),
+                # Voice mode A (Wan พูดเอง) เป็นค่าเริ่มต้น → กัน Gemini TTS กลับมาใช้ (owner 12:22)
+                "use_tus_voice": getattr(req, "use_tus_voice", True),
                 "audio": getattr(req, "audio", None) or "",
             }, timeout=300.0)  # Video pipeline takes 90-180s
 

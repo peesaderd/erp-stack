@@ -147,7 +147,7 @@ class VideoRequest(BaseModel):
     reference_image: Optional[str] = None
     last_frame: Optional[str] = None
     thai_script: Optional[str] = None
-    use_tus_voice: bool = False
+    use_tus_voice: bool = True
     prompt_extend: bool = True
     # ── FL2V+Audio (Wan 2.7 start-end interpolation + 16kHz mono WAV lip-sync) ──
     audio: Optional[str] = None  # path/URL ของไฟล์เสียง 16kHz mono WAV (Prodia lip-sync)

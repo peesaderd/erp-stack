@@ -125,7 +125,10 @@ async def run_full_pipeline(req: FullPipelineRequest):
     job_id = _create_pipeline_job(account_id="", product_url=req.product_url or "")
 
     try:
-        if req.run_tts:
+        # Voice mode A (use_tus_voice=True, Wan พูด Thai script) = ค่าเริ่มต้น → ข้าม run_tts
+        # (กัน Gemini TTS ถูกสร้างซ้ำซ้อนที่ proxy เสียเปล่า; เสียงใช้ Wan เองowner-12:22)
+        _mode_a = bool(getattr(req, "use_tus_voice", True))
+        if req.run_tts and not _mode_a:
             _update_pipeline_step(job_id, "tts", "processing")
             full_text = " ".join(filter(None, [req.hook, req.value_proposition, req.cta]))
             if not full_text.strip():

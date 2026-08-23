@@ -602,7 +602,7 @@ def generate_video(
     first_frame: Optional[str] = None,
     last_frame: Optional[str] = None,
     thai_script: Optional[str] = None,
-    use_tus_voice: bool = False,
+    use_tus_voice: bool = True,
     prompt_extend: bool = True,
 ) -> tuple:
     """
@@ -998,7 +998,7 @@ def run_pipeline(
     reference_image: Optional[str] = None,
     last_frame: Optional[str] = None,
     thai_script: Optional[str] = None,
-    use_tus_voice: bool = False,
+    use_tus_voice: bool = True,
     audio_path: Optional[str] = None,
     prompt_extend: bool = True,
     **kwargs,

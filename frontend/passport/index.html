@@ -32,6 +32,7 @@
 .preview-wrap{text-align:center;margin-bottom:16px;position:relative}
 .preview-box{position:relative;max-width:280px;width:100%;aspect-ratio:1/1;margin:0 auto;overflow:hidden;border-radius:14px;border:2px solid #e2e8f0;background:#fff}.preview-img{width:100%;height:100%;object-fit:contain;border-radius:14px;display:block;position:relative;z-index:1;background:#fff}.preview-bg{position:absolute;top:0;left:0;width:100%;height:100%;border-radius:14px;z-index:0;transition:background-color .2s}
 .preview-bg{position:absolute;top:0;left:50%;transform:translateX(-50%);width:260px;height:260px;border-radius:14px;z-index:0;transition:background-color .2s}
+.opt-tab{flex:1;text-align:center;padding:8px 4px;border-radius:9px;font-size:.68rem;font-weight:700;color:#94a3b8;cursor:pointer;transition:.2s;white-space:nowrap}.opt-tab.active{background:#6366f1;color:#fff}.opt-pane{display:none}.opt-pane.act{display:block}.opt-pane.act{animation:fadeIn .25s}
 .res-stats{display:flex;justify-content:center;gap:12px;margin-top:10px;flex-wrap:wrap}.rst{text-align:center;padding:8px 14px;background:#f8fafc;border-radius:10px;min-width:60px}.rst .v{font-size:.85rem;font-weight:700;color:#0f172a}.rst .l{font-size:.58rem;color:#94a3b8;margin-top:2px}
 .res-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;justify-content:center}.res-btns button{padding:10px 18px;border:none;border-radius:10px;font-size:.75rem;font-weight:600;cursor:pointer;transition:.2s}
 
@@ -78,39 +79,6 @@
 <div class="page">
 
 <!-- ══════ SECTION 1: UPLOAD ══════ -->
-<div class="section" id="sec1">
-  <div class="card" style="padding:24px">
-    <div id="dropZone">
-      <div class="drop" id="drop">
-        <div class="ic">📷</div>
-        <h3>Upload your photo</h3>
-        <p>Drag &amp; drop or click to browse<br><small>JPG / PNG · Single or multiple (max 20)</small></p>
-        <div class="drop-btns">
-          <button class="btn-p" type="button" onclick="pickFile()">📁 Choose Photo</button>
-        </div>
-        <input type="file" id="fi" accept="image/jpeg,image/png" multiple>
-      </div>
-    </div>
-    <div id="uploaded" class="hidden" style="margin-top:16px;text-align:center">
-      <div style="display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap">
-        <div style="flex:0 0 72px;aspect-ratio:3/4;border-radius:10px;overflow:hidden;border:2px solid #6366f1;box-shadow:0 4px 12px rgba(99,102,241,.3)"><img id="upThumb" style="width:100%;height:100%;object-fit:cover"></div>
-        <div style="text-align:left">
-          <div id="upName" style="font-size:.8rem;font-weight:700"></div>
-          <div id="upMeta" style="font-size:.68rem;color:#64748b;margin:2px 0 6px"></div>
-          <span class="gbadge" id="upGender" style="display:none"></span>
-          <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
-            <button class="btn-c" style="padding:8px 14px;border:none;border-radius:8px;font-size:.7rem;font-weight:600;cursor:pointer" onclick="clearAll()">↺ Remove</button>
-            <button class="btn-c" style="padding:8px 14px;border:none;border-radius:8px;font-size:.7rem;font-weight:600;cursor:pointer" onclick="pickFile()">🔄 Change</button>
-            <button class="btn-p" style="padding:8px 18px;border:none;border-radius:8px;font-size:.7rem;font-weight:600;cursor:pointer" onclick="goOptions()">Next ⏩</button>
-          </div>
-        </div>
-      </div>
-      <div id="multiPreview" style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:12px"></div>
-    </div>
-    <div class="err-box hidden" id="upErr"></div>
-  </div>
-</div>
-
 <!-- ══════ SECTION 2: POST-GENERATE (Preview + Options) ══════ -->
 <div class="section hidden" id="sec3">
   <!-- Preview -->
@@ -202,6 +170,40 @@
     </div>
   </div>
 </div>
+
+<div class="section" id="sec1">
+  <div class="card" style="padding:24px">
+    <div id="dropZone">
+      <div class="drop" id="drop">
+        <div class="ic">📷</div>
+        <h3>Upload your photo</h3>
+        <p>Drag &amp; drop or click to browse<br><small>JPG / PNG · Single or multiple (max 20)</small></p>
+        <div class="drop-btns">
+          <button class="btn-p" type="button" onclick="pickFile()">📁 Choose Photo</button>
+        </div>
+        <input type="file" id="fi" accept="image/jpeg,image/png" multiple>
+      </div>
+    </div>
+    <div id="uploaded" class="hidden" style="margin-top:16px;text-align:center">
+      <div style="display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap">
+        <div style="flex:0 0 72px;aspect-ratio:3/4;border-radius:10px;overflow:hidden;border:2px solid #6366f1;box-shadow:0 4px 12px rgba(99,102,241,.3)"><img id="upThumb" style="width:100%;height:100%;object-fit:cover"></div>
+        <div style="text-align:left">
+          <div id="upName" style="font-size:.8rem;font-weight:700"></div>
+          <div id="upMeta" style="font-size:.68rem;color:#64748b;margin:2px 0 6px"></div>
+          <span class="gbadge" id="upGender" style="display:none"></span>
+          <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn-c" style="padding:8px 14px;border:none;border-radius:8px;font-size:.7rem;font-weight:600;cursor:pointer" onclick="clearAll()">↺ Remove</button>
+            <button class="btn-c" style="padding:8px 14px;border:none;border-radius:8px;font-size:.7rem;font-weight:600;cursor:pointer" onclick="pickFile()">🔄 Change</button>
+            <button class="btn-p" style="padding:8px 18px;border:none;border-radius:8px;font-size:.7rem;font-weight:600;cursor:pointer" onclick="goOptions()">Next ⏩</button>
+          </div>
+        </div>
+      </div>
+      <div id="multiPreview" style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:12px"></div>
+    </div>
+    <div class="err-box hidden" id="upErr"></div>
+  </div>
+</div>
+
 
 <!-- ══════ SECTION 3: CLOTHING + GENERATE ══════ -->
 <div class="section hidden" id="sec2">

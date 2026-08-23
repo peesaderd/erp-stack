@@ -510,20 +510,20 @@ def _cover_product_desc(profile: dict, product_name: str) -> str:
     """
     appearance = (profile or {}).get("product_appearance", "") or ""
     brand = _clean_brand_name(product_name)
-    logo = (
-        f"a subtle '{brand}' logo and 'OFFICIAL STORE' text in the upper corner"
-        if brand else
-        "a subtle brand logo and 'OFFICIAL STORE' text in the upper corner"
-    )
+    # Owner: NO 'OFFICIAL STORE' watermark — the model keeps painting that text
+    # onto product/background panels and it looks cluttered/unwanted. Keep only a
+    # subtle brand logo; instruct the model NOT to add any invented text/captions.
+    logo = f"a subtle '{brand}' logo in the upper corner" if brand else "no extra text or logos"
     # Design a cover, don't copy the reference wholesale. Reference defines the
     # product/brand only; the model composes the layout so text stays legible.
-    # Use the cleaned brand (NOT a hardcoded Dr.PONG) so the cover label matches
-    # the actual product. The model must keep brand/logo text ONLY on this cover
-    # (panel 1); panels 2/3 carry NO text (see build_image_prompt no-text clause).
+    # Use the cleaned brand so the cover label matches the actual product.
+    # NO invented text: brand text only from the real product label, never add
+    # words like OFFICIAL STORE, BEST, 100%, etc. (owner: those leak onto panels).
     pair_desc = (
         "designed as a clean studio product cover featuring the product(s) from "
         "the reference image, crisp unclipped labels; render every item, label "
-        "and variant that appears, laid out neatly side by side"
+        "and variant that appears, laid out neatly side by side; do not add any "
+        "invented text or captions beyond what is on the real product label"
     )
     return (
         f"clean professional commercial product cover page: "

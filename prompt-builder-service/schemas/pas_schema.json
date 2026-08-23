@@ -2,36 +2,31 @@
   "schema_version": 2,
   "name": "pas",
   "label": "Problem → Agitate → Solve",
-  "description": "โครงสร้างคลาสสิกสำหรับสินค้าที่แก้ปัญหา — เปิดด้วยปัญหา ขยายความเจ็บปวด แล้วเสนอทางออก (v2: แต่ละ beat พูดมุมต่าง ไม่ซ้ำคำ — hook อ้างปัญหาครั้งเดียว, agitate ขยี้ผลเสียไม่ทวนปัญหา, solve โฟกัส product + benefit)",
+  "description": "โครงสร้างคลาสสิกสำหรับสินค้าที่แก้ปัญหา — เปิดด้วยปัญหา ขยายความเจ็บปวด แล้วเสนอทางออก (v2: แต่ละ ช่วง พูดมุมต่าง ไม่ซ้ำคำ — hook อ้างปัญหาครั้งเดียว, agitate ขยี้ผลเสียไม่ทวนปัญหา, solve โฟกัส product + benefit)",
   "scenes": [
     {
       "id": "hook",
       "timing_ratio": 0.2,
       "purpose": "เปิดด้วยปัญหา '{problem}' ให้คนดูรู้สึกว่าใช่เลย",
-      "prompt": "{problem} อยู่ไหม ลองเช็คดู",
-      "visual": "open on the {gender_en} holding {vp_product} toward the camera, warm inviting look, medium shot"
+      "prompt": "{problem} อยู่ไหม ลองเช็คดู"
     },
     {
       "id": "apply",
       "timing_ratio": 0.25,
       "purpose": "ลงมือใช้สินค้า — ทา/ใช้ ตัวนี้ (ความเจ็บปวดบอกผ่านเสียงพากย์ ไม่เป็นภาพ)",
-      "prompt": "ลองใช้ตัวนี้ดูสิ",
-      "visual": "{apply_hint}, smooth light hand motion",
-      "visual_pre": "close-up on the hands"
+      "prompt": "ลองใช้ตัวนี้ดูสิ"
     },
     {
       "id": "solve",
       "timing_ratio": 0.3,
       "purpose": "'{product}' คือทางออก — เห็นผล ดีขึ้น (ไม่ใส่ benefit ยาว กัน fit เกิน)",
-      "prompt": "แนะนำ {product} ตัวนี้แก้ตรงจุดเลย",
-      "visual": "she reveals the result, clearly showing {result_focus}, {vp_product} beside her"
+      "prompt": "แนะนำ {product} ตัวนี้แก้ตรงจุดเลย"
     },
     {
       "id": "cta",
       "timing_ratio": 0.15,
       "purpose": "CTA สั้น — ให้ลอง ตัวนี้",
-      "prompt": "ชวนให้ลอง ตัวนี้ วันนี้",
-      "visual": "she holds {vp_product} toward the camera, smiling invitingly"
+      "prompt": "ชวนให้ลอง ตัวนี้ วันนี้"
     }
   ],
   "recommended": {

@@ -951,7 +951,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         isinstance(scenes, list) and len(scenes) >= 2
         and product_name and ugc_style not in ("talking", "talking_head", "review")
         and not _is_no_human_style(ugc_style)
-    ) and False:  # 4-beat ปิด — owner 2026-08-23: video ใช้ single long prompt ไม่แบ่ง scene
+    ):
         vp_product = _clean_product_name_for_video(product_name)
         gender_en = {"female": "Woman", "male": "Man", "unisex": "Person"}.get(model_gender, "Woman")
 

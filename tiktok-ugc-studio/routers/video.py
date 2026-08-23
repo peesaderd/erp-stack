@@ -148,30 +148,50 @@ def _product_short_name(product_name: str) -> str:
 
 
 def _dedupe_product_name_inline(script: str, product_name: str) -> str:
-    """ให้พูดชื่อสินค้าแค่ครั้งเดียว (ครั้งแรกที่เจอ) ครั้งที่เหลือแทนด้วย "ตัวนี้".
-    ใช้ logic เดียวกับ modules/video/script_gen.py:_dedupe_product_name — กัน TTS
-    อ่านชื่อยาวซ้ำหน้าทื่อใน fallback script (video/generate)."""
+    """พูดชื่อสินค้าแค่ครั้งเดียว (ครั้งแรกที่เจอ) ครั้งที่เหลือ DROP ทิ้ง ไม่ใช้ "ตัวนี้".
+
+    Owner (2026-08-23): ไม่อยากให้มีคำแทน "ตัวนี้" — สคริปต์พูดประธาน (ชื่อสินค้า) แล้ว
+    ไม่ต้องพูด/อ้างถึงซ้ำอีก ให้เลี่ยงไปเลย ไทย/อังกฤษของแบรนด์เดียวกันถือเป็นชื่อเดียวกัน
+    (ครีมสกินชี↔Skinshe) จึงทำให้ไทย/อังกฤษไม่หลุดไปพูดซ้ำ."""
+    import re as _re
     if not product_name or not script:
         return script
-    name = product_name.strip()
-    if name in script:
-        target = name
-    else:
-        words = [w for w in name.split() if len(w) >= 4]
-        target = None
-        for w in sorted(words, key=len, reverse=True):
-            if w in script:
-                target = w
-                break
-        if target is None:
-            return script
-    first_idx = script.find(target)
-    if first_idx == -1:
+    toks = []
+    for raw in _re.split(r"[\s\[\]()/\\,.:;|\-]+", product_name.strip()):
+        w = raw.strip()
+        if not w or w.isdigit():
+            continue
+        if _re.fullmatch(r"(เซต|ชิ้น|มี|แถม|ขนาด|ใหม่|เจน|รุ่น|สี|แพ็ค|แพ็ก|set|pack|box|ml|g|gift|giftea|ครีม|cream)?", w, _re.I):
+            continue
+        if _re.search(r"[A-Za-z]", w):
+            norm = _re.sub(r"[^a-z0-9]", "", w.lower())
+        else:
+            norm = _re.sub(r"[^\u0E00-\u0E7F0-9]", "", w)
+        if norm:
+            toks.append((w, norm, norm.isascii()))
+    if not toks:
         return script
-    result = script[:first_idx + len(target)]
-    rest = script[first_idx + len(target):]
-    result += rest.replace(target, "ตัวนี้")
-    return result
+    hits = []
+    sl = script.lower()
+    for w, norm, ascii_ in toks:
+        idx = sl.find(norm) if ascii_ else script.find(w)
+        if idx != -1:
+            hits.append((idx, len(w), w, norm, ascii_))
+    if not hits:
+        return script
+    hits.sort(key=lambda h: (h[0], -h[1]))
+    fi, flen, _, _, _ = hits[0]
+    result = script[:fi + flen]
+    rest = script[fi + flen:]
+    for w, norm, ascii_ in toks:
+        if ascii_:
+            rest = _re.sub(r"(^|[^A-Za-z0-9])%s(?=[^A-Za-z0-9]|$)" % _re.escape(norm), r"\1", rest, flags=_re.I)
+        else:
+            rest = rest.replace(w, "")
+    rest = _re.sub(r"\s{2,}", " ", rest)
+    rest = _re.sub(r"\s+(และ|หรือ|กับ)\s+", r" \1 ", rest)
+    rest = _re.sub(r"(และ|หรือ|กับ)\s*$", "", rest)
+    return (result + rest).strip()
 
 
 def _map_category(category: str) -> str:

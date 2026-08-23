@@ -74,6 +74,7 @@ def build_script_system_prompt(persona: dict, duration: str = f"{DEFAULT_DURATIO
 6. ห้ามขึ้นต้นด้วยคำว่า ว่าไง/ว่าไงบ้าง/ว่าไงครับ
 7. ห้ามบอกว่ากดติดตาม กดไลค์ กดแชร์ แชร์เลย คลิปนี้
 8. ห้ามพูดถึงหัวข้อเดิมซ้ำ
+8.5 พูดชื่อสินค้าได้ครั้งเดียวเท่านั้น (ตอนเปิด/แนะนำตัว) เรื่องต่อๆ ไปห้ามเอ่ยชื่อสินค้าซ้ำอีก และห้ามใช้คำแทนชื่อ เช่น ตัวนี้/เจ้านี้/ตัวนี้เลย ห้ามใส่ทุกกรณี — ให้พูดประโยคต่อไปโดยไม่ต้องอ้างชื่อหรือประธานเดิมซ้ำ
 9. ให้พูดเฉพาะเนื้อหาสินค้า ห้ามพูดนอกเรื่อง
 10. ส่งออกเฉพาะสคริปต์เท่านั้น ห้ามมีคำอธิบายเพิ่มเติม
 11. ตอบกลับด้วยสคริปต์ภาษาไทยที่พร้อมใช้วางใน TikTok Voiceover ทันที
@@ -217,33 +218,83 @@ def fill_template(template: str, data: dict) -> str:
 
 # ─── Script Generators ─────────────────────────────────────────────────────
 
+import re
+
+def _brand_tokens(product_name: str):
+    """Split product name into normalized tokens so Thai & English versions of the
+    SAME brand are treated as ONE name (e.g. ครีมสกินชี ↔ Skinshe / กลูต้า ↔ GLUTA).
+
+    Returns a list of tuples (token, norm) where norm is a case/space folded key.
+    Thai tokens are kept as-is; Latin tokens are lowercased and stripped of
+    diacritics so Skinshe/skinshe/SKIN-SHE all collapse to one key.
+    """
+    import unicodedata
+    toks = []
+    for raw in re.split(r"[\s\[\]()/\\,.:;|\-]+", product_name):
+        w = raw.strip()
+        if not w:
+            continue
+        # drop pure-unit/size noise (เซต, ชิ้น, 1, มี, สี, size, ml, g ฯลฯ)
+        if re.fullmatch(r"(เซต|ชิ้น|มี|แถม|ขนาด|ใหม่|เจน|รุ่น|สี|แพ็ค|แพ็ก|set|pack|box|ml|g|gift|giftexeat|ครีม|cream)?", w, re.I):
+            continue
+        if w.isdigit():
+            continue
+        latin = bool(re.search(r"[A-Za-z]", w))
+        if latin:
+            norm = unicodedata.normalize("NFKD", w.lower())
+            norm = re.sub(r"[^a-z0-9]", "", norm)
+        else:
+            norm = re.sub(r"[^\u0E00-\u0E7F0-9]", "", w)  # Thai keep
+        if norm:
+            toks.append((w, norm))
+    return toks
+
+
 def _dedupe_product_name(script: str, product_name: str) -> str:
-    # ให้พูดชื่อสินค้าแค่ครั้งเดียว (ครั้งแรกที่เจอ) ครั้งที่เหลือแทนด้วยสรรพนาม ตัวนี้
+    """Owner directive (2026-08-23): the product name is spoken at most ONCE.
+
+    The script ALREADY establishes the subject/production early (e.g. "ครีมสกินชี..."
+    or "Skinshe Gifteset..."), so there is no reason to name it again later. After
+    the first mention we simply DROP further mentions (do NOT substitute "ตัวนี้")
+    so later clauses just proceed without re-referencing the product.
+
+    Thai & English variants of the same brand are folded to a single token so a
+    mixed name (ครีมสกินชี Skinshe Gifteset Cream) never slips a duplicate past.
+    """
     if not product_name or not script:
         return script
-    name = product_name.strip()
-    # ถ้าเจอชื่อเต็มใน script ให้ใช้ชื่อเต็ม
-    if name in script:
-        target = name
-    else:
-        # ถ้าไม่เจอชื่อเต็ม ให้หาคำหลักที่ยาวที่สุดที่ปรากฏใน script
-        # เช่น product_name="กระโปรงยาวจีบรอบทรงเอ สไตล์มินิมอลญี่ปุ่น"
-        # แต่ script มีแค่ "กระโปรงยาวจีบรอบทรงเอ"
-        words = [w for w in name.split() if len(w) >= 4]
-        target = None
-        for w in sorted(words, key=len, reverse=True):
-            if w in script:
-                target = w
-                break
-        if target is None:
-            return script
-    first_idx = script.find(target)
-    if first_idx == -1:
+    toks = _brand_tokens(product_name)
+    if not toks:
         return script
-    result = script[:first_idx + len(target)]
-    rest = script[first_idx + len(target):]
-    result += rest.replace(target, "ตัวนี้")
-    return result
+    # Find first occurrence across all normalized variants → keep the longest match
+    hits = []
+    for tok, norm in toks:
+        idx = script.lower().find(norm) if norm.isascii() else script.find(tok)
+        if idx != -1:
+            hits.append((idx, len(tok), tok, norm))
+    if not hits:
+        return script
+    hits.sort(key=lambda h: (h[0], -h[1]))  # earliest, then longest
+    first_idx, first_len, first_tok, first_norm = hits[0]
+    result = script[:first_idx + first_len]
+    rest = script[first_idx + first_len:]
+    # Remove every later mention (Thai or Latin) instead of replacing with ตัวนี้
+    for tok, norm in toks:
+        if norm.isascii():
+            # avoid over-stripping: only drop word-boundary matches of the latin token
+            rest = re.sub(r"(^|[^A-Za-z0-9])%s(?=[^A-Za-z0-9]|$)" % re.escape(norm), r"\1", rest, flags=re.I)
+        else:
+            rest = rest.replace(tok, "")
+    # collapse doubled spaces left by removals + tidy leftover connectors
+    rest = re.sub(r"\s{2,}", " ", rest)
+    # a removed token left a connector glued to the previous word + a gap
+    # e.g. "ครีมสกินชีและ Skinshe ทั้งสอง" → after cut → "สกินชีและ  ทั้งสอง"
+    rest = re.sub(r"(และ|หรือ|กับ)\s{1,}", r" \1", rest)   # "และ  ทั้ง" → " และ ทั้ง"
+    # remove a dangling connector that now floats right after the kept token
+    # e.g. "สกินชี และ ทั้งสอง" (the listed item was cut) → drop the connector too
+    rest = re.sub(r"\s+(และ|หรือ|กับ)\s+", r" ", rest)
+    rest = re.sub(r"(และ|หรือ|กับ)\s*$", "", rest)
+    return (result + rest).strip()
 
 
 def generate_tiktok_review_script(

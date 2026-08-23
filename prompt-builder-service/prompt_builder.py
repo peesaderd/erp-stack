@@ -613,8 +613,9 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             colors = profile.get("colors", "") or ""
             parts_colors = f"color palette: {', '.join(colors)}. " if colors else ""
             image_prompt = (
-                f"16:9 landscape triptych, three equal horizontal panels side by side, "
-                f"no gap, no border between the panels, seamless edge to edge. "
+                f"16:9 landscape triptych, three equal horizontal panels placed side "
+                f"by side touching edge to edge with zero pixels of space between them, "
+                f"joined as one seamless 16:9 image. "
                 f"{no_human_clause} "
                 f"Panel 1 (left): {cover_hint}. "
                 f"Panel 2 (center): {mid_hint}. "
@@ -628,10 +629,10 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
                 f"on panels 2 and 3; Panels 2 and 3 must be completely free of any text, "
                 f"lettering, typography, caption, or writing — only the product, cleanly. "
                 f"Cohesive consistent style, high quality product photography. "
-                f"Fill the ENTIRE 16:9 frame edge to edge — NO white bars, NO padding, "
-                f"NO borders, NO empty gaps between the three panels; the panels must fully "
-                f"bleed together edge to edge so the image is one continuous full-frame "
-                f"with no white margin or divider line."
+                f"Render the full 16:9 frame edge to edge as one continuous surface; "
+                f"the three panels touch one another with 0 pixels of gap and 0 pixels "
+                f"of gutter or margin between them — no divider line, no seam, and no "
+                f"spacing anywhere in the image."
             )
             logger.info(f"  Image prompt (no-human {style_l} triptych, {len(image_prompt)} chars)")
             # Append the style's image anchor (from SSOT ugc_styles.json) so the
@@ -697,8 +698,9 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         parts_colors = f"color palette: {', '.join(colors)}. " if colors else ""
 
         image_prompt = (
-            f"16:9 landscape triptych, three equal horizontal panels side by side, "
-            f"no gap, no border between the panels, seamless edge to edge. "
+            f"16:9 landscape triptych, three equal horizontal panels placed side "
+            f"by side touching edge to edge with zero pixels of space between them, "
+            f"joined as one seamless 16:9 image. "
             f"Panel 1 (left): {cover_hint}. "
             f"Panel 2 (center): {mid_hint} (same model appears in panels 2 and 3). "
             f"Panel 3 (right): {result_hint}. "
@@ -712,10 +714,10 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             f"lettering, typography, caption, caption, brand name, or writing; "
             f"only the model and product, cleanly. "
             f"Cohesive consistent style, high quality product photography. "
-            f"Fill the ENTIRE 16:9 frame edge to edge — NO white bars, NO padding, "
-            f"NO borders, NO empty gaps between the three panels; the panels must fully "
-            f"bleed together edge to edge so the image is one continuous full-frame "
-            f"with no white margin or divider line."
+            f"Render the full 16:9 frame edge to edge as one continuous surface; "
+            f"the three panels touch one another with 0 pixels of gap and 0 pixels "
+            f"of gutter or margin between them — no divider line, no seam, and no "
+            f"spacing anywhere in the image."
         )
         logger.info(f"  Image prompt (triptych {len(image_prompt)} chars): {image_prompt[:100]}...")
         # Append the style's image anchor (from SSOT ugc_styles.json) so the first

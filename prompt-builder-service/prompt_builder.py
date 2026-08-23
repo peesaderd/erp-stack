@@ -649,11 +649,13 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         # (that hardcoding made Wan render two identical items). "as shown in the
         # reference image" keeps count + labels + colors from the ground truth.
         # Compact wording (owner: too wordy) — one clean visual line.
-        # NEW: when the deep-analysis tells us the body area (face for a pregnancy
-        # cream, whole-body→hand, etc.), show the apply ACTION instead of a static
-        # hold, so the video actually uses the product on the right body part.
+        # NEW: only force the APPLY action when special_target is set (e.g. a
+        # pregnancy cream that must be applied to face/belly). All other products
+        # (incl. body_part=whole-body) stay as a plain HOLD — "ถือสินค้าพูด" is the
+        # default fallback when no special apply audience is known. Having body_part
+        # alone must NOT turn a normal unbox/holding video into a smear demo.
         _app_hint = _apply_hint(subcategory, category, profile)
-        if profile.get("body_part") or profile.get("special_target"):
+        if profile.get("special_target", "").strip():
             mid_hint = (
                 f"{model_desc} applying the product from the reference image, "
                 f"{_app_hint}, {room_desc}"
@@ -810,10 +812,11 @@ def _beat_panel_hint(profile, product_name, model_desc, action, scene, panel_rol
     elif panel_role == "middle":
         # Reference-driven (USER TEMPLATE vid_b43d89ab). Compact wording
         # (owner: too wordy) — one clean line, no hardcoded item count.
-        # NEW: show apply action when body area is known (pregnancy cream → face/belly
-        # whole-body → hand) so image matches video's apply beat.
+        # NEW: apply action ONLY for special_target (e.g. pregnancy cream → face/belly);
+        # all other products (incl. body_part=whole-body) stay a plain HOLD — "ถือสินค้า
+        # พูด" is the fallback when no apply-specific audience is known.
         _app_hint = _apply_hint((profile or {}).get("subcategory"), (profile or {}).get("category"), profile)
-        if profile.get("body_part") or profile.get("special_target"):
+        if (profile.get("special_target") or "").strip():
             base = (
                 f"{model_desc} applying the product from the reference image, "
                 f"{_app_hint}, {scene}"
@@ -960,7 +963,15 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
 
         # apply-lotion hint: keep it "a little" so Wan doesn't smear too much;
         # no bottle-squeeze / cap / scoop (Wan warps those).
-        apply_hint = _apply_hint(subcategory, category, profile)  # e.g. "she applies a little on her underarm"
+        # NEW: "ถือสินค้าพูด" is the DEFAULT. Only force an APPLY action when
+        # special_target is set (e.g. pregnancy cream that must be applied to
+        # face/belly). For every normal product (body_card/body_part alone) we
+        # replace the apply hint with a neutral HOLD so an unbox/holding video
+        # never turns into a smear-on-arm demo (owner bug report).
+        _is_special = bool((profile.get("special_target") or "").strip())
+        apply_hint = _apply_hint(subcategory, category, profile) if _is_special else (
+            f"she holds {vp_product} up toward the camera"
+        )
 
         # ── NEW (A): 4-beat driven by recipe scene visuals (scenes[].visual) ──
         # Each recipe schema (pas/comparison/secret_hook) defines a per-scene

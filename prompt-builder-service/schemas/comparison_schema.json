@@ -8,30 +8,46 @@
       "id": "hook",
       "timing_ratio": 0.2,
       "purpose": "เปิดด้วยความไม่พอใจสินค้าเดิมของ '{target_audience}'",
-      "prompt": "เปิดด้วยปัญหาของสินค้าทั่วไปที่คนใช้อยู่"
+      "prompt": "เปิดด้วยปัญหาของสินค้าทั่วไปที่คนใช้อยู่",
+      "visual": "open on the {gender_en} holding the old {vp_product} aside, raised brow, hinting the current one isn't good enough, medium shot"
     },
     {
       "id": "them",
       "timing_ratio": 0.25,
       "purpose": "ชี้จุดด้อยของของเก่า/คู่แข่ง — {problem}",
-      "prompt": "ของทั่วไปมัน {problem}"
+      "prompt": "ของทั่วไปมัน {problem}",
+      "visual": "she gestures toward the old product with a slight dismissive look, plain unimpressed tone, {vp_product} not yet introduced"
     },
     {
       "id": "us",
       "timing_ratio": 0.4,
       "purpose": "'{product}' ดีกว่ายังไง — เหนือกว่า เห็นผลจริง",
-      "prompt": "แต่ {product} แตกต่างเพราะ {benefit}"
+      "prompt": "แต่ {product} แตกต่างเพราะ {benefit}",
+      "visual": "she proudly shows {vp_product} forward, confident inviting smile, product clearly facing the camera"
     },
     {
       "id": "cta",
       "timing_ratio": 0.15,
-      "purpose": "เปลี่ยนมาใช้ {product}",
-      "prompt": "ถึงเวลาเปลี่ยน — {product} พร้อมให้ลอง"
+      "purpose": "เปลี่ยนมาใช้ ตัวนี้",
+      "prompt": "ถึงเวลาเปลี่ยน — ตัวนี้ พร้อมให้ลอง",
+      "visual": "she holds {vp_product} toward the camera, smiling invitingly"
     }
   ],
   "recommended": {
-    "styles": ["split_comparison", "holding", "review"],
-    "personas": ["gen_z_trendy", "aesthetic_minimalist"],
-    "categories": ["electronics", "tools", "fashion", "food"]
+    "styles": [
+      "split_comparison",
+      "holding",
+      "review"
+    ],
+    "personas": [
+      "gen_z_trendy",
+      "aesthetic_minimalist"
+    ],
+    "categories": [
+      "electronics",
+      "tools",
+      "fashion",
+      "food"
+    ]
   }
 }

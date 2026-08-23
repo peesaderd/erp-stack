@@ -624,6 +624,9 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
                 f"{parts_colors}{lighting}. "
                 f"Use the provided reference product image as ground truth for the product's "
                 f"labels, colors and packaging. "
+                f"NO text, NO letters, NO words, NO labels, NO logos, NO watermark anywhere "
+                f"on panels 2 and 3; Panels 2 and 3 must be completely free of any text, "
+                f"lettering, typography, caption, or writing — only the product, cleanly. "
                 f"Cohesive consistent style, high quality product photography. "
                 f"Fill the ENTIRE 16:9 frame edge to edge — NO white bars, NO padding, "
                 f"NO borders, NO empty gaps between the three panels; the panels must fully "
@@ -704,8 +707,12 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             f"{parts_colors}{lighting}. "
             f"Use the provided reference product image as ground truth for the product's "
             f"labels, colors and packaging. "
+            f"NO text, NO letters, NO words, NO labels, NO logos, NO watermark anywhere "
+            f"on panels 2 and 3 — Panels 2 and 3 must be completely free of any text, "
+            f"lettering, typography, caption, caption, brand name, or writing; "
+            f"only the model and product, cleanly. "
             f"Cohesive consistent style, high quality product photography. "
-            f"Fill the ENTIRE 16:9 frame edge to edge M-bM-^@M-^S NO white bars, NO padding, "
+            f"Fill the ENTIRE 16:9 frame edge to edge — NO white bars, NO padding, "
             f"NO borders, NO empty gaps between the three panels; the panels must fully "
             f"bleed together edge to edge so the image is one continuous full-frame "
             f"with no white margin or divider line."
@@ -937,23 +944,23 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
                     )
                 if pre:
                     vis = f"{pre}; {vis}"
-                preview.append(f"BEAT {i} — {vis.strip()}")
+                preview.append(f"Scene {i}: {vis.strip()}")
             beats = preview
         else:
             # Fallback: owner template (same 4-beat arc) if scene visuals missing.
             beats = [
-                f"BEAT 1 — open on the {gender_en} holding {vp_product} toward the camera",
-                f"BEAT 2 — {apply_hint}, smooth light hand motion",
-                f"BEAT 3 — she reveals the result, clearly showing {_result}, {vp_product} beside her",
-                f"BEAT 4 — she holds {vp_product} toward the camera, smiling invitingly",
+                f"Scene 1: open on the {gender_en} holding {vp_product} toward the camera",
+                f"Scene 2: {apply_hint}, smooth light hand motion",
+                f"Scene 3: she reveals the result, clearly showing {_result}, {vp_product} beside her",
+                f"Scene 4: she holds {vp_product} toward the camera, smiling invitingly",
             ]
 
         video_prompt = (
             "A Thai woman naturally speaks the following Thai lines aloud to camera "
             "while going through the full scene transition:\n\n"
             + "\n".join(beats)
-            + "\n\nKeep the same woman and product in every beat; natural flowing motion "
-            "between beats; speak the Thai lines naturally and continuously throughout."
+            + "\n\nKeep the same woman and product in every scene; natural flowing motion "
+            "between scenes; speak the Thai lines naturally and continuously throughout."
         )
         logger.info(f"  Video prompt (4-beat, {len(video_prompt)} chars):")
         video_prompt = re.sub(r'[ \t]+', ' ', video_prompt).strip()

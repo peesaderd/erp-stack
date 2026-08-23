@@ -209,6 +209,11 @@ async def get_analyzed_products(
                     "gender": r.gender or "",
                     "target_age": r.target_age or "",
                     "hashtags": r.hashtags or [],
+                    # NEW: deep-analysis fields (must map here or sync drops them)
+                    "body_part": getattr(r, "body_part", "") or "",
+                    "usage_howto": getattr(r, "usage_howto", "") or "",
+                    "special_target": getattr(r, "special_target", "") or "",
+                    "ingredient_highlight": getattr(r, "ingredient_highlight", "") or "",
                     "sold_week": r.sold_week or 0,
                     "sold_month": r.sold_month or 0,
                     "link": f"https://shop.tiktok.com/view/product/{r.product_id}" if r.product_id else "",

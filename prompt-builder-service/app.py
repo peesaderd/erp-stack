@@ -33,6 +33,11 @@ class BuildRequest(BaseModel):
     target_gender: str = ""
     country: str = ""
     script: str = ""
+    # NEW: deep-analysis fields from product pipeline (TUS → build)
+    body_part: str = ""
+    special_target: str = ""
+    usage_howto: str = ""
+    ingredient_highlight: str = ""
 
 
 @app.get("/health")
@@ -59,6 +64,10 @@ async def build(req: BuildRequest):
             target_gender=req.target_gender,
             country=req.country,
             script=req.script,
+            body_part=req.body_part,
+            special_target=req.special_target,
+            usage_howto=req.usage_howto,
+            ingredient_highlight=req.ingredient_highlight,
         )
         return result
     except Exception as e:

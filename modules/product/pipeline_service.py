@@ -378,6 +378,12 @@ def _build_tus_row(product: dict) -> dict:
 
     viral = product.get("viral_score", 0) or 0
     gender = product.get("gender", "")
+    # NEW: carry the deeply-analyzed fields (body_part, usage, special_target,
+    # ingredient) into tus_products.notes so the TUS video pipeline can read them.
+    body_part = product.get("body_part", "")
+    usage_howto = product.get("usage_howto", "")
+    special_target = product.get("special_target", "")
+    ingredient = product.get("ingredient_highlight", "")
 
     return {
         "product_id": pid,
@@ -403,7 +409,14 @@ def _build_tus_row(product: dict) -> dict:
         "tus_status": "ready",
         "gender": gender,
         "target_age": product.get("target_age", ""),
-        "notes": json.dumps({"gender": gender, "target_age": product.get("target_age", "")}),
+        "notes": json.dumps({
+            "gender": gender,
+            "target_age": product.get("target_age", ""),
+            "body_part": body_part,
+            "usage_howto": usage_howto,
+            "special_target": special_target,
+            "ingredient_highlight": ingredient,
+        }),
     }
 
 

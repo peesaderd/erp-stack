@@ -339,18 +339,32 @@ async def generate_video(req: VideoRequest):
                     _update_pipeline_step(job_id, "scraper", "failed")
             
             # Query product details (description, features, keywords, image) from tus_products.db if available
+            # NEW: also load deep-analysis fields (body_part/special_target/usage/ingredient) from notes
+            _db_body_part = ""
+            _db_special_target = ""
+            _db_usage_howto = ""
+            _db_ingredient = ""
             try:
                 tconn = sqlite3.connect(str(BASE_DIR / "tus_products.db"))
                 trow = tconn.execute(
-                    "SELECT description_th, description, keywords, images, category, gender, target_age FROM tus_products WHERE title LIKE ? OR title_th LIKE ? OR product_id = ? LIMIT 1",
+                    "SELECT description_th, description, keywords, images, category, gender, target_age, notes FROM tus_products WHERE title LIKE ? OR title_th LIKE ? OR product_id = ? LIMIT 1",
                     (f"%{_product_title}%", f"%{_product_title}%", req.product_url or "")
                 ).fetchone()
-                tconn.close()
                 if trow:
                     _db_desc = trow[0] or trow[1] or _db_desc
                     _db_category = trow[4] or _db_category
                     _db_gender = trow[5] or getattr(req, "gender", "") or ""
                     _db_age = trow[6] or getattr(req, "age", "") or "" 
+                    # NEW: parse notes (carries body_part/usage/special_target/ingredient from analysis)
+                    try:
+                        _notes = json.loads(trow[7]) if trow[7] else {}
+                        if isinstance(_notes, dict):
+                            _db_body_part = _notes.get("body_part", "") or ""
+                            _db_usage_howto = _notes.get("usage_howto", "") or ""
+                            _db_special_target = _notes.get("special_target", "") or ""
+                            _db_ingredient = _notes.get("ingredient_highlight", "") or ""
+                    except Exception:
+                        pass
                     if trow[2] and not _db_keywords:
                         try:
                             _db_keywords = json.loads(trow[2])
@@ -365,8 +379,16 @@ async def generate_video(req: VideoRequest):
                                 _db_image = trow[3]
                         except Exception:
                             _db_image = trow[3] if isinstance(trow[3], str) else ""
+                tconn.close()
             except Exception as dbe:
                 logger.debug(f"DB lookup exception: {dbe}")
+
+            # NEW: body_part normalization — "whole-body" maps to a natural hand/apply
+            # action (owner rule): never show full-body smearing, just the hand applying.
+            _bp = (_db_body_part or "").strip().lower()
+            _bp_send = _db_body_part or ""
+            if _bp in ("whole-body", "whole body", "body"):
+                _bp_send = "hand"
 
             # Resolve UGC style: "auto" -> match product category, else use chosen style
             _resolved_style = req.ugc_style or "holding"
@@ -384,6 +406,11 @@ async def generate_video(req: VideoRequest):
                 "country": getattr(req, "country", "") or "thai",
                 "target_gender": _db_gender or "",
                 "target_age": _db_age or "",
+                # NEW: deep-analysis fields (normalized body_part + audience)
+                "body_part": _bp_send or "",
+                "special_target": _db_special_target or "",
+                "usage_howto": _db_usage_howto or "",
+                "ingredient_highlight": _db_ingredient or "",
                 "product_id": job_id,
                 "price": float(req.product_price) if req.product_price else 0.0,
                 "product_image": _product_image_to_web_url(_db_image),

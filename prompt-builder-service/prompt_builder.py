@@ -517,10 +517,13 @@ def _cover_product_desc(profile: dict, product_name: str) -> str:
     )
     # Design a cover, don't copy the reference wholesale. Reference defines the
     # product/brand only; the model composes the layout so text stays legible.
+    # Use the cleaned brand (NOT a hardcoded Dr.PONG) so the cover label matches
+    # the actual product. The model must keep brand/logo text ONLY on this cover
+    # (panel 1); panels 2/3 carry NO text (see build_image_prompt no-text clause).
     pair_desc = (
         "designed as a clean studio product cover featuring the product(s) from "
-        "the reference image (Dr.PONG-style packaging, crisp unclipped labels); "
-        "render every item, label and variant that appears, laid out neatly side by side"
+        "the reference image, crisp unclipped labels; render every item, label "
+        "and variant that appears, laid out neatly side by side"
     )
     return (
         f"clean professional commercial product cover page: "
@@ -614,25 +617,21 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             parts_colors = f"color palette: {', '.join(colors)}. " if colors else ""
             image_prompt = (
                 f"16:9 landscape triptych, three equal horizontal panels placed side "
-                f"by side touching edge to edge with zero pixels of space between them, "
+                f"by side touching edge to edge with zero pixels of space between panels, "
                 f"joined as one seamless 16:9 image. "
                 f"{no_human_clause} "
                 f"Panel 1 (left): {cover_hint}. "
                 f"Panel 2 (center): {mid_hint}. "
                 f"Panel 3 (right): {result_hint}. "
-                f"Product: show exactly the item(s) from the provided reference product "
-                f"image — render every variant/color that appears in it. "
+                f"Product: show exactly the item(s) from the reference product image — "
+                f"render every variant/color that appears in it. "
                 f"{parts_colors}{lighting}. "
-                f"Use the provided reference product image as ground truth for the product's "
-                f"labels, colors and packaging. "
-                f"NO text, NO letters, NO words, NO labels, NO logos, NO watermark anywhere "
-                f"on panels 2 and 3; Panels 2 and 3 must be completely free of any text, "
-                f"lettering, typography, caption, or writing — only the product, cleanly. "
+                f"NO text, letters, words, labels, logos or watermark on panels 2 and 3 — "
+                f"only the product, cleanly. "
                 f"Cohesive consistent style, high quality product photography. "
-                f"Render the full 16:9 frame edge to edge as one continuous surface; "
-                f"the three panels touch one another with 0 pixels of gap and 0 pixels "
-                f"of gutter or margin between them — no divider line, no seam, and no "
-                f"spacing anywhere in the image."
+                f"Render the full 16:9 frame edge to edge as one continuous surface; the "
+                f"three panels touch one another with 0 pixels of gap or margin between "
+                f"panels — no divider, no seam, no spacing anywhere in the image."
             )
             logger.info(f"  Image prompt (no-human {style_l} triptych, {len(image_prompt)} chars)")
             # Append the style's image anchor (from SSOT ugc_styles.json) so the
@@ -650,10 +649,20 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         # (that hardcoding made Wan render two identical items). "as shown in the
         # reference image" keeps count + labels + colors from the ground truth.
         # Compact wording (owner: too wordy) — one clean visual line.
-        mid_hint = (
-            f"{model_desc} holding the product(s) from the reference image, "
-            f"bottles facing the camera, {room_desc}"
-        )
+        # NEW: when the deep-analysis tells us the body area (face for a pregnancy
+        # cream, whole-body→hand, etc.), show the apply ACTION instead of a static
+        # hold, so the video actually uses the product on the right body part.
+        _app_hint = _apply_hint(subcategory, category, profile)
+        if profile.get("body_part") or profile.get("special_target"):
+            mid_hint = (
+                f"{model_desc} applying the product from the reference image, "
+                f"{_app_hint}, {room_desc}"
+            )
+        else:
+            mid_hint = (
+                f"{model_desc} holding the product(s) from the reference image, "
+                f"bottles facing the camera, {room_desc}"
+            )
 
         # Panel 3 (result/end): pick the result-specific end scene from the SSOT
         # Prompt Library (keyed by subcategory → category → other) and STORE it on
@@ -699,25 +708,20 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
 
         image_prompt = (
             f"16:9 landscape triptych, three equal horizontal panels placed side "
-            f"by side touching edge to edge with zero pixels of space between them, "
+            f"by side touching edge to edge with zero pixels of space between panels, "
             f"joined as one seamless 16:9 image. "
             f"Panel 1 (left): {cover_hint}. "
             f"Panel 2 (center): {mid_hint} (same model appears in panels 2 and 3). "
-            f"Panel 3 (right): {result_hint}. "
-            f"Product: show exactly the item(s) from the provided reference product "
-            f"image — render every variant/color that appears in it. "
+            f"Panel 3 (right): {result_hint} (same setting/background as panel 2). "
+            f"Product: show exactly the item(s) from the reference product image — "
+            f"render every variant/color that appears in it. "
             f"{parts_colors}{lighting}. "
-            f"Use the provided reference product image as ground truth for the product's "
-            f"labels, colors and packaging. "
-            f"NO text, NO letters, NO words, NO labels, NO logos, NO watermark anywhere "
-            f"on panels 2 and 3 — Panels 2 and 3 must be completely free of any text, "
-            f"lettering, typography, caption, caption, brand name, or writing; "
+            f"NO text, letters, words, labels, logos or watermark on panels 2 and 3 — "
             f"only the model and product, cleanly. "
             f"Cohesive consistent style, high quality product photography. "
-            f"Render the full 16:9 frame edge to edge as one continuous surface; "
-            f"the three panels touch one another with 0 pixels of gap and 0 pixels "
-            f"of gutter or margin between them — no divider line, no seam, and no "
-            f"spacing anywhere in the image."
+            f"Render the full 16:9 frame edge to edge as one continuous surface; the "
+            f"three panels touch one another with 0 pixels of gap or margin between "
+            f"panels — no divider, no seam, no spacing anywhere in the image."
         )
         logger.info(f"  Image prompt (triptych {len(image_prompt)} chars): {image_prompt[:100]}...")
         # Append the style's image anchor (from SSOT ugc_styles.json) so the first
@@ -806,10 +810,19 @@ def _beat_panel_hint(profile, product_name, model_desc, action, scene, panel_rol
     elif panel_role == "middle":
         # Reference-driven (USER TEMPLATE vid_b43d89ab). Compact wording
         # (owner: too wordy) — one clean line, no hardcoded item count.
-        base = (
-            f"{model_desc} holding the product(s) from the reference image, "
-            f"bottles facing the camera, {scene}"
-        )
+        # NEW: show apply action when body area is known (pregnancy cream → face/belly
+        # whole-body → hand) so image matches video's apply beat.
+        _app_hint = _apply_hint((profile or {}).get("subcategory"), (profile or {}).get("category"), profile)
+        if profile.get("body_part") or profile.get("special_target"):
+            base = (
+                f"{model_desc} applying the product from the reference image, "
+                f"{_app_hint}, {scene}"
+            )
+        else:
+            base = (
+                f"{model_desc} holding the product(s) from the reference image, "
+                f"bottles facing the camera, {scene}"
+            )
     else:  # right
         base = (
             f"the same {model_desc} from panel 2, wearing the same outfit as "
@@ -823,10 +836,44 @@ def img_desc_sentences(text: str) -> list:
     return [s.strip() for s in text.split(".") if s.strip()]
 
 
-def _apply_hint(subcategory=None, category=None):
+def _apply_hint(subcategory=None, category=None, profile=None):
     """BEAT 2 'apply' action - concise, no squeeze/cap/scoop (Wan 2.7 warps).
-    Always 'a little' so Wan doesn't smear too much."""
+    Always 'a little' so Wan doesn't smear too much.
+
+    NEW: uses profile['body_part'] / profile['special_target'] when present so the
+    video shows the product applied to the RIGHT body area (e.g. a pregnancy/facial
+    cream goes on her face/belly, NOT a full-body smear). Rules:
+      - whole-body/body -> hand (owner rule: never show full-body smearing)
+      - special_target=pregnant -> face or belly
+      - face/belly/hair/hands -> the matching area
+    Falls back to subcategory -> category mapping.
+    """
     key = (subcategory or "").lower()
+
+    # NEW: deep-analysis fields take priority over the subcategory mapping.
+    bp = ""
+    st = ""
+    if isinstance(profile, dict):
+        bp = (profile.get("body_part") or "").strip().lower()
+        st = (profile.get("special_target") or "").strip().lower()
+
+    # special_target first (pregnancy/sensitive audience is the strongest signal).
+    if st in ("pregnant", "pregnancy", "maternity"):
+        # Pregnancy cream: belly is the hero area, face for facial pregnancy cream.
+        if bp in ("face", "whole-body", "body"):
+            return "she applies a little on her face and belly"
+        return "she applies a little on her belly"
+
+    # body_part mapping (owner: whole-body -> hand, never full-body smear).
+    area_map = {
+        "face": "her face", "belly": "her belly", "hair": "her hair",
+        "hands": "her hand", "hand": "her hand", "nails": "her nails",
+        "lips": "her lips", "body": "her hand", "whole-body": "her hand",
+        "whole body": "her hand",
+    }
+    if bp in area_map:
+        return "she applies a little on " + area_map[bp]
+
     area = {
         "underarm_cream": "her underarm", "deodorant": "her underarm",
         "face_whitening": "her face", "body_whitening": "her arm",
@@ -913,7 +960,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
 
         # apply-lotion hint: keep it "a little" so Wan doesn't smear too much;
         # no bottle-squeeze / cap / scoop (Wan warps those).
-        apply_hint = _apply_hint(subcategory, category)  # e.g. "she applies a little on her underarm"
+        apply_hint = _apply_hint(subcategory, category, profile)  # e.g. "she applies a little on her underarm"
 
         # ── NEW (A): 4-beat driven by recipe scene visuals (scenes[].visual) ──
         # Each recipe schema (pas/comparison/secret_hook) defines a per-scene
@@ -1206,6 +1253,10 @@ async def analyze_and_build_prompts(
     target_gender: str = "",
     country: str = "",
     script: str = "",
+    body_part: str = "",
+    special_target: str = "",
+    usage_howto: str = "",
+    ingredient_highlight: str = "",
     **kwargs,
 ) -> dict:
     """
@@ -1261,6 +1312,18 @@ async def analyze_and_build_prompts(
         profile["target_gender"] = target_gender.strip()
     if target_age not in ("", None):
         profile["target_age"] = str(target_age)
+
+    # NEW: inject deep-analysis fields (body_part/special_target/usage/ingredient)
+    # into the product profile so both build_image_prompt() and build_video_prompt()
+    # can tune the visual composition (e.g. pregnant→belly/face, whole-body→hand).
+    if body_part:
+        profile["body_part"] = body_part.strip()
+    if special_target:
+        profile["special_target"] = special_target.strip()
+    if usage_howto:
+        profile["usage_howto"] = usage_howto.strip()
+    if ingredient_highlight:
+        profile["ingredient_highlight"] = ingredient_highlight.strip()
     
     # Step 3: Inject persona for diversity
     persona = _select_persona(profile.get("category", "other"), product_name, profile.get("target_gender"))

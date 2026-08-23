@@ -684,7 +684,8 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
                     vis = (vis
                            .replace("{gender_en}", gender_en)
                            .replace("{vp_product}", product_name or "the product")
-                           .replace("{apply_hint}", ""))
+                           .replace("{apply_hint}", "")
+                           .replace("{result_focus}", _result or "a happy result"))
                     mid_hint = f"{model_desc}, {vis}"
                 else:
                     mid_hint = _beat_panel_hint(profile, product_name, model_desc, action, room_desc, "middle")

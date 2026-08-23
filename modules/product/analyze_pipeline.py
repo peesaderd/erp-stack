@@ -74,11 +74,14 @@ async def _download_images_local(product_id: str, image_urls: list) -> list:
     for url in image_urls:
         if not url:
             continue
-        # Already local
-        if url.startswith("/static/") or "localhost" in url:
+        # Already local — treat ANY web-served relative path (both the legacy
+        # /static/ and the canonical /ugc/static/) as already-local, and ensure
+        # local_images carries the CANONICAL public URL (/ugc/static/product_images/)
+        # so re-analyze/sync NEVER flip it back to the legacy /static/ path.
+        if url.startswith("/static/") or url.startswith("/ugc/") or "localhost" in url:
             fname = url.rsplit("/", 1)[-1] if "/" in url else url
             local_images.append({
-                "url": url,
+                "url": f"/ugc/static/product_images/{fname}",
                 "local_path": str(PRODUCT_IMAGE_DIR / fname),
                 "filename": fname,
                 "size": (PRODUCT_IMAGE_DIR / fname).stat().st_size if (PRODUCT_IMAGE_DIR / fname).exists() else 0,
@@ -105,7 +108,7 @@ async def _download_images_local(product_id: str, image_urls: list) -> list:
                 if resp.status_code == 200 and len(resp.content) > 1000:
                     local_path.write_bytes(resp.content)
                     local_images.append({
-                        "url": f"/static/product_images/{local_name}",
+                        "url": f"/ugc/static/product_images/{local_name}",
                         "local_path": str(local_path),
                         "filename": local_name,
                         "size": len(resp.content),

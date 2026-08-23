@@ -172,7 +172,7 @@ async def tus_create_full_pipeline(
     reference_image: str = "",
     last_frame: str = "",
     thai_script: str = "",
-    use_tus_voice: bool = False,
+    use_tus_voice: bool = True,
 ) -> dict:
     """
     สร้างวิดีโอ UGC แบบ Full Pipeline (prompt-builder + image gen + video gen + TTS + compose).

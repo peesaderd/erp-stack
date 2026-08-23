@@ -22,7 +22,7 @@ from typing import Optional, List
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 # ─── Path setup ───────────────────────────────────────────────────────
 _module_dir = os.path.dirname(os.path.abspath(__file__))
@@ -151,6 +151,16 @@ class VideoRequest(BaseModel):
     prompt_extend: bool = True
     # ── FL2V+Audio (Wan 2.7 start-end interpolation + 16kHz mono WAV lip-sync) ──
     audio: Optional[str] = None  # path/URL ของไฟล์เสียง 16kHz mono WAV (Prodia lip-sync)
+
+    @field_validator("duration")
+    @classmethod
+    def _duration_must_be_allowed(cls, v: int) -> int:
+        from config import ALLOWED_DURATIONS, MAX_WAN_DURATION
+        if v <= 0:
+            return DEFAULT_DURATION
+        if v not in ALLOWED_DURATIONS:
+            raise ValueError(f"duration ต้องเป็น {ALLOWED_DURATIONS} เท่านั้น (ส่ง {v})")
+        return v
 
 class AffiliateScriptRequest(ScriptRequest):
     platforms: list[str] = []

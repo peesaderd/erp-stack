@@ -52,15 +52,19 @@ def _product_image_to_web_url(image_src: str) -> str:
     # protocol-relative URL (e.g. //cdn...) → make it http
     if s.startswith("//"):
         return "http:" + s
-    # Local virtual paths → resolve to the running TUS backend on this host.
-    # /ugc/static/product_images/xxx is served by tiktok-ugc-studio (port 8105).
+    # Local virtual paths → resolve to a RELATIVE public path so it works from
+    # any host (localhost dev OR the tus.m2igen.com domain in the browser).
+    # Using an absolute http://localhost:8105 here breaks in the browser, which
+    # would resolve localhost to the user's own machine → 产品图 shows as broken.
+    # /ugc/static/product_images/xxx is served by tiktok-ugc-studio (port 8105)
+    # via nginx location ^~ /ugc/static/product_images/.
     for prefix in ("/ugc/static/product_images/", "/tiktok/storage/product_images/", "/storage/product_images/"):
         if s.startswith(prefix):
             filename = s.rsplit("/", 1)[-1]
-            return f"http://localhost:8105/ugc/static/product_images/{filename}"
-    # Bare filename (legacy) → same treatment
+            return f"/ugc/static/product_images/{filename}"
+    # Bare filename (legacy) → same relative treatment
     if "/" not in s:
-        return f"http://localhost:8105/ugc/static/product_images/{s}"
+        return f"/ugc/static/product_images/{s}"
     return s
 
 

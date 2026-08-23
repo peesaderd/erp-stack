@@ -393,6 +393,10 @@ class UnifiedProduct:
     hashtags: List[str] = field(default_factory=list)
     gender: str = ""
     target_age: str = ""
+    body_part: str = ""              # ใช้กับส่วนไหน: face/body/belly/hair/hands/whole-body
+    usage_howto: str = ""            # วิธีใช้สั้น ๆ
+    special_target: str = ""         # กลุ่มพิเศษ: pregnant/sensitive/kids/...
+    ingredient_highlight: str = ""   # จุดขาย/ส่วนผสมเด่น
     enriched: bool = False
 
 # ─── Stage 1: Normalizer ─────────────────────────────────────────────────────
@@ -596,6 +600,15 @@ class ProductEnricher:
             if not product.target_age:
                 product.target_age = meta.get("target_age", "")
             product.hashtags = meta.get("hashtags", [])
+            # New usage/body/target meta from the same Mistral call
+            if not product.body_part:
+                product.body_part = meta.get("body_part", "")
+            if not product.usage_howto:
+                product.usage_howto = meta.get("usage_howto", "")
+            if not product.special_target:
+                product.special_target = meta.get("special_target", "")
+            if not product.ingredient_highlight:
+                product.ingredient_highlight = meta.get("ingredient_highlight", "")
             product.viral_score = _score_viral(product)
             if product.sold_total > 0:
                 product.trending = (product.sold_week / product.sold_total) > 0.1
@@ -645,6 +658,8 @@ class ProductExporter:
                 "seller_id": p.seller_id, "url": p.url,
                 "gender": p.gender, "target_age": p.target_age,
                 "hashtags": p.hashtags,
+                "body_part": p.body_part, "usage_howto": p.usage_howto,
+                "special_target": p.special_target, "ingredient_highlight": p.ingredient_highlight,
                 "image_count": len(p.images),
             })
         return {"tus_ready": True, "products": result, "count": len(result),
@@ -735,8 +750,12 @@ def _split_hashtags(raw) -> list:
 
 
 async def _extract_gender_age_hashtags(title: str, description: str, category: str = "") -> dict:
-    """Use Mistral to determine gender, target age group, and hashtags."""
+    """Use Mistral to determine gender, target age group, hashtags, and usage/body-part meta."""
     out = {"gender": "", "target_age": "", "hashtags": []}
+    out["body_part"] = ""
+    out["usage_howto"] = ""
+    out["special_target"] = ""
+    out["ingredient_highlight"] = ""
     if not title:
         return out
     prompt = (
@@ -744,12 +763,21 @@ async def _extract_gender_age_hashtags(title: str, description: str, category: s
         "Return ONLY valid JSON:\n"
         '{"gender": "ผู้หญิง|ผู้ชาย|ทุกเพศ", '
         '"target_age": "short age range e.g. 18-35", '
-        '"hashtags": [5-8 Thai+English TikTok hashtags]}\n'
+        '"hashtags": [5-8 Thai+English TikTok hashtags], '
+        '"body_part": "which body part it is applied to \u2014 one of: face, body, belly, hair, hands, nails, lips, whole-body, or empty if not applicable", '
+        '"usage_howto": "very short usage instruction in English, e.g. apply a thin layer to face twice daily", '
+        '"special_target": "special audience group \u2014 one of: pregnant, sensitive skin, kids, men, elderly, postpartum, or empty", '
+        '"ingredient_highlight": "the single most compelling ingredient/benefit for the ad copy, or empty"}\n'
         "Gender rules (make a definitive choice):\n"
         "- Lipstick, skincare, beauty, makeup, serum, cream, concealer → ผู้หญิง\n"
         "- Diapers, baby products, kids items → ผู้หญิง (mother is buyer)\n"
         "- Shaver, razor, men's accessories → ผู้ชาย\n"
         "- Vitamins, cleaning supplies, food, electronics, tools → ทุกเพศ\n"
+        "Body-part / special-target rules (read the title+description carefully):\n"
+        "- If description/title mentions pregnant, ท้อง, คุณแม่, maternity, stretch mark → special_target=pregnant, body_part=belly\n"
+        "- If it's a facial skincare (serum, cream, face, ครีมทาหน้า) → body_part=face\n"
+        "- If it's anti-stretch-mark or belly firming during pregnancy → body_part=belly, special_target=pregnant\n"
+        "- Always fill body_part from what the product actually is; leave empty only if truly not body-applicable\n"
         "Only return ทุกเพศ for truly universal products. Do NOT overthink.\n"
         f"Title: {title}\n"
         f"Description: {description or 'N/A'}"
@@ -798,6 +826,10 @@ async def _extract_gender_age_hashtags(title: str, description: str, category: s
             out["gender"] = _resolve_gender(data.get("gender", ""), category)
             out["target_age"] = str(data.get("target_age", "") or "").strip()
             out["hashtags"] = _split_hashtags(data.get("hashtags", []))
+            out["body_part"] = str(data.get("body_part", "") or "").strip()
+            out["usage_howto"] = str(data.get("usage_howto", "") or "").strip()
+            out["special_target"] = str(data.get("special_target", "") or "").strip()
+            out["ingredient_highlight"] = str(data.get("ingredient_highlight", "") or "").strip()
         except Exception:
             m = re.search(r'"gender"\s*:\s*"([^"]+)"', result)
             if m:
@@ -805,6 +837,10 @@ async def _extract_gender_age_hashtags(title: str, description: str, category: s
             m2 = re.search(r'"target_age"\s*:\s*"([^"]+)"', result)
             if m2:
                 out["target_age"] = m2.group(1)
+            for key in ("body_part", "usage_howto", "special_target", "ingredient_highlight"):
+                mm = re.search(rf'"{key}"\s*:\s*"([^"]*)"', result)
+                if mm:
+                    out[key] = mm.group(1).strip()
             matches = re.findall(r'"([^"]+)"', result)
             out["hashtags"] = [x for x in matches if x.startswith("#")][:12]
     # Final fallback: if still empty, try keyword detection on title+description

@@ -266,6 +266,10 @@ class AnalyzedProduct(Base):
     gender = Column(String(20), default="")
     target_age = Column(String(50), default="")
     hashtags = Column(JSON, default=list)
+    body_part = Column(String(100), default="")       # ใช้กับส่วนไหน: face/body/belly/hair/hands/whole-body
+    usage_howto = Column(String(300), default="")     # วิธีใช้สั้น ๆ
+    special_target = Column(String(100), default="")  # กลุ่มพิเศษ: pregnant/sensitive/kids/...
+    ingredient_highlight = Column(Text, default="")   # จุดขาย/ส่วนผสมเด่น
     variants = Column(JSON, default=list, nullable=True)
     lifecycle_stage = Column(String(30), default="ANALYZED", index=True) # LOCAL_RAW, SCRAPED_STAGING, ANALYZED, TUS_READY, IN_PRODUCTION, PUBLISHED, COOLDOWN
     usage_count = Column(Integer, default=0)

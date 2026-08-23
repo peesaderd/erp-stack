@@ -670,15 +670,24 @@ def generate_video(
     final_prompt = prompt
     if thai_voice_mode:
         # โหมด A: ฝังบทไทย + สั่งเงียบหลังพูด + ยิ้ม + zoom out (กัน Wan พูดมั่วต่อ)
+        # ใช้เพศของ subject จาก video_prompt (woman/female → she/her, man/male → he/him)
+        # แก้ 2026-08-23: เดิม hardcode "The man" → Wan เพศผิด/ละลายในงานใช้ผู้หญิง
+        _pl = prompt.lower()
+        _is_female = ("woman" in _pl) or ("female" in _pl) or ("girl" in _pl) or ("her" in _pl)
+        _is_male = ("man" in _pl) or ("male" in _pl) or ("boy" in _pl) or ("him" in _pl)
+        if _is_male and not _is_female:
+            _subj, _pos = "man", "he"
+        else:
+            _subj, _pos = "woman", "she"
         final_prompt = (
             f"{prompt} "
-            f"THAI VOICEOVER: The man speaks this THAI script aloud word-for-word to the camera: "
-            f"\"{thai_script}\". His mouth and lips move in exact sync with this Thai narration. "
-            f"After he finishes speaking he STOPS talking, stays completely silent with his mouth "
+            f"THAI VOICEOVER: The {_subj} speaks this THAI script aloud word-for-word to the camera: "
+            f"\"{thai_script}\". {_pos.capitalize()} mouth and lips move in exact sync with this Thai narration. "
+            f"After {_pos} finishes speaking {_pos} STOPS talking, stays completely silent with {_pos} mouth "
             f"closed, gives a warm cheerful smile to the camera, and holds the pose. "
             f"Static camera, no zoom, no camera movement. NO talking and NO lip movement after the speech ends."
         )
-        logger.info(f"  🎙 Voice mode A: ฝัง thai_script ใน prompt + สั่งเงียบ/ยิ้ม/zoom out (len={len(final_prompt)})")
+        logger.info(f"  🎙 Voice mode A: ฝัง thai_script ใน prompt + สั่งเงียบ/ยิ้ม/zoom out (เพศ={_subj}, len={len(final_prompt)})")
 
 # ลบ comment เดิม "ห้ามฝัง" แล้วแทนด้วยโหมดฝังเมื่อเปิด
 
@@ -1097,6 +1106,18 @@ def run_pipeline(
         except Exception:
             pass
 
+        # ── VOICE MODE A (owner 2026-08-23): ให้ Wan พูด Thai script เอง ──
+        # เจ้าตัดสินใจใช้เส้นทาง "สั่งให้ Wan พูด Thai script" (โหมด A) แทน Gemini TTS lip-sync.
+        # ถ้ามีบท (script/thai_script) ข้างใน → auto ใช้บทนั้นเป็น thai_script + บังคับ use_tus_voice=True
+        # เพื่อให้ Wan พูดตามบทไทยจริง (ปากตรง) และ compose จะไม่เอา Gemini TTS มาทับ (compose_voice=None).
+        # พฤติกรรมเดิม (โหมด B, TTS lip-sync) ยังเปิดได้ถ้า caller ส่ง use_tus_voice=False ชัดเจน
+        # โดยไม่ให้ script → แต่ default flow (recipe มี script) จะเป็นโหมด A เสมอ = Wan พูดเอง.
+        thai_script = (thai_script or script or "").strip()
+        if thai_script and not use_tus_voice:
+            # เจ้าสั่งให้ Wan พูด Thai script เสมอใน flow ปกติ → เปิดโหมด A อัตโนมัติ
+            use_tus_voice = True
+            logger.info(f"  🎙 Voice mode A: auto ใช้ script เป็น thai_script + เปิด use_tus_voice (Wan พูดเอง, ความยาว {len(thai_script)} ตัวอักษร)")
+
         # ── STEP 4: Build Image Prompt (skip if pre-computed) ──
         if not image_prompt:
             step_start = time.time()
@@ -1166,7 +1187,9 @@ def run_pipeline(
             logger.warning(f"Logger update_prompts failed: {e}")
 
         # ── STEP 7: TTS (ข้ามถ้าไม่มี voice หรือ recipe ไม่ได้ตั้งค่า tts) ──
-        if script:
+        # โหมด A (Wan พูดเอง) → ข้าม Gemini TTS ทั้งหมด (ไม่สร้าง voice_path) → กัน TTS ทับ Wan
+        _voice_mode_a_7 = bool(thai_script and use_tus_voice)
+        if script and not _voice_mode_a_7:
             step_start = time.time()
             voice_path = generate_voice(script, voice=voice, run_id=run_id)
             tts_duration = int((time.time() - step_start) * 1000)
@@ -1177,6 +1200,11 @@ def run_pipeline(
                 update_cost(job_id, 'voice', cost_voice)
             except Exception:
                 pass
+        elif _voice_mode_a_7:
+            # โหมด A: ไม่ต้องสร้าง Gemini TTS — Wan พูดเองตาม thai_script
+            logger.info("Step 7/9: Skipped (Voice mode A — Wan พูดเอง, ไม่สร้าง Gemini TTS)")
+            voice_path = None
+            cost_voice = 0.0
         else:
             logger.info(f"Step 7/9: Skipped (no voice)")
             voice_path = None
@@ -1222,13 +1250,17 @@ def run_pipeline(
             except Exception as e:
                 logger.warning(f"  ⚠️ Triptych split failed ({e}) — ใช้ image เดียว (ไม่ตั้ง start/end)")
 
+        # ── Voice mode A (Wan พูดเอง) → ไม่ส่ง TTS audio (กัน TTS ทับเสียง Wan) ──
+        # โหมด B (default เดิม) → ส่ง TTS audio ให้ Wan lip-sync
+        _voice_mode_a = bool(thai_script and use_tus_voice)
+        _gen_audio = None if _voice_mode_a else (_convert_to_wav(audio_path or voice_path) if (audio_path or voice_path) else None)
+        audio_path_out = _gen_audio
+        logger.info(f"  🎙 SP8 audio_mode={'A (Wan พูดเอง, ไม่ส่ง TTS)' if _voice_mode_a else 'B (lip-sync TTS)'}: audio_path={'None' if _gen_audio is None else _gen_audio}")
         vid_path, cost_video = generate_video(
             image_path=str(img_path),
             prompt=vprompt,
             duration=total_duration,
-            # docs-exact: ส่ง TTS audio ให้ Wan เสมอ (lip-sync ขับปาก)
-            # override: ถ้า client �่ง audio_path มาใช้ของ client (FL2V+Audio path)
-            audio_path=_convert_to_wav(audio_path or voice_path) if (audio_path or voice_path) else None,
+            audio_path=audio_path_out,
             negative_prompt=negative_prompt,
             # first+last start-end interpolation per Prodia docs
             # (ห้ามส่ง reference แยก — ทำให้ Prodia เอา reference เป็นภาพหลักแทน interpolation)

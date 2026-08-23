@@ -616,6 +616,13 @@
         "result_focus": "underarm visibly brighter and smoother than start",
         "expression": "happy proud smile, eyes bright",
         "product_placement": "model gently holding the cream tube in her other hand"
+      },
+      {
+        "scene": "model stretches arms overhead showing smooth even bright underarms, confident fresh feel",
+        "camera": "close-up on raised arm, clean bright light",
+        "outfit": "sleeveless top",
+        "result_focus": "smooth even bright underarms",
+        "expression": "confident fresh smile"
       }
     ],
     "face_whitening": [
@@ -626,6 +633,20 @@
         "result_focus": "smooth bright even-toned glowing skin on the face",
         "expression": "radiant confident smile",
         "product_placement": "the whitening cream jar held up near her cheek"
+      },
+      {
+        "scene": "model's bright clear glowing face fills the frame, radiant even skin",
+        "camera": "close-up on the face, soft flattering light",
+        "outfit": "clean top with open neckline",
+        "result_focus": "bright even radiant glow, no dullness",
+        "expression": "confident gentle smile"
+      },
+      {
+        "scene": "model tilts her face to catch the light, glowing even skin from every angle",
+        "camera": "slow pan across the profile, bright soft light",
+        "outfit": "minimal neutral top",
+        "result_focus": "visibly brighter clearer skin tone",
+        "expression": "pleased calm smile"
       }
     ],
     "body_whitening": [
@@ -636,6 +657,20 @@
         "result_focus": "smooth visibly brighter even-toned body skin",
         "expression": "proud happy smile",
         "product_placement": "body lotion bottle placed visibly in frame"
+      },
+      {
+        "scene": "model turns slowly showing smooth bright skin on arms and legs",
+        "camera": "medium full-body shot, even bright light",
+        "outfit": "tank top and shorts",
+        "result_focus": "even bright body skin, no patchiness",
+        "expression": "confident smile"
+      },
+      {
+        "scene": "model in a swimsuit by soft daylight, smooth even body skin",
+        "camera": "medium shot, natural light",
+        "outfit": "clean modest swimsuit",
+        "result_focus": "bright even all-over tone",
+        "expression": "relaxed happy look"
       }
     ],
     "acne": [
@@ -646,6 +681,20 @@
         "result_focus": "clear smooth poreless skin, acne marks visibly reduced",
         "expression": "calm relieved confident smile",
         "product_placement": "acne cream tube in hand"
+      },
+      {
+        "scene": "close on smooth clear skin, blemishes visibly faded, model runs finger along clean cheek",
+        "camera": "extreme close-up on cheek, soft diffused light",
+        "outfit": "simple clean top",
+        "result_focus": "clear calm skin, reduced breakouts",
+        "expression": "relieved soft smile"
+      },
+      {
+        "scene": "model looks in mirror reflection, skin clear and even, texture refined",
+        "camera": "medium close-up, clean soft light",
+        "outfit": "casual clean top",
+        "result_focus": "smooth refined skin, fewer blemishes",
+        "expression": "satisfied smile"
       }
     ],
     "serum": [
@@ -656,6 +705,20 @@
         "result_focus": "plump hydrated dewy glowing skin",
         "expression": "fresh natural smile",
         "product_placement": "serum bottle beside her / in hand"
+      },
+      {
+        "scene": "model applies serum with a gentle pat, face glowing and hydrated",
+        "camera": "close-up on application, dewy light",
+        "outfit": "clean minimal top",
+        "result_focus": "plump dewy hydrated glow",
+        "expression": "calm enjoying feel"
+      },
+      {
+        "scene": "model's skin looks bouncy and luminous under soft light, serum visibly absorbed",
+        "camera": "close-up on cheek profile, glow light",
+        "outfit": "simple top",
+        "result_focus": "soft supple luminous skin",
+        "expression": "contented smile"
       }
     ],
     "moisturizer": [
@@ -666,6 +729,20 @@
         "result_focus": "smooth hydrated healthy-looking skin",
         "expression": "relaxed content smile",
         "product_placement": "moisturizer jar held to frame"
+      },
+      {
+        "scene": "model touches her cheek, skin soft and hydrated, no dryness",
+        "camera": "medium close-up, soft warm light",
+        "outfit": "casual clean top",
+        "result_focus": "smooth hydrated comfortable skin",
+        "expression": "relaxed smile"
+      },
+      {
+        "scene": "model's skin looks fresh and dewy after moisturizing, natural glow",
+        "camera": "close-up, gentle warm light",
+        "outfit": "minimal top",
+        "result_focus": "soft luminous moisturized skin",
+        "expression": "bright smile"
       }
     ],
     "sunscreen": [
@@ -676,6 +753,20 @@
         "result_focus": "even protected non-reddened bright skin under the sun",
         "expression": "confident carefree smile",
         "product_placement": "sunscreen bottle in hand"
+      },
+      {
+        "scene": "model outdoors smiling, skin protected and even, no sunburn",
+        "camera": "medium shot, natural daylight, model turns face to sun",
+        "outfit": "light summer top, shoulders out",
+        "result_focus": "protected even skin, no redness or tan",
+        "expression": "happy confident look"
+      },
+      {
+        "scene": "model applies sunscreen then relaxes in shade, skin calm and even",
+        "camera": "medium shot, soft shade light",
+        "outfit": "casual summer wear",
+        "result_focus": "calm protected skin, no burn or tan",
+        "expression": "relieved smile"
       }
     ],
     "lipstick": [
@@ -686,6 +777,20 @@
         "result_focus": "vivid even long-lasting lip color, defined lips",
         "expression": "confident smile with lips clearly shown",
         "product_placement": "lipstick bullet held beside lips / in hand"
+      },
+      {
+        "scene": "model's lips in bold even lipstick, crisp edge, glossy confident smile",
+        "camera": "close-up on lips, crisp focus",
+        "outfit": "makeup-flattering neckline",
+        "result_focus": "bold long-wear even color",
+        "expression": "confident bright smile"
+      },
+      {
+        "scene": "model purses lips then smiles showing even rich lip color",
+        "camera": "extreme close-up on lips, soft beauty light",
+        "outfit": "clean neckline",
+        "result_focus": "rich even color, no feathering",
+        "expression": "playful smile"
       }
     ],
     "foundation": [
@@ -696,6 +801,20 @@
         "result_focus": "flawless even-toned smooth base makeup",
         "expression": "natural confident smile",
         "product_placement": "foundation bottle beside face"
+      },
+      {
+        "scene": "model's face with flawless even foundation, smooth matte finish",
+        "camera": "close-up on face, beauty lighting",
+        "outfit": "clean top",
+        "result_focus": "flawless even-toned smooth skin",
+        "expression": "polished gentle smile"
+      },
+      {
+        "scene": "model lightly touches her cheek, foundation stays even and natural",
+        "camera": "medium close-up, soft light",
+        "outfit": "simple top",
+        "result_focus": "natural even coverage, no cakey look",
+        "expression": "satisfied calm smile"
       }
     ],
     "mascara": [
@@ -706,6 +825,20 @@
         "result_focus": "long voluminous defined lifted lashes",
         "expression": "bright open confident eyes",
         "product_placement": "mascara wand held near lashes"
+      },
+      {
+        "scene": "model looks up with long defined lifted lashes, bright open gaze",
+        "camera": "extreme close-up on eyes, crisp lash detail",
+        "outfit": "n/a",
+        "result_focus": "long voluminous defined lashes",
+        "expression": "bright awake gaze"
+      },
+      {
+        "scene": "model blinks then holds gaze, lashes long and feathery",
+        "camera": "close-up on eyes, soft light",
+        "outfit": "n/a",
+        "result_focus": "lifted curled dramatic lashes",
+        "expression": "confident look"
       }
     ],
     "blush": [
@@ -716,6 +849,20 @@
         "result_focus": "natural healthy rosy blush blending on cheeks",
         "expression": "fresh bright smile",
         "product_placement": "blush compact in hand"
+      },
+      {
+        "scene": "model's cheeks with natural healthy rosy blush, fresh youthful glow",
+        "camera": "close-up on cheeks, soft light",
+        "outfit": "fresh simple top",
+        "result_focus": "natural healthy rosy flush",
+        "expression": "soft genuine smile"
+      },
+      {
+        "scene": "model smiles showing even soft cheek color, fresh radiant look",
+        "camera": "medium close-up, gentle light",
+        "outfit": "simple top",
+        "result_focus": "fresh dewy cheek glow",
+        "expression": "bright smile"
       }
     ],
     "hair_care": [
@@ -734,6 +881,13 @@
         "result_focus": "voluminous smooth shiny frizz-free hair",
         "expression": "content satisfied smile",
         "product_placement": "haircare product in hand"
+      },
+      {
+        "scene": "model tosses her hair back, long shiny smooth glossy strands flowing",
+        "camera": "slow motion shot, hair in movement, bright clean light",
+        "outfit": "clean neckline showing hair",
+        "result_focus": "silky smooth manageable hair",
+        "expression": "happy refreshed look"
       }
     ],
     "slimming": [
@@ -744,6 +898,20 @@
         "result_focus": "slimmer toned defined waistline",
         "expression": "confident proud smile",
         "product_placement": "slimming cream device placed beside her"
+      },
+      {
+        "scene": "model shows a slimmer toned waistline, product benefit visible",
+        "camera": "medium shot, side profile showing waist, bright light",
+        "outfit": "fitted sporty top and shorts",
+        "result_focus": "slimmer toned waistline",
+        "expression": "confident smile"
+      },
+      {
+        "scene": "model turns to show a trim defined silhouette, natural standing pose",
+        "camera": "medium full-body, clean bright light",
+        "outfit": "fitted activewear",
+        "result_focus": "trim defined shape",
+        "expression": "proud smile"
       }
     ],
     "stretch_marks": [
@@ -754,6 +922,20 @@
         "result_focus": "smooth even-toned skin, marks visibly faded",
         "expression": "relieved confident smile",
         "product_placement": "treatment cream tube in hand"
+      },
+      {
+        "scene": "model shows smooth even skin where stretch marks were, soothed",
+        "camera": "medium close-up on the area, soft even light",
+        "outfit": "crop top / shorts showing area",
+        "result_focus": "smooth even soothed skin",
+        "expression": "relieved smile"
+      },
+      {
+        "scene": "model runs hand over smooth skin on belly/thighs, marks visibly faded",
+        "camera": "close-up on treated area, soft light",
+        "outfit": "crop top and shorts",
+        "result_focus": "faded marks, smooth tone",
+        "expression": "contented smile"
       }
     ],
     "supplement": [
@@ -764,6 +946,20 @@
         "result_focus": "energetic healthy glowing vitality",
         "expression": "refreshed energetic smile",
         "product_placement": "supplement bottle clearly visible / held up"
+      },
+      {
+        "scene": "model energetic healthy and glowing, product beside her",
+        "camera": "medium shot, bright fresh lifestyle light",
+        "outfit": "casual active wear",
+        "result_focus": "energetic healthy glow",
+        "expression": "bright lively smile"
+      },
+      {
+        "scene": "model holds the supplement, fresh vitality and focus shown",
+        "camera": "medium close-up, clean fresh light",
+        "outfit": "everyday casual",
+        "result_focus": "energized well-being",
+        "expression": "positive confident look"
       }
     ],
     "vitamin": [
@@ -774,6 +970,20 @@
         "result_focus": "healthy bright rested glowing complexion",
         "expression": "fresh bright smile",
         "product_placement": "vitamin bottle placed on surface"
+      },
+      {
+        "scene": "model bright-eyed healthy and well-rested, natural glow, vitamins in frame",
+        "camera": "medium close-up, soft healthy light",
+        "outfit": "clean comfortable top",
+        "result_focus": "bright healthy well-rested look",
+        "expression": "gentle bright smile"
+      },
+      {
+        "scene": "model in fresh sunlight holding vitamins, skin glowing with health",
+        "camera": "medium shot, soft morning light",
+        "outfit": "casual comfortable",
+        "result_focus": "radiant healthy complexion",
+        "expression": "happy fresh look"
       }
     ],
     "collagen": [
@@ -784,6 +994,20 @@
         "result_focus": "firm bouncy elastic youthful glowing skin",
         "expression": "confident glow smile",
         "product_placement": "collagen sachet/bottle in frame"
+      },
+      {
+        "scene": "model's skin looks firm bouncy and youthful, radiant",
+        "camera": "close-up on skin, dewy light",
+        "outfit": "clean top",
+        "result_focus": "firm bouncy elastic youthful skin",
+        "expression": "soft confident smile"
+      },
+      {
+        "scene": "model turns cheek to light showing plump firm skin",
+        "camera": "close-up on cheek profile, glow light",
+        "outfit": "simple top",
+        "result_focus": "plump firm elastic look",
+        "expression": "pleased smile"
       }
     ],
     "shampoo": [
@@ -802,6 +1026,13 @@
         "result_focus": "voluminous smooth shiny frizz-free hair",
         "expression": "content satisfied smile",
         "product_placement": "haircare product in hand"
+      },
+      {
+        "scene": "model shakes out freshly washed hair, clean bouncy voluminous",
+        "camera": "medium shot, hair flowing, bright clean light",
+        "outfit": "clean neckline",
+        "result_focus": "clean bouncy voluminous hair",
+        "expression": "fresh happy smile"
       }
     ],
     "conditioner": [
@@ -820,6 +1051,13 @@
         "result_focus": "voluminous smooth shiny frizz-free hair",
         "expression": "content satisfied smile",
         "product_placement": "haircare product in hand"
+      },
+      {
+        "scene": "model runs hand through silky smooth hair, detangled and soft",
+        "camera": "close-up on smooth hair, soft light",
+        "outfit": "clean neckline",
+        "result_focus": "silky smooth detangled hair",
+        "expression": "relaxed content smile"
       }
     ],
     "whitening": [
@@ -830,6 +1068,20 @@
         "result_focus": "bright even radiant glowing skin",
         "expression": "confident satisfied smile",
         "product_placement": "whitening product placed visibly in frame"
+      },
+      {
+        "scene": "model's skin visibly brighter and more even, glowing result",
+        "camera": "medium close-up, bright fresh light",
+        "outfit": "clean open-neck top",
+        "result_focus": "bright even radiant skin",
+        "expression": "glowing bright smile"
+      },
+      {
+        "scene": "model looks at her brightened skin in soft light, clear even tone",
+        "camera": "close-up, gentle bright light",
+        "outfit": "minimal top",
+        "result_focus": "clear even bright tone",
+        "expression": "satisfied smile"
       }
     ],
     "deodorant": [
@@ -840,6 +1092,20 @@
         "result_focus": "fresh clean dry confident underarms",
         "expression": "fresh confident smile",
         "product_placement": "deodorant stick placed beside her"
+      },
+      {
+        "scene": "model arms up confident fresh feel, clean bright underarms",
+        "camera": "medium shot, model arms raised, bright light",
+        "outfit": "sleeveless top",
+        "result_focus": "fresh clean dry confident feel",
+        "expression": "bright confident smile"
+      },
+      {
+        "scene": "model lowers arms to show dry clean even underarms, fresh feeling",
+        "camera": "medium close-up on underarm area, clean light",
+        "outfit": "sleeveless top",
+        "result_focus": "dry fresh all-day feel",
+        "expression": "comfortable smile"
       }
     ],
     "eye_cream": [
@@ -850,6 +1116,20 @@
         "result_focus": "bright awake eyes, puffiness and dark circles visibly reduced",
         "expression": "fresh wide awake smile",
         "product_placement": "eye cream tube in hand"
+      },
+      {
+        "scene": "model's bright awake eyes, reduced puffiness and dark circles",
+        "camera": "close-up on eye area, soft light",
+        "outfit": "clean top",
+        "result_focus": "bright awake eyes, reduced puffiness",
+        "expression": "refreshed look"
+      },
+      {
+        "scene": "model looks up smiling, eye area smooth and rested",
+        "camera": "close-up on eyes, gentle light",
+        "outfit": "simple top",
+        "result_focus": "smooth rested eye area",
+        "expression": "fresh bright smile"
       }
     ],
     "toner": [
@@ -860,6 +1140,20 @@
         "result_focus": "refined pores, fresh clear balanced skin",
         "expression": "fresh natural smile",
         "product_placement": "toner bottle beside her"
+      },
+      {
+        "scene": "model's pores refined, skin fresh and clear",
+        "camera": "close-up on skin, clean crisp light",
+        "outfit": "clean minimal top",
+        "result_focus": "refined pores, fresh clear balance",
+        "expression": "fresh calm smile"
+      },
+      {
+        "scene": "model pats toner then shows smooth balanced skin",
+        "camera": "medium close-up, clean light",
+        "outfit": "minimal top",
+        "result_focus": "balanced fresh clear skin",
+        "expression": "contented smile"
       }
     ],
     "apparel": [
@@ -870,6 +1164,20 @@
         "result_focus": "flattering comfortable fit, stylish coordinated look",
         "expression": "confident happy smile",
         "product_placement": "garment styled on the model"
+      },
+      {
+        "scene": "model in the garment, confident flattering fit, stylish full look",
+        "camera": "three-quarter shot, model posing naturally",
+        "outfit": "the garment itself as focus",
+        "result_focus": "stylish confident fit",
+        "expression": "confident pose"
+      },
+      {
+        "scene": "model turns to show the garment's drape and fit from all angles",
+        "camera": "slow full-body pan, clean background",
+        "outfit": "the garment",
+        "result_focus": "flattering versatile fit",
+        "expression": "elegant smile"
       }
     ],
     "footwear": [
@@ -880,6 +1188,20 @@
         "result_focus": "stylish comfortable shoes completing the look",
         "expression": "confident smile",
         "product_placement": "the shoes worn on model's feet"
+      },
+      {
+        "scene": "model standing confidently in the shoes, stylish complete look",
+        "camera": "medium shot showing full shoes and stance",
+        "outfit": "outfit matching the shoes",
+        "result_focus": "stylish comfortable fit",
+        "expression": "confident look"
+      },
+      {
+        "scene": "close on the shoes with model stepping naturally, comfort shown",
+        "camera": "close-up on shoes in motion, clean light",
+        "outfit": "outfit matching the shoes",
+        "result_focus": "comfortable all-day wear",
+        "expression": "natural walking pose"
       }
     ]
   },

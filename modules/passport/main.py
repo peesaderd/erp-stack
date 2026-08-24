@@ -24,7 +24,7 @@ import cv2
 import numpy as np
 from PIL import Image
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -735,11 +735,36 @@ async def multi_print(req: MultiPrintRequest):
 # ── Download ──────────────────────────────────────────
 
 @app.get("/api/passport/download/{filename}")
-def download(filename: str):
+def download(filename: str, size: str = "", fmt: str = ""):
+    """Serve stored images.
+    ?size=sm → 320px thumbnail (for strips)   ?fmt=webp → light preview re-encode
+    Originals unchanged without params. Long cache: frontend bumps ?v= when a file is rewritten."""
     path = STORAGE_DIR / filename
     if not path.exists():
         raise HTTPException(404, "File not found")
-    return FileResponse(str(path), media_type="image/jpeg")
+
+    if size == "sm" or fmt == "webp":
+        img = cv2.imread(str(path), cv2.IMREAD_UNCHANGED)
+        if img is None:
+            raise HTTPException(500, "Failed to read image")
+        if size == "sm":
+            h, w = img.shape[:2]
+            scale = 320.0 / max(h, w)
+            if scale < 1:
+                img = cv2.resize(img, (max(1, int(w * scale)), max(1, int(h * scale))), interpolation=cv2.INTER_AREA)
+        if fmt == "webp":
+            ok, buf = cv2.imencode(".webp", img, [int(cv2.IMWRITE_WEBP_QUALITY), 82])
+            media = "image/webp"
+        else:
+            ok, buf = cv2.imencode(".jpg", img, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+            media = "image/jpeg"
+        if not ok:
+            raise HTTPException(500, "Encode failed")
+        return Response(content=buf.tobytes(), media_type=media,
+                        headers={"Cache-Control": "public, max-age=2592000"})
+
+    return FileResponse(str(path), media_type="image/jpeg",
+                        headers={"Cache-Control": "public, max-age=2592000"})
 
 
 # ── Bulk Generate ─────────────────────────────────────

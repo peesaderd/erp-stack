@@ -1,6 +1,6 @@
 /* ══════════ STATE ══════════ */
 var API='/api/passport';
-var S={photo:null,photos:[],uploaded:[],bulk:false,gender:'male',clothing:'keep_original',bg:'light_blue',bgType:'solid',gradient:null,bgc:null,tpl:'thai_passport',cw:null,ch:null,sid:null,cropPreset:'standard',customClothing:null,customClothingUrl:null,customClothingName:null};
+var S={photo:null,photos:[],uploaded:[],imgV:0,bulk:false,gender:'male',clothing:'keep_original',bg:'light_blue',bgType:'solid',gradient:null,bgc:null,tpl:'thai_passport',cw:null,ch:null,sid:null,cropPreset:'standard',customClothing:null,customClothingUrl:null,customClothingName:null};
 var CD={male:[],female:[]},BD=[],TD=[];
 var FLAGS={Thailand:'🇹🇭',Japan:'🇯🇵',China:'🇨🇳','South Korea':'🇰🇷','United States':'🇺🇸','United Kingdom':'🇬🇧','European Union':'🇪🇺',Canada:'🇨🇦',Australia:'🇦🇺',India:'🇮🇳',Singapore:'🇸🇬',Malaysia:'🇲🇾',Philippines:'🇵🇭',Indonesia:'🇮🇩',Vietnam:'🇻🇳',Cambodia:'🇰🇭',Laos:'🇱🇦',Myanmar:'🇲🇲','Hong Kong':'🇭🇰',France:'🇫🇷',Germany:'🇩🇪'};
 var SOLID_COLORS=[
@@ -17,6 +17,7 @@ var SOLID_COLORS=[
 /* ══════════ HELPERS (must be early!) ══════════ */
 function $(id){return document.getElementById(id)}
 function $$(sel){return document.querySelectorAll(sel)}
+function bumpImg(){S.imgV++} // bump ONLY when a stored file is overwritten → new URL busts caches
 
 /* ══════════ INIT ══════════ */
 window.addEventListener('DOMContentLoaded',function(){
@@ -209,7 +210,7 @@ function renderUploadStrip(){
   for(var i=0;i<S.uploaded.length;i++){
     var u=S.uploaded[i];
     sh+='<div class="slide-item'+(u.sid===S.sid?' active':'')+'" onclick="setActiveUpload(\''+u.sid+'\','+i+')">';
-    sh+='<img src="'+API+'/download/'+u.sid+'_passport.jpg?t='+Date.now()+'">';
+    sh+='<img src="'+API+'/download/'+u.sid+'_passport.jpg?size=sm&v='+S.imgV+'" loading="lazy">';
     sh+='<div style="font-size:.55rem;color:#64748b;margin-top:4px">'+(i+1)+'</div></div>';
   }
   $('sliderWrap').innerHTML=sh;
@@ -224,7 +225,7 @@ function setActiveUpload(sid,i){
 }
 
 function renderUploadedPreview(){
-  $('ri').src=API+'/download/'+S.sid+'_passport.jpg?t='+Date.now();
+  $('ri').src=API+'/download/'+S.sid+'_passport.jpg?v='+S.imgV;
   updatePreviewAspect(null);
   $('previewBg').style.background='';
   // no detail text under preview — that slot belongs to the batch thumbnail slider
@@ -300,7 +301,8 @@ async function generateAll(){
 
 function showResult(d,isBulk){
   // no detail rows under preview (owner) — thumbnails/results slider is the only thing below
-  $('ri').src=API+'/download/'+S.sid+'_passport.jpg?t='+Date.now();
+  bumpImg();
+  $('ri').src=API+'/download/'+S.sid+'_passport.jpg?v='+S.imgV;
   $('sec3').classList.remove('hidden');
   $('previewCard').classList.remove('hidden');
     // Owner flow: preview always square, full image, no forced crop
@@ -312,7 +314,7 @@ function showResult(d,isBulk){
     for(var i=0;i<d.results.length;i++){
       var res=d.results[i];
       if(!res.ok)continue;
-      var imgUrl=(res.download_passport?location.origin+res.download_passport:API+'/download/'+res.session_id+'_passport.jpg')+'?t='+Date.now();
+      var imgUrl=(res.download_passport?location.origin+res.download_passport:API+'/download/'+res.session_id+'_passport.jpg')+'?size=sm&v='+S.imgV;
       sh+='<div class="slide-item" onclick="selectBatchResult(\''+res.session_id+'\','+i+')">';
       sh+='<img src="'+imgUrl+'" style="border-color:'+(res.session_id===S.sid?'#6366f1':'#334155')+'">';
       sh+='<div style="font-size:.55rem;color:#64748b;margin-top:4px">'+(i+1)+'</div></div>';
@@ -327,7 +329,7 @@ function showResult(d,isBulk){
 
 function selectBatchResult(sid,i){
   S.sid=sid;
-  $('ri').src=API+'/download/'+sid+'_passport.jpg?t='+Date.now();
+  $('ri').src=API+'/download/'+sid+'_passport.jpg?v='+S.imgV;
   $$('.slide-item').forEach(function(el,idx){
     el.querySelector('img').style.borderColor=idx===i?'#6366f1':'#334155';
   });
@@ -342,8 +344,9 @@ async function autoRemoveBG(){
     var resp=await fetch(API+'/remove-bg',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:S.sid,background_color:color})});
     var d=await resp.json();
     if(d.ok){
+      bumpImg();
       var url=location.origin+(d.download_transparent||'');
-      $('ri').src=url+'?t='+Date.now();
+      $('ri').src=url+'?v='+S.imgV+'&fmt=webp'; // ~790KB png → light webp for preview only
       previewBGColor(color);
       toast('✂️ Background removed');
     }
@@ -371,7 +374,8 @@ async function applyBG(){
     var resp=await fetch(API+'/apply-bg',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:S.sid,background_color:color})});
     var d=await resp.json();
     if(d.ok){
-      $('ri').src=location.origin+d.download_bg+'?t='+Date.now();
+      bumpImg();
+      $('ri').src=location.origin+d.download_bg+'?v='+S.imgV+'&fmt=webp';
       $('previewBg').style.backgroundColor='transparent';
       toast('Background applied! 🎨','ok');
     }
@@ -380,7 +384,8 @@ async function applyBG(){
       var resp2=await fetch(API+'/remove-bg',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:S.sid,background_color:color})});
       var d2=await resp2.json();
       if(d2.ok){
-        $('ri').src=location.origin+d2.download_bg+'?t='+Date.now();
+        bumpImg();
+        $('ri').src=location.origin+d2.download_bg+'?v='+S.imgV+'&fmt=webp';
         $('previewBg').style.backgroundColor='transparent';
         toast('Background applied! 🎨','ok');
       }
@@ -411,7 +416,8 @@ async function applySize(){
   try{
     var d=await api('/recrop',{session_id:S.sid,custom_width:w,custom_height:h});
     if(d.ok){
-      $('ri').src=API+'/download/'+S.sid+'_passport.jpg?t='+Date.now();
+      bumpImg();
+      $('ri').src=API+'/download/'+S.sid+'_passport.jpg?v='+S.imgV;
       updatePreviewAspect(w/h);
       toast('Size applied: '+w+'×'+h+'mm 📐','ok');
     }
@@ -456,7 +462,8 @@ async function genPrintSheet(){
     if(d.ok){
       if(!d.download_url)throw new Error('sheet url missing');
       // owner rule: print sheet previews on the MAIN preview box above (object-fit:contain shows whole sheet)
-      var imgUrl=location.origin+d.download_url+'?t='+Date.now();
+      bumpImg();
+      var imgUrl=location.origin+d.download_url+'?v='+S.imgV;
       $('batchPreview').classList.add('hidden');
       $('ri').src=imgUrl;
       updatePreviewAspect(null);

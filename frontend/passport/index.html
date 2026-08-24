@@ -87,6 +87,9 @@
       <div class="preview-box" id="previewBox"><div class="preview-bg" id="previewBg"></div><img class="preview-img" id="ri" src="" alt="Generated"></div>
     </div>
     <div class="res-stats" id="rs"></div>
+    <div id="batchPreview" class="hidden" style="margin:10px 0">
+      <div class="slider-wrap" id="sliderWrap" style="justify-content:center"></div>
+    </div>
     <div class="res-btns">
       <button class="btn-p" style="padding:9px 16px;font-size:.72rem" onclick="dl('passport')">⬇️ Download</button>
       <button class="btn-c" style="padding:9px 16px;font-size:.72rem" onclick="dlTransparent()">💎 Transparent</button>
@@ -94,22 +97,31 @@
     </div>
   </div>
 
-  <!-- Batch thumbnails -->
-  <div id="batchPreview" class="hidden" style="margin-bottom:10px">
-    <div class="slider-wrap" id="sliderWrap" style="justify-content:center"></div>
-  </div>
-
   <!-- Option tabs -->
   <div style="display:flex;gap:4px;margin-bottom:10px;background:#1e293b;border-radius:12px;padding:3px">
-    <div class="opt-tab active" onclick="switchOptTab(0)">🎨 BG</div>
-    <div class="opt-tab" onclick="switchOptTab(1)">🌍 Country</div>
-    <div class="opt-tab" onclick="switchOptTab(2)">✂️ Crop</div>
-    <div class="opt-tab" onclick="switchOptTab(3)">📐 Size</div>
-    <div class="opt-tab" onclick="switchOptTab(4)">🖨️ Print</div>
+    <div class="opt-tab active" onclick="switchOptTab(0)">👔 เสื้อ</div>
+    <div class="opt-tab" onclick="switchOptTab(1)">🎨 BG</div>
+    <div class="opt-tab" onclick="switchOptTab(2)">📐 Size</div>
+    <div class="opt-tab" onclick="switchOptTab(3)">🖨️ Print</div>
   </div>
 
-  <!-- Tab 0: Background -->
+  <!-- Tab 0: Clothing -->
   <div class="card opt-pane act" id="optPane0" style="padding:14px">
+    <div class="opt-sec">
+      <div class="gender-tabs" id="gt"></div>
+      <div class="caro"><button class="carro-btn" onclick="scrollCar('cl',-1)">◀</button><div class="caro-list" id="cl"></div><button class="carro-btn" onclick="scrollCar('cl',1)">▶</button></div>
+      <div id="custPreviewWrap" class="hidden" style="margin-top:8px">
+        <div class="cust-preview">
+          <img id="custPreviewImg" src="">
+          <div><div id="custPreviewName" style="font-size:.7rem;font-weight:600"></div><button class="btn-c" style="padding:4px 10px;border:none;border-radius:6px;font-size:.6rem;cursor:pointer;margin-top:4px" onclick="removeCustomClothing()">✕ Remove</button></div>
+        </div>
+      </div>
+    </div>
+    <button class="gen-btn" id="genBtn" disabled onclick="generate()"><span class="ico">🚀</span> Generate</button>
+  </div>
+
+  <!-- Tab 1: Background -->
+  <div class="card opt-pane" id="optPane1" style="padding:14px">
     <div id="bgPresets" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"></div>
     <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
       <input type="color" id="bgColorPick" value="#C4DCFF" style="width:32px;height:26px;border:1px solid #cbd5e1;border-radius:6px;padding:0;cursor:pointer">
@@ -118,22 +130,9 @@
     </div>
   </div>
 
-  <!-- Tab 1: Country -->
-  <div class="card opt-pane" id="optPane1" style="padding:14px">
-    <select id="cs" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:.78rem;background:#fff;color:#0f172a;outline:none"></select>
-  </div>
-
-  <!-- Tab 2: Crop -->
+  <!-- Tab 2: Size (Country + Photo Size) -->
   <div class="card opt-pane" id="optPane2" style="padding:14px">
-    <div class="crop-opts">
-      <div class="crop-opt active" data-preset="standard" onclick="setCrop('standard')">Standard</div>
-      <div class="crop-opt" data-preset="compact" onclick="setCrop('compact')">Compact</div>
-      <div class="crop-opt" data-preset="relaxed" onclick="setCrop('relaxed')">Relaxed</div>
-    </div>
-  </div>
-
-  <!-- Tab 3: Photo Size -->
-  <div class="card opt-pane" id="optPane3" style="padding:14px">
+    <div style="margin-bottom:10px"><label style="font-size:.65rem;font-weight:600;color:#64748b;display:block;margin-bottom:4px">🌍 Country</label><select id="cs" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:.78rem;background:#fff;color:#0f172a;outline:none"></select></div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
       <div class="sz-p active" onclick="setCustomSize(35,45,this)">35×45mm</div>
       <div class="sz-p" onclick="setCustomSize(25,35,this)">25×35mm</div>
@@ -150,8 +149,8 @@
     </div>
   </div>
 
-  <!-- Tab 4: Print -->
-  <div class="card opt-pane" id="optPane4" style="padding:14px">
+  <!-- Tab 3: Print -->
+  <div class="card opt-pane" id="optPane3" style="padding:14px">
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
       <div class="pap-p active" onclick="setPaper('4x6',this)">4×6"</div>
       <div class="pap-p" onclick="setPaper('5x7',this)">5×7"</div>
@@ -170,6 +169,7 @@
     </div>
   </div>
 </div>
+
 
 <div class="section" id="sec1">
   <div class="card" style="padding:24px">
@@ -204,25 +204,6 @@
   </div>
 </div>
 
-
-<!-- ══════ SECTION 3: CLOTHING + GENERATE ══════ -->
-<div class="section hidden" id="sec2">
-  <div class="card" style="padding:16px">
-    <div class="opt-sec">
-      <div class="opt-h"><span class="e">👔</span> Clothing</div>
-      <div class="gender-tabs" id="gt"></div>
-      <div class="caro"><button class="carro-btn" onclick="scrollCar('cl',-1)">◀</button><div class="caro-list" id="cl"></div><button class="carro-btn" onclick="scrollCar('cl',1)">▶</button></div>
-      <div id="custPreviewWrap" class="hidden" style="margin-top:8px">
-        <div class="cust-preview">
-          <img id="custPreviewImg" src="">
-          <div><div id="custPreviewName" style="font-size:.7rem;font-weight:600"></div><button class="btn-c" style="padding:4px 10px;border:none;border-radius:6px;font-size:.6rem;cursor:pointer;margin-top:4px" onclick="removeCustomClothing()">✕ Remove</button></div>
-        </div>
-      </div>
-    </div>
-    <div class="sec-divider"></div>
-    <button class="gen-btn" id="genBtn" disabled onclick="generate()"><span class="ico">🚀</span> Generate</button>
-  </div>
-</div>
 
 </div><!-- .page -->
 

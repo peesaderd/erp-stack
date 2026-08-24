@@ -65,12 +65,15 @@ async function loadBgs(){
     var list=d.options||d.backgrounds||d.solid||[];
     var el=$('bgPresets');el.innerHTML='';
     list.forEach(function(b){
-      if(b.type!=='solid')return;
       var div=document.createElement('div');
       div.className='bg-d'+(S.bgc===b.key?' on':'');
-      div.style.background=b.hex;
+      if(b.type==='gradient'&&b.css){
+        div.style.background=b.css;
+      }else{
+        div.style.background=b.hex||'#ccc';
+      }
       div.title=b.name;
-      div.onclick=function(){S.bgc=b.key;S.bg=b.key;previewBGColor(b.hex);$$('.bg-d').forEach(function(x){x.classList.remove('on')});div.classList.add('on')};
+      div.onclick=function(){S.bgc=b.key;S.bg=b.key;S.bgGrad=b.type==='gradient'?(b.hex+','+b.hex2):null;if(b.type==='gradient'){previewBGColor('linear-gradient(180deg,'+(b.hex||'#C4DCFF')+','+(b.hex2||'#FFFFFF')+')')}else{previewBGColor(b.hex)};$$('.bg-d').forEach(function(x){x.classList.remove('on')});div.classList.add('on')};
       el.appendChild(div);
     });
   }catch(e){console.error('loadBgs:',e)}
@@ -331,14 +334,20 @@ async function autoRemoveBG(){
 
 /* ══════════ LIVE BG COLOR PREVIEW ══════════ */
 function previewBGColor(hex){
-  $('previewBg').style.backgroundColor=hex;
-  $('bgColorPick').value=hex;
+  if(hex&&hex.indexOf('gradient')!==-1){
+    $('previewBg').style.background=hex;
+  }else{
+    $('previewBg').style.background=hex;
+  }
+  if(hex&&hex.indexOf('#')===0&&hex.length<=9){$('bgColorPick').value=hex;}
 }
 
 /* ══════════ APPLY BG ══════════ */
 async function applyBG(){
   if(!S.sid)return;
   var color=$('bgColorPick').value||'#FFFFFF';
+  // gradient: S.bgGrad stores "HEX1,HEX2"
+  if(S.bgGrad){color=S.bgGrad;}
   previewBGColor(color);
   try{
     var resp=await fetch(API+'/apply-bg',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:S.sid,background_color:color})});
@@ -394,7 +403,7 @@ async function applySize(){
 
 /* ══════════ PRINT SHEET ══════════ */
 function switchOptTab(idx){
-  for(var i=0;i<5;i++){
+  for(var i=0;i<4;i++){
     var pane=$('optPane'+i);
     var tab=document.querySelectorAll('.opt-tab')[i];
     if(pane)pane.classList.toggle('act',i===idx);

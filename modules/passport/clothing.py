@@ -90,9 +90,12 @@ FEMALE_CLOTHING = {
 
 # ── Background Colors ──────────────────────────────────
 BACKGROUNDS = {
-    "light_blue": {"name": "สีฟ้าอ่อน", "hex": "#C4DCFF", "prompt": "soft light blue background"},
-    "white": {"name": "สีขาว", "hex": "#FFFFFF", "prompt": "solid white background"},
-    "light_gray": {"name": "สีเทาอ่อน", "hex": "#F0F0F0", "prompt": "light gray background"},
+    "light_blue": {"name": "สีฟ้าอ่อน", "hex": "#C4DCFF", "prompt": "soft light blue background", "type": "solid"},
+    "white": {"name": "สีขาว", "hex": "#FFFFFF", "prompt": "solid white background", "type": "solid"},
+    "light_gray": {"name": "สีเทาอ่อน", "hex": "#F0F0F0", "prompt": "light gray background", "type": "solid"},
+    "gradient_blue": {"name": "ฟ้าสวย (gradient)", "hex": "#C4DCFF", "hex2": "#7FB5FF", "prompt": "soft blue gradient background", "type": "gradient", "css": "linear-gradient(180deg,#C4DCFF,#7FB5FF)"},
+    "gradient_pink": {"name": "ชมพูหวาน (gradient)", "hex": "#FFD6E8", "hex2": "#FF9EC4", "prompt": "soft pink gradient background", "type": "gradient", "css": "linear-gradient(180deg,#FFD6E8,#FF9EC4)"},
+    "gradient_gold": {"name": "ทองอ่อน (gradient)", "hex": "#FFF3D6", "hex2": "#FFD98A", "prompt": "soft gold gradient background", "type": "gradient", "css": "linear-gradient(180deg,#FFF3D6,#FFD98A)"},
 }
 
 # ── Public API ─────────────────────────────────────────

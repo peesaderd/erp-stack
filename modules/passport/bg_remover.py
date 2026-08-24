@@ -113,15 +113,38 @@ def remove_background(image_bytes: bytes) -> tuple:
 
 def apply_background(pil_image: Image.Image, color: str = "#FFFFFF") -> Image.Image:
     """
-    Apply solid color background to transparent image.
-    
+    Apply solid OR gradient background to transparent image.
+
     Args:
         pil_image: RGBA image with transparency
-        color: Hex color (e.g. "#FFFFFF", "#C4DCFF")
-        
+        color: Hex color (e.g. "#FFFFFF", "#C4DCFF") or gradient "HEX1,HEX2" (top->bottom)
+
     Returns:
         RGB image with background
     """
+    w, h = pil_image.size
+    if color and "," in color:
+        # Gradient: "HEX1,HEX2" vertical top->bottom
+        c1, c2 = color.split(",")[:2]
+        c1 = c1.strip() or "#FFFFFF"
+        c2 = c2.strip() or "#C4DCFF"
+        def _hex(c):
+            c = c.lstrip("#")
+            return tuple(int(c[i:i+2], 16) for i in (0, 2, 4))
+        r1, g1, b1 = _hex(c1)
+        r2, g2, b2 = _hex(c2)
+        bg = Image.new("RGB", (w, h))
+        px = bg.load()
+        for y in range(h):
+            t = y / max(1, h - 1)
+            r = int(r1 + (r2 - r1) * t)
+            g = int(g1 + (g2 - g1) * t)
+            b = int(b1 + (b2 - b1) * t)
+            for x in range(w):
+                px[x, y] = (r, g, b)
+        bg_rgba = bg.convert("RGBA")
+        bg_rgba.paste(pil_image, (0, 0), pil_image)
+        return bg_rgba.convert("RGB")
     bg = Image.new("RGBA", pil_image.size, color)
     bg.paste(pil_image, (0, 0), pil_image)
     return bg.convert("RGB")

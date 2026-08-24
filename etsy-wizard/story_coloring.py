@@ -45,6 +45,38 @@ DESIGNS_DIR.mkdir(parents=True, exist_ok=True)
 BASE_URL = 'https://podwizard.m2igen.com/designs'
 
 
+# ═══════════════════════════════════════════════════════════════
+# 🎨 Style Presets — appended to every page prompt for consistency
+# ═══════════════════════════════════════════════════════════════
+
+COLORING_STYLES = {
+    "kawaii": {"label": "Kawaii Cute", "emoji": "🌸",
+               "suffix": "kawaii cute style, big sparkly eyes, rounded soft shapes"},
+    "storybook": {"label": "Classic Storybook", "emoji": "📖",
+                  "suffix": "classic children's storybook illustration style, gentle curves"},
+    "anime": {"label": "Anime Manga", "emoji": "⛩️",
+              "suffix": "anime manga line art style, clean expressive faces"},
+    "toddler": {"label": "Easy Toddler Lines", "emoji": "🍼",
+                "suffix": "very simple thick outlines for toddlers, minimal details, extra large shapes"},
+    "mandala": {"label": "Detailed Adult", "emoji": "🧘",
+                "suffix": "intricate adult coloring book style with zentangle and mandala patterns"},
+    "comic": {"label": "Cartoon Comic", "emoji": "💥",
+              "suffix": "cartoon comic style, bold dynamic lines, playful energy"},
+    "chibi": {"label": "Chibi", "emoji": "🧸",
+              "suffix": "chibi style, oversized heads, tiny bodies, adorable poses"},
+    "pixel": {"label": "Pixel Art", "emoji": "🕹️",
+              "suffix": "blocky pixel art style, retro game look"},
+}
+
+
+def get_styles() -> list:
+    """List available coloring styles."""
+    return [
+        {"key": k, "label": v["label"], "emoji": v["emoji"]}
+        for k, v in COLORING_STYLES.items()
+    ]
+
+
 # ═══════════════════════════════════════════════════════════════════
 # 🧠 AI Brain — Story Generation
 # ═══════════════════════════════════════════════════════════════════
@@ -204,7 +236,8 @@ DEFAULT_STORIES = {
 def create_story_coloring_book(
     story_key: Optional[str] = None,
     custom_story: Optional[dict] = None,
-    delay_between: float = 1.0
+    delay_between: float = 1.0,
+    style_key: Optional[str] = None
 ) -> dict:
     """
     🚀 Full Pipeline: สร้าง Story Coloring Book
@@ -228,6 +261,14 @@ def create_story_coloring_book(
     
     title = story.get('title', 'Coloring Book')
     pages = story.get('pages', [])
+
+    # Style enforcement — append preset suffix so all pages match one style
+    style_info = COLORING_STYLES.get(style_key or "")
+    if style_info:
+        suffix = style_info["suffix"]
+        for p in pages:
+            if suffix not in p.get('prompt', ''):
+                p['prompt'] = f"{p.get('prompt', '').rstrip().rstrip(',')}, {suffix}"
     
     logger.info(f"📚 Starting: {title} ({len(pages)} pages)")
     
@@ -269,6 +310,8 @@ def create_story_coloring_book(
     metadata = {
         'title': title,
         'theme': story.get('theme', ''),
+        'style': style_key or '',
+        'style_label': (style_info or {}).get('label', ''),
         'pages': generated,
         'created_at': time.strftime('%Y-%m-%d %H:%M:%S'),
         'base_url': BASE_URL
@@ -303,24 +346,110 @@ def register_story_routes(app):
     """Register story coloring book routes with FastAPI app."""
     
     from fastapi import HTTPException
+    from pydantic import BaseModel
     
+    class StoryGenerateRequest(BaseModel):
+        story_key: Optional[str] = None
+        custom_story: Optional[dict] = None
+        style_key: Optional[str] = None
+
     @app.get("/api/pod/story/templates")
     def list_story_templates():
         """List available story templates."""
         return get_available_stories()
-    
+
     @app.post("/api/pod/story/generate")
-    def generate_story(
-        story_key: str = None,
-        custom_story: dict = None
-    ):
-        """Generate a story coloring book."""
+    def generate_story(req: StoryGenerateRequest):
+        """Generate a story coloring book (JSON body: {story_key} or {custom_story})."""
         try:
             result = create_story_coloring_book(
-                story_key=story_key,
-                custom_story=custom_story
+                story_key=req.story_key,
+                custom_story=req.custom_story,
+                style_key=req.style_key
             )
             return result
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.get("/api/pod/story/styles")
+    def list_styles():
+        """List available coloring art styles."""
+        return get_styles()
+
+    @app.get("/api/pod/story/library")
+    def story_library():
+        """List all generated coloring books (from metadata files)."""
+        books = []
+        for meta_file in sorted(DESIGNS_DIR.glob('*_metadata.json'), reverse=True):
+            try:
+                with open(meta_file) as f:
+                    meta = json.load(f)
+                pages_ok = [p for p in meta.get('pages', []) if p.get('url')]
+                if not pages_ok:
+                    continue
+                cover = next((p['url'] for p in pages_ok if p.get('page_num') == 1), pages_ok[0]['url'])
+                safe_title = meta_file.name.replace('_metadata.json', '')
+                books.append({
+                    'safe_title': safe_title,
+                    'title': meta.get('title', safe_title),
+                    'theme': meta.get('theme', ''),
+                    'style_label': meta.get('style_label', '') or ('Kawaii Cute' if not meta.get('style') else meta.get('style')),
+                    'pages': len(pages_ok),
+                    'cover': cover,
+                    'created_at': meta.get('created_at', '')
+                })
+            except Exception as e:
+                logger.warning(f"Skip bad metadata {meta_file}: {e}")
+        return books
+
+    @app.get("/api/pod/story/library/{safe_title}")
+    def story_library_book(safe_title: str):
+        """Get full book detail by safe_title."""
+        meta_file = DESIGNS_DIR / f"{safe_title}_metadata.json"
+        if not meta_file.exists():
+            raise HTTPException(status_code=404, detail="Book not found")
+        with open(meta_file) as f:
+            return json.load(f)
+
+    @app.get("/api/pod/story/library/{safe_title}/pdf")
+    def story_library_pdf(safe_title: str):
+        """Download whole book as a single PDF (all pages)."""
+        from fastapi.responses import FileResponse
+        import io
+        from PIL import Image
+
+        meta_file = DESIGNS_DIR / f"{safe_title}_metadata.json"
+        if not meta_file.exists():
+            raise HTTPException(status_code=404, detail="Book not found")
+        with open(meta_file) as f:
+            meta = json.load(f)
+        pages_ok = [p for p in sorted(meta.get('pages', []), key=lambda x: x.get('page_num', 0)) if p.get('url')]
+        imgs = []
+        for p in pages_ok:
+            local = DESIGNS_DIR / Path(p['url']).name
+            if not local.exists():
+                continue
+            im = Image.open(local).convert('RGB')
+            imgs.append(im)
+        if not imgs:
+            raise HTTPException(status_code=404, detail="No page images found on disk")
+        buf = io.BytesIO()
+        imgs[0].save(buf, format='PDF', save_all=True, append_images=imgs[1:])
+        buf.seek(0)
+        out = DESIGNS_DIR / f"{safe_title}.pdf"
+        out.write_bytes(buf.read())
+        return FileResponse(out, media_type='application/pdf', filename=f"{safe_title}.pdf")
+
+    @app.post("/api/pod/story/ideas")
+    def story_ideas(
+        theme: str = "animals",
+        audience: str = "kids 3-6 years old",
+        num_pages: int = 6,
+        style: str = "kawaii cute"
+    ):
+        """AI Brain: คิดไอเดียเรื่องใหม่ (Cloudflare Llama — free, ไม่ gen รูป)"""
+        try:
+            return generate_story_ideas(theme=theme, audience=audience, num_pages=num_pages, style=style)
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
     

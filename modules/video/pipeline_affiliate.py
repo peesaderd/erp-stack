@@ -464,7 +464,7 @@ def generate_image(
         prompt: image_prompt จาก Step 4
         product_image: URL ของรูปสินค้า (reference)
         aspect_ratio: 9:16 (TikTok portrait) or 16:9 (triptych)
-        model: "nano-banana" (default)
+        model: "nano-banana" (default) or "flux-2-klein" (klein 4B img2img)
 
     Returns:
         tuple: (image_url, cost_usd)
@@ -519,6 +519,90 @@ def generate_image(
 
     logger.error(f"Image generation failed after 3 attempts: {last_exc}")
     raise RuntimeError(f"Image generation failed after 3 attempts: {last_exc}")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# STEP 5b: Generate Last (end-scene) image via FLUX.2 [klein] 4B
+# Separate pipeline (NOT PassportPhoto). Takes the Nano Banana first-frame as
+# input → produces a fresh 9:16 end-scene (Last) image from the SSOT blueprint.
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _build_klein_last_prompt(profile: dict, product_name: str) -> str:
+    """Build a 9:16 end-scene image prompt from the SSOT end_scene blueprint.
+
+    Mirrors image-module Panel 3 (result_hint) so the Last image matches what the
+    video's BEAT 3/4 & end frame describe (same outfit, result, expression).
+    """
+    es = (profile or {}).get("_end_scene")
+    if not isinstance(es, dict):
+        # fallback to a clean pick (binding happens in build_video_prompt normally)
+        try:
+            from prompt_builder import _pick_end_scene  # type: ignore
+            cat = (profile or {}).get("category", "other")
+            sub = (profile or {}).get("subcategory", "")
+            es = _pick_end_scene(cat, subcategory=sub, profile=profile) or {}
+        except Exception:
+            es = {}
+
+    gender = "Woman" if (profile or {}).get("target_gender") == "female" else "Man"
+    _result = es.get("result_focus") or "a bright, smooth, healthy result"
+    _expr = es.get("expression") or "smiling proudly"
+    _outfit = es.get("outfit") or ""
+    _scene = es.get("scene") or ""
+    _camera = es.get("camera") or ""
+    _placement = es.get("product_placement") or "product in hand"
+
+    outfit_txt = f", wearing {_outfit}" if _outfit else ""
+    scene_txt = f"{_scene}. " if _scene else ""
+    camera_txt = f"Camera: {_camera}. " if _camera else ""
+
+    vp_product = _clean_product_name_for_video(product_name) if product_name else "the product"
+
+    return (
+        f"Vertical 9:16 portrait, the same {gender.lower()} (Thai) from the input image, "
+        f"same face and same product{outfit_txt}, {_expr}, clearly showing {_result}; "
+        f"{_placement}. {scene_txt}{camera_txt}"
+        f"Bright, flattering even light, clean background, high quality product photography. "
+        f"Keep the product exactly as shown in the input image. Full-frame 9:16, no border, no padding."
+    )
+
+
+def generate_klein_last_image(
+    first_frame_local: str,
+    profile: dict,
+    product_name: str = "",
+    aspect_ratio: str = "9:16",
+    run_id: str = ""
+) -> tuple:
+    """Generate the Last (end-scene) image via FLUX.2 [klein] 4B img2img.
+
+    Uses the Nano Banana first-frame as input + the SSOT end-scene prompt.
+    Our own klein pipeline (separate from PassportPhoto).
+
+    Returns:
+        tuple: (local_path, cost_usd)
+    """
+    logger.info(f"  ▶ Generate Last image via FLUX.2 klein 4B (from first-frame)")
+    prompt = _build_klein_last_prompt(profile, product_name)
+
+    # Send the local first-frame as a self-contained data URL so the image-module
+    # can read it without depending on a served URL.
+    try:
+        import base64 as _b64
+        with open(first_frame_local, "rb") as f:
+            b64 = _b64.b64encode(f.read()).decode()
+        input_ref = f"data:image/png;base64,{b64}"
+    except Exception as e:
+        logger.warning(f"  ⚠️ ใช้ path ตรงๆ แทน data URL ({e})")
+        input_ref = first_frame_local
+
+    img_url, cost_last = generate_image(
+        prompt, input_ref, aspect_ratio=aspect_ratio, model="flux-2-klein",
+    )
+    last_path = TMP_DIR / f"klein_last_{run_id or 'x'}.png"
+    download_file(img_url, last_path)
+    logger.info(f"  ▶ Klein Last OK: {last_path.name} | cost=${cost_last:.4f}")
+    return last_path, cost_last
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1242,7 +1326,9 @@ def run_pipeline(
         # ── FL2V+Audio manual frames: split triptych → panel2=first, panel3=last ──
         # Owner workflow (2026-08-19): gen 16:9 triptych (3 panels) → panel1=cover,
         # panel2=first frame, panel3=last frame → start-end interpolation + audio.
-        # ถ้า client ไม่ส่ง first/last frame มาเอง เราตัดจาก triptych ที่ gen เอง.
+        # Upgrade (2026-08-20): Last frame ใช้ FLUX.2 [klein] 4B gen ใหม่ จากรูป
+        # First (panel2) → end-scene 9:16 (ตรง SSOT blueprint) แทนการตัด nano panel3.
+        # Klein เป็น pipeline แยกของเราเอง (ไม่ใช้ร่วมกับ PassportPhoto).
         ff = first_frame or None
         lf = last_frame or None
         # Fix (2026-08-21): ให้ client บังคับ "ภาพเดียว ไม่ interpolation" ได้
@@ -1251,14 +1337,28 @@ def run_pipeline(
         if not (ff and lf) and img_path.exists() and _image_prompt_is_triptych(image_prompt) and not first_frame:
             try:
                 panels = _split_triptych_into_panels(str(img_path), run_id=run_id)
-                # panel2 (กลาง) = first frame, panel3 (ขวา) = last frame
+                # panel2 (กลาง) = first frame
                 if not ff:
                     ff = str(panels["panel2"])
                 if not lf:
+                    # default last = nano panel3 (fallback)
                     lf = str(panels["panel3"])
+                    # ใช้ klein 4B gen end-scene จาก first-frame → 9:16 (ตรง blueprint)
+                    try:
+                        klein_last, cost_last = generate_klein_last_image(
+                            ff, product_profile, product_name,
+                            aspect_ratio="9:16", run_id=run_id,
+                        )
+                        lf = str(klein_last)
+                        cost_image += cost_last  # รวมค่า klein
+                        logger.info(f"  ▶ Last frame ใช้ FLUX klein end-scene: {Path(lf).name}")
+                    except Exception as ke:
+                        logger.warning(
+                            f"  ⚠️ Klein last-image gen ล้มเหลว ({ke}) — ใช้ nano panel3 แทน"
+                        )
                 logger.info(
-                    f"  ▶ FL2V frames from triptych: first=panel2 ({Path(ff).name}), "
-                    f"last=panel3 ({Path(lf).name})"
+                    f"  ▶ FL2V frames: first=({Path(ff).name}), "
+                    f"last=({Path(lf).name})"
                 )
             except Exception as e:
                 logger.warning(f"  ⚠️ Triptych split failed ({e}) — ใช้ image เดียว (ไม่ตั้ง start/end)")

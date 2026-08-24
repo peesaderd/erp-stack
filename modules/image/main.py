@@ -219,15 +219,10 @@ def nano_banana_img2img(prompt: str, input_image: str, negative_prompt: str = ""
     No polling. No async. Single call.
     """
     # Prodia img2img: describe the CHANGE anchored to the reference image.
-    # Only prepend the preserve-anchor when the caller did NOT already request an
-    # explicit composition (e.g. 'triptych' / '3 panels' / 'side by side'); otherwise
-    # anchoring to 'keep composition exactly' would override the requested layout.
+    # Triptych discontinued (owner 2026-08-24) — every prompt is a single 9:16
+    # frame, so always preserve the original composition via the anchor.
     prompt = prompt.rstrip(",. ")
-    _lower = prompt.lower()
-    _wants_layout = any(
-        k in _lower for k in ("triptych", "panel", "side by side", "split into", "collage", "three equal")
-    )
-    if not _wants_layout and not any(k in _lower for k in ("keep", "same as", "reference")):
+    if not any(k in prompt.lower() for k in ("keep", "same as", "reference")):
         prompt = IMG2IMG_ANCHOR + " " + prompt
     if not negative_prompt:
         negative_prompt = THAI_NEGATIVE
@@ -241,7 +236,7 @@ def nano_banana_img2img(prompt: str, input_image: str, negative_prompt: str = ""
 
     config = {"prompt": prompt, "aspect_ratio": aspect_ratio}
     # Nano Banana reads aspect_ratio directly (per Prodia API); width/height aren't
-    # supported params for this model — rely on aspect_ratio only so 16:9 actually sticks.
+    # supported params for this model — rely on aspect_ratio only so 9:16 actually sticks.
 
     result_bytes = _call_prodia(
         type_="inference.nano-banana.img2img.v2",

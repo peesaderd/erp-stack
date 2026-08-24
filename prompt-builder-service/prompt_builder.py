@@ -198,59 +198,27 @@ def _pick_end_scene(category="other", subcategory=None, profile=None):
         }
 
     # ── Body-part-first resolution (owner 2026-08-24): when the payload carries
-    # body_part, the end scene FOLLOWS that part DIRECTLY — deterministic, no
-    # bucket lottery, no filter-then-fallback. A facial pregnancy cream can never
-    # end on belly/waist/thighs regardless of which subcategory bucket it landed
-    # in. Only products WITHOUT body_part fall through to the legacy
-    # subcategory → category → other random pick.
+    # body_part (or the audience is pregnancy), the end scene FOLLOWS that part
+    # DIRECTLY — deterministic, no bucket lottery, no filter-then-fallback.
+    # ALL scene wording lives in prompt_sources.json
+    # ssot_extras.body_part_end_scenes (SSOT) — this file holds only alias /
+    # decision logic, zero hardcoded scene text. Only products WITHOUT a known
+    # part fall through to the legacy subcategory → category → other pick.
     bp = ""
     st = ""
     if isinstance(profile, dict):
         bp = (profile.get("body_part") or "").strip().lower()
         st = (profile.get("special_target") or "").strip().lower()
 
-    _HAND_BP = {
-        "scene": "the model holds the product up showing her smooth cared-for hands",
-        "camera": "medium close-up on hands and product, soft even light",
-        "outfit": "",
-        "result_focus": "smooth healthy-looking skin on her hands",
-        "expression": "contented smile",
-        "product_placement": "product held in her hand",
-    }
-    _FACE_BP = {
-        "scene": "the model's healthy glowing face fills the frame, smooth even hydrated skin",
-        "camera": "medium close-up on her face, soft even light",
-        "outfit": "",
-        "result_focus": "smooth hydrated healthy-looking facial skin",
-        "expression": "gentle confident smile",
-        "product_placement": "product held up beside her face",
-    }
-    _BELLY_BP = {
-        "scene": "the model gently rests a hand on her smooth hydrated belly, comfortable modest framing",
-        "camera": "medium shot, soft warm light",
-        "outfit": "loose comfortable top, no midriff-baring crop top",
-        "result_focus": "smooth well-hydrated soothed skin",
-        "expression": "relieved happy smile",
-        "product_placement": "product placed visibly in frame",
-    }
-    _BP_BLUEPRINTS = {
-        "face": _FACE_BP,
-        "hand": _HAND_BP,
-        "hands": _HAND_BP,
-        "whole-body": _HAND_BP,   # owner rule: whole-body -> hand, never full-body smear
-        "body": _HAND_BP,
-        "belly": _BELLY_BP,
-    }
-    bp_key = re.sub(r"\s+", "-", bp)
-
     chosen = None
-    if bp_key in _BP_BLUEPRINTS:
-        chosen = _BP_BLUEPRINTS[bp_key]
-    elif st in ("pregnant", "pregnancy", "maternity"):
-        # Pregnancy audience with UNKNOWN body_part: keep the modest belly
-        # blueprint rather than rolling slimming/stretch_marks buckets that
-        # carry belly/thighs/crop-top wording.
-        chosen = _BELLY_BP
+    if bp or st in ("pregnant", "pregnancy", "maternity"):
+        bp_scenes = _load_ssot_extras()["body_part_end_scenes"]
+        bp_norm = bp.replace(" ", "-").replace("_", "-")
+        bp_key = {"hands": "hand", "whole-body": "hand", "body": "hand"}.get(bp_norm, bp_norm)
+        if bp_key in bp_scenes:
+            chosen = bp_scenes[bp_key]
+        elif st in ("pregnant", "pregnancy", "maternity"):
+            chosen = bp_scenes["belly"]
 
     if chosen is not None:
         return {
@@ -628,6 +596,14 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     age_young = _youngest_age(age)
     age_desc = f", {age_young} years old" if age_young else ""
     model_desc = f"Thai {gender_en}{age_desc}"
+    # Target-audience visibility (owner 2026-08-24): a pregnancy product must
+    # show a visibly PREGNANT model — wording from ssot_extras.model_hints
+    # (SSOT, no hardcoded text here).
+    if ((profile.get("special_target") or "").strip().lower()
+            in ("pregnant", "pregnancy", "maternity")):
+        _pg_hint = _load_ssot_extras()["model_hints"].get("pregnant") or ""
+        if _pg_hint and _pg_hint.lower() not in model_desc.lower():
+            model_desc = f"{model_desc}, {_pg_hint}"
     # Room/setting: prefer profile['setting'] (user set), else ai_select scene
     room = (profile.get("setting") or "").strip() or scene
     room_desc = room
@@ -909,62 +885,70 @@ def img_desc_sentences(text: str) -> list:
     return [s.strip() for s in text.split(".") if s.strip()]
 
 
+def _load_ssot_extras():
+    """Load owner-SSOT blocks (2026-08-24) from prompt_sources.json:
+    ssot_extras.apply_hints / body_part_end_scenes / model_hints.
+    ALL prompt wording lives there (single source of truth) — this file carries
+    decision logic ONLY. Strict: a missing/incomplete block raises immediately
+    instead of silently falling back to stale behavior."""
+    sources = _load_prompt_sources()
+    extras = sources.get("ssot_extras") or {}
+    required = {
+        "apply_hints": [
+            "template", "hold_template", "by_body_part", "by_subcategory",
+            "by_category", "default_area", "pregnant_unknown_bp_area",
+        ],
+        "body_part_end_scenes": ["face", "hand", "belly"],
+        "model_hints": ["pregnant"],
+    }
+    missing = []
+    for blk, keys in required.items():
+        block = extras.get(blk)
+        if not isinstance(block, dict):
+            missing.append(blk)
+            continue
+        missing += [f"{blk}.{k}" for k in keys if k not in block]
+    if missing:
+        raise ValueError(
+            f"prompt_sources.json 'ssot_extras' missing keys: {', '.join(missing)}"
+        )
+    return extras
+
+
 def _apply_hint(subcategory=None, category=None, profile=None):
     """BEAT 2 'apply' action - concise, no squeeze/cap/scoop (Wan 2.7 warps).
-    Always 'a little' so Wan doesn't smear too much.
 
-    NEW: uses profile['body_part'] / profile['special_target'] when present so the
-    video shows the product applied to the RIGHT body area (e.g. a pregnancy/facial
-    cream goes on her face/belly, NOT a full-body smear). Rules:
-      - whole-body/body -> hand (owner rule: never show full-body smearing)
-      - special_target=pregnant -> face or belly
-      - face/belly/hair/hands -> the matching area
-    Falls back to subcategory -> category mapping.
+    Decision order (logic ONLY — every English phrase comes from
+    prompt_sources.json ssot_extras.apply_hints):
+      1. special_target=pregnant → FOLLOW body_part (face→face, hand-ish→hand;
+         unknown part → pregnant_unknown_bp_area=belly, modest)
+      2. body_part from payload (whole-body/body→hand, owner rule)
+      3. subcategory map → category map → default area
     """
-    key = (subcategory or "").lower()
-
-    # NEW: deep-analysis fields take priority over the subcategory mapping.
+    hints = _load_ssot_extras()["apply_hints"]
+    tmpl = hints["template"]
     bp = ""
     st = ""
     if isinstance(profile, dict):
         bp = (profile.get("body_part") or "").strip().lower()
         st = (profile.get("special_target") or "").strip().lower()
+    bp_norm = bp.replace(" ", "-").replace("_", "-")
+    hand_like = ("hand", "hands", "whole-body", "body")
 
-    # special_target first (pregnancy/sensitive audience is the strongest signal).
-    # Owner rule (2026-08-24): FOLLOW body_part from the payload — a FACIAL
-    # pregnancy cream goes on the face ONLY, never auto-add belly. Belly stays
-    # the default only when body_part is genuinely unknown/belly.
     if st in ("pregnant", "pregnancy", "maternity"):
-        if bp == "face":
-            return "she applies a little on her face"
-        if bp in ("hand", "hands", "whole-body", "whole body"):
-            return "she applies a little on her hand"
-        return "she applies a little on her belly"
+        if bp_norm == "face":
+            return tmpl.format(area=hints["by_body_part"]["face"])
+        if bp_norm in hand_like:
+            return tmpl.format(area=hints["by_body_part"]["hand"])
+        return tmpl.format(area=hints["pregnant_unknown_bp_area"])
 
-    # body_part mapping (owner: whole-body -> hand, never full-body smear).
-    area_map = {
-        "face": "her face", "belly": "her belly", "hair": "her hair",
-        "hands": "her hand", "hand": "her hand", "nails": "her nails",
-        "lips": "her lips", "body": "her hand", "whole-body": "her hand",
-        "whole body": "her hand",
-    }
-    if bp in area_map:
-        return "she applies a little on " + area_map[bp]
-
-    area = {
-        "underarm_cream": "her underarm", "deodorant": "her underarm",
-        "face_whitening": "her face", "body_whitening": "her arm",
-        "acne": "the affected spot", "serum": "her face",
-        "moisturizer": "her skin", "sunscreen": "her face",
-        "lipstick": "her lips", "foundation": "her face",
-        "mascara": "her lashes", "blush": "her cheeks",
-        "hair_care": "her hair", "shampoo": "her hair",
-        "conditioner": "her hair", "stretch_marks": "the stretch marks",
-        "eye_cream": "around her eyes", "toner": "her face",
-    }.get(key)
-    if not area:
-        area = {"skincare": "her face", "beauty": "her face"}.get((category or "").lower(), "her skin")
-    return "she applies a little on " + area
+    area = (
+        hints["by_body_part"].get(bp_norm)
+        or hints["by_subcategory"].get((subcategory or "").lower())
+        or hints["by_category"].get((category or "").lower())
+        or hints["default_area"]
+    )
+    return tmpl.format(area=area)
 
 
 def _apply_prompt_anchor(
@@ -1044,7 +1028,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         # never turns into a smear-on-arm demo (owner bug report).
         _is_special = bool((profile.get("special_target") or "").strip())
         apply_hint = _apply_hint(subcategory, category, profile) if _is_special else (
-            f"she holds {vp_product} up toward the camera"
+            _load_ssot_extras()["apply_hints"]["hold_template"].format(product=vp_product)
         )
 
         # ── NEW (A): 4-beat driven by recipe scene visuals (scenes[].visual) ──

@@ -1211,6 +1211,78 @@
     "clean cut",
     "gentle fade"
   ],
+  "ssot_extras": {
+    "model_hints": {
+      "pregnant": "visibly pregnant"
+    },
+    "apply_hints": {
+      "template": "she applies a little on {area}",
+      "hold_template": "she holds {product} up toward the camera",
+      "by_body_part": {
+        "face": "her face",
+        "belly": "her belly",
+        "hair": "her hair",
+        "hands": "her hand",
+        "hand": "her hand",
+        "nails": "her nails",
+        "lips": "her lips",
+        "body": "her hand",
+        "whole-body": "her hand"
+      },
+      "by_subcategory": {
+        "underarm_cream": "her underarm",
+        "deodorant": "her underarm",
+        "face_whitening": "her face",
+        "body_whitening": "her arm",
+        "acne": "the affected spot",
+        "serum": "her face",
+        "moisturizer": "her skin",
+        "sunscreen": "her face",
+        "lipstick": "her lips",
+        "foundation": "her face",
+        "mascara": "her lashes",
+        "blush": "her cheeks",
+        "hair_care": "her hair",
+        "shampoo": "her hair",
+        "conditioner": "her hair",
+        "stretch_marks": "the stretch marks",
+        "eye_cream": "around her eyes",
+        "toner": "her face"
+      },
+      "by_category": {
+        "skincare": "her face",
+        "beauty": "her face"
+      },
+      "default_area": "her skin",
+      "pregnant_unknown_bp_area": "her belly"
+    },
+    "body_part_end_scenes": {
+      "face": {
+        "scene": "the model's healthy glowing face fills the frame, smooth even hydrated skin",
+        "camera": "medium close-up on her face, soft even light",
+        "outfit": "",
+        "result_focus": "smooth hydrated healthy-looking facial skin",
+        "expression": "gentle confident smile",
+        "product_placement": "product held up beside her face"
+      },
+      "hand": {
+        "scene": "the model holds the product up showing her smooth cared-for hands",
+        "camera": "medium close-up on hands and product, soft even light",
+        "outfit": "",
+        "result_focus": "smooth healthy-looking skin on her hands",
+        "expression": "contented smile",
+        "product_placement": "product held in her hand"
+      },
+      "belly": {
+        "scene": "the model gently rests a hand on her smooth hydrated belly, comfortable modest framing",
+        "camera": "medium shot, soft warm light",
+        "outfit": "loose comfortable top, no midriff-baring crop top",
+        "result_focus": "smooth well-hydrated soothed skin",
+        "expression": "relieved happy smile",
+        "product_placement": "product placed visibly in frame"
+      }
+    }
+  },
   "mouth_control": {
     "talking_styles": [
       "review",

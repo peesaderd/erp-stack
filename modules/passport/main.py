@@ -369,6 +369,7 @@ async def generate_passport_v2(req: GenerateRequest):
     out_path = STORAGE_DIR / f"{session_id}_passport.jpg"
     with open(out_path, "wb") as f:
         f.write(out_bytes)
+    (STORAGE_DIR / f"{session_id}_recrop_base.png").unlink(missing_ok=True)
 
     # Auto-crop with preset — SQUARE mode (no forced passport ratio, no chin cut)
     crop_preset = req.crop_preset if req.crop_preset in ("standard", "compact", "relaxed") else "standard"
@@ -513,6 +514,7 @@ async def remove_bg(req: RemoveBgRequest):
             transparent_png, pil_image = remove_background(img_bytes)
             with open(transparent_path, "wb") as f:
                 f.write(transparent_png)
+            (STORAGE_DIR / f"{req.session_id}_recrop_base.png").unlink(missing_ok=True)
         except Exception as e:
             logger.error(f"Remove BG error: {e}")
             raise HTTPException(500, f"Background removal failed: {str(e)}")
@@ -521,6 +523,7 @@ async def remove_bg(req: RemoveBgRequest):
     result_img = apply_background(pil_image, req.background_color)
     result_path = STORAGE_DIR / f"{req.session_id}_bg.jpg"
     result_img.save(result_path, "JPEG", quality=95)
+    (STORAGE_DIR / f"{req.session_id}_recrop_base.png").unlink(missing_ok=True)
     
     return {
         "ok": True,
@@ -542,6 +545,7 @@ async def apply_bg(req: ApplyBgRequest):
     result_img = apply_background(pil_image, req.background_color)
     result_path = STORAGE_DIR / f"{req.session_id}_bg.jpg"
     result_img.save(result_path, "JPEG", quality=95)
+    (STORAGE_DIR / f"{req.session_id}_recrop_base.png").unlink(missing_ok=True)
     
     return {
         "ok": True,
@@ -556,7 +560,10 @@ async def apply_bg(req: ApplyBgRequest):
 @app.post("/api/passport/print-sheet")
 async def print_sheet_v2(req: PrintSheetRequest):
     """Generate print sheet with V2 options (border, blade, count)."""
-    src_path = STORAGE_DIR / f"{req.session_id}_passport.jpg"
+    # owner rule 2026-08-24: sheet must match APPLIED background -> _bg.jpg first
+    src_path = STORAGE_DIR / f"{req.session_id}_bg.jpg"
+    if not src_path.exists():
+        src_path = STORAGE_DIR / f"{req.session_id}_passport.jpg"
     if not src_path.exists():
         raise HTTPException(404, f"Session not found: {req.session_id}")
 
@@ -610,6 +617,10 @@ async def print_sheet_v2(req: PrintSheetRequest):
     max_per_sheet = probe["info"]["max_count"]
 
     requested = req.photo_count if req.photo_count and req.photo_count > 0 else max_per_sheet
+    clamped_note = None
+    if requested > max_per_sheet and req.photo_count and req.photo_count > 0:
+        clamped_note = f"จุได้ {max_per_sheet}/แผ่น (ลด Border/Blade เพื่อจุได้มากขึ้น) - ปรับจาก {requested}"
+        requested = max_per_sheet
     if requested > max_per_sheet:
         # Multi-sheet: concat vertically
         sheets = []
@@ -640,6 +651,7 @@ async def print_sheet_v2(req: PrintSheetRequest):
             "count": requested,
             "max_count": max_per_sheet,
             "sheets": len(sheets),
+            "note": clamped_note,
             "multi_sheet": True,
         }
     else:
@@ -654,6 +666,8 @@ async def print_sheet_v2(req: PrintSheetRequest):
         result_img = result["result"]
         info = result["info"]
         info["multi_sheet"] = False
+        if clamped_note:
+            info["note"] = clamped_note
 
     out_bytes = _encode_image(result_img)
     out_path = STORAGE_DIR / f"{req.session_id}_print.jpg"
@@ -699,7 +713,9 @@ async def multi_print(req: MultiPrintRequest):
     for sid in req.session_ids:
         # owner rule 2026-08-24: _passport.jpg is always the CURRENT state
         # (updated by recrop) and better framed than _cropped.jpg (may cut chin)
-        path = STORAGE_DIR / f"{sid}_passport.jpg"
+        path = STORAGE_DIR / f"{sid}_bg.jpg"
+        if not path.exists():
+            path = STORAGE_DIR / f"{sid}_passport.jpg"
         if not path.exists():
             path = STORAGE_DIR / f"{sid}_cropped.jpg"
         if not path.exists():
@@ -983,20 +999,18 @@ def recrop_photo(req: dict):
 
     storage = STORAGE_DIR
 
-    # ── pristine source snapshot: transparent-first per owner ──
+    # ── pristine source snapshot: MOST RECENT user action wins ──
+    # apply-bg newer than remove-bg -> resize keeps applied BG; remove-bg newer -> keep alpha
     base_path = storage / f"{session_id}_recrop_base.png"
     if not base_path.exists():
-        src_path = None
-        for name in (
-            f"{session_id}_transparent.png",   # owner rule: prefer transparent
-            f"{session_id}_flux_raw.jpg",      # legacy sessions
-            f"{session_id}_passport.jpg",
-            f"{session_id}_bg.jpg",
-        ):
-            p = storage / name
-            if p.exists():
-                src_path = p
-                break
+        cand = [
+            storage / f"{session_id}_bg.jpg",
+            storage / f"{session_id}_transparent.png",
+            storage / f"{session_id}_flux_raw.jpg",   # legacy
+            storage / f"{session_id}_passport.jpg",
+        ]
+        cand = [q for q in cand if q.exists()]
+        src_path = max(cand, key=lambda q: q.stat().st_mtime) if cand else None
         if src_path is None:
             raise HTTPException(404, f"No image found for {session_id}. Generate a photo first.")
         src_img = cv2.imread(str(src_path), cv2.IMREAD_UNCHANGED)
@@ -1061,6 +1075,10 @@ def recrop_photo(req: dict):
         out_bytes = _encode_image(cv2.cvtColor(final, cv2.COLOR_BGR2RGB))
         with open(storage / f"{session_id}_passport.jpg", "wb") as f:
             f.write(out_bytes)
+        bgf = storage / f"{session_id}_bg.jpg"
+        if bgf.exists():                      # keep applied-BG state synced at new size
+            with open(bgf, "wb") as f:
+                f.write(out_bytes)
 
     # Check headspace
     gray_mode = cv2.COLOR_BGRA2GRAY if has_alpha else cv2.COLOR_BGR2GRAY

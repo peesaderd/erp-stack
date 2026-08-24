@@ -513,7 +513,8 @@ async function genPrintSheet(){
       updatePreviewAspect(null);
       setView('sheet');
       if($('previewBox'))$('previewBox').scrollIntoView({behavior:'smooth',block:'center'});
-      toast(useMulti?('รวม '+sids.length+' รูปในแผ่นเดียว 🖨️'):'Print sheet ready! 🖨️','ok');
+      var note=(d.info&&d.info.note)?(' '+d.info.note):'';
+      toast((useMulti?('รวม '+sids.length+' รูปในแผ่นเดียว 🖨️'):'Print sheet ready! 🖨️')+note,'ok');
     }
   }catch(e){toast('Print sheet failed','err')}
   hideOv();

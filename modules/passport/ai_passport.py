@@ -50,7 +50,7 @@ def build_prompt(clothing_prompt: str, bg_prompt: str) -> str:
         f"bright even studio lighting, "
         f"straighten posture slightly, "
         f"show full head and shoulders, face not too large in frame, "
-        f"hair neat and solid with a clean smooth silhouette, no flyaway or stray strands around the head, "
+        f"hair neat and solid with a clean smooth silhouette, fully filled with its natural hair color with no see-through gaps, no flyaway or stray strands around the head, "
         f"passport ID photo style, government photo"
     )
 

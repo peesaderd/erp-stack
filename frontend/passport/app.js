@@ -472,7 +472,8 @@ async function genPrintSheet(){
     for(var i=0;i<S.pool.length;i++){if(sids.indexOf(S.pool[i])<0)sids.push(S.pool[i]);}
     var useMulti=($('mpPrint')&&$('mpPrint').checked)&&sids.length>1;
     var bwv=parseFloat($('bwmmPrint').value)||0;
-    var bstyle=$('cutDash')&&$('cutDash').checked?'guidelines':(bwv>0?'frame':'none');
+    var bstyle=bwv>0?'frame':'none';
+    var hair=$('cutDash')&&$('cutDash').checked;
     var d;
     if(useMulti){
       // owner flow (same capability as print.html): combine ALL generated photos on one sheet
@@ -483,6 +484,7 @@ async function genPrintSheet(){
         border:bstyle,
         border_color:'#FFFFFF',
         border_width_mm:bwv,
+        hairline:hair,
         blade_mode:$('bmPrint').checked
       };
       var r2=await fetch(API+'/multi-print',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(mbody)});
@@ -495,6 +497,7 @@ async function genPrintSheet(){
         count:parseInt($('customCount').value)||6,
         border:bstyle,
         border_width_mm:bwv,
+        hairline:hair,
         blade_mode:$('bmPrint').checked
       };
       var r=await fetch(API+'/print-sheet',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});

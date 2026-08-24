@@ -43,6 +43,7 @@ def generate_print_sheet(
     photo_count: int = 0,
     border_color: str = "#FFFFFF",
     border_width_mm: float = 0.0,
+    hairline: bool = False,
 ) -> dict:
     """
     Generate a print-ready sheet with multiple passport photos.
@@ -165,8 +166,33 @@ def generate_print_sheet(
         "photo_mm": {"w": template_w_mm, "h": template_h_mm},
     }
 
+    if hairline:
+        sheet = _add_hairline(sheet, positions)
     logger.info(f"Print sheet: {cols}x{rows}={placed}/{max_count} photos on {print_size} (border={border}, border_width={border_width_mm}mm)")
     return {"ok": True, "result": sheet, "info": info}
+
+
+def _add_hairline(sheet: np.ndarray, positions: list, margin: int = 4) -> np.ndarray:
+    """Owner spec 2026-08-24: ultra-thin dashed cut guide OUTSIDE each cell.
+    1px AA dashes alpha-blended -> reads as ~0.5px hairline."""
+    h, w = sheet.shape[:2]
+    mask = np.zeros((h, w), np.uint8)
+    color = 170
+    dl, gp = 8, 4
+    for pos in positions:
+        x = max(pos["x"] - margin, 0); y = max(pos["y"] - margin, 0)
+        x2 = min(pos["x"] + pos["w"] + margin, w - 1); y2 = min(pos["y"] + pos["h"] + margin, h - 1)
+        pw, ph = x2 - x, y2 - y
+        for dx in range(0, pw, dl + gp):
+            cv2.line(mask, (x + dx, y), (min(x + dx + dl, x2), y), 255, 1, lineType=cv2.LINE_AA)
+            cv2.line(mask, (x + dx, y2), (min(x + dx + dl, x2), y2), 255, 1, lineType=cv2.LINE_AA)
+        for dy in range(0, ph, dl + gp):
+            cv2.line(mask, (x, y + dy), (x, min(y + dy + dl, y2)), 255, 1, lineType=cv2.LINE_AA)
+            cv2.line(mask, (x2, y + dy), (x2, min(y + dy + dl, y2)), 255, 1, lineType=cv2.LINE_AA)
+    sel = mask > 0
+    base = sheet[sel].astype(np.float32)
+    sheet[sel] = (base * 0.55 + color * 0.45).astype(np.uint8)
+    return sheet
 
 
 def _add_guidelines(sheet: np.ndarray, positions: list) -> np.ndarray:
@@ -217,6 +243,9 @@ def generate_multi_print_sheet(
     gap_mm: float = 3.0,
     border: str = "guidelines",
     blade_mode: bool = False,
+    border_width_mm: float = 0.0,
+    border_color: str = "#FFFFFF",
+    hairline: bool = False,
 ) -> dict:
     """
     Generate a print sheet with multiple different photos.
@@ -245,6 +274,15 @@ def generate_multi_print_sheet(
     padding_px = int(round(gap_mm / 25.4 * dpi))
     if blade_mode:
         padding_px = int(round(max(gap_mm, 5.0) / 25.4 * dpi))
+    if hairline:
+        padding_px = max(padding_px, 12)  # room so cut line sits OUTSIDE borders
+
+    border_px = int(round(border_width_mm / 25.4 * dpi)) if (border == "frame" and border_width_mm > 0) else 0
+    try:
+        hcl = border_color.lstrip("#")
+        bc = (int(hcl[4:6], 16), int(hcl[2:4], 16), int(hcl[0:2], 16))  # BGR
+    except Exception:
+        bc = (255, 255, 255)
     
     # Build list of photos to place (with copies)
     photo_list = []
@@ -260,9 +298,11 @@ def generate_multi_print_sheet(
     
     # Use first photo dimensions for grid calculation (assume same passport size)
     ref_h, ref_w = photo_list[0].shape[:2]
+    cell_w = ref_w + border_px * 2   # owner: real white RING around each photo
+    cell_h = ref_h + border_px * 2
     
-    cols = (sheet_w + padding_px) // (ref_w + padding_px)
-    rows = (sheet_h + padding_px) // (ref_h + padding_px)
+    cols = (sheet_w + padding_px) // (cell_w + padding_px)
+    rows = (sheet_h + padding_px) // (cell_h + padding_px)
     if cols < 1: cols = 1
     if rows < 1: rows = 1
     
@@ -270,8 +310,8 @@ def generate_multi_print_sheet(
     count = min(len(photo_list), max_count)
     
     # Center the grid
-    total_w = cols * ref_w + (cols - 1) * padding_px
-    total_h = rows * ref_h + (rows - 1) * padding_px
+    total_w = cols * cell_w + (cols - 1) * padding_px
+    total_h = rows * cell_h + (rows - 1) * padding_px
     offset_x = (sheet_w - total_w) // 2
     offset_y = (sheet_h - total_h) // 2
     
@@ -285,24 +325,32 @@ def generate_multi_print_sheet(
         for col in range(cols):
             if placed >= count:
                 break
-            x = offset_x + col * (ref_w + padding_px)
-            y = offset_y + row * (ref_h + padding_px)
-            x2 = min(x + ref_w, sheet_w)
-            y2 = min(y + ref_h, sheet_h)
-            pw = x2 - x
-            ph = y2 - y
-            if pw > 0 and ph > 0:
-                sheet[y:y2, x:x2] = photo_list[placed][:ph, :pw]
-                positions.append({"x": x, "y": y, "w": pw, "h": ph})
+            x = offset_x + col * (cell_w + padding_px)
+            y = offset_y + row * (cell_h + padding_px)
+            x2 = min(x + cell_w, sheet_w)
+            y2 = min(y + cell_h, sheet_h)
+            cw_ = x2 - x
+            ch_ = y2 - y
+            if cw_ > 0 and ch_ > 0:
+                if border_px > 0:
+                    sheet[y:y2, x:x2] = bc          # white ring
+                    ix, iy = x + border_px, y + border_px
+                    sheet[iy:iy + ref_h, ix:ix + ref_w] = photo_list[placed]
+                else:
+                    sheet[y:y2, x:x2] = photo_list[placed]
+                positions.append({"x": x, "y": y, "w": cw_, "h": ch_})
                 placed += 1
         if placed >= count:
             break
     
     # Add border/guidelines
     if border == "frame":
-        sheet = _add_frame(sheet, positions)
+        if border_px == 0:
+            sheet = _add_frame(sheet, positions)   # legacy thin stroke when no ring width given
     elif border == "guidelines":
         sheet = _add_guidelines(sheet, positions)
+    if hairline:
+        sheet = _add_hairline(sheet, positions)    # owner: cut line OUTSIDE borders
     
     info = {
         "print_size": print_size,
@@ -315,6 +363,8 @@ def generate_multi_print_sheet(
         "unique_photos": len(images),
         "copies_per_photo": copies,
         "border": border,
+        "border_width_mm": border_width_mm,
+        "hairline": hairline,
         "gap_mm": gap_mm,
         "blade_mode": blade_mode,
         "sheet_pixels": {"w": sheet_w, "h": sheet_h},

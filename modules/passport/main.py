@@ -141,6 +141,7 @@ class PrintSheetRequest(BaseModel):
     blade_mode: bool = False
     dpi: int = 300
     border_color: str = "#FFFFFF"
+    hairline: bool = False
     border_width_mm: float = 3.0   # default 3mm frame
 
 
@@ -409,7 +410,7 @@ async def generate_passport_v2(req: GenerateRequest):
             probe = generate_print_sheet(
                 cropped, mm_w, mm_h, req.print_size, 300, gap_mm, True,
                 req.border, gap_mm, req.blade_mode, 0,
-                req.border_color, req.border_width_mm,
+                req.border_color, req.border_width_mm, hairline=req.hairline,
             )
             if probe.get("ok"):
                 max_per_sheet = probe["info"]["max_count"]
@@ -422,7 +423,7 @@ async def generate_passport_v2(req: GenerateRequest):
                         r = generate_print_sheet(
                             cropped, mm_w, mm_h, req.print_size, 300, gap_mm, True,
                             req.border, gap_mm, req.blade_mode, this_count,
-                            req.border_color, req.border_width_mm,
+                            req.border_color, req.border_width_mm, hairline=req.hairline,
                         )
                         if r.get("ok"):
                             sheets.append(r["result"])
@@ -444,7 +445,7 @@ async def generate_passport_v2(req: GenerateRequest):
                     sheet = generate_print_sheet(
                         cropped, mm_w, mm_h, req.print_size, 300, gap_mm, True,
                         req.border, gap_mm, req.blade_mode, requested,
-                        req.border_color, req.border_width_mm,
+                        req.border_color, req.border_width_mm, hairline=req.hairline,
                     )
                     if sheet.get("ok"):
                         sheet_bytes = _encode_image(sheet["result"])
@@ -602,7 +603,7 @@ async def print_sheet_v2(req: PrintSheetRequest):
     probe = generate_print_sheet(
         img_rgb, mm_w, mm_h, req.print_size, dpi, req.gap_mm, True,
         req.border, req.gap_mm, req.blade_mode, 0,  # 0 = auto-fill one sheet
-        req.border_color, req.border_width_mm,
+        req.border_color, req.border_width_mm, hairline=req.hairline,
     )
     if not probe["ok"]:
         raise HTTPException(400, probe.get("error", "Print sheet failed"))
@@ -618,7 +619,7 @@ async def print_sheet_v2(req: PrintSheetRequest):
             r = generate_print_sheet(
                 img_rgb, mm_w, mm_h, req.print_size, dpi, req.gap_mm, True,
                 req.border, req.gap_mm, req.blade_mode, this_count,
-                req.border_color, req.border_width_mm,
+                req.border_color, req.border_width_mm, hairline=req.hairline,
             )
             if not r["ok"]:
                 raise HTTPException(400, r.get("error", "Print sheet failed"))
@@ -646,7 +647,7 @@ async def print_sheet_v2(req: PrintSheetRequest):
         result = generate_print_sheet(
             img_rgb, mm_w, mm_h, req.print_size, dpi, req.gap_mm, True,
             req.border, req.gap_mm, req.blade_mode, requested,
-            req.border_color, req.border_width_mm,
+            req.border_color, req.border_width_mm, hairline=req.hairline,
         )
         if not result["ok"]:
             raise HTTPException(400, result.get("error", "Print sheet failed"))
@@ -679,6 +680,7 @@ class MultiPrintRequest(BaseModel):
     dpi: int = 300
     border_color: str = "#FFFFFF"
     border_width_mm: float = 0.0
+    hairline: bool = False
 
 
 @app.post("/api/passport/multi-print")
@@ -713,7 +715,9 @@ async def multi_print(req: MultiPrintRequest):
     # Generate multi-photo sheet
     result = generate_multi_print_sheet(
         images, dims, req.copies, req.print_size, req.dpi,
-        req.gap_mm, req.border, req.blade_mode
+        req.gap_mm, req.border, req.blade_mode,
+        border_width_mm=req.border_width_mm, border_color=req.border_color,
+        hairline=req.hairline
     )
     
     if not result["ok"]:

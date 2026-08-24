@@ -149,6 +149,9 @@ class PrintSheetRequest(BaseModel):
 # API Endpoints
 # ═══════════════════════════════════════════════════════════
 
+import state as pstate  # SSOT session-state (owner refactor 2026-08-24)
+
+
 @app.get("/api/passport/health")
 def health():
     return {"status": "ok", "service": "passport-module-v2", "version": "2.0.0", "port": PORT}
@@ -366,10 +369,7 @@ async def generate_passport_v2(req: GenerateRequest):
     # Save raw FLUX output (large, uncropped)
     out_img = result["result"]
     out_bytes = _encode_image(out_img)
-    out_path = STORAGE_DIR / f"{session_id}_passport.jpg"
-    with open(out_path, "wb") as f:
-        f.write(out_bytes)
-    (STORAGE_DIR / f"{session_id}_recrop_base.png").unlink(missing_ok=True)
+    pstate.save_current(session_id, out_bytes, "raw", STORAGE_DIR)
 
     # Auto-crop with preset — SQUARE mode (no forced passport ratio, no chin cut)
     crop_preset = req.crop_preset if req.crop_preset in ("standard", "compact", "relaxed") else "standard"
@@ -512,18 +512,19 @@ async def remove_bg(req: RemoveBgRequest):
             img_bytes = f.read()
         try:
             transparent_png, pil_image = remove_background(img_bytes)
+            # transparent PNG = reusable cache for free color swaps (not a state flip);
+            # ledger moves to "bg" below since remove-bg returns the COLORED photo.
             with open(transparent_path, "wb") as f:
                 f.write(transparent_png)
-            (STORAGE_DIR / f"{req.session_id}_recrop_base.png").unlink(missing_ok=True)
+            pstate.invalidate_recrop_base(req.session_id, STORAGE_DIR)
         except Exception as e:
             logger.error(f"Remove BG error: {e}")
             raise HTTPException(500, f"Background removal failed: {str(e)}")
     
     # Apply background color (PIL local = FREE)
     result_img = apply_background(pil_image, req.background_color)
-    result_path = STORAGE_DIR / f"{req.session_id}_bg.jpg"
-    result_img.save(result_path, "JPEG", quality=95)
-    (STORAGE_DIR / f"{req.session_id}_recrop_base.png").unlink(missing_ok=True)
+    result_np = np.array(result_img.convert("RGB"))[:, :, ::-1].copy()   # PIL RGB -> BGR
+    pstate.save_current(req.session_id, result_np, "bg", STORAGE_DIR)
     
     return {
         "ok": True,
@@ -543,9 +544,8 @@ async def apply_bg(req: ApplyBgRequest):
     from bg_remover import apply_background
     pil_image = Image.open(transparent_path).convert('RGBA')
     result_img = apply_background(pil_image, req.background_color)
-    result_path = STORAGE_DIR / f"{req.session_id}_bg.jpg"
-    result_img.save(result_path, "JPEG", quality=95)
-    (STORAGE_DIR / f"{req.session_id}_recrop_base.png").unlink(missing_ok=True)
+    result_np = np.array(result_img.convert("RGB"))[:, :, ::-1].copy()   # PIL RGB -> BGR
+    pstate.save_current(req.session_id, result_np, "bg", STORAGE_DIR)
     
     return {
         "ok": True,
@@ -560,11 +560,8 @@ async def apply_bg(req: ApplyBgRequest):
 @app.post("/api/passport/print-sheet")
 async def print_sheet_v2(req: PrintSheetRequest):
     """Generate print sheet with V2 options (border, blade, count)."""
-    # owner rule 2026-08-24: sheet must match APPLIED background -> _bg.jpg first
-    src_path = STORAGE_DIR / f"{req.session_id}_bg.jpg"
-    if not src_path.exists():
-        src_path = STORAGE_DIR / f"{req.session_id}_passport.jpg"
-    if not src_path.exists():
+    src_path = pstate.current_path(req.session_id, STORAGE_DIR)
+    if src_path is None:
         raise HTTPException(404, f"Session not found: {req.session_id}")
 
     img_bgr = cv2.imread(str(src_path))
@@ -711,14 +708,8 @@ async def multi_print(req: MultiPrintRequest):
     images = []
     dims = []
     for sid in req.session_ids:
-        # owner rule 2026-08-24: _passport.jpg is always the CURRENT state
-        # (updated by recrop) and better framed than _cropped.jpg (may cut chin)
-        path = STORAGE_DIR / f"{sid}_bg.jpg"
-        if not path.exists():
-            path = STORAGE_DIR / f"{sid}_passport.jpg"
-        if not path.exists():
-            path = STORAGE_DIR / f"{sid}_cropped.jpg"
-        if not path.exists():
+        path = pstate.current_path(sid, STORAGE_DIR)
+        if path is None:
             raise HTTPException(404, f"Photo not found: {sid}")
         img = cv2.imread(str(path))
         if img is None:
@@ -866,9 +857,7 @@ async def bulk_generate(req: BulkGenerateRequest):
         # Save raw FLUX output (large, uncropped)
         out_img = result["result"]
         out_bytes = _encode_image(out_img)
-        out_path = STORAGE_DIR / f"{sid}_passport.jpg"
-        with open(out_path, "wb") as f:
-            f.write(out_bytes)
+        pstate.save_current(sid, out_bytes, "raw", STORAGE_DIR)
 
         # No auto print sheet — raw image needs cropping first
         print_url = None
@@ -999,24 +988,18 @@ def recrop_photo(req: dict):
 
     storage = STORAGE_DIR
 
-    # ── pristine source snapshot: MOST RECENT user action wins ──
-    # apply-bg newer than remove-bg -> resize keeps applied BG; remove-bg newer -> keep alpha
+    # ── pristine source snapshot (SSOT): ledger decides; mtime only migrates legacy once ──
+    cur_kind = None
     base_path = storage / f"{session_id}_recrop_base.png"
     if not base_path.exists():
-        cand = [
-            storage / f"{session_id}_bg.jpg",
-            storage / f"{session_id}_transparent.png",
-            storage / f"{session_id}_flux_raw.jpg",   # legacy
-            storage / f"{session_id}_passport.jpg",
-        ]
-        cand = [q for q in cand if q.exists()]
-        src_path = max(cand, key=lambda q: q.stat().st_mtime) if cand else None
-        if src_path is None:
-            raise HTTPException(404, f"No image found for {session_id}. Generate a photo first.")
-        src_img = cv2.imread(str(src_path), cv2.IMREAD_UNCHANGED)
+        src_img, src_kind = pstate.load_current(session_id, storage, cv2.IMREAD_UNCHANGED)
         if src_img is None:
-            raise HTTPException(500, "Failed to read source image")
+            raise HTTPException(404, f"No image found for {session_id}. Generate a photo first.")
         cv2.imwrite(str(base_path), src_img)  # untouched pixels forever
+        cur_kind = src_kind
+    else:
+        _st0 = pstate.read_state(session_id, storage)
+        cur_kind = _st0.get("kind") if _st0 else "raw"
 
     img = cv2.imread(str(base_path), cv2.IMREAD_UNCHANGED)  # BGR or BGRA
     if img is None:
@@ -1053,34 +1036,20 @@ def recrop_photo(req: dict):
         resized = cv2.resize(img, (target_w, new_h), interpolation=interp)
         final = resized[0:target_h, :]
 
-    # ── save outputs ──
+    # ── save outputs (SSOT) ──
     download_url = f"/api/passport/download/{session_id}_passport.jpg"
     if has_alpha:
         ok_png, png_buf = cv2.imencode(".png", final)  # BGRA kept intact
         if not ok_png:
             raise HTTPException(500, "Failed to encode PNG")
-        with open(storage / f"{session_id}_transparent.png", "wb") as f:
-            f.write(png_buf.tobytes())
+        pstate.save_current(session_id, png_buf.tobytes(), "transparent", storage)
         download_url = f"/api/passport/download/{session_id}_transparent.png"
-        # white-composited JPG so print sheet & other jpg consumers stay correct
-        af = final[:, :, 3].astype(np.float32) / 255.0
-        comp = (final[:, :, :3].astype(np.float32) * af[..., None]
-                + 255.0 * (1.0 - af[..., None])).astype(np.uint8)
-        ok_jpg, jpg_buf = cv2.imencode(".jpg", comp, [int(cv2.IMWRITE_JPEG_QUALITY), 95])
-        if not ok_jpg:
-            raise HTTPException(500, "Failed to encode JPG")
-        with open(storage / f"{session_id}_passport.jpg", "wb") as f:
-            f.write(jpg_buf.tobytes())
     else:
-        out_bytes = _encode_image(cv2.cvtColor(final, cv2.COLOR_BGR2RGB))
-        with open(storage / f"{session_id}_passport.jpg", "wb") as f:
-            f.write(out_bytes)
-        bgf = storage / f"{session_id}_bg.jpg"
-        if bgf.exists():                      # keep applied-BG state synced at new size
-            with open(bgf, "wb") as f:
-                f.write(out_bytes)
+        kind_out = cur_kind if cur_kind in ("bg", "raw") else "raw"
+        out_bgr = final if final.ndim == 3 else cv2.cvtColor(final, cv2.COLOR_GRAY2BGR)
+        pstate.save_current(session_id, out_bgr, kind_out, storage)
 
-    # Check headspace
+
     gray_mode = cv2.COLOR_BGRA2GRAY if has_alpha else cv2.COLOR_BGR2GRAY
     gray = cv2.cvtColor(final, gray_mode)
     cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")

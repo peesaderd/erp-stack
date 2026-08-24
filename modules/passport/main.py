@@ -754,7 +754,7 @@ async def bulk_generate(req: BulkGenerateRequest):
 
     if not req.images and not req.bulk_sessions:
         raise HTTPException(400, "No images provided")
-    if req.images and len(req.images) > 20:
+    if req.images and len(image_list) > 20:
         raise HTTPException(400, "Max 20 images per batch")
     if req.bulk_sessions and len(req.bulk_sessions) > 20:
         raise HTTPException(400, "Max 20 images per batch")
@@ -791,6 +791,8 @@ async def bulk_generate(req: BulkGenerateRequest):
         if img_bytes is None:
             results.append({"ok": False, "index": idx, "error": "Image not found"})
             continue
+
+        t0 = time.time()  # per-photo timer
 
         # Gender detection
         gender = req.gender
@@ -835,17 +837,17 @@ async def bulk_generate(req: BulkGenerateRequest):
             "clothing": clothing["name"],
             "time_seconds": elapsed,
         })
-        logger.info(f"[BULK {i+1}/{len(req.images)}] Done in {elapsed}s — gender={gender}")
+        logger.info(f"[BULK {idx+1}/{len(image_list)}] Done in {elapsed}s — gender={gender}")
 
     total_elapsed = round(time.time() - total_t0, 1)
     success = sum(1 for r in results if r["ok"])
-    logger.info(f"[BULK] Complete: {success}/{len(req.images)} in {total_elapsed}s")
+    logger.info(f"[BULK] Complete: {success}/{len(image_list)} in {total_elapsed}s")
 
     return {
         "ok": True,
-        "total": len(req.images),
+        "total": len(image_list),
         "success": success,
-        "failed": len(req.images) - success,
+        "failed": len(image_list) - success,
         "time_seconds": total_elapsed,
         "results": results,
     }

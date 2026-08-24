@@ -35,7 +35,7 @@ window.addEventListener('DOMContentLoaded',function(){
   $('drop').addEventListener('dragover',function(e){e.preventDefault();this.style.borderColor='#6366f1'});
   $('drop').addEventListener('dragleave',function(){this.style.borderColor=''});
   $('drop').addEventListener('drop',function(e){e.preventDefault();this.style.borderColor='';handleFiles({target:{files:e.dataTransfer.files}})});
-  $('bgColorPick').addEventListener('input',function(){previewBGColor(this.value)});
+  $('bgColorPick').addEventListener('input',function(){S.bgGrad=null;S.bgc='custom';S.bg='custom';$$('.bg-d').forEach(function(x){x.classList.remove('on')});previewBGColor(this.value)});
   loadCustomClothing();
 });
 
@@ -396,6 +396,8 @@ async function applyBG(){
       $('ri').src=location.origin+d.download_bg+'?v='+S.imgV+'&fmt=webp';
       $('previewBg').style.backgroundColor='transparent';
       toast('Background applied! 🎨','ok');
+    }else{
+      throw new Error((d&&(d.detail||d.error))||'apply-bg failed');
     }
   }catch(e){
     try{

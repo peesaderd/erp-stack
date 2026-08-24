@@ -165,6 +165,11 @@ def _pick_end_scene(category="other", subcategory=None, profile=None):
       2. category → generic per-category pool
       3. "other" → final fallback
 
+    The scene is further filtered by profile['body_part'] (when present) so the
+    end scene FOCUSES on the same body area the payload declared — it must NOT
+    drift to a different part (e.g. a whole-body / hand cream must never end on
+    belly/waist/thighs). Falls back to whole pool pick when no body_part set.
+
     Returns a full blueprint dict: {scene, camera, outfit, result_focus,
     expression, product_placement}. Legacy pools (category) only have
     {scene, camera} — the missing keys are filled with sane defaults so
@@ -190,6 +195,71 @@ def _pick_end_scene(category="other", subcategory=None, profile=None):
             "result_focus": "",
             "expression": "",
             "product_placement": "",
+        }
+
+    # ── Body-part-first resolution (owner 2026-08-24): when the payload carries
+    # body_part, the end scene FOLLOWS that part DIRECTLY — deterministic, no
+    # bucket lottery, no filter-then-fallback. A facial pregnancy cream can never
+    # end on belly/waist/thighs regardless of which subcategory bucket it landed
+    # in. Only products WITHOUT body_part fall through to the legacy
+    # subcategory → category → other random pick.
+    bp = ""
+    st = ""
+    if isinstance(profile, dict):
+        bp = (profile.get("body_part") or "").strip().lower()
+        st = (profile.get("special_target") or "").strip().lower()
+
+    _HAND_BP = {
+        "scene": "the model holds the product up showing her smooth cared-for hands",
+        "camera": "medium close-up on hands and product, soft even light",
+        "outfit": "",
+        "result_focus": "smooth healthy-looking skin on her hands",
+        "expression": "contented smile",
+        "product_placement": "product held in her hand",
+    }
+    _FACE_BP = {
+        "scene": "the model's healthy glowing face fills the frame, smooth even hydrated skin",
+        "camera": "medium close-up on her face, soft even light",
+        "outfit": "",
+        "result_focus": "smooth hydrated healthy-looking facial skin",
+        "expression": "gentle confident smile",
+        "product_placement": "product held up beside her face",
+    }
+    _BELLY_BP = {
+        "scene": "the model gently rests a hand on her smooth hydrated belly, comfortable modest framing",
+        "camera": "medium shot, soft warm light",
+        "outfit": "loose comfortable top, no midriff-baring crop top",
+        "result_focus": "smooth well-hydrated soothed skin",
+        "expression": "relieved happy smile",
+        "product_placement": "product placed visibly in frame",
+    }
+    _BP_BLUEPRINTS = {
+        "face": _FACE_BP,
+        "hand": _HAND_BP,
+        "hands": _HAND_BP,
+        "whole-body": _HAND_BP,   # owner rule: whole-body -> hand, never full-body smear
+        "body": _HAND_BP,
+        "belly": _BELLY_BP,
+    }
+    bp_key = re.sub(r"\s+", "-", bp)
+
+    chosen = None
+    if bp_key in _BP_BLUEPRINTS:
+        chosen = _BP_BLUEPRINTS[bp_key]
+    elif st in ("pregnant", "pregnancy", "maternity"):
+        # Pregnancy audience with UNKNOWN body_part: keep the modest belly
+        # blueprint rather than rolling slimming/stretch_marks buckets that
+        # carry belly/thighs/crop-top wording.
+        chosen = _BELLY_BP
+
+    if chosen is not None:
+        return {
+            "scene": chosen.get("scene", "product prominently displayed"),
+            "camera": chosen.get("camera", "medium shot"),
+            "outfit": chosen.get("outfit", ""),
+            "result_focus": chosen.get("result_focus", ""),
+            "expression": chosen.get("expression", "satisfied smile"),
+            "product_placement": chosen.get("product_placement", "product placed visibly in frame"),
         }
 
     chosen = _random.choice(pool)
@@ -861,10 +931,14 @@ def _apply_hint(subcategory=None, category=None, profile=None):
         st = (profile.get("special_target") or "").strip().lower()
 
     # special_target first (pregnancy/sensitive audience is the strongest signal).
+    # Owner rule (2026-08-24): FOLLOW body_part from the payload — a FACIAL
+    # pregnancy cream goes on the face ONLY, never auto-add belly. Belly stays
+    # the default only when body_part is genuinely unknown/belly.
     if st in ("pregnant", "pregnancy", "maternity"):
-        # Pregnancy cream: belly is the hero area, face for facial pregnancy cream.
-        if bp in ("face", "whole-body", "body"):
-            return "she applies a little on her face and belly"
+        if bp == "face":
+            return "she applies a little on her face"
+        if bp in ("hand", "hands", "whole-body", "whole body"):
+            return "she applies a little on her hand"
         return "she applies a little on her belly"
 
     # body_part mapping (owner: whole-body -> hand, never full-body smear).

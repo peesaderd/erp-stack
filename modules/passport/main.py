@@ -84,7 +84,7 @@ def _encode_image(img: np.ndarray, fmt: str = ".jpg") -> bytes:
         raise HTTPException(500, "Failed to encode image")
     return buf.tobytes()
 
-def _generate_sheet(img, w_mm, h_mm, size="4x6", dpi=300, gap_mm=3.0, border="guidelines", blade_mode=False, photo_count=0):
+def _generate_sheet(img, w_mm, h_mm, size="4x6", dpi=300, gap_mm=0.0, border="guidelines", blade_mode=False, photo_count=0):
     from print_sheet import generate_print_sheet
     return generate_print_sheet(img, w_mm, h_mm, size, dpi, gap_mm, True, border, gap_mm, blade_mode, photo_count)
 
@@ -109,7 +109,7 @@ class GenerateRequest(BaseModel):
     photo_count: int = 6           # total photos on print sheet (multi-sheet if > max)
     border: str = "frame"          # "none" | "guidelines" | "frame"
     blade_mode: bool = False
-    gap_mm: float = 2.0
+    gap_mm: float = 0.0
     border_color: str = "#FFFFFF"
     border_width_mm: float = 3.0
 
@@ -127,7 +127,7 @@ class BulkGenerateRequest(BaseModel):
     photo_count: int = 6
     border: str = "none"
     blade_mode: bool = False
-    gap_mm: float = 2.0
+    gap_mm: float = 0.0
     border_color: str = "#FFFFFF"
     border_width_mm: float = 0.0
 
@@ -137,7 +137,7 @@ class PrintSheetRequest(BaseModel):
     photo_size: str = "passport"  # "passport" | "25x35" | "30x40" | "50x50" | "50x70"
     photo_count: int = 6           # 0 = auto, >0 = how many photos total. If > max per sheet, multi-sheet concat.
     border: str = "none"           # "none" | "guidelines" | "frame" | "white"
-    gap_mm: float = 2.0
+    gap_mm: float = 0.0
     blade_mode: bool = False
     dpi: int = 300
     border_color: str = "#FFFFFF"
@@ -403,7 +403,7 @@ async def generate_passport_v2(req: GenerateRequest):
             mm_h = ch / 300 * 25.4
 
             # Probe max per sheet
-            gap_mm = req.gap_mm if req.gap_mm else 2.0
+            gap_mm = float(req.gap_mm or 0)
             if req.blade_mode:
                 gap_mm = max(gap_mm, 5.0)
             probe = generate_print_sheet(
@@ -675,7 +675,7 @@ class MultiPrintRequest(BaseModel):
     print_size: str = "4x6"
     border: str = "none"
     blade_mode: bool = False
-    gap_mm: float = 2.0
+    gap_mm: float = 0.0
     dpi: int = 300
     border_color: str = "#FFFFFF"
     border_width_mm: float = 0.0

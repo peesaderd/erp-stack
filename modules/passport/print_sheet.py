@@ -38,7 +38,7 @@ def generate_print_sheet(
     margin_mm: float = 3.0,
     add_guidelines: bool = True,
     border: str = "none",
-    gap_mm: float = 3.0,
+    gap_mm: float = 0.0,
     blade_mode: bool = False,
     photo_count: int = 0,
     border_color: str = "#FFFFFF",

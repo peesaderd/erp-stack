@@ -465,7 +465,7 @@ async function genPrintSheet(){
       session_id:S.sid,
       paper:paperLabel,
       count:parseInt($('customCount').value)||6,
-      border_width_mm:parseFloat($('bwmmPrint').value)||3,
+      border_width_mm:parseFloat($('bwmmPrint').value)||0,
       blade_mode:$('bmPrint').checked
     };
     var r=await fetch(API+'/print-sheet',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});

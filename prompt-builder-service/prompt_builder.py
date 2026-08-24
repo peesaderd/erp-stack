@@ -1444,6 +1444,105 @@ def _normalize_thai_gender_register(text: str, is_female: bool) -> str:
         text = re.sub(r'ค่ะ|คะ', 'ครับ', text)
     return text
 
+
+# ─── Owner script rules (ported from modules/video/script_gen.py, commit 9e7e226f) ───
+# Owner directive (2026-08-23 vid_6baa888a + 2026-08-24): the product name is spoken
+# at most ONCE per script — later mentions are DROPPED entirely, never substituted
+# with 'ตัวนี้/เจ้านี้'. Spoken name prefers Thai tokens over Latin (Wan reads Latin
+# brand names badly).
+
+def _brand_tokens(product_name: str):
+    """Split product name into normalized tokens so Thai & English variants of the
+    SAME brand fold to one identity (e.g. ครีมสกินชี ↔ Skinshe). Returns [(word, norm)]."""
+    import unicodedata
+    toks = []
+    for raw in re.split(r"[\s\[\]()\\,.:;|\-]+", product_name or ""):
+        w = raw.strip()
+        if not w:
+            continue
+        if re.fullmatch(r"(เซต|ชิ้น|มี|แถม|ขนาด|ใหม่|เจน|รุ่น|สี|แพ็ค|แพ็ก|set|pack|box|ml|g|gift|cream|ครีม)", w, re.I):
+            continue
+        if w.isdigit():
+            continue
+        latin = bool(re.search(r"[A-Za-z]", w))
+        if latin:
+            norm = unicodedata.normalize("NFKD", w.lower())
+            norm = re.sub(r"[^a-z0-9]", "", norm)
+        else:
+            norm = re.sub(r"[^\u0E00-\u0E7F0-9]", "", w)
+        if norm:
+            toks.append((w, norm))
+    return toks
+
+
+def _tts_product_name(product_name: str) -> str:
+    """Thai-dominant short name for SPOKEN script: drop pure-Latin tokens when Thai
+    tokens exist (owner: แปลงชื่อ eng เป็นไทย กัน Wan อ่านเพี้ยน). Cap ~35 chars."""
+    name = (product_name or "").strip()
+    if not name:
+        return name
+    toks = _brand_tokens(name)
+    thai = [w for w, _ in toks if re.search(r"[\u0E00-\u0E7F]", w)]
+    latin = [w for w, _ in toks if not re.search(r"[\u0E00-\u0E7F]", w)]
+    out = " ".join(thai) if thai else " ".join(latin[:2])
+    out = out.strip()
+    if len(out) > 35:
+        out = out[:35].strip()
+    return out or name
+
+
+def _name_variants(*names) -> List[str]:
+    seen, out = set(), []
+    for n in names:
+        n = (n or "").strip()
+        if len(n) >= 3 and n.lower() not in seen:
+            seen.add(n.lower())
+            out.append(n)
+    return out
+
+
+def _owner_script_variants(*bases) -> List[str]:
+    """Name variants for the drop-rule: full names + individual brand tokens
+    (>=4 chars) so TRUNCATED mentions (beat trimmer cuts mid-name) still match."""
+    import re as _re
+    out = _name_variants(*bases)
+    for b in bases:
+        for w, _n in _brand_tokens(b):
+            if len(w) >= 4:
+                wl = w.lower()
+                if wl not in {o.lower() for o in out}:
+                    out.append(w)
+    return out
+
+
+def _drop_later_name_mentions(segments: list, variants: List[str]) -> int:
+    """Keep the FIRST segment containing any name variant; strip the name from all
+    LATER segments (and any 'ตัวนี้/เจ้านี้/อันนี้' right there) instead of ever
+    substituting a placeholder. Mutates segment dicts' 'text'. Returns drops count."""
+    alts = sorted({re.escape(v) for v in variants}, key=len, reverse=True)
+    if not alts:
+        return 0
+    pat = re.compile(r"\s*(?:" + "|".join(alts) + r")\s*", re.I)
+    seen = False
+    drops = 0
+    for seg in segments:
+        t = seg.get("text", "") or ""
+        if not t:
+            continue
+        if not seen and pat.search(t):
+            seen = True
+            continue
+        if seen and pat.search(t):
+            t2 = pat.sub(" ", t)
+            # owner: no 'ตัวนี้/เจ้านี้' placeholder where the name used to repeat
+            t2 = re.sub(r"(ตัวนี้|เจ้านี้|อันนี้)(เลย|ดิ|สิ)?\s*", " ", t2)
+            t2 = re.sub(r"\s{2,}", " ", t2).strip()
+            t2 = re.sub(r"^(และ|หรือ|กับ|ของ)\s+", "", t2)
+            t2 = re.sub(r"\s+(และ|หรือ|กับ)$", "", t2)
+            seg["text"] = t2
+            drops += 1
+    return drops
+
 # Thai vowel/tone marks that must never dangle at a slice boundary.
 _THAI_VOWEL_ABOVE = set('ีืัุู')
 _THAI_MARK = 'เแโใไะาำิีึืุู็่้๊๋์ํ'  # Thai vowel/tone marks
@@ -1629,7 +1728,7 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
         value_text = _normalize_thai_gender_register(f"{product_short} {_safe_thai_truncate(main_benefit, 45)}", is_female)
     elif category in ("home", "electronics", "tools"):
         hook_text = f"เจอปัญหานี้อยู่ใช่ไหม{reg_hook}"
-        value_text = f"{product_short} ตัวนี้ช่วยได้เยอะเลย{reg_val}"
+        value_text = f"{product_short} ช่วยได้เยอะเลย{reg_val}"
     elif "blush" in category.lower() or "cheek" in category.lower():
         hook_text = f"อยากหน้าสดใส ดูมีมิติใช่ไหม{reg_hook}"
         value_text = f"{product_short} เติมแก้มสวยเป็นธรรมชาติ{reg_val}"
@@ -1637,7 +1736,7 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
         hook_text = f"อยากปากฉ่ำวาว สวยทนนานไหม{reg_hook}"
         value_text = f"{product_short} ทาแล้วปากชุ่มชื้น สวยปัง{reg_val}"
     elif "mask" in category.lower() or "facial" in category.lower():
-        hook_text = f"ผิวแห้ง หมองคล้ำ ต้องลองตัวนี้{reg_hook}"
+        hook_text = f"ผิวแห้ง หมองคล้ำ ต้องลองสักครั้ง{reg_hook}"
         value_text = f"{product_short} ช่วยบำรุงผิวชุ่มชื้นฉ่ำน้ำ{reg_val}"
     elif "serum" in category.lower() or "moisturizer" in category.lower():
         hook_text = f"อยากผิวใส ชุ่มชื้น แนะนำเลย{reg_hook}"
@@ -1667,10 +1766,12 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
     if isinstance(scenes, list) and len(scenes) >= 2:
         target_audience = profile.get("target_audience", "") if profile else ""
         profile_feature = profile.get("features", "") if profile else ""
+        # Owner rule 2026-08-24: spoken name = Thai-dominant variant, name spoken ONCE
+        spoken_name = _tts_product_name(product_short)
         segments = []
         for sc in scenes:
             beat_text = _resolve_scene_text(
-                sc, product_short, customer_problem, main_benefit, target_audience, profile_feature
+                sc, spoken_name, customer_problem, main_benefit, target_audience, profile_feature
             )
             # Gender-register normalize for spoken Thai
             beat_text = _normalize_thai_gender_register(beat_text, is_female)
@@ -1681,6 +1782,9 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
             # instead of the old fallback that overshoots -> forces 1.3x fast speech).
             beat_text = _fit_beat_text(beat_text, dur)
             segments.append({"key": sc.get("id", "beat"), "text": beat_text, "duration_sec": dur, "timing": ""})
+
+        # Owner script rules: name at most ONCE — later mentions dropped, no 'ตัวนี้'
+        _drop_later_name_mentions(segments, _owner_script_variants(product_short, spoken_name))
 
         # Recompute timings sequentially from durations (sum of scene durations ≈ duration)
         if segments:
@@ -1701,7 +1805,7 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
                     if needed > max_speed_needed:
                         max_speed_needed = needed
             tts_speed = min(max(max_speed_needed, 1.0), 1.3)
-            full = " ".join(s["text"] for s in segments)
+            full = " ".join(s["text"] for s in segments if s.get("text"))
             # Keep backward-compat keys (hook/value/cta) so downstream consumers don't break
             out = {"segments": segments, "beats": segments,
                    "tts_speed": tts_speed, "full_script": full, "tts_script": full,
@@ -1728,6 +1832,9 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
         {"key": "value", "text": value_text, "duration_sec": value_dur, "timing": f"{hook_dur}-{hook_dur+value_dur}"},
         {"key": "cta", "text": cta_text, "duration_sec": cta_dur, "timing": f"{hook_dur+value_dur}-{target_dur_sec}"},
     ]
+    # Owner script rules (2026-08-24): Thai-dominant name + speak ONCE, no 'ตัวนี้'
+    _spoken_fb = _tts_product_name(product_short)
+    _drop_later_name_mentions(segments, _owner_script_variants(product_short, _spoken_fb))
     
     total_ok = True
     max_speed_needed = 1.0
@@ -1742,7 +1849,7 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
                 max_speed_needed = needed
     
     tts_speed = min(max(max_speed_needed, 1.0), 1.3)
-    full = " ".join(s["text"] for s in segments)
+    full = " ".join(s["text"] for s in segments if s.get("text"))
     
     return {
         "hook": segments[0],

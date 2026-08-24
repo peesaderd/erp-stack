@@ -95,18 +95,20 @@ DEFAULT_ABC_WORDS = {
 
 
 def build_alphabet_story(words: Optional[dict] = None, title: str = "My Alphabet Coloring Book") -> dict:
-    """Build an A–Z coloring book story (no AI needed)."""
+    """Build an A–Z alphabet worksheet story (tracing practice layout per owner's reference image)."""
     w = words or DEFAULT_ABC_WORDS
     pages = []
     for i, letter in enumerate(sorted(w.keys()), start=1):
         word = str(w[letter]).strip().rstrip('.')
         scene = f"{letter} is for {word}"
         prompt = (
-            f'A very large hollow outlined capital letter "{letter}" at the top of the page, '
-            f'a cute kawaii {word} character below the letter with big friendly eyes, '
-            f'the word "{word}" written in large hollow outlined letters at the bottom, '
-            f'simple dotted background, children\'s alphabet coloring book page, full page illustration, '
-            f'line art, thick black outlines, pure white background, no shading, no gray tones, kawaii cute style'
+            f'Educational children\'s alphabet learning worksheet page, clean flat design on pure white paper. '
+            f'At the very top a slim header row: the word "NAME" followed by a short blank writing line, then "DATE" followed by a short blank writing line, small simple black text. '
+            f'On the left side a very large bold solid black uppercase letter "{letter}" with a smaller hollow outlined lowercase letter "{letter.lower()}" beside it. '
+            f'On the right side a cute kawaii {word} character illustration drawn only in thick black outlines for coloring, big friendly eyes. '
+            f'At the bottom a handwriting practice section: one row of dashed hollow traceable letter "{letter}" shapes, '
+            f'and below it two long horizontal writing practice lines with dashed middle guidelines. '
+            f'Simple flat vector worksheet layout, thick black outlines, pure white background, no shading, kawaii cute style'
         )
         pages.append({"page_num": i, "scene": scene, "prompt": prompt})
     return {"title": title, "theme": "alphabet A-Z", "pages": pages}

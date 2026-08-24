@@ -1073,6 +1073,19 @@ def run_pipeline(
         # ── STEP 1: Analyze ──
         step_start = time.time()
         product_profile = analyze_product(product_name, product_image, description, ugc_style=ugc_style)
+
+        # ── Wire prompt-builder (SSOT) outputs into pipeline args ──
+        # The studio proxy (/api/v1/pipeline/full) sends NO pre-computed prompts,
+        # and the legacy step6 builder lives in steps.disabled/ — so the prompts
+        # from analyze_product() MUST be mapped here or Step 6/8 guards raise.
+        # ("wire the prompt-builder output", never a hardcoded generic prompt.)
+        if not video_prompts and not video_prompt:
+            _vp = (product_profile or {}).get("_video_prompt") or ""
+            if _vp:
+                video_prompts = [_vp]
+                logger.info(f"  Wired _video_prompt from prompt-builder ({len(_vp)} chars)")
+        if not negative_prompt:
+            negative_prompt = (product_profile or {}).get("_negative_prompt") or ""
         analyze_duration = int((time.time() - step_start) * 1000)
 
         try:

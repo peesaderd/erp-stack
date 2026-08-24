@@ -197,7 +197,8 @@ def _add_hairline(sheet: np.ndarray, positions: list, margin: int = 0) -> np.nda
     a = (mask.astype(np.float32) / 255.0) * strength
     sel = a > 0.02
     base = sheet[sel].astype(np.float32)
-    sheet[sel] = (base * (1 - a[sel]) + color * a[sel]).astype(np.uint8)
+    alpha = a[sel][:, None]
+    sheet[sel] = (base * (1 - alpha) + color * alpha).astype(np.uint8)
     return sheet
 
 

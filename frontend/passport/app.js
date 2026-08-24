@@ -1,6 +1,6 @@
 /* ══════════ STATE ══════════ */
 var API='/api/passport';
-var S={photo:null,photos:[],uploaded:[],imgV:0,bulk:false,view:'photo',sheetUrl:null,gender:'male',clothing:'keep_original',bg:'light_blue',bgType:'solid',gradient:null,bgc:null,tpl:'thai_passport',cw:null,ch:null,sid:null,cropPreset:'standard',customClothing:null,customClothingUrl:null,customClothingName:null};
+var S={photo:null,photos:[],uploaded:[],imgV:0,bulk:false,view:'photo',sheetUrl:null,pool:[],gender:'male',clothing:'keep_original',bg:'light_blue',bgType:'solid',gradient:null,bgc:null,tpl:'thai_passport',cw:null,ch:null,sid:null,cropPreset:'standard',customClothing:null,customClothingUrl:null,customClothingName:null};
 var CD={male:[],female:[]},BD=[],TD=[];
 var FLAGS={Thailand:'🇹🇭',Japan:'🇯🇵',China:'🇨🇳','South Korea':'🇰🇷','United States':'🇺🇸','United Kingdom':'🇬🇧','European Union':'🇪🇺',Canada:'🇨🇦',Australia:'🇦🇺',India:'🇮🇳',Singapore:'🇸🇬',Malaysia:'🇲🇾',Philippines:'🇵🇭',Indonesia:'🇮🇩',Vietnam:'🇻🇳',Cambodia:'🇰🇭',Laos:'🇱🇦',Myanmar:'🇲🇲','Hong Kong':'🇭🇰',France:'🇫🇷',Germany:'🇩🇪'};
 var SOLID_COLORS=[
@@ -18,6 +18,9 @@ var SOLID_COLORS=[
 function $(id){return document.getElementById(id)}
 function $$(sel){return document.querySelectorAll(sel)}
 function bumpImg(){S.imgV++} // bump ONLY when a stored file is overwritten → new URL busts caches
+function updatePoolUI(){
+  var el=$('poolN');if(el)el.textContent=S.pool.length;
+}
 function setView(v){
   S.view=v;
   if(v==='sheet'){$('btnDl').textContent='⬇️ Download Sheet';$('btnDlT').classList.add('hidden');}
@@ -200,6 +203,7 @@ function goOptions(){
   if(S.uploaded.length>1){
     renderUploadStrip();
     $('genAllBtn').classList.remove('hidden');
+    if(S.pool.indexOf(S.sid)<0){S.pool.push(S.sid);updatePoolUI();}
   }else{
     $('batchPreview').classList.add('hidden');
     $('genAllBtn').classList.add('hidden');
@@ -316,6 +320,8 @@ function showResult(d,isBulk){
   updatePreviewAspect(null);
   $('btnDl').classList.remove('hidden');$('btnDlT').classList.remove('hidden');
   if(isBulk&&d.results&&d.results.length>1){
+    S.pool=d.results.map(function(r){return r.session_id});
+    updatePoolUI();
     $('batchPreview').classList.remove('hidden');
     var sh='';
     for(var i=0;i<d.results.length;i++){
@@ -331,6 +337,7 @@ function showResult(d,isBulk){
     // manual edit with multiple uploads — KEEP strip so other photos stay selectable
     renderUploadStrip();
     $('genAllBtn').classList.remove('hidden');
+    if(S.pool.indexOf(S.sid)<0){S.pool.push(S.sid);updatePoolUI();}
   }else{
     $('batchPreview').classList.add('hidden');
   }
@@ -461,28 +468,44 @@ async function genPrintSheet(){
   showOv('Generating print sheet...');
   try{
     var paperType=S.paper||'4x6';
-    var paperLabel=paperType;
-    var body={
-      session_id:S.sid,
-      paper:paperLabel,
-      count:parseInt($('customCount').value)||6,
-      border_width_mm:parseFloat($('bwmmPrint').value)||0,
-      blade_mode:$('bmPrint').checked
-    };
-    var r=await fetch(API+'/print-sheet',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-    var d=await r.json();
+    var sids=[S.sid];
+    for(var i=0;i<S.pool.length;i++){if(sids.indexOf(S.pool[i])<0)sids.push(S.pool[i]);}
+    var useMulti=($('mpPrint')&&$('mpPrint').checked)&&sids.length>1;
+    var d;
+    if(useMulti){
+      // owner flow (same capability as print.html): combine ALL generated photos on one sheet
+      var mbody={
+        session_ids:sids,
+        copies:parseInt($('cpPrint').value)||1,
+        print_size:paperType,
+        border:'none',
+        blade_mode:$('bmPrint').checked
+      };
+      var r2=await fetch(API+'/multi-print',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(mbody)});
+      d=await r2.json();
+      if(!d.ok)throw new Error(d.detail||'multi-print failed');
+    }else{
+      var body={
+        session_id:S.sid,
+        paper:paperType,
+        count:parseInt($('customCount').value)||6,
+        border_width_mm:parseFloat($('bwmmPrint').value)||0,
+        blade_mode:$('bmPrint').checked
+      };
+      var r=await fetch(API+'/print-sheet',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      d=await r.json();
+    }
     if(d.ok){
       if(!d.download_url)throw new Error('sheet url missing');
-      // owner rule: print sheet previews on the MAIN preview box above (object-fit:contain shows whole sheet)
       bumpImg();
       S.sheetUrl=location.origin+d.download_url;
       var imgUrl=S.sheetUrl+'?v='+S.imgV;
       $('batchPreview').classList.add('hidden');
       $('ri').src=imgUrl;
       updatePreviewAspect(null);
-      setView('sheet'); // Download button now fetches the SHEET
+      setView('sheet');
       if($('previewBox'))$('previewBox').scrollIntoView({behavior:'smooth',block:'center'});
-      toast('Print sheet ready! 🖨️ '+(d.info||''),'ok');
+      toast(useMulti?('รวม '+sids.length+' รูปในแผ่นเดียว 🖨️'):'Print sheet ready! 🖨️','ok');
     }
   }catch(e){toast('Print sheet failed','err')}
   hideOv();

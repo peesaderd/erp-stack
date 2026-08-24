@@ -695,9 +695,11 @@ async def multi_print(req: MultiPrintRequest):
     images = []
     dims = []
     for sid in req.session_ids:
-        path = STORAGE_DIR / f"{sid}_cropped.jpg"
+        # owner rule 2026-08-24: _passport.jpg is always the CURRENT state
+        # (updated by recrop) and better framed than _cropped.jpg (may cut chin)
+        path = STORAGE_DIR / f"{sid}_passport.jpg"
         if not path.exists():
-            path = STORAGE_DIR / f"{sid}_passport.jpg"
+            path = STORAGE_DIR / f"{sid}_cropped.jpg"
         if not path.exists():
             raise HTTPException(404, f"Photo not found: {sid}")
         img = cv2.imread(str(path))

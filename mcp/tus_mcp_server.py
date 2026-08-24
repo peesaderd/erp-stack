@@ -173,6 +173,11 @@ async def tus_create_full_pipeline(
     last_frame: str = "",
     thai_script: str = "",
     use_tus_voice: bool = True,
+    # ── SSOT deep-analysis fields (Product Analyzer 8106 → prompt-builder) ──
+    body_part: str = "",
+    special_target: str = "",
+    usage_howto: str = "",
+    ingredient_highlight: str = "",
 ) -> dict:
     """
     สร้างวิดีโอ UGC แบบ Full Pipeline (prompt-builder + image gen + video gen + TTS + compose).
@@ -228,6 +233,11 @@ async def tus_create_full_pipeline(
         "last_frame": last_frame or None,
         "thai_script": thai_script or None,
         "use_tus_voice": use_tus_voice,
+        # SSOT deep-analysis fields
+        "body_part": body_part or None,
+        "special_target": special_target or None,
+        "usage_howto": usage_howto or None,
+        "ingredient_highlight": ingredient_highlight or None,
     }
     
     logger.info(f"tus_create_full_pipeline: product={product_title or product_url} style={ugc_style}")

@@ -151,6 +151,11 @@ class VideoRequest(BaseModel):
     prompt_extend: bool = True
     # ── FL2V+Audio (Wan 2.7 start-end interpolation + 16kHz mono WAV lip-sync) ──
     audio: Optional[str] = None  # path/URL ของไฟล์เสียง 16kHz mono WAV (Prodia lip-sync)
+    # ── SSOT deep-analysis fields (จาก Product Analyzer 8106 → ส่งเข้า prompt-builder) ──
+    body_part: str = ""
+    special_target: str = ""
+    usage_howto: str = ""
+    ingredient_highlight: str = ""
 
     @field_validator("duration")
     @classmethod
@@ -314,7 +319,11 @@ async def generate_video(req: VideoRequest):
             external_job_id=req.job_id,
             duration=req.duration,
             features=req.features or "",
-            # Pre-computed prompts (bypass auto-gen if provided)
+            # SSOT deep-analysis fields
+            body_part=req.body_part or "",
+            special_target=req.special_target or "",
+            usage_howto=req.usage_howto or "",
+            ingredient_highlight=req.ingredient_highlight or "",
             image_prompt=req.image_prompt or "",
             video_prompt=req.video_prompt or "",
             video_prompts=req.video_prompts or [],

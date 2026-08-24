@@ -167,6 +167,11 @@ async def run_full_pipeline(req: FullPipelineRequest):
                     "thai_script": req.thai_script or "",
                     "use_tus_voice": req.use_tus_voice,
                     "audio": req.audio or "",
+                    # SSOT deep-analysis fields
+                    "body_part": req.body_part or "",
+                    "special_target": req.special_target or "",
+                    "usage_howto": req.usage_howto or "",
+                    "ingredient_highlight": req.ingredient_highlight or "",
                 })
                 if vid_result.get("success"):
                     result_data = vid_result.get("result", {})

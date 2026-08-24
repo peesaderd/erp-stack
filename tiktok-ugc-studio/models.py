@@ -156,6 +156,11 @@ class FullPipelineRequest(BaseModel):
     use_tus_voice: bool = True
     # ── FL2V+Audio (forward ไป video-gen) ──
     audio: Optional[str] = None  # path/URL ของไฟล์เสียง 16kHz mono WAV
+    # ── SSOT deep-analysis fields (Product Analyzer 8106 → prompt-builder) ──
+    body_part: Optional[str] = ""
+    special_target: Optional[str] = ""
+    usage_howto: Optional[str] = ""
+    ingredient_highlight: Optional[str] = ""
 
 
 class ScrapeAndGenerateRequest(BaseModel):

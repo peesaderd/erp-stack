@@ -135,7 +135,7 @@ def concat_videos(video_paths: list, output_path: Path) -> Path:
 # STEP 1: Analyze Product (Mistral)
 # ═══════════════════════════════════════════════════════════════════════════
 
-def analyze_product(product_name: str, product_image: str = None, description: str = "", ugc_style: str = "holding") -> dict:
+def analyze_product(product_name: str, product_image: str = None, description: str = "", ugc_style: str = "holding", body_part: str = "", special_target: str = "", usage_howto: str = "", ingredient_highlight: str = "") -> dict:
     """
     Step 1: Analyze product via Mistral → product_profile
 
@@ -165,6 +165,11 @@ def analyze_product(product_name: str, product_image: str = None, description: s
             "description": description,
             "product_image": product_image or "",
             "ugc_style": ugc_style,
+            # SSOT deep-analysis fields — ดึงจาก Product Analyzer (8106) ส่งตรงเข้า prompt-builder
+            "body_part": body_part or "",
+            "special_target": special_target or "",
+            "usage_howto": usage_howto or "",
+            "ingredient_highlight": ingredient_highlight or "",
         }
 
         resp = requests.post(url, json=payload, timeout=60)
@@ -1103,7 +1108,13 @@ def run_pipeline(
     try:
         # ── STEP 1: Analyze ──
         step_start = time.time()
-        product_profile = analyze_product(product_name, product_image, description, ugc_style=ugc_style)
+        product_profile = analyze_product(
+            product_name, product_image, description, ugc_style=ugc_style,
+            body_part=kwargs.get("body_part", ""),
+            special_target=kwargs.get("special_target", ""),
+            usage_howto=kwargs.get("usage_howto", ""),
+            ingredient_highlight=kwargs.get("ingredient_highlight", ""),
+        )
 
         # ── Wire prompt-builder (SSOT) outputs into pipeline args ──
         # The studio proxy (/api/v1/pipeline/full) sends NO pre-computed prompts,
@@ -1337,28 +1348,12 @@ def run_pipeline(
             pass
 
         # ── STEP 9: Compose ──
-        # FIX (duration mismatch bug): use the ACTUAL Prodia Wan output duration,
-        # not the recipe total_duration. Previously final_duration was forced to
-        # recipe['total_duration']=15 even when the user requested a shorter job
-        # (e.g. 4s) — compose_video would then -stream_loop the short clip up to
-        # 15s, producing the "clip repeats / ถูกตัดซ้ำ" visual. Probing the real
-        # clip avoids that: short jobs stay short, 15s jobs are already 15s.
-        actual_video_duration = 0.0
-        try:
-            probe = subprocess.run(
-                ["ffprobe", "-v", "error", "-show_entries", "format=duration",
-                 "-of", "csv=p=0", str(vid_path)],
-                capture_output=True, text=True, timeout=20,
-            )
-            if probe.stdout.strip():
-                actual_video_duration = float(probe.stdout.strip())
-        except Exception:
-            actual_video_duration = 0.0
-        if actual_video_duration > 0:
-            final_duration = actual_video_duration
-        else:
-            # Fallback: requested duration, then recipe default
-            final_duration = total_duration if total_duration > 0 else recipe.get("total_duration", 0)
+        # Duration target: ใช้ค่า `total_duration` (ที่ user/request ระบุ เช่น 15s) เป็นเป้า
+        # เสมอ — ถ้า Prodia Wan กลับมาสั้นกว่า (Wan 2.7 ทำได้ ~8s แม้ขอ 15s) ให้ 9a.5
+        # -stream_loop ยืดให้เต็ม target (owner อยากได้ 15 วิ เพิ่มจาก 8 วิ)
+        # เดิม forced ใช้ actual_video_duration → 15s job กลายเป็น 8s ไม่ง่าย target
+        target_duration = total_duration if total_duration > 0 else recipe.get("total_duration", 0)
+        final_duration = target_duration if target_duration > 0 else 0
         # ── Voice mode split (owner rule 2026-08-21) ─────────────
         # โหมด A (thai_script + use_tus_voice): ให้ Wan พูดเองตามบทไทย → ไม่ mix TTS
         #   voiceover ที่ compose (กัน TTS ทับ Wan 2 ชั้น ไม่สนิท)

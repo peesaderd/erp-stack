@@ -1368,8 +1368,8 @@ select.input { cursor: pointer; }
     <div class="mb-4">
       <label class="text-sm text-secondary mb-2" style="display:block">ความยาววิดีโอ</label>
       <div class="duration-chips">
-        <span class="duration-chip selected" onclick="selectDuration(this,'8')">8 วิ ~$0.09</span>
-        <span class="duration-chip" onclick="selectDuration(this,'15')">15 วิ ~$0.15 (1 scene)</span>
+        <span class="duration-chip" onclick="selectDuration(this,'8')">8 วิ ~$0.09</span>
+        <span class="duration-chip selected" onclick="selectDuration(this,'15')">15 วิ ~$0.15 (1 scene)</span>
       </div>
       <div class="text-xs text-secondary mt-1" id="durationHint">8 วิ = 1 scene, 15 วิ = 1 scene</div>
     </div>
@@ -1464,8 +1464,8 @@ select.input { cursor: pointer; }
     <div class="mb-3">
       <label class="text-sm text-secondary mb-2" style="display:block">Duration (ตั้งจาก Step 1)</label>
       <div class="duration-chips">
-        <span class="duration-chip selected" onclick="selectDuration(this,'8')">8s ~$0.09</span>
-        <span class="duration-chip" onclick="selectDuration(this,'15')">15s ~$0.15 (1 scene)</span>
+        <span class="duration-chip" onclick="selectDuration(this,'8')">8s ~$0.09</span>
+        <span class="duration-chip selected" onclick="selectDuration(this,'15')">15s ~$0.15 (1 scene)</span>
       </div>
       <div class="text-xs text-secondary mt-1" id="durationHint4">ตั้งค่าจาก Step 1 หรือกดเปลี่ยนที่นี่</div>
     </div>
@@ -2365,7 +2365,7 @@ async function autoGenerateAll() {
   const style = document.getElementById('selectedStyleLabel')?.textContent?.split(' —')[0]?.trim()?.toLowerCase().replace(/ /g,'_') || 'holding';
   if (!url && !title && !details) { showToast('ใส่ชื่อสินค้าหรือ URL ก่อน','error'); return; }
 
-  const dur = parseInt(sessionStorage.getItem('selectedDuration')) || 8;
+  const dur = parseInt(sessionStorage.getItem('selectedDuration')) || 15;
   
   showLoadingOverlay('🚀 กำลังเริ่ม Pipeline ฝั่ง Server...');
   setButtonLoading('autoGenBtn', true);
@@ -2617,7 +2617,7 @@ async function generateScript() {
 
   setButtonLoading('genScriptBtn', true);
   try {
-    const body = { ugc_style: style, duration: sessionStorage.getItem('selectedDuration') || '8' };
+    const body = { ugc_style: style, duration: sessionStorage.getItem('selectedDuration') || '15' };
     if (url) body.product_url = url;
     if (title) body.product_title = title;
     if (details) body.product_details = details;
@@ -2653,7 +2653,7 @@ function goToStep3() {
   document.getElementById('step3Value').textContent = document.getElementById('scriptValue').value || '-';
   document.getElementById('step3Cta').textContent = document.getElementById('scriptCta').value || '-';
   
-  const duration = sessionStorage.getItem('selectedDuration') || '8';
+  const duration = sessionStorage.getItem('selectedDuration') || '15';
   document.getElementById('step3Duration').textContent = duration + ' วิ' + (duration >= 15 ? ' (1 scene)' : ' (1 scene)');
   
   const lastScript = JSON.parse(localStorage.getItem('lastScript') || '{}');
@@ -2881,7 +2881,7 @@ async function startGeneration() {
   document.getElementById('progressText').textContent = '⚡ กำลังสร้างวิดีโอ...';
   document.getElementById('progressBar').style.width = '20%';
 
-  const duration = parseInt(sessionStorage.getItem('selectedDuration') || '8');
+  const duration = parseInt(sessionStorage.getItem('selectedDuration') || '15');
   const totalScenes = duration >= 15 ? 2 : 1;
 
   try {

@@ -220,9 +220,10 @@ async function handleFiles(e){
 
 /* ══════════ NAVIGATION ══════════ */
 function goOptions(){
-  $('sec2').classList.remove('hidden');
+  $('sec3').classList.remove('hidden');
+  $('previewCard').classList.add('hidden'); // hide until first result
   renderClothing();
-  setTimeout(function(){$('sec2').scrollIntoView({behavior:'smooth',block:'start'})},200);
+  setTimeout(function(){$('sec3').scrollIntoView({behavior:'smooth',block:'start'})},200);
 }
 
 function newPhoto(){
@@ -236,8 +237,8 @@ function clearAll(){
   $('drop').classList.remove('hidden');
   $('uploaded').classList.add('hidden');
   $('upErr').classList.add('hidden');
-  $('sec2').classList.add('hidden');
   $('sec3').classList.add('hidden');
+  $('previewCard').classList.add('hidden');
   $('batchPreview').classList.add('hidden');
   $('custPreviewWrap').classList.add('hidden');
   $('genBtn').disabled=false;
@@ -286,6 +287,7 @@ function showResult(d,isBulk){
   $('rs').innerHTML=stats;
   $('ri').src=API+'/download/'+S.sid+'_passport.jpg?t='+Date.now();
   $('sec3').classList.remove('hidden');
+  $('previewCard').classList.remove('hidden');
   // Owner flow: preview always square, full image, no forced crop
   updatePreviewAspect(null);
   if(isBulk&&d.results&&d.results.length>1){

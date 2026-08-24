@@ -1217,7 +1217,6 @@ def run_pipeline(
             # — อย่าส่ง 5/อื่นนอกจาก 8,15 → validator VideoRequest reject ทันที (ไม่เกี่ยวกับ Wan)
             # [TEST] duration=8 (ของผู้ถูก validator)-> ลอง 8 (ถูกกว่าปรึ้ม default 15) ดู 9:16 ผ่านไหม
             duration=8,
-            audio_path=audio_path_out,
             negative_prompt=negative_prompt,
             # first+last start-end interpolation per Prodia docs
             # (ห้ามส่ง reference แยก — ทำให้ Prodia เอา reference เป็นภาพหลักแทน interpolation)

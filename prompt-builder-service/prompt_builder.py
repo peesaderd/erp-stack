@@ -61,7 +61,7 @@ def _is_no_human_style(ugc_style: str) -> bool:
     """True when the style's has_person flag (SSOT ugc_styles.json) is False.
 
     Used to route no-human styles (currently product_demo + pov) to the
-    product-only triptych + no-human video branch instead of the holding/
+    product-only single 9:16 + no-human video branch instead of the holding/
     talking template that would inject a person into the frame. Reads the SSOT
     flag so we never hardcode a second style list here (single source of truth).
     Falls back to False (assume has a person) if the style is unknown, so we
@@ -484,26 +484,19 @@ def _extract_appearance_from_description(description: str) -> str:
 
 
 def _image_prompt_readable(image_prompt: str) -> str:
-    """Return a line-broken version of a triptych/3-panel image prompt for
+    """Return a line-broken version of the single 9:16 image prompt for
     readability (display only). Wan/image API still uses the single-line
-    `image_prompt`. Splits at 'Panel N (...): ' boundaries and the header.
-    """
+    `image_prompt`. Breaks at 'Main scene', 'End scene', 'Featured', and
+    'Product:' boundaries without emitting any panel wording."""
     if not image_prompt:
         return image_prompt
-    # Split at each 'Panel N (...): ' marker into separate lines.
-    parts = re.split(r"(?=Panel \d+\s*\()", image_prompt)
-    lines = []
-    for p in parts:
-        p = p.strip()
-        if not p:
-            continue
-        lines.append(p)
-    # First line is the header (may contain '16:9 vertical triptych...')
-    # Force the 'Product:' / appearance into its own line for readability.
-    # Do the split BEFORE joining so 'Product:' doesn't get glued to Panel 3.
-    rebuilt = "\n".join(lines)
-    rebuilt = rebuilt.replace(" Product:", "\nProduct:")
-    # Keep each Panel on its own line; ensure no stray double newlines.
+    rebuilt = (
+        image_prompt
+        .replace("Main scene: ", "\nMain scene: ")
+        .replace("End scene: ", "\nEnd scene: ")
+        .replace("Featured: ", "\nFeatured: ")
+        .replace("Product: ", "\nProduct: ")
+    )
     rebuilt = re.sub(r"\n{2,}", "\n", rebuilt)
     return rebuilt.strip()
 
@@ -539,24 +532,24 @@ def _clean_brand_name(product_name: str) -> str:
 
 
 def _cover_product_desc(profile: dict, product_name: str) -> str:
-    """Build a cover-page product description for the triptych cover panel.
+    """Build a cover-page product description for the single 9:16 frame.
 
-    Panel 1 is a DESIGNED cover page — NOT a raw "exactly as shown in reference"
-    (that made the model cram the product photo in whole and clip the label text).
-    Tell the model to design a clean commercial cover using the brand from the
-    reference, with the product(s) placed on it as a styled studio shot.
+    The image opens as a clean commercial cover — NOT a raw "exactly as shown in
+    reference" (that made the model cram the product photo in whole and clip the
+    label text). Tell the model to design a clean commercial cover using the
+    brand from the reference, with the product(s) placed on it as a styled shot.
     """
     appearance = (profile or {}).get("product_appearance", "") or ""
     brand = _clean_brand_name(product_name)
     # Owner: NO 'OFFICIAL STORE' watermark — the model keeps painting that text
-    # onto product/background panels and it looks cluttered/unwanted. Keep only a
+    # onto product/background areas and it looks cluttered/unwanted. Keep only a
     # subtle brand logo; instruct the model NOT to add any invented text/captions.
     logo = f"a subtle '{brand}' logo in the upper corner" if brand else "no extra text or logos"
     # Design a cover, don't copy the reference wholesale. Reference defines the
     # product/brand only; the model composes the layout so text stays legible.
     # Use the cleaned brand so the cover label matches the actual product.
     # NO invented text: brand text only from the real product label, never add
-    # words like OFFICIAL STORE, BEST, 100%, etc. (owner: those leak onto panels).
+    # words like OFFICIAL STORE, BEST, 100%, etc. (owner: those leak onto the image).
     pair_desc = (
         "designed as a clean studio product cover featuring the product(s) from "
         "the reference image, crisp unclipped labels; render every item, label "
@@ -570,10 +563,10 @@ def _cover_product_desc(profile: dict, product_name: str) -> str:
 
 
 def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holding", loop_count: int = 0) -> tuple:
-    """Generate image prompt — triptych 16:9 (3-panel) when router scenes exist.
+    """Generate a single vertical 9:16 image prompt (Triptych discontinued 2026-08-24).
 
-    Left = cover/hook, middle = model + product (solve), right = result/end (cta).
-    Falls back to a single 9:16 frame when the profile has no router scenes / triptych.
+    Folds cover + model/product + result/end composition into ONE portrait frame
+    so the first-frame (Nano Banana) quality stays high and matches the video.
     Uses _ai_select() for scene/action/camera/lighting from category_mapping, plus
     product_appearance / colors from Mistral analysis (P3).
     """
@@ -608,136 +601,43 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     room = (profile.get("setting") or "").strip() or scene
     room_desc = room
 
-    # ── NEW (P2): triptych / 3-panel composition from router beats ──
+    # ── Single 9:16 frame (Triptych discontinued 2026-08-24) ──
+    # Owner: "เราไม่ใช่ Triptych แล้ว". Always output ONE vertical 9:16 image
+    # prompt (NO 3-panel / 16:9 landscape). We fold the rich composition that
+    # the triptych branch used to carry (cover + model/product + end-scene) into
+    # a single portrait frame so first-frame quality stays high.
     router_config = profile.get("router_config", {}) if isinstance(profile, dict) else {}
     scenes = router_config.get("scenes") if isinstance(router_config, dict) else None
-    use_triptych = (
-        isinstance(scenes, list) and len(scenes) >= 2
-        and profile.get("use_triptych") is not False
-    )
 
-    if use_triptych:
-        # ── No-human styles (product_demo, pov): 3-panel triptych with NO person ──
-        # Styles whose SSOT has_person flag is False must NOT show a person in
-        # frame. The old code let every style enter the holding triptych template
-        # before the legacy no-human branch could run, so no-human styles ended up
-        # with people. We now build a dedicated no-human triptych and append the
-        # style's prompt_anchor (SSOT ugc_styles.json) so the first frame matches
-        # the video's no-human shot. product_demo = pure product; pov = first-person
-        # (only the hands visible, no face), which is how POV video reads.
-        if _is_no_human_style(ugc_style):
-            style_l = (ugc_style or "").strip().lower()
-            if style_l == "product_demo":
-                cover_hint = _cover_product_desc(profile, product_name)
-                # Panel 2 = close-up product detail (rotate to show packaging/label)
-                mid_hint = (
-                    f"{product_name} close-up product shot showing label and packaging "
-                    f"details, product centered on clean background, {room_desc}"
-                )
-                # Panel 3 = feature/hero product shot (no person)
-                result_hint = (
-                    f"{product_name} feature product shot, product standing upright "
-                    f"center frame, clean studio lighting, {lighting}"
-                )
-                no_human_clause = (
-                    "NO humans, NO people, NO hands in any panel; pure product photography."
-                )
-            else:  # pov — first-person, hands visible holding/using the product
-                cover_hint = _cover_product_desc(profile, product_name)
-                # Panel 2 = first-person hands holding the product in a daily scene
-                mid_hint = (
-                    f"first-person POV of the user holding "
-                    f"{product_name}, only the hands and product visible in frame, "
-                    f"natural daily setting {room_desc}"
-                )
-                # Panel 3 = first-person using the product in daily context
-                result_hint = (
-                    f"first-person POV using {product_name} in a daily lifestyle context, "
-                    f"only hands and product in frame, no face visible, {lighting}"
-                )
-                no_human_clause = (
-                    "First-person POV throughout; no face of the person in any panel, "
-                    "only hands and product visible."
-                )
-            colors = profile.get("colors", "") or ""
-            parts_colors = f"color palette: {', '.join(colors)}. " if colors else ""
-            image_prompt = (
-                f"16:9 landscape triptych, three equal horizontal panels placed side "
-                f"by side touching edge to edge with zero pixels of space between panels, "
-                f"joined as one seamless 16:9 image. "
-                f"{no_human_clause} "
-                f"Panel 1 (left): {cover_hint}. "
-                f"Panel 2 (center): {mid_hint}. "
-                f"Panel 3 (right): {result_hint}. "
-                f"Product: show exactly the item(s) from the reference product image — "
-                f"render every variant/color that appears in it. "
-                f"{parts_colors}{lighting}. "
-                f"NO text, letters, words, labels, logos or watermark on panels 2 and 3 — "
-                f"only the product, cleanly. "
-                f"Cohesive consistent style, high quality product photography. "
-                f"Render the full 16:9 frame edge to edge as one continuous surface; the "
-                f"three panels touch one another with 0 pixels of gap or margin between "
-                f"panels — no divider, no seam, no spacing anywhere in the image."
-            )
-            logger.info(f"  Image prompt (no-human {style_l} triptych, {len(image_prompt)} chars)")
-            # Append the style's image anchor (from SSOT ugc_styles.json) so the
-            # composition matches the video's no-human shot.
-            image_prompt = _apply_prompt_anchor(ugc_style, image_prompt, product_name)
-            negative = build_negative_prompt(profile, ugc_style)
-            return image_prompt, negative
-
-        # Panel 1 (cover): designed from the reference product image — let the
-        # image model compose the cover itself (no hardcoded count).
-        cover_hint = _cover_product_desc(profile, product_name)
-
-        # Panel 2 (model + product): model holds the product(s) EXACTLY as shown
-        # in the reference image — we do NOT hardcode the item count/variants
-        # (that hardcoding made Wan render two identical items). "as shown in the
-        # reference image" keeps count + labels + colors from the ground truth.
-        # Compact wording (owner: too wordy) — one clean visual line.
-        # NEW: only force the APPLY action when special_target is set (e.g. a
-        # pregnancy cream that must be applied to face/belly). All other products
-        # (incl. body_part=whole-body) stay as a plain HOLD — "ถือสินค้าพูด" is the
-        # default fallback when no special apply audience is known. Having body_part
-        # alone must NOT turn a normal unbox/holding video into a smear demo.
-        _app_hint = _apply_hint(subcategory, category, profile)
-        if profile.get("special_target", "").strip():
-            mid_hint = (
-                f"{model_desc} applying the product from the reference image, "
-                f"{_app_hint}, {room_desc}"
-            )
-        else:
-            mid_hint = (
-                f"{model_desc} holding the product(s) from the reference image, "
-                f"bottles facing the camera, {room_desc}"
-            )
-
-        # Panel 3 (result/end): pick the result-specific end scene from the SSOT
-        # Prompt Library (keyed by subcategory → category → other) and STORE it on
-        # the profile so build_video_prompt() reuses the SAME blueprint → image &
-        # video end scenes stay consistent (they no longer drift apart).
-        es = _pick_end_scene(category, subcategory=subcategory, profile=profile)
-        profile["_end_scene"] = es  # bind: video prompt reuses this same instance
-        _outfit = f"; outfit: {es['outfit']}" if es.get("outfit") else ""
-        _result = es.get("result_focus") or "a happy result"
-        _expr = es.get("expression") or "smiling"
-        _placement = es.get("product_placement") or "product still in hand"
-        result_hint = (
-            f"the same {model_desc} from panel 2, wearing the same outfit as "
-            f"panel 2, {_expr}, showing {_result}; {_placement}{_outfit}"
+    # Build the composition once (shared by all single-frame branches).
+    _cover = _cover_product_desc(profile, product_name)
+    _app_hint = _apply_hint(subcategory, category, profile)
+    if profile.get("special_target", "").strip():
+        mid_hint = (
+            f"{model_desc} applying the product from the reference image, "
+            f"{_app_hint}, {room_desc}"
         )
-
-        # Map recipe beats onto the three panels — but only where it fits the
-        # recipe meaning (solve/us/value → panel 2, cta → panel 3). We deliberately
-        # do NOT force agitate/them into the image (that belongs in the video script).
-        # NOTE: panel 3 (result) already carries the product-specific end scene from
-        # the SSOT Library (outfit + result_focus + expression + product_placement),
-        # which is richer + product-specific than the generic "cta" beat hint — so we
-        # do NOT let the cta beat override it. Only middle panel reads beat hints.
-        # NEW (A): when the recipe scene carries a "visual" hint (e.g. the solve/us/value
-        # beat), prefer it over the generic holding template so the center panel follows
-        # the recipe (pas=solve, comparison=us, secret_hook=value). Resolve placeholders.
-        for sidx, sc in enumerate(scenes):
+    else:
+        mid_hint = (
+            f"{model_desc} holding the product(s) from the reference image, "
+            f"bottles facing the camera, {room_desc}"
+        )
+    # Pick the product-specific end scene (SSOT Prompt Library) and bind it to
+    # profile so build_video_prompt() reuses the SAME blueprint -> image & video
+    # end scenes stay consistent (they no longer drift apart).
+    es = _pick_end_scene(category, subcategory=subcategory, profile=profile)
+    profile["_end_scene"] = es
+    _outfit = f"; outfit: {es['outfit']}" if es.get("outfit") else ""
+    _result = es.get("result_focus") or "a happy result"
+    _expr = es.get("expression") or "smiling"
+    _placement = es.get("product_placement") or "product still in hand"
+    result_hint = (
+        f"the same {model_desc} from the first part of the frame, wearing the same "
+        f"outfit, {_expr}, showing {_result}; {_placement}{_outfit}"
+    )
+    # Address recipe beats (solve/us/value) from scenes onto the single frame.
+    if isinstance(scenes, list):
+        for sc in scenes:
             bid = (sc.get("id") or "").lower()
             if bid in ("solve", "us", "value"):
                 vis = (sc.get("visual") or "").strip()
@@ -751,54 +651,60 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
                 else:
                     mid_hint = _beat_panel_hint(profile, product_name, model_desc, action, room_desc, "middle")
 
-        colors = profile.get("colors", "") or ""
-        parts_colors = f"color palette: {', '.join(colors)}. " if colors else ""
+    colors = profile.get("colors", "") or ""
+    parts_colors = f"color palette: {', '.join(colors)}. " if colors else ""
 
+    # ── No-human styles (product_demo, pov): single frame with NO person ──
+    # Styles whose SSOT has_person flag is False must NOT show a person in frame.
+    if _is_no_human_style(ugc_style):
+        style_l = (ugc_style or "").strip().lower()
+        if style_l == "product_demo":
+            feat_hint = (
+                f"{product_name} close-up product shot showing label and packaging "
+                f"details, product centered on clean background, {room_desc}"
+            )
+            no_human_clause = (
+                "NO humans, NO people, NO hands in frame; pure product photography."
+            )
+        else:  # pov — first-person, hands visible, no face
+            feat_hint = mid_hint  # first-person hands holding the product
+            no_human_clause = (
+                "First-person POV throughout; no face of the person in frame, "
+                "only hands and product visible."
+            )
         image_prompt = (
-            f"16:9 landscape triptych, three equal horizontal panels placed side "
-            f"by side touching edge to edge with zero pixels of space between panels, "
-            f"joined as one seamless 16:9 image. "
-            f"Panel 1 (left): {cover_hint}. "
-            f"Panel 2 (center): {mid_hint} (same model appears in panels 2 and 3). "
-            f"Panel 3 (right): {result_hint} (same setting/background as panel 2). "
+            f"Single vertical 9:16 frame: {_cover}. "
+            f"Featured: {feat_hint}. "
             f"Product: show exactly the item(s) from the reference product image — "
             f"render every variant/color that appears in it. "
             f"{parts_colors}{lighting}. "
-            f"NO text, letters, words, labels, logos or watermark on panels 2 and 3 — "
-            f"only the model and product, cleanly. "
-            f"Cohesive consistent style, high quality product photography. "
-            f"Render the full 16:9 frame edge to edge as one continuous surface; the "
-            f"three panels touch one another with 0 pixels of gap or margin between "
-            f"panels — no divider, no seam, no spacing anywhere in the image."
+            f"{no_human_clause} "
+            f"NO text, letters, words, labels, logos or watermark. "
+            f"Cohesive consistent style, high quality product photography. --ar 9:16"
         )
-        logger.info(f"  Image prompt (triptych {len(image_prompt)} chars): {image_prompt[:100]}...")
-        # Append the style's image anchor (from SSOT ugc_styles.json) so the first
-        # frame matches the video's composition — video already applies it for every
-        # style, image now does too (holding/usage/review/talking_head/… all read the
-        # same anchor source -> image & video stay aligned).
+        logger.info(f"  Image prompt (no-human single 9:16 {style_l}, {len(image_prompt)} chars)")
         image_prompt = _apply_prompt_anchor(ugc_style, image_prompt, product_name)
         negative = build_negative_prompt(profile, ugc_style)
+        logger.info(f"  Image prompt (single 9:16 {len(image_prompt)} chars): {image_prompt[:100]}...")
         return image_prompt, negative
 
-    # ── Legacy single-frame path (no triptych) ──
-    if ugc_style == "product_demo":
-        image_prompt = f"{product_name} centered, {scene}. {lighting}. --ar 9:16"
-    elif ugc_style in ("talking", "talking_head"):
-        # Talking-head framing: face directly to camera, upper body, mouth visible,
-        # so Wan 2.7 lip-sync (audio-driven) has a clean face to animate instead of melting.
-        # Use a clean talking background, NOT the holding-style product scene.
-        talking_bg = (
-            "clean bright studio background, soft even light"
-        )
-        image_prompt = (f"Thai {gender_en}, upper body, facing directly to camera, "
-                        f"presenting {product_name} to the viewers while speaking, "
-                        f"natural Thai presenter, {talking_bg}. --ar 9:16")
-    else:
-        image_prompt = f"Thai {gender_en}, {action} {product_name}, {scene}, {lighting}. --ar 9:16"
-
+    # ── Human styles (holding/usage/review/talking_head/comparison/unboxing) ──
+    # Owner 2026-08-24: ONE continuous image. NO "cover / Main scene / End scene"
+    # split wording (Nano Banana rendered 3 horizontal panels from that). Build a
+    # single coherent scene from payload fields only (model, product, setting,
+    # lighting) so the model draws one unbroken 9:16 frame.
+    image_prompt = (
+        f"Single vertical 9:16 frame, one continuous scene, single camera shot, "
+        f"seamless edge to edge, no panels, no split: {mid_hint}; "
+        f"{product_name} facing the camera, {parts_colors}{lighting}. "
+        f"Show exactly the item(s) from the reference product image — render every "
+        f"variant/color that appears in it. NO text, letters, words, labels, logos "
+        f"or watermark. Cohesive consistent style, high quality product "
+        f"photography. --ar 9:16"
+    )
+    logger.info(f"  Image prompt (single continuous 9:16 {len(image_prompt)} chars): {image_prompt[:100]}...")
+    image_prompt = _apply_prompt_anchor(ugc_style, image_prompt, product_name)
     negative = build_negative_prompt(profile, ugc_style)
-
-    logger.info(f"  Image prompt ({len(image_prompt)} chars): {image_prompt[:80]}...")
     return image_prompt, negative
 
 
@@ -816,37 +722,12 @@ def _youngest_age(age_str: str) -> str:
     return m.group(0) if m else ""
 
 
-def _short_pair_tagline(profile: dict) -> str:
-    """Short tagline for the person-holding panels: names the two distinct products
-    without repeating the full appearance. E.g. 'pink GLUTA + orange TRIPLE C'."""
-    appearance = (profile or {}).get("product_appearance", "") or ""
-    # Extract short label/brand tokens like 'GLUTA' / 'TRIPLE C' if present.
-    import re
-    m = re.findall(r"\b([A-Za-z][A-Za-z0-9 ]{2,20})\b", appearance)
-    keep = []
-    from collections import OrderedDict
-    for tok in m:
-        t = tok.strip()
-        low = t.lower()
-        if low in {"bottle", "bottles", "the", "one", "two", "with", "a", "label",
-                   "labels", "and", "of", "orange", "pink", "1000", "250"}:
-            continue
-        if t not in keep:
-            keep.append(t)
-        if len(keep) >= 3:
-            break
-    if keep:
-        caps = [t if t.isupper() else t.title() for t in keep]
-        return "pink GLUTA + orange TRIPLE C" if "GLUTA" in appearance and "TRIPLE" in appearance else " + ".join(caps[:2])
-    return "two distinct bottles as a matched pair, both labels clearly visible"
-
-
 def _beat_panel_hint(profile, product_name, model_desc, action, scene, panel_role: str) -> str:
-    """Derive a clean English visual hint for one triptych panel.
+    """Derive a clean English visual hint for the single 9:16 image frame.
 
-    Builds a compact visual instruction Nano Banana understands — panel_role is
-    cover / middle / right. Uses the product's appearance (Mistral) to add detail.
-    Keeps hints visual (English) rather than raw Thai script text.
+    Builds a compact visual instruction Nano Banana understands. Uses the
+    product's appearance (Mistral) to add detail. Keeps hints visual (English)
+    rather than raw Thai script text.
     model_desc = e.g. 'Thai woman, 25-35 years old' (already age/demographic).
     """
     appearance = (profile or {}).get("product_appearance", "") or ""
@@ -872,10 +753,10 @@ def _beat_panel_hint(profile, product_name, model_desc, action, scene, panel_rol
                 f"{model_desc} holding the product(s) from the reference image, "
                 f"bottles facing the camera, {scene}"
             )
-    else:  # right
+    else:  # result
         base = (
-            f"the same {model_desc} from panel 2, wearing the same outfit as "
-            f"panel 2, smiling showing a happy result, product(s) still in hand"
+            f"the same {model_desc} from the first part of the frame, wearing the "
+            f"same outfit, smiling showing a happy result, product(s) still in hand"
         )
     return base
 
@@ -1013,7 +894,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         vp_product = _clean_product_name_for_video(product_name)
         gender_en = {"female": "Woman", "male": "Man", "unisex": "Person"}.get(model_gender, "Woman")
 
-        # SSOT end scene (same one image panel 3 uses) → beat 3 result + closing.
+        # SSOT end scene (same one the image frame uses) → beat 3 result + closing.
         es = profile.get("_end_scene") or _pick_end_scene(category, subcategory=subcategory, profile=profile)
         profile["_end_scene"] = es
         _result = es.get("result_focus") or "the result"
@@ -1103,7 +984,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     # ── No-human styles: NO-human product video prompt ──
     # Wan 2.7 animates the product rotating / revealing itself (product_demo) or a
     # first-person POV using the product (pov), without showing a person's face.
-    # The first/only frame comes from the matching no-human triptych (image) so
+    # The first/only frame comes from the matching no-human single 9:16 (image) so
     # video + image stay consistent. (We deliberately exclude no-human styles from
     # the 4-beat path above and give them their own branch here rather than falling
     # through to the legacy `else` which would inject a person.)

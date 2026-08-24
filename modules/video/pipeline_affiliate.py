@@ -1089,6 +1089,9 @@ def run_pipeline(
             # เจ้าสั่งให้ Wan พูด Thai script เสมอใน flow ปกติ → เปิดโหมด A อัตโนมัติ
             use_tus_voice = True
             logger.info(f"  🎙 Voice mode A: auto ใช้ script เป็น thai_script + เปิด use_tus_voice (Wan พูดเอง, ความยาว {len(thai_script)} ตัวอักษร)")
+        if thai_script:
+            # Verification aid (owner 2026-08-24): log the EXACT spoken lines
+            logger.info(f"  🎙 thai_script spoken by Wan: {thai_script}")
 
         # ── STEP 4: Build Image Prompt (skip if pre-computed) ──
         if not image_prompt:

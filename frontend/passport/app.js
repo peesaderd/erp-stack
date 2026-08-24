@@ -1,6 +1,6 @@
 /* ══════════ STATE ══════════ */
 var API='/api/passport';
-var S={photo:null,photos:[],uploaded:[],imgV:0,bulk:false,gender:'male',clothing:'keep_original',bg:'light_blue',bgType:'solid',gradient:null,bgc:null,tpl:'thai_passport',cw:null,ch:null,sid:null,cropPreset:'standard',customClothing:null,customClothingUrl:null,customClothingName:null};
+var S={photo:null,photos:[],uploaded:[],imgV:0,bulk:false,view:'photo',sheetUrl:null,gender:'male',clothing:'keep_original',bg:'light_blue',bgType:'solid',gradient:null,bgc:null,tpl:'thai_passport',cw:null,ch:null,sid:null,cropPreset:'standard',customClothing:null,customClothingUrl:null,customClothingName:null};
 var CD={male:[],female:[]},BD=[],TD=[];
 var FLAGS={Thailand:'🇹🇭',Japan:'🇯🇵',China:'🇨🇳','South Korea':'🇰🇷','United States':'🇺🇸','United Kingdom':'🇬🇧','European Union':'🇪🇺',Canada:'🇨🇦',Australia:'🇦🇺',India:'🇮🇳',Singapore:'🇸🇬',Malaysia:'🇲🇾',Philippines:'🇵🇭',Indonesia:'🇮🇩',Vietnam:'🇻🇳',Cambodia:'🇰🇭',Laos:'🇱🇦',Myanmar:'🇲🇲','Hong Kong':'🇭🇰',France:'🇫🇷',Germany:'🇩🇪'};
 var SOLID_COLORS=[
@@ -18,6 +18,11 @@ var SOLID_COLORS=[
 function $(id){return document.getElementById(id)}
 function $$(sel){return document.querySelectorAll(sel)}
 function bumpImg(){S.imgV++} // bump ONLY when a stored file is overwritten → new URL busts caches
+function setView(v){
+  S.view=v;
+  if(v==='sheet'){$('btnDl').textContent='⬇️ Download Sheet';$('btnDlT').classList.add('hidden');}
+  else{$('btnDl').textContent='⬇️ Download';}
+}
 
 /* ══════════ INIT ══════════ */
 window.addEventListener('DOMContentLoaded',function(){
@@ -225,6 +230,7 @@ function setActiveUpload(sid,i){
 }
 
 function renderUploadedPreview(){
+  setView('photo');
   $('ri').src=API+'/download/'+S.sid+'_passport.jpg?v='+S.imgV;
   updatePreviewAspect(null);
   $('previewBg').style.background='';
@@ -302,6 +308,7 @@ async function generateAll(){
 function showResult(d,isBulk){
   // no detail rows under preview (owner) — thumbnails/results slider is the only thing below
   bumpImg();
+  setView('photo');
   $('ri').src=API+'/download/'+S.sid+'_passport.jpg?v='+S.imgV;
   $('sec3').classList.remove('hidden');
   $('previewCard').classList.remove('hidden');
@@ -320,6 +327,10 @@ function showResult(d,isBulk){
       sh+='<div style="font-size:.55rem;color:#64748b;margin-top:4px">'+(i+1)+'</div></div>';
     }
     $('sliderWrap').innerHTML=sh;
+  }else if(S.uploaded&&S.uploaded.length>1){
+    // manual edit with multiple uploads — KEEP strip so other photos stay selectable
+    renderUploadStrip();
+    $('genAllBtn').classList.remove('hidden');
   }else{
     $('batchPreview').classList.add('hidden');
   }
@@ -328,7 +339,7 @@ function showResult(d,isBulk){
 }
 
 function selectBatchResult(sid,i){
-  S.sid=sid;
+  S.sid=sid;setView('photo');
   $('ri').src=API+'/download/'+sid+'_passport.jpg?v='+S.imgV;
   $$('.slide-item').forEach(function(el,idx){
     el.querySelector('img').style.borderColor=idx===i?'#6366f1':'#334155';
@@ -463,10 +474,12 @@ async function genPrintSheet(){
       if(!d.download_url)throw new Error('sheet url missing');
       // owner rule: print sheet previews on the MAIN preview box above (object-fit:contain shows whole sheet)
       bumpImg();
-      var imgUrl=location.origin+d.download_url+'?v='+S.imgV;
+      S.sheetUrl=location.origin+d.download_url;
+      var imgUrl=S.sheetUrl+'?v='+S.imgV;
       $('batchPreview').classList.add('hidden');
       $('ri').src=imgUrl;
       updatePreviewAspect(null);
+      setView('sheet'); // Download button now fetches the SHEET
       if($('previewBox'))$('previewBox').scrollIntoView({behavior:'smooth',block:'center'});
       toast('Print sheet ready! 🖨️ '+(d.info||''),'ok');
     }
@@ -495,9 +508,13 @@ function updatePreviewAspect(ratio){
 
 /* ══════════ DOWNLOADS ══════════ */
 function dl(type){
-  if(!S.sid)return;
-  var url=API+'/download/'+S.sid+(type==='transparent'?'_transparent.png':'_passport.jpg');
-  var a=document.createElement('a');a.href=url;a.download='';document.body.appendChild(a);a.click();document.body.removeChild(a);
+  var a=document.createElement('a');a.download='';document.body.appendChild(a);
+  if(S.view==='sheet'&&S.sheetUrl){a.href=S.sheetUrl;}   // print sheet file
+  else{
+    if(!S.sid)return;
+    a.href=API+'/download/'+S.sid+(type==='transparent'?'_transparent.png':'_passport.jpg');
+  }
+  a.click();document.body.removeChild(a);
 }
 
 function dlTransparent(){

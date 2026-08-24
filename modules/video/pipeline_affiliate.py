@@ -568,35 +568,12 @@ def _clean_product_name_for_video(product_name: str) -> str:
     return "product"
 
 
-# STEP 7: TTS (Gemini only — NO Edge TTS)
-# ═══════════════════════════════════════════════════════════════════════════
-# 2026-08-15: Edge TTS ถูกถอดออกจาก TUS แล้ว — ใช้ Gemini TTS อย่างเดียว
-# (เสียง Thai คุณภาพสูง + ไม่มี dependency กับ Microsoft endpoint)
+# STEP 7: REMOVED — Gemini TTS stripped from TUS entirely (owner 2026-08-24).
+# Voice = Wan 2.7 speaks thai_script directly (Voice mode A only).
+# No Gemini TTS generation, no lip-sync audio, no voiceover merge.
+# Prevents future Voice mode A/B confusion (owner directive).
 
-def generate_voice(
-    text: str,
-    voice: str = "Aoede",
-    run_id: str = "",
-) -> str:
-    """Step 7: Generate Thai voice via Gemini TTS only. NO Edge TTS."""
-    logger.info(f"Step 7/9: TTS (Gemini — No Edge TTS)")
-    logger.info(f"  Text: {text[:50]}...")
-
-    output_path = str(TMP_DIR / f"voice_{run_id}.mp3")
-
-    try:
-        from video.gemini_tts import gemini_text_to_speech
-        tts_path = gemini_text_to_speech(text, output_path=output_path, voice=voice)
-        if tts_path and Path(tts_path).exists():
-            logger.info(f"  Gemini TTS OK: {tts_path}")
-            return tts_path
-        logger.error(f"  Gemini TTS returned empty path: {tts_path}")
-    except Exception as e:
-        logger.error(f"  Gemini TTS failed: {e}")
-
-    return ""
-
-# ═══════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════
 # STEP 8: Generate Video (Prodia Wan 2.7 Sync API)
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -604,25 +581,6 @@ def generate_voice(
 from prodia_client import ProdiaV2Client, ProdiaV2Error, ProdiaValidationError
 
 
-def _convert_to_wav(audio_path: str) -> str:
-    """Convert TTS audio to 16kHz mono PCM WAV for accurate Prodia Lip-sync."""
-    if not audio_path or not os.path.exists(audio_path):
-        return audio_path
-    wav_path = str(Path(audio_path).parent / f"{Path(audio_path).stem}_16k.wav")
-    try:
-        import subprocess
-        cmd = [
-            "ffmpeg", "-y", "-i", audio_path,
-            "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le",
-            wav_path
-        ]
-        subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        if os.path.exists(wav_path) and os.path.getsize(wav_path) > 500:
-            logger.info(f"Converted audio to 16kHz WAV for Lip-sync: {wav_path}")
-            return wav_path
-    except Exception as e:
-        logger.warning(f"Audio WAV conversion notice ({e}), using original file: {audio_path}")
-    return audio_path
 
 
 def generate_video(
@@ -630,7 +588,6 @@ def generate_video(
     prompt: str,
     duration: int = 8,
     resolution: str = "720P",
-    audio_path: Optional[str] = None,
     negative_prompt: Optional[str] = None,
     reference_image: Optional[str] = None,
     first_frame: Optional[str] = None,
@@ -680,23 +637,13 @@ def generate_video(
     if ref_bytes:
         logger.info(f"  ▶ reference_image: {len(ref_bytes)} bytes")
 
-    # ── Voice mode split (owner rule 2026-08-21) ─────────────────────────────
-    # โหมด A (thai_script + use_tus_voice): ให้ Wan พูดเองตามบทไทย → ห้ามส่ง audio
-    #   (ส่ง script ใน prompt อย่างเดียว, ไม่ lip-sync audio — ป้องกันทับกันไม่สนิท)
-    # โหมด B (default): lip-sync ตาม TTS audio → ห้ามฝัง script ใน prompt (กันปากมั่ว)
+    # ── Voice mode A ONLY (owner 2026-08-24: Gemini TTS removed from TUS) ──
+    # Wan 2.7 speaks thai_script directly. No lip-sync audio is ever sent.
     thai_voice_mode = bool(thai_script and use_tus_voice)
 
     audio_bytes = None
     if thai_voice_mode:
-        logger.info("  🎙 Voice mode A: thai_script ให้ Wan พูดเอง → ข้าม audio TTS (ไม่ lip-sync)")
-    elif audio_path:
-        ap = Path(audio_path)
-        if ap.exists():
-            with open(ap, "rb") as af:
-                audio_bytes = af.read()
-            logger.info(f"  🎤 Lip-Sync (TTS): {len(audio_bytes)} bytes — ส่ง audio ให้ Wan (docs-exact)")
-        else:
-            logger.warning(f"  ⚠️ audio_path ไม่พบ: {audio_path} — ข้าม lip-sync")
+        logger.info("  🎙 Voice mode A: thai_script ให้ Wan พูดเอง (Gemini TTS ถูกถอดออกจาก TUS แล้ว)")
 
     # ── Thai script (Thai-voice mode): ฝังบทพูดไทยใน prompt เพื่อให้ Wan ขยับปาก
     # ตรงตามเสียง Thai voiceover จริง (ไม่ใช่เดาเสียงจาก audio อย่างเดียว)
@@ -915,36 +862,8 @@ def compose_video(
             except Exception as e:
                 logger.warning(f"  9a.5: Loop failed ({e}), using original concat")
 
-    # Step 9b: Force-merge Gemini TTS voiceover audio into the video
+    # Step 9b: REMOVED — Gemini TTS voiceover stripped from TUS (owner 2026-08-24).
     final_path = concat_path
-    if voice_path and Path(voice_path).exists():
-        logger.info(f"  9b: Merging TTS voiceover audio {voice_path} into final video")
-        voiced_path = STORAGE_DIR / f"affiliate_{run_id}_voiced.mp4"
-        # FIX (dead voice_speed): apply the voice_speed via ffmpeg atempo filter.
-        # voice_speed=1.0 by default — Gemini TTS already speaks at speaking_rate
-        # (1.2); do NOT atempo-speed it again or the audio shortens (~9s in a 15s
-        # clip) and the tail goes silent. atempo supports 0.5-2.0.
-        cmd_voice = [
-            "ffmpeg", "-y",
-            "-i", str(concat_path),
-            "-i", str(voice_path),
-            "-filter:a", f"atempo={voice_speed}",
-            "-c:v", "copy",
-            "-c:a", "aac",
-            "-map", "0:v:0",
-            "-map", "1:a:0",
-            "-t", str(target_duration),
-            str(voiced_path)
-        ]
-        try:
-            subprocess.run(cmd_voice, check=True, capture_output=True, timeout=60)
-            if voiced_path.exists() and voiced_path.stat().st_size > 1000:
-                final_path = voiced_path
-                logger.info(f"  9b: Voiceover merged successfully (atempo={voice_speed}) -> {final_path}")
-        except Exception as ve:
-            logger.error(f"  9b: Merging voiceover failed ({ve}), using concat video")
-    else:
-        final_path = concat_path
 
 
     # Step 9c: Add BGM
@@ -1159,12 +1078,10 @@ def run_pipeline(
         except Exception:
             pass
 
-        # ── VOICE MODE A (owner 2026-08-23): ให้ Wan พูด Thai script เอง ──
-        # เจ้าตัดสินใจใช้เส้นทาง "สั่งให้ Wan พูด Thai script" (โหมด A) แทน Gemini TTS lip-sync.
-        # ถ้ามีบท (script/thai_script) ข้างใน → auto ใช้บทนั้นเป็น thai_script + บังคับ use_tus_voice=True
-        # เพื่อให้ Wan พูดตามบทไทยจริง (ปากตรง) และ compose จะไม่เอา Gemini TTS มาทับ (compose_voice=None).
-        # พฤติกรรมเดิม (โหมด B, TTS lip-sync) ยังเปิดได้ถ้า caller ส่ง use_tus_voice=False ชัดเจน
-        # โดยไม่ให้ script → แต่ default flow (recipe มี script) จะเป็นโหมด A เสมอ = Wan พูดเอง.
+        # ── VOICE MODE A ONLY (Gemini TTS removed from TUS — owner 2026-08-24) ──
+        # Wan 2.7 พูด Thai script เองเสมอ: ถ้ามีบท (script/thai_script) →
+        # auto ใช้บทนั้นเป็น thai_script + บังคับ use_tus_voice=True
+        # ไม่มี Gemini TTS lip-sync แล้ว — เสียงในไฟล์จริงคือเสียงของ Wan เท่านั้น
         thai_script = (thai_script or script or "").strip()
         if thai_script and not use_tus_voice:
             # เจ้าสั่งให้ Wan พูด Thai script เสมอใน flow ปกติ → เปิดโหมด A อัตโนมัติ
@@ -1238,29 +1155,10 @@ def run_pipeline(
         except Exception as e:
             logger.warning(f"Logger update_prompts failed: {e}")
 
-        # ── STEP 7: TTS (ข้ามถ้าไม่มี voice หรือ recipe ไม่ได้ตั้งค่า tts) ──
-        # โหมด A (Wan พูดเอง) → ข้าม Gemini TTS ทั้งหมด (ไม่สร้าง voice_path) → กัน TTS ทับ Wan
-        _voice_mode_a_7 = bool(thai_script and use_tus_voice)
-        if script and not _voice_mode_a_7:
-            step_start = time.time()
-            voice_path = generate_voice(script, voice=voice, run_id=run_id)
-            tts_duration = int((time.time() - step_start) * 1000)
-            cost_voice = (len(script) / 1000) * 0.0001
-
-            try:
-                update_step(job_id, 'tts', {'duration_ms': tts_duration, 'output_path': voice_path})
-                update_cost(job_id, 'voice', cost_voice)
-            except Exception:
-                pass
-        elif _voice_mode_a_7:
-            # โหมด A: ไม่ต้องสร้าง Gemini TTS — Wan พูดเองตาม thai_script
-            logger.info("Step 7/9: Skipped (Voice mode A — Wan พูดเอง, ไม่สร้าง Gemini TTS)")
-            voice_path = None
-            cost_voice = 0.0
-        else:
-            logger.info(f"Step 7/9: Skipped (no voice)")
-            voice_path = None
-            cost_voice = 0.0
+        # ── STEP 7: REMOVED (Gemini TTS stripped from TUS — owner 2026-08-24) ──
+        voice_path = None
+        cost_voice = 0.0
+        logger.info("Step 7/9: REMOVED — Gemini TTS ถูกถอดออกจาก TUS (Wan พูด thai_script เอง)")
 
         # ── STEP 8: Generate 1 Video (Wan 2.7 Sync, 1 clip full duration) ──
         # WHY 1 clip: Wan 2.7 img2vid generates from a SINGLE image reference.
@@ -1308,12 +1206,8 @@ def run_pipeline(
                 f"  ▶ Wan frames: first=({Path(ff).name}), last=({Path(lf).name})"
             )
 
-        # ── Voice mode A (Wan พูดเอง) → ไม่ส่ง TTS audio (กัน TTS ทับเสียง Wan) ──
-        # โหมด B (default เดิม) → ส่ง TTS audio ให้ Wan lip-sync
-        _voice_mode_a = bool(thai_script and use_tus_voice)
-        _gen_audio = None if _voice_mode_a else (_convert_to_wav(audio_path or voice_path) if (audio_path or voice_path) else None)
-        audio_path_out = _gen_audio
-        logger.info(f"  🎙 SP8 audio_mode={'A (Wan พูดเอง, ไม่ส่ง TTS)' if _voice_mode_a else 'B (lip-sync TTS)'}: audio_path={'None' if _gen_audio is None else _gen_audio}")
+        # Gemini TTS removed from TUS (owner 2026-08-24): no lip-sync audio.
+        logger.info("  🎙 SP8: Wan พูดเอง (Voice mode A เท่านั้น)")
         vid_path, cost_video = generate_video(
             image_path=str(img_path),
             prompt=vprompt,
@@ -1352,15 +1246,9 @@ def run_pipeline(
         # เดิม forced ใช้ actual_video_duration → 15s job กลายเป็น 8s ไม่ง่าย target
         target_duration = total_duration if total_duration > 0 else recipe.get("total_duration", 0)
         final_duration = target_duration if target_duration > 0 else 0
-        # ── Voice mode split (owner rule 2026-08-21) ─────────────
-        # โหมด A (thai_script + use_tus_voice): ให้ Wan พูดเองตามบทไทย → ไม่ mix TTS
-        #   voiceover ที่ compose (กัน TTS ทับ Wan 2 ชั้น ไม่สนิท)
-        thai_voice_mode = bool(thai_script and use_tus_voice)
-        compose_voice = None if thai_voice_mode else voice_path
-        if thai_voice_mode:
-            logger.info("  🎙 Voice mode A: ข้าม TTS voiceover ที่ compose (Wan พูดเองแล้ว)")
-        # เสียงจริง = TTS voiceover ทับที่ compose (docs-exact: TTS+BGM ที่ FFmpeg)
-        final_path, raw_path = compose_video(video_paths, compose_voice, run_id, bgm_style, target_duration=final_duration)
+        # Gemini TTS removed from TUS (owner 2026-08-24): compose mixes BGM
+        # over Wan's own audio only — never a TTS voiceover.
+        final_path, raw_path = compose_video(video_paths, None, run_id, bgm_style, target_duration=final_duration)
 
         # Preserve the TRUE Prodia output (before any compose/edit) permanently.
         # raw_path = affiliate_{run_id}_raw.mp4 is a POST-compose concat output.

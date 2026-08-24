@@ -245,35 +245,10 @@ async def generate_affiliate_script(req: AffiliateScriptRequest):
 async def get_affiliate_config():
     return {"success": True, "config": {}}
 
-# ─── TTS (Gemini) ──────────────────────────────────────────────────────
-
-@app.post("/api/v1/tts/generate")
-async def generate_tts(req: dict):
-    """Generate TTS audio from text using Gemini."""
-    from video.gemini_tts import gemini_text_to_speech
-    text = req.get("text", "")
-    voice = req.get("voice", "Aoede")
-    if not text:
-        return {"success": False, "error": "No text provided"}
-    output_path = str(TTS_DIR / f"tts_{uuid.uuid4().hex[:8]}.mp3")
-    filepath = gemini_text_to_speech(text, output_path=output_path, voice=voice)
-    return {"success": True, "filepath": filepath}
-
-@app.post("/api/v1/tts/script")
-async def generate_script_tts(req: dict):
-    """Generate TTS from a full script using Gemini."""
-    from video.gemini_tts import gemini_text_to_speech
-    script = req.get("script", {})
-    hook = script.get("hook", "")
-    body = script.get("body", "") or script.get("value_proposition", "")
-    cta = script.get("cta", "")
-    full_text = " ".join(filter(None, [hook, body, cta]))
-    if not full_text.strip():
-        return {"success": False, "error": "No text in script"}
-    voice = req.get("voice", "Aoede")
-    output_path = str(TTS_DIR / f"script_{uuid.uuid4().hex[:8]}.mp3")
-    filepath = gemini_text_to_speech(full_text, output_path=output_path, voice=voice)
-    return {"success": True, "filepath": filepath}
+# ─── TTS REMOVED (owner 2026-08-24) ──────────────────────────────────────
+# Gemini TTS endpoints (/api/v1/tts/generate, /api/v1/tts/script) removed from
+# TUS entirely. Voice = Wan 2.7 speaks thai_script directly in the pipeline.
+# No TTS generation lives here anymore.
 
 # ─── Video Generation ────────────────────────────────────────────────
 

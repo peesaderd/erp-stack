@@ -512,17 +512,6 @@ async def remove_bg(req: RemoveBgRequest):
             img_bytes = f.read()
         try:
             transparent_png, pil_image = remove_background(img_bytes)
-            try:  # owner 2026-08-24: strip residual bg baked opaque + feather edge
-                _arr = cv2.imdecode(np.frombuffer(transparent_png, np.uint8), cv2.IMREAD_UNCHANGED)
-                if _arr is not None and _arr.ndim == 3 and _arr.shape[2] == 4:
-                    from bg_remover import clean_mask_halo
-                    _arr = clean_mask_halo(_arr)
-                    _okb, _buf = cv2.imencode(".png", _arr)
-                    if _okb:
-                        transparent_png = _buf.tobytes()
-                        pil_image = Image.fromarray(cv2.cvtColor(_arr, cv2.COLOR_BGRA2RGBA))
-            except Exception as _e:
-                logger.warning(f"mask halo cleanup skipped: {_e}")
             # transparent PNG = reusable cache for free color swaps (not a state flip);
             # ledger moves to "bg" below since remove-bg returns the COLORED photo.
             with open(transparent_path, "wb") as f:

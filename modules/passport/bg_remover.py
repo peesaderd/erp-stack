@@ -148,3 +148,50 @@ def apply_background(pil_image: Image.Image, color: str = "#FFFFFF") -> Image.Im
     bg = Image.new("RGBA", pil_image.size, color)
     bg.paste(pil_image, (0, 0), pil_image)
     return bg.convert("RGB")
+
+
+# ── Halo / residual-background cleanup (owner task 2026-08-24 16:06) ──
+def clean_mask_halo(rgba, thr: float = 34.0, max_iter: int = 500):
+    """
+    Clean a BGRA ndarray returned by remove_background():
+    1) leftover BACKGROUND baked as OPAQUE pixels (murky band when recoloured)
+       -> flood-fill from borders over colour-similar pixels -> alpha=0
+    2) gentle feather only on already-partial silhouette edge pixels
+    Subject colours far from bg stay untouched (flood cannot cross hard edges).
+    """
+    import cv2 as _cv
+    import numpy as _np
+
+    out = rgba.copy()
+    rgb = out[:, :, :3].astype(_np.int16)
+    alpha = out[:, :, 3]
+    h, w = alpha.shape
+
+    border = ([(0, x) for x in range(w)] + [(h - 1, x) for x in range(w)]
+              + [(y, 0) for y in range(h)] + [(y, w - 1) for y in range(h)])
+    cols = _np.array([rgb[y, x] for y, x in border], dtype=_np.int16)
+    als = _np.array([alpha[y, x] for y, x in border], dtype=_np.uint8)
+    opaque = als > 200
+    bg = _np.median(cols[opaque], axis=0) if opaque.any() else _np.median(cols, axis=0)
+
+    dist = _np.sqrt(((rgb - bg.reshape(1, 1, 3)) ** 2).sum(axis=2))
+    seed = _np.zeros((h, w), dtype=bool)
+    bys = _np.array([p[0] for p in border]); bxs = _np.array([p[1] for p in border])
+    seed[bys[dist[bys, bxs] < thr * 0.8], bxs[dist[bys, bxs] < thr * 0.8]] = True
+
+    grown = seed.copy()
+    allowed = dist < thr
+    k = _np.ones((3, 3), _np.uint8)
+    for _ in range(max_iter):
+        step = (_cv.dilate(grown.astype(_np.uint8), k) > 0) & allowed & (~grown)
+        if not step.any():
+            break
+        grown |= step
+
+    out[:, :, 3] = _np.where(grown, 0, alpha)
+
+    edge = ((alpha > 0) & (alpha < 255)).astype(_np.uint8)
+    if edge.any():
+        sm = _cv.GaussianBlur(out[:, :, 3], (3, 3), 0.9)
+        out[:, :, 3] = _np.where(edge > 0, sm, out[:, :, 3])
+    return out

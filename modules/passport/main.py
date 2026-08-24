@@ -953,7 +953,14 @@ def recrop_photo(req: dict):
     storage = STORAGE_DIR
     flux_raw_path = storage / f"{session_id}_flux_raw.jpg"
     if not flux_raw_path.exists():
-        raise HTTPException(404, f"FLUX raw output not found for {session_id}. Generate a photo first.")
+        # real sessions don't keep _flux_raw.jpg — fall back to the final photo
+        for alt_name in (f"{session_id}_passport.jpg", f"{session_id}_bg.jpg"):
+            alt = storage / alt_name
+            if alt.exists():
+                flux_raw_path = alt
+                break
+        else:
+            raise HTTPException(404, f"No image found for {session_id}. Generate a photo first.")
     
     # Load FLUX raw output
     img = cv2.imread(str(flux_raw_path))

@@ -106,7 +106,6 @@
     <div id="batchPreview" class="hidden" style="margin:10px 0">
       <div class="slider-wrap" id="sliderWrap" style="justify-content:center"></div>
     </div>
-    <div class="res-stats" id="rs"></div>
     <div class="res-btns">
       <button class="btn-p hidden" id="btnDl" style="padding:9px 16px;font-size:.72rem" onclick="dl('passport')">⬇️ Download</button>
       <button class="btn-c hidden" id="btnDlT" style="padding:9px 16px;font-size:.72rem" onclick="dlTransparent()">💎 Transparent</button>
@@ -137,6 +136,7 @@
       </div>
     </div>
     <button class="gen-btn" id="genBtn" disabled onclick="generate()"><span class="ico">🚀</span> Generate</button>
+    <button class="gen-btn hidden" id="genAllBtn" onclick="generateAll()" style="background:#059669;margin-top:8px"><span class="ico">⚡</span> Generate ทั้งหมด (batch)</button>
   </div>
 
   <!-- Tab 1: Background -->

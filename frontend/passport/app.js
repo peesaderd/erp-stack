@@ -1,6 +1,6 @@
 /* ══════════ STATE ══════════ */
 var API='/api/passport';
-var S={photo:null,photos:[],bulk:false,gender:'male',clothing:'keep_original',bg:'light_blue',bgType:'solid',gradient:null,bgc:null,tpl:'thai_passport',cw:null,ch:null,sid:null,cropPreset:'standard',customClothing:null,customClothingUrl:null,customClothingName:null};
+var S={photo:null,photos:[],uploaded:[],bulk:false,gender:'male',clothing:'keep_original',bg:'light_blue',bgType:'solid',gradient:null,bgc:null,tpl:'thai_passport',cw:null,ch:null,sid:null,cropPreset:'standard',customClothing:null,customClothingUrl:null,customClothingName:null};
 var CD={male:[],female:[]},BD=[],TD=[];
 var FLAGS={Thailand:'🇹🇭',Japan:'🇯🇵',China:'🇨🇳','South Korea':'🇰🇷','United States':'🇺🇸','United Kingdom':'🇬🇧','European Union':'🇪🇺',Canada:'🇨🇦',Australia:'🇦🇺',India:'🇮🇳',Singapore:'🇸🇬',Malaysia:'🇲🇾',Philippines:'🇵🇭',Indonesia:'🇮🇩',Vietnam:'🇻🇳',Cambodia:'🇰🇭',Laos:'🇱🇦',Myanmar:'🇲🇲','Hong Kong':'🇭🇰',France:'🇫🇷',Germany:'🇩🇪'};
 var SOLID_COLORS=[
@@ -176,6 +176,7 @@ async function handleFiles(e){
       var dd=await rr.json();
       if(dd.ok)S.photos.push({sid:dd.session_id,gender:dd.gender});
     }
+    S.uploaded=[{sid:S.sid,gender:S.gender}].concat(S.photos);
     goOptions();
   }catch(err){
     $('upErr').textContent='Upload failed: '+err.message;$('upErr').classList.remove('hidden');
@@ -190,8 +191,36 @@ function goOptions(){
   $('sec3').classList.remove('hidden');
   $('previewCard').classList.remove('hidden');
   renderUploadedPreview();
+  if(S.uploaded.length>1){
+    renderUploadStrip();
+    $('genAllBtn').classList.remove('hidden');
+  }else{
+    $('batchPreview').classList.add('hidden');
+    $('genAllBtn').classList.add('hidden');
+  }
   renderClothing();
   setTimeout(function(){$('sec3').scrollIntoView({behavior:'smooth',block:'start'})},200);
+}
+
+function renderUploadStrip(){
+  // owner rule: bulk upload must show ALL uploaded photos here, click to switch active for manual edit
+  $('batchPreview').classList.remove('hidden');
+  var sh='';
+  for(var i=0;i<S.uploaded.length;i++){
+    var u=S.uploaded[i];
+    sh+='<div class="slide-item'+(u.sid===S.sid?' active':'')+'" onclick="setActiveUpload(\''+u.sid+'\','+i+')">';
+    sh+='<img src="'+API+'/download/'+u.sid+'_passport.jpg?t='+Date.now()+'">';
+    sh+='<div style="font-size:.55rem;color:#64748b;margin-top:4px">'+(i+1)+'</div></div>';
+  }
+  $('sliderWrap').innerHTML=sh;
+}
+
+function setActiveUpload(sid,i){
+  S.sid=sid;
+  if(S.uploaded[i]&&S.uploaded[i].gender)S.gender=S.uploaded[i].gender;
+  renderUploadedPreview();
+  $$('.slide-item').forEach(function(el,idx){el.classList.toggle('active',idx===i)});
+  renderClothing();
 }
 
 function renderUploadedPreview(){
@@ -201,7 +230,6 @@ function renderUploadedPreview(){
   // no detail text under preview — that slot belongs to the batch thumbnail slider
   // downloads appear only after the first generation
   $('btnDl').classList.add('hidden');$('btnDlT').classList.add('hidden');
-  $('rs').innerHTML='';
 }
 
 function newPhoto(){
@@ -210,13 +238,14 @@ function newPhoto(){
 }
 
 function clearAll(){
-  S.photo=null;S.photos=[];S.bulk=false;S.sid=null;S.customClothing=null;S.customClothingUrl=null;S.customClothingName=null;S.fileName=null;
+  S.photo=null;S.photos=[];S.uploaded=[];S.bulk=false;S.sid=null;S.customClothing=null;S.customClothingUrl=null;S.customClothingName=null;S.fileName=null;
   $('fi').value='';
   $('sec1').classList.remove('hidden');
   $('upErr').classList.add('hidden');
   $('sec3').classList.add('hidden');
   $('previewCard').classList.add('hidden');
   $('batchPreview').classList.add('hidden');
+  $('genAllBtn').classList.add('hidden');
   $('custPreviewWrap').classList.add('hidden');
   $('genBtn').disabled=false;
   localStorage.removeItem('passport_custom_clothing');
@@ -232,14 +261,10 @@ async function generate(){
     if(S.ch)body.custom_height=S.ch;
     if(S.cropPreset)body.crop_preset=S.cropPreset;
 
-    if(S.bulk&&S.photos.length>0){
-      body.bulk_sessions=[S.sid].concat(S.photos.map(function(p){return p.sid}));
-      var d=await api('/bulk-generate',body);
-    }else{
-      var d=await api('/generate',body);
-    }
+    // Generate = ACTIVE photo only (manual edit) — use ⚡ Generate ทั้งหมด for batch
+    var d=await api('/generate',body);
     if(d.ok){
-      showResult(d,S.bulk);
+      showResult(d,false);
     }else{
       throw new Error(d.detail||'Generation failed');
     }
@@ -251,17 +276,30 @@ async function generate(){
   hideOv();
 }
 
-function showResult(d,isBulk){
-  var dt=d.dimensions_px||{};
-  var stats='';
-  stats+='<div class="rst"><div class="v">'+(d.time_seconds||'?')+'s</div><div class="l">Time</div></div>';
-  stats+='<div class="rst"><div class="v">'+(dt.w||'?')+'×'+(dt.h||'?')+'</div><div class="l">px</div></div>';
-  stats+='<div class="rst"><div class="v">'+(d.gender==='male'?'👨':d.gender==='female'?'👩':'—')+'</div><div class="l">Gender</div></div>';
-  if(isBulk&&d.results){
-    var okCount=d.results.filter(function(r){return r.ok}).length;
-    stats+='<div class="rst"><div class="v">'+okCount+'/'+d.results.length+'</div><div class="l">Batch</div></div>';
+async function generateAll(){
+  if(!S.uploaded||S.uploaded.length<2)return;
+  showOv('Batch generating '+S.uploaded.length+' photos...','AI processing all uploaded photos');
+  try{
+    var body={session_id:S.sid,clothing:S.clothing,gender:S.gender,bg:S.bgc||S.bg||'light_blue',template:S.tpl};
+    if(S.cw)body.custom_width=S.cw;
+    if(S.ch)body.custom_height=S.ch;
+    if(S.cropPreset)body.crop_preset=S.cropPreset;
+    body.bulk_sessions=S.uploaded.map(function(u){return u.sid});
+    var d=await api('/bulk-generate',body);
+    if(d.ok){
+      showResult(d,true);
+    }else{
+      throw new Error(d.detail||'Generation failed');
+    }
+  }catch(e){
+    toast('Error: '+e.message,'err');
+    $('upErr').textContent='Error: '+e.message;$('upErr').classList.remove('hidden');
   }
-  $('rs').innerHTML=stats;
+  hideOv();
+}
+
+function showResult(d,isBulk){
+  // no detail rows under preview (owner) — thumbnails/results slider is the only thing below
   $('ri').src=API+'/download/'+S.sid+'_passport.jpg?t='+Date.now();
   $('sec3').classList.remove('hidden');
   $('previewCard').classList.remove('hidden');
@@ -416,16 +454,14 @@ async function genPrintSheet(){
     var r=await fetch(API+'/print-sheet',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     var d=await r.json();
     if(d.ok){
-      // owner rule: print sheet must preview on the MAIN preview image above
-      var imgUrl=location.origin+'/api/passport/download/'+d.print_sheet_filename+'?t='+Date.now();
+      if(!d.download_url)throw new Error('sheet url missing');
+      // owner rule: print sheet previews on the MAIN preview box above (object-fit:contain shows whole sheet)
+      var imgUrl=location.origin+d.download_url+'?t='+Date.now();
       $('batchPreview').classList.add('hidden');
-      $('rs').innerHTML='<div class="rst"><div class="v">'+d.photo_count+'</div><div class="l">photos</div></div>'
-        +'<div class="rst"><div class="v">'+d.paper_size+'</div><div class="l">paper</div></div>'
-        +'<div class="rst"><div class="v">'+d.dimensions_px.w+'×'+d.dimensions_px.h+'</div><div class="l">px</div></div>';
       $('ri').src=imgUrl;
-      updatePreviewAspect(d.dimensions_px.w/d.dimensions_px.h);
+      updatePreviewAspect(null);
       if($('previewBox'))$('previewBox').scrollIntoView({behavior:'smooth',block:'center'});
-      toast('Print sheet ready! 🖨️','ok');
+      toast('Print sheet ready! 🖨️ '+(d.info||''),'ok');
     }
   }catch(e){toast('Print sheet failed','err')}
   hideOv();

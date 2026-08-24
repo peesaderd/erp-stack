@@ -15,6 +15,9 @@ from typing import Optional, List, Dict
 
 logger = logging.getLogger("story-coloring")
 
+# Background generation jobs (in-memory)
+_JOBS = {}
+
 # ═══════════════════════════════════════════════════════════════════
 # Config
 # ═══════════════════════════════════════════════════════════════════
@@ -75,6 +78,60 @@ def get_styles() -> list:
         {"key": k, "label": v["label"], "emoji": v["emoji"]}
         for k, v in COLORING_STYLES.items()
     ]
+
+
+# ═════════════════════════════════════════════════════════
+# 🔤 Alphabet Book — A–Z template builder
+# ═════════════════════════════════════════════════════════
+
+DEFAULT_ABC_WORDS = {
+    'A': 'Apple', 'B': 'Bear', 'C': 'Cat', 'D': 'Dog', 'E': 'Elephant', 'F': 'Fish',
+    'G': 'Grapes', 'H': 'House', 'I': 'Ice Cream', 'J': 'Jellyfish', 'K': 'Kite', 'L': 'Lion',
+    'M': 'Monkey', 'N': 'Nest', 'O': 'Owl', 'P': 'Penguin', 'Q': 'Queen', 'R': 'Rainbow',
+    'S': 'Sun', 'T': 'Turtle', 'U': 'Umbrella', 'V': 'Violin', 'W': 'Whale', 'X': 'Xylophone',
+    'Y': 'Yo-yo', 'Z': 'Zebra'
+}
+
+
+def build_alphabet_story(words: Optional[dict] = None, title: str = "My Alphabet Coloring Book") -> dict:
+    """Build an A–Z coloring book story (no AI needed)."""
+    w = words or DEFAULT_ABC_WORDS
+    pages = []
+    for i, letter in enumerate(sorted(w.keys()), start=1):
+        word = str(w[letter]).strip().rstrip('.')
+        scene = f"{letter} is for {word}"
+        prompt = (
+            f'A very large hollow outlined capital letter "{letter}" at the top of the page, '
+            f'a cute kawaii {word} character below the letter with big friendly eyes, '
+            f'the word "{word}" written in large hollow outlined letters at the bottom, '
+            f'simple dotted background, children\'s alphabet coloring book page, full page illustration, '
+            f'line art, thick black outlines, pure white background, no shading, no gray tones, kawaii cute style'
+        )
+        pages.append({"page_num": i, "scene": scene, "prompt": prompt})
+    return {"title": title, "theme": "alphabet A-Z", "pages": pages}
+
+
+def generate_alphabet_words(theme: str) -> dict:
+    """AI Brain: pick one themed word per letter A–Z (Cloudflare Llama — free)."""
+    prompt = f'''Pick ONE simple English word for each letter A to Z for a children's alphabet coloring book.
+Theme: {theme}
+Rules:
+- Words must match the theme as much as possible (X and Q may be generic)
+- Kid-friendly, easy to draw as a cute character
+- Output ONLY valid JSON: {{"title":"Catchy book title","words":{{"A":"Word","B":"Word",...,"Z":"Word"}}}}'''
+    messages = [
+        {"role": "system", "content": "You are a children's book designer. Output ONLY valid JSON."},
+        {"role": "user", "content": prompt}
+    ]
+    resp = ask_cloudflare(messages, temperature=0.8)
+    start = resp.find('{')
+    end = resp.rfind('}') + 1
+    data = json.loads(resp[start:end])
+    words = {k.upper(): str(v).strip() for k, v in data.get('words', {}).items()}
+    missing = [c for c in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' if c not in words]
+    for c in missing:
+        words[c] = DEFAULT_ABC_WORDS[c]
+    return {"title": data.get('title', f'{theme.title()} Alphabet Book'), "words": words}
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -237,7 +294,8 @@ def create_story_coloring_book(
     story_key: Optional[str] = None,
     custom_story: Optional[dict] = None,
     delay_between: float = 1.0,
-    style_key: Optional[str] = None
+    style_key: Optional[str] = None,
+    progress_cb=None
 ) -> dict:
     """
     🚀 Full Pipeline: สร้าง Story Coloring Book
@@ -269,6 +327,8 @@ def create_story_coloring_book(
         for p in pages:
             if suffix not in p.get('prompt', ''):
                 p['prompt'] = f"{p.get('prompt', '').rstrip().rstrip(',')}, {suffix}"
+    if progress_cb:
+        progress_cb(0, len(pages))
     
     logger.info(f"📚 Starting: {title} ({len(pages)} pages)")
     
@@ -301,6 +361,9 @@ def create_story_coloring_book(
                 'scene': page['scene'],
                 'error': str(e)
             })
+        
+        if progress_cb:
+            progress_cb(len(generated), len(pages))
     
     # Save metadata
     safe_title = title.lower().replace(' ', '_')
@@ -439,6 +502,64 @@ def register_story_routes(app):
         out = DESIGNS_DIR / f"{safe_title}.pdf"
         out.write_bytes(buf.read())
         return FileResponse(out, media_type='application/pdf', filename=f"{safe_title}.pdf")
+
+    @app.post("/api/pod/story/generate-async")
+    def generate_story_async(req: StoryGenerateRequest):
+        """Start generation in background thread — returns job_id (for long books e.g. 26-page alphabet)."""
+        import threading
+        import uuid
+
+        job_id = f"job_{uuid.uuid4().hex[:8]}"
+        _JOBS[job_id] = {"status": "running", "done": 0, "total": 0, "result": None, "error": None,
+                         "title": (req.custom_story or {}).get('title', '')}
+
+        def _run():
+            try:
+                result = create_story_coloring_book(
+                    story_key=req.story_key,
+                    custom_story=req.custom_story,
+                    style_key=req.style_key,
+                    progress_cb=lambda done, total: _JOBS[job_id].update(done=done, total=total)
+                )
+                _JOBS[job_id].update(status="done", result=result)
+            except Exception as e:
+                logger.error(f"Job {job_id} failed: {e}")
+                _JOBS[job_id].update(status="error", error=str(e))
+
+        threading.Thread(target=_run, daemon=True).start()
+        return {"job_id": job_id}
+
+    @app.get("/api/pod/story/job/{job_id}")
+    def story_job_status(job_id: str):
+        if job_id not in _JOBS:
+            raise HTTPException(status_code=404, detail="Job not found")
+        return _JOBS[job_id]
+
+    @app.post("/api/pod/story/alphabet")
+    def alphabet_book(
+        theme: str = "",
+        use_ai: bool = False
+    ):
+        """Build A–Z alphabet book story. theme + use_ai=true → Llama picks themed words (free). Returns story JSON."""
+        try:
+            title = "My Alphabet Coloring Book"
+            words = None
+            if use_ai and theme.strip():
+                ai = generate_alphabet_words(theme.strip())
+                words = ai.get('words')
+                title = ai.get('title', title)
+            elif theme.strip():
+                title = f"{theme.strip().title()} Alphabet Book"
+            story = build_alphabet_story(words=words, title=title)
+            story['style_key'] = ''
+            return story
+        except Exception as e:
+            logger.error(f"Alphabet build failed: {e}")
+            # fallback: default words
+            story = build_alphabet_story(title="My Alphabet Coloring Book")
+            story['style_key'] = ''
+            story['warning'] = str(e)
+            return story
 
     @app.post("/api/pod/story/ideas")
     def story_ideas(

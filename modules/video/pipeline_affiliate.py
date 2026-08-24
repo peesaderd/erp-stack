@@ -109,43 +109,6 @@ def download_file(url: str, output_path: Path) -> Path:
     return output_path
 
 
-def _split_triptych_into_panels(image_path_local, run_id="panel"):
-    """Split a 16:9 triptych image (1 file, 3 side-by-side panels) into 3 separate
-    vertical 9:16 panel images (PIL crop).
-
-    Args:
-        image_path_local: local path to the triptych image (must exist on disk)
-        run_id: suffix for the output filenames
-
-    Returns:
-        dict: {"panel1": Path, "panel2": Path, "panel3": Path, "width", "height"}
-              panel1 = leftmost (Cover page), panel2 = middle (First frame),
-              panel3 = rightmost (Last frame). Vertical crop keeps the full panel
-              height; each panel is (w/3) wide.
-    """
-    from PIL import Image
-    img = Image.open(str(image_path_local)).convert("RGB")
-    w, h = img.size
-    pw = w // 3
-    out = {}
-    for idx in (1, 2, 3):
-        left = (idx - 1) * pw
-        # crop exact third; last panel takes the remainder to avoid gap
-        right = w if idx == 3 else left + pw
-        panel = img.crop((left, 0, right, h))
-        p = TMP_DIR / f"triptych_{idx}_{run_id}.png"
-        panel.save(str(p))
-        out[f"panel{idx}"] = p
-    out["width"] = w
-    out["height"] = h
-    logger.info(
-        f"  Split triptych {w}x{h} -> 3 panels: "
-        f"panel1={out['panel1'].name} panel2={out['panel2'].name} panel3={out['panel3'].name} "
-        f"(each {pw}px wide)"
-    )
-    return out
-
-
 def concat_videos(video_paths: list, output_path: Path) -> Path:
     """Concat multiple videos with FFmpeg. Skip None entries."""
     valid_paths = [vp for vp in video_paths if vp is not None]
@@ -435,22 +398,6 @@ def build_image_prompt(
 # STEP 5: Generate Image (Prodia Nano Banana)
 # ═══════════════════════════════════════════════════════════════════════════
 
-def _image_prompt_is_triptych(prompt: str) -> bool:
-    """Return True if the image_prompt requests a 16:9 triptych / multi-panel layout.
-
-    Mirror of the layout-detection in modules/image/main.py: when the prompt says
-    "triptych / 3 panels / side by side / split into / collage", assume the caller
-    (prompt-builder) wants a landscape 16:9 frame — NOT the default 9:16 portrait.
-    """
-    if not prompt:
-        return False
-    _lower = prompt.lower()
-    return any(
-        k in _lower
-        for k in ("triptych", "panel", "side by side", "split into", "collage", "three equal")
-    )
-
-
 def generate_image(
     prompt: str,
     product_image: str = None,
@@ -463,7 +410,7 @@ def generate_image(
     Args:
         prompt: image_prompt จาก Step 4
         product_image: URL ของรูปสินค้า (reference)
-        aspect_ratio: 9:16 (TikTok portrait) or 16:9 (triptych)
+        aspect_ratio: 9:16 (TikTok portrait — Triptych discontinued, always 9:16)
         model: "nano-banana" (default) or "flux-2-klein" (klein 4B img2img)
 
     Returns:
@@ -1231,11 +1178,10 @@ def run_pipeline(
 
         # ── STEP 5: Generate Image ──
         step_start = time.time()
-        # Triptych (16:9) vs single 9:16: prompt-builder ระบุ layout ใน image_prompt
-        # (เช่น "16:9 landscape triptych, three equal horizontal panels"). ถ้าเป็น triptych
-        # ให้ส่ง aspect_ratio="16:9" แทนค่า default 9:16 เพื่อให้ 8110 gen แนวนอนจริง
-        # (ก่อนหน้า hardcode 9:16 เสมอ → ภาพออกมา 3 ช่องแนวตั้ง — bug ตรวจพบ 2026-08-19)
-        img_aspect = "16:9" if _image_prompt_is_triptych(image_prompt) else "9:16"
+        # Single 9:16 portrait — Triptych is discontinued (owner 2026-08-24).
+        # Always portrait; do NOT switch to 16:9 landscape no matter what the
+        # image_prompt text says.
+        img_aspect = "9:16"
         img_url, cost_image = generate_image(image_prompt, product_image, aspect_ratio=img_aspect)
         img_path = TMP_DIR / f"image_{run_id}.png"
         download_file(img_url, img_path)
@@ -1323,45 +1269,35 @@ def run_pipeline(
             raise ValueError("pipeline: video_prompts is empty/None — no prompt to generate video; refusing hardcoded fallback")
         logger.info(f"  Generating 1 continuous video ({total_duration}s): {vprompt[:80]}...")
 
-        # ── FL2V+Audio manual frames: split triptych → panel2=first, panel3=last ──
-        # Owner workflow (2026-08-19): gen 16:9 triptych (3 panels) → panel1=cover,
-        # panel2=first frame, panel3=last frame → start-end interpolation + audio.
-        # Upgrade (2026-08-20): Last frame ใช้ FLUX.2 [klein] 4B gen ใหม่ จากรูป
-        # First (panel2) → end-scene 9:16 (ตรง SSOT blueprint) แทนการตัด nano panel3.
-        # Klein เป็น pipeline แยกของเราเอง (ไม่ใช้ร่วมกับ PassportPhoto).
-        ff = first_frame or None
+        # ── Start/End frames (single 9:16, no triptych) ──
+        # Owner direction (2026-08-24): Triptych discontinued. Always single 9:16.
+        #   • first-frame = Nano Banana img2img 9:16 (gen จาก reference)
+        #   • last-frame  = FLUX.2 klein 4B end-scene 9:16 (gen จาก first-frame)
+        #   • video       = Wan 2.7 start-end interpolation
+        # ff = client-supplied first_frame/หรือภาพเดียวที่ Nano Banana gen (img_path)
+        # lf = client-supplied last_frame/หรือ Flux klein gen end-scene จาก ff (ไม่ตัด panel)
+        ff = first_frame or str(img_path)
         lf = last_frame or None
-        # Fix (2026-08-21): ให้ client บังคับ "ภาพเดียว ไม่ interpolation" ได้
-        # ถ้า client ส่ง first_frame มาเองแต่ไม่ต้องการ last_frame → กัน auto-split triptych
-        # ที่ทำให้ Prodia รับ last_frame=panel3 ที่ตัดผิด → unknown error
-        if not (ff and lf) and img_path.exists() and _image_prompt_is_triptych(image_prompt) and not first_frame:
+        if not lf:
+            # ไม่มี last_frame ให้ Flux klein gen end-scene จาก first-frame → 9:16
+            # (ตาม blueprint — klein เป็น pipeline แยกของเราเอง ไม่ใช้ร่วมกับ PassportPhoto)
             try:
-                panels = _split_triptych_into_panels(str(img_path), run_id=run_id)
-                # panel2 (กลาง) = first frame
-                if not ff:
-                    ff = str(panels["panel2"])
-                if not lf:
-                    # default last = nano panel3 (fallback)
-                    lf = str(panels["panel3"])
-                    # ใช้ klein 4B gen end-scene จาก first-frame → 9:16 (ตรง blueprint)
-                    try:
-                        klein_last, cost_last = generate_klein_last_image(
-                            ff, product_profile, product_name,
-                            aspect_ratio="9:16", run_id=run_id,
-                        )
-                        lf = str(klein_last)
-                        cost_image += cost_last  # รวมค่า klein
-                        logger.info(f"  ▶ Last frame ใช้ FLUX klein end-scene: {Path(lf).name}")
-                    except Exception as ke:
-                        logger.warning(
-                            f"  ⚠️ Klein last-image gen ล้มเหลว ({ke}) — ใช้ nano panel3 แทน"
-                        )
-                logger.info(
-                    f"  ▶ FL2V frames: first=({Path(ff).name}), "
-                    f"last=({Path(lf).name})"
+                klein_last, cost_last = generate_klein_last_image(
+                    ff, product_profile, product_name,
+                    aspect_ratio="9:16", run_id=run_id,
                 )
-            except Exception as e:
-                logger.warning(f"  ⚠️ Triptych split failed ({e}) — ใช้ image เดียว (ไม่ตั้ง start/end)")
+                lf = str(klein_last)
+                cost_image += cost_last  # รวมค่า klein
+                logger.info(f"  ▶ Last frame ใช้ FLUX klein end-scene: {Path(lf).name}")
+            except Exception as ke:
+                logger.warning(
+                    f"  ⚠️ Klein last-image gen ล้มเหลว ({ke}) — ใช้ first-frame เป็น frame เดียว (ไม่ตั้ง start/end)"
+                )
+                lf = None
+        if ff and lf:
+            logger.info(
+                f"  ▶ Wan frames: first=({Path(ff).name}), last=({Path(lf).name})"
+            )
 
         # ── Voice mode A (Wan พูดเอง) → ไม่ส่ง TTS audio (กัน TTS ทับเสียง Wan) ──
         # โหมด B (default เดิม) → ส่ง TTS audio ให้ Wan lip-sync
@@ -1372,7 +1308,10 @@ def run_pipeline(
         vid_path, cost_video = generate_video(
             image_path=str(img_path),
             prompt=vprompt,
-            duration=total_duration,
+            # 💬 REMARK 2026-08-24: duration รับได้แค่ [8, 15] เท่านั้น (ALLOWED_DURATIONS ใน config.py)
+            # — อย่าส่ง 5/อื่นนอกจาก 8,15 → validator VideoRequest reject ทันที (ไม่เกี่ยวกับ Wan)
+            # [TEST] duration=8 (ของผู้ถูก validator)-> ลอง 8 (ถูกกว่าปรึ้ม default 15) ดู 9:16 ผ่านไหม
+            duration=8,
             audio_path=audio_path_out,
             negative_prompt=negative_prompt,
             # first+last start-end interpolation per Prodia docs

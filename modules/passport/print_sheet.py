@@ -172,13 +172,13 @@ def generate_print_sheet(
     return {"ok": True, "result": sheet, "info": info}
 
 
-def _add_hairline(sheet: np.ndarray, positions: list, margin: int = 4) -> np.ndarray:
-    """Owner spec 2026-08-24: ultra-thin dashed cut guide OUTSIDE each cell.
-    1px AA dashes alpha-blended -> reads as ~0.5px hairline."""
+def _add_hairline(sheet: np.ndarray, positions: list, margin: int = 0) -> np.ndarray:
+    """Owner spec v2: ultra-faint dashed cut guide ON cell boundaries
+    (frames touch edge-to-edge). 1px AA, 25% blend -> whisper hairline."""
     h, w = sheet.shape[:2]
     mask = np.zeros((h, w), np.uint8)
-    color = 170
-    dl, gp = 8, 4
+    color = 205
+    dl, gp = 8, 5
     for pos in positions:
         x = max(pos["x"] - margin, 0); y = max(pos["y"] - margin, 0)
         x2 = min(pos["x"] + pos["w"] + margin, w - 1); y2 = min(pos["y"] + pos["h"] + margin, h - 1)
@@ -191,7 +191,7 @@ def _add_hairline(sheet: np.ndarray, positions: list, margin: int = 4) -> np.nda
             cv2.line(mask, (x2, y + dy), (x2, min(y + dy + dl, y2)), 255, 1, lineType=cv2.LINE_AA)
     sel = mask > 0
     base = sheet[sel].astype(np.float32)
-    sheet[sel] = (base * 0.55 + color * 0.45).astype(np.uint8)
+    sheet[sel] = (base * 0.75 + color * 0.25).astype(np.uint8)
     return sheet
 
 
@@ -274,9 +274,6 @@ def generate_multi_print_sheet(
     padding_px = int(round(gap_mm / 25.4 * dpi))
     if blade_mode:
         padding_px = int(round(max(gap_mm, 5.0) / 25.4 * dpi))
-    if hairline:
-        padding_px = max(padding_px, 12)  # room so cut line sits OUTSIDE borders
-
     border_px = int(round(border_width_mm / 25.4 * dpi)) if (border == "frame" and border_width_mm > 0) else 0
     try:
         hcl = border_color.lstrip("#")

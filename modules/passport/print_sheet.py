@@ -173,25 +173,31 @@ def generate_print_sheet(
 
 
 def _add_hairline(sheet: np.ndarray, positions: list, margin: int = 0) -> np.ndarray:
-    """Owner spec v2: ultra-faint dashed cut guide ON cell boundaries
-    (frames touch edge-to-edge). 1px AA, 25% blend -> whisper hairline."""
+    """Owner spec v3: cut guide at FULL darkness but HALF thickness.
+    True 0.5px: dashed lines drawn on a 2x supersampled mask (thickness 1),
+    downscaled with INTER_AREA -> crisp ~0.5px core, same tone as before."""
     h, w = sheet.shape[:2]
-    mask = np.zeros((h, w), np.uint8)
-    color = 228
-    dl, gp = 7, 6
+    SC = 2
+    mask2 = np.zeros((h * SC, w * SC), np.uint8)
+    color = 205          # same darkness as approved v2
+    strength = 0.25      # same ink level as approved v2
+    dl, gp = 16, 10      # dash pattern scaled 2x
     for pos in positions:
         x = max(pos["x"] - margin, 0); y = max(pos["y"] - margin, 0)
         x2 = min(pos["x"] + pos["w"] + margin, w - 1); y2 = min(pos["y"] + pos["h"] + margin, h - 1)
-        pw, ph = x2 - x, y2 - y
+        X, Y, X2, Y2 = x * SC, y * SC, x2 * SC, y2 * SC
+        pw, ph = X2 - X, Y2 - Y
         for dx in range(0, pw, dl + gp):
-            cv2.line(mask, (x + dx, y), (min(x + dx + dl, x2), y), 255, 1, lineType=cv2.LINE_AA)
-            cv2.line(mask, (x + dx, y2), (min(x + dx + dl, x2), y2), 255, 1, lineType=cv2.LINE_AA)
+            cv2.line(mask2, (X + dx, Y), (min(X + dx + dl, X2), Y), 255, 1)
+            cv2.line(mask2, (X + dx, Y2), (min(X + dx + dl, X2), Y2), 255, 1)
         for dy in range(0, ph, dl + gp):
-            cv2.line(mask, (x, y + dy), (x, min(y + dy + dl, y2)), 255, 1, lineType=cv2.LINE_AA)
-            cv2.line(mask, (x2, y + dy), (x2, min(y + dy + dl, y2)), 255, 1, lineType=cv2.LINE_AA)
-    sel = mask > 0
+            cv2.line(mask2, (X, Y + dy), (X, min(Y + dy + dl, Y2)), 255, 1)
+            cv2.line(mask2, (X2, Y + dy), (X2, min(Y + dy + dl, Y2)), 255, 1)
+    mask = cv2.resize(mask2, (w, h), interpolation=cv2.INTER_AREA)
+    a = (mask.astype(np.float32) / 255.0) * strength
+    sel = a > 0.02
     base = sheet[sel].astype(np.float32)
-    sheet[sel] = (base * 0.88 + color * 0.12).astype(np.uint8)
+    sheet[sel] = (base * (1 - a[sel]) + color * a[sel]).astype(np.uint8)
     return sheet
 
 

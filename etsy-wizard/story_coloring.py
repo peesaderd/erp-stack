@@ -220,15 +220,27 @@ def generate_image(prompt: str, filename: str, provider: str = 'cloudflare') -> 
             'Content-Type': 'application/json'
         }
         payload = {'prompt': prompt, 'steps': 4}
-        resp = requests.post(
-            f'{CF_BASE}/@cf/black-forest-labs/flux-1-schnell',
-            headers=cf_headers, json=payload, timeout=240
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        if not data.get('success'): 
-            raise RuntimeError(f"Cloudflare FLUX error: {str(data.get('errors'))[:200]}")
-        img_bytes = base64.b64decode(data['result']['image'])
+        # Free tier rate-limits (429) / transient 400 — retry with backoff
+        img_bytes = None
+        last_err = None
+        for attempt in range(4):
+            resp = requests.post(
+                f'{CF_BASE}/@cf/black-forest-labs/flux-1-schnell',
+                headers=cf_headers, json=payload, timeout=240
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get('success'):
+                    img_bytes = base64.b64decode(data['result']['image'])
+                    break
+                last_err = f"Cloudflare FLUX error: {str(data.get('errors'))[:150]}"
+            elif resp.status_code in (400, 408, 429, 500, 502, 503, 504):
+                last_err = f"HTTP {resp.status_code}"
+                time.sleep(6 * (attempt + 1))
+            else:
+                resp.raise_for_status()
+        if img_bytes is None:
+            raise RuntimeError(f"Cloudflare FLUX failed after retries ({last_err})")
     else:
         prodia_headers = {
             'Authorization': f'Bearer {os.environ.get("PRODIA_TOKEN", "")}',
@@ -252,7 +264,7 @@ def generate_image(prompt: str, filename: str, provider: str = 'cloudflare') -> 
     with open(filepath, 'wb') as f:
         f.write(img_bytes)
     
-    size_kb = len(resp.content) / 1024
+    size_kb = len(img_bytes) / 1024
     logger.info(f"Generated: {filename} ({size_kb:.1f} KB)")
     
     return {
@@ -365,6 +377,7 @@ def create_story_coloring_book(
             generated.append({
                 'page_num': page_num,
                 'scene': page['scene'],
+                'prompt': page['prompt'],
                 'filename': filename,
                 'url': result['url'],
                 'size_kb': result['size_kb']
@@ -495,6 +508,64 @@ def register_story_routes(app):
             raise HTTPException(status_code=404, detail="Book not found")
         with open(meta_file) as f:
             return json.load(f)
+
+    @app.post("/api/pod/story/library/{safe_title}/fix")
+    def story_library_fix(safe_title: str, provider: str = "cloudflare"):
+        """Self-heal: regenerate only broken/missing pages of a book."""
+        meta_file = DESIGNS_DIR / f"{safe_title}_metadata.json"
+        if not meta_file.exists():
+            raise HTTPException(status_code=404, detail="Book not found")
+        with open(meta_file) as f:
+            meta = json.load(f)
+
+        style_info = COLORING_STYLES.get(meta.get('style') or "")
+
+        # Fallback prompts for old books without stored prompts (alphabet rebuildable)
+        rebuilt_prompts = {}
+        if meta.get('theme', '').startswith('alphabet'):
+            base_story = build_alphabet_story(title=meta.get('title', 'Alphabet Book'))
+            for p in base_story['pages']:
+                prompt = p['prompt']
+                if style_info and style_info['suffix'] not in prompt:
+                    prompt = f"{prompt.rstrip().rstrip(',')}, {style_info['suffix']}"
+                rebuilt_prompts[p['page_num']] = prompt
+
+        fixed, still_broken = [], []
+        for entry in meta.get('pages', []):
+            if entry.get('url') and not entry.get('error'):
+                continue
+            page_num = entry.get('page_num')
+            prompt = entry.get('prompt') or rebuilt_prompts.get(page_num)
+            if not prompt:
+                still_broken.append({'page_num': page_num, 'reason': 'no prompt stored'})
+                continue
+            scene = str(entry.get('scene', f'page {page_num}')).lower().replace(' ', '_')[:25]
+            filename = f"{safe_title}_{scene}_{int(page_num):02d}.jpg"
+            try:
+                result = generate_image(prompt, filename, provider=provider)
+                entry.update({
+                    'prompt': prompt,
+                    'filename': filename,
+                    'url': result['url'],
+                    'size_kb': result['size_kb']
+                })
+                entry.pop('error', None)
+                fixed.append(page_num)
+                time.sleep(3)  # gentle on free tier
+            except Exception as e:
+                entry['error'] = str(e)[:200]
+                still_broken.append({'page_num': page_num, 'reason': str(e)[:100]})
+                time.sleep(5)
+
+        meta['fixed_at'] = time.strftime('%Y-%m-%d %H:%M:%S')
+        with open(meta_file, 'w') as f:
+            json.dump(meta, f, indent=2, ensure_ascii=False)
+
+        return {
+            'fixed': fixed,
+            'still_broken': still_broken,
+            'total_ok': sum(1 for p in meta['pages'] if p.get('url') and not p.get('error'))
+        }
 
     @app.get("/api/pod/story/library/{safe_title}/pdf")
     def story_library_pdf(safe_title: str):

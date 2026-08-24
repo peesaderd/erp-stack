@@ -480,10 +480,16 @@ def generate_image(
 # ═══════════════════════════════════════════════════════════════════════════
 
 def _build_klein_last_prompt(profile: dict, product_name: str) -> str:
-    """Build a 9:16 end-scene image prompt from the SSOT end_scene blueprint.
+    """Build a 9:16 END-scene prompt for FLUX klein — LOCK-SCENE pattern.
 
-    Mirrors image-module Panel 3 (result_hint) so the Last image matches what the
-    video's BEAT 3/4 & end frame describe (same outfit, result, expression).
+    Owner direction (2026-08-24 15:21): the Last frame must stay in the SAME
+    scene as the Nano Banana first frame (same woman / clothes / room) and
+    change ONLY the pose: product goes from "held toward camera" → "placed
+    down on the table, label facing camera" so Wan FL2V interpolates a
+    natural put-down motion.
+    Per owner-approved klein lesson (2026-08-23): do NOT re-describe
+    outfit/scene/camera — klein 4B drifts when over-described. Only
+    expression/result_focus still come from the SSOT end_scene blueprint.
     """
     es = (profile or {}).get("_end_scene")
     if not isinstance(es, dict):
@@ -496,26 +502,18 @@ def _build_klein_last_prompt(profile: dict, product_name: str) -> str:
         except Exception:
             es = {}
 
-    gender = "Woman" if (profile or {}).get("target_gender") == "female" else "Man"
-    _result = es.get("result_focus") or "a bright, smooth, healthy result"
-    _expr = es.get("expression") or "smiling proudly"
-    _outfit = es.get("outfit") or ""
-    _scene = es.get("scene") or ""
-    _camera = es.get("camera") or ""
-    _placement = es.get("product_placement") or "product in hand"
-
-    outfit_txt = f", wearing {_outfit}" if _outfit else ""
-    scene_txt = f"{_scene}. " if _scene else ""
-    camera_txt = f"Camera: {_camera}. " if _camera else ""
-
-    vp_product = _clean_product_name_for_video(product_name) if product_name else "the product"
+    gender = "woman" if (profile or {}).get("target_gender") == "female" else "man"
+    _expr = es.get("expression") or "a relaxed, content smile"
 
     return (
-        f"Vertical 9:16 portrait, the same {gender.lower()} (Thai) from the input image, "
-        f"same face and same product{outfit_txt}, {_expr}, clearly showing {_result}; "
-        f"{_placement}. {scene_txt}{camera_txt}"
-        f"Bright, flattering even light, clean background, high quality product photography. "
-        f"Keep the product exactly as shown in the input image. Full-frame 9:16, no border, no padding."
+        f"Vertical 9:16 portrait. The exact same {gender} as in the input image: keep her "
+        f"face, hairstyle, makeup, clothes and the entire room/background EXACTLY identical "
+        f"to the input image — do not redesign anything about her or the scene. "
+        f"Only the pose changes: instead of holding the product up, she sets it down on the "
+        f"table right in front of her — product standing upright on the tabletop, label "
+        f"facing the camera, crisp and unclipped, one hand resting lightly beside it. "
+        f"{_expr}, looking toward the camera. "
+        f"Lighting identical to the input image. Full-frame 9:16, no border, no padding."
     )
 
 

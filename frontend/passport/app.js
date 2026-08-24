@@ -198,11 +198,7 @@ function renderUploadedPreview(){
   $('ri').src=API+'/download/'+S.sid+'_passport.jpg?t='+Date.now();
   updatePreviewAspect(null);
   $('previewBg').style.background='';
-  $('upInfo').classList.remove('hidden');
-  $('upName').textContent=S.fileName||'photo';
-  $('upMeta').textContent='· ready — ตั้งค่าด้านล่างแล้วกด Generate';
-  $('upGender').textContent=(S.gender==='male'?'👨':'👩')+' '+S.gender;
-  $('upGender').style.display='inline-flex';
+  // no detail text under preview — that slot belongs to the batch thumbnail slider
   // downloads appear only after the first generation
   $('btnDl').classList.add('hidden');$('btnDlT').classList.add('hidden');
   $('rs').innerHTML='';
@@ -221,7 +217,6 @@ function clearAll(){
   $('sec3').classList.add('hidden');
   $('previewCard').classList.add('hidden');
   $('batchPreview').classList.add('hidden');
-  $('upInfo').classList.add('hidden');
   $('custPreviewWrap').classList.add('hidden');
   $('genBtn').disabled=false;
   localStorage.removeItem('passport_custom_clothing');
@@ -273,7 +268,6 @@ function showResult(d,isBulk){
     // Owner flow: preview always square, full image, no forced crop
   updatePreviewAspect(null);
   $('btnDl').classList.remove('hidden');$('btnDlT').classList.remove('hidden');
-  $('upMeta').textContent='\u00b7 \u2705 Generated';
   if(isBulk&&d.results&&d.results.length>1){
     $('batchPreview').classList.remove('hidden');
     var sh='';
@@ -422,10 +416,15 @@ async function genPrintSheet(){
     var r=await fetch(API+'/print-sheet',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     var d=await r.json();
     if(d.ok){
+      // owner rule: print sheet must preview on the MAIN preview image above
       var imgUrl=location.origin+'/api/passport/download/'+d.print_sheet_filename+'?t='+Date.now();
-      $('custPreviewWrap2').classList.remove('hidden');
-      $('custPreviewImg2').src=imgUrl;
-      $('custPreviewInfo').textContent=d.photo_count+' photos on '+d.paper_size+' ('+d.dimensions_px.w+'×'+d.dimensions_px.h+'px)';
+      $('batchPreview').classList.add('hidden');
+      $('rs').innerHTML='<div class="rst"><div class="v">'+d.photo_count+'</div><div class="l">photos</div></div>'
+        +'<div class="rst"><div class="v">'+d.paper_size+'</div><div class="l">paper</div></div>'
+        +'<div class="rst"><div class="v">'+d.dimensions_px.w+'×'+d.dimensions_px.h+'</div><div class="l">px</div></div>';
+      $('ri').src=imgUrl;
+      updatePreviewAspect(d.dimensions_px.w/d.dimensions_px.h);
+      if($('previewBox'))$('previewBox').scrollIntoView({behavior:'smooth',block:'center'});
       toast('Print sheet ready! 🖨️','ok');
     }
   }catch(e){toast('Print sheet failed','err')}

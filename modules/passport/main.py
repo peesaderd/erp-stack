@@ -960,21 +960,38 @@ def recrop_photo(req: dict):
     if img is None:
         raise HTTPException(500, "Failed to read FLUX raw image")
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    
-    # Build template with new crop params
-    template = {
-        "width_mm": req.get("width_mm", 35),
-        "height_mm": req.get("height_mm", 45),
-        "dpi": req.get("dpi", 300),
-        "crop_x_pct": req.get("crop_x_pct", 0.17),
-        "crop_y_pct": req.get("crop_y_pct", 0.08),
-        "crop_w_pct": req.get("crop_w_pct", 0.66),
-        "crop_h_pct": req.get("crop_h_pct", 0.65),
-    }
-    
-    # Re-crop
-    from ai_passport import crop_to_template
-    final = crop_to_template(img_rgb, template, template["dpi"])
+
+    # ── Owner rule (2026-08-24): resize = anchor TOP-CENTER then SCALE ──
+    # Old bug: fixed-pixel window crop via crop_to_template + ignored
+    # custom_width/custom_height keys → photo looked zoomed, head/chin cut.
+    width_mm = float(req.get("width_mm") or req.get("custom_width") or 35)
+    height_mm = float(req.get("height_mm") or req.get("custom_height") or 45)
+    dpi = int(req.get("dpi", 300))
+    target_w = max(1, int(round(width_mm / 25.4 * dpi)))
+    target_h = max(1, int(round(height_mm / 25.4 * dpi)))
+
+    h, w = img_rgb.shape[:2]
+    src_ratio = w / h
+    tgt_ratio = target_w / target_h
+
+    if abs(src_ratio - tgt_ratio) < 0.005:
+        interp = cv2.INTER_AREA if target_w < w else cv2.INTER_LANCZOS4
+        final = cv2.resize(img_rgb, (target_w, target_h), interpolation=interp)
+    elif src_ratio > tgt_ratio:
+        # source wider than target → match height, crop sides centered
+        scale = target_h / h
+        new_w = int(round(w * scale))
+        interp = cv2.INTER_AREA if scale < 1 else cv2.INTER_LANCZOS4
+        resized = cv2.resize(img_rgb, (new_w, target_h), interpolation=interp)
+        x_off = (new_w - target_w) // 2
+        final = resized[:, x_off:x_off + target_w]
+    else:
+        # source taller than target → match width, anchor TOP (head stays), crop bottom
+        scale = target_w / w
+        new_h = int(round(h * scale))
+        interp = cv2.INTER_AREA if scale < 1 else cv2.INTER_LANCZOS4
+        resized = cv2.resize(img_rgb, (target_w, new_h), interpolation=interp)
+        final = resized[0:target_h, :]
     
     # Save new result
     out_bytes = _encode_image(final)

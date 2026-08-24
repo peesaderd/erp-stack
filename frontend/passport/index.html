@@ -93,23 +93,6 @@
         <input type="file" id="fi" accept="image/jpeg,image/png" multiple>
       </div>
     </div>
-    <div id="uploaded" class="hidden" style="margin-top:16px;text-align:center">
-      <div style="display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap">
-        <div style="flex:0 0 72px;aspect-ratio:3/4;border-radius:10px;overflow:hidden;border:2px solid #6366f1;box-shadow:0 4px 12px rgba(99,102,241,.3)"><img id="upThumb" style="width:100%;height:100%;object-fit:cover"></div>
-        <div style="text-align:left">
-          <div id="upName" style="font-size:.8rem;font-weight:700"></div>
-          <div id="upMeta" style="font-size:.68rem;color:#64748b;margin:2px 0 6px"></div>
-          <span class="gbadge" id="upGender" style="display:none"></span>
-          <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
-            <button class="btn-c" style="padding:8px 14px;border:none;border-radius:8px;font-size:.7rem;font-weight:600;cursor:pointer" onclick="clearAll()">↺ Remove</button>
-            <button class="btn-c" style="padding:8px 14px;border:none;border-radius:8px;font-size:.7rem;font-weight:600;cursor:pointer" onclick="pickFile()">🔄 Change</button>
-            <button class="btn-p" style="padding:8px 18px;border:none;border-radius:8px;font-size:.7rem;font-weight:600;cursor:pointer" onclick="goOptions()">Next ⏩</button>
-          </div>
-        </div>
-      </div>
-      <div id="multiPreview" style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:12px"></div>
-    </div>
-    <div class="err-box hidden" id="upErr"></div>
   </div>
 </div>
 
@@ -118,17 +101,20 @@
   <!-- Preview -->
   <div class="card hidden" id="previewCard" style="padding:20px;margin-bottom:12px">
     <div style="text-align:center;margin-bottom:10px">
-      <div class="preview-box" id="previewBox"><div class="preview-bg" id="previewBg"></div><img class="preview-img" id="ri" src="" alt="Generated"></div>
+      <div class="preview-box" id="previewBox"><div class="preview-bg" id="previewBg"></div><img class="preview-img" id="ri" src="" alt="Photo"></div>
     </div>
+    <div id="upInfo" class="hidden" style="text-align:center;font-size:.68rem;color:#64748b;margin-bottom:2px"><span id="upName" style="font-weight:700;color:#0f172a"></span> <span id="upMeta"></span> <span class="gbadge" id="upGender" style="display:none;margin-left:4px"></span></div>
     <div id="batchPreview" class="hidden" style="margin:10px 0">
       <div class="slider-wrap" id="sliderWrap" style="justify-content:center"></div>
     </div>
     <div class="res-stats" id="rs"></div>
     <div class="res-btns">
-      <button class="btn-p" style="padding:9px 16px;font-size:.72rem" onclick="dl('passport')">⬇️ Download</button>
-      <button class="btn-c" style="padding:9px 16px;font-size:.72rem" onclick="dlTransparent()">💎 Transparent</button>
-      <button class="btn-c" style="padding:9px 16px;font-size:.72rem" onclick="newPhoto()">🔄 New</button>
+      <button class="btn-p hidden" id="btnDl" style="padding:9px 16px;font-size:.72rem" onclick="dl('passport')">⬇️ Download</button>
+      <button class="btn-c hidden" id="btnDlT" style="padding:9px 16px;font-size:.72rem" onclick="dlTransparent()">💎 Transparent</button>
+      <button class="btn-c" style="padding:9px 16px;font-size:.72rem" onclick="pickFile()">🔄 Change</button>
+      <button class="btn-c" style="padding:9px 16px;font-size:.72rem" onclick="newPhoto()">🆕 New</button>
     </div>
+    <div class="err-box hidden" id="upErr"></div>
   </div>
 
   <!-- Option tabs -->

@@ -159,71 +159,53 @@ async function handleFiles(e){
   var files=Array.from(e.target.files||[]);
   if(!files.length)return;
   S.bulk=files.length>1;S.photos=[];
-
-  if(S.bulk){
-    $('drop').classList.add('hidden');$('uploaded').classList.remove('hidden');
-    $('upName').textContent=files.length+' photos';
-    $('upMeta').textContent='Batch mode';
-    $('upErr').classList.add('hidden');
-    var mp=$('multiPreview');mp.innerHTML='';
-    files.forEach(function(f,i){
-      var img=document.createElement('img');
-      img.style.cssText='width:48px;height:64px;object-fit:cover;border-radius:6px;border:2px solid #e2e8f0';
-      img.src=URL.createObjectURL(f);
-      mp.appendChild(img);
-    });
+  S.fileName=S.bulk?(files.length+' photos'):files[0].name;
+  $('upErr').classList.add('hidden');
+  showOv('Uploading...');
+  try{
+    // first file = main session (single & bulk share the same path)
     var fd=new FormData();fd.append('file',files[0]);
-    showOv('Uploading...');
-    try{
-      var r=await fetch(API+'/upload',{method:'POST',body:fd});
-      var d=await r.json();
-      if(d.ok){
-        S.sid=d.session_id;S.gender=d.gender||'male';
-        $('upThumb').src=API+'/download/'+S.sid+'_passport.jpg';
-        $('upGender').textContent=(S.gender==='male'?'👨':'👩')+' '+S.gender;
-        $('upGender').style.display='inline-flex';
-        for(var i=1;i<files.length;i++){
-          var ffd=new FormData();ffd.append('file',files[i]);
-          var rr=await fetch(API+'/upload',{method:'POST',body:ffd});
-          var dd=await rr.json();
-          if(dd.ok)S.photos.push({sid:dd.session_id,gender:dd.gender});
-        }
-        goOptions();
-      }
-    }catch(err){$('upErr').textContent='Upload failed: '+err.message;$('upErr').classList.remove('hidden')}
-    hideOv();
-  }else{
-    var file=files[0];
-    $('drop').classList.add('hidden');$('uploaded').classList.remove('hidden');
-    $('upName').textContent=file.name;
-    $('upMeta').textContent=(file.size/1024).toFixed(0)+' KB';
-    $('upErr').classList.add('hidden');
-    $('upThumb').src=URL.createObjectURL(file);
-    var fd=new FormData();fd.append('file',file);
-    showOv('Uploading...');
-    try{
-      var r=await fetch(API+'/upload',{method:'POST',body:fd});
-      var d=await r.json();
-      if(d.ok){
-        S.sid=d.session_id;S.gender=d.gender||'male';
-        $('upThumb').src=API+'/download/'+S.sid+'_passport.jpg';
-        $('upGender').textContent=(S.gender==='male'?'👨':'👩')+' '+S.gender;
-        $('upGender').style.display='inline-flex';
-        goOptions();
-      }else{
-        throw new Error(d.detail||'Upload failed');
-      }
-    }catch(err){$('upErr').textContent='Upload failed: '+err.message;$('upErr').classList.remove('hidden')}
-    hideOv();
+    var r=await fetch(API+'/upload',{method:'POST',body:fd});
+    var d=await r.json();
+    if(!d.ok)throw new Error(d.detail||'Upload failed');
+    S.sid=d.session_id;S.gender=d.gender||'male';
+    // remaining files (bulk mode)
+    for(var i=1;i<files.length;i++){
+      var ffd=new FormData();ffd.append('file',files[i]);
+      var rr=await fetch(API+'/upload',{method:'POST',body:ffd});
+      var dd=await rr.json();
+      if(dd.ok)S.photos.push({sid:dd.session_id,gender:dd.gender});
+    }
+    goOptions();
+  }catch(err){
+    $('upErr').textContent='Upload failed: '+err.message;$('upErr').classList.remove('hidden');
   }
+  hideOv();
 }
 
 /* ══════════ NAVIGATION ══════════ */
 function goOptions(){
+  // uploaded-photo thumbnail card removed — preview box is now the single place that shows the photo
+  $('sec1').classList.add('hidden');
   $('sec3').classList.remove('hidden');
-  $('previewCard').classList.add('hidden'); // hide until first result
+  $('previewCard').classList.remove('hidden');
+  renderUploadedPreview();
   renderClothing();
   setTimeout(function(){$('sec3').scrollIntoView({behavior:'smooth',block:'start'})},200);
+}
+
+function renderUploadedPreview(){
+  $('ri').src=API+'/download/'+S.sid+'_passport.jpg?t='+Date.now();
+  updatePreviewAspect(null);
+  $('previewBg').style.background='';
+  $('upInfo').classList.remove('hidden');
+  $('upName').textContent=S.fileName||'photo';
+  $('upMeta').textContent='· ready — ตั้งค่าด้านล่างแล้วกด Generate';
+  $('upGender').textContent=(S.gender==='male'?'👨':'👩')+' '+S.gender;
+  $('upGender').style.display='inline-flex';
+  // downloads appear only after the first generation
+  $('btnDl').classList.add('hidden');$('btnDlT').classList.add('hidden');
+  $('rs').innerHTML='';
 }
 
 function newPhoto(){
@@ -232,14 +214,14 @@ function newPhoto(){
 }
 
 function clearAll(){
-  S.photo=null;S.photos=[];S.bulk=false;S.sid=null;S.customClothing=null;S.customClothingUrl=null;S.customClothingName=null;
+  S.photo=null;S.photos=[];S.bulk=false;S.sid=null;S.customClothing=null;S.customClothingUrl=null;S.customClothingName=null;S.fileName=null;
   $('fi').value='';
-  $('drop').classList.remove('hidden');
-  $('uploaded').classList.add('hidden');
+  $('sec1').classList.remove('hidden');
   $('upErr').classList.add('hidden');
   $('sec3').classList.add('hidden');
   $('previewCard').classList.add('hidden');
   $('batchPreview').classList.add('hidden');
+  $('upInfo').classList.add('hidden');
   $('custPreviewWrap').classList.add('hidden');
   $('genBtn').disabled=false;
   localStorage.removeItem('passport_custom_clothing');
@@ -288,8 +270,10 @@ function showResult(d,isBulk){
   $('ri').src=API+'/download/'+S.sid+'_passport.jpg?t='+Date.now();
   $('sec3').classList.remove('hidden');
   $('previewCard').classList.remove('hidden');
-  // Owner flow: preview always square, full image, no forced crop
+    // Owner flow: preview always square, full image, no forced crop
   updatePreviewAspect(null);
+  $('btnDl').classList.remove('hidden');$('btnDlT').classList.remove('hidden');
+  $('upMeta').textContent='\u00b7 \u2705 Generated';
   if(isBulk&&d.results&&d.results.length>1){
     $('batchPreview').classList.remove('hidden');
     var sh='';

@@ -177,8 +177,8 @@ def _add_hairline(sheet: np.ndarray, positions: list, margin: int = 0) -> np.nda
     (frames touch edge-to-edge). 1px AA, 25% blend -> whisper hairline."""
     h, w = sheet.shape[:2]
     mask = np.zeros((h, w), np.uint8)
-    color = 205
-    dl, gp = 8, 5
+    color = 228
+    dl, gp = 7, 6
     for pos in positions:
         x = max(pos["x"] - margin, 0); y = max(pos["y"] - margin, 0)
         x2 = min(pos["x"] + pos["w"] + margin, w - 1); y2 = min(pos["y"] + pos["h"] + margin, h - 1)
@@ -191,7 +191,7 @@ def _add_hairline(sheet: np.ndarray, positions: list, margin: int = 0) -> np.nda
             cv2.line(mask, (x2, y + dy), (x2, min(y + dy + dl, y2)), 255, 1, lineType=cv2.LINE_AA)
     sel = mask > 0
     base = sheet[sel].astype(np.float32)
-    sheet[sel] = (base * 0.75 + color * 0.25).astype(np.uint8)
+    sheet[sel] = (base * 0.88 + color * 0.12).astype(np.uint8)
     return sheet
 
 

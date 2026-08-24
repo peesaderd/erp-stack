@@ -966,83 +966,110 @@ def cleanup_old_photos(days: int = 7):
 @app.post("/api/passport/recrop")
 def recrop_photo(req: dict):
     """
-    Re-crop a FLUX raw output with new crop parameters.
-    Does NOT regenerate via FLUX — just re-crops the saved intermediate.
-    
-    Request: { "session_id": "...", "crop_y_pct": 0.08, "crop_x_pct": 0.17, ... }
+    Re-crop / resize without regenerating via FLUX.
+    Owner rule (2026-08-24): resizing uses the TRANSPARENT image when present
+    (not the with-background photo) and KEEPS alpha. A pristine base snapshot
+    (_recrop_base.png) guarantees repeated resizes never lose quality.
     """
     session_id = req.get("session_id")
     if not session_id:
         raise HTTPException(400, "session_id required")
-    
-    storage = STORAGE_DIR
-    flux_raw_path = storage / f"{session_id}_flux_raw.jpg"
-    if not flux_raw_path.exists():
-        # real sessions don't keep _flux_raw.jpg — fall back to the final photo
-        for alt_name in (f"{session_id}_passport.jpg", f"{session_id}_bg.jpg"):
-            alt = storage / alt_name
-            if alt.exists():
-                flux_raw_path = alt
-                break
-        else:
-            raise HTTPException(404, f"No image found for {session_id}. Generate a photo first.")
-    
-    # Load FLUX raw output
-    img = cv2.imread(str(flux_raw_path))
-    if img is None:
-        raise HTTPException(500, "Failed to read FLUX raw image")
-    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-    # ── Owner rule (2026-08-24): resize = anchor TOP-CENTER then SCALE ──
-    # Old bug: fixed-pixel window crop via crop_to_template + ignored
-    # custom_width/custom_height keys → photo looked zoomed, head/chin cut.
+    storage = STORAGE_DIR
+
+    # ── pristine source snapshot: transparent-first per owner ──
+    base_path = storage / f"{session_id}_recrop_base.png"
+    if not base_path.exists():
+        src_path = None
+        for name in (
+            f"{session_id}_transparent.png",   # owner rule: prefer transparent
+            f"{session_id}_flux_raw.jpg",      # legacy sessions
+            f"{session_id}_passport.jpg",
+            f"{session_id}_bg.jpg",
+        ):
+            p = storage / name
+            if p.exists():
+                src_path = p
+                break
+        if src_path is None:
+            raise HTTPException(404, f"No image found for {session_id}. Generate a photo first.")
+        src_img = cv2.imread(str(src_path), cv2.IMREAD_UNCHANGED)
+        if src_img is None:
+            raise HTTPException(500, "Failed to read source image")
+        cv2.imwrite(str(base_path), src_img)  # untouched pixels forever
+
+    img = cv2.imread(str(base_path), cv2.IMREAD_UNCHANGED)  # BGR or BGRA
+    if img is None:
+        raise HTTPException(500, "Failed to read base image")
+    has_alpha = img.ndim == 3 and img.shape[2] == 4
+
+    # ── Owner rule: resize = anchor TOP-CENTER then SCALE ──
     width_mm = float(req.get("width_mm") or req.get("custom_width") or 35)
     height_mm = float(req.get("height_mm") or req.get("custom_height") or 45)
     dpi = int(req.get("dpi", 300))
     target_w = max(1, int(round(width_mm / 25.4 * dpi)))
     target_h = max(1, int(round(height_mm / 25.4 * dpi)))
 
-    h, w = img_rgb.shape[:2]
+    h, w = img.shape[:2]
     src_ratio = w / h
     tgt_ratio = target_w / target_h
 
     if abs(src_ratio - tgt_ratio) < 0.005:
         interp = cv2.INTER_AREA if target_w < w else cv2.INTER_LANCZOS4
-        final = cv2.resize(img_rgb, (target_w, target_h), interpolation=interp)
+        final = cv2.resize(img, (target_w, target_h), interpolation=interp)
     elif src_ratio > tgt_ratio:
-        # source wider than target → match height, crop sides centered
+        # source wider than target -> match height, crop sides centered
         scale = target_h / h
         new_w = int(round(w * scale))
         interp = cv2.INTER_AREA if scale < 1 else cv2.INTER_LANCZOS4
-        resized = cv2.resize(img_rgb, (new_w, target_h), interpolation=interp)
+        resized = cv2.resize(img, (new_w, target_h), interpolation=interp)
         x_off = (new_w - target_w) // 2
         final = resized[:, x_off:x_off + target_w]
     else:
-        # source taller than target → match width, anchor TOP (head stays), crop bottom
+        # source taller -> match width, anchor TOP (head stays), crop bottom
         scale = target_w / w
         new_h = int(round(h * scale))
         interp = cv2.INTER_AREA if scale < 1 else cv2.INTER_LANCZOS4
-        resized = cv2.resize(img_rgb, (target_w, new_h), interpolation=interp)
+        resized = cv2.resize(img, (target_w, new_h), interpolation=interp)
         final = resized[0:target_h, :]
-    
-    # Save new result
-    out_bytes = _encode_image(final)
-    out_path = STORAGE_DIR / f"{session_id}_passport.jpg"
-    with open(out_path, "wb") as f:
-        f.write(out_bytes)
-    
+
+    # ── save outputs ──
+    download_url = f"/api/passport/download/{session_id}_passport.jpg"
+    if has_alpha:
+        ok_png, png_buf = cv2.imencode(".png", final)  # BGRA kept intact
+        if not ok_png:
+            raise HTTPException(500, "Failed to encode PNG")
+        with open(storage / f"{session_id}_transparent.png", "wb") as f:
+            f.write(png_buf.tobytes())
+        download_url = f"/api/passport/download/{session_id}_transparent.png"
+        # white-composited JPG so print sheet & other jpg consumers stay correct
+        af = final[:, :, 3].astype(np.float32) / 255.0
+        comp = (final[:, :, :3].astype(np.float32) * af[..., None]
+                + 255.0 * (1.0 - af[..., None])).astype(np.uint8)
+        ok_jpg, jpg_buf = cv2.imencode(".jpg", comp, [int(cv2.IMWRITE_JPEG_QUALITY), 95])
+        if not ok_jpg:
+            raise HTTPException(500, "Failed to encode JPG")
+        with open(storage / f"{session_id}_passport.jpg", "wb") as f:
+            f.write(jpg_buf.tobytes())
+    else:
+        out_bytes = _encode_image(cv2.cvtColor(final, cv2.COLOR_BGR2RGB))
+        with open(storage / f"{session_id}_passport.jpg", "wb") as f:
+            f.write(out_bytes)
+
     # Check headspace
-    gray = cv2.cvtColor(final, cv2.COLOR_BGR2GRAY)
+    gray_mode = cv2.COLOR_BGRA2GRAY if has_alpha else cv2.COLOR_BGR2GRAY
+    gray = cv2.cvtColor(final, gray_mode)
     cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
     faces = cascade.detectMultiScale(gray, 1.1, 5, minSize=(30, 30))
     headspace_pct = 0
     if len(faces) > 0:
         headspace_pct = round(faces[0][1] / final.shape[0] * 100, 1)
-    
+
     return {
         "ok": True,
         "session_id": session_id,
-        "download_url": f"/api/passport/download/{session_id}_passport.jpg",
+        "has_alpha": bool(has_alpha),
+        "download_url": download_url,
         "headspace_pct": headspace_pct,
         "size": f"{final.shape[1]}x{final.shape[0]}",
     }

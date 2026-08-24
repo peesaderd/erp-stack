@@ -428,7 +428,8 @@ async function applySize(){
     var d=await api('/recrop',{session_id:S.sid,custom_width:w,custom_height:h});
     if(d.ok){
       bumpImg();
-      $('ri').src=API+'/download/'+S.sid+'_passport.jpg?v='+S.imgV;
+      setView('photo');
+      $('ri').src=location.origin+d.download_url+'?v='+S.imgV;
       updatePreviewAspect(w/h);
       toast('Size applied: '+w+'×'+h+'mm 📐','ok');
     }

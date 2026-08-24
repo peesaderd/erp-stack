@@ -8,6 +8,7 @@ AI Brain + AI Artist Pipeline สำหรับสร้าง Coloring Book �
 import os
 import json
 import time
+import base64
 import logging
 import requests
 from pathlib import Path
@@ -207,32 +208,49 @@ Rules:
 # 🎨 AI Artist — Image Generation
 # ═══════════════════════════════════════════════════════════════════
 
-def generate_image(prompt: str, filename: str) -> dict:
+def generate_image(prompt: str, filename: str, provider: str = 'cloudflare') -> dict:
     """
-    🎨 AI Artist: Generate line art from prompt using FLUX Schnell (Free).
+    🎨 AI Artist: Generate line art from prompt.
+    provider='cloudflare' -> FLUX schnell on Workers AI (free)
+    provider='prodia'     -> Prodia flux-fast schnell (~$0.0036/img, faster queue)
     """
-    headers = {
-        'Authorization': f'Bearer {PRODIA_TOKEN}',
-        'Content-Type': 'application/json'
-    }
-    
-    payload = {
-        'type': 'inference.flux-fast.schnell.txt2img.v2',
-        'config': {'prompt': prompt}
-    }
-    
-    resp = requests.post(
-        'https://inference.prodia.com/v2/job',
-        headers=headers,
-        json=payload,
-        timeout=120
-    )
-    resp.raise_for_status()
+    if provider == 'cloudflare':
+        cf_headers = {
+            'Authorization': f'Bearer {os.environ.get("CLOUDFLARE_AI_TOKEN", "")}',
+            'Content-Type': 'application/json'
+        }
+        payload = {'prompt': prompt, 'steps': 4}
+        resp = requests.post(
+            f'{CF_BASE}/@cf/black-forest-labs/flux-1-schnell',
+            headers=cf_headers, json=payload, timeout=240
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if not data.get('success'): 
+            raise RuntimeError(f"Cloudflare FLUX error: {str(data.get('errors'))[:200]}")
+        img_bytes = base64.b64decode(data['result']['image'])
+    else:
+        prodia_headers = {
+            'Authorization': f'Bearer {os.environ.get("PRODIA_TOKEN", "")}',
+            'Content-Type': 'application/json'
+        }
+        payload = {
+            'type': 'inference.flux-fast.schnell.txt2img.v2',
+            'config': {'prompt': prompt}
+        }
+        resp = requests.post(
+            'https://inference.prodia.com/v2/job',
+            headers=prodia_headers,
+            json=payload,
+            timeout=120
+        )
+        resp.raise_for_status()
+        img_bytes = resp.content
     
     # Save image
     filepath = DESIGNS_DIR / filename
     with open(filepath, 'wb') as f:
-        f.write(resp.content)
+        f.write(img_bytes)
     
     size_kb = len(resp.content) / 1024
     logger.info(f"Generated: {filename} ({size_kb:.1f} KB)")
@@ -295,7 +313,8 @@ def create_story_coloring_book(
     custom_story: Optional[dict] = None,
     delay_between: float = 1.0,
     style_key: Optional[str] = None,
-    progress_cb=None
+    progress_cb=None,
+    provider: str = 'cloudflare'
 ) -> dict:
     """
     🚀 Full Pipeline: สร้าง Story Coloring Book
@@ -342,7 +361,7 @@ def create_story_coloring_book(
         logger.info(f"📖 Page {page_num}: {page['scene']}")
         
         try:
-            result = generate_image(page['prompt'], filename)
+            result = generate_image(page['prompt'], filename, provider=provider)
             generated.append({
                 'page_num': page_num,
                 'scene': page['scene'],
@@ -375,6 +394,7 @@ def create_story_coloring_book(
         'theme': story.get('theme', ''),
         'style': style_key or '',
         'style_label': (style_info or {}).get('label', ''),
+        'provider': provider,
         'pages': generated,
         'created_at': time.strftime('%Y-%m-%d %H:%M:%S'),
         'base_url': BASE_URL
@@ -415,6 +435,7 @@ def register_story_routes(app):
         story_key: Optional[str] = None
         custom_story: Optional[dict] = None
         style_key: Optional[str] = None
+        provider: str = 'cloudflare'
 
     @app.get("/api/pod/story/templates")
     def list_story_templates():
@@ -428,7 +449,8 @@ def register_story_routes(app):
             result = create_story_coloring_book(
                 story_key=req.story_key,
                 custom_story=req.custom_story,
-                style_key=req.style_key
+                style_key=req.style_key,
+                provider=req.provider
             )
             return result
         except Exception as e:
@@ -519,7 +541,8 @@ def register_story_routes(app):
                     story_key=req.story_key,
                     custom_story=req.custom_story,
                     style_key=req.style_key,
-                    progress_cb=lambda done, total: _JOBS[job_id].update(done=done, total=total)
+                    progress_cb=lambda done, total: _JOBS[job_id].update(done=done, total=total),
+                    provider=req.provider
                 )
                 _JOBS[job_id].update(status="done", result=result)
             except Exception as e:

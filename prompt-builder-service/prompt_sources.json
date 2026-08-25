@@ -1328,5 +1328,9 @@
       "barely parted lips",
       "subtle lip separation"
     ]
+  },
+  "image_negative": {
+    "_comment": "Owner 2026-08-25: image negative moved out of hardcoded build_image_prompt. SSOT only.",
+    "base": "blurry hands, extra fingers, deformed hands, wrong hand position, unrealistic proportions, wrong number of fingers, unclear product details, low quality, low resolution, distorted faces, bad anatomy, incorrect product placement, unrealistic lighting, unrealistic shadows, unrealistic body parts, unrealistic body gestures, unrealistic body movements"
   }
 }

@@ -688,7 +688,7 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         )
         logger.info(f"  Image prompt (no-human single 9:16 {style_l}, {len(image_prompt)} chars)")
         image_prompt = _apply_prompt_anchor(ugc_style, image_prompt, product_name)
-        negative = "blurry hands, extra fingers, deformed hands, wrong hand position, unrealistic proportions, wrong number of fingers, unclear product details, low quality, low resolution, distorted faces, bad anatomy, incorrect product placement, unrealistic lighting, unrealistic shadows, unrealistic body parts, unrealistic body gestures, unrealistic body movements"
+        negative = _load_image_negative()  # SSOT prompt_sources.json (owner 2026-08-25)
         logger.info(f"  Image prompt (single 9:16 {len(image_prompt)} chars): {image_prompt[:100]}...")
         return image_prompt, negative
 
@@ -708,7 +708,7 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     )
     logger.info(f"  Image prompt (single continuous 9:16 {len(image_prompt)} chars): {image_prompt[:100]}...")
     image_prompt = _apply_prompt_anchor(ugc_style, image_prompt, product_name)
-    negative = "blurry hands, extra fingers, deformed hands, wrong hand position, unrealistic proportions, wrong number of fingers, unclear product details, low quality, low resolution, distorted faces, bad anatomy, incorrect product placement, unrealistic lighting, unrealistic shadows, unrealistic body parts, unrealistic body gestures, unrealistic body movements"
+    negative = _load_image_negative()  # SSOT prompt_sources.json (owner 2026-08-25)
     return image_prompt, negative
 
 
@@ -1135,6 +1135,17 @@ def _is_talking_style(ugc_style: str, mc: dict) -> bool:
     return True
 
 
+def _load_image_negative() -> str:
+    """Load the image negative prompt from prompt_sources.json 'image_negative.base'
+    (single source of truth). Owner 2026-08-25: no hardcoded negative in code.
+    Raises if the block is missing — no silent fallback."""
+    sources = _load_prompt_sources()
+    block = sources.get("image_negative")
+    if not isinstance(block, dict) or not str(block.get("base", "")).strip():
+        raise ValueError("prompt_sources.json missing or empty 'image_negative.base' — add it")
+    return str(block["base"]).strip()
+
+
 def build_negative_prompt(profile: dict, ugc_style: str = "holding") -> str:
     """Build negative prompt — defaults (text/watermark/hands/distortion)
     + Wan identity-stability terms (anti-morph / anti-melt).
@@ -1310,12 +1321,11 @@ async def analyze_and_build_prompts(
     # Step 5: Build prompts (video prompt receives the spoken script for talking style)
     image_prompt, neg_from_template = build_image_prompt(profile, product_name, ugc_style, loop_count)
     video_prompt = build_video_prompt(profile, product_name, ugc_style, loop_count, script=_spoken_script)
-    # FIX (negative duplication): build_image_prompt() ALREADY returns the full
-    # default negative via build_negative_prompt(). Concatenating it again with
-    # default_neg duplicated every term ~2x (wasted Prodia word budget and
-    # confused Wan). Use neg_from_template alone — it already includes the
-    # identity-stability terms.
-    negative_prompt = neg_from_template  
+    # FIX (owner 2026-08-25 "เชื่อมเลย"): wire the SSOT-assembled video negative
+    # into the live path. build_negative_prompt() existed but was never called,
+    # so Wan received the IMAGE negative (no mouth-lock terms) and could
+    # improvise speech. This is the only consumer feeding Prodia img2vid.
+    negative_prompt = build_negative_prompt(profile, ugc_style)  
     
     result = {
         "product_id": product_id,

@@ -652,25 +652,18 @@ def generate_video(
     # thai_script = บทภาษาไทย; มีเมื่อ client เปิดโหมดให้ Wan พูดเองตามบท
     final_prompt = prompt
     if thai_voice_mode:
-        # โหมด A: ฝังบทไทย + สั่งเงียบหลังพูด + ยิ้ม + zoom out (กัน Wan พูดมั่วต่อ)
-        # ใช้เพศของ subject จาก video_prompt (woman/female → she/her, man/male → he/him)
-        # แก้ 2026-08-23: เดิม hardcode "The man" → Wan เพศผิด/ละลายในงานใช้ผู้หญิง
-        _pl = prompt.lower()
-        _is_female = ("woman" in _pl) or ("female" in _pl) or ("girl" in _pl) or ("her" in _pl)
-        _is_male = ("man" in _pl) or ("male" in _pl) or ("boy" in _pl) or ("him" in _pl)
-        if _is_male and not _is_female:
-            _subj, _pos = "man", "he"
-        else:
-            _subj, _pos = "woman", "she"
+        # 🔴 RULE (owner อธิบายครั้งที่ 3, 2026-08-25): Wan 2.7 พูด Thai script
+        # ได้ดีและชัดที่สุด เมื่อคำสั่งพูดใน prompt เป็นภาษาไทยทั้งหมด
+        # ห้าม wrap script ด้วยคำสั่งภาษาอังกฤษ (THAI VOICEOVER: The woman speaks...)
+        # เขียนคำสั่งพูดเป็นไทยล้วน + ระบุบทชัดเจนใน prompt
         final_prompt = (
             f"{prompt} "
-            f"THAI VOICEOVER: The {_subj} speaks this THAI script aloud word-for-word to the camera: "
-            f"\"{thai_script}\". {_pos.capitalize()} mouth and lips move in exact sync with this Thai narration. "
-            f"After {_pos} finishes speaking {_pos} STOPS talking, stays completely silent with {_pos} mouth "
-            f"closed, gives a warm cheerful smile to the camera, and holds the pose. "
-            f"Static camera, no zoom, no camera movement. NO talking and NO lip movement after the speech ends."
+            f"พูดบทภาษาไทยต่อไปนี้ออกเสียงดังให้กล้องฟัง คำต่อคำ ไม่ข้ามไม่แต่งเพิ่ม: \"{thai_script}\" "
+            f"ขยับปากและริมฝีปากให้ตรงกับเสียงพูดภาษาไทยทุกคำ "
+            f"พูดจบแล้วหยุดพูดทันที หุบปากสนิท ยิ้มให้กล้อง แล้วอยู่นิ่งในท่าเดิม "
+            f"กล้องนิ่ง ไม่ซูม ไม่มีการเคลื่อนกล้อง ห้ามพูดและห้ามขยับปากหลังพูดจบ"
         )
-        logger.info(f"  🎙 Voice mode A: ฝัง thai_script ใน prompt + สั่งเงียบ/ยิ้ม/zoom out (เพศ={_subj}, len={len(final_prompt)})")
+        logger.info(f"  🎙 Voice mode A: ฝัง thai_script คำสั่งพูดไทยล้วน (owner rule 2026-08-25, len={len(final_prompt)})")
 
 # ลบ comment เดิม "ห้ามฝัง" แล้วแทนด้วยโหมดฝังเมื่อเปิด
 
@@ -1218,8 +1211,10 @@ def run_pipeline(
             prompt=vprompt,
             # 💬 REMARK 2026-08-24: duration รับได้แค่ [8, 15] เท่านั้น (ALLOWED_DURATIONS ใน config.py)
             # — อย่าส่ง 5/อื่นนอกจาก 8,15 → validator VideoRequest reject ทันที (ไม่เกี่ยวกับ Wan)
-            # [TEST] duration=8 (ของผู้ถูก validator)-> ลอง 8 (ถูกกว่าปรึ้ม default 15) ดู 9:16 ผ่านไหม
-            duration=8,
+            # FIX 2026-08-25 (owner bug vid_2d9f4395): ใช้ total_duration จาก request
+            # เดิม hardcode duration=8 (commit 48988d52) → user เลือก 15s ใน web UI
+            # แต่ Wan gen แค่ 8s แล้ว compose stream_loop ยืดเป็น 15s = เสียง+ภาพวนซ้ำ
+            duration=total_duration,
             negative_prompt=negative_prompt,
             # first+last start-end interpolation per Prodia docs
             # (ห้ามส่ง reference แยก — ทำให้ Prodia เอา reference เป็นภาพหลักแทน interpolation)

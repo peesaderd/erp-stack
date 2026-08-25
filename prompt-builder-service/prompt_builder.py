@@ -954,11 +954,14 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             # Product must stay SHARP and STILL — Wan warps the label when the
             # prompt asks for scene transitions / flowing camera motion in 10s.
             # (owner bug report 2026-08-23: zoom in/out made product blur/morph)
+            # FIX 2026-08-25 (owner): sync กับ klein last-frame (วางสินค้าลงโต๊ะ)
+            # เดิม Scene 4 บอก "holds toward camera" → ขัดกับ last frame ที่วางบนโต๊ะ
+            # → Wan งง ถือสินค้าผิด/morph กลางคลิป (owner bug vid_e011300f)
             beats = [
                 f"Scene 1: {gender_en} holds {vp_product} steady toward the camera in a medium close-up, product large in frame, stays sharp and centered",
                 f"Scene 2: keep holding {vp_product} steady, only a gentle slight hand motion, product stays sharp",
                 f"Scene 3: still holding {vp_product}, same framing, product remains sharp and readable",
-                f"Scene 4: {gender_en} holds {vp_product} toward the camera, smiling, same framing, product sharp",
+                f"Scene 4: {gender_en} gently sets {vp_product} down onto the table right in front of her, product standing upright on the tabletop with label facing the camera, one hand resting lightly beside it, then she smiles warmly at the camera",
             ]
 
         video_prompt = (

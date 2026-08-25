@@ -143,6 +143,13 @@
         <div class="pf"><label>Border Width (mm)</label>
           <input type="number" id="borderWidth" value="0" min="0" max="20" step="0.5" onchange="updatePreview()" oninput="updatePreview()">
         </div>
+        <div class="pf"><label>Cutline</label>
+          <select id="cutline" onchange="updatePreview()">
+            <option value="none">No cutline</option>
+            <option value="touching">Touching (gap=0)</option>
+            <option value="spaced">Spaced (gap=3mm)</option>
+          </select>
+        </div>
       </div>
       <label class="blade"><input type="checkbox" id="bm" onchange="updatePreview()"> Blade mode (wider gaps)</label>
       <button class="gen-btn" id="btn" disabled onclick="generate()"><span style="font-size:1.2rem">🖨️</span> Generate Print Sheet</button>
@@ -220,7 +227,8 @@ function updatePreview(){
   var paper={w:paperW,h:paperH};
   var photosPerSheet = parseInt(document.getElementById('photosPerSheet').value) || 6;
   var blade=document.getElementById('bm').checked;
-  var gap=blade?5:3;
+  var cutmode=document.getElementById('cutline').value;
+  var gap=cutmode==='touching'?0:(cutmode==='spaced'?(blade?5:3):0);
   var isMulti=multiThumbs.length>0;
   var photoSize=PHOTO_SIZES[currentPhotoSize]||PHOTO_SIZES['passport'];
   var pw=photoSize.w, ph=photoSize.h;
@@ -272,7 +280,10 @@ async function generate(){
   document.getElementById('ov').classList.add('show');
   try{
     var bVal=parseFloat(document.getElementById('borderWidth').value)||0;
-    var bType=bVal>0?'frame':'none';
+    var cutmode=document.getElementById('cutline').value;
+    var blade=document.getElementById('bm').checked;
+    var bType=bVal>0?'frame':(cutmode!=='none'?'guidelines':'none');
+    var gapmm=cutmode==='touching'?0:(cutmode==='spaced'?(blade?5:3):0);
     if(isMulti){
       var photosPerSheet = parseInt(document.getElementById('photosPerSheet').value) || 6;
       var body = {
@@ -283,7 +294,8 @@ async function generate(){
         photo_count: photosPerSheet,
         border_width_mm: bVal,
         border: bType,
-        blade_mode: document.getElementById('bm').checked,
+        gap_mm: gapmm,
+        blade_mode: blade,
       };
       var r=await fetch(API+'/multi-print',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
       var d=await r.json();
@@ -299,7 +311,8 @@ async function generate(){
         photo_count: photosPerSheet,
         border_width_mm: bVal,
         border: bType,
-        blade_mode: document.getElementById('bm').checked,
+        gap_mm: gapmm,
+        blade_mode: blade,
       };
       var r=await fetch(API+'/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
       var d=await r.json();

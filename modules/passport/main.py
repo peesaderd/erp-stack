@@ -763,10 +763,10 @@ async def multi_print(req: MultiPrintRequest):
         effective_copies = max(req.copies, req.photo_count // len(images))
     
     result = generate_multi_print_sheet(
-        images, dims, effective_copies, req.print_size, req.dpi,
+        images, dims, req.copies, req.print_size, req.dpi,
         req.gap_mm, req.border, req.blade_mode,
         border_width_mm=req.border_width_mm, border_color=req.border_color,
-        hairline=req.hairline
+        hairline=req.hairline, photo_count=req.photo_count
     )
     
     if not result["ok"]:

@@ -233,8 +233,8 @@ def _add_guidelines(sheet: np.ndarray, positions: list) -> np.ndarray:
 
     # Downscale with INTER_AREA for anti-aliased thin lines
     thin = cv2.resize(mask, (sw, sh), interpolation=cv2.INTER_AREA)
-    # Blend: white background + thin gray lines
-    result = cv2.addWeighted(thin, 0.3, result, 0.7, 0)
+    # Blend: white background + thin gray lines (60% visibility)
+    result = cv2.addWeighted(thin, 0.6, result, 0.4, 0)
     return result
 
 
@@ -263,6 +263,7 @@ def generate_multi_print_sheet(
     border_width_mm: float = 0.0,
     border_color: str = "#FFFFFF",
     hairline: bool = False,
+    photo_count: int = 0,
 ) -> dict:
     """
     Generate a print sheet with multiple different photos.
@@ -317,6 +318,10 @@ def generate_multi_print_sheet(
     for _img in images:
         for _c in range(copies):
             raw_list.append(_img)
+    # If photo_count specified and we have fewer photos, repeat to fill
+    if photo_count > 0 and len(raw_list) < photo_count and len(raw_list) > 0:
+        while len(raw_list) < photo_count:
+            raw_list.append(raw_list[len(raw_list) % len(images)])
     if not raw_list:
         return {"ok": False, "error": "No photos to place"}
 
@@ -336,6 +341,8 @@ def generate_multi_print_sheet(
     
     max_count = cols * rows
     count = min(len(photo_list), max_count)
+    if photo_count > 0:
+        count = min(count, photo_count)
     
     # Center the grid
     total_w = cols * cell_w + (cols - 1) * padding_px

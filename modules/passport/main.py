@@ -720,6 +720,7 @@ async def print_sheet_v2(req: PrintSheetRequest):
 class MultiPrintRequest(BaseModel):
     session_ids: list  # list of session_id strings
     copies: int = 1    # copies per photo
+    photo_count: int = 0  # total photos on sheet (0 = auto from copies)
     print_size: str = "4x6"
     border: str = "none"
     blade_mode: bool = False
@@ -756,8 +757,13 @@ async def multi_print(req: MultiPrintRequest):
         dims.append((w / req.dpi * 25.4, h / req.dpi * 25.4))
     
     # Generate multi-photo sheet
+    # If photo_count specified and > unique photos, calculate copies to fill
+    effective_copies = req.copies
+    if req.photo_count > 0 and len(images) > 0:
+        effective_copies = max(req.copies, req.photo_count // len(images))
+    
     result = generate_multi_print_sheet(
-        images, dims, req.copies, req.print_size, req.dpi,
+        images, dims, effective_copies, req.print_size, req.dpi,
         req.gap_mm, req.border, req.blade_mode,
         border_width_mm=req.border_width_mm, border_color=req.border_color,
         hairline=req.hairline

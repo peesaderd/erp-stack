@@ -1480,23 +1480,32 @@ def _brand_tokens(product_name: str):
 
 
 def _tts_product_name(product_name: str) -> str:
-    """Thai-dominant short name for SPOKEN script: drop pure-Latin tokens when Thai
-    tokens exist (owner: แปลงชื่อ eng เป็นไทย กัน Wan อ่านเพี้ยน). Cap ~35 chars."""
+    """Thai-dominant short name for SPOKEN script + BRAND kept (owner 2026-08-25:
+    "มันไม่มีคำว่า Zeblanc อ่ะ" — brand must be spoken too).
+    Keeps Thai descriptor tokens, then appends the FIRST Latin (brand) token if
+    it fits. Pure-Latin products keep Latin only. Whole tokens only, no chopping."""
     name = (product_name or "").strip()
     if not name:
         return name
     toks = _brand_tokens(name)
     thai = [w for w, _ in toks if re.search(r"[\u0E00-\u0E7F]", w)]
     latin = [w for w, _ in toks if not re.search(r"[\u0E00-\u0E7F]", w)]
-    picks = thai if thai else latin[:2]
-    out = ""
-    for w in picks:
-        cand = (out + " " + w).strip()
-        if cand and len(cand) > 35 and out:
-            break  # keep whole tokens only — never chop mid-word
-        out = cand
-    out = out.strip()
-    return out or name
+
+    def _join(words):
+        out = ""
+        for w in words:
+            cand = (out + " " + w).strip()
+            if cand and len(cand) > 35 and out:
+                break  # keep whole tokens only — never chop mid-word
+            out = cand
+        return out.strip()
+
+    if thai:
+        out = _join(thai)
+        if latin and len(f"{out} {latin[0]}") <= 40:
+            out = f"{out} {latin[0]}".strip()
+        return out or name
+    return _join(latin[:2]) or name
 
 
 def _name_variants(*names) -> List[str]:

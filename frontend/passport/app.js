@@ -32,6 +32,7 @@ window.addEventListener('DOMContentLoaded',function(){
   loadOptions();loadBgs();
   $('fi').addEventListener('change',handleFiles);
   $('drop').addEventListener('click',function(e){if(e.target.tagName!=='BUTTON')$('fi').click()});
+  $('clFi').addEventListener('change',uploadClothingFile);
   $('drop').addEventListener('dragover',function(e){e.preventDefault();this.style.borderColor='#6366f1'});
   $('drop').addEventListener('dragleave',function(){this.style.borderColor=''});
   $('drop').addEventListener('drop',function(e){e.preventDefault();this.style.borderColor='';handleFiles({target:{files:e.dataTransfer.files}})});
@@ -140,6 +141,46 @@ function renderCountrySelect(){
 }
 
 /* ══════════ CUSTOM CLOTHING ══════════ */
+function removeCustomClothing(){
+  S.customClothing=null;S.customClothingUrl=null;S.customClothingName=null;S.clothing='keep_original';
+  localStorage.removeItem('passport_custom_clothing');
+  $('custPreviewWrap').classList.add('hidden');
+  renderClothing();
+}
+
+/* ══════════ CUSTOM CLOTHING UPLOAD ══════════ */
+function pickClothing(){ $('clFi').click() }
+
+async function uploadClothingFile(e){
+  var file=e.target.files&&e.target.files[0];
+  if(!file)return;
+  if(file.size>10*1024*1024){toast('File too large (max 10MB)','err');return}
+  showOv('Uploading outfit...');
+  try{
+    var fd=new FormData();fd.append('file',file);
+    var r=await fetch(API+'/upload-clothing',{method:'POST',body:fd});
+    var d=await r.json();
+    if(!d.ok)throw new Error(d.detail||'Upload failed');
+    // store as data URL for keep-alive across reload (server URL works too, but data URL survives session-only storage)
+    var reader=new FileReader();
+    reader.onload=function(ev){
+      var dataUrl=ev.target.result;
+      S.customClothing=d.clothing_id;
+      S.customClothingUrl=dataUrl;
+      S.customClothingName=file.filename;
+      $('custPreviewWrap').classList.remove('hidden');
+      $('custPreviewImg').src=dataUrl;
+      $('custPreviewName').textContent=file.filename;
+      localStorage.setItem('passport_custom_clothing',JSON.stringify({id:d.clothing_id,url:dataUrl,name:file.filename}));
+      S.clothing='custom';$('genBtn').disabled=false;
+      renderClothing();
+      toast('Outfit uploaded ✓','ok');
+    };
+    reader.readAsDataURL(file);
+  }catch(err){toast('Upload failed: '+err.message,'err');console.error(err)}
+  finally{hideOv();e.target.value=''}
+}
+
 function loadCustomClothing(){
   var saved=localStorage.getItem('passport_custom_clothing');
   if(saved){
@@ -152,13 +193,6 @@ function loadCustomClothing(){
       renderClothing();
     }catch(e){}
   }
-}
-
-function removeCustomClothing(){
-  S.customClothing=null;S.customClothingUrl=null;S.customClothingName=null;S.clothing='keep_original';
-  localStorage.removeItem('passport_custom_clothing');
-  $('custPreviewWrap').classList.add('hidden');
-  renderClothing();
 }
 
 /* ══════════ FILE UPLOAD ══════════ */
@@ -271,6 +305,11 @@ async function generate(){
     if(S.cw)body.custom_width=S.cw;
     if(S.ch)body.custom_height=S.ch;
     if(S.cropPreset)body.crop_preset=S.cropPreset;
+    var p=($('promptField')&&$('promptField').value||'').trim();
+    if(p)body.prompt=p;
+    if(S.customClothingUrl&&S.customClothingUrl.startsWith('data:')){
+      body.custom_clothing_base64=S.customClothingUrl.split(',')[1];
+    }
 
     // Generate = ACTIVE photo only (manual edit) — use ⚡ Generate ทั้งหมด for batch
     var d=await api('/generate',body);
@@ -295,6 +334,8 @@ async function generateAll(){
     if(S.cw)body.custom_width=S.cw;
     if(S.ch)body.custom_height=S.ch;
     if(S.cropPreset)body.crop_preset=S.cropPreset;
+    var p=($('promptField')&&$('promptField').value||'').trim();
+    if(p)body.prompt=p;
     body.bulk_sessions=S.uploaded.map(function(u){return u.sid});
     var d=await api('/bulk-generate',body);
     if(d.ok){

@@ -106,6 +106,7 @@ class GenerateRequest(BaseModel):
     crop_preset: str = "standard"  # "standard" | "compact" | "relaxed"
     print_size: str = "4x6"        # "4x6" | "5x7" | "a6" | "a4"
     custom_clothing_base64: Optional[str] = None  # user's own outfit photo
+    prompt: Optional[str] = None          # extra prompt hint for FLUX i2i
     photo_count: int = 6           # total photos on print sheet (multi-sheet if > max)
     border: str = "frame"          # "none" | "guidelines" | "frame"
     blade_mode: bool = False
@@ -125,6 +126,7 @@ class BulkGenerateRequest(BaseModel):
     strength: float = 0.45
     print_size: str = "4x6"
     photo_count: int = 6
+    prompt: Optional[str] = None  # extra prompt hint for FLUX i2i
     border: str = "none"
     blade_mode: bool = False
     gap_mm: float = 0.0
@@ -199,6 +201,39 @@ def list_clothing(gender: str = "male"):
 def list_backgrounds():
     from clothing import list_backgrounds as _list
     return {"ok": True, "options": _list()}
+
+
+@app.post("/api/passport/upload-clothing")
+async def upload_clothing(file: UploadFile = File(...)):
+    """Upload custom clothing image (เสื้อผ้าที่ user อยากใส่) → คืน URL ให้ frontend เก็บ."""
+    clothing_id = uuid.uuid4().hex[:12]
+    img_bytes = await file.read()
+
+    # Validate size (max 10MB)
+    if len(img_bytes) > 10 * 1024 * 1024:
+        raise HTTPException(400, "File too large (max 10MB)")
+
+    # Detect content type
+    ext = "png"
+    if file.content_type == "image/jpeg" or file.filename.lower().endswith((".jpg", ".jpeg")):
+        ext = "jpg"
+
+    # Save to storage/clothing/
+    clothing_dir = STORAGE_DIR / "clothing"
+    clothing_dir.mkdir(parents=True, exist_ok=True)
+    file_path = clothing_dir / f"{clothing_id}.{ext}"
+    with open(file_path, "wb") as f:
+        f.write(img_bytes)
+
+    url = f"/api/passport/download/clothing/{clothing_id}.{ext}"
+    logger.info(f"[{clothing_id}] Uploaded custom clothing: {file.filename} ({len(img_bytes)} bytes)")
+    return {
+        "ok": True,
+        "clothing_id": clothing_id,
+        "url": url,
+        "name": file.filename,
+        "size_bytes": len(img_bytes),
+    }
 
 
 @app.post("/api/passport/upload")
@@ -361,6 +396,7 @@ async def generate_passport_v2(req: GenerateRequest):
         strength=req.strength,
         session_id=session_id,
         custom_clothing_bytes=custom_clothing_bytes,
+        extra_prompt=req.prompt,
     )
 
     if not result["ok"]:
@@ -747,6 +783,15 @@ async def multi_print(req: MultiPrintRequest):
 
 # ── Download ──────────────────────────────────────────
 
+@app.get("/api/passport/download/clothing/{filename}")
+def download_clothing(filename: str):
+    """Serve custom clothing images (uploaded by user)."""
+    path = STORAGE_DIR / "clothing" / filename
+    if not path.exists():
+        raise HTTPException(404, "File not found")
+    return FileResponse(path, headers={"Cache-Control": "public, max-age=86400"})
+
+
 @app.get("/api/passport/download/{filename}")
 def download(filename: str, size: str = "", fmt: str = ""):
     """Serve stored images.
@@ -848,6 +893,7 @@ async def bulk_generate(req: BulkGenerateRequest):
             clothing_prompt=clothing["prompt"],
             bg_prompt=bg["prompt"],
             strength=req.strength,
+            extra_prompt=req.prompt,
         )
 
         if not result["ok"]:

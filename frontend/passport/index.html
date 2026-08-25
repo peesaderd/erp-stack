@@ -128,12 +128,23 @@
     <div class="opt-sec">
       <div class="gender-tabs" id="gt"></div>
       <div class="caro"><button class="carro-btn" onclick="scrollCar('cl',-1)">◀</button><div class="caro-list" id="cl"></div><button class="carro-btn" onclick="scrollCar('cl',1)">▶</button></div>
+      <!-- Custom clothing upload -->
+      <div class="cust-upload" id="custUploadBtn" style="margin-top:8px" onclick="pickClothing()">
+        📤 อัปโหลดรูปเสื้อผ้า (custom outfit)
+      </div>
+      <input type="file" id="clFi" accept="image/jpeg,image/png" style="display:none">
       <div id="custPreviewWrap" class="hidden" style="margin-top:8px">
         <div class="cust-preview">
           <img id="custPreviewImg" src="">
           <div><div id="custPreviewName" style="font-size:.7rem;font-weight:600"></div><button class="btn-c" style="padding:4px 10px;border:none;border-radius:6px;font-size:.6rem;cursor:pointer;margin-top:4px" onclick="removeCustomClothing()">✕ Remove</button></div>
         </div>
       </div>
+    </div>
+    <!-- Prompt field for Flux i2i -->
+    <div class="opt-sec">
+      <div class="opt-h"><span class="e">💬</span> Prompt (ส่งให้ AI ตอน Generate)</div>
+      <textarea id="promptField" rows="2" placeholder="เช่น: ทรงผมเรียบ ยิ้มเล็กน้อย ชุดสุภาพสีดำ" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:.72rem;font-family:inherit;resize:vertical;outline:none;background:#fff;color:#0f172a"></textarea>
+      <div style="font-size:.58rem;color:#94a3b8;margin-top:4px">ปล่อยว่าง = ใช้ prompt default</div>
     </div>
     <button class="gen-btn" id="genBtn" disabled onclick="generate()"><span class="ico">🚀</span> Generate</button>
     <button class="gen-btn hidden" id="genAllBtn" onclick="generateAll()" style="background:#059669;margin-top:8px"><span class="ico">⚡</span> Generate ทั้งหมด (batch)</button>

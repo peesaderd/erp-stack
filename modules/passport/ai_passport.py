@@ -413,6 +413,7 @@ def generate_passport(
     strength: float = 0.45,
     session_id: str = None,
     custom_clothing_bytes: bytes = None,
+    extra_prompt: str = None,
 ) -> dict:
     """
     Generate passport photo source using Prodia FLUX i2i.
@@ -466,6 +467,9 @@ def generate_passport(
         )
     else:
         prompt = build_prompt(clothing_prompt, bg_prompt)
+    if extra_prompt and extra_prompt.strip():
+        prompt = prompt + ", " + extra_prompt.strip()
+        logger.info(f"Extra prompt appended: {extra_prompt.strip()[:80]}")
     generated = flux_i2i(prepared, prompt, strength)
     info["flux_size"] = [generated.shape[1], generated.shape[0]]
 

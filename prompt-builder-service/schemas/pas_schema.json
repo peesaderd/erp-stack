@@ -14,13 +14,13 @@
       "id": "apply",
       "timing_ratio": 0.25,
       "purpose": "ลงมือใช้สินค้า — ทา/ใช้ ตัวนี้ (ความเจ็บปวดบอกผ่านเสียงพากย์ ไม่เป็นภาพ)",
-      "prompt": "มาดูวิธีใช้ที่ถูกต้องกันครับ"
+      "prompt": "ขอแนะนำ {product}"
     },
     {
       "id": "solve",
       "timing_ratio": 0.3,
       "purpose": "'{product}' คือทางออก — เห็นผล ดีขึ้น (ไม่ใส่ benefit ยาว กัน fit เกิน)",
-      "prompt": "ขอแนะนำ {product} {benefit} แก้ตรงจุดจริงๆ"
+      "prompt": "{benefit}"
     },
     {
       "id": "cta",

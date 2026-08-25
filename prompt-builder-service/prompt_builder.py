@@ -1523,6 +1523,23 @@ def _owner_script_variants(*bases) -> List[str]:
     return out
 
 
+def _title_claims(name: str) -> str:
+    """Owner rule (2026-08-25): selling points come from the product NAME itself,
+    not AI image analysis. Pregnancy-safe products MUST speak their 'free of X'
+    claims (e.g. ปราศจากน้ำหอมและพาราเบน). Extracts Thai claim tokens:
+    ไม่X / ปราศจากX / ไร้X / ...ชุ่มชื้น / กันน้ำ / กันแดด style phrases."""
+    if not name:
+        return ""
+    claims = []
+    for t in re.split(r"\s+", name):
+        if not re.search(r"[\u0E00-\u0E7F]", t):
+            continue  # Thai-only tokens
+        if t.startswith(("ไม่", "ปราศจาก", "ไร้", "ไม่มี", "ต่ำกว่า")) or \
+           ("ชุ่มชื้น" in t and t.startswith("ให้")) or t == "ชุ่มชื้น":
+            claims.append(t)
+    return " ".join(claims)
+
+
 def _scrub_placeholder_words(segments: list) -> None:
     """Owner rule: spoken lines NEVER use name-substitute words.
     Strip standalone 'ตัวนี้/เจ้านี้/อันนี้' from every segment text
@@ -1746,6 +1763,10 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
     # Use customer_problem + main_benefit from Gemini analysis when available
     customer_problem = profile.get("customer_problem", "") if profile else ""
     main_benefit = profile.get("main_benefit", "") if profile else ""
+    # Owner rule 2026-08-25: claims from the product NAME win over AI analysis
+    _tb = _title_claims(product_name or "")
+    if _tb:
+        main_benefit = _tb
     
     if customer_problem and main_benefit and len(customer_problem) > 5:
         # Shorten problem and benefit for natural spoken Thai and normalize polite particle by gender
@@ -1810,7 +1831,7 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
             segments.append({"key": sc.get("id", "beat"), "text": beat_text, "duration_sec": dur, "timing": ""})
 
         # Owner script rules: name at most ONCE — later mentions dropped, no 'ตัวนี้'
-        _drop_later_name_mentions(segments, _owner_script_variants(product_short, spoken_name))
+        _drop_later_name_mentions(segments, _owner_script_variants(spoken_name))
         _scrub_placeholder_words(segments)
 
         # Recompute timings sequentially from durations (sum of scene durations ≈ duration)
@@ -1861,7 +1882,7 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
     ]
     # Owner script rules (2026-08-24): Thai-dominant name + speak ONCE, no 'ตัวนี้'
     _spoken_fb = _tts_product_name(product_short)
-    _drop_later_name_mentions(segments, _owner_script_variants(product_short, _spoken_fb))
+    _drop_later_name_mentions(segments, _owner_script_variants(_spoken_fb))
     _scrub_placeholder_words(segments)
     
     total_ok = True

@@ -6,27 +6,27 @@
   "scenes": [
     {
       "id": "hook",
-      "timing_ratio": 0.2,
+      "timing_ratio": 0.18,
       "purpose": "เปิดด้วยความไม่พอใจสินค้าเดิมของ '{target_audience}'",
-      "prompt": "เปิดด้วยปัญหาของสินค้าทั่วไปที่คนใช้อยู่"
+      "prompt": "{problem} เป็นอยู่ไหม"
     },
     {
       "id": "them",
-      "timing_ratio": 0.25,
+      "timing_ratio": 0.26,
       "purpose": "ชี้จุดด้อยของของเก่า/คู่แข่ง — {problem}",
       "prompt": "ของทั่วไปมัน {problem} ใช้ทีไรก็เซ็ง"
     },
     {
       "id": "us",
-      "timing_ratio": 0.4,
+      "timing_ratio": 0.34,
       "purpose": "'{product}' ดีกว่ายังไง — เหนือกว่า เห็นผลจริง",
-      "prompt": "แต่ {product} แตกต่าง เพราะ {benefit}"
+      "prompt": "{benefit}"
     },
     {
       "id": "cta",
-      "timing_ratio": 0.15,
+      "timing_ratio": 0.22,
       "purpose": "เปลี่ยนมาใช้ ตัวนี้",
-      "prompt": "ถึงเวลาเปลี่ยน กดหยิบได้เลยวันนี้"
+      "prompt": "ถึงเวลาเปลี่ยนไปใช้ {product} กดหยิบได้เลยวันนี้"
     }
   ],
   "recommended": {

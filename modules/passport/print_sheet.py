@@ -207,28 +207,34 @@ def _add_hairline(sheet: np.ndarray, positions: list, margin: int = 0) -> np.nda
 
 
 def _add_guidelines(sheet: np.ndarray, positions: list) -> np.ndarray:
-    """Add thin dashed cut lines around each photo."""
+    """Add ultra-thin dashed cut lines using 4x supersampling for ~0.25px lines."""
     result = sheet.copy()
-    dash_len = 8
-    gap_len = 4
+    scale = 4
+    sh, sw = result.shape[:2]
+    mask = np.full((sh * scale, sw * scale, 3), 255, dtype=np.uint8)
+    dash_len = 8 * scale
+    gap_len = 4 * scale
     color = (180, 180, 180)
-    thickness = 1
 
     for pos in positions:
         x, y, pw, ph = pos["x"], pos["y"], pos["w"], pos["h"]
         # Top & bottom
         for dx in range(0, pw, dash_len + gap_len):
-            x1 = x + dx
-            x2 = min(x1 + dash_len, x + pw)
-            cv2.line(result, (x1, y), (x2, y), color, thickness)
-            cv2.line(result, (x1, y + ph), (x2, y + ph), color, thickness)
+            x1 = x * scale + dx
+            x2 = min(x1 + dash_len, (x + pw) * scale)
+            cv2.line(mask, (x1, y * scale), (x2, y * scale), color, 1)
+            cv2.line(mask, (x1, (y + ph) * scale), (x2, (y + ph) * scale), color, 1)
         # Left & right
         for dy in range(0, ph, dash_len + gap_len):
-            y1 = y + dy
-            y2 = min(y1 + dash_len, y + ph)
-            cv2.line(result, (x, y1), (x, y2), color, thickness)
-            cv2.line(result, (x + pw, y1), (x + pw, y2), color, thickness)
+            y1 = y * scale + dy
+            y2 = min(y1 + dash_len, (y + ph) * scale)
+            cv2.line(mask, (x * scale, y1), (x * scale, y2), color, 1)
+            cv2.line(mask, ((x + pw) * scale, y1), ((x + pw) * scale, y2), color, 1)
 
+    # Downscale with INTER_AREA for anti-aliased thin lines
+    thin = cv2.resize(mask, (sw, sh), interpolation=cv2.INTER_AREA)
+    # Blend: white background + thin gray lines
+    result = cv2.addWeighted(thin, 0.3, result, 0.7, 0)
     return result
 
 

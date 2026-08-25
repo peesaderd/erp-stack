@@ -1,4 +1,333 @@
-<div class="pf"><label>Border width (mm)</label>
-              <input type="number" id="bwmm" value="3" min="0" max="20" step="0.5" onchange="updatePreview()" oninput="updatePreview()">
-              <div style="font-size:.62rem;color:#94a3b8;margin-top:3px">Width of border around photos</div>
-            </div>
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Print Sheet — Passport Photo Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}html,body{overflow-x:hidden;width:100%}body{font-family:'Inter',-apple-system,sans-serif;background:#0f172a;min-height:100vh;color:#0f172a;overflow-x:hidden;width:100%}
+.hdr{position:fixed;top:0;left:0;right:0;z-index:200;background:rgba(15,23,42,.92);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,.08);padding:8px 16px}.hdr-in{max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:12px}.hdr-logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 12px rgba(99,102,241,.4)}.hdr-logo svg{width:20px;height:20px;stroke:#fff;stroke-width:2;fill:none}.hdr-txt{flex:1;min-width:0}.hdr-txt h1{font-size:.95rem;font-weight:800;color:#fff;margin:0;line-height:1.2}.hdr-txt small{font-size:.6rem;color:rgba(255,255,255,.6);font-weight:500;display:block}.hdr-badge{background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-size:.6rem;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap}
+
+.page{max-width:500px;width:100%;margin:0 auto;padding:60px 16px 80px;overflow-x:hidden}
+.card{background:#fff;border-radius:16px;border:1px solid rgba(255,255,255,.06);overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.12);max-width:100%;margin-bottom:16px}
+.card-h{padding:14px 16px;border-bottom:1px solid #e2e8f0;font-size:.78rem;font-weight:700;color:#0f172a;display:flex;align-items:center;gap:8px}
+.card-b{padding:16px}
+
+/* Upload */
+.drop{border:2px dashed #cbd5e1;border-radius:16px;padding:40px 20px;text-align:center;cursor:pointer;transition:.2s;background:#f8fafc}.drop:hover{border-color:#6366f1;background:#eef2ff}.drop .ic{font-size:48px;margin-bottom:12px;opacity:.6}.drop h3{font-size:1rem;font-weight:700;color:#0f172a;margin-bottom:4px}.drop p{font-size:.72rem;color:#64748b;margin-bottom:16px}.drop input{display:none}
+.drop.has{border-style:solid;border-color:#6366f1;padding:10px;display:flex;align-items:center;gap:12px;text-align:left;background:#fff}
+.drop.has img{width:60px;height:75px;object-fit:cover;border-radius:10px;border:2px solid #e2e8f0;flex-shrink:0}
+.drop.has .info{flex:1}.drop.has .nm{font-size:.75rem;font-weight:600;word-break:break-all;color:#0f172a}.drop.has .mt{font-size:.65rem;color:#64748b}
+.btn-p{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;box-shadow:0 4px 12px rgba(99,102,241,.3);padding:10px 20px;border:none;border-radius:10px;font-size:.8rem;font-weight:600;cursor:pointer}.btn-p:hover{transform:translateY(-1px)}
+.btn-c{background:#e2e8f0;color:#475569;padding:10px 20px;border:none;border-radius:10px;font-size:.8rem;font-weight:600;cursor:pointer}.btn-c:hover{background:#cbd5e1}
+
+/* Settings */
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.pf label{font-size:.6rem;color:#94a3b8;margin-bottom:2px;display:block;font-weight:500}
+.pf select,.pf input{width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.75rem;background:#fff;color:#0f172a;outline:none;transition:.2s}
+.pf select:focus,.pf input:focus{border-color:#6366f1}
+.blade{display:flex;align-items:center;gap:5px;margin-top:8px;font-size:.68rem;color:#64748b;cursor:pointer;user-select:none}
+.blade input{accent-color:#6366f1;width:13px;height:13px}
+
+/* Generate button */
+.gen-btn{width:100%;padding:16px;border:none;border-radius:14px;font-size:.95rem;font-weight:800;cursor:pointer;transition:.2s;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;box-shadow:0 4px 16px rgba(99,102,241,.4);display:flex;align-items:center;justify-content:center;gap:10px;margin-top:16px}.gen-btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(99,102,241,.5)}.gen-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
+
+/* Preview */
+.preview-wrap{background:#e2e8f0;border-radius:10px;padding:8px;display:flex;justify-content:center;align-items:center;min-height:140px}
+.preview-sheet{background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.15);position:relative;overflow:hidden}
+.preview-cell{background:#f1f5f9;border:1px dashed #cbd5e1;border-radius:2px;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+.preview-cell img{width:100%;height:100%;object-fit:cover}
+.preview-cell.empty{background:#f8fafc;border-color:#e2e8f0}
+.preview-cell.guides::after{content:'';position:absolute;inset:2px;border:1px dashed rgba(99,102,241,.4);pointer-events:none}
+.preview-cell.frame{border:2px solid #6366f1}
+.preview-label{text-align:center;font-size:.6rem;color:#94a3b8;margin-top:4px}
+
+/* Result */
+.result img{width:100%;border-radius:12px;background:#f1f5f9;box-shadow:0 4px 16px rgba(0,0,0,.08)}
+.rbtns{display:flex;gap:8px;margin-top:12px}
+.rbtn{flex:1;padding:10px;border:none;border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer;text-align:center;text-decoration:none;transition:.2s}
+.rbtn.dl{background:#10b981;color:#fff}.rbtn.dl:hover{filter:brightness(1.1)}
+.rbtn.print{background:#6366f1;color:#fff}.rbtn.print:hover{filter:brightness(1.1)}
+.info-box{background:#f1f5f9;border-radius:8px;padding:10px 12px;margin-top:12px;font-size:.68rem;color:#64748b;line-height:1.5}
+.info-box b{color:#0f172a}
+
+/* Gallery link */
+.gallery-link{display:block;text-align:center;margin-top:16px;padding:10px;background:#f1f5f9;border-radius:8px;color:#6366f1;text-decoration:none;font-size:.75rem;font-weight:600;border:1px solid #e2e8f0;transition:.2s}
+.gallery-link:hover{background:#eef2ff;border-color:#6366f1}
+
+/* Overlay */
+.ov{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,.92);z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:.3s}.ov.show{opacity:1;pointer-events:auto}.sp{width:40px;height:40px;border:3px solid #334155;border-top-color:#6366f1;border-radius:50%;animation:spin .7s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.ov .t{color:#fff;font-size:.95rem;font-weight:700;margin-top:16px}
+
+/* Toast */
+.toast{position:fixed;bottom:72px;left:50%;transform:translateX(-50%) translateY(20px);background:#1e293b;color:#fff;padding:10px 20px;border-radius:12px;font-size:.78rem;font-weight:600;opacity:0;transition:.3s;z-index:600;pointer-events:none;white-space:nowrap;max-width:90vw}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}.toast.err{background:#dc2626}.toast.ok{background:#10b981}
+
+/* Bottom nav */
+.bnav{position:fixed;bottom:0;left:0;right:0;background:rgba(15,23,42,.92);backdrop-filter:blur(12px);display:flex;z-index:300;padding:4px 0 max(4px,env(safe-area-inset-bottom,4px));height:56px}.bnav::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.45) 18%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.45) 82%,transparent 100%);pointer-events:none;z-index:1}.bnav a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-decoration:none;color:#94a3b8;font-size:.6rem;font-weight:600;transition:.2s;-webkit-tap-highlight-color:transparent}.bnav a svg{width:20px;height:20px;stroke-width:1.8;fill:none;stroke:currentColor}.bnav a:hover{color:#a5b4fc}.bnav a.active{color:#818cf8}
+
+@media(max-width:500px){.pgrid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="hdr"><div class="hdr-in">
+  <div class="hdr-logo"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="12" cy="10" r="3"/><path d="M7 20v-1a5 5 0 0110 0v1"/></svg></div>
+  <div class="hdr-txt"><h1>Passport Photo Studio</h1><small>AI-powered ID photos in seconds</small></div>
+  <div class="hdr-badge">🖨️ Print</div>
+</div></div>
+
+<div class="page">
+
+    <!-- Live Preview Card (Top) -->
+  <div class="card">
+    <div class="card-h">👁 Live Preview</div>
+    <div class="card-b">
+      <div id="previewEmpty" style="text-align:center;padding:30px;color:#94a3b8">
+        <div style="font-size:2rem;margin-bottom:8px;opacity:.4">📄</div>
+        Upload a photo to see preview
+      </div>
+      <div id="previewActive" style="display:none">
+        <div class="preview-wrap" id="previewWrap"></div>
+        <div class="preview-label" id="previewLabel"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Upload Card -->
+  <div class="card">
+    <div class="card-h">📷 Upload Passport Photo</div>
+    <div class="card-b">
+      <div class="drop" id="drop" onclick="document.getElementById('fi').click()">
+        <div id="emp"><div class="ic">📷</div><h3>Upload your photo</h3><p>Drag & drop or click to browse<br><small>JPG / PNG</small></p></div>
+        <div id="fil" style="display:none">
+          <img id="pth" alt="">
+          <div class="info"><div class="nm" id="fn"></div><div class="mt" id="fm"></div></div>
+        </div>
+        <input type="file" id="fi" accept="image/jpeg,image/png">
+      </div>
+      <a href="/gallery.html" class="gallery-link">📸 Or pick from Gallery</a>
+    </div>
+  </div>
+
+  <!-- Print Settings Card -->
+  <div class="card">
+    <div class="card-h">⚙️ Print Settings</div>
+    <div class="card-b">
+      <div class="pgrid">
+        <div class="pf"><label>Paper Size</label>
+          <select id="ps" onchange="updatePreview()">
+            <option value="4x6">4×6"</option>
+            <option value="5x7">5×7"</option>
+            <option value="a6">A6</option>
+            <option value="a4">A4</option>
+          </select>
+        </div>
+        <div class="pf"><label>Photo Size</label>
+          <select id="photoSize" onchange="currentPhotoSize=this.value;updatePreview()">
+            <option value="passport">Passport (35×45mm)</option>
+            <option value="25x35">ID Card (25×35mm)</option>
+            <option value="30x40">30×40mm</option>
+            <option value="50x50">50×50mm</option>
+            <option value="50x70">50×70mm</option>
+          </select>
+        </div>
+        <div class="pf"><label>Photos Count</label>
+          <input type="number" id="pc" value="6" min="1" max="20" onchange="updatePreview()" oninput="updatePreview()">
+        </div>
+        <div class="pf"><label>Border</label>
+          <select id="bt" onchange="updatePreview()">
+            <option value="guidelines">Cut lines</option>
+            <option value="none">None</option>
+            <option value="frame">Frame</option>
+          </select>
+        </div>
+      </div>
+      <label class="blade"><input type="checkbox" id="bm" onchange="updatePreview()"> Blade mode (wider gaps)</label>
+      <button class="gen-btn" id="btn" disabled onclick="generate()"><span style="font-size:1.2rem">🖨️</span> Generate Print Sheet</button>
+    </div>
+  </div>
+
+  <!-- Result Card -->
+  <div class="card">
+    <div class="card-h">🖼 Result</div>
+    <div class="card-b">
+      <div id="empty" style="text-align:center;padding:40px;color:#94a3b8">
+        <div style="font-size:2rem;margin-bottom:8px;opacity:.4">🖨️</div>
+        Upload photo & click Generate
+      </div>
+      <div id="result" style="display:none">
+        <img id="outImg" alt="">
+        <div id="infoBox" class="info-box"></div>
+        <div class="rbtns">
+          <a class="rbtn dl" id="dlBtn" href="" download>💾 Download</a>
+          <button class="rbtn print" onclick="window.print()">🖨️ Print</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="ov" id="ov"><div class="sp"></div><div class="t" id="ovt">Generating...</div></div>
+<div class="toast" id="toast"></div>
+
+<div class="bnav">
+  <a href="/"><svg viewBox="0 0 24 24"><path d="M3 12l9-8 9 8"/><path d="M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9"/></svg>Home</a>
+  <a href="/gallery.html"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>Gallery</a>
+  <a href="/print.html" class="active"><svg viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print</a>
+</div>
+
+<script>
+var API='/api/passport';
+var photoFile=null;
+var photoImg=new Image();
+var multiThumbs=[];
+
+var PAPERS={'4x6':{w:102,h:152},'5x7':{w:127,h:178},'a6':{w:105,h:148},'a4':{w:210,h:297}};
+
+var PHOTO_SIZES={
+  'passport':{w:35,h:45},
+  '25x35':{w:25,h:35},
+  '30x40':{w:30,h:40},
+  '50x50':{w:50,h:50},
+  '50x70':{w:50,h:70}
+};
+var currentPhotoSize='passport';
+
+document.getElementById('fi').addEventListener('change',function(e){
+  var f=e.target.files[0];
+  if(!f)return;
+  photoFile=f;
+  photoImg.onload=function(){updatePreview()};
+  photoImg.src=URL.createObjectURL(f);
+  document.getElementById('drop').classList.add('has');
+  document.getElementById('emp').style.display='none';
+  document.getElementById('fil').style.display='';
+  document.getElementById('pth').src=photoImg.src;
+  document.getElementById('fn').textContent=f.name;
+  document.getElementById('fm').textContent=(f.size/1024).toFixed(0)+' KB';
+  document.getElementById('btn').disabled=false;
+});
+
+function updatePreview(){
+  var raw=PAPERS[document.getElementById('ps').value]||PAPERS['4x6'];
+  var paper={w:raw.w,h:raw.h};
+  var count=parseInt(document.getElementById('pc').value)||6;
+  var border=document.getElementById('bt').value;
+  var blade=document.getElementById('bm').checked;
+  var gap=blade?5:3;
+  var isMulti=multiThumbs.length>0;
+  var photoSize=PHOTO_SIZES[currentPhotoSize]||PHOTO_SIZES['passport'];
+  var pw=photoSize.w, ph=photoSize.h;
+  var cols=Math.floor((paper.w+gap)/(pw+gap));
+  var rows=Math.floor((paper.h+gap)/(ph+gap));
+  var maxCount=cols*rows;
+  var fitCount=Math.min(count,maxCount);
+  var previewMaxW=240;
+  var scale=previewMaxW/paper.w;
+  var sW=paper.w*scale;
+  var sH=paper.h*scale;
+  var cellW=pw*scale;
+  var cellH=ph*scale;
+  var gapPx=gap*scale;
+  var gridW=cols*cellW+(cols-1)*gapPx;
+  var gridH=rows*cellH+(rows-1)*gapPx;
+  var ox=(sW-gridW)/2;
+  var oy=(sH-gridH)/2;
+  var html='<div class="preview-sheet" style="width:'+sW+'px;height:'+sH+'px">';
+  var idx=0;
+  for(var r=0;r<rows;r++){
+    for(var c=0;c<cols;c++){
+      if(idx>=maxCount){html+='<div class="preview-cell empty" style="width:'+cellW+'px;height:'+cellH+'px"></div>';continue}
+      var cls='preview-cell';
+      if(border==='guidelines') cls+=' guides';
+      if(border==='frame') cls+=' frame';
+      var x=ox+c*(cellW+gapPx);
+      var y=oy+r*(cellH+gapPx);
+      var imgTag='';
+      if(isMulti){
+        var tIdx=idx%multiThumbs.length;
+        imgTag='<img src="'+multiThumbs[tIdx]+'" alt="">';
+      }else if(photoImg.src){
+        imgTag='<img src="'+photoImg.src+'" alt="">';
+      }
+      html+='<div class="'+cls+'" style="position:absolute;left:'+x+'px;top:'+y+'px;width:'+cellW+'px;height:'+cellH+'px">'+imgTag+'</div>';
+      idx++;
+    }
+  }
+  html+='</div>';
+  document.getElementById('previewWrap').innerHTML=html;
+  document.getElementById('previewLabel').textContent=
+    paper.w+'×'+paper.h+'mm → '+cols+'×'+rows+' grid ('+maxCount+' max) → '+fitCount+' photos';
+  document.getElementById('previewEmpty').style.display='none';
+  document.getElementById('previewActive').style.display='';
+}
+
+async function generate(){
+  var isMulti=multiThumbs.length>0;
+  if(!isMulti&&!photoFile)return;
+  document.getElementById('ov').classList.add('show');
+  try{
+    if(isMulti){
+      var body={
+        session_ids:window._sids,
+        copies:2,
+        print_size:document.getElementById('ps').value,
+        photo_size:currentPhotoSize,
+        border:document.getElementById('bt').value,
+        blade_mode:document.getElementById('bm').checked,
+      };
+      var r=await fetch(API+'/multi-print',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      var d=await r.json();
+      if(!d.ok)throw new Error(d.detail||'Failed');
+      showResult({download_print:d.download_url,print_info:d.info});
+    }else{
+      var b64=await toB64(photoFile);
+      var body={
+        image_base64:b64,
+        print_size:document.getElementById('ps').value,
+        photo_size:currentPhotoSize,
+        photo_count:parseInt(document.getElementById('pc').value)||6,
+        border:document.getElementById('bt').value,
+        blade_mode:document.getElementById('bm').checked,
+      };
+      var r=await fetch(API+'/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      var d=await r.json();
+      if(!d.ok)throw new Error(d.detail||'Generation failed');
+      showResult(d);
+    }
+  }catch(e){toast('Error: '+e.message,'err')}finally{document.getElementById('ov').classList.remove('show')}
+}
+
+function showResult(d){
+  document.getElementById('empty').style.display='none';
+  document.getElementById('result').style.display='';
+  var printUrl=d.download_print||d.download_passport;
+  document.getElementById('outImg').src=API+printUrl+'?t='+Date.now();
+  document.getElementById('dlBtn').href=API+printUrl;
+  var info=d.print_info||{};
+  document.getElementById('infoBox').innerHTML=
+    '<b>Size:</b> '+(info.print_size||'4x6')+'<br>'+
+    '<b>Photos:</b> '+(info.count||'?')+'<br>'+
+    '<b>Layout:</b> '+(info.cols||'?')+'×'+(info.rows||'?')+'<br>'+
+    '<b>Border:</b> '+(info.border||'guidelines');
+  toast('Print sheet ready!','ok');
+}
+
+function toB64(f){return new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(r.result.split(',')[1])};r.onerror=rej;r.readAsDataURL(f)})}
+function toast(m,t){var e=document.getElementById('toast');e.className='toast show '+(t||'');e.textContent=m;setTimeout(function(){e.className='toast'},3000)}
+
+/* Multi-photo mode (from Gallery) */
+var params=new URLSearchParams(window.location.search);
+var sidsParam=params.get('session_ids');
+if(sidsParam){
+  var sids=sidsParam.split(',');
+  window._sids=sids;
+  multiThumbs=sids.map(function(s){return API+'/download/'+s+'_passport.jpg'});
+  document.getElementById('drop').style.display='none';
+  document.getElementById('btn').disabled=false;
+  updatePreview();
+}
+</script>
+</body>
+</html>

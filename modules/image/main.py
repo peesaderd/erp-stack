@@ -78,12 +78,17 @@ def _token() -> str:
     return t
 
 
-def _save(data: bytes, prefix: str = "prodia") -> str:
+def _save(data: bytes, prefix: str = "prodia", mirror_shared: bool = True) -> str:
     filename = f"{prefix}_{uuid.uuid4().hex[:12]}.png"
     path = STORAGE_DIR / filename
     with open(path, "wb") as f:
         f.write(data)
-    # Mirror to shared storage so nginx /storage/ alias can serve it
+    # Mirror to shared storage so nginx /storage/ alias can serve it.
+    # Owner 2026-08-25: txt2img fallback (prefix=flux, POD wizard path) must NOT
+    # be mirrored — it pollutes our asset gallery. Podwizard serves via its own
+    # nginx proxy to port 8110 local storage.
+    if not mirror_shared:
+        return f"/storage/images/{filename}"
     try:
         import shutil
         shutil.copy2(path, SHARED_STORAGE_DIR / filename)
@@ -548,7 +553,7 @@ async def generate_image(req: ImageGenRequest):
         config=cfg,
         timeout=180,
     )
-    path = _save(result_bytes, prefix="flux")
+    path = _save(result_bytes, prefix="flux", mirror_shared=False)
     cost = get_price_for_sync_image("flux-2.dev.txt2img.v1")
     logger.info(f"  Txt2Img OK ({len(result_bytes)}B) | cost=${cost['dollars']}")
     return {

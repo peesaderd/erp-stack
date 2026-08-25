@@ -415,7 +415,7 @@ def generate_image(
     Args:
         prompt: image_prompt จาก Step 4
         product_image: URL ของรูปสินค้า (reference)
-        aspect_ratio: 9:16 (TikTok portrait — Triptych discontinued, always 9:16)
+        aspect_ratio: 9:16 (TikTok portrait — owner direction, always 9:16)
         model: "nano-banana" (default) or "flux-2-klein" (klein 4B img2img)
 
     Returns:
@@ -1109,7 +1109,7 @@ def run_pipeline(
 
         # ── STEP 5: Generate Image ──
         step_start = time.time()
-        # Single 9:16 portrait — Triptych is discontinued (owner 2026-08-24).
+        # Single 9:16 portrait (owner direction 2026-08-24).
         # Always portrait; do NOT switch to 16:9 landscape no matter what the
         # image_prompt text says.
         img_aspect = "9:16"
@@ -1181,8 +1181,8 @@ def run_pipeline(
             raise ValueError("pipeline: video_prompts is empty/None — no prompt to generate video; refusing hardcoded fallback")
         logger.info(f"  Generating 1 continuous video ({total_duration}s): {vprompt[:80]}...")
 
-        # ── Start/End frames (single 9:16, no triptych) ──
-        # Owner direction (2026-08-24): Triptych discontinued. Always single 9:16.
+        # ── Start/End frames (single 9:16) ──
+        # Owner direction (2026-08-24): always single 9:16, one continuous frame.
         #   • first-frame = Nano Banana img2img 9:16 (gen จาก reference)
         #   • last-frame  = FLUX.2 klein 4B end-scene 9:16 (gen จาก first-frame)
         #   • video       = Wan 2.7 start-end interpolation

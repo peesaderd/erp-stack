@@ -219,8 +219,8 @@ def nano_banana_img2img(prompt: str, input_image: str, negative_prompt: str = ""
     No polling. No async. Single call.
     """
     # Prodia img2img: describe the CHANGE anchored to the reference image.
-    # Triptych discontinued (owner 2026-08-24) — every prompt is a single 9:16
-    # frame, so always preserve the original composition via the anchor.
+    # Owner direction (2026-08-24): every prompt is a single 9:16 frame, so
+    # always preserve the original composition via the anchor.
     prompt = prompt.rstrip(",. ")
     if not any(k in prompt.lower() for k in ("keep", "same as", "reference")):
         prompt = IMG2IMG_ANCHOR + " " + prompt

@@ -563,12 +563,13 @@ def _cover_product_desc(profile: dict, product_name: str) -> str:
 
 
 def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holding", loop_count: int = 0) -> tuple:
-    """Generate a single vertical 9:16 image prompt (Triptych discontinued 2026-08-24).
+    """Generate a single vertical 9:16 image prompt.
 
-    Folds cover + model/product + result/end composition into ONE portrait frame
+    Owner direction (2026-08-24): ALWAYS one portrait 9:16 frame. Cover +
+    model/product + result composition are folded into ONE continuous frame
     so the first-frame (Nano Banana) quality stays high and matches the video.
-    Uses _ai_select() for scene/action/camera/lighting from category_mapping, plus
-    product_appearance / colors from Mistral analysis (P3).
+    Uses _ai_select() for scene/action/camera/lighting from category_mapping,
+    plus product_appearance / colors from Mistral analysis (P3).
     """
     model_gender = profile.get("target_gender", "female")
     category = profile.get("category", "other")
@@ -601,11 +602,10 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     room = (profile.get("setting") or "").strip() or scene
     room_desc = room
 
-    # ── Single 9:16 frame (Triptych discontinued 2026-08-24) ──
-    # Owner: "เราไม่ใช่ Triptych แล้ว". Always output ONE vertical 9:16 image
-    # prompt (NO 3-panel / 16:9 landscape). We fold the rich composition that
-    # the triptych branch used to carry (cover + model/product + end-scene) into
-    # a single portrait frame so first-frame quality stays high.
+    # ── Single 9:16 frame (owner direction 2026-08-24) ──
+    # Always output ONE vertical 9:16 image prompt. Composition is folded into
+    # a single portrait frame (cover + model/product + end-scene together) so
+    # first-frame quality stays high. Do NOT switch to 16:9 / 3-panel.
     router_config = profile.get("router_config", {}) if isinstance(profile, dict) else {}
     scenes = router_config.get("scenes") if isinstance(router_config, dict) else None
 

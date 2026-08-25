@@ -688,7 +688,7 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         )
         logger.info(f"  Image prompt (no-human single 9:16 {style_l}, {len(image_prompt)} chars)")
         image_prompt = _apply_prompt_anchor(ugc_style, image_prompt, product_name)
-        negative = build_negative_prompt(profile, ugc_style)
+        negative = "blurry hands, extra fingers, deformed hands, wrong hand position, unrealistic proportions, wrong number of fingers, unclear product details, low quality, low resolution, distorted faces, bad anatomy, incorrect product placement, unrealistic lighting, unrealistic shadows, unrealistic body parts, unrealistic body gestures, unrealistic body movements"
         logger.info(f"  Image prompt (single 9:16 {len(image_prompt)} chars): {image_prompt[:100]}...")
         return image_prompt, negative
 
@@ -708,7 +708,7 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     )
     logger.info(f"  Image prompt (single continuous 9:16 {len(image_prompt)} chars): {image_prompt[:100]}...")
     image_prompt = _apply_prompt_anchor(ugc_style, image_prompt, product_name)
-    negative = build_negative_prompt(profile, ugc_style)
+    negative = "blurry hands, extra fingers, deformed hands, wrong hand position, unrealistic proportions, wrong number of fingers, unclear product details, low quality, low resolution, distorted faces, bad anatomy, incorrect product placement, unrealistic lighting, unrealistic shadows, unrealistic body parts, unrealistic body gestures, unrealistic body movements"
     return image_prompt, negative
 
 

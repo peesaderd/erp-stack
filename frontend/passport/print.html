@@ -78,7 +78,7 @@
 
 <div class="page">
 
-    <!-- Live Preview Card (Top) -->
+  <!-- Live Preview Card (Top) -->
   <div class="card">
     <div class="card-h">👁 Live Preview</div>
     <div class="card-b">
@@ -131,16 +131,18 @@
             <option value="50x70">50×70mm</option>
           </select>
         </div>
-        <div class="pf"><label>Photos Count</label>
-          <input type="number" id="pc" value="6" min="1" max="20" onchange="updatePreview()" oninput="updatePreview()">
+        <div class="pf"><label>Photos per Sheet</label>
+          <input type="number" id="photosPerSheet" value="6" min="1" max="20" onchange="updatePreview()" oninput="updatePreview()">
         </div>
-        <div class="pf"><label>Border</label>
-          <select id="bt" onchange="updatePreview()">
-            <option value="guidelines">Cut lines</option>
-            <option value="none">None</option>
-            <option value="frame">Frame</option>
-          </select>
+        <div class="pf"><label>Border Width (mm)</label>
+          <input type="number" id="borderWidth" value="0" min="0" max="20" step="0.5" onchange="updatePreview()" oninput="updatePreview()">
         </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:10px">
+        <label style="font-size:.68rem;color:#64748b;display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="number" id="cp" value="1" min="1" max="10" style="width:50px;padding:6px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:.72rem;text-align:center" onchange="updatePreview()" oninput="updatePreview()">
+          sheets
+        </label>
       </div>
       <label class="blade"><input type="checkbox" id="bm" onchange="updatePreview()"> Blade mode (wider gaps)</label>
       <button class="gen-btn" id="btn" disabled onclick="generate()"><span style="font-size:1.2rem">🖨️</span> Generate Print Sheet</button>
@@ -212,8 +214,8 @@ document.getElementById('fi').addEventListener('change',function(e){
 function updatePreview(){
   var raw=PAPERS[document.getElementById('ps').value]||PAPERS['4x6'];
   var paper={w:raw.w,h:raw.h};
-  var count=parseInt(document.getElementById('pc').value)||6;
-  var border=document.getElementById('bt').value;
+  var photosPerSheet = parseInt(document.getElementById('photosPerSheet').value) || 6;
+  var borderWidthValue = parseFloat(document.getElementById('borderWidth').value) || 0;
   var blade=document.getElementById('bm').checked;
   var gap=blade?5:3;
   var isMulti=multiThumbs.length>0;
@@ -222,7 +224,7 @@ function updatePreview(){
   var cols=Math.floor((paper.w+gap)/(pw+gap));
   var rows=Math.floor((paper.h+gap)/(ph+gap));
   var maxCount=cols*rows;
-  var fitCount=Math.min(count,maxCount);
+  var fitCount = Math.min(photosPerSheet * (document.getElementById('cp').value || 1), maxCount);
   var previewMaxW=240;
   var scale=previewMaxW/paper.w;
   var sW=paper.w*scale;
@@ -240,8 +242,6 @@ function updatePreview(){
     for(var c=0;c<cols;c++){
       if(idx>=maxCount){html+='<div class="preview-cell empty" style="width:'+cellW+'px;height:'+cellH+'px"></div>';continue}
       var cls='preview-cell';
-      if(border==='guidelines') cls+=' guides';
-      if(border==='frame') cls+=' frame';
       var x=ox+c*(cellW+gapPx);
       var y=oy+r*(cellH+gapPx);
       var imgTag='';
@@ -258,7 +258,7 @@ function updatePreview(){
   html+='</div>';
   document.getElementById('previewWrap').innerHTML=html;
   document.getElementById('previewLabel').textContent=
-    paper.w+'×'+paper.h+'mm → '+cols+'×'+rows+' grid ('+maxCount+' max) → '+fitCount+' photos';
+    paper.w+'×'+paper.h+'mm → '+cols+'×'+rows+' grid ('+maxCount+' max) → '+fitCount+' photos per sheet × '+ (document.getElementById('cp').value || 1) +' sheets';
   document.getElementById('previewEmpty').style.display='none';
   document.getElementById('previewActive').style.display='';
 }
@@ -269,13 +269,13 @@ async function generate(){
   document.getElementById('ov').classList.add('show');
   try{
     if(isMulti){
-      var body={
-        session_ids:window._sids,
-        copies:2,
-        print_size:document.getElementById('ps').value,
-        photo_size:currentPhotoSize,
-        border:document.getElementById('bt').value,
-        blade_mode:document.getElementById('bm').checked,
+      var body = {
+        session_ids: window._sids,
+        copies: parseInt(document.getElementById('cp').value) || 1,
+        print_size: document.getElementById('ps').value,
+        photo_size: currentPhotoSize,
+        border_width_mm: borderWidthValue,
+        blade_mode: document.getElementById('bm').checked,
       };
       var r=await fetch(API+'/multi-print',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
       var d=await r.json();
@@ -283,13 +283,13 @@ async function generate(){
       showResult({download_print:d.download_url,print_info:d.info});
     }else{
       var b64=await toB64(photoFile);
-      var body={
-        image_base64:b64,
-        print_size:document.getElementById('ps').value,
-        photo_size:currentPhotoSize,
-        photo_count:parseInt(document.getElementById('pc').value)||6,
-        border:document.getElementById('bt').value,
-        blade_mode:document.getElementById('bm').checked,
+      var body = {
+        image_base64: b64,
+        print_size: document.getElementById('ps').value,
+        photo_size: currentPhotoSize,
+        photo_count: photosPerSheet * (parseInt(document.getElementById('cp').value) || 1),
+        border_width_mm: borderWidthValue,
+        blade_mode: document.getElementById('bm').checked,
       };
       var r=await fetch(API+'/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
       var d=await r.json();
@@ -305,12 +305,12 @@ function showResult(d){
   var printUrl=d.download_print||d.download_passport;
   document.getElementById('outImg').src=API+printUrl+'?t='+Date.now();
   document.getElementById('dlBtn').href=API+printUrl;
-  var info=d.print_info||{};
+  var info = d.print_info || {};
   document.getElementById('infoBox').innerHTML=
-    '<b>Size:</b> '+(info.print_size||'4x6')+'<br>'+
-    '<b>Photos:</b> '+(info.count||'?')+'<br>'+
-    '<b>Layout:</b> '+(info.cols||'?')+'×'+(info.rows||'?')+'<br>'+
-    '<b>Border:</b> '+(info.border||'guidelines');
+    '<b>Size:</b> ' + (info.print_size || '4x6') + '<br>' +
+    '<b>Photos per Sheet:</b> ' + (info.photos_per_sheet || photosPerSheet) + '<br>' +
+    '<b>Sheets:</b> ' + (info.sheets || 1) + '<br>' +
+    '<b>Border Width:</b> ' + (info.border_width_mm || '0') + ' mm';
   toast('Print sheet ready!','ok');
 }
 

@@ -207,12 +207,12 @@ def _add_hairline(sheet: np.ndarray, positions: list, margin: int = 0) -> np.nda
 
 
 def _add_guidelines(sheet: np.ndarray, positions: list) -> np.ndarray:
-    """Add visible dashed cut lines around each photo."""
+    """Add dashed cut lines visible on screen (~3px at 300dpi = ~1px on phone)."""
     result = sheet.copy()
-    color = (120, 120, 120)  # dark gray, visible on white
-    thickness = 2
-    dash_len = 12
-    gap_len = 8
+    color = (100, 100, 100)  # dark gray
+    thickness = 3
+    dash_len = 16
+    gap_len = 10
 
     for pos in positions:
         x, y, pw, ph = pos["x"], pos["y"], pos["w"], pos["h"]

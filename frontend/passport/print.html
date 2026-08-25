@@ -116,10 +116,14 @@
       <div class="pgrid">
         <div class="pf"><label>Paper Size</label>
           <select id="ps" onchange="updatePreview()">
-            <option value="4x6">4×6"</option>
-            <option value="5x7">5×7"</option>
-            <option value="a6">A6</option>
-            <option value="a4">A4</option>
+            <option value="4x6">4×6" แนวตั้ง</option>
+            <option value="6x4">6×4" แนวนอน</option>
+            <option value="5x7">5×7" แนวตั้ง</option>
+            <option value="7x5">7×5" แนวนอน</option>
+            <option value="a4">A4 แนวตั้ง</option>
+            <option value="a4_l">A4 แนวนอน</option>
+            <option value="a6">A6 แนวตั้ง</option>
+            <option value="a6_l">A6 แนวนอน</option>
           </select>
         </div>
         <div class="pf"><label>Photo Size</label>
@@ -179,7 +183,7 @@ var photoFile=null;
 var photoImg=new Image();
 var multiThumbs=[];
 
-var PAPERS={'4x6':{w:102,h:152},'5x7':{w:127,h:178},'a6':{w:105,h:148},'a4':{w:210,h:297}};
+var PAPERS={'4x6':{w:102,h:152},'6x4':{w:152,h:102},'5x7':{w:127,h:178},'7x5':{w:178,h:127},'a4':{w:210,h:297},'a4_l':{w:297,h:210},'a6':{w:105,h:148},'a6_l':{w:148,h:105}};
 
 var PHOTO_SIZES={
   'passport':{w:35,h:45},

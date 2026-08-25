@@ -23,9 +23,13 @@ logger = logging.getLogger("passport.print_sheet")
 # Standard print sizes in mm
 PRINT_SIZES = {
     "4x6": {"width_mm": 101.6, "height_mm": 152.4},
+    "6x4": {"width_mm": 152.4, "height_mm": 101.6},
     "5x7": {"width_mm": 127.0, "height_mm": 177.8},
+    "7x5": {"width_mm": 177.8, "height_mm": 127.0},
     "a4": {"width_mm": 210.0, "height_mm": 297.0},
+    "a4_l": {"width_mm": 297.0, "height_mm": 210.0},
     "a6": {"width_mm": 105.0, "height_mm": 148.0},
+    "a6_l": {"width_mm": 148.0, "height_mm": 105.0},
 }
 
 

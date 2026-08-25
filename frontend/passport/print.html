@@ -132,6 +132,21 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#0f172a;min-height:
 </div></div>
 <div class="page">
   <div class="page-h"><h2>🖨 Print Sheet</h2></div>
+  <!-- Preview card on top (full width) -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-h">👁 Live Preview</div>
+    <div class="card-b">
+      <div id="previewEmpty" style="text-align:center;padding:30px;color:#94a3b8">
+        <div style="font-size:1.5rem;margin-bottom:6px;opacity:.5">📄</div>
+        Upload a photo to see preview
+      </div>
+      <div id="previewActive" style="display:none">
+        <div class="preview-wrap" id="previewWrap"></div>
+        <div class="preview-label" id="previewLabel"></div>
+        <div class="preview-thumb-strip" id="previewThumbs"></div>
+      </div>
+    </div>
+  </div>
   <div class="row">
     <div>
       <div class="card">
@@ -173,9 +188,9 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#0f172a;min-height:
                 <option value="50x70">50×70mm</option>
               </select>
             </div>
-            <div class="pf"><label>Photos</label>
-              <input type="number" id="pc" value="6" min="1" max="200" onchange="updatePreview()" oninput="updatePreview()">
-              <div style="font-size:.62rem;color:#94a3b8;margin-top:3px">More than max/sheet = multi-sheet stacked</div>
+            <div class="pf"><label>Copies per photo</label>
+              <input type="number" id="cp" value="2" min="1" max="10" onchange="updatePreview()" oninput="updatePreview()">
+              <div style="font-size:.62rem;color:#94a3b8;margin-top:3px">Each photo repeated this many times</div>
             </div>
             <div class="pf"><label>Border</label>
               <select id="bt" onchange="updatePreview()">
@@ -192,12 +207,6 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#0f172a;min-height:
             <button class="orient-btn active" id="orientP" onclick="setOrient('portrait')">📐 Portrait</button>
             <button class="orient-btn" id="orientL" onclick="setOrient('landscape')">📐 Landscape</button>
           </div>
-          <div id="copiesRow" style="display:none;margin-top:10px">
-            <label style="font-size:.7rem;color:#64748b;display:flex;align-items:center;gap:6px;cursor:pointer">
-              <input type="number" id="cp" value="2" min="1" max="10" style="width:52px;padding:6px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.72rem;text-align:center;background:#fff;color:#0f172a" onchange="updatePreview()" oninput="updatePreview()">
-              copies per photo
-            </label>
-          </div>
           <label class="blade"><input type="checkbox" id="bm" onchange="updatePreview()"> Blade mode (wider gaps)</label>
           <button class="gen" id="btn" disabled>🖨 Generate Print Sheet</button>
         </div>
@@ -205,20 +214,6 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#0f172a;min-height:
     </div>
     <div>
       <div class="card">
-        <div class="card-h">👁 Live Preview</div>
-        <div class="card-b">
-          <div id="previewEmpty" style="text-align:center;padding:30px;color:#94a3b8">
-            <div style="font-size:1.5rem;margin-bottom:6px;opacity:.5">📄</div>
-            Upload a photo to see preview
-          </div>
-          <div id="previewActive" style="display:none">
-            <div class="preview-wrap" id="previewWrap"></div>
-            <div class="preview-label" id="previewLabel"></div>
-            <div class="preview-thumb-strip" id="previewThumbs"></div>
-          </div>
-        </div>
-      </div>
-      <div class="card" style="margin-top:12px">
         <div class="card-h">🖼 Result</div>
         <div class="card-b">
           <div id="empty" class="empty-msg"><div class="ic">🖨</div>Upload photo & click Generate</div>
@@ -337,7 +332,7 @@ function updatePreview(){
   var raw=PAPERS[document.getElementById('ps').value]||PAPERS['4x6'];
   var paper={w:raw.w,h:raw.h};
   if(orient==='landscape'){paper={w:raw.h,h:raw.w}}
-  var count=parseInt(document.getElementById('pc').value)||6;
+  var copies=parseInt(document.getElementById('cp').value)||2;
   var border=document.getElementById('bt').value;
   var blade=document.getElementById('bm').checked;
   var gap=blade?5:3;
@@ -348,7 +343,7 @@ function updatePreview(){
   var cols=Math.floor((paper.w+gap)/(pw+gap));
   var rows=Math.floor((paper.h+gap)/(ph+gap));
   var maxCount=cols*rows;
-  var total=isMulti?multiThumbs.length*parseInt(document.getElementById('cp').value||1):count;
+  var total=isMulti?multiThumbs.length*copies:copies;
   var fitCount=Math.min(total,maxCount);
 
   var previewMaxW=240;
@@ -368,7 +363,7 @@ function updatePreview(){
   var idx=0;
   for(var r=0;r<rows;r++){
     for(var c=0;c<cols;c++){
-      if(idx>=maxCount){html+='<div class="preview-cell empty" style="width:'+cellW+'px;height:'+cellH+'px"></div>';continue}
+      if(idx>=fitCount){html+='<div class="preview-cell empty" style="width:'+cellW+'px;height:'+cellH+'px"></div>';continue}
       var cls='preview-cell';
       if(border==='guidelines') cls+=' guides';
       if(border==='frame') cls+=' frame';
@@ -376,7 +371,7 @@ function updatePreview(){
       var y=oy+r*(cellH+gapPx);
       var imgTag='';
       if(isMulti){
-        var tIdx=Math.floor(idx/(parseInt(document.getElementById('cp').value)||1));
+        var tIdx=Math.floor(idx/copies);
         if(tIdx<multiThumbs.length) imgTag='<img src="'+multiThumbs[tIdx]+'" alt="">';
       }else if(photoImg.src){
         imgTag='<img src="'+photoImg.src+'" alt="">';
@@ -389,8 +384,9 @@ function updatePreview(){
 
   document.getElementById('previewWrap').innerHTML=html;
   var dimLabel=orient==='landscape'?paper.h+'×'+paper.w+'mm':paper.w+'×'+paper.h+'mm';
+  var photoLabel=isMulti?(multiThumbs.length+' photos × '+copies+' copies'):(copies+' copies');
   document.getElementById('previewLabel').textContent=
-    dimLabel+' ('+orient+') → '+cols+'×'+rows+' grid ('+maxCount+' max) → '+fitCount+' photos';
+    dimLabel+' ('+orient+') → '+cols+'×'+rows+' grid ('+maxCount+' max) → '+photoLabel+' = '+fitCount+' total';
   document.getElementById('previewEmpty').style.display='none';
   document.getElementById('previewActive').style.display='';
 
@@ -426,11 +422,12 @@ async function generate(){
       showResult({download_print:d.download_url,print_info:d.info});
     }else{
       var b64=await toB64(photoFile);
+      var copies=parseInt(document.getElementById('cp').value)||2;
       var body={
         image_base64:b64,
         print_size:document.getElementById('ps').value,
         photo_size:currentPhotoSize,
-        photo_count:parseInt(document.getElementById('pc').value)||6,
+        photo_count:copies,
         border:document.getElementById('bt').value,
         blade_mode:document.getElementById('bm').checked,
       };
@@ -442,7 +439,7 @@ async function generate(){
         session_id:d.session_id,
         print_size:document.getElementById('ps').value,
         photo_size:currentPhotoSize,
-        photo_count:parseInt(document.getElementById('pc').value)||6,
+        photo_count:copies,
         border:document.getElementById('bt').value,
         blade_mode:document.getElementById('bm').checked,
         gap_mm:document.getElementById('bm').checked?5:3,
@@ -509,7 +506,6 @@ if(sidsParam){
   multiThumbs=sids.map(function(s){return API+'/download/'+s+'_passport.jpg'});
   document.getElementById('drop').style.display='none';
   document.getElementById('btn').disabled=false;
-  document.getElementById('copiesRow').style.display='';
 
   var thumbHtml='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px">';
   sids.forEach(function(sid){

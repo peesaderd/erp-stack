@@ -615,12 +615,16 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     if profile.get("special_target", "").strip():
         mid_hint = (
             f"{model_desc} applying the product from the reference image, "
-            f"{_app_hint}, {room_desc}"
+            f"{_app_hint}, {room_desc}, "
+            f"medium close-up framing, the product held prominently toward the camera, "
+            f"product large in frame and clearly readable"
         )
     else:
         mid_hint = (
             f"{model_desc} holding the product(s) from the reference image, "
-            f"bottles facing the camera, {room_desc}"
+            f"bottles facing the camera, {room_desc}, "
+            f"medium close-up framing, product held prominently toward the camera, "
+            f"product large in frame and clearly readable"
         )
     # Pick the product-specific end scene (SSOT Prompt Library) and bind it to
     # profile so build_video_prompt() reuses the SAME blueprint -> image & video
@@ -746,7 +750,7 @@ def _beat_panel_hint(profile, product_name, model_desc, action, scene, panel_rol
         if (profile.get("special_target") or "").strip():
             base = (
                 f"{model_desc} applying the product from the reference image, "
-                f"{_app_hint}, {scene}"
+                f"{_app_hint}, {scene}, medium close-up framing, product large in frame"
             )
         else:
             base = (
@@ -951,7 +955,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             # prompt asks for scene transitions / flowing camera motion in 10s.
             # (owner bug report 2026-08-23: zoom in/out made product blur/morph)
             beats = [
-                f"Scene 1: {gender_en} holds {vp_product} steady toward the camera, product stays sharp and centered",
+                f"Scene 1: {gender_en} holds {vp_product} steady toward the camera in a medium close-up, product large in frame, stays sharp and centered",
                 f"Scene 2: keep holding {vp_product} steady, only a gentle slight hand motion, product stays sharp",
                 f"Scene 3: still holding {vp_product}, same framing, product remains sharp and readable",
                 f"Scene 4: {gender_en} holds {vp_product} toward the camera, smiling, same framing, product sharp",
@@ -1484,10 +1488,14 @@ def _tts_product_name(product_name: str) -> str:
     toks = _brand_tokens(name)
     thai = [w for w, _ in toks if re.search(r"[\u0E00-\u0E7F]", w)]
     latin = [w for w, _ in toks if not re.search(r"[\u0E00-\u0E7F]", w)]
-    out = " ".join(thai) if thai else " ".join(latin[:2])
+    picks = thai if thai else latin[:2]
+    out = ""
+    for w in picks:
+        cand = (out + " " + w).strip()
+        if cand and len(cand) > 35 and out:
+            break  # keep whole tokens only — never chop mid-word
+        out = cand
     out = out.strip()
-    if len(out) > 35:
-        out = out[:35].strip()
     return out or name
 
 
@@ -1513,6 +1521,23 @@ def _owner_script_variants(*bases) -> List[str]:
                 if wl not in {o.lower() for o in out}:
                     out.append(w)
     return out
+
+
+def _scrub_placeholder_words(segments: list) -> None:
+    """Owner rule: spoken lines NEVER use name-substitute words.
+    Strip standalone 'ตัวนี้/เจ้านี้/อันนี้' from every segment text
+    (schema templates may still carry them; they are always substitutive here).
+    Keeps different words like ปัญหานี้/วันนี้/จุดนี้ untouched."""
+    pat = re.compile(r"\s*(?:ตัวนี้|เจ้านี้|อันนี้)(?:เลย|ดิ|สิ)?\s*")
+    for seg in segments:
+        t = seg.get("text", "") or ""
+        if not t:
+            continue
+        if pat.search(t):
+            t2 = pat.sub(" ", t)
+            t2 = re.sub(r"\s{2,}", " ", t2).strip()
+            t2 = re.sub(r"^(และ|หรือ|กับ|ของ)\s+", "", t2)
+            seg["text"] = t2
 
 
 def _drop_later_name_mentions(segments: list, variants: List[str]) -> int:
@@ -1767,7 +1792,8 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
         target_audience = profile.get("target_audience", "") if profile else ""
         profile_feature = profile.get("features", "") if profile else ""
         # Owner rule 2026-08-24: spoken name = Thai-dominant variant, name spoken ONCE
-        spoken_name = _tts_product_name(product_short)
+        # (derive from FULL product_name — product_short may be hard-chopped mid-word)
+        spoken_name = _tts_product_name(product_name or product_short)
         segments = []
         for sc in scenes:
             beat_text = _resolve_scene_text(
@@ -1785,6 +1811,7 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
 
         # Owner script rules: name at most ONCE — later mentions dropped, no 'ตัวนี้'
         _drop_later_name_mentions(segments, _owner_script_variants(product_short, spoken_name))
+        _scrub_placeholder_words(segments)
 
         # Recompute timings sequentially from durations (sum of scene durations ≈ duration)
         if segments:
@@ -1835,6 +1862,7 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
     # Owner script rules (2026-08-24): Thai-dominant name + speak ONCE, no 'ตัวนี้'
     _spoken_fb = _tts_product_name(product_short)
     _drop_later_name_mentions(segments, _owner_script_variants(product_short, _spoken_fb))
+    _scrub_placeholder_words(segments)
     
     total_ok = True
     max_speed_needed = 1.0

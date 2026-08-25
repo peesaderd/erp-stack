@@ -14,19 +14,19 @@
       "id": "them",
       "timing_ratio": 0.25,
       "purpose": "ชี้จุดด้อยของของเก่า/คู่แข่ง — {problem}",
-      "prompt": "ของทั่วไปมัน {problem}"
+      "prompt": "ของทั่วไปมัน {problem} ใช้ทีไรก็เซ็ง"
     },
     {
       "id": "us",
       "timing_ratio": 0.4,
       "purpose": "'{product}' ดีกว่ายังไง — เหนือกว่า เห็นผลจริง",
-      "prompt": "แต่ {product} แตกต่างเพราะ {benefit}"
+      "prompt": "แต่ {product} แตกต่าง เพราะ {benefit}"
     },
     {
       "id": "cta",
       "timing_ratio": 0.15,
       "purpose": "เปลี่ยนมาใช้ ตัวนี้",
-      "prompt": "ถึงเวลาเปลี่ยน — ตัวนี้ พร้อมให้ลอง"
+      "prompt": "ถึงเวลาเปลี่ยน กดหยิบได้เลยวันนี้"
     }
   ],
   "recommended": {

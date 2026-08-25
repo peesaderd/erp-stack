@@ -1017,7 +1017,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
                 f"then settles centered showing {_result} at {_end_cam}, 9:16, smooth motion"
             )
         video_prompt = _apply_prompt_anchor(ugc_style, video_prompt, _vp_product)
-        video_prompt = apply_mouth_steer(video_prompt, ugc_style)
+        video_prompt = apply_mouth_steer(video_prompt, ugc_style, is_speaking=bool((script or "").strip()))
         logger.info(f"  Video prompt (no-human {style_l}, {len(video_prompt)} chars): {video_prompt[:80]}...")
         return video_prompt
 
@@ -1078,7 +1078,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     # Mouth steer (POSITIVE prompt side): for talking styles, append the
     # steer keywords so Wan keeps lip movement small/natural/restrained.
     # Goes on the positive prompt, never on the negative (see apply_mouth_steer).
-    video_prompt = apply_mouth_steer(video_prompt, ugc_style)
+    video_prompt = apply_mouth_steer(video_prompt, ugc_style, is_speaking=bool((script or "").strip()))
 
     logger.info(f"  Video prompt ({len(video_prompt)} chars): {video_prompt[:80]}...")
     return _apply_prompt_anchor(ugc_style, video_prompt, _clean_product_name_for_video(product_name))
@@ -1146,16 +1146,20 @@ def _load_image_negative() -> str:
     return str(block["base"]).strip()
 
 
-def build_negative_prompt(profile: dict, ugc_style: str = "holding") -> str:
+def build_negative_prompt(profile: dict, ugc_style: str = "holding", is_speaking: Optional[bool] = None) -> str:
     """Build negative prompt — defaults (text/watermark/hands/distortion)
     + Wan identity-stability terms (anti-morph / anti-melt).
     Caller no longer needs to merge — this is the complete negative.
 
-    Mouth-control is style-aware (data-driven from prompt_sources.json):
-      - Talking styles  → base (anti-melt only) + SOFT mouth terms.
-        NEVER "no open mouth" — that kills speech entirely.
-      - Non-talking styles → base + HARD mouth terms (lock jaw fully).
-      - Unknown style   → treated as talking (soft) for safety.
+    Mouth-control is style- AND speech-aware (data-driven from prompt_sources.json):
+      - Speaking jobs (is_speaking=True, e.g. thai_script present / voice mode A)
+        → SOFT mouth terms (restrain but allow speech) regardless of visual style.
+        CRITICAL: TUS recipe "holding" + Voice A speaks Thai; visual style alone
+        was non_talking → would have applied HARD lock, killing the speech we want.
+      - Explicit non-speaking (is_speaking=False) → HARD lock from non_talking list.
+      - Unknown (is_speaking=None, legacy) → fall back to style lists
+        (talking_styles → soft, non_talking_styles → hard).
+        NEVER "no open mouth" for speakers — that kills speech entirely.
     """
     mc = _load_mouth_control()
     base = mc["negative_base"]
@@ -1167,18 +1171,26 @@ def build_negative_prompt(profile: dict, ugc_style: str = "holding") -> str:
     # Product-handling negative: Wan img2vid starts from a still where the product is
     # ALREADY in hand — forbid it from opening/unpacking/squeezing the product (was in
     # the video prompt's opening before; moved here so the video prompt stays positive).
+    # Summary-first order so truncation at the 500-char Prodia cap loses the tail
+    # verbs first while keeping the "closed and in hand" anchor.
     anti_open = "" if is_no_human_style else (
-        "no opening the product, no uncapping, no squeezing, no pumping, no unpacking, "
-        "no taking the product out of its box, product stays closed and in hand"
+        "product stays closed and in hand, no opening the product, no uncapping, "
+        "no squeezing, no pumping, no unpacking, no taking the product out of its box"
     )
-    if _is_talking_style(ugc_style, mc):
+    if is_speaking is True:
+        mouth_terms = ", ".join(x.strip() for x in mc["negative_talking"])
+    elif is_speaking is False:
+        mouth_terms = ", ".join(x.strip() for x in mc["negative_non_talking"])
+    elif _is_talking_style(ugc_style, mc):
         mouth_terms = ", ".join(x.strip() for x in mc["negative_talking"])
     else:
         mouth_terms = ", ".join(x.strip() for x in mc["negative_non_talking"])
-    parts = [p for p in (base, anti_open, mouth_terms) if p]
+    # Priority order: base (must survive) → mouth_terms (must survive) → anti_open
+    # (sacrificial tail). Earlier parts are more likely to be cut otherwise.
+    parts = [p for p in (base, mouth_terms, anti_open) if p]
     negative = ", ".join(parts)
     # Wan 2.7 hard-caps the negative prompt at ~500 chars — trim from the tail
-    # (mouth terms last) if we ever exceed it, so the job doesn't error.
+    # (anti_open last, lowest priority) if we ever exceed it.
     if len(negative) > 500:
         neg = negative[:500]
         # never cut mid-word
@@ -1189,13 +1201,18 @@ def build_negative_prompt(profile: dict, ugc_style: str = "holding") -> str:
     return negative
 
 
-def apply_mouth_steer(video_prompt: str, ugc_style: str = "holding") -> str:
+def apply_mouth_steer(video_prompt: str, ugc_style: str = "holding", is_speaking: Optional[bool] = None) -> str:
     """Append positive steer keywords to a video prompt for talking styles.
     These go in the POSITIVE prompt (not the negative) so Wan moves the mouth
     in small, natural, restrained ways instead of wide/jaw-heavy gesticulation.
     Non-talking / unknown styles get no steer (they shouldn't be talking)."""
     mc = _load_mouth_control()
-    if not _is_talking_style(ugc_style, mc):
+    # Speaking-detection mirrors build_negative_prompt() so a "holding" visual
+    # with a Thai script still gets the positive lip-sync steer (not skipped).
+    if is_speaking is not None:
+        if not is_speaking:
+            return video_prompt
+    elif not _is_talking_style(ugc_style, mc):
         return video_prompt
     steer = [x.strip() for x in mc["steer_talking_prompt"]]
     if not steer:
@@ -1325,7 +1342,12 @@ async def analyze_and_build_prompts(
     # into the live path. build_negative_prompt() existed but was never called,
     # so Wan received the IMAGE negative (no mouth-lock terms) and could
     # improvise speech. This is the only consumer feeding Prodia img2vid.
-    negative_prompt = build_negative_prompt(profile, ugc_style)  
+    # Speaking detection: if caller (or router via tv.full_script) provided a
+    # spoken script (TTS voice mode A / thai_script), force SOFT mouth treatment
+    # regardless of visual style. Visual style "holding" alone used to land in
+    # non_talking_styles → HARD lock → contradicted the speech instruction.
+    _is_speaking = bool((_spoken_script or "").strip())
+    negative_prompt = build_negative_prompt(profile, ugc_style, is_speaking=_is_speaking)  
     
     result = {
         "product_id": product_id,

@@ -116,14 +116,16 @@
       <div class="pgrid">
         <div class="pf"><label>Paper Size</label>
           <select id="ps" onchange="updatePreview()">
-            <option value="4x6">4×6" Vertical</option>
-            <option value="6x4">6×4" Horizontal</option>
-            <option value="5x7">5×7" Vertical</option>
-            <option value="7x5">7×5" Horizontal</option>
-            <option value="a4">A4 Vertical</option>
-            <option value="a4_l">A4 Horizontal</option>
-            <option value="a6">A6 Vertical</option>
-            <option value="a6_l">A6 Horizontal</option>
+            <option value="4x6">4×6"</option>
+            <option value="5x7">5×7"</option>
+            <option value="a6">A6</option>
+            <option value="a4">A4</option>
+          </select>
+        </div>
+        <div class="pf"><label>Orientation</label>
+          <select id="orient" onchange="updatePreview()">
+            <option value="v">Vertical</option>
+            <option value="h">Horizontal</option>
           </select>
         </div>
         <div class="pf"><label>Photo Size</label>
@@ -183,7 +185,8 @@ var photoFile=null;
 var photoImg=new Image();
 var multiThumbs=[];
 
-var PAPERS={'4x6':{w:102,h:152},'6x4':{w:152,h:102},'5x7':{w:127,h:178},'7x5':{w:178,h:127},'a4':{w:210,h:297},'a4_l':{w:297,h:210},'a6':{w:105,h:148},'a6_l':{w:148,h:105}};
+function getPrintSize(){var p=document.getElementById('ps').value;var h=document.getElementById('orient').value==='h';if(p==='4x6')return h?'6x4':'4x6';if(p==='5x7')return h?'7x5':'5x7';if(p==='a4')return h?'a4_l':'a4';if(p==='a6')return h?'a6_l':'a6';return p}
+var PAPERS={'4x6':{w:102,h:152},'5x7':{w:127,h:178},'a6':{w:105,h:148},'a4':{w:210,h:297}};
 
 var PHOTO_SIZES={
   'passport':{w:35,h:45},
@@ -211,21 +214,24 @@ document.getElementById('fi').addEventListener('change',function(e){
 
 function updatePreview(){
   var raw=PAPERS[document.getElementById('ps').value]||PAPERS['4x6'];
-  var paper={w:raw.w,h:raw.h};
+  var isH=document.getElementById('orient').value==='h';
+  var paperW=isH?raw.h:raw.w;
+  var paperH=isH?raw.w:raw.h;
+  var paper={w:paperW,h:paperH};
   var photosPerSheet = parseInt(document.getElementById('photosPerSheet').value) || 6;
   var blade=document.getElementById('bm').checked;
   var gap=blade?5:3;
   var isMulti=multiThumbs.length>0;
   var photoSize=PHOTO_SIZES[currentPhotoSize]||PHOTO_SIZES['passport'];
   var pw=photoSize.w, ph=photoSize.h;
-  var cols=Math.floor((paper.w+gap)/(pw+gap));
-  var rows=Math.floor((paper.h+gap)/(ph+gap));
+  var cols=Math.floor((paperW+gap)/(pw+gap));
+  var rows=Math.floor((paperH+gap)/(ph+gap));
   var maxCount=cols*rows;
   var fitCount = Math.min(photosPerSheet, maxCount);
   var previewMaxW=240;
-  var scale=previewMaxW/paper.w;
-  var sW=paper.w*scale;
-  var sH=paper.h*scale;
+  var scale=previewMaxW/paperW;
+  var sW=paperW*scale;
+  var sH=paperH*scale;
   var cellW=pw*scale;
   var cellH=ph*scale;
   var gapPx=gap*scale;
@@ -255,7 +261,7 @@ function updatePreview(){
   html+='</div>';
   document.getElementById('previewWrap').innerHTML=html;
   document.getElementById('previewLabel').textContent=
-    paper.w+'×'+paper.h+'mm → '+cols+'×'+rows+' grid ('+maxCount+' max) → '+fitCount+' photos';
+    paperW+'×'+paperH+'mm → '+cols+'×'+rows+' grid ('+maxCount+' max) → '+fitCount+' photos';
   document.getElementById('previewEmpty').style.display='none';
   document.getElementById('previewActive').style.display='';
 }
@@ -272,7 +278,7 @@ async function generate(){
       var body = {
         session_ids: window._sids,
         copies: 1,
-        print_size: document.getElementById('ps').value,
+        print_size: getPrintSize(),
         photo_size: currentPhotoSize,
         photo_count: photosPerSheet,
         border_width_mm: bVal,
@@ -288,7 +294,7 @@ async function generate(){
       var photosPerSheet = parseInt(document.getElementById('photosPerSheet').value) || 6;
       var body = {
         image_base64: b64,
-        print_size: document.getElementById('ps').value,
+        print_size: getPrintSize(),
         photo_size: currentPhotoSize,
         photo_count: photosPerSheet,
         border_width_mm: bVal,

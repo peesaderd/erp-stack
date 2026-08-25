@@ -261,16 +261,18 @@ async function generate(){
   if(!isMulti&&!photoFile)return;
   document.getElementById('ov').classList.add('show');
   try{
+    var bVal=parseFloat(document.getElementById('borderWidth').value)||0;
+    var bType=bVal>0?'frame':'none';
     if(isMulti){
       var photosPerSheet = parseInt(document.getElementById('photosPerSheet').value) || 6;
-      var borderWidthValue = parseFloat(document.getElementById('borderWidth').value) || 0;
       var body = {
         session_ids: window._sids,
         copies: 1,
         print_size: document.getElementById('ps').value,
         photo_size: currentPhotoSize,
         photo_count: photosPerSheet,
-        border_width_mm: borderWidthValue,
+        border_width_mm: bVal,
+        border: bType,
         blade_mode: document.getElementById('bm').checked,
       };
       var r=await fetch(API+'/multi-print',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
@@ -280,13 +282,13 @@ async function generate(){
     }else{
       var b64=await toB64(photoFile);
       var photosPerSheet = parseInt(document.getElementById('photosPerSheet').value) || 6;
-      var borderWidthValue = parseFloat(document.getElementById('borderWidth').value) || 0;
       var body = {
         image_base64: b64,
         print_size: document.getElementById('ps').value,
         photo_size: currentPhotoSize,
         photo_count: photosPerSheet,
-        border_width_mm: borderWidthValue,
+        border_width_mm: bVal,
+        border: bType,
         blade_mode: document.getElementById('bm').checked,
       };
       var r=await fetch(API+'/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
@@ -301,8 +303,9 @@ function showResult(d){
   document.getElementById('empty').style.display='none';
   document.getElementById('result').style.display='';
   var printUrl=d.download_print||d.download_passport;
-  document.getElementById('outImg').src=API+printUrl+'?t='+Date.now();
-  document.getElementById('dlBtn').href=API+printUrl;
+  var fullUrl=printUrl.indexOf('http')===0||printUrl.indexOf('/api')===0?printUrl:API+printUrl;
+  document.getElementById('outImg').src=fullUrl+'?t='+Date.now();
+  document.getElementById('dlBtn').href=fullUrl;
   var info = d.print_info || {};
   document.getElementById('infoBox').innerHTML=
     '<b>Size:</b> ' + (info.print_size || '4x6') + '<br>' +

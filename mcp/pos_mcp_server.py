@@ -170,6 +170,26 @@ def _fallback_categories() -> list[dict]:
     ]
 
 
+_CATEGORY_ALIASES = {
+    "app": "Appetizer", "catapp": "Appetizer", "appetizer": "Appetizer", "appetizers": "Appetizer",
+    "main": "Main Course", "catmain": "Main Course", "maincourse": "Main Course", "mains": "Main Course",
+    "des": "Dessert", "catdes": "Dessert", "dessert": "Dessert", "desserts": "Dessert",
+    "bev": "Beverage", "catbev": "Beverage", "beverage": "Beverage", "beverages": "Beverage",
+    "drink": "Beverage", "drinks": "Beverage",
+    "sid": "Side Dish", "catsid": "Side Dish", "catside": "Side Dish", "sidedish": "Side Dish",
+    "side": "Side Dish", "sides": "Side Dish",
+}
+
+
+def _norm_category(cat: str) -> str:
+    """Map ID-prefix/short forms (APP, sid, cat_main...) to live-API category names."""
+    c = (cat or "").strip()
+    if not c:
+        return ""
+    key = c.lower().replace("_", "").replace("-", "").replace(" ", "")
+    return _CATEGORY_ALIASES.get(key, c)
+
+
 @mcp.tool()
 def get_menu(category: str = "") -> list[dict]:
     """
@@ -178,6 +198,7 @@ def get_menu(category: str = "") -> list[dict]:
     Args:
         category: Filter by category name (e.g. "Appetizer", "Main Course") or id ("cat_app"). Empty = all.
     """
+    category = _norm_category(category)
     data = _api_get("/pos/menu", params={"category": category} if category else None)
     if isinstance(data, list) and data:
         return _enrich_th(data)
@@ -206,14 +227,47 @@ def search_menu(query: str) -> list[dict]:
     def _norm(s: str) -> str:
         return str(s or "").lower().replace(" ", "")
 
+    def _variants(q: str) -> list[str]:
+        # classic Thai typos: กระ <-> กะ
+        vs = {q}
+        if "\u0e01\u0e23\u0e30" in q:
+            vs.add(q.replace("\u0e01\u0e23\u0e30", "\u0e01\u0e30"))
+        if "\u0e01\u0e30" in q:
+            vs.add(q.replace("\u0e01\u0e30", "\u0e01\u0e23\u0e30"))
+        return sorted(vs, key=len, reverse=True)
+
+    def _match_one(nqv: str) -> list[dict]:
+        return [
+            i for i in items
+            if nqv in _norm(i.get("name", ""))
+            or nqv in _norm(i.get("description", ""))
+            or nqv in _norm(i.get("nameTh", ""))
+            or (_norm(i.get("nameTh", "")) and _norm(i.get("nameTh", "")) in nqv)
+            or any(nqv in _norm(a) or _norm(a) in nqv for a in i.get("aliases", []) if len(_norm(a)) >= 3)
+        ]
+
+    seen: set[str] = set()
+    out: list[dict] = []
+
+    def _add(matches: list[dict]) -> None:
+        for i in matches:
+            iid = i.get("id")
+            if iid and iid not in seen:
+                seen.add(iid)
+                out.append(i)
+
     nq = _norm(query)
-    return [
-        i for i in items
-        if nq in _norm(i.get("name", ""))
-        or nq in _norm(i.get("description", ""))
-        or nq in _norm(i.get("nameTh", ""))
-        or any(nq in _norm(a) or _norm(a) in nq for a in i.get("aliases", []) if len(_norm(a)) >= 3)
-    ]
+    for v in _variants(nq):
+        _add(_match_one(v))
+    if not out:
+        import re as _re
+        tokens = [t for t in _re.split(r"[\s,+/&]+|\u0e41\u0e25\u0e30|\u0e01\u0e31\u0e1a", query) if t.strip()]
+        for tok in tokens:
+            t = _norm(tok)
+            if len(t) >= 3:
+                for v in _variants(t):
+                    _add(_match_one(v))
+    return out
 
 
 @mcp.tool()
@@ -236,6 +290,130 @@ def get_tables() -> list[dict]:
     return _mock_tables()
 
 
+# ── LINE Flex receipt (push after order created) ─────────────────────────
+
+_LINE_CFG_PATH = "/home/openhands/.openclaw/openclaw.json"
+_DEFAULT_PUSH_TO = "U59a6080f40e4ac45f07b1ae17d41875f"  # Pete's LINE user id
+
+
+def _baht(v) -> str:
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return str(v)
+    return f"฿{f:,.2f}".replace(".00", "")
+
+
+def _load_line_token() -> str | None:
+    try:
+        cfg = json.load(open(_LINE_CFG_PATH))
+        acc = cfg.get("channels", {}).get("line", {}).get("accounts", {}).get("pos_bot", {})
+        tok = acc.get("channelAccessToken") or acc.get("token")
+        return tok or None
+    except Exception:
+        return None
+
+
+def _item_label(item_id: str, fallback: str) -> str:
+    th = TH_NAMES_BY_ID.get(str(item_id))
+    if isinstance(th, dict):
+        return th.get("nameTh") or fallback
+    if isinstance(th, str):
+        return th
+    return fallback
+
+
+def _order_flex(order: dict) -> dict:
+    oid = order.get("order_id", "-")
+    takeaway = str(order.get("table_id", "")) == "takeaway"
+    place = "🥡 Take-away" if takeaway else f"🍽 {order.get('table_name') or order.get('table_id', '')}"
+
+    rows = []
+    for it in order.get("items", []):
+        label = _item_label(it.get("item_id"), it.get("name", ""))
+        qty = int(it.get("quantity") or 1)
+        rows.append({
+            "type": "box", "layout": "horizontal", "margin": "sm",
+            "contents": [
+                {"type": "text", "text": label, "size": "sm", "wrap": True, "flex": 4, "color": "#333333"},
+                {"type": "text", "text": f"x{qty}", "size": "sm", "flex": 1, "align": "end", "color": "#888888"},
+                {"type": "text", "text": _baht(it.get("line_total")), "size": "sm", "flex": 2, "align": "end"},
+            ],
+        })
+
+    def fee_row(label: str, value) -> dict:
+        return {
+            "type": "box", "layout": "horizontal", "margin": "sm",
+            "contents": [
+                {"type": "text", "text": label, "size": "xs", "color": "#888888", "flex": 5},
+                {"type": "text", "text": _baht(value), "size": "xs", "align": "end", "color": "#888888", "flex": 2},
+            ],
+        }
+
+    body_contents = rows + [{"type": "separator", "margin": "md"}]
+    if order.get("service_charge"):
+        body_contents.append(fee_row("ค่าบริการ", order["service_charge"]))
+    if order.get("vat"):
+        body_contents.append(fee_row("ภาษีมูลค่าเพิม (VAT)", order["vat"]))
+    body_contents.append({
+        "type": "box", "layout": "horizontal", "margin": "md",
+        "contents": [
+            {"type": "text", "text": "ยอดรวม", "size": "lg", "weight": "bold", "flex": 5},
+            {"type": "text", "text": _baht(order.get("grand_total")), "size": "lg", "weight": "bold",
+             "align": "end", "color": "#07c160", "flex": 3},
+        ],
+    })
+
+    return {
+        "type": "bubble",
+        "header": {
+            "type": "box", "layout": "vertical", "backgroundColor": "#16213e",
+            "paddingAll": "16px", "contents": [
+                {"type": "text", "text": "🧾 POS ORDER", "color": "#f5a623", "size": "xs", "weight": "bold"},
+                {"type": "text", "text": oid, "color": "#ffffff", "size": "lg", "weight": "bold"},
+                {"type": "text", "text": place, "color": "#aab4cc", "size": "xs", "margin": "sm"},
+            ],
+        },
+        "body": {"type": "box", "layout": "vertical", "paddingAll": "16px", "contents": body_contents},
+        "footer": {
+            "type": "box", "layout": "vertical", "paddingAll": "12px",
+            "contents": [{
+                "type": "button", "style": "primary", "color": "#16213e",
+                "action": {"type": "uri", "label": "📋 ดูที่ pos.m2igen.com", "uri": "https://pos.m2igen.com"},
+            }],
+        },
+    }
+
+
+def _push_line_flex(order: dict) -> None:
+    """Best-effort push of a Flex receipt. NEVER raises — ordering must not break."""
+    try:
+        token = _load_line_token()
+        if not token:
+            logging.warning("[flex] no LINE token found; skip push")
+            return
+        to = os.environ.get("LINE_PUSH_TO", _DEFAULT_PUSH_TO).removeprefix("line:")
+        message = {
+            "to": to,
+            "messages": [{
+                "type": "flex",
+                "altText": f"🧾 ออเดอร์ {order.get('order_id', '')} ยอดรวม {_baht(order.get('grand_total'))}",
+                "contents": _order_flex(order),
+            }],
+        }
+        import urllib.request
+        req = urllib.request.Request(
+            "https://api.line.me/v2/bot/message/push",
+            data=json.dumps(message).encode("utf-8"),
+            headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            logging.info("[flex] pushed receipt for %s -> %s (http %s)", order.get("order_id"), to, resp.status)
+    except Exception as e:  # noqa: BLE001
+        logging.warning("[flex] push failed (non-fatal): %s", e)
+
+
 @mcp.tool()
 def create_order(table_id: str, items_json: str, notes: str = "") -> dict:
     """
@@ -256,6 +434,9 @@ def create_order(table_id: str, items_json: str, notes: str = "") -> dict:
         result = _api_post("/pos/orders", payload)
         if result is None:
             return {"error": "Live API unavailable"}
+        if isinstance(result, dict) and result.get("order_id") and not result.get("error"):
+            full = _api_get(f"/pos/orders/{result['order_id']}")
+            _push_line_flex(full if isinstance(full, dict) and full.get("items") else result)
         return result
     except json.JSONDecodeError as e:
         return {"error": f"Invalid items_json: {e}"}

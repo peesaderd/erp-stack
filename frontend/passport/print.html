@@ -137,8 +137,8 @@
             <option value="50x70">50×70mm</option>
           </select>
         </div>
-        <div class="pf"><label>Photos per Sheet</label>
-          <input type="number" id="photosPerSheet" value="6" min="1" max="20" onchange="updatePreview()" oninput="updatePreview()">
+        <div class="pf"><label>Copies per Photo</label>
+          <input type="number" id="copies" value="1" min="1" max="20" onchange="updatePreview()" oninput="updatePreview()">
         </div>
         <div class="pf"><label>Border Width (mm)</label>
           <input type="number" id="borderWidth" value="0" min="0" max="20" step="0.5" onchange="updatePreview()" oninput="updatePreview()">
@@ -224,25 +224,36 @@ function updatePreview(){
   var isH=document.getElementById('orient').value==='h';
   var paperW=isH?raw.h:raw.w;
   var paperH=isH?raw.w:raw.h;
-  var paper={w:paperW,h:paperH};
-  var photosPerSheet = parseInt(document.getElementById('photosPerSheet').value) || 6;
+  var copies=parseInt(document.getElementById('copies').value)||1;
   var blade=document.getElementById('bm').checked;
   var cutmode=document.getElementById('cutline').value;
   var gap=cutmode==='touching'?0:(cutmode==='spaced'?(blade?5:3):0);
   var isMulti=multiThumbs.length>0;
   var photoSize=PHOTO_SIZES[currentPhotoSize]||PHOTO_SIZES['passport'];
   var pw=photoSize.w, ph=photoSize.h;
-  var cols=Math.floor((paperW+gap)/(pw+gap));
-  var rows=Math.floor((paperH+gap)/(ph+gap));
-  var maxCount=cols*rows;
-  var fitCount = Math.min(photosPerSheet, maxCount);
+  var bVal=parseFloat(document.getElementById('borderWidth').value)||0;
+  var bPx=bVal>0?Math.round(bVal/25.4*300):0;
   var previewMaxW=240;
   var scale=previewMaxW/paperW;
   var sW=paperW*scale;
   var sH=paperH*scale;
-  var cellW=pw*scale;
-  var cellH=ph*scale;
+  var cellW=(pw+bPx*2)*scale;
+  var cellH=(ph+bPx*2)*scale;
   var gapPx=gap*scale;
+  var cols=Math.floor((paperW+gap)/(pw+bPx*2+gap));
+  var rows=Math.floor((paperH+gap)/(ph+bPx*2+gap));
+  var maxCount=cols*rows;
+
+  // Build ordered thumb list matching backend: each thumb repeated copies times
+  var thumbList=[];
+  if(isMulti){
+    for(var i=0;i<multiThumbs.length;i++){
+      for(var c=0;c<copies;c++) thumbList.push(multiThumbs[i]);
+    }
+  }
+  var totalPhotos=isMulti?thumbList.length:copies;
+  var fitCount=Math.min(totalPhotos,maxCount);
+
   var gridW=cols*cellW+(cols-1)*gapPx;
   var gridH=rows*cellH+(rows-1)*gapPx;
   var ox=(sW-gridW)/2;
@@ -251,25 +262,26 @@ function updatePreview(){
   var idx=0;
   for(var r=0;r<rows;r++){
     for(var c=0;c<cols;c++){
-      if(idx>=maxCount){html+='<div class="preview-cell empty" style="width:'+cellW+'px;height:'+cellH+'px"></div>';continue}
+      if(idx>=fitCount){html+='<div class="preview-cell empty" style="width:'+cellW+'px;height:'+cellH+'px"></div>';idx++;continue}
       var cls='preview-cell';
       var x=ox+c*(cellW+gapPx);
       var y=oy+r*(cellH+gapPx);
       var imgTag='';
-      if(isMulti){
-        var tIdx=idx%multiThumbs.length;
-        imgTag='<img src="'+multiThumbs[tIdx]+'" alt="">';
+      if(isMulti&&thumbList.length>0){
+        var tIdx=idx%thumbList.length;
+        imgTag='<img src="'+thumbList[tIdx]+'" alt="">';
       }else if(photoImg.src){
         imgTag='<img src="'+photoImg.src+'" alt="">';
       }
-      html+='<div class="'+cls+'" style="position:absolute;left:'+x+'px;top:'+y+'px;width:'+cellW+'px;height:'+cellH+'px">'+imgTag+'</div>';
+      html+='<div class="'+cls+'" style="position:absolute;left:'+x+'px;top:'+y+'px;width:'+cellW+'px;height:'+cellH+'px;background:#f1f5f9;border:1px dashed #cbd5e1;border-radius:2px">'+imgTag+'</div>';
       idx++;
     }
   }
   html+='</div>';
   document.getElementById('previewWrap').innerHTML=html;
+  var label=isMulti?multiThumbs.length+' photos × '+copies+' copies = '+totalPhotos+' total':copies+' copies of 1 photo';
   document.getElementById('previewLabel').textContent=
-    paperW+'×'+paperH+'mm → '+cols+'×'+rows+' grid ('+maxCount+' max) → '+fitCount+' photos';
+    paperW+'×'+paperH+'mm → '+cols+'×'+rows+' grid ('+maxCount+' max) → '+label;
   document.getElementById('previewEmpty').style.display='none';
   document.getElementById('previewActive').style.display='';
 }
@@ -284,31 +296,30 @@ async function generate(){
     var blade=document.getElementById('bm').checked;
     var bType=bVal>0?'frame':(cutmode!=='none'?'guidelines':'none');
     var gapmm=cutmode==='touching'?0:(cutmode==='spaced'?(blade?5:3):0);
+    var copies=parseInt(document.getElementById('copies').value)||1;
     if(isMulti){
-      var photosPerSheet = parseInt(document.getElementById('photosPerSheet').value) || 6;
       var body = {
         session_ids: window._sids,
-        copies: 1,
+        copies: copies,
         print_size: getPrintSize(),
         photo_size: currentPhotoSize,
-        photo_count: photosPerSheet,
         border_width_mm: bVal,
         border: bType,
         gap_mm: gapmm,
         blade_mode: blade,
       };
+      console.log('multi-print body:', JSON.stringify(body));
       var r=await fetch(API+'/multi-print',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
       var d=await r.json();
       if(!d.ok)throw new Error(d.detail||'Failed');
       showResult({download_print:d.download_url,print_info:d.info});
     }else{
       var b64=await toB64(photoFile);
-      var photosPerSheet = parseInt(document.getElementById('photosPerSheet').value) || 6;
       var body = {
         image_base64: b64,
         print_size: getPrintSize(),
         photo_size: currentPhotoSize,
-        photo_count: photosPerSheet,
+        photo_count: copies,
         border_width_mm: bVal,
         border: bType,
         gap_mm: gapmm,
@@ -332,7 +343,8 @@ function showResult(d){
   var info = d.print_info || {};
   document.getElementById('infoBox').innerHTML=
     '<b>Size:</b> ' + (info.print_size || '4x6') + '<br>' +
-    '<b>Photos:</b> ' + (info.count || info.photos_per_sheet || '6') + '<br>' +
+    '<b>Photos:</b> ' + (info.count || '0') + '<br>' +
+    '<b>Copies per Photo:</b> ' + (info.copies_per_photo || '1') + '<br>' +
     '<b>Border Width:</b> ' + (info.border_width_mm || '0') + ' mm';
   toast('Print sheet ready!','ok');
 }

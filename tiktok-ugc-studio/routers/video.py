@@ -256,13 +256,13 @@ async def generate_video(req: VideoRequest):
         desc = req.product_description or ""
         full_script = f"{_product_title}: {desc}" if desc else f"{_product_title}"
     elif _product_title:
-        # ใช้ชื่อย่อ (ตัด [ใหม่]/ชื่ออังกฤษซ้ำ) + พูดชื่อแค่ครั้งเดียว แล้วแทนที่เหลือด้วย "ตัวนี้" —
-        # กัน TTS อ่านชื่อยาวๆ ซ้ำ/ทื่อ เช่น "วาสลีน สปอตเลส โกลว์ 170มล VASELINE SPOTLESS GLOW 170ML ตัวนี้..."
-        _short = _product_short_name(_product_title)
-        full_script = f"{_short} ตัวนี้ใช้งานดีมาก คุณภาพดี คุ้มค่าสุดๆ แนะนำเลยค่ะ กดสั่งในตะกร้าได้เลยนะคะ"
-        full_script = _dedupe_product_name_inline(full_script, _short)
+        # FIX 2026-08-25: ห้าม hardcode บท legacy "ตัวนี้ใช้งานดีมาก..." อีก —
+        # owner สั่งว่าบทที่พูดต้องดึงจากชื่อสินค้าตรงๆ (เช่น "ปราศจากน้ำหอมและพาราเบน")
+        # และต้องไม่มี "ตัวนี้" — ให้ prompt-builder ที่ดูแล owner-script rules gen บทเอง
+        # ส่ง full_script="" → prompt-builder /api/v1/build จะ gen ใหม่ทั้งหมด
+        full_script = ""
     else:
-        full_script = "สินค้าตัวนี้ใช้งานดีมาก คุณภาพดี คุ้มค่าสุดๆ แนะนำเลยค่ะ กดสั่งในตะกร้าได้เลยนะคะ"
+        full_script = ""  # เช่นเดียวกัน — ปล่อยให้ prompt-builder gen
 
     scenes = []
     if req.scenes:

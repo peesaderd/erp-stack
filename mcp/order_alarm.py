@@ -52,28 +52,45 @@ def _env_token() -> str | None:
     return None
 
 
+def _targets() -> list[str]:
+    """Push destinations: LINE_PUSH_TO env/.env may hold comma-separated user/group ids."""
+    raw = os.environ.get("LINE_PUSH_TO", "")
+    if not raw:
+        for line in Path("/home/openhands/erp-stack/.env").read_text().splitlines():
+            if line.startswith("LINE_PUSH_TO="):
+                raw = line.split("=", 1)[1].strip()
+                break
+    ids = [t.strip().removeprefix("line:") for t in raw.split(",") if t.strip()]
+    return ids or [DEFAULT_TO.removeprefix("line:")]
+
+
 def push_line(order: dict, count: int) -> None:
     token = _env_token() or _load_line_token()
     if not token:
         log.warning("no LINE token; skip")
         return
-    to = os.environ.get("LINE_PUSH_TO", DEFAULT_TO).removeprefix("line:")
+    to_list = _targets()
     oid = order.get("order_id", "")
     alt = (f"\U0001f514 \u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c\u0e43\u0e2b\u0e21\u0e48 {oid}!"
            if count == 1 else
            f"\u23f0 \u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e23\u0e31\u0e1a\u0e2d\u0e2d\u0e40\u0e14\u0e2d\u0e23\u0e4c {oid} (\u0e04\u0e23\u0e31\u0e49\u0e07\u0e17\u0e35\u0e48 {count})")
-    msg = {
-        "to": to,
-        "messages": [{"type": "flex", "altText": alt, "contents": _order_flex(order)}],
-    }
-    req = urllib.request.Request(
-        "https://api.line.me/v2/bot/message/push",
-        data=json.dumps(msg).encode("utf-8"),
-        headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"},
-        method="POST",
-    )
-    with urllib.request.urlopen(req, timeout=10) as r:
-        log.info("pushed %s (ring #%s, http %s)", oid, count, r.status)
+    messages = [{"type": "flex", "altText": alt, "contents": _order_flex(order)}]
+    ok = 0
+    for to in to_list:
+        payload = {"to": to, "messages": messages}
+        req = urllib.request.Request(
+            "https://api.line.me/v2/bot/message/push",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=10) as r:
+                ok += 1 if r.status == 200 else 0
+                log.info("pushed %s to %s (ring #%s, http %s)", oid, to[:8] + "…", count, r.status)
+        except Exception as e:  # noqa: BLE001
+            log.warning("push failed for %s: %s", to[:8] + "…", e)
+    return ok
 
 
 def load_state() -> dict:

@@ -36,7 +36,15 @@ window.addEventListener('DOMContentLoaded',function(){
   $('drop').addEventListener('dragover',function(e){e.preventDefault();this.style.borderColor='#6366f1'});
   $('drop').addEventListener('dragleave',function(){this.style.borderColor=''});
   $('drop').addEventListener('drop',function(e){e.preventDefault();this.style.borderColor='';handleFiles({target:{files:e.dataTransfer.files}})});
-  $('bgColorPick').addEventListener('input',function(){S.bgGrad=null;S.bgc='custom';S.bg='custom';$$('.bg-d').forEach(function(x){x.classList.remove('on')});previewBGColor(this.value)});
+  ['bgColor1','bgColor2','bgAngle'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el)el.addEventListener('input',function(){
+      S.bgc='custom';S.bg='custom';S.bgGrad=null;
+      $$('.bg-d').forEach(function(x){x.classList.remove('on')});
+      var live=document.getElementById('liveBG');
+      if(live&&live.checked)refreshBGPreview();
+    });
+  });
   loadCustomClothing();
 });
 
@@ -395,39 +403,83 @@ function selectBatchResult(sid,i){
   autoRemoveBG();
 }
 
+/* ══════════ CUSTOM BG MODE (single / linear / radial) ══════════ */
+var bgMode='single'; // 'single' | 'linear' | 'radial'
+function setBGMode(m){
+  bgMode=m;
+  $$('.bgmode').forEach(function(x){x.classList.toggle('active',x.dataset.bgmode===m)});
+  var g2=document.getElementById('bgColor2Wrap');
+  var aw=document.getElementById('bgAngleWrap');
+  var l1=document.getElementById('bgColor1Lbl');
+  var l2=document.getElementById('bgColor2Lbl');
+  if(m==='single'){
+    g2.style.display='none';aw.style.display='none';
+    l1.textContent='สี';
+  }else if(m==='linear'){
+    g2.style.display='flex';aw.style.display='flex';
+    l1.textContent='สีที่ 1';l2.textContent='สีที่ 2';
+  }else{ // radial
+    g2.style.display='flex';aw.style.display='none';
+    l1.textContent='กลาง';l2.textContent='ขอบ';
+  }
+  refreshBGPreview();
+}
+
+/* Build the color string sent to backend:
+   single -> "#HEX"
+   linear -> "linear-gradient(<angle>deg,#c1,#c2)"
+   radial -> "radial-gradient(circle,#center,#edge)" */
+function getBGColorString(){
+  var c1=document.getElementById('bgColor1').value||'#C4DCFF';
+  if(bgMode==='single')return c1;
+  var c2=document.getElementById('bgColor2').value||'#FFFFFF';
+  if(bgMode==='linear'){
+    var ang=parseInt(document.getElementById('bgAngle').value)||180;
+    return 'linear-gradient('+ang+'deg,'+c1+','+c2+')';
+  }
+  return 'radial-gradient(circle,'+c1+','+c2+')';
+}
+
+/* Live preview background (before applying to server) */
+function refreshBGPreview(){
+  var color=getBGColorString();
+  var pb=document.getElementById('previewBg');
+  if(pb)pb.style.background=gradCss(color);
+}
+
+/* Map our color string to a CSS background value for the preview div */
+function gradCss(color){
+  if(color&&color.indexOf('gradient')!==-1)return color;
+  return color; // solid hex works as CSS color
+}
+
 /* ══════════ AUTO REMOVE BG ══════════ */
 async function autoRemoveBG(){
   if(!S.sid)return;
   try{
-    var color=$('bgColorPick').value||'#C4DCFF';
+    var color=getBGColorString();
     var resp=await fetch(API+'/remove-bg',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:S.sid,background_color:color})});
     var d=await resp.json();
     if(d.ok){
       bumpImg();
       var url=location.origin+(d.download_transparent||'');
-      $('ri').src=url+'?v='+S.imgV+'&fmt=webp'; // ~790KB png → light webp for preview only
-      previewBGColor(color);
+      $('ri').src=url+'?v='+S.imgV+'&fmt=webp';
+      refreshBGPreview();
       toast('✂️ Background removed');
     }
   }catch(e){console.error('autoRemoveBG:',e)}
 }
 
-/* ══════════ LIVE BG COLOR PREVIEW ══════════ */
+/* ══════════ LIVE BG COLOR PREVIEW (kept for presets) ══════════ */
 function previewBGColor(hex){
-  if(hex&&hex.indexOf('gradient')!==-1){
-    $('previewBg').style.background=hex;
-  }else{
-    $('previewBg').style.background=hex;
-  }
-  if(hex&&hex.indexOf('#')===0&&hex.length<=9){$('bgColorPick').value=hex;}
+  var pb=document.getElementById('previewBg');
+  if(pb)pb.style.background=hex||'transparent';
 }
 
 /* ══════════ APPLY BG ══════════ */
 async function applyBG(){
   if(!S.sid)return;
-  var color=$('bgColorPick').value||'#FFFFFF';
-  // gradient: S.bgGrad stores "HEX1,HEX2"
-  if(S.bgGrad){color=S.bgGrad;}
+  var color=getBGColorString();
   previewBGColor(color);
   try{
     var resp=await fetch(API+'/apply-bg',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:S.sid,background_color:color})});

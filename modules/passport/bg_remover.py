@@ -8,6 +8,7 @@ from pathlib import Path
 import urllib.request
 from io import BytesIO
 from PIL import Image
+import math
 
 logger = logging.getLogger("passport.bg_remover")
 
@@ -117,34 +118,110 @@ def apply_background(pil_image: Image.Image, color: str = "#FFFFFF") -> Image.Im
 
     Args:
         pil_image: RGBA image with transparency
-        color: Hex color (e.g. "#FFFFFF", "#C4DCFF") or gradient "HEX1,HEX2" (top->bottom)
+        color: Hex color (e.g. "#FFFFFF") OR CSS-style gradient string:
+            - "linear-gradient(180deg,#aaa,#bbb)"  (0deg=to-top, 90deg=to-right, 180deg=to-bottom)
+            - "radial-gradient(circle,#center,#edge)"
+            - "HEX1,HEX2" (legacy = vertical top->bottom gradient)
 
     Returns:
         RGB image with background
     """
     w, h = pil_image.size
+    if color and "linear-gradient" in color:
+        bg = _grad_bg(w, h, color, radial=False)
+        bg.paste(pil_image, (0, 0), pil_image)
+        return bg.convert("RGB")
+    if color and "radial-gradient" in color:
+        bg = _grad_bg(w, h, color, radial=True)
+        bg.paste(pil_image, (0, 0), pil_image)
+        return bg.convert("RGB")
     if color and "," in color:
-        # Gradient: "HEX1,HEX2" vertical top->bottom
+        # Legacy / simple vertical gradient: "HEX1,HEX2"
         c1, c2 = color.split(",")[:2]
-        c1 = c1.strip() or "#FFFFFF"
-        c2 = c2.strip() or "#C4DCFF"
-        def _hex(c):
-            c = c.lstrip("#")
-            return tuple(int(c[i:i+2], 16) for i in (0, 2, 4))
-        r1, g1, b1 = _hex(c1)
-        r2, g2, b2 = _hex(c2)
-        bg = Image.new("RGB", (w, h))
-        px = bg.load()
-        for y in range(h):
-            t = y / max(1, h - 1)
-            r = int(r1 + (r2 - r1) * t)
-            g = int(g1 + (g2 - g1) * t)
-            b = int(b1 + (b2 - b1) * t)
-            for x in range(w):
-                px[x, y] = (r, g, b)
-        bg_rgba = bg.convert("RGBA")
-        bg_rgba.paste(pil_image, (0, 0), pil_image)
-        return bg_rgba.convert("RGB")
+        rad = "linear-gradient(180deg,{},{})".format((c1 or "#FFFFFF").strip(), (c2 or "#C4DCFF").strip())
+        bg = _grad_bg(w, h, rad, radial=False)
+        bg.paste(pil_image, (0, 0), pil_image)
+        return bg.convert("RGB")
     bg = Image.new("RGBA", pil_image.size, color)
     bg.paste(pil_image, (0, 0), pil_image)
     return bg.convert("RGB")
+
+
+def _hex_rgb(hexstr):
+    """Parse #RGB / #RRGGBB / #RRGGBBAA (alpha ignored) -> (r,g,b)."""
+    c = hexstr.strip().lstrip("#")
+    if len(c) == 3:
+        c = "".join(ch * 2 for ch in c)
+    if len(c) >= 6:
+        return tuple(int(c[i:i + 2], 16) for i in (0, 2, 4))
+    return (255, 255, 255)
+
+
+def _lerp(a, b, t):
+    return (int(a[0] + (b[0] - a[0]) * t),
+            int(a[1] + (b[1] - a[1]) * t),
+            int(a[2] + (b[2] - a[2]) * t))
+
+
+def _split_css_colors(s):
+    """Split a comma list returning only hex-looking color tokens (up to 2)."""
+    if not s:
+        return []
+    parts = [p.strip() for p in s.split(",") if p.strip()]
+    return [p for p in parts if "#" in p][:2]
+
+
+def _grad_bg(w, h, css, radial=False):
+    """Build RGB gradient background from a CSS-style gradient string using pure PIL."""
+    start = css.find("(")
+    end = css.rfind(")")
+    body = css[start + 1:end] if start != -1 and end != -1 and end > start else css
+
+    if radial:
+        # radial-gradient(circle,#center,#edge)
+        colors = _split_css_colors(body.split("circle", 1)[-1] if "circle" in body else body)
+        c_center = _hex_rgb(colors[0]) if colors else (255, 255, 255)
+        c_edge = _hex_rgb(colors[1]) if len(colors) > 1 else c_center
+        cx, cy = w / 2.0, h / 2.0
+        max_r = (cx ** 2 + cy ** 2) ** 0.5
+        bg = Image.new("RGB", (w, h))
+        px = bg.load()
+        for y in range(h):
+            for x in range(w):
+                d = ((x - cx) ** 2 + (y - cy) ** 2) ** 0.5
+                t = min(1.0, d / max(1, max_r))
+                px[x, y] = _lerp(c_center, c_edge, t)
+        return bg
+
+    # linear-gradient([<angle>deg,] c1[,c2])
+    first = body.split(",", 1)[0].strip()
+    angle = 180
+    if "deg" in first:
+        try:
+            angle = int(first.replace("deg", "").strip()) % 360
+        except ValueError:
+            angle = 180
+        rest = body.split(",", 1)[1] if "," in body else ""
+    else:
+        rest = body
+    colors = _split_css_colors(rest)
+    c1 = _hex_rgb(colors[0]) if colors else (255, 255, 255)
+    c2 = _hex_rgb(colors[1]) if len(colors) > 1 else c1
+
+    rad = math.radians(angle)
+    dx = math.sin(rad)
+    dy = -math.cos(rad)
+    proj_len = abs(dx) * w + abs(dy) * h
+    if proj_len <= 0:
+        proj_len = 1
+    cx, cy = w / 2.0, h / 2.0
+    bg = Image.new("RGB", (w, h))
+    px = bg.load()
+    for y in range(h):
+        for x in range(w):
+            t = ((x - cx) * dx + (y - cy) * dy) / proj_len + 0.5
+            t = max(0.0, min(1.0, t))
+            px[x, y] = _lerp(c1, c2, t)
+    return bg
+
+

@@ -16,7 +16,10 @@
 
 /* Upload */
 .drop{border:2px dashed #cbd5e1;border-radius:16px;padding:52px 20px;text-align:center;cursor:pointer;transition:.2s;background:#f8fafc}.drop:hover{border-color:#6366f1;background:#eef2ff}.drop .ic{font-size:48px;margin-bottom:12px;opacity:.6}.drop h3{font-size:1rem;font-weight:700;color:#0f172a;margin-bottom:4px}.drop p{font-size:.72rem;color:#64748b;margin-bottom:16px}.drop input{display:none}.drop-btns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}.drop-btns button{padding:10px 20px;border:none;border-radius:10px;font-size:.8rem;font-weight:600;cursor:pointer}
-.btn-p{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;box-shadow:0 4px 12px rgba(99,102,241,.3)}.btn-p:hover{transform:translateY(-1px)}.btn-c{background:#e2e8f0;color:#475569}.btn-c:hover{background:#cbd5e1}.gbadge{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border-radius:16px;font-size:.7rem;font-weight:600;background:#eef2ff;color:#6366f1}
+.btn-p{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:11px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;box-shadow:0 3px 10px rgba(99,102,241,.28);transition:.18s;-webkit-tap-highlight-color:transparent}.btn-p:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(99,102,241,.4);filter:brightness(1.04)}.btn-p:active{transform:translateY(0) scale(.98)}.btn-p:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-c{background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:11px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;transition:.18s;-webkit-tap-highlight-color:transparent}.btn-c:hover{background:#e2e8f0;color:#334155;border-color:#cbd5e1;transform:translateY(-1px)}.btn-c:active{transform:scale(.98)}
+.btn-p:focus-visible,.btn-c:focus-visible,.gen-btn:focus-visible{outline:2px solid #6366f1;outline-offset:2px}
+.gbadge{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border-radius:16px;font-size:.7rem;font-weight:600;background:#eef2ff;color:#6366f1}
 
 /* Clothing */
 .opt-sec{margin-bottom:14px;min-width:0;max-width:100%}.opt-h{display:flex;align-items:center;gap:8px;font-size:.75rem;font-weight:700;color:#0f172a;margin-bottom:8px}.opt-h .e{font-size:1rem}
@@ -25,7 +28,7 @@
 .carro-btn{position:absolute;top:50%;transform:translateY(-50%);width:26px;height:26px;border-radius:50%;background:#fff;border:1px solid #e2e8f0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:10px;color:#64748b;z-index:2;box-shadow:0 2px 6px rgba(0,0,0,.1)}
 
 /* Generate */
-.gen-btn{width:100%;padding:16px;border:none;border-radius:14px;font-size:.95rem;font-weight:800;cursor:pointer;transition:.2s;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;box-shadow:0 4px 16px rgba(99,102,241,.4);display:flex;align-items:center;justify-content:center;gap:10px}.gen-btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(99,102,241,.5)}.gen-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}.gen-btn .ico{font-size:1.2rem}
+.gen-btn{width:100%;padding:15px;border:none;border-radius:14px;font-size:.95rem;font-weight:800;cursor:pointer;transition:.18s;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;box-shadow:0 5px 18px rgba(99,102,241,.38);display:flex;align-items:center;justify-content:center;gap:10px;letter-spacing:.2px;-webkit-tap-highlight-color:transparent}.gen-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(99,102,241,.5);filter:brightness(1.04)}.gen-btn:active{transform:translateY(0) scale(.99)}.gen-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}.gen-btn .ico{font-size:1.15rem;line-height:1}
 
 /* Post-gen */
 .sec-divider{height:1px;background:linear-gradient(90deg,transparent,#e2e8f0,transparent);margin:20px 0}
@@ -43,6 +46,9 @@
 .crop-opts{display:flex;gap:6px;flex-wrap:wrap}.crop-opt{padding:8px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:.72rem;font-weight:600;color:#64748b;cursor:pointer;background:#fff;transition:.2s}.crop-opt:hover{border-color:#6366f1}.crop-opt.active{background:#6366f1;color:#fff;border-color:#6366f1}
 
 /* Size / Print */
+
+.bgmode{padding:7px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:.7rem;font-weight:600;cursor:pointer;background:#fff;color:#64748b;flex:1;transition:.2s}.bgmode:hover{border-color:#6366f1;color:#6366f1}.bgmode.active{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border-color:transparent;box-shadow:0 3px 10px rgba(99,102,241,.3)}
+
 .sz-p,.pap-p{padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:.72rem;font-weight:600;color:#64748b;cursor:pointer;background:#fff;transition:.2s}.sz-p:hover,.pap-p:hover{border-color:#6366f1}.sz-p.active,.pap-p.active{background:#6366f1;color:#fff;border-color:#6366f1}
 
 /* Batch thumbs */
@@ -88,7 +94,7 @@
         <h3>Upload your photo</h3>
         <p>Drag &amp; drop or click to browse<br><small>JPG / PNG · Single or multiple (max 20)</small></p>
         <div class="drop-btns">
-          <button class="btn-p" type="button" onclick="pickFile()">📁 Choose Photo</button>
+          <button class="btn-p" type="button" onclick="pickFile()"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="m21 15-4-4-5 5-3-3"/></svg> Choose Photo</button>
         </div>
         <input type="file" id="fi" accept="image/jpeg,image/png" multiple>
       </div>
@@ -107,7 +113,7 @@
       <div class="slider-wrap" id="sliderWrap" style="justify-content:center"></div>
     </div>
     <div class="res-btns">
-      <button class="btn-p hidden" id="btnDl" style="padding:9px 16px;font-size:.72rem" onclick="dl('passport')">⬇️ Download</button>
+      <button class="btn-p hidden" id="btnDl" style="padding:9px 16px;font-size:.72rem" onclick="dl('passport')"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 20h16"/></svg> Download</button>
       <button class="btn-c hidden" id="btnDlT" style="padding:9px 16px;font-size:.72rem" onclick="dlTransparent()">💎 Transparent</button>
       <button class="btn-c" style="padding:9px 16px;font-size:.72rem" onclick="pickFile()">🔄 Change</button>
       <button class="btn-c" style="padding:9px 16px;font-size:.72rem" onclick="newPhoto()">🆕 New</button>
@@ -146,19 +152,40 @@
       <textarea id="promptField" rows="2" placeholder="เช่น: ทรงผมเรียบ ยิ้มเล็กน้อย ชุดสุภาพสีดำ" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:.72rem;font-family:inherit;resize:vertical;outline:none;background:#fff;color:#0f172a"></textarea>
       <div style="font-size:.58rem;color:#94a3b8;margin-top:4px">ปล่อยว่าง = ใช้ prompt default</div>
     </div>
-    <button class="gen-btn" id="genBtn" disabled onclick="generate()"><span class="ico">🚀</span> Generate</button>
-    <button class="gen-btn hidden" id="genAllBtn" onclick="generateAll()" style="background:#059669;margin-top:8px"><span class="ico">⚡</span> Generate ทั้งหมด (batch)</button>
+    <button class="gen-btn" id="genBtn" disabled onclick="generate()"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg> Generate</button>
+    <button class="gen-btn hidden" id="genAllBtn" onclick="generateAll()" style="background:#059669;margin-top:8px"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M13 2 3 14h7l-1 8 10-12h-7z"/></svg> Generate ทั้งหมด (batch)</button>
   </div>
 
   <!-- Tab 1: Background -->
   <div class="card opt-pane" id="optPane1" style="padding:14px">
     <div id="bgPresets" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"></div>
-    <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
-      <input type="color" id="bgColorPick" value="#C4DCFF" style="width:32px;height:26px;border:1px solid #cbd5e1;border-radius:6px;padding:0;cursor:pointer">
-      <span style="font-size:.65rem;color:#64748b">Custom</span>
-      <button class="btn-p" style="padding:7px 14px;font-size:.7rem;margin-left:auto" onclick="applyBG()">✂️ Apply BG</button>
+        <div style="margin-top:8px;border-top:1px dashed #e2e8f0;padding-top:10px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+        <button type="button" class="bgmode active" data-bgmode="single" onclick="setBGMode('single')">พื้นเดียว</button>
+        <button type="button" class="bgmode" data-bgmode="linear" onclick="setBGMode('linear')">ไล่เฉด</button>
+        <button type="button" class="bgmode" data-bgmode="radial" onclick="setBGMode('radial')">วงกลม</button>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <label style="font-size:.6rem;font-weight:600;color:#64748b;display:flex;align-items:center;gap:4px">
+          <input type="color" id="bgColor1" value="#C4DCFF" style="width:30px;height:26px;border:1px solid #cbd5e1;border-radius:6px;padding:0;cursor:pointer">
+          <span id="bgColor1Lbl">สีที่ 1</span>
+        </label>
+        <label id="bgColor2Wrap" style="font-size:.6rem;font-weight:600;color:#64748b;display:none;align-items:center;gap:4px">
+          <input type="color" id="bgColor2" value="#FFFFFF" style="width:30px;height:26px;border:1px solid #cbd5e1;border-radius:6px;padding:0;cursor:pointer">
+          <span id="bgColor2Lbl">สีที่ 2</span>
+        </label>
+        <div id="bgAngleWrap" style="display:none;align-items:center;gap:4px;font-size:.6rem;font-weight:600;color:#64748b">
+          มุม
+          <input type="number" id="bgAngle" value="180" min="0" max="360" step="15" style="width:52px;padding:6px 4px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:.66rem;text-align:center;outline:none">
+        </div>
+        <label style="font-size:.6rem;font-weight:600;color:#64748b;margin-left:auto;display:flex;align-items:center;gap:4px;cursor:pointer">
+          <input type="checkbox" id="liveBG" checked style="accent-color:#6366f1;width:13px;height:13px"> Live
+        </label>
+        <button class="btn-p" id="applyBgBtn" style="padding:7px 14px;font-size:.7rem" onclick="applyBG()"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.5-.6 1.5-1.5 0-.4-.2-.8-.4-1.1-.2-.3-.3-.6-.3-.9 0-.8.6-1.5 1.5-1.5H16c2.2 0 4-1.8 4-4 0-5.5-3.6-9-8-9z"/></svg> Apply BG</button>
+      </div>
     </div>
   </div>
+
 
   <!-- Tab 2: Size (Country + Photo Size) -->
   <div class="card opt-pane" id="optPane2" style="padding:14px">
@@ -175,14 +202,14 @@
       <span style="color:#94a3b8;font-weight:600">×</span>
       <input type="number" id="customH" value="45" min="10" max="200" style="flex:1;padding:7px 8px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.72rem;text-align:center;outline:none">
       <span style="font-size:.6rem;color:#94a3b8">mm</span>
-      <button class="btn-p" style="padding:7px 12px;font-size:.68rem" onclick="applySize()">📐 Apply</button>
+      <button class="btn-p" style="padding:7px 12px;font-size:.68rem" onclick="applySize()"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M4 21 21 4l-1-1-5 5-2-2-1 1 2 2-3 3-2-2-1 1 2 2-3 3-2-2-1 1 2 2z"/></svg> Apply</button>
     </div>
   </div>
 
   <!-- Tab 3: Print (handed off to print.html for full settings) -->
   <div class="card opt-pane" id="optPane3" style="padding:14px">
     <p style="font-size:.72rem;color:#334155;margin-bottom:12px">ปรับขยาย/ตัด/เส้นตัดทั้งหมดไปทำที่หน้า Print Sheet โดยรูปที่ AI สร้างไว้จะส่งไปให้อัตโนมัติ (<span id="poolN">0</span> รูป)</p>
-    <button class="btn-p" style="width:100%;padding:9px;font-size:.72rem" onclick="genPrintSheet()">🖨️ ไปสร้าง Print Sheet</button>
+    <button class="btn-p" style="width:100%;padding:9px;font-size:.72rem" onclick="genPrintSheet()"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="7" rx="2"/><path d="M6 14h12v7H6z"/></svg> ไปสร้าง Print Sheet</button>
   </div>
 </div>
 

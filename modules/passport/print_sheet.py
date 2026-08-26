@@ -207,28 +207,51 @@ def _add_hairline(sheet: np.ndarray, positions: list, margin: int = 0) -> np.nda
 
 
 def _add_guidelines(sheet: np.ndarray, positions: list) -> np.ndarray:
-    """Add dashed cut lines visible on phone screens (~10px at 300dpi = ~2.5px on screen)."""
-    result = sheet.copy()
-    color = (80, 80, 80)  # dark gray, high contrast on white
-    thickness = 0.025
-    dash_len = 20
-    gap_len = 12
+    """Add dashed cut lines with sub-pixel width via Gaussian falloff."""
+    result = sheet.copy().astype(np.float32)
+    h, w = result.shape[:2]
+    SIGMA = 0.025  # Gaussian sigma in pixels → FWHM ≈ 0.06px
+    MAX_ALPHA = 180.0 / 255.0
+    dash, gap = 20, 12
+    yy = np.arange(h, dtype=np.float32)[:, None]  # (H,1)
+    xx = np.arange(w, dtype=np.float32)[None, :]  # (1,W)
+    color = np.array([80.0, 80.0, 80.0])
 
     for pos in positions:
         x, y, pw, ph = pos["x"], pos["y"], pos["w"], pos["h"]
-        # Top & bottom
-        for dx in range(0, pw, dash_len + gap_len):
-            x1 = x + dx
-            x2 = min(x1 + dash_len, x + pw)
-            cv2.line(result, (x1, y), (x2, y), color, thickness)
-            cv2.line(result, (x1, y + ph - 1), (x2, y + ph - 1), color, thickness)
-        # Left & right
-        for dy in range(0, ph, dash_len + gap_len):
-            y1 = y + dy
-            y2 = min(y1 + dash_len, y + ph)
-            cv2.line(result, (x, y1), (x, y2), color, thickness)
-            cv2.line(result, (x + pw - 1, y1), (x + pw - 1, y2), color, thickness)
-    return result
+        # Build dash mask for horizontal lines along x-axis
+        dash_x = np.zeros(w, dtype=np.float32)
+        xx1d = xx.ravel()
+        for d in range(0, int(pw) + dash, dash + gap):
+            x1 = x + d
+            x2 = min(x1 + dash, x + pw)
+            mask_x = (xx1d >= x1) & (xx1d < x2)
+            dash_x[mask_x] = 1.0
+        # Build dash mask for vertical lines along y-axis
+        dash_y = np.zeros(h, dtype=np.float32)
+        yy1d = yy.ravel()
+        for d in range(0, int(ph) + dash, dash + gap):
+            y1 = y + d
+            y2 = min(y1 + dash, y + ph)
+            mask_y = (yy1d >= y1) & (yy1d < y2)
+            dash_y[mask_y] = 1.0
+        # Top edge: horizontal line at integer row y
+        dist = np.abs(yy - y)  # (H,1)
+        alpha = np.exp(-0.5 * (dist / SIGMA) ** 2) * dash_x[None, :] * MAX_ALPHA
+        result += alpha[:, :, None] * (color - result)
+        # Bottom edge: horizontal line at integer row y+ph-1
+        dist = np.abs(yy - (y + ph - 1))
+        alpha = np.exp(-0.5 * (dist / SIGMA) ** 2) * dash_x[None, :] * MAX_ALPHA
+        result += alpha[:, :, None] * (color - result)
+        # Left edge: vertical line at integer col x
+        dist = np.abs(xx - x)  # (1,W)
+        alpha = np.exp(-0.5 * (dist / SIGMA) ** 2) * dash_y[:, None] * MAX_ALPHA
+        result += alpha[:, :, None] * (color - result)
+        # Right edge: vertical line at integer col x+pw-1
+        dist = np.abs(xx - (x + pw - 1))
+        alpha = np.exp(-0.5 * (dist / SIGMA) ** 2) * dash_y[:, None] * MAX_ALPHA
+        result += alpha[:, :, None] * (color - result)
+    return np.clip(result, 0, 255).astype(np.uint8)
 
 
 def _add_frame(sheet: np.ndarray, positions: list) -> np.ndarray:

@@ -298,6 +298,7 @@ async function generate(){
     var blade=document.getElementById('bm').checked;
     var bType=bVal>0?'frame':(cutmode!=='none'?'guidelines':'none');
     var gapmm=cutmode==='touching'?0:(cutmode==='spaced'?(blade?5:3):0);
+    var wantCutlines=cutmode!=='none';
     var copies=parseInt(document.getElementById('copies').value)||1;
     if(isMulti){
       var body = {
@@ -309,6 +310,7 @@ async function generate(){
         border: bType,
         gap_mm: gapmm,
         blade_mode: blade,
+        cutlines: wantCutlines,
       };
       console.log('multi-print body:', JSON.stringify(body));
       var r=await fetch(API+'/multi-print',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
@@ -326,6 +328,7 @@ async function generate(){
         border: bType,
         gap_mm: gapmm,
         blade_mode: blade,
+        cutlines: wantCutlines,
       };
       var r=await fetch(API+'/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
       var d=await r.json();

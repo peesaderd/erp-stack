@@ -48,6 +48,7 @@ def generate_print_sheet(
     border_color: str = "#FFFFFF",
     border_width_mm: float = 0.0,
     hairline: bool = False,
+    cutlines: bool = False,
 ) -> dict:
     """
     Generate a print-ready sheet with multiple passport photos.
@@ -170,9 +171,12 @@ def generate_print_sheet(
         "photo_mm": {"w": template_w_mm, "h": template_h_mm},
     }
 
+    # Add cutline/guidelines — draw when cutlines=True, or when border="guidelines", or frame+gap>0
+    if cutlines or border == "guidelines" or (border == "frame" and gap_mm > 0):
+        sheet = _add_guidelines(sheet, positions)
     if hairline:
         sheet = _add_hairline(sheet, positions)
-    logger.info(f"Print sheet: {cols}x{rows}={placed}/{max_count} photos on {print_size} (border={border}, border_width={border_width_mm}mm)")
+    logger.info(f"Print sheet: {cols}x{rows}={placed}/{max_count} photos on {print_size} (border={border}, border_width={border_width_mm}mm, gap={gap_mm}mm)")
     return {"ok": True, "result": sheet, "info": info}
 
 
@@ -207,51 +211,36 @@ def _add_hairline(sheet: np.ndarray, positions: list, margin: int = 0) -> np.nda
 
 
 def _add_guidelines(sheet: np.ndarray, positions: list) -> np.ndarray:
-    """Add dashed cut lines with sub-pixel width via Gaussian falloff."""
-    result = sheet.copy().astype(np.float32)
+    """Add dashed cut lines visible on white paper at 300 DPI.
+    Uses 2x supersampled mask (thickness 1) downscaled with INTER_AREA to
+    get a crisp ~0.5px line thinner than cv2.line's 1px minimum."""
+    result = sheet.copy()
     h, w = result.shape[:2]
-    SIGMA = 0.025  # Gaussian sigma in pixels → FWHM ≈ 0.06px
-    MAX_ALPHA = 40.0 / 255.0  # very faint ~16%
-    dash, gap = 20, 12
-    yy = np.arange(h, dtype=np.float32)[:, None]  # (H,1)
-    xx = np.arange(w, dtype=np.float32)[None, :]  # (1,W)
-    color = np.array([180.0, 180.0, 180.0])  # light gray, faint on white
+    SC = 2
+    mask2 = np.zeros((h * SC, w * SC), np.uint8)
+    color = (180, 180, 180)  # light gray — visible cut guide, not too dark
+    dash, gap = 36, 20       # dash pattern scaled 2x (visual 18/10)
 
     for pos in positions:
         x, y, pw, ph = pos["x"], pos["y"], pos["w"], pos["h"]
-        # Build dash mask for horizontal lines along x-axis
-        dash_x = np.zeros(w, dtype=np.float32)
-        xx1d = xx.ravel()
-        for d in range(0, int(pw) + dash, dash + gap):
-            x1 = x + d
-            x2 = min(x1 + dash, x + pw)
-            mask_x = (xx1d >= x1) & (xx1d < x2)
-            dash_x[mask_x] = 1.0
-        # Build dash mask for vertical lines along y-axis
-        dash_y = np.zeros(h, dtype=np.float32)
-        yy1d = yy.ravel()
-        for d in range(0, int(ph) + dash, dash + gap):
-            y1 = y + d
-            y2 = min(y1 + dash, y + ph)
-            mask_y = (yy1d >= y1) & (yy1d < y2)
-            dash_y[mask_y] = 1.0
-        # Top edge: horizontal line at integer row y
-        dist = np.abs(yy - y)  # (H,1)
-        alpha = np.exp(-0.5 * (dist / SIGMA) ** 2) * dash_x[None, :] * MAX_ALPHA
-        result += alpha[:, :, None] * (color - result)
-        # Bottom edge: horizontal line at integer row y+ph-1
-        dist = np.abs(yy - (y + ph - 1))
-        alpha = np.exp(-0.5 * (dist / SIGMA) ** 2) * dash_x[None, :] * MAX_ALPHA
-        result += alpha[:, :, None] * (color - result)
-        # Left edge: vertical line at integer col x
-        dist = np.abs(xx - x)  # (1,W)
-        alpha = np.exp(-0.5 * (dist / SIGMA) ** 2) * dash_y[:, None] * MAX_ALPHA
-        result += alpha[:, :, None] * (color - result)
-        # Right edge: vertical line at integer col x+pw-1
-        dist = np.abs(xx - (x + pw - 1))
-        alpha = np.exp(-0.5 * (dist / SIGMA) ** 2) * dash_y[:, None] * MAX_ALPHA
-        result += alpha[:, :, None] * (color - result)
-    return np.clip(result, 0, 255).astype(np.uint8)
+        X, Y, X2, Y2 = x * SC, y * SC, (x + pw) * SC, (y + ph) * SC
+        # Top/bottom edges
+        for d in range(0, X2 - X, dash + gap):
+            cv2.line(mask2, (X + d, Y), (min(X + d + dash, X2), Y), 255, 1)
+            cv2.line(mask2, (X + d, Y2), (min(X + d + dash, X2), Y2), 255, 1)
+        # Left/right edges
+        for d in range(0, Y2 - Y, dash + gap):
+            cv2.line(mask2, (X, Y + d), (X, min(Y + d + dash, Y2)), 255, 1)
+            cv2.line(mask2, (X2, Y + d), (X2, min(Y + d + dash, Y2)), 255, 1)
+
+    mask = cv2.resize(mask2, (w, h), interpolation=cv2.INTER_AREA)
+    line_color = np.array(color, np.float32)
+    a = mask.astype(np.float32) / 255.0
+    sel = a > 0.02
+    base = result[sel].astype(np.float32)
+    alpha = a[sel][:, None]
+    result[sel] = (base * (1 - alpha) + line_color * alpha).astype(np.uint8)
+    return result
 
 
 def _add_frame(sheet: np.ndarray, positions: list) -> np.ndarray:
@@ -280,6 +269,7 @@ def generate_multi_print_sheet(
     border_color: str = "#FFFFFF",
     hairline: bool = False,
     photo_count: int = 0,
+    cutlines: bool = False,
 ) -> dict:
     """
     Generate a print sheet with multiple different photos.
@@ -394,12 +384,13 @@ def generate_multi_print_sheet(
         if placed >= count:
             break
     
-    # Add border/guidelines
-    if border == "frame":
+    # Add border/guidelines — frame for white ring, guidelines for cutlines
+    # When cutlines=True or frame+gap>0, draw both: white ring + cutline guides
+    if cutlines or border == "guidelines":
+        sheet = _add_guidelines(sheet, positions)
+    elif border == "frame":
         if border_px == 0:
             sheet = _add_frame(sheet, positions)   # legacy thin stroke when no ring width given
-    elif border == "guidelines":
-        sheet = _add_guidelines(sheet, positions)
     if hairline:
         sheet = _add_hairline(sheet, positions)    # owner: cut line OUTSIDE borders
     

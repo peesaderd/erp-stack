@@ -614,10 +614,13 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     _app_hint = _apply_hint(subcategory, category, profile)
     if ugc_style == "review":
         # Review recipe (owner 2026-08-26): image places product on the table,
-        # model reviews/gestures toward it — do not hold (matches review video prompt).
+        # model reviews with hands RESTING still on/near the table — NO gesturing,
+        # NO raising hands (owner 2026-08-26 14:20: "ยกมือเพี้ยน" — กำจัดคำสั่งชี้มือ).
+        # Keeping hands still removes the hand-raising artifact entirely.
         mid_hint = (
             f"{model_desc} with the product(s) from the reference image placed on the table "
-            f"in front, gesturing toward them while speaking to camera, {room_desc}, "
+            f"in front, hands resting still on the tabletop, speaking calmly to camera, "
+            f"{room_desc}, "
             f"medium close-up framing, product large in frame, sharp and clearly readable"
         )
     elif profile.get("special_target", "").strip():
@@ -652,7 +655,10 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         f"outfit, {_expr}, showing {_result}; {_placement}{_outfit}"
     )
     # Address recipe beats (solve/us/value) from scenes onto the single frame.
-    if isinstance(scenes, list):
+    # Owner 2026-08-26 14:20: แก้ SSOT ให้ครบ loop — review ใช้ mid_hint ที่ตั้งไว้
+    # (วางบนโต๊ะ + มือนิ่ง) เสมอ ไม่อนุญาตให้ loop beat ทับกลับเป็น holding/
+    # bottles-facing แบบเดิม (ต้นตอ "ยกมือเพี้ยน").
+    if isinstance(scenes, list) and ugc_style != "review":
         for sc in scenes:
             bid = (sc.get("id") or "").lower()
             if bid in ("solve", "us", "value"):
@@ -1085,19 +1091,22 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         )
         start_part = (
             f"{gender_en} speaking naturally, subtle head movement, "
-            f"with the {_vp_product} placed on the table in front, reviewing it "
-            f"honestly while gesturing toward the placed product, {review_scene}"
+            f"hands resting still on the tabletop, with the {_vp_product} placed on the "
+            f"table in front, reviewing it honestly, {review_scene}"
         )
-        # Review end: STOP talking, product stays placed on the table.
+        # Review end: STOP talking, hands stay still on the table, product stays placed.
         end_part = (
             "Face kept clear, then finishes speaking, "
-            "gestures once to the product on the table, smiling"
+            "hands staying still on the tabletop, smiling"
         )
         transition = ""
-        # Mouth/head + small hand gesture only; product stays on the table (not held).
+        # Mouth/head-only motion; hands stay STILL on the table (no raising, no gesturing).
+        # Owner 2026-08-26 14:20: เอาคำสั่งชี้มือออก (gesturing/gestures) เพราะ Wan
+        # ยกมือขึ้นมาแล้วเพี้ยน — สั่งมือนิ่งแทนเพื่อครอบคลุมทั้ง start/end/lipsync.
         lipsync_part = (
             " subtle head movement, face kept clear and forward, "
-            f"the {_vp_product} stays placed on the table, sharp, no lifting it up"
+            f"hands kept still on the tabletop, the {_vp_product} stays placed on the "
+            f"table, sharp, no lifting it up"
         )
     else:
         start_part = f"{gender_en} {action}. {scene}."

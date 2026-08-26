@@ -1283,7 +1283,13 @@ async def analyze_and_build_prompts(
             profile["target_skin_tone"] = vision_profile["target_skin_tone"]
         if "product_type" in vision_profile and vision_profile["product_type"]:
             profile["product_type"] = vision_profile["product_type"]
-        if "colors" in vision_profile and vision_profile["colors"]:
+        # 🔴 2026-08-26: ไมเอา colors จาก Mistral vision มาใส่ profile แลว
+        # เพราะ Mistral เดาสีที่ 2/3 เกินจริง (yellow/gold/light_yellow) ที่ไมมี
+        # ในสินคาจริง → ทำให image prompt ได color palette เพี้ยน → Nano Banana วาดสีผิด
+        # ปลอย colors วา ง -> `if colors else ""` ที่บรรทัด 659 จะไมแทรก palette
+        # -> Nano Banana ยึดสีจาก reference image (pipeline บรรทัด 515 ครอบอยูแลว: same colors as input)
+        # field "colors" ที่ 1412 ยังคงสงคืนใหครบ เพื่อไมให MCP/backend พัง
+        if False and "colors" in vision_profile and vision_profile["colors"]:
             profile["colors"] = vision_profile["colors"]
 
     # Ensure target_gender is explicitly resolved

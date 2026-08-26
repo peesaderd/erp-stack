@@ -211,11 +211,11 @@ def _add_guidelines(sheet: np.ndarray, positions: list) -> np.ndarray:
     result = sheet.copy().astype(np.float32)
     h, w = result.shape[:2]
     SIGMA = 0.025  # Gaussian sigma in pixels → FWHM ≈ 0.06px
-    MAX_ALPHA = 180.0 / 255.0
+    MAX_ALPHA = 40.0 / 255.0  # very faint ~16%
     dash, gap = 20, 12
     yy = np.arange(h, dtype=np.float32)[:, None]  # (H,1)
     xx = np.arange(w, dtype=np.float32)[None, :]  # (1,W)
-    color = np.array([80.0, 80.0, 80.0])
+    color = np.array([180.0, 180.0, 180.0])  # light gray, faint on white
 
     for pos in positions:
         x, y, pw, ph = pos["x"], pos["y"], pos["w"], pos["h"]

@@ -61,6 +61,10 @@
 .gallery-link:hover{background:#eef2ff;border-color:#6366f1}
 .upload-row{display:flex;gap:10px;margin-top:16px}
 .upload-row .gallery-link{flex:1;margin-top:0}
+.btn-upload{background:#22c55e!important;color:#fff!important;border:1px solid #16a34a!important}
+.btn-upload:hover{background:#16a34a!important}
+.btn-gallery{background:#3b82f6!important;color:#fff!important;border:1px solid #2563eb!important}
+.btn-gallery:hover{background:#2563eb!important}
 
 /* Overlay */
 .ov{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,.92);z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:.3s}.ov.show{opacity:1;pointer-events:auto}.sp{width:40px;height:40px;border:3px solid #334155;border-top-color:#6366f1;border-radius:50%;animation:spin .7s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.ov .t{color:#fff;font-size:.95rem;font-weight:700;margin-top:16px}
@@ -115,8 +119,8 @@
         <div id="thumbs" style="display:flex;flex-wrap:wrap;gap:10px"></div>
       </div>
       <div class="upload-row">
-        <button type="button" class="gallery-link" onclick="document.getElementById('fi').click()">📤 Upload Photo</button>
-        <a href="/gallery.html" class="gallery-link">📸 Pick from Gallery</a>
+        <button type="button" class="gallery-link btn-upload" onclick="document.getElementById('fi').click()">📤 Upload Photo</button>
+        <a href="/gallery.html" class="gallery-link btn-gallery">📸 Pick from Gallery</a>
       </div>
     </div>
   </div>
@@ -257,6 +261,7 @@ function updatePreview(){
   var maxCount=cols*rows;
 
   // Build ordered thumb list matching backend: each thumb repeated copies times
+  // (same as backend photo_list = photo1 x copies, photo2 x copies, ...)
   var thumbList=[];
   if(isMulti){
     for(var i=0;i<multiThumbs.length;i++){
@@ -264,7 +269,8 @@ function updatePreview(){
     }
   }
   var totalPhotos=isMulti?thumbList.length:copies;
-  var fitCount=Math.min(totalPhotos,maxCount);
+  var effCount=Math.min(totalPhotos,maxCount);
+  effCount=effCount<0?0:effCount;
 
   var gridW=cols*cellW+(cols-1)*gapPx;
   var gridH=rows*cellH+(rows-1)*gapPx;
@@ -276,14 +282,14 @@ function updatePreview(){
     for(var c=0;c<cols;c++){
       var x=ox+c*(cellW+gapPx);
       var y=oy+r*(cellH+gapPx);
-      if(idx>=fitCount){html+='<div class="preview-cell empty" style="position:absolute;left:'+x+'px;top:'+y+'px;width:'+cellW+'px;height:'+cellH+'px"></div>';idx++;continue}
+      if(idx>=effCount){html+='<div class="preview-cell empty" style="position:absolute;left:'+x+'px;top:'+y+'px;width:'+cellW+'px;height:'+cellH+'px"></div>';idx++;continue}
       var cls='preview-cell';
       if(cutmode!=='none') cls+=' cutline';
       if(bVal>0) cls+=' frame';
       var imgTag='';
       if(isMulti&&thumbList.length>0){
-        var tIdx=idx%thumbList.length;
-        imgTag='<img src="'+thumbList[tIdx]+'" alt="">';
+        // placed index directly into ordered thumbList (no modulo) = backend exact
+        imgTag='<img src="'+thumbList[idx]+'" alt="">';
       }else if(photoImg.src){
         imgTag='<img src="'+photoImg.src+'" alt="">';
       }

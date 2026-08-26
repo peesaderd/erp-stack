@@ -976,7 +976,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             + "\n\nKeep the same woman and product in every scene, keeping the product in a tight close-up "
             "throughout, the product stays sharp and clearly readable, the model makes only small natural "
             "micro-movements (subtle hand turns and gentle facial expressions), never moving the camera away "
-            "from the product, speak the Thai lines naturally and continuously throughout."
+            "from the product."
         )
         logger.info(f"  Video prompt (4-beat, {len(video_prompt)} chars):")
         video_prompt = re.sub(r'[ \t]+', ' ', video_prompt).strip()

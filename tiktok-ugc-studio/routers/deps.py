@@ -88,7 +88,7 @@ async def proxy(request: Request, target_url: str):
     )
 
 
-async def _proxy(method: str, service: str, path: str, body: dict = None, timeout: float = 300.0):
+async def _proxy(method: str, service: str, path: str, body: dict = None, timeout: float = 120.0):
     base = _MODULES.get(service, "http://localhost:8111")
     url = f"{base}{path}"
     async with httpx.AsyncClient(timeout=timeout, verify=False) as client:

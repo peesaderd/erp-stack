@@ -151,8 +151,6 @@ class VideoRequest(BaseModel):
     prompt_extend: bool = True
     # ── FL2V+Audio (Wan 2.7 start-end interpolation + 16kHz mono WAV lip-sync) ──
     audio: Optional[str] = None  # path/URL ของไฟล์เสียง 16kHz mono WAV (Prodia lip-sync)
-    # ── Model face reference (Wan 2.7 reference_image for face consistency) ──
-    model_image: Optional[str] = None  # path/URL ของรูปใบหน้า/upper-body (ใช้เป็น reference สำหรับ Wan 2.7)
     # ── SSOT deep-analysis fields (จาก Product Analyzer 8106 → ส่งเข้า prompt-builder) ──
     body_part: str = ""
     special_target: str = ""
@@ -313,7 +311,6 @@ async def generate_video(req: VideoRequest):
             use_tus_voice=req.use_tus_voice,
             prompt_extend=req.prompt_extend,
             audio_path=req.audio or "",
-            model_image=req.model_image or "",
 
         )
         return {"success": True, "result": result}

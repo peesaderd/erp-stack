@@ -647,28 +647,10 @@ def generate_video(
     if thai_voice_mode:
         logger.info("  🎙 Voice mode A: thai_script ให้ Wan พูดเอง (Gemini TTS ถูกถอดออกจาก TUS แล้ว)")
 
-        # Pad thai_script to cover the full video duration so Wan keeps speaking
-        # until the end (no dead-air mumble tail — owner 2026-08-25 "เอาครบ 15 วิ").
-        # Generic Thai CTA-tail repeated as needed; no product-specific claims so
-        # this is safe across products. ~13 chars/sec baseline for Thai at
-        # Gemini TTS speaking_rate=1.2; Wan 2.7 speech is similar pacing.
-        _TARGET_CHARS_PER_SEC = 13
-        _PAD_TAIL = (
-            " ลองสั่งเ�ยวันนี้ค่ะ คลิกลิงก์ในโพสต์ได้เลย "
-            "ขอบคุณค่ะที่รับชม อย่าลืมกดติดตามด้วยนะคะ ลองเลยวันนี้ค่ะ"
-        )
-        target_chars = max(0, int(duration * _TARGET_CHARS_PER_SEC))
-        if len(thai_script or "") < target_chars:
-            orig_len = len(thai_script or "")
-            while len(thai_script or "") < target_chars:
-                thai_script = (thai_script or "") + _PAD_TAIL
-            # Safety cap at +15% so we don't blow past the prompt cap
-            _cap = int(target_chars * 1.15) if target_chars > 0 else orig_len
-            thai_script = (thai_script or "")[:_cap]
-            logger.info(
-                f"  � Padded thai_script {orig_len} -> {len(thai_script)} chars "
-                f"(target {target_chars}, duration {duration}s)"
-            )
+        # 🔴 REMOVED padding tail (commit 8de880b0 ถูก revert 2026-08-26 00:42).
+        # เหตุผล: padding ทำให้ "จุดจบ" ของ script หายไป ซึ่่ prompt "พูดจบแล้วหยุดพูดทันที"
+        # หยุดไม่ได้ เพราะ Wan ไม่รู้ว่าจบตรวงไหน ซึ่่ พูดต่อจนจบ 15s แล้วมั่วเพิ่มปลาย
+        # แก้: ส่ง script ตามจริงของพี่ + prompt สั่งหยุดเมื่อพูดจบ + negative ห้ามพูดนอก script
 
     # ── Thai script (Thai-voice mode): ฝังบทพูดไทยใน prompt เพื่อให้ Wan ขยับปาก
     # ตรงตามเสียง Thai voiceover จริง (ไม่ใช่เดาเสียงจาก audio อย่างเดียว)

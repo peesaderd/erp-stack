@@ -1301,7 +1301,7 @@
       "unboxing",
       "usage"
     ],
-    "negative_base": "no gibberish speech, fake language or meaningless dialogue, no nonsensical talking, no distorted hands, no extra fingers, no facial morphing or melting, stable face, consistent identity, realistic proportions, no camera zoom, pan or movement, no blurred or warped product, no distorted unreadable label text",
+    "negative_base": "no gibberish speech, fake language or meaningless dialogue, no nonsensical talking, no distorted hands, no extra fingers, no facial morphing or melting, stable face, consistent identity, realistic proportions, no camera zoom, pan or movement, no blurred or warped product, no distorted unreadable label text, no speaking without script, no improvised lines after script ends, no filler words, no extra talking, silent after script ends",
     "negative_talking": [
       "no exaggerated jaw movement",
       "no shouting",

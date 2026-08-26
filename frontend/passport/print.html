@@ -50,14 +50,14 @@
 /* Result */
 #result img{width:100%;max-height:480px;object-fit:contain;border-radius:12px;background:#f1f5f9;box-shadow:0 4px 16px rgba(0,0,0,.08)}
 .rbtns{display:flex;gap:8px;margin-top:12px}
-.rbtn{flex:1;padding:10px;border:none;border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer;text-align:center;text-decoration:none;transition:.2s}
+.rbtn{flex:1;padding:10px;border:none;border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer;text-align:center;text-decoration:none;transition:.2s;display:inline-flex;align-items:center;justify-content:center;gap:6px}.rbtn svg{width:15px;height:15px}
 .rbtn.dl{background:#10b981;color:#fff}.rbtn.dl:hover{filter:brightness(1.1)}
 .rbtn.print{background:#6366f1;color:#fff}.rbtn.print:hover{filter:brightness(1.1)}
 .info-box{background:#f1f5f9;border-radius:8px;padding:10px 12px;margin-top:12px;font-size:.68rem;color:#64748b;line-height:1.5}
 .info-box b{color:#0f172a}
 
 /* Gallery link */
-.gallery-link{display:block;text-align:center;padding:10px;background:#f1f5f9;border-radius:8px;color:#6366f1;text-decoration:none;font-size:.75rem;font-weight:600;border:1px solid #e2e8f0;transition:.2s;cursor:pointer}
+.gallery-link{display:flex;align-items:center;justify-content:center;gap:6px;text-align:center;padding:10px;background:#f1f5f9;border-radius:8px;color:#6366f1;text-decoration:none;font-size:.75rem;font-weight:600;border:1px solid #e2e8f0;transition:.2s;cursor:pointer}.gallery-link svg{width:15px;height:15px}
 .gallery-link:hover{background:#eef2ff;border-color:#6366f1}
 .upload-row{display:flex;gap:10px;margin-top:16px}
 .upload-row .gallery-link{flex:1;margin-top:0}
@@ -82,25 +82,25 @@
 <div class="hdr"><div class="hdr-in">
   <div class="hdr-logo"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="12" cy="10" r="3"/><path d="M7 20v-1a5 5 0 0110 0v1"/></svg></div>
   <div class="hdr-txt"><h1>Passport Photo Studio</h1><small>AI-powered ID photos in seconds</small></div>
-  <div class="hdr-badge">🖨️ Print</div>
+  <div class="hdr-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="6" rx="2"/><path d="M6 14h12v7H6z"/></svg> Print</div>
 </div></div>
 
 <div class="page">
 
   <!-- Result Card (top — real generated output, replaces live preview) -->
   <div class="card">
-    <div class="card-h">🖼 Result</div>
+    <div class="card-h"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8" cy="10" r="1.2"/><path d="m21 15-3.5-3.5L13 16l-2.5-2.5L6 18"/></svg> Result</div>
     <div class="card-b">
       <div id="empty" style="text-align:center;padding:40px;color:#94a3b8">
-        <div style="font-size:2rem;margin-bottom:8px;opacity:.4">🖨️</div>
+        <div style="display:flex;justify-content:center;margin-bottom:8px;opacity:.5"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="6" rx="2"/><path d="M6 14h12v7H6z"/></svg></div>
         Upload photo &amp; click Generate
       </div>
       <div id="result" style="display:none">
         <img id="outImg" alt="">
         <div id="infoBox" class="info-box"></div>
         <div class="rbtns">
-          <a class="rbtn dl" id="dlBtn" href="" download>💾 Download</a>
-          <button class="rbtn print" onclick="window.print()">🖨️ Print</button>
+          <a class="rbtn dl" id="dlBtn" href="" download><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 20h16"/></svg> Download</a>
+          <button class="rbtn print" onclick="window.print()"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="6" rx="2"/><path d="M6 14h12v7H6z"/></svg> Print</button>
         </div>
       </div>
     </div>
@@ -109,10 +109,10 @@
   <!-- Live Preview Card (hidden — real result shown after generate)
        Keep markup/JS intact so framework loads fine; just not visible -->
   <div class="card" style="display:none">
-    <div class="card-h">👁 Live Preview</div>
+    <div class="card-h"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.5"/></svg> Live Preview</div>
     <div class="card-b">
       <div id="previewEmpty" style="text-align:center;padding:30px;color:#94a3b8">
-        <div style="font-size:2rem;margin-bottom:8px;opacity:.4">📄</div>
+        <div style="display:flex;justify-content:center;margin-bottom:8px;opacity:.5"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5"/></svg></div>
         Upload a photo to see preview
       </div>
       <div id="previewActive" style="display:none">
@@ -124,10 +124,10 @@
 
   <!-- Upload Card -->
   <div class="card">
-    <div class="card-h">📷 Upload Passport Photo</div>
+    <div class="card-h"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M4 8a2 2 0 0 1 2-2h2l1.5-2h5L16 6h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8z"/><circle cx="12" cy="13" r="3"/></svg> Upload Passport Photo</div>
     <div class="card-b">
       <div class="drop" id="drop" onclick="document.getElementById('fi').click()">
-        <div id="emp"><div class="ic">📷</div><h3>Upload your photo</h3><p>Drag & drop or click to browse<br><small>JPG / PNG</small></p></div>
+        <div id="emp"><div class="ic" style="line-height:0"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M4 8a2 2 0 0 1 2-2h2l1.5-2h5L16 6h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8z"/><circle cx="12" cy="13" r="3"/></svg></div><h3>Upload your photo</h3><p>Drag & drop or click to browse<br><small>JPG / PNG</small></p></div>
         <div id="fil" style="display:none">
           <img id="pth" alt="">
           <div class="info"><div class="nm" id="fn"></div><div class="mt" id="fm"></div></div>
@@ -139,15 +139,15 @@
         <div id="thumbs" style="display:flex;flex-wrap:wrap;gap:10px"></div>
       </div>
       <div class="upload-row">
-        <button type="button" class="gallery-link btn-upload" onclick="document.getElementById('fi').click()">📤 Upload Photo</button>
-        <a href="/gallery.html" class="gallery-link btn-gallery">📸 Pick from Gallery</a>
+        <button type="button" class="gallery-link btn-upload" onclick="document.getElementById('fi').click()"><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M12 16V4m0 0 4 4m-4-4L8 8"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg> Upload Photo</button>
+        <a href="/gallery.html" class="gallery-link btn-gallery"><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="m21 15-4-4-5 5-3-3"/></svg> Pick from Gallery</a>
       </div>
     </div>
   </div>
 
   <!-- Print Settings Card -->
   <div class="card">
-    <div class="card-h">⚙️ Print Settings</div>
+    <div class="card-h"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.02a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.02a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.02a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Print Settings</div>
     <div class="card-b">
       <div class="pgrid">
         <div class="pf"><label>Paper</label>
@@ -187,7 +187,7 @@
           </select>
         </div>
       </div>
-      <button class="gen-btn" id="btn" disabled onclick="generate()"><span style="font-size:1.2rem">🖨️</span> Generate Print Sheet</button>
+      <button class="gen-btn" id="btn" disabled onclick="generate()"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="6" rx="2"/><path d="M6 14h12v7H6z"/></svg> Generate Print Sheet</button>
     </div>
   </div>
 

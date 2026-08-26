@@ -616,11 +616,12 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         # Review recipe (owner 2026-08-26): image places product on the table,
         # model reviews with hands RESTING still on/near the table — NO gesturing,
         # NO raising hands (owner 2026-08-26 14:20: "ยกมือเพี้ยน" — กำจัดคำสั่งชี้มือ).
-        # Keeping hands still removes the hand-raising artifact entirely.
+        # Owner 2026-08-26 22:48: ยิ้มแย้มชัดเจน (พี่เจอ "นางแบบไม่ยิ้ม หลายคลิป") —
+        # ใส่ smile/bright cheerful ที่ต้นภาพ ไม่ใช่แค่ "speaking calmly" (ตรงข้ามยิ้ม).
         mid_hint = (
             f"{model_desc} with the product(s) from the reference image placed on the table "
-            f"in front, hands resting still on the tabletop, speaking calmly to camera, "
-            f"{room_desc}, "
+            f"in front, hands resting still on the tabletop, smiling warmly with a bright "
+            f"cheerful expression, speaking to camera, {room_desc}, "
             f"medium close-up framing, product large in frame, sharp and clearly readable"
         )
     elif profile.get("special_target", "").strip():
@@ -1090,21 +1091,22 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             f"the {_vp_product} placed on the table in front"
         )
         start_part = (
-            f"{gender_en} speaking naturally, subtle head movement, "
+            f"{gender_en} speaking naturally with a warm bright smile, subtle head movement, "
             f"hands resting still on the tabletop, with the {_vp_product} placed on the "
-            f"table in front, reviewing it honestly, {review_scene}"
+            f"table in front, reviewing it honestly while smiling warmly, {review_scene}"
         )
         # Review end: STOP talking, hands stay still on the table, product stays placed.
         end_part = (
             "Face kept clear, then finishes speaking, "
-            "hands staying still on the tabletop, smiling"
+            "hands staying still on the tabletop, smiling warmly with a bright cheerful expression"
         )
         transition = ""
         # Mouth/head-only motion; hands stay STILL on the table (no raising, no gesturing).
         # Owner 2026-08-26 14:20: เอาคำสั่งชี้มือออก (gesturing/gestures) เพราะ Wan
         # ยกมือขึ้นมาแล้วเพี้ยน — สั่งมือนิ่งแทนเพื่อครอบคลุมทั้ง start/end/lipsync.
+        # Owner 2026-08-26 22:48: smile ทั้งยิ้มแย้ม ทั้งต้น/กลาง/ท้าย (พี่เจอไม่ยิ้ม).
         lipsync_part = (
-            " subtle head movement, face kept clear and forward, "
+            " subtle head movement, face kept clear and forward with a warm bright smile, "
             f"hands kept still on the tabletop, the {_vp_product} stays placed on the "
             f"table, sharp, no lifting it up"
         )

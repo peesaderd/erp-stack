@@ -24,7 +24,7 @@
 .btn-c{background:#e2e8f0;color:#475569;padding:10px 20px;border:none;border-radius:10px;font-size:.8rem;font-weight:600;cursor:pointer}.btn-c:hover{background:#cbd5e1}
 
 /* Settings */
-.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.pgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px}
 .pf label{font-size:.6rem;color:#94a3b8;margin-bottom:2px;display:block;font-weight:500}
 .pf select,.pf input{width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.75rem;background:#fff;color:#0f172a;outline:none;transition:.2s}
 .pf select:focus,.pf input:focus{border-color:#6366f1}
@@ -75,7 +75,7 @@
 /* Bottom nav */
 .bnav{position:fixed;bottom:0;left:0;right:0;background:rgba(15,23,42,.92);backdrop-filter:blur(12px);display:flex;z-index:300;padding:4px 0 max(4px,env(safe-area-inset-bottom,4px));height:56px}.bnav::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.45) 18%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.45) 82%,transparent 100%);pointer-events:none;z-index:1}.bnav a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-decoration:none;color:#94a3b8;font-size:.6rem;font-weight:600;transition:.2s;-webkit-tap-highlight-color:transparent}.bnav a svg{width:20px;height:20px;stroke-width:1.8;fill:none;stroke:currentColor}.bnav a:hover{color:#a5b4fc}.bnav a.active{color:#818cf8}
 
-@media(max-width:500px){.pgrid{grid-template-columns:1fr 1fr}.pf:nth-child(3),.pf:nth-child(5),.pf:nth-child(6){grid-column:span 2}}
+@media(max-width:500px){.pgrid{grid-template-columns:1fr 1fr 1fr}}
 </style>
 </head>
 <body>
@@ -173,11 +173,11 @@
             <option value="50x70">50×70</option>
           </select>
         </div>
-        <div class="pf"><label>Copies</label>
-          <input type="number" id="copies" value="1" min="1" max="20" onchange="updatePreview()" oninput="updatePreview()">
-        </div>
         <div class="pf"><label>Border mm</label>
           <input type="number" id="borderWidth" value="0" min="0" max="20" step="0.5" onchange="updatePreview()" oninput="updatePreview()">
+        </div>
+        <div class="pf"><label>Copies</label>
+          <input type="number" id="copies" value="1" min="1" max="20" onchange="updatePreview()" oninput="updatePreview()">
         </div>
         <div class="pf"><label>Cutline</label>
           <select id="cutline" onchange="updatePreview()">
@@ -187,7 +187,6 @@
           </select>
         </div>
       </div>
-      <label class="blade"><input type="checkbox" id="bm" onchange="updatePreview()"> Blade mode (wider gaps)</label>
       <button class="gen-btn" id="btn" disabled onclick="generate()"><span style="font-size:1.2rem">🖨️</span> Generate Print Sheet</button>
     </div>
   </div>
@@ -242,7 +241,7 @@ function updatePreview(){
   var paperW=isH?raw.h:raw.w;
   var paperH=isH?raw.w:raw.h;
   var copies=parseInt(document.getElementById('copies').value)||1;
-  var blade=document.getElementById('bm').checked;
+  var blade=false; // blade mode removed from UI; spaced gap fixed at 3mm
   var cutmode=document.getElementById('cutline').value;
   var gap=cutmode==='touching'?0:(cutmode==='spaced'?(blade?5:3):0);
   var isMulti=multiThumbs.length>0;
@@ -314,7 +313,7 @@ async function generate(){
   try{
     var bVal=parseFloat(document.getElementById('borderWidth').value)||0;
     var cutmode=document.getElementById('cutline').value;
-    var blade=document.getElementById('bm').checked;
+    var blade=false; // blade mode removed
     var bType=bVal>0?'frame':(cutmode!=='none'?'guidelines':'none');
     var gapmm=cutmode==='touching'?0:(cutmode==='spaced'?(blade?5:3):0);
     var wantCutlines=cutmode!=='none';

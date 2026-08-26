@@ -57,8 +57,10 @@
 .info-box b{color:#0f172a}
 
 /* Gallery link */
-.gallery-link{display:block;text-align:center;margin-top:16px;padding:10px;background:#f1f5f9;border-radius:8px;color:#6366f1;text-decoration:none;font-size:.75rem;font-weight:600;border:1px solid #e2e8f0;transition:.2s}
+.gallery-link{display:block;text-align:center;padding:10px;background:#f1f5f9;border-radius:8px;color:#6366f1;text-decoration:none;font-size:.75rem;font-weight:600;border:1px solid #e2e8f0;transition:.2s;cursor:pointer}
 .gallery-link:hover{background:#eef2ff;border-color:#6366f1}
+.upload-row{display:flex;gap:10px;margin-top:16px}
+.upload-row .gallery-link{flex:1;margin-top:0}
 
 /* Overlay */
 .ov{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,.92);z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:.3s}.ov.show{opacity:1;pointer-events:auto}.sp{width:40px;height:40px;border:3px solid #334155;border-top-color:#6366f1;border-radius:50%;animation:spin .7s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.ov .t{color:#fff;font-size:.95rem;font-weight:700;margin-top:16px}
@@ -112,7 +114,10 @@
         <div style="font-size:.72rem;font-weight:700;color:#64748b;margin-bottom:8px">Selected photos (click ✕ to remove)</div>
         <div id="thumbs" style="display:flex;flex-wrap:wrap;gap:10px"></div>
       </div>
-      <a href="/gallery.html" class="gallery-link">📸 Or pick from Gallery</a>
+      <div class="upload-row">
+        <button type="button" class="gallery-link" onclick="document.getElementById('fi').click()">📤 Upload Photo</button>
+        <a href="/gallery.html" class="gallery-link">📸 Pick from Gallery</a>
+      </div>
     </div>
   </div>
 

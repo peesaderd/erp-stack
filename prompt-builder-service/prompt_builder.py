@@ -951,26 +951,32 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             beats = preview
         else:
             # Fallback: owner template (same hold arc) if scene visuals missing.
-            # Product must stay SHARP and STILL — Wan warps the label when the
-            # prompt asks for scene transitions / flowing camera motion in 10s.
-            # (owner bug report 2026-08-23: zoom in/out made product blur/morph)
+            # Product must stay SHARP and STILL-ish — Wan warps the label when the
+            # prompt asks for zoom in/out or flowing camera motion (owner bug 2026-08-23).
+            # So we implement the owner's 2 fixes (2026-08-26) WITHOUT moving the camera:
+            #   1) FRAMING: “tight close-up, product fills the frame” (สินค้าเด่น ไม่ไกล)
+            #   2) MICRO-MOTION: subtle hand turns + facial micro-expressions (ไม่นิ่งแข็ง)
+            #   → แต่ห้ามบอก zoom-in/out/ดอลลี่ เพราะ Wan จะ morph เบลอสินค้า
+            # วิธีทำ close-up ให้ชัด: ยึด reference image + “label crisp and clearly readable”
+            # ไม่ใช่บอกกล้องขยับจ่อเข้า (เสี่ยง blur)
             # FIX 2026-08-25 (owner): sync กับ klein last-frame (วางสินค้าลงโต๊ะ)
             # เดิม Scene 4 บอก "holds toward camera" → ขัดกับ last frame ที่วางบนโต๊ะ
             # → Wan งง ถือสินค้าผิด/morph กลางคลิป (owner bug vid_e011300f)
             beats = [
-                f"Scene 1: {gender_en} holds {vp_product} steady toward the camera in a medium close-up, product large in frame, stays sharp and centered",
-                f"Scene 2: keep holding {vp_product} steady, only a gentle slight hand motion, product stays sharp",
-                f"Scene 3: still holding {vp_product}, same framing, product remains sharp and readable",
-                f"Scene 4: {gender_en} still holding {vp_product} steady in the same framing, only a gentle slight smile toward the camera, product stays sharp and centered, no putting down, no hand release",
+                f"Scene 1: {gender_en} holds {vp_product} up close to the camera in a tight close-up, product fills the frame and dominates the shot, label crisp and clearly readable, {gender_en} gives a warm natural smile",
+                f"Scene 2: keep holding {vp_product} close and steady, only a gentle natural hand motion turning the product slightly to show another angle, product stays sharp and readable",
+                f"Scene 3: still holding {vp_product} in the same close-up, a subtle micro-expression (gentle eyebrow and corner-of-mouth movement) while keeping the product centered and sharp",
+                f"Scene 4: {gender_en} still holding {vp_product} in the same tight close-up, a soft natural smile toward the camera, product stays sharp and centered, no putting down, no hand release",
             ]
 
         video_prompt = (
             "A Thai woman naturally speaks the following Thai lines aloud to camera "
-            "while staying in the same steady framing throughout:\n\n"
+            "while keeping the product in a tight close-up throughout:\n\n"
             + "\n".join(beats)
-            + "\n\nKeep the same woman and product in every scene, staying in one steady framing "
-            "throughout, the product stays sharp and clearly readable, "
-            "speak the Thai lines naturally and continuously throughout."
+            + "\n\nKeep the same woman and product in every scene, keeping the product in a tight close-up "
+            "throughout, the product stays sharp and clearly readable, the model makes only small natural "
+            "micro-movements (subtle hand turns and gentle facial expressions), never moving the camera away "
+            "from the product, speak the Thai lines naturally and continuously throughout."
         )
         logger.info(f"  Video prompt (4-beat, {len(video_prompt)} chars):")
         video_prompt = re.sub(r'[ \t]+', ' ', video_prompt).strip()

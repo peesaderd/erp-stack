@@ -172,7 +172,8 @@ def analyze_product(product_name: str, product_image: str = None, description: s
             "ingredient_highlight": ingredient_highlight or "",
         }
 
-        resp = requests.post(url, json=payload, timeout=60)
+        # timeout 130s per owner (prompt-builder วิเคราะห์ภาพ+vision ช้า บางที 120-130s, เดิม 60 สั้นไป fail)
+        resp = requests.post(url, json=payload, timeout=130)
         resp.raise_for_status()
         data = resp.json()
 

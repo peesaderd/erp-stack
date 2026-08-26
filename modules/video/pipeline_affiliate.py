@@ -972,6 +972,7 @@ def run_pipeline(
     use_tus_voice: bool = True,
     audio_path: Optional[str] = None,
     prompt_extend: bool = True,
+    model_image: Optional[str] = None,
     **kwargs,
 ) -> dict:
     """
@@ -1239,9 +1240,13 @@ def run_pipeline(
             # แต่ Wan gen แค่ 8s แล้ว compose stream_loop ยืดเป็น 15s = เสียง+ภาพวนซ้ำ
             duration=total_duration,
             negative_prompt=negative_prompt,
-            # first+last start-end interpolation per Prodia docs
-            # (ห้ามส่ง reference แยก — ทำให้ Prodia เอา reference เป็นภาพหลักแทน interpolation)
-            reference_image=None,
+            # first+last start-end interpolation per Prodia docs.
+            # If model_image provided by caller (Pete's face photo), use it as
+            # Wan 2.7's reference_image for face/identity consistency alongside
+            # the first+last interpolation. The legacy hardcoded None was safe
+            # for fully AI-generated models but loses face consistency when the
+            # caller supplied an actual human reference.
+            reference_image=model_image or None,
             first_frame=ff,
             last_frame=lf,
             thai_script=thai_script,

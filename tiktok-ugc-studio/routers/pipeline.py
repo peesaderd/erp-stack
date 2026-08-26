@@ -154,6 +154,7 @@ async def run_full_pipeline(req: FullPipelineRequest):
                     "product_title": req.product_title or "",
                     "product_description": req.product_description or "",
                     "product_image": req.product_image,
+                    "model_image": req.model_image or "",
                     "hook": req.hook or "",
                     "value": req.value_proposition or "",
                     "cta": req.cta or "",
@@ -167,6 +168,10 @@ async def run_full_pipeline(req: FullPipelineRequest):
                     "thai_script": req.thai_script or "",
                     "use_tus_voice": req.use_tus_voice,
                     "audio": req.audio or "",
+                    # Bumped from default 120s — observed Wan 15s runs take
+                    # ~136s end-to-end. 300s leaves headroom for slower gens
+                    # without the studio marking the job "error" prematurely.
+                    "timeout": 300.0,
                     # SSOT deep-analysis fields
                     "body_part": req.body_part or "",
                     "special_target": req.special_target or "",

@@ -75,7 +75,7 @@
 /* Bottom nav */
 .bnav{position:fixed;bottom:0;left:0;right:0;background:rgba(15,23,42,.92);backdrop-filter:blur(12px);display:flex;z-index:300;padding:4px 0 max(4px,env(safe-area-inset-bottom,4px));height:56px}.bnav::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.45) 18%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.45) 82%,transparent 100%);pointer-events:none;z-index:1}.bnav a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-decoration:none;color:#94a3b8;font-size:.6rem;font-weight:600;transition:.2s;-webkit-tap-highlight-color:transparent}.bnav a svg{width:20px;height:20px;stroke-width:1.8;fill:none;stroke:currentColor}.bnav a:hover{color:#a5b4fc}.bnav a.active{color:#818cf8}
 
-@media(max-width:500px){.pgrid{grid-template-columns:1fr}}
+@media(max-width:500px){.pgrid{grid-template-columns:1fr 1fr}.pf:nth-child(3),.pf:nth-child(5),.pf:nth-child(6){grid-column:span 2}}
 </style>
 </head>
 <body>
@@ -150,7 +150,7 @@
     <div class="card-h">⚙️ Print Settings</div>
     <div class="card-b">
       <div class="pgrid">
-        <div class="pf"><label>Paper Size</label>
+        <div class="pf"><label>Paper</label>
           <select id="ps" onchange="updatePreview()">
             <option value="4x6">4×6"</option>
             <option value="5x7">5×7"</option>
@@ -158,32 +158,32 @@
             <option value="a4">A4</option>
           </select>
         </div>
-        <div class="pf"><label>Orientation</label>
+        <div class="pf"><label>Orient</label>
           <select id="orient" onchange="updatePreview()">
-            <option value="v">Vertical</option>
-            <option value="h">Horizontal</option>
+            <option value="v">Vert.</option>
+            <option value="h">Horiz.</option>
           </select>
         </div>
-        <div class="pf"><label>Photo Size</label>
+        <div class="pf"><label>Photo</label>
           <select id="photoSize" onchange="currentPhotoSize=this.value;updatePreview()">
-            <option value="passport">Passport (35×45mm)</option>
-            <option value="25x35">ID Card (25×35mm)</option>
-            <option value="30x40">30×40mm</option>
-            <option value="50x50">50×50mm</option>
-            <option value="50x70">50×70mm</option>
+            <option value="passport">Pass 35×45</option>
+            <option value="25x35">ID 25×35</option>
+            <option value="30x40">30×40</option>
+            <option value="50x50">50×50</option>
+            <option value="50x70">50×70</option>
           </select>
         </div>
-        <div class="pf"><label>Copies per Photo</label>
+        <div class="pf"><label>Copies</label>
           <input type="number" id="copies" value="1" min="1" max="20" onchange="updatePreview()" oninput="updatePreview()">
         </div>
-        <div class="pf"><label>Border Width (mm)</label>
+        <div class="pf"><label>Border mm</label>
           <input type="number" id="borderWidth" value="0" min="0" max="20" step="0.5" onchange="updatePreview()" oninput="updatePreview()">
         </div>
         <div class="pf"><label>Cutline</label>
           <select id="cutline" onchange="updatePreview()">
-            <option value="none">No cutline</option>
-            <option value="touching">Touching (gap=0)</option>
-            <option value="spaced">Spaced (gap=3mm)</option>
+            <option value="none">None</option>
+            <option value="touching">Touch</option>
+            <option value="spaced">Spaced</option>
           </select>
         </div>
       </div>

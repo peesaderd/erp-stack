@@ -596,7 +596,7 @@ def generate_video(
     last_frame: Optional[str] = None,
     thai_script: Optional[str] = None,
     use_tus_voice: bool = True,
-    prompt_extend: bool = True,
+    prompt_extend: bool = False,
 ) -> tuple:
     """
     Step 8: Generate video via Wan 2.7 Async API (shared ProdiaV2Client)
@@ -953,7 +953,7 @@ def run_pipeline(
     thai_script: Optional[str] = None,
     use_tus_voice: bool = True,
     audio_path: Optional[str] = None,
-    prompt_extend: bool = True,
+    prompt_extend: bool = False,
     **kwargs,
 ) -> dict:
     """

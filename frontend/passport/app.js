@@ -506,61 +506,14 @@ function setPaper(type,el){
   if(el)el.classList.add('active');
 }
 
-async function genPrintSheet(){
+/* Print sheet is handled entirely on print.html (full settings UI).
+   This step just hands off the generated session_ids so we avoid duplicate
+   print logic living in two places. */
+function genPrintSheet(){
   if(!S.sid)return;
-  showOv('Generating print sheet...');
-  try{
-    var paperType=S.paper||'4x6';
-    var sids=[S.sid];
-    for(var i=0;i<S.pool.length;i++){if(sids.indexOf(S.pool[i])<0)sids.push(S.pool[i]);}
-    var useMulti=($('mpPrint')&&$('mpPrint').checked)&&sids.length>1;
-    var bwv=parseFloat($('bwmmPrint').value)||0;
-    var bstyle=bwv>0?'frame':'none';
-    var hair=$('cutDash')&&$('cutDash').checked;
-    var d;
-    if(useMulti){
-      // owner flow (same capability as print.html): combine ALL generated photos on one sheet
-      var mbody={
-        session_ids:sids,
-        copies:parseInt($('cpPrint').value)||1,
-        print_size:paperType,
-        border:bstyle,
-        border_color:'#FFFFFF',
-        border_width_mm:bwv,
-        hairline:hair,
-        blade_mode:$('bmPrint').checked
-      };
-      var r2=await fetch(API+'/multi-print',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(mbody)});
-      d=await r2.json();
-      if(!d.ok)throw new Error(d.detail||'multi-print failed');
-    }else{
-      var body={
-        session_id:S.sid,
-        paper:paperType,
-        count:parseInt($('customCount').value)||6,
-        border:bstyle,
-        border_width_mm:bwv,
-        hairline:hair,
-        blade_mode:$('bmPrint').checked
-      };
-      var r=await fetch(API+'/print-sheet',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-      d=await r.json();
-    }
-    if(d.ok){
-      if(!d.download_url)throw new Error('sheet url missing');
-      bumpImg();
-      S.sheetUrl=location.origin+d.download_url;
-      var imgUrl=S.sheetUrl+'?v='+S.imgV;
-      $('batchPreview').classList.add('hidden');
-      $('ri').src=imgUrl;
-      updatePreviewAspect(null);
-      setView('sheet');
-      if($('previewBox'))$('previewBox').scrollIntoView({behavior:'smooth',block:'center'});
-      var note=(d.info&&d.info.note)?(' '+d.info.note):'';
-      toast((useMulti?('รวม '+sids.length+' รูปในแผ่นเดียว 🖨️'):'Print sheet ready! 🖨️')+note,'ok');
-    }
-  }catch(e){toast('Print sheet failed','err')}
-  hideOv();
+  var sids=[S.sid];
+  for(var i=0;i<S.pool.length;i++){if(sids.indexOf(S.pool[i])<0)sids.push(S.pool[i]);}
+  window.location.href='print.html?session_ids='+sids.join(',');
 }
 
 /* ══════════ PREVIEW ASPECT (owner flow) ══════════ */

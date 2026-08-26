@@ -87,8 +87,28 @@
 
 <div class="page">
 
-  <!-- Live Preview Card (Top) -->
+  <!-- Result Card (top — real generated output, replaces live preview) -->
   <div class="card">
+    <div class="card-h">🖼 Result</div>
+    <div class="card-b">
+      <div id="empty" style="text-align:center;padding:40px;color:#94a3b8">
+        <div style="font-size:2rem;margin-bottom:8px;opacity:.4">🖨️</div>
+        Upload photo &amp; click Generate
+      </div>
+      <div id="result" style="display:none">
+        <img id="outImg" alt="">
+        <div id="infoBox" class="info-box"></div>
+        <div class="rbtns">
+          <a class="rbtn dl" id="dlBtn" href="" download>💾 Download</a>
+          <button class="rbtn print" onclick="window.print()">🖨️ Print</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Live Preview Card (hidden — real result shown after generate)
+       Keep markup/JS intact so framework loads fine; just not visible -->
+  <div class="card" style="display:none">
     <div class="card-h">👁 Live Preview</div>
     <div class="card-b">
       <div id="previewEmpty" style="text-align:center;padding:30px;color:#94a3b8">
@@ -169,25 +189,6 @@
       </div>
       <label class="blade"><input type="checkbox" id="bm" onchange="updatePreview()"> Blade mode (wider gaps)</label>
       <button class="gen-btn" id="btn" disabled onclick="generate()"><span style="font-size:1.2rem">🖨️</span> Generate Print Sheet</button>
-    </div>
-  </div>
-
-  <!-- Result Card -->
-  <div class="card">
-    <div class="card-h">🖼 Result</div>
-    <div class="card-b">
-      <div id="empty" style="text-align:center;padding:40px;color:#94a3b8">
-        <div style="font-size:2rem;margin-bottom:8px;opacity:.4">🖨️</div>
-        Upload photo & click Generate
-      </div>
-      <div id="result" style="display:none">
-        <img id="outImg" alt="">
-        <div id="infoBox" class="info-box"></div>
-        <div class="rbtns">
-          <a class="rbtn dl" id="dlBtn" href="" download>💾 Download</a>
-          <button class="rbtn print" onclick="window.print()">🖨️ Print</button>
-        </div>
-      </div>
     </div>
   </div>
 

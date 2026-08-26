@@ -38,7 +38,7 @@
     "review": {
       "name": "UGC Review",
       "description": "รีวิวสินค้าหลังใช้จริง",
-      "prompt_anchor": "Creator holding product, speaking to camera with genuine expression",
+      "prompt_anchor": "Creator with the product placed on the table in front, speaking to camera with genuine expression",
       "script_structure": "เล่าความรู้สึกหลังใช้จริง (Pros/Cons) แบบจริงใจ ไม่อวยเกินไป",
       "has_person": true,
       "shot_count": 1,

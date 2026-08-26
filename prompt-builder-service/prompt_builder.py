@@ -612,7 +612,15 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     # Build the composition once (shared by all single-frame branches).
     _cover = _cover_product_desc(profile, product_name)
     _app_hint = _apply_hint(subcategory, category, profile)
-    if profile.get("special_target", "").strip():
+    if ugc_style == "review":
+        # Review recipe (owner 2026-08-26): image places product on the table,
+        # model reviews/gestures toward it — do not hold (matches review video prompt).
+        mid_hint = (
+            f"{model_desc} with the product(s) from the reference image placed on the table "
+            f"in front, gesturing toward them while speaking to camera, {room_desc}, "
+            f"medium close-up framing, product large in frame, sharp and clearly readable"
+        )
+    elif profile.get("special_target", "").strip():
         mid_hint = (
             f"{model_desc} applying the product from the reference image, "
             f"{_app_hint}, {room_desc}, "
@@ -635,6 +643,10 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     _result = es.get("result_focus") or "a happy result"
     _expr = es.get("expression") or "smiling"
     _placement = es.get("product_placement") or "product still in hand"
+    # Review recipe (owner 2026-08-26): end scene must keep product on the table,
+    # never "in hand" (es default), matching the placed-on-table image+video prompt.
+    if ugc_style == "review":
+        _placement = es.get("product_placement") or "product placed on the table in front"
     result_hint = (
         f"the same {model_desc} from the first part of the frame, wearing the same "
         f"outfit, {_expr}, showing {_result}; {_placement}{_outfit}"
@@ -845,9 +857,11 @@ def _apply_prompt_anchor(
     name. Falls back to the original prompt if the style has no anchor.
     """
     style = (ugc_style or "").strip().lower()
-    # review is a TALKING style (mouth_control.talking_styles) — treat it as
-    # talking_head so it uses the stable / fixed-framing anchor + talking path.
-    if style in ("talking", "talking_head", "review"):
+    # review is a TALKING style, but gets its OWN placed-on-table anchor
+    # (review.prompt_anchor in ugc_styles.json, owner 2026-08-26). Only
+    # talking_head keeps the stable fixed-framing anchor. review no longer
+    # maps to talking_head so its dedicated anchor is used.
+    if style in ("talking", "talking_head"):
         style = "talking_head"
     anchor = None
     try:
@@ -1027,7 +1041,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         logger.info(f"  Video prompt (no-human {style_l}, {len(video_prompt)} chars): {video_prompt[:80]}...")
         return video_prompt
 
-    if ugc_style in ("talking", "talking_head", "review"):
+    if ugc_style in ("talking", "talking_head"):
         # Talking-head: presenter faces camera, upper body, clean background.
         # Docs-exact pattern (VALIDATED 2026-08-15, job abf8a2b2):
         #   - ห้ามใส่ script ไทยใน prompt — script ทำให้ Wan พูดของมันเอง ปากไม่ตรงเสียง
@@ -1060,6 +1074,30 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         lipsync_part = (
             " subtle head movement, face kept clear and forward, "
             f"the {_vp_product} held still in front of the presenter"
+        )
+    elif ugc_style == "review":
+        # Review recipe (owner 2026-08-26): product PLACED ON THE TABLE, not held.
+        # Split from talking/talking_head so holding/talking keep holding the product.
+        _vp_product = _clean_product_name_for_video(product_name)
+        review_scene = (
+            "a clean bright tabletop, upper body, facing directly to the camera, "
+            f"the {_vp_product} placed on the table in front"
+        )
+        start_part = (
+            f"{gender_en} speaking naturally, subtle head movement, "
+            f"with the {_vp_product} placed on the table in front, reviewing it "
+            f"honestly while gesturing toward the placed product, {review_scene}"
+        )
+        # Review end: STOP talking, product stays placed on the table.
+        end_part = (
+            "Face kept clear, then finishes speaking, "
+            "gestures once to the product on the table, smiling"
+        )
+        transition = ""
+        # Mouth/head + small hand gesture only; product stays on the table (not held).
+        lipsync_part = (
+            " subtle head movement, face kept clear and forward, "
+            f"the {_vp_product} stays placed on the table, sharp, no lifting it up"
         )
     else:
         start_part = f"{gender_en} {action}. {scene}."

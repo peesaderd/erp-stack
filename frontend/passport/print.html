@@ -35,11 +35,11 @@
 .gen-btn{width:100%;padding:16px;border:none;border-radius:14px;font-size:.95rem;font-weight:800;cursor:pointer;transition:.2s;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;box-shadow:0 4px 16px rgba(99,102,241,.4);display:flex;align-items:center;justify-content:center;gap:10px;margin-top:16px}.gen-btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(99,102,241,.5)}.gen-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
 
 /* Preview */
-.preview-wrap{background:#e2e8f0;border-radius:10px;padding:8px;display:flex;justify-content:center;align-items:center;min-height:140px}
+.preview-wrap{background:transparent;border-radius:10px;padding:8px;display:flex;justify-content:center;align-items:center;min-height:140px}
 .preview-sheet{background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.15);position:relative;overflow:hidden}
 .preview-cell{background:#f1f5f9;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;border-radius:2px}
 .preview-cell img{width:100%;height:100%;object-fit:cover}
-.preview-cell.empty{background:#f8fafc;border:1px dashed #e2e8f0}
+.preview-cell.empty{background:transparent;border:none}
 .preview-cell.cutline{border:2px dashed #555}
 .preview-cell.frame{border:3px solid #6366f1}
 .preview-label{text-align:center;font-size:.6rem;color:#94a3b8;margin-top:4px}
@@ -262,12 +262,12 @@ function updatePreview(){
   var idx=0;
   for(var r=0;r<rows;r++){
     for(var c=0;c<cols;c++){
-      if(idx>=fitCount){html+='<div class="preview-cell empty" style="width:'+cellW+'px;height:'+cellH+'px"></div>';idx++;continue}
-      var cls='preview-cell';
-      if(idx<fitCount && cutmode!=='none') cls+=' cutline';
-      if(idx<fitCount && bVal>0) cls+=' frame';
       var x=ox+c*(cellW+gapPx);
       var y=oy+r*(cellH+gapPx);
+      if(idx>=fitCount){html+='<div class="preview-cell empty" style="position:absolute;left:'+x+'px;top:'+y+'px;width:'+cellW+'px;height:'+cellH+'px"></div>';idx++;continue}
+      var cls='preview-cell';
+      if(cutmode!=='none') cls+=' cutline';
+      if(bVal>0) cls+=' frame';
       var imgTag='';
       if(isMulti&&thumbList.length>0){
         var tIdx=idx%thumbList.length;

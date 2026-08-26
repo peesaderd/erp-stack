@@ -210,7 +210,7 @@ def _add_guidelines(sheet: np.ndarray, positions: list) -> np.ndarray:
     """Add dashed cut lines visible on phone screens (~10px at 300dpi = ~2.5px on screen)."""
     result = sheet.copy()
     color = (80, 80, 80)  # dark gray, high contrast on white
-    thickness = 10
+    thickness = 0.025
     dash_len = 20
     gap_len = 12
 

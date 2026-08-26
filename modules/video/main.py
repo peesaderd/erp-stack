@@ -288,7 +288,7 @@ async def generate_video(req: VideoRequest):
                 weights=[15, 15, 20, 12, 12, 4, 22], k=1
             )[0],
             description=req.product_description or "",
-            gender=req.gender or "",
+            gender=req.gender or "female",
             age=req.age or "",
             ugc_style=validate_ugc_style(req.ugc_style),
             external_job_id=req.job_id,

@@ -306,6 +306,7 @@ def generate_script(
     product_profile: dict,
     recipe: dict,
     ugc_style: str = "holding",
+    gender: str = "female",
 ) -> str:
     """
     Step 3: Generate script via Gemini
@@ -348,6 +349,7 @@ def generate_script(
             features=product_profile.get("features", ""),
             product_appearance=product_profile.get("product_appearance", ""),
             style=style,
+            gender=gender,
         )
 
         script = result.get("script", "")
@@ -954,6 +956,7 @@ def run_pipeline(
     use_tus_voice: bool = True,
     audio_path: Optional[str] = None,
     prompt_extend: bool = False,
+    gender: str = "female",
     **kwargs,
 ) -> dict:
     """
@@ -1067,7 +1070,7 @@ def run_pipeline(
         # ── STEP 3: Generate Script (skip if pre-computed) ──
         if not script:
             step_start = time.time()
-            script = generate_script(product_name, product_profile, recipe, ugc_style=ugc_style)
+            script = generate_script(product_name, product_profile, recipe, ugc_style=ugc_style, gender=gender)
             script_duration = int((time.time() - step_start) * 1000)
         else:
             script_duration = 0

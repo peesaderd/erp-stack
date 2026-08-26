@@ -511,10 +511,10 @@ def _build_klein_last_prompt(profile: dict, product_name: str) -> str:
         f"to the input image — do not redesign anything about her or the scene. "
         f"The product from the input image MUST remain clearly visible in this frame "
         f"too — same jar/product, same size and colors as the input image. "
-        f"Only the pose changes: she places the product down onto the table right in "
-        f"front of her — product standing upright on the tabletop, label facing the "
-        f"camera, crisp and unclipped, one hand resting lightly beside it. "
-        f"{_expr}, looking toward the camera. "
+        f"Only a subtle expression change: she continues holding the product steady\n"
+        f"toward the camera in the exact same pose, same framing, same hand position —\n"
+        f"product facing the camera, crisp and unclipped, label visible. No putting down,\n"
+        f"no hand release, no pose change. "
         f"Lighting identical to the input image. Full-frame 9:16, no border, no padding."
     )
 

@@ -961,7 +961,7 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
                 f"Scene 1: {gender_en} holds {vp_product} steady toward the camera in a medium close-up, product large in frame, stays sharp and centered",
                 f"Scene 2: keep holding {vp_product} steady, only a gentle slight hand motion, product stays sharp",
                 f"Scene 3: still holding {vp_product}, same framing, product remains sharp and readable",
-                f"Scene 4: {gender_en} gently sets {vp_product} down onto the table right in front of her, product standing upright on the tabletop with label facing the camera, one hand resting lightly beside it, then she smiles warmly at the camera",
+                f"Scene 4: {gender_en} still holding {vp_product} steady in the same framing, only a gentle slight smile toward the camera, product stays sharp and centered, no putting down, no hand release",
             ]
 
         video_prompt = (

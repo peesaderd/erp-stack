@@ -47,7 +47,7 @@
 
 /* Size / Print */
 
-.bgmode{padding:7px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:.7rem;font-weight:600;cursor:pointer;background:#fff;color:#64748b;flex:1;transition:.2s}.bgmode:hover{border-color:#6366f1;color:#6366f1}.bgmode.active{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border-color:transparent;box-shadow:0 3px 10px rgba(99,102,241,.3)}
+
 
 .sz-p,.pap-p{padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:.72rem;font-weight:600;color:#64748b;cursor:pointer;background:#fff;transition:.2s}.sz-p:hover,.pap-p:hover{border-color:#6366f1}.sz-p.active,.pap-p.active{background:#6366f1;color:#fff;border-color:#6366f1}
 
@@ -156,34 +156,10 @@
     <button class="gen-btn hidden" id="genAllBtn" onclick="generateAll()" style="background:#059669;margin-top:8px"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M13 2 3 14h7l-1 8 10-12h-7z"/></svg> Generate ทั้งหมด (batch)</button>
   </div>
 
-  <!-- Tab 1: Background -->
+  <!-- Tab 1: Background (pick from ready-made solid / gradient / circle presets only) -->
   <div class="card opt-pane" id="optPane1" style="padding:14px">
+    <div style="font-size:.66rem;font-weight:600;color:#64748b;margin-bottom:8px">เลือกสีพื้นหลังจากชุดสำเร็จรูป กดแล้วใช้ได้เลย</div>
     <div id="bgPresets" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"></div>
-        <div style="margin-top:8px;border-top:1px dashed #e2e8f0;padding-top:10px">
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
-        <button type="button" class="bgmode active" data-bgmode="single" onclick="setBGMode('single')">พื้นเดียว</button>
-        <button type="button" class="bgmode" data-bgmode="linear" onclick="setBGMode('linear')">ไล่เฉด</button>
-        <button type="button" class="bgmode" data-bgmode="radial" onclick="setBGMode('radial')">วงกลม</button>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <label style="font-size:.6rem;font-weight:600;color:#64748b;display:flex;align-items:center;gap:4px">
-          <input type="color" id="bgColor1" value="#C4DCFF" style="width:30px;height:26px;border:1px solid #cbd5e1;border-radius:6px;padding:0;cursor:pointer">
-          <span id="bgColor1Lbl">สีที่ 1</span>
-        </label>
-        <label id="bgColor2Wrap" style="font-size:.6rem;font-weight:600;color:#64748b;display:none;align-items:center;gap:4px">
-          <input type="color" id="bgColor2" value="#FFFFFF" style="width:30px;height:26px;border:1px solid #cbd5e1;border-radius:6px;padding:0;cursor:pointer">
-          <span id="bgColor2Lbl">สีที่ 2</span>
-        </label>
-        <div id="bgAngleWrap" style="display:none;align-items:center;gap:4px;font-size:.6rem;font-weight:600;color:#64748b">
-          มุม
-          <input type="number" id="bgAngle" value="180" min="0" max="360" step="15" style="width:52px;padding:6px 4px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:.66rem;text-align:center;outline:none">
-        </div>
-        <label style="font-size:.6rem;font-weight:600;color:#64748b;margin-left:auto;display:flex;align-items:center;gap:4px;cursor:pointer">
-          <input type="checkbox" id="liveBG" checked style="accent-color:#6366f1;width:13px;height:13px"> Live
-        </label>
-        <button class="btn-p" id="applyBgBtn" style="padding:7px 14px;font-size:.7rem" onclick="applyBG()"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.5-.6 1.5-1.5 0-.4-.2-.8-.4-1.1-.2-.3-.3-.6-.3-.9 0-.8.6-1.5 1.5-1.5H16c2.2 0 4-1.8 4-4 0-5.5-3.6-9-8-9z"/></svg> Apply BG</button>
-      </div>
-    </div>
   </div>
 
 

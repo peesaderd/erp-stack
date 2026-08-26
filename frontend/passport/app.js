@@ -36,15 +36,6 @@ window.addEventListener('DOMContentLoaded',function(){
   $('drop').addEventListener('dragover',function(e){e.preventDefault();this.style.borderColor='#6366f1'});
   $('drop').addEventListener('dragleave',function(){this.style.borderColor=''});
   $('drop').addEventListener('drop',function(e){e.preventDefault();this.style.borderColor='';handleFiles({target:{files:e.dataTransfer.files}})});
-  ['bgColor1','bgColor2','bgAngle'].forEach(function(id){
-    var el=document.getElementById(id);
-    if(el)el.addEventListener('input',function(){
-      S.bgc='custom';S.bg='custom';S.bgGrad=null;
-      $$('.bg-d').forEach(function(x){x.classList.remove('on')});
-      var live=document.getElementById('liveBG');
-      if(live&&live.checked)refreshBGPreview();
-    });
-  });
   loadCustomClothing();
 });
 
@@ -91,7 +82,7 @@ async function loadBgs(){
         div.style.background=b.hex||'#ccc';
       }
       div.title=b.name;
-      div.onclick=function(){S.bgc=b.key;S.bg=b.key;S.bgGrad=b.type==='gradient'?(b.hex+','+b.hex2):null;if(b.type==='gradient'){previewBGColor('linear-gradient(180deg,'+(b.hex||'#C4DCFF')+','+(b.hex2||'#FFFFFF')+')')}else{previewBGColor(b.hex)};$$('.bg-d').forEach(function(x){x.classList.remove('on')});div.classList.add('on')};
+      div.onclick=function(){S.bgc=b.key;S.bg=b.key;$$('.bg-d').forEach(function(x){x.classList.remove('on')});div.classList.add('on')};
       el.appendChild(div);
     });
   }catch(e){console.error('loadBgs:',e)}
@@ -390,7 +381,6 @@ function showResult(d,isBulk){
   }else{
     $('batchPreview').classList.add('hidden');
   }
-  autoRemoveBG();
   toast('Done! Photo ready 🎉');
 }
 
@@ -400,110 +390,6 @@ function selectBatchResult(sid,i){
   $$('.slide-item').forEach(function(el,idx){
     el.querySelector('img').style.borderColor=idx===i?'#6366f1':'#334155';
   });
-  autoRemoveBG();
-}
-
-/* ══════════ CUSTOM BG MODE (single / linear / radial) ══════════ */
-var bgMode='single'; // 'single' | 'linear' | 'radial'
-function setBGMode(m){
-  bgMode=m;
-  $$('.bgmode').forEach(function(x){x.classList.toggle('active',x.dataset.bgmode===m)});
-  var g2=document.getElementById('bgColor2Wrap');
-  var aw=document.getElementById('bgAngleWrap');
-  var l1=document.getElementById('bgColor1Lbl');
-  var l2=document.getElementById('bgColor2Lbl');
-  if(m==='single'){
-    g2.style.display='none';aw.style.display='none';
-    l1.textContent='สี';
-  }else if(m==='linear'){
-    g2.style.display='flex';aw.style.display='flex';
-    l1.textContent='สีที่ 1';l2.textContent='สีที่ 2';
-  }else{ // radial
-    g2.style.display='flex';aw.style.display='none';
-    l1.textContent='กลาง';l2.textContent='ขอบ';
-  }
-  refreshBGPreview();
-}
-
-/* Build the color string sent to backend:
-   single -> "#HEX"
-   linear -> "linear-gradient(<angle>deg,#c1,#c2)"
-   radial -> "radial-gradient(circle,#center,#edge)" */
-function getBGColorString(){
-  var c1=document.getElementById('bgColor1').value||'#C4DCFF';
-  if(bgMode==='single')return c1;
-  var c2=document.getElementById('bgColor2').value||'#FFFFFF';
-  if(bgMode==='linear'){
-    var ang=parseInt(document.getElementById('bgAngle').value)||180;
-    return 'linear-gradient('+ang+'deg,'+c1+','+c2+')';
-  }
-  return 'radial-gradient(circle,'+c1+','+c2+')';
-}
-
-/* Live preview background (before applying to server) */
-function refreshBGPreview(){
-  var color=getBGColorString();
-  var pb=document.getElementById('previewBg');
-  if(pb)pb.style.background=gradCss(color);
-}
-
-/* Map our color string to a CSS background value for the preview div */
-function gradCss(color){
-  if(color&&color.indexOf('gradient')!==-1)return color;
-  return color; // solid hex works as CSS color
-}
-
-/* ══════════ AUTO REMOVE BG ══════════ */
-async function autoRemoveBG(){
-  if(!S.sid)return;
-  try{
-    var color=getBGColorString();
-    var resp=await fetch(API+'/remove-bg',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:S.sid,background_color:color})});
-    var d=await resp.json();
-    if(d.ok){
-      bumpImg();
-      var url=location.origin+(d.download_transparent||'');
-      $('ri').src=url+'?v='+S.imgV+'&fmt=webp';
-      refreshBGPreview();
-      toast('✂️ Background removed');
-    }
-  }catch(e){console.error('autoRemoveBG:',e)}
-}
-
-/* ══════════ LIVE BG COLOR PREVIEW (kept for presets) ══════════ */
-function previewBGColor(hex){
-  var pb=document.getElementById('previewBg');
-  if(pb)pb.style.background=hex||'transparent';
-}
-
-/* ══════════ APPLY BG ══════════ */
-async function applyBG(){
-  if(!S.sid)return;
-  var color=getBGColorString();
-  previewBGColor(color);
-  try{
-    var resp=await fetch(API+'/apply-bg',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:S.sid,background_color:color})});
-    var d=await resp.json();
-    if(d.ok){
-      bumpImg();
-      $('ri').src=location.origin+d.download_bg+'?v='+S.imgV+'&fmt=webp';
-      $('previewBg').style.backgroundColor='transparent';
-      toast('Background applied! 🎨','ok');
-    }else{
-      throw new Error((d&&(d.detail||d.error))||'apply-bg failed');
-    }
-  }catch(e){
-    try{
-      var resp2=await fetch(API+'/remove-bg',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:S.sid,background_color:color})});
-      var d2=await resp2.json();
-      if(d2.ok){
-        bumpImg();
-        $('ri').src=location.origin+d2.download_bg+'?v='+S.imgV+'&fmt=webp';
-        $('previewBg').style.backgroundColor='transparent';
-        toast('Background applied! 🎨','ok');
-      }
-    }catch(e2){toast('Apply BG failed','err')}
-  }
 }
 
 /* ══════════ CROP ══════════ */

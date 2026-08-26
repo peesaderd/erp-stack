@@ -96,6 +96,10 @@ BACKGROUNDS = {
     "gradient_blue": {"name": "ฟ้าสวย (gradient)", "hex": "#C4DCFF", "hex2": "#7FB5FF", "prompt": "soft blue gradient background", "type": "gradient", "css": "linear-gradient(180deg,#C4DCFF,#7FB5FF)"},
     "gradient_pink": {"name": "ชมพูหวาน (gradient)", "hex": "#FFD6E8", "hex2": "#FF9EC4", "prompt": "soft pink gradient background", "type": "gradient", "css": "linear-gradient(180deg,#FFD6E8,#FF9EC4)"},
     "gradient_gold": {"name": "ทองอ่อน (gradient)", "hex": "#FFF3D6", "hex2": "#FFD98A", "prompt": "soft gold gradient background", "type": "gradient", "css": "linear-gradient(180deg,#FFF3D6,#FFD98A)"},
+    "circle_sky": {"name": "วงกลมฟ้า (circle)", "hex": "#FFFFFF", "hex2": "#7FB5FF", "prompt": "radial soft sky blue circle gradient background", "type": "gradient", "css": "radial-gradient(circle,#FFFFFF,#7FB5FF)"},
+    "circle_pink": {"name": "วงกลมชมพู (circle)", "hex": "#FFFFFF", "hex2": "#FF9EC4", "prompt": "radial soft pink circle gradient background", "type": "gradient", "css": "radial-gradient(circle,#FFFFFF,#FF9EC4)"},
+    "circle_gold": {"name": "วงกลมทอง (circle)", "hex": "#FFFDF5", "hex2": "#FFD98A", "prompt": "radial soft gold circle gradient background", "type": "gradient", "css": "radial-gradient(circle,#FFFDF5,#FFD98A)"},
+    "circle_mint": {"name": "วงกลมมิ้นท์ (circle)", "hex": "#FFFFFF", "hex2": "#7FE0C3", "prompt": "radial soft mint circle gradient background", "type": "gradient", "css": "radial-gradient(circle,#FFFFFF,#7FE0C3)"},
 }
 
 # ── Public API ─────────────────────────────────────────

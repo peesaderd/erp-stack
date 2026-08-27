@@ -30,7 +30,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 from .deps import (
     logger, STORAGE_DIR, TTS_DIR, IMAGES_DIR, VIDEOS_DIR,
     PRODUCT_IMAGE_DIR, PIPELINE_DB_PATH, LOGS_DB_PATH,
-    SCRAPER_API_URL,
     _proxy, _pipeline_results,
 )
 
@@ -300,70 +299,15 @@ async def generate_video(req: VideoRequest):
     async def _run():
         nonlocal _product_title
         try:
-            # ═══ AUTO-SCRAPE: If URL provided but product not in DB, scrape it first ═══
+            # ข้อมูลสินค้าถูกวิเคราะห์ไว้แล้วใน tus_products.db (ผ่าน analyzer) — ไม่มีการดึงข้อมูลใหม่จากเว็บอีกแล้ว
             _db_desc = req.product_description or ""
             _db_keywords = req.tags or []
             _db_category = getattr(req, "category", "") or ""
             _db_image = req.product_image or ""
             _db_gender = getattr(req, "gender", "") or ""
             _db_age = getattr(req, "age", "") or ""
-            
-            if _product_url and not _db_desc:
-                # Product not yet scraped — auto-scrape + analyze + sync
-                try:
-                    _update_pipeline_step(job_id, "scraper", "processing")
-                    logger.info(f"[auto-scrape] URL={_product_url[:80]} — scraping + analyzing...")
-                    async with httpx.AsyncClient(timeout=60.0) as ac:
-                        # 1) Create API key
-                        key_resp = await ac.post(f"{SCRAPER_API_URL}/api/v1/keys/create",
-                            json={"name": "video-gen-auto"},
-                            headers={"x-user-id": "video-gen"})
-                        api_key = key_resp.json().get("key", "")
-                        # 2) Scrape
-                        scrape_resp = await ac.post(f"{SCRAPER_API_URL}/api/v1/scrape",
-                            json={"url": _product_url, "use_vision": True},
-                            headers={"Authorization": f"Bearer {api_key}",
-                                     "x-user-id": "video-gen",
-                                     "Content-Type": "application/json"})
-                        scrape_data = scrape_resp.json()
-                    if scrape_data.get("success"):
-                        product = scrape_data.get("product", {})
-                        if product:
-                            _db_desc = product.get("description") or _db_desc
-                            _db_image = (product.get("images") or [""])[0] if not _db_image else _db_image
-                            if product.get("name") and not _product_title:
-                                _product_title = product["name"]
-                            logger.info(f"[auto-scrape] Scraped: {_product_title[:50]} — desc={len(_db_desc)} chars")
-                        # 3) Analyze via pipeline_service
-                        try:
-                            analyze_resp = await ac.post(f"{SCRAPER_API_URL}/api/v1/pipeline/ingest",
-                                json={"url": _product_url, "use_vision": True},
-                                timeout=120.0)
-                            analyze_data = analyze_resp.json()
-                            if analyze_data.get("success"):
-                                analyzed = analyze_data.get("analyzed", {})
-                                if analyzed:
-                                    _db_desc = analyzed.get("description") or analyzed.get("features", "") or _db_desc
-                                    _db_category = analyzed.get("category") or _db_category
-                                    _db_gender = analyzed.get("gender") or _db_gender
-                                    _db_age = analyzed.get("target_age") or _db_age
-                                    if analyzed.get("keywords"):
-                                        _db_keywords = analyzed["keywords"]
-                                    if analyzed.get("images") and not _db_image:
-                                        _db_image = analyzed["images"][0] if isinstance(analyzed["images"], list) else ""
-                                    logger.info(f"[auto-scrape] Analyzed: cat={_db_category}, gender={_db_gender}")
-                        except Exception as ae:
-                            logger.warning(f"[auto-scrape] Analyze step failed (scrape data still used): {ae}")
-                        _update_pipeline_step(job_id, "scraper", "done")
-                    else:
-                        logger.warning(f"[auto-scrape] Scrape failed: {scrape_data.get('error', 'unknown')}")
-                        _update_pipeline_step(job_id, "scraper", "failed")
-                except Exception as se:
-                    logger.warning(f"[auto-scrape] Exception: {se}")
-                    _update_pipeline_step(job_id, "scraper", "failed")
-            
-            # Query product details (description, features, keywords, image) from tus_products.db if available
-            # NEW: also load deep-analysis fields (body_part/special_target/usage/ingredient) from notes
+
+            # Load deep-analysis fields (body_part/usage/special_target/ingredient) from tus_products.db
             _db_body_part = ""
             _db_special_target = ""
             _db_usage_howto = ""
@@ -375,10 +319,12 @@ async def generate_video(req: VideoRequest):
                     (f"%{_product_title}%", f"%{_product_title}%", req.product_url or "")
                 ).fetchone()
                 if trow:
+                    # description: DB อาจว่าง → ถั่วให้ build จาก notes (usage + ingredient) ที่วิเคราะห์ไว้แล้ว
                     _db_desc = trow[0] or trow[1] or _db_desc
                     _db_category = trow[4] or _db_category
-                    _db_gender = trow[5] or getattr(req, "gender", "") or ""
-                    _db_age = trow[6] or getattr(req, "age", "") or "" 
+                    # ค่า gender/age ใน request ชนะเสมอ ถ้าหน้าเลือกสินค้าส่งมา
+                    _db_gender = getattr(req, "gender", "") or trow[5] or ""
+                    _db_age = getattr(req, "age", "") or trow[6] or ""
                     # NEW: parse notes (carries body_part/usage/special_target/ingredient from analysis)
                     try:
                         _notes = json.loads(trow[7]) if trow[7] else {}
@@ -387,6 +333,20 @@ async def generate_video(req: VideoRequest):
                             _db_usage_howto = _notes.get("usage_howto", "") or ""
                             _db_special_target = _notes.get("special_target", "") or ""
                             _db_ingredient = _notes.get("ingredient_highlight", "") or ""
+                            # ถ้า description ว่าง ให้ building from notes ที่วิเคราะห์ไว้
+                            if not _db_desc:
+                                _build = [
+                                    _db_usage_howto,
+                                    _db_ingredient,
+                                    ("สำหรับ " + _db_special_target) if _db_special_target else "",
+                                    ("กลุ่ม " + _db_age) if _db_age else "",
+                                    ("เพศ " + _db_gender) if _db_gender else "",
+                                ]
+                                _db_desc = " ".join(x for x in _build if x and x.strip())
+                            if not _db_gender and _notes.get("gender"):
+                                _db_gender = _notes.get("gender")
+                            if not _db_age and _notes.get("target_age"):
+                                _db_age = _notes.get("target_age")
                     except Exception:
                         pass
                     if trow[2] and not _db_keywords:

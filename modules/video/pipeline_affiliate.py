@@ -135,7 +135,7 @@ def concat_videos(video_paths: list, output_path: Path) -> Path:
 # STEP 1: Analyze Product (Mistral)
 # ═══════════════════════════════════════════════════════════════════════════
 
-def analyze_product(product_name: str, product_image: str = None, description: str = "", ugc_style: str = "holding", body_part: str = "", special_target: str = "", usage_howto: str = "", ingredient_highlight: str = "") -> dict:
+def analyze_product(product_name: str, product_image: str = None, description: str = "", ugc_style: str = "holding", body_part: str = "", special_target: str = "", usage_howto: str = "", ingredient_highlight: str = "", category: str = "", subcategory: str = "") -> dict:
     """
     Step 1: Analyze product via Mistral → product_profile
 
@@ -165,6 +165,8 @@ def analyze_product(product_name: str, product_image: str = None, description: s
             "description": description,
             "product_image": product_image or "",
             "ugc_style": ugc_style,
+            "category": category or "",
+            "subcategory": subcategory or "",
             # SSOT deep-analysis fields — ดึงจาก Product Analyzer (8106) ส่งตรงเข้า prompt-builder
             "body_part": body_part or "",
             "special_target": special_target or "",
@@ -1032,6 +1034,8 @@ def run_pipeline(
             special_target=kwargs.get("special_target", ""),
             usage_howto=kwargs.get("usage_howto", ""),
             ingredient_highlight=kwargs.get("ingredient_highlight", ""),
+            category=kwargs.get("category", ""),
+            subcategory=kwargs.get("subcategory", ""),
         )
 
         # ── Wire prompt-builder (SSOT) outputs into pipeline args ──

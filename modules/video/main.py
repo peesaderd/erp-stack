@@ -156,6 +156,9 @@ class VideoRequest(BaseModel):
     special_target: str = ""
     usage_howto: str = ""
     ingredient_highlight: str = ""
+    # ── SSOT subcategory (cat → subcat → style ใน prompt_sources.json) ──
+    category: str = ""
+    subcategory: str = ""
 
     @field_validator("duration")
     @classmethod
@@ -299,6 +302,8 @@ async def generate_video(req: VideoRequest):
             special_target=req.special_target or "",
             usage_howto=req.usage_howto or "",
             ingredient_highlight=req.ingredient_highlight or "",
+            category=req.category or "",
+            subcategory=req.subcategory or "",
             image_prompt=req.image_prompt or "",
             video_prompt=req.video_prompt or "",
             video_prompts=req.video_prompts or [],

@@ -176,6 +176,8 @@ async def run_full_pipeline(req: FullPipelineRequest):
                     "cta": req.cta or "",
                     "duration": req.duration or DEFAULT_VIDEO_DURATION,
                     "ugc_style": req.ugc_style or "holding",
+                    "category": req.category or "",
+                    "subcategory": req.subcategory or "",
                     "recipe": _resolve_video_recipe(req.recipe),
                     "negative_prompt": req.negative_prompt or "",
                     "first_frame": req.first_frame or "",

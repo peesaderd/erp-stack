@@ -85,6 +85,8 @@ async def tus_create_video(
     product_title: str = "",
     product_image: str = "",
     ugc_style: str = "holding",
+    category: str = "",
+    subcategory: str = "",
     duration: int = 15,
     aspect_ratio: str = "9:16",
     content_type: str = "affiliate",
@@ -102,6 +104,8 @@ async def tus_create_video(
         product_title: Product name (ถ้าไม่มี product_url)
         product_image: Product image URL
         ugc_style: รูปแบบ UGC — holding, unbox, review, talking_head, comparison
+        category: หมวดสินค้าหลัก (beauty, fashion, electronics, ...)
+        subcategory: หมวดย่อย (เช่น makeup_tutorial) — เลือก style ผ่าน SSOT prompt_sources.json
         duration: ความยาววิดีโอ (วินาที, default 15)
         aspect_ratio: 9:16, 1:1, 16:9
         content_type: affiliate, ugc, review
@@ -119,6 +123,8 @@ async def tus_create_video(
         "product_title": product_title,
         "product_image": product_image,
         "ugc_style": ugc_style,
+        "category": category or None,
+        "subcategory": subcategory or None,
         "duration": duration,
         "aspect_ratio": aspect_ratio,
         "content_type": content_type,
@@ -155,6 +161,9 @@ async def tus_create_full_pipeline(
     product_image: str = "",
     model_image: str = "",
     ugc_style: str = "holding",
+    # ── SSOT subcategory (cat → subcat → style เดียวใน prompt_sources.json) ──
+    subcategory: str = "",
+    category: str = "",
     hook: str = "",
     value_proposition: str = "",
     cta: str = "",
@@ -189,6 +198,8 @@ async def tus_create_full_pipeline(
         product_image: Product image URL
         model_image: Model reference image URL
         ugc_style: รูปแบบ UGC (holding, unbox, review, talking_head, comparison)
+        category: หมวดสินค้าหลัก (beauty, fashion, electronics, ...)
+        subcategory: หมวดย่อย (เช่น makeup_tutorial) — เลือก style ผ่าน SSOT prompt_sources.json
         hook: ข้อความ Hook
         value_proposition: ข้อความ Value proposition
         cta: ข้อความ Call-to-action
@@ -215,6 +226,8 @@ async def tus_create_full_pipeline(
         "product_image": product_image or None,
         "model_image": model_image or None,
         "ugc_style": ugc_style,
+        "category": category or None,
+        "subcategory": subcategory or None,
         "hook": hook or None,
         "value_proposition": value_proposition or None,
         "cta": cta or None,

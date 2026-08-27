@@ -116,6 +116,18 @@
         "camera": "close-up on eyes",
         "lighting": "bright diffused light",
         "mood": "defined, elegant"
+      },
+      "makeup_tutorial": {
+        "scene": [
+          "bright vanity mirror setup with makeup brushes laid out",
+          "clean beauty studio with ring light and face-to-camera angle",
+          "soft-lit dressing table with product displayed in front",
+          "minimalist makeup station, mirror facing creator"
+        ],
+        "action": "demonstrates the product step by step on her face: preps, applies, and blends toward the camera, showing technique and finishing with a clear result",
+        "camera": "close-up on face, following each application step, then wide reveal of finished look",
+        "lighting": "bright ring light, even flattering glow",
+        "mood": "instructive, transformative, confident glow"
       }
     },
     "food": {

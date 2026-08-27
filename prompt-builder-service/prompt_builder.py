@@ -1290,6 +1290,7 @@ async def analyze_and_build_prompts(
     price: float = 0.0,
     product_image: str = "",
     category: str = "",
+    subcategory: str = "",
     loop_count: int = 0,
     product_category: str = "",
     target_duration: int = 15,
@@ -1354,6 +1355,8 @@ async def analyze_and_build_prompts(
     # Override with explicit params if provided
     if category:
         profile["category"] = category
+    if subcategory:
+        profile["subcategory"] = subcategory
     if product_category:
         profile["product_category"] = product_category
     # Explicit target_gender / target_age must be authoritative (user choice),

@@ -427,6 +427,7 @@ async def generate_video(req: VideoRequest):
                 "keywords": _db_keywords,
                 "ugc_style": _resolved_style,
                 "category": _db_category,
+                "subcategory": getattr(req, "subcategory", "") or "",
                 "country": getattr(req, "country", "") or "thai",
                 "target_gender": _db_gender or "",
                 "target_age": _db_age or "",

@@ -28,7 +28,24 @@ from config import DEFAULT_VIDEO_DURATION
 from connect.aitoearn_client import client as aitoearn
 
 from .deps import logger, PIPELINE_DB_PATH, LOGS_DB_PATH, _proxy, _pipeline_results, IMAGES_DIR, VIDEOS_DIR
-from recipes import list_recipes
+from recipes import list_recipes, get_recipe
+
+
+def _resolve_video_recipe(recipe_name: str | None) -> str:
+    """Map Web UI recipe catalog name → Schema Engine video_recipe name.
+
+    Web UI sends recipe.name (e.g. 'tus_review'), but Schema Engine seeds
+    actual recipe rows as e.g. 'tus_review_15s'. Each catalog entry optionally
+    declares its target via 'recipe_name'. Falls back to 'tus' (voiceover)."""
+    if not recipe_name:
+        return "tus"
+    # Direct hit on a recipe_name we know exists in Schema Engine
+    if recipe_name in ("tus", "tus_15s", "tus_novoice", "tus_novoice_15s", "tus_review_15s"):
+        return recipe_name
+    # Look up catalog entry → its declared recipe_name
+    rec = get_recipe(recipe_name)
+    declared = (rec or {}).get("recipe_name")
+    return declared or recipe_name
 
 router = APIRouter(tags=["pipeline"])
 
@@ -159,7 +176,7 @@ async def run_full_pipeline(req: FullPipelineRequest):
                     "cta": req.cta or "",
                     "duration": req.duration or DEFAULT_VIDEO_DURATION,
                     "ugc_style": req.ugc_style or "holding",
-                    "recipe": req.recipe or "tus",
+                    "recipe": _resolve_video_recipe(req.recipe),
                     "negative_prompt": req.negative_prompt or "",
                     "first_frame": req.first_frame or "",
                     "reference_image": req.reference_image or "",
@@ -172,7 +189,7 @@ async def run_full_pipeline(req: FullPipelineRequest):
                     "special_target": req.special_target or "",
                     "usage_howto": req.usage_howto or "",
                     "ingredient_highlight": req.ingredient_highlight or "",
-                })
+                }, timeout=300.0)
                 if vid_result.get("success"):
                     result_data = vid_result.get("result", {})
                     final_path = result_data.get("final_path", "")

@@ -58,11 +58,11 @@ STYLE_MAP = {
         "video_motion": "model applying/using product naturally, gentle hand movements, routine motion",
     },
     "review": {
-        "model_action": "holding product up showing packaging to camera, excited expression, like unboxing reaction",
-        "camera": "close up to mid shot, product front and center, model slightly off-center",
-        "vibe": "enthusiastic, honest, review energy",
-        "keywords": "product held up, packaging visible, model reacting to product",
-        "video_motion": "model showing product to camera, gentle presenter motion, slight zoom effect",
+        "model_action": "Creator with the product placed on the table in front, hands resting still on the tabletop, speaking to camera with genuine expression, NOT holding the product up",
+        "camera": "medium shot, creator centered behind a table with the product placed on it in front, product visible and in focus, shallow depth of field",
+        "vibe": "authentic, honest, calm, review energy",
+        "keywords": "product placed on table, hands resting, speaking to camera, genuine review",
+        "video_motion": "creator speaking naturally with a warm smile, subtle head movement, hands still on the tabletop, product stays on the table, no lifting",
     },
     "talking": {
         "model_action": "talking while casually holding product, relaxed hand gesture, product naturally present",

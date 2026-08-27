@@ -198,7 +198,7 @@ async def tus_create_full_pipeline(
         negative_prompt: คำสั่งลบสำหรับ image gen
         tts_lang: ภาษา th/en
         bg_music: แนวเพลงพื้นหลัง
-        recipe: tus, tus_novoice
+        recipe: tus, tus_novoice, tus_review (หรือ tus_review_15s) — review = วางสินค้าบนโต๊ะ ไม่ถือ
         run_tts: สร้างเสียงพากย์หรือไม่
         run_video_gen: สร้างวิดีโอหรือไม่
         run_compose: รวมคลิปหรือไม่

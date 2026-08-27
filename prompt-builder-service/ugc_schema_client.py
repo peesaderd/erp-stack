@@ -49,10 +49,24 @@ _FALLBACK_STYLES: Dict[str, Dict[str, Any]] = {
 
 # ── Style Helper Functions ──────────────────────────────────────────
 def get_default_style() -> str:
-    return holding
+    return "holding"
 
 def validate_ugc_style(style: str) -> str:
-    return style or holding
+    # Normalize Web UI / recipe catalog aliases to canonical style keys
+    # so prompt_builder/gemini_client always see the SSOT key (e.g. "review").
+    _aliases = {
+        "ugc_review": "review",
+        "product_review": "review",
+        "holding_product": "holding",
+        "product_usage": "usage",
+        "unbox": "usage",
+        "unboxing": "usage",
+        "tabletop_demo": "tabletop",
+        "tabletop": "tabletop",
+        "demo": "tabletop",
+    }
+    style = (style or "").strip().lower()
+    return _aliases.get(style, style) or "holding"
 
 def get_style_config(style: str) -> dict:
     return _FALLBACK_STYLES.get(style, {}) if '_FALLBACK_STYLES' in globals() else {}

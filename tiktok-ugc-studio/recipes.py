@@ -132,6 +132,22 @@ RECIPES = [
             "lighting_preference": "bright even",
         },
     },
+    {
+        "name": "tus_review",
+        "label": "⭐ UGC Review (วางสินค้า ไม่ถือ)",
+        "description": "สำหรับสินค้าหลายชิ้น ให้ผูกกับ UGC review (วางสินค้าบนโต๊ะ มือนิ่ง ไม่ถือ) recipe tus_review_15s",
+        "ugc_style": "review",
+        "sound_style": "chill_loft",
+        "mood": "review",
+        "duration": 15,
+        "bgm_style": "chill_loft",
+        "recipe_name": "tus_review_15s",
+        "prompt_context": {
+            "category": "general",
+            "vibe": "authentic review, product placed on table, hands resting still",
+            "lighting_preference": "soft natural",
+        },
+    },
 ]
 
 

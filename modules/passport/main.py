@@ -29,9 +29,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 import uvicorn
 import requests
+
+from passport import commerce_client
+from passport.commerce_client import CommerceError
 
 _erp_stack = Path(__file__).parent.parent.parent
 if str(_erp_stack) not in sys.path:
@@ -151,6 +154,65 @@ class PrintSheetRequest(BaseModel):
     hairline: bool = False
     border_width_mm: float = 3.0   # default 3mm frame
     cutlines: bool = False
+
+
+# ── Commerce / Order & Delivery Models ────────────────────────────────
+
+class CommerceOrderItem(BaseModel):
+    """รายการสินค้าในใบสั่ง (เช่น พิมพ์ passport 1 ชุด)"""
+    productId: Optional[str] = None      # ref product/print type
+    name: str                            # ชื่อรายการ เช่น "พิมพ์ passport 35x45mm 4x6 จำนวน 6 ใบ"
+    qty: int = 1
+    price: float = 0.0
+    options: dict = {}
+
+
+class CreateOrderRequest(BaseModel):
+    """สร้างใบสั่งซื้อออนไลน์"""
+    customer_name: str
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    line_user_id: Optional[str] = None
+    items: List[CommerceOrderItem]
+    shipping_fee: float = 0.0
+    notes: Optional[str] = None
+    source: str = "web"
+
+
+class CreateDeliveryRequest(BaseModel):
+    """สร้างการจัดส่งสำหรับใบสั่ง"""
+    order_id: str
+    recipient_name: str
+    phone: str
+    address: str
+    province: Optional[str] = None
+    postal_code: Optional[str] = None
+    courier: str = "thailand_post"
+    shipping_fee: float = 0.0
+
+
+class UpdateStatusRequest(BaseModel):
+    """อัปเดตสถานะออเดอร์หรือจัดส่ง"""
+    status: str
+
+
+class UpdateOrderRequest(BaseModel):
+    """อัปเดตฟิลด์ออเดอร์ (ทุก field optional)"""
+    status: Optional[str] = None
+    payment_status: Optional[str] = None
+    payment_method: Optional[str] = None
+    m2i_payment_ref: Optional[str] = None
+    tracking_number: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class UpdateDeliveryRequest(BaseModel):
+    """อัปเดตฟิลด์จัดส่ง (ทุก field optional)"""
+    status: Optional[str] = None
+    tracking_number: Optional[str] = None
+    courier: Optional[str] = None
+    delivered_at: Optional[str] = None
+
 
 
 # ═══════════════════════════════════════════════════════════
@@ -1129,6 +1191,169 @@ def recrop_photo(req: dict):
         "headspace_pct": headspace_pct,
         "size": f"{final.shape[1]}x{final.shape[0]}",
     }
+
+
+# ═══════════════════════════════════════════════════════════
+# Commerce — Order & Delivery Endpoints
+# ── สั่งซื้อออนไลน์ + จัดส่ง ── ต่อกับ schema-engine (SSOT กลาง)
+# ═══════════════════════════════════════════════════════════
+
+def _gen_order_number() -> str:
+    """สร้างเลขที่ใบสั่ง PD-YYYYMMDD-XXXXXX"""
+    import datetime
+    import random
+    ts = datetime.datetime.now().strftime("%Y%m%d")
+    rand = "%06d" % random.randint(0, 999999)
+    return f"PD-{ts}-{rand}"
+
+
+@app.post("/api/passport/order")
+def create_order(req: CreateOrderRequest):
+    """สร้างใบสั่งซื้อออนไลน์ (ผูก customer_profile เป็น SSOT)
+    Return: { ok, order: {...}, order_number, grand_total }
+    """
+    try:
+        # 1) Upsert customer (SSOT) ถ้ามีข้อมูลติดต่อ
+        customer_id = None
+        customer = None
+        if req.phone or req.line_user_id:
+            cust_fields = {"name": req.customer_name}
+            if req.phone:
+                cust_fields["phone"] = req.phone
+            if req.line_user_id:
+                cust_fields["line_user_id"] = req.line_user_id
+            customer = commerce_client.upsert_customer(cust_fields)
+            if customer and customer.get("_id"):
+                customer_id = str(customer["_id"])
+
+        # 2) คำนวณยอดรวม
+        subtotal = round(sum((i.price * i.qty) for i in req.items), 2)
+        grand_total = round(subtotal + req.shipping_fee, 2)
+
+        # 3) สร้าง order
+        order_fields = {
+            "order_number": _gen_order_number(),
+            "customer_name": req.customer_name,
+            "phone": req.phone,
+            "source": req.source,
+            "items": [i.model_dump() for i in req.items],
+            "subtotal": subtotal,
+            "shipping_fee": req.shipping_fee,
+            "grand_total": grand_total,
+            "payment_status": "pending",
+            "status": "pending",
+            "notes": req.notes or "",
+        }
+        if customer_id:
+            order_fields["customer_id"] = customer_id
+        if req.line_user_id:
+            order_fields["line_user_id"] = req.line_user_id
+
+        order = commerce_client.create_order(order_fields)
+        if not order:
+            raise HTTPException(502, "Failed to create order")
+
+        return {
+            "ok": True,
+            "order": order,
+            "order_number": order.get("order_number"),
+            "grand_total": grand_total,
+        }
+    except CommerceError as e:
+        raise HTTPException(502, f"Commerce service error: {e}")
+
+
+@app.get("/api/passport/order/{order_id}")
+def get_order(order_id: str):
+    """อ่านใบสั่งซื้อตาม id"""
+    order = commerce_client.get_order(order_id)
+    if not order:
+        raise HTTPException(404, "Order not found")
+    return {"ok": True, "order": order}
+
+
+@app.get("/api/passport/order/by-number/{order_number}")
+def get_order_by_number(order_number: str):
+    """อ่านใบสั่งซื้อตามเลขที่ใบสั่ง"""
+    order = commerce_client.get_order_by_number(order_number)
+    if not order:
+        raise HTTPException(404, "Order not found")
+    return {"ok": True, "order": order}
+
+
+@app.get("/api/passport/orders")
+def list_orders(status: str = "", line_user_id: str = "", limit: int = 50, offset: int = 0):
+    """รายการใบสั่งซื้อ (กรองตาม status / line_user_id ได้)"""
+    orders = commerce_client.list_orders(limit=limit, offset=offset, status=status, line_user_id=line_user_id)
+    return {"ok": True, "orders": orders}
+
+
+@app.put("/api/passport/order/{order_id}/status")
+def update_order_status(order_id: str, req: UpdateStatusRequest):
+    """อัปเดตสถานะออเดอร์"""
+    updated = commerce_client.update_order(order_id, {"status": req.status})
+    if not updated:
+        raise HTTPException(404, "Order not found or update failed")
+    return {"ok": True, "order": updated}
+
+
+@app.put("/api/passport/order/{order_id}")
+def update_order(order_id: str, req: UpdateOrderRequest):
+    """อัปเดตฟิลด์ออเดอร์ (status, payment_status, m2i_payment_ref, etc.)"""
+    fields = {k: v for k, v in req.model_dump().items() if v is not None}
+    updated = commerce_client.update_order(order_id, fields)
+    if not updated:
+        raise HTTPException(404, "Order not found or update failed")
+    return {"ok": True, "order": updated}
+
+
+@app.post("/api/passport/delivery")
+def create_delivery(req: CreateDeliveryRequest):
+    """สร้างการจัดส่งสำหรับใบสั่ง"""
+    try:
+        delivery = commerce_client.create_delivery(req.model_dump())
+        if not delivery:
+            raise HTTPException(502, "Failed to create delivery")
+        return {"ok": True, "delivery": delivery}
+    except CommerceError as e:
+        raise HTTPException(502, f"Commerce service error: {e}")
+
+
+@app.get("/api/passport/delivery/{delivery_id}")
+def get_delivery(delivery_id: str):
+    """อ่านการจัดส่งตาม id"""
+    delivery = commerce_client.get_delivery(delivery_id)
+    if not delivery:
+        raise HTTPException(404, "Delivery not found")
+    return {"ok": True, "delivery": delivery}
+
+
+@app.get("/api/passport/delivery/by-order/{order_id}")
+def get_delivery_by_order(order_id: str):
+    """อ่านการจัดส่งของใบสั่งหนึ่ง"""
+    delivery = commerce_client.get_delivery_by_order(order_id)
+    if not delivery:
+        raise HTTPException(404, "Delivery not found")
+    return {"ok": True, "delivery": delivery}
+
+
+@app.put("/api/passport/delivery/{delivery_id}")
+def update_delivery(delivery_id: str, req: UpdateDeliveryRequest):
+    """อัปเดตสถานะ/ข้อมูลจัดส่ง"""
+    fields = {k: v for k, v in req.model_dump().items() if v is not None}
+    updated = commerce_client.update_delivery(delivery_id, fields)
+    if not updated:
+        raise HTTPException(404, "Delivery not found or update failed")
+    return {"ok": True, "delivery": updated}
+
+
+@app.put("/api/passport/delivery/{delivery_id}/status")
+def update_delivery_status(delivery_id: str, req: UpdateStatusRequest):
+    """อัปเดตสถานะจัดส่ง"""
+    updated = commerce_client.update_delivery(delivery_id, {"status": req.status})
+    if not updated:
+        raise HTTPException(404, "Delivery not found or update failed")
+    return {"ok": True, "delivery": updated}
 
 
 # ═══════════════════════════════════════════════════════════

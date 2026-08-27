@@ -634,13 +634,8 @@ def generate_video(
     if not image_data:
         raise RuntimeError(f"generate_video: อ่าน first frame ไม่ได้: {main_img}")
 
-    # last_frame + reference_image bytes (Wan 2.7 start-end interpolation + reference)
-    last_bytes = _read_bytes(last_frame) if last_frame else None
-    ref_bytes = _read_bytes(reference_image) if reference_image else None
-    if last_bytes:
-        logger.info(f"  ▶ last_frame: {len(last_bytes)} bytes — start-end interpolation")
-    if ref_bytes:
-        logger.info(f"  ▶ reference_image: {len(ref_bytes)} bytes")
+    # FL2V SINGLE image (owner 2026-08-26): ไม่มี last_frame/reference
+    # Wan 2.7 สร้างจาก input_image (first frame) รูปเดียวเท่านั้น
 
     # ── Voice mode A ONLY (owner 2026-08-24: Gemini TTS removed from TUS) ──
     # Wan 2.7 speaks thai_script directly. No lip-sync audio is ever sent.
@@ -698,8 +693,10 @@ def generate_video(
             audio_bytes=audio_bytes,
             job_type="inference.wan2-7.img2vid.v1",
             negative_prompt=neg_p,
-            last_frame=last_bytes,
-            reference=ref_bytes,
+            # FL2V SINGLE image (owner 2026-08-26): ส่งแค่ input_image รูปเดียว
+            # ต้องไม่ส่ง last_frame/reference — ไม่งั้น Wan ใช้เป็น start-end/ภาพหลัก
+            last_frame=None,
+            reference=None,
             # prompt_extend: default True (VALIDATED 2026-08-19 job 26ae0b8f ต้อง True)
             # แต่ให้ owner  override เป็น False ได้ (v10 ท้ายเปลี่ยนมุมกล้อง/ลิ้นชักขยับเอง
             # = prompt_extend เติมเอง → ลองปิด 2026-08-21)
@@ -1183,35 +1180,15 @@ def run_pipeline(
             raise ValueError("pipeline: video_prompts is empty/None — no prompt to generate video; refusing hardcoded fallback")
         logger.info(f"  Generating 1 continuous video ({total_duration}s): {vprompt[:80]}...")
 
-        # ── Start/End frames (single 9:16) ──
-        # Owner direction (2026-08-24): always single 9:16, one continuous frame.
-        #   • first-frame = Nano Banana img2img 9:16 (gen จาก reference)
-        #   • last-frame  = FLUX.2 klein 4B end-scene 9:16 (gen จาก first-frame)
-        #   • video       = Wan 2.7 start-end interpolation
-        # ff = client-supplied first_frame/หรือภาพเดียวที่ Nano Banana gen (img_path)
-        # lf = client-supplied last_frame/หรือ Flux klein gen end-scene จาก ff (ไม่ตัด panel)
+        # ── Start/End frames (SINGLE image — owner 2026-08-26) ──
+        # Owner direction: FL2V ใช้รูปเดียวคือรูปแรก (first frame) — ห้าม start-end
+        # interpolation, ห้าม gen last frame (klein end-scene). เหตุผล: interpolation
+        # ทำให้ตอนท้ายวิดีโอสินค้า/องค์ประกอบเพี้ยนไปจากต้น (พี่เจอ "ตอนท้ายผิด").
+        # ff = first frame (Nano Banana img2img 9:16 gen จาก reference)
+        # lf = ไม่ใช้ — single image เสมอ
         ff = first_frame or str(img_path)
-        lf = last_frame or None
-        if not lf:
-            # ไม่มี last_frame ให้ Flux klein gen end-scene จาก first-frame → 9:16
-            # (ตาม blueprint — klein เป็น pipeline แยกของเราเอง ไม่ใช้ร่วมกับ PassportPhoto)
-            try:
-                klein_last, cost_last = generate_klein_last_image(
-                    ff, product_profile, product_name,
-                    aspect_ratio="9:16", run_id=run_id,
-                )
-                lf = str(klein_last)
-                cost_image += cost_last  # รวมค่า klein
-                logger.info(f"  ▶ Last frame ใช้ FLUX klein end-scene: {Path(lf).name}")
-            except Exception as ke:
-                logger.warning(
-                    f"  ⚠️ Klein last-image gen ล้มเหลว ({ke}) — ใช้ first-frame เป็น frame เดียว (ไม่ตั้ง start/end)"
-                )
-                lf = None
-        if ff and lf:
-            logger.info(
-                f"  ▶ Wan frames: first=({Path(ff).name}), last=({Path(lf).name})"
-            )
+        lf = None
+        logger.info(f"  ▶ FL2V SINGLE image (owner rule 2026-08-26): first=({Path(ff).name}), last=None (no klein, no start-end)")
 
         # Gemini TTS removed from TUS (owner 2026-08-24): no lip-sync audio.
         logger.info("  🎙 SP8: Wan พูดเอง (Voice mode A เท่านั้น)")
@@ -1225,11 +1202,11 @@ def run_pipeline(
             # แต่ Wan gen แค่ 8s แล้ว compose stream_loop ยืดเป็น 15s = เสียง+ภาพวนซ้ำ
             duration=total_duration,
             negative_prompt=negative_prompt,
-            # first+last start-end interpolation per Prodia docs
-            # (ห้ามส่ง reference แยก — ทำให้ Prodia เอา reference เป็นภาพหลักแทน interpolation)
+            # FL2V SINGLE image (owner 2026-08-26): ส่ง first frame รูปเดียว
+            # ไม่มี last_frame ไม่มี reference (ห้ามส่ง reference แยก — Prodia จะเอาเป็นภาพหลัก)
             reference_image=None,
             first_frame=ff,
-            last_frame=lf,
+            last_frame=None,
             thai_script=thai_script,
             use_tus_voice=use_tus_voice,
             prompt_extend=prompt_extend,

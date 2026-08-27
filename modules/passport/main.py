@@ -791,6 +791,73 @@ async def print_sheet_v2(req: PrintSheetRequest):
     }
 
 
+# ── Latest Print Sheet (for ordering page) ────────
+
+# Map print sheet pixel dimensions (at 300dpi) back to the print size key.
+_PRINT_SIZE_MM = {
+    (101.6, 152.4): "4x6",
+    (152.4, 101.6): "6x4",
+    (127.0, 177.8): "5x7",
+    (177.8, 127.0): "7x5",
+    (210.0, 297.0): "a4",
+    (297.0, 210.0): "a4_l",
+    (105.0, 148.0): "a6",
+    (148.0, 105.0): "a6_l",
+}
+
+
+@app.get("/api/passport/latest-print")
+async def latest_print():
+    """Return the most recently generated print sheet (by mtime), so the ordering
+    page can pre-fill size/qty from the last print job. Falls back to empty if none.
+
+    Returns {"ok", "has_print", "session_id", "download_url", "print_size", "photo_count", "width_mm", "height_mm", "generated_at"}
+    """
+    try:
+        cands = [p for p in STORAGE_DIR.glob("*_print.jpg") if p.is_file()]
+    except Exception:
+        cands = []
+    if not cands:
+        return {"ok": True, "has_print": False}
+
+    latest = max(cands, key=lambda p: p.stat().st_mtime)
+
+    # Guess print size from pixel dimensions (assume 300 dpi).
+    try:
+        img = cv2.imread(str(latest))
+        h, w = img.shape[:2]
+        mm_w = round(w / 300.0 * 25.4, 1)
+        mm_h = round(h / 300.0 * 25.4, 1)
+        print_size = "4x6"
+        for (pw, ph), key in _PRINT_SIZE_MM.items():
+            if abs(mm_w - pw) <= 3 and abs(mm_h - ph) <= 3:
+                print_size = key
+                break
+        # Normalize to the canonical UI keys (4x6 / 5x7 / a6 / a4).
+        canonical = {"6x4": "4x6", "7x5": "5x7", "a6_l": "a6", "a4_l": "a4"}
+        print_size = canonical.get(print_size, print_size)
+        width_mm = mm_w
+        height_mm = mm_h
+    except Exception:
+        print_size = "4x6"
+        width_mm = None
+        height_mm = None
+
+    # Rough photo count: NOT stored, report 0 (frontend can default qty=1).
+    return {
+        "ok": True,
+        "has_print": True,
+        "filename": latest.name,
+        "session_id": latest.name.replace("_print.jpg", ""),
+        "download_url": f"/api/passport/download/{latest.name}",
+        "print_size": print_size,
+        "photo_count": 0,
+        "width_mm": width_mm,
+        "height_mm": height_mm,
+        "generated_at": int(latest.stat().st_mtime * 1000),
+    }
+
+
 # ── Multi-Photo Print Sheet ────────────────────────
 
 class MultiPrintRequest(BaseModel):

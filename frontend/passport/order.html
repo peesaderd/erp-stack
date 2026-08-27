@@ -78,6 +78,22 @@ textarea.f-field{resize:vertical;min-height:72px}
 
   <div id="orderForm">
 
+  <!-- Latest print sheet (pre-filled from last generate) -->
+  <div class="card" id="latestCard" style="display:none">
+    <div class="card-h"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> งาน Print Sheet ล่าสุด</div>
+    <div class="card-b">
+      <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+        <img id="latestImg" alt="print sheet ล่าสุด" style="width:110px;height:auto;border-radius:10px;border:1px solid #e2e8f0;object-fit:cover;flex-shrink:0">
+        <div style="flex:1;min-width:140px">
+          <div style="font-size:.66rem;color:#94a3b8;font-weight:600">ใช้ขนาด & จำนวนจากงานนี้เป็นค่าเริ่มต้น</div>
+          <div id="latestBadge" style="font-size:.78rem;font-weight:700;color:#0f172a;margin-top:4px"></div>
+          <div id="latestMeta" style="font-size:.64rem;color:#64748b;margin-top:2px"></div>
+        </div>
+      </div>
+      <div style="font-size:.6rem;color:#94a3b8;margin-top:10px;line-height:1.4">ยังอัปโหลดรูปใหม่โดยเลือกขนาดด้านล่างได้ แต่ถ้าไม่แตะ ระบบจะใช้ขนาด/จำนวนจากงานนี้</div>
+    </div>
+  </div>
+
   <!-- Step 1: Print size + qty -->
   <div class="card">
     <div class="card-h"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.02a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.02a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.02a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> เลือกขนาด & จำนวน</div>
@@ -262,6 +278,30 @@ function getLineUid(){
 
 buildSizes();
 renderSummary();
+
+// Load most recent print sheet (from last generate) as the default size/qty.
+var LATEST_OK = ["4x6","5x7","a6","a4"];
+function loadLatestPrint(){
+  fetch(API+'/latest-print').then(function(r){return r.json()}).then(function(d){
+    if(!d.ok||!d.has_print)return;
+    var card=document.getElementById('latestCard');
+    card.style.display='';
+    document.getElementById('latestImg').src=(d.download_url.indexOf('/api')===0?API:d.download_url)+'?t='+Date.now();
+    // Only pre-fill size if it is a recognized price tier; else keep current.
+    if(LATEST_OK.indexOf(d.print_size)>=0){
+      selSize=d.print_size;
+      buildSizes();
+    }
+    document.getElementById('latestBadge').textContent=
+      (PRICES[d.print_size]?PRICES[d.print_size].name+' ('+d.print_size+')':'ขนาด '+d.print_size)+' · ตั้งค่ารอไว้แล้ว';
+    var mm='';
+    if(d.width_mm)mm=' · '+Math.round(d.width_mm)+'×'+Math.round(d.height_mm)+' มม.';
+    document.getElementById('latestMeta').textContent=
+      'สร้างเมื่อ '+new Date(d.generated_at).toLocaleString('th-TH')+mm;
+    renderSummary();
+  }).catch(function(){/* ignore network errors */});
+}
+loadLatestPrint();
 </script>
 </body>
 </html>

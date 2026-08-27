@@ -115,6 +115,13 @@ STYLE_MAP = {
         "keywords": "product demo, no people, product-centered, clean background, product features visible",
         "video_motion": "product sitting on clean surface, hands entering frame to demonstrate features, no person face visible, product rotating or being operated, camera panning around product"
     },
+    "fashion_lookbook": {
+        "model_action": "standing still, turning slowly to showcase the garment, garment clearly visible, gentle head movement",
+        "camera": "Portrait framing, static camera, full-body visible",
+        "vibe": "elegant, chic, premium",
+        "keywords": "fashion lookbook, outfit, runway, style, elegant, OOTD",
+        "video_motion": "static camera, subtle push-in, model turning slowly in place, gentle head movement, fabric draping naturally"
+    },
 }
 
 

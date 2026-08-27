@@ -57,6 +57,7 @@ def validate_ugc_style(style: str) -> str:
     _aliases = {
         "ugc_review": "review",
         "product_review": "review",
+        "fashion_lookbook": "fashion_lookbook",
         "holding_product": "holding",
         "product_usage": "usage",
         "unbox": "usage",

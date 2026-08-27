@@ -169,6 +169,26 @@
           "camera": "first-person, hands visible"
         }
       ]
+    },
+    "fashion_lookbook": {
+      "name": "Fashion Lookbook",
+      "description": "อวดชุด/สินค้าแฟชั่นท่าทางสง่างาม ถ่ายพอร์เทรตเต็มตัว",
+      "prompt_anchor": "Model wearing [product] as an outfit, full-body presentation, standing still and turning slowly",
+      "script_structure": "Show outfit elegantly, highlight garment beauty and overall look",
+      "has_person": true,
+      "shot_count": 2,
+      "shots": [
+        {
+          "time": "0-4s",
+          "desc": "Model standing still, full-body, turning slowly to showcase the garment",
+          "camera": "portrait, static, full-body visible"
+        },
+        {
+          "time": "4-8s",
+          "desc": "Model turning slowly in place, fabric draping naturally, subtle head movement",
+          "camera": "portrait framing, static, subtle push-in"
+        }
+      ]
     }
   },
   "UGC_COMBOS": {
@@ -235,6 +255,7 @@
     "fashion_accessory": {
       "preset": "fashion_lookbook",
       "styles": [
+        "fashion_lookbook",
         "holding",
         "pov",
         "review"

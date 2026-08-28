@@ -1131,6 +1131,20 @@ select.input { cursor: pointer; }
     <div id="productSearchResults" class="text-xs text-secondary mt-1"></div>
   </div>
 
+  <!-- Apify Import (TikTok share link / keyword -> เข้าระบบ TUS Product) -->
+  <div class="card mb-3" style="padding:12px;border:1px dashed var(--border-color)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <span class="text-sm" style="font-weight:600">🤖 ดึงสินค้าใหม่จาก TikTok (Apify)</span>
+      <span class="text-xs text-tertiary">แปะ share link หรือพิมพ์ keyword แล้วกดดึง</span>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input class="input" id="apifyInput" placeholder="แปะลิงก์ vt.tiktok.com/... หรือ พิมพ์ชื่อสินค้า" value="" style="flex:1" onkeydown="if(event.key==='Enter') apifyImport()">
+      <button class="btn btn-secondary btn-sm" onclick="document.getElementById('apifyInput').value='';document.getElementById('apifyResult').textContent='';document.getElementById('apifyResult').className='text-xs text-secondary mt-1'">✕ ล้าง</button>
+      <button class="btn btn-primary btn-sm" id="apifyImportBtn" onclick="apifyImport()">🚀 ดึงข้อมูล</button>
+    </div>
+    <div id="apifyResult" class="text-xs text-secondary mt-1"></div>
+  </div>
+
   <!-- Batch History -->
   <div id="batchHistorySection" style="display:none;margin-bottom:16px">
     <div class="card-header" style="cursor:pointer" onclick="const e=document.getElementById('batchHistoryList'); e.style.display=e.style.display==='none'?'block':'none'">
@@ -4364,6 +4378,61 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 /* Products (Analyzer) */
+
+/**
+ * Apify import: user pastes a TikTok share link (vt.tiktok.com/...) or a
+ * keyword. Proxies to product-scraper /api/v1/apify/scrape which resolves
+ * share link -> PDP -> Apify actor -> ingest -> TUS Product.
+ */
+async function apifyImport() {
+  const raw = document.getElementById('apifyInput').value.trim();
+  if (!raw) {
+    showToast('กรุณาแปะ link หรือพิมพ์ keyword ก่อน');
+    return;
+  }
+  const resultEl = document.getElementById('apifyResult');
+  const btn = document.getElementById('apifyImportBtn');
+  const isLink = /(vt\.tiktok\.com|shop\.tiktok\.com|tiktok\.com)/i.test(raw);
+  const body = isLink ? { link: raw, region: 'TH', limit: 5 } : { keyword: raw, region: 'TH', limit: 5 };
+
+  btn.disabled = true;
+  btn.textContent = '⏳ กำลังดึง...';
+  resultEl.textContent = 'กำลังดึงข้อมูลจาก Apify... อาจใช้เวลาสักครู่';
+  resultEl.className = 'text-xs text-secondary mt-1';
+
+  try {
+    const r = await fetch(API + '/apify/scrape', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || !d.success) {
+      resultEl.textContent = '❌ ' + (d.detail || d.error || 'ดึงข้อมูลล้มเหลว');
+      resultEl.className = 'text-xs mt-1';
+      resultEl.style.color = '#e74c3c';
+      showToast('ดึงข้อมูลไม่สำเร็จ');
+
+    } else {
+      resultEl.textContent = '✅ ' + (d.message || 'สินค้าเข้าระบบแล้ว') + (d.product_id ? ' (ID: ' + d.product_id + ')' : '');
+      resultEl.className = 'text-xs mt-1';
+      resultEl.style.color = '#27ae60';
+      showToast('สินค้าเข้าระบบแล้ว ✅');
+      // Refresh the product list to show the new item.
+      const q = document.getElementById('productSearchInput').value.trim();
+      if (q) searchProducts(); else loadAnalyzedProducts();
+    }
+  } catch (e) {
+    resultEl.textContent = '❌ ' + e.message;
+    resultEl.className = 'text-xs mt-1';
+    resultEl.style.color = '#e74c3c';
+    showToast('ดึงข้อมูลผิดพลาด: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🚀 ดึงข้อมูล';
+  }
+}
+
 
 /** Search products by name — queries tus_products.db */
 async function searchProducts() {

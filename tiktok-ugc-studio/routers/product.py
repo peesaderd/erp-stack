@@ -346,6 +346,49 @@ async def sheets_status():
 
 
 
+@router.post("/apify/scrape")
+async def apify_scrape(req: dict):
+    """TUS entry: share link / keyword -> Apify actor -> ingest -> TUS Product.
+    Proxies to product-scraper (port 8106) /api/v1/apify/scrape.
+    Body: { link?, keyword?, region?, limit? }
+    """
+    link = req.get("link", "") or ""
+    keyword = req.get("keyword", "") or ""
+    region = req.get("region", "") or ""
+    limit = req.get("limit", 5)
+
+    if not link and not keyword:
+        raise HTTPException(status_code=400, detail="ต้องส่ง link หรือ keyword อย่างน้อยหนึ่งอย่าง")
+
+    async with httpx.AsyncClient(timeout=180.0) as client:
+        try:
+            resp = await client.post(
+                f"{SCRAPER_API_URL}/api/v1/apify/scrape",
+                json={
+                    "link": link,
+                    "keyword": keyword,
+                    "region": region,
+                    "limit": int(limit),
+                },
+                timeout=180.0,
+            )
+            data = resp.json()
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"Apify scrape error: {e}")
+
+    if not data.get("success"):
+        raise HTTPException(status_code=502, detail=data.get("error", "Apify scrape failed"))
+
+    # Ship back the product summary so the TUS UI can refresh immediately.
+    return {
+        "success": True,
+        "product_id": data.get("product_id"),
+        "actors_used": data.get("actors_used"),
+        "candidates": data.get("candidates"),
+        "message": "สินค้าเข้าระบบแล้ว",
+    }
+
+
 @router.post("/product/scrape-pipeline")
 async def scrape_pipeline(req: dict):
     """URL → Pipeline (scrape+analyze+sync) → return product data for Video Wizard."""

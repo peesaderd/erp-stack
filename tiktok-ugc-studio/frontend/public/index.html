@@ -1141,8 +1141,38 @@ select.input { cursor: pointer; }
       <input class="input" id="apifyInput" placeholder="แปะลิงก์ vt.tiktok.com/... หรือ พิมพ์ชื่อสินค้า" value="" style="flex:1" onkeydown="if(event.key==='Enter') apifyImport()">
       <button class="btn btn-secondary btn-sm" onclick="document.getElementById('apifyInput').value='';document.getElementById('apifyResult').textContent='';document.getElementById('apifyResult').className='text-xs text-secondary mt-1'">✕ ล้าง</button>
       <button class="btn btn-primary btn-sm" id="apifyImportBtn" onclick="apifyImport()">🚀 ดึงข้อมูล</button>
+      <button class="btn btn-secondary btn-sm" onclick="openBatchModal()">📦 Batch Upload</button>
     </div>
     <div id="apifyResult" class="text-xs text-secondary mt-1"></div>
+  </div>
+
+  <!-- Batch Upload Modal -->
+  <div id="batchModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1000;align-items:center;justify-content:center">
+    <div style="background:var(--bg-primary,#fff);border-radius:12px;max-width:640px;width:92%;max-height:85vh;overflow:auto;padding:20px;box-shadow:0 10px 40px rgba(0,0,0,0.35)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <span style="font-weight:700;font-size:15px">📦 Batch Upload (Apify)</span>
+        <button onclick="closeBatchModal()" style="border:none;background:none;cursor:pointer;font-size:20px;line-height:1">✕</button>
+      </div>
+      <div class="text-xs text-secondary" style="margin-bottom:8px">วางทีละหลายรายการ แยกบรรทัดละ 1 รายการ (share link หรือ keyword ก็ได้) แล้วกดเริ่ม ระบบจะประมวลผลทีละตัวตามลำดับ</div>
+      <textarea id="batchTextarea" rows="8" class="input" style="width:100%;font-family:monospace;font-size:13px" placeholder="https://vt.tiktok.com/xxxx/
+https://vt.tiktok.com/yyyy/
+ครีมกันแดด SPF50
+..."></textarea>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:10px">
+        <label class="text-xs text-secondary">Region:</label>
+        <select id="batchRegion" class="input" style="width:90px"><option value="TH">TH</option><option value="US">US</option><option value="ID">ID</option><option value="MY">MY</option><option value="SG">SG</option><option value="VN">VN</option><option value="PH">PH</option></select>
+        <div style="flex:1"></div>
+        <button class="btn btn-secondary btn-sm" onclick="closeBatchModal()">ปิด</button>
+        <button class="btn btn-primary btn-sm" id="batchRunBtn" onclick="apifyBatch()">▶ เริ่ม Batch</button>
+      </div>
+      <div id="batchResult" class="text-xs mt-2" style="white-space:pre-wrap"></div>
+      <div id="batchProgressWrap" style="display:none;margin-top:8px">
+        <div style="background:var(--bg-tertiary,#eee);border-radius:8px;height:10px;overflow:hidden">
+          <div id="batchProgressBar" style="height:100%;width:0%;background:#27ae60;transition:width .3s"></div>
+        </div>
+        <div class="text-xs text-secondary mt-1" id="batchProgressLabel"></div>
+      </div>
+    </div>
   </div>
 
   <!-- Batch History -->
@@ -4430,6 +4460,84 @@ async function apifyImport() {
   } finally {
     btn.disabled = false;
     btn.textContent = '🚀 ดึงข้อมูล';
+  }
+}
+
+
+/** Open the batch-upload modal. */
+function openBatchModal() {
+  const m = document.getElementById('batchModal');
+  m.style.display = 'flex';
+  document.getElementById('batchTextarea').focus();
+}
+
+/** Close the batch-upload modal. */
+function closeBatchModal() {
+  document.getElementById('batchModal').style.display = 'none';
+}
+
+/** Parse multi-line textarea into a list of non-empty lines. */
+function parseBatchLines(text) {
+  return String(text || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+}
+
+/** Run batch upload: many share-links / keywords -> Apify -> ingest -> list. */
+async function apifyBatch() {
+  const lines = parseBatchLines(document.getElementById('batchTextarea').value);
+  if (!lines.length) {
+    showToast('กรุณาใส่อย่างน้อย 1 รายการ (link หรือ keyword)');
+    return;
+  }
+  const region = document.getElementById('batchRegion').value;
+  const runBtn = document.getElementById('batchRunBtn');
+  const resultEl = document.getElementById('batchResult');
+  const pw = document.getElementById('batchProgressWrap');
+  const bar = document.getElementById('batchProgressBar');
+  const plab = document.getElementById('batchProgressLabel');
+
+  pw.style.display = 'block';
+  bar.style.width = '0%';
+  resultEl.textContent = '';
+  runBtn.disabled = true;
+  runBtn.textContent = '⏳ กำลังประมวลผล...';
+
+  try {
+    const r = await fetch(API + '/apify/scrape/batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: lines, region: region, limit: 5 })
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      resultEl.textContent = '❌ ' + (d.detail || d.error || 'batch ล้มเหลว');
+      resultEl.style.color = '#e74c3c';
+      showToast('Batch ล้มเหลว');
+    } else {
+      resultEl.style.color = '#333';
+      const out = [];
+      (d.items || []).forEach(it => {
+        const st = it.success ? '✅' : '❌';
+        const desc = it.success
+          ? (it.product_id ? ' (ID: ' + it.product_id + ')' : '')
+          : (it.error || 'ล้มเหลว');
+        out.push(st + ' [' + it.index + '/' + d.total + '] ' + (it.is_link ? '🔗 ' : '🔑 ') + it.input + ' ' + desc);
+      });
+      resultEl.textContent = d.message + '\n' + out.join('\n');
+      showToast(d.message);
+      // Progress bar is indeterminate during sequential run; fill at end.
+      bar.style.width = '100%';
+      plab.textContent = 'เสร็จสิ้น';
+      // Refresh the product list.
+      const q = document.getElementById('productSearchInput').value.trim();
+      if (q) searchProducts(); else loadAnalyzedProducts();
+    }
+  } catch (e) {
+    resultEl.textContent = '❌ ' + e.message;
+    resultEl.style.color = '#e74c3c';
+    showToast('Batch ผิดพลาด: ' + e.message);
+  } finally {
+    runBtn.disabled = false;
+    runBtn.textContent = '▶ เริ่ม Batch';
   }
 }
 

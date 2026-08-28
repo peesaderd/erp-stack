@@ -389,6 +389,74 @@ async def apify_scrape(req: dict):
     }
 
 
+@router.post("/apify/scrape/batch")
+async def apify_scrape_batch(req: dict):
+    """TUS entry: batch import many share-links / keywords at once.
+    Body: { items: ["link or keyword", ...], region?, limit? }
+    Processes each item sequentially (Apify is billed per run, and we want to
+    stay within the free-plan credit), collecting per-item results.
+    """
+    items = req.get("items") or []
+    region = req.get("region", "") or ""
+    try:
+        limit = min(int(req.get("limit", 5)), 10)
+    except Exception:
+        limit = 5
+
+    if not isinstance(items, list) or not items:
+        raise HTTPException(status_code=400, detail="ต้องส่ง items (list ของ link หรือ keyword อย่างน้อย 1 รายการ)")
+
+    # Normalize: trim + drop empty lines
+    cleaned = []
+    for it in items:
+        if isinstance(it, str) and it.strip():
+            cleaned.append(it.strip())
+    if not cleaned:
+        raise HTTPException(status_code=400, detail="items ว่าง หลังจากกรองบรรทัดที่ไม่มีข้อมูล")
+
+    results = []
+    ok = 0
+    fail = 0
+    async with httpx.AsyncClient(timeout=200.0) as client:
+        for idx, item in enumerate(cleaned, start=1):
+            is_link = bool(re.search(r"(vt\.tiktok\.com|shop\.tiktok\.com|tiktok\.com)", item, re.I))
+            payload = {"region": region, "limit": limit}
+            if is_link:
+                payload["link"] = item
+            else:
+                payload["keyword"] = item
+            entry = {"index": idx, "input": item, "is_link": is_link, "success": False}
+            try:
+                resp = await client.post(
+                    f"{SCRAPER_API_URL}/api/v1/apify/scrape",
+                    json=payload,
+                    timeout=200.0,
+                )
+                data = resp.json()
+                if resp.status_code == 200 and data.get("success"):
+                    entry["success"] = True
+                    entry["product_id"] = data.get("product_id")
+                    entry["candidates"] = data.get("candidates")
+                    entry["message"] = data.get("message", "สินค้าเข้าระบบแล้ว")
+                    ok += 1
+                else:
+                    entry["error"] = data.get("detail") or data.get("error") or f"HTTP {resp.status_code}"
+                    fail += 1
+            except Exception as e:
+                entry["error"] = f"การเชื่อมต่อล้มเหลว: {e}"
+                fail += 1
+            results.append(entry)
+
+    return {
+        "success": ok > 0,
+        "total": len(cleaned),
+        "ok": ok,
+        "fail": fail,
+        "items": results,
+        "message": f"สำเร็จ {ok}/{len(cleaned)} รายการ" + (f" (ล้มเหลว {fail})" if fail else ""),
+    }
+
+
 @router.post("/product/scrape-pipeline")
 async def scrape_pipeline(req: dict):
     """URL → Pipeline (scrape+analyze+sync) → return product data for Video Wizard."""

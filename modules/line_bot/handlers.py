@@ -43,6 +43,26 @@ async def _get_reward_handler():
 
 logger = logging.getLogger("line-bot.handlers")
 
+# ── Payment (PromptPay QR + SlipOK verify) Integration ─────────────────
+_payment_handlers = None
+async def _get_payment_handlers():
+    """Lazy-import modules/payment (qr_promptpay + slipok_client).
+    Returns (build_qr, promptpay_id, verify_slip, SlipOKError)."""
+    global _payment_handlers
+    if _payment_handlers is None:
+        try:
+            from payment import qr_promptpay, slipok_client
+            _payment_handlers = (
+                qr_promptpay.build_qr,
+                qr_promptpay.promptpay_id,
+                slipok_client.verify_slip,
+                slipok_client.SlipOKError,
+            )
+        except Exception as e:
+            logger.warning(f"Payment module not available: {e}")
+            _payment_handlers = (None, None, None, None)
+    return _payment_handlers
+
 # ── Config ───────────────────────────────────────────────────────────────
 
 ERP_MODULAR_URL = os.environ.get("ERP_MODULAR_URL", "http://localhost:8102")
@@ -218,9 +238,12 @@ async def _handle_message(event: dict, reply_token: str, user_id: str):
     elif msg_type == "location":
         await _handle_location(msg, reply_token, user_id)
     elif msg_type == "image":
-        await line_client.reply(reply_token, [
-            line_client.text("📸 ได้รับรูปภาพแล้วครับ ถ้าต้องการสั่งอาหารพิมพ์รายการที่ต้องการเลย!")
-        ])
+        if session.get("state") == "waiting_slip" and session.get("pay_order_id"):
+            await _handle_payslip_image(msg, reply_token, user_id, session)
+        else:
+            await line_client.reply(reply_token, [
+                line_client.text("📸 ได้รับรูปภาพแล้วครับ ถ้าต้องการสั่งอาหารพิมพ์รายการที่ต้องการเลย!")
+            ])
     else:
         logger.debug(f"Unhandled message type: {msg_type}")
 
@@ -477,6 +500,11 @@ async def _handle_postback(event: dict, reply_token: str, user_id: str):
 
     elif action == "checkout":
         await _handle_checkout(session, reply_token, user_id)
+
+    elif action == "pay_promptpay" and len(parts) >= 3:
+        order_id = parts[1]
+        total = float(parts[2])
+        await _handle_promptpay_pay(reply_token, user_id, order_id, total)
 
     elif action == "show_menu":
         await _show_menu(reply_token)
@@ -1114,6 +1142,133 @@ async def _handle_checkout(session: dict, reply_token: str, user_id: str):
     await line_client.reply(reply_token, [
         line_client.flex(f"สรุปออเดอร์ {order_id}", receipt_bubble)
     ])
+
+
+async def _handle_promptpay_pay(reply_token: str, user_id: str, order_id: str, total: float):
+    """สร้าง QR PromptPay สำหรับชำระออเดอร์ และเตรียมรับสลิปตรวจด้วย SlipOK.
+    เรียกหลัง user กดปุ่ม \"💳 สแกนจ่าย (PromptPay)\"."""
+    build_qr, promptpay_id, verify_slip, SlipOKError = await _get_payment_handlers()
+    if not build_qr or not promptpay_id:
+        await line_client.reply(reply_token, [
+            line_client.text("😅 ระบบชำระเงินยังไม่พร้อมใช้งานตอนนี้ กรุณาลองใหม่ภายหลังครับ")
+        ])
+        return
+
+    try:
+        pid = promptpay_id()
+        qr = build_qr(amount=total)  # {"base64_png", "promptpay_id", "amount", "payload"}
+
+        # บันทึก PNG ลง static dir เพื่อให้ LINE เข้าถึงผ่าน URL สาธารณะ
+        from pathlib import Path
+        import base64
+        from main import QR_STATIC_DIR
+        qr_dir = QR_STATIC_DIR
+        fname = f"qr_{order_id}.png"
+        qr_path = Path(qr_dir) / fname
+        qr_path.write_bytes(base64.b64decode(qr["base64_png"]))
+        public_url = f"https://m2igen.com/line/slip_qr/{fname}"
+    except Exception as e:
+        logger.exception(f"Failed to build PromptPay QR for {order_id}")
+        await line_client.reply(reply_token, [
+            line_client.text("😅 สร้าง QR การชำระเงินไม่สำเร็จ กรุณาลองใหม่ครับ")
+        ])
+        return
+
+    # จำ order ที่กำลังจ่ายไว้ในสถานะเพื่อรออัปโหลดสลิป
+    session = _get_cart(user_id)
+    session["pay_order_id"] = order_id
+    session["pay_amount"] = total
+    session["state"] = "waiting_slip"
+
+    qr_msg = (
+        f"🧾 ชำระเงินออเดอร์ **{order_id}**\n\n"
+        f"💵 ยอดที่ต้องโอน: **฿{total:.0f}**\n"
+        f"💳 PromptPay: **{pid}**\n\n"
+        f"1️⃣ โอนเงินตามยอดด้านบน\n"
+        f"2️⃣ ส่งสลิป (ภาพ) กลับมาในแชทนี้\n\n"
+        f"⏳ ระบบจะตรวจสลิปให้อัตโนมัติและอัปเดตสถานะออเดอร์"
+    )
+    await line_client.reply(reply_token, [
+        line_client.image(public_url),
+        line_client.text(qr_msg),
+    ])
+
+
+async def _handle_payslip_image(msg: dict, reply_token: str, user_id: str, session: dict):
+    """รับสลิปภาพจาก user (สถานะ waiting_slip) → ตรวจด้วย SlipOK → อัปเดตออเดอร์เป็น paid."""
+    build_qr, promptpay_id, verify_slip, SlipOKError = await _get_payment_handlers()
+    order_id = session.get("pay_order_id")
+    amount = session.get("pay_amount")
+    message_id = msg.get("id", "")
+
+    if not verify_slip or not message_id:
+        await line_client.reply(reply_token, [
+            line_client.text("😅 ระบบตรวจสลิปยังไม่พร้อม กรุณาลองใหม่ภายหลังครับ")
+        ])
+        return
+
+    # ดึงภาพสลิปจาก LINE
+    img_bytes = await line_client.get_message_content(message_id)
+    if not img_bytes:
+        await line_client.reply(reply_token, [
+            line_client.text("😅 ไม่สามารถดาวน์โหลดสลิปได้ กรุณาส่งสลิปใหม่ครับ")
+        ])
+        return
+
+    # ตรวจสลิปด้วย SlipOK พร้อมเช็คบัญชีผู้รับตรงพร้อมเพย์ร้าน
+    pid = None
+    try:
+        pid = promptpay_id()
+    except Exception:
+        pass
+    try:
+        result = verify_slip(
+            file_upload=("slip.jpg", img_bytes, "image/jpeg"),
+            log=True,
+            amount=amount,
+            expected_receiver_proxy=pid,
+        )
+    except SlipOKError as e:
+        logger.warning(f"SlipOK verify failed for {order_id}: {e}")
+        await line_client.reply(reply_token, [
+            line_client.text(f"❌ ตรวจสลิปไม่ผ่าน: {e}\n\nกรุณาส่งสลิปใหม่ หรือติดต่อพนักงานครับ")
+        ])
+        return
+    except Exception as e:
+        logger.exception(f"Unexpected slip verify error: {e}")
+        await line_client.reply(reply_token, [
+            line_client.text("😅 ระบบตรวจสลิปมีปัญหา กรุณาลองใหม่หรือติดต่อพนักงานครับ")
+        ])
+        return
+
+    # ตรวจสลิปผ่าน → อัปเดตออเดอร์เป็น paid ที่ POS
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(
+                f"{POS_API_URL}/pos/orders/{order_id}/payment",
+                json={"method": "PromptPay", "amount_received": amount},
+            )
+        if resp.status_code in (200, 201):
+            session.pop("pay_order_id", None)
+            session.pop("pay_amount", None)
+            session["state"] = "idle"
+            await line_client.reply(reply_token, [
+                line_client.text(
+                    f"✅ ชำระเงินออเดอร์ **{order_id}** สำเร็จแล้ว!\n"
+                    f"ยอด **฿{amount:.0f}** โอนตรงตามสลิปที่ตรวจพบ\n\n"
+                    f"ขอบคุณครับ 🙏"
+                )
+            ])
+        else:
+            logger.error(f"POS payment update failed ({resp.status_code}): {resp.text}")
+            await line_client.reply(reply_token, [
+                line_client.text("⚠️ สลิปตรวจผ่านแล้ว แต่ระบบอัปเดตออเดอร์มีปัญหา ติดต่อพนักงานเพื่อยืนยันครับ")
+            ])
+    except Exception as e:
+        logger.exception(f"POS payment error for {order_id}: {e}")
+        await line_client.reply(reply_token, [
+            line_client.text("⚠️ สลิปตรวจผ่านแล้ว แต่ระบบอัปเดตออเดอร์มีปัญหา ติดต่อพนักงานเพื่อยืนยันครับ")
+        ])
 
 
 async def _check_order(reply_token: str, order_id: str):

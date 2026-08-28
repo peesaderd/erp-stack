@@ -18,9 +18,10 @@ import hashlib
 import hmac
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from line_client import line_client, CHANNEL_SECRET, CHANNEL_ACCESS_TOKEN
@@ -28,6 +29,10 @@ from handlers import handle_webhook
 from line_richmenu import setup_rich_menus
 
 logger = logging.getLogger("line-bot")
+
+# Static dir สำหรับเก็บ QR PromptPay ชั่วคราว (เสิร์ฟผ่าน /slip_qr/*)
+QR_STATIC_DIR = Path(__file__).parent / "qr_static"
+QR_STATIC_DIR.mkdir(parents=True, exist_ok=True)
 
 # ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -236,3 +241,18 @@ async def admin_profile(user_id: str):
         "picture_url": profile.picture_url,
         "status_message": profile.status_message,
     }}
+
+
+# ── PromptPay QR static serving ────────────────────────────────────────────────
+@app.get("/slip_qr/{fname}")
+async def serve_slip_qr(fname: str):
+    """Serve a stored PromptPay QR PNG by filename (used as LINE image URL).
+    Access via https://m2igen.com/line/slip_qr/<fname>.png (nginx /line/ → 8140)."""
+    if not fname.endswith(".png"):
+        raise HTTPException(status_code=400, detail="Only .png allowed")
+    # ป้องกัน path traversal
+    safe = Path(fname).name
+    path = QR_STATIC_DIR / safe
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="QR not found")
+    return FileResponse(str(path), media_type="image/png")

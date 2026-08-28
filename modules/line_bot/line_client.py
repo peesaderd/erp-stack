@@ -108,7 +108,26 @@ class LineClient:
         )
         if resp.status_code != 200:
             logger.error(f"Push failed ({resp.status_code}): {resp.text}")
+
         return resp.status_code, resp.json() if resp.text else {}
+
+    # ── Get message content (image/video) ────────────────────────────────
+
+    async def get_message_content(self, message_id: str) -> Optional[bytes]:
+        """Download binary content (e.g. payslip image) for a message ID.
+        Returns bytes, or None on failure."""
+        try:
+            resp = await self._client.get(
+                f"{API_BASE}/message/{message_id}/content",
+                headers=get_headers(),
+            )
+            if resp.status_code == 200:
+                return resp.content
+            logger.error(f"Get content {message_id} failed ({resp.status_code})")
+            return None
+        except Exception as e:
+            logger.error(f"Get content {message_id} error: {e}")
+            return None
 
     # ── Multicast ────────────────────────────────────────────────────────
 

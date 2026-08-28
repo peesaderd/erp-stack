@@ -1137,11 +1137,13 @@ select.input { cursor: pointer; }
       <span class="text-sm" style="font-weight:600">🤖 ดึงสินค้าใหม่จาก TikTok (Apify)</span>
       <span class="text-xs text-tertiary">แปะ share link หรือพิมพ์ keyword แล้วกดดึง</span>
     </div>
-    <div style="display:flex;gap:8px;align-items:center">
-      <input class="input" id="apifyInput" placeholder="แปะลิงก์ vt.tiktok.com/... หรือ พิมพ์ชื่อสินค้า" value="" style="flex:1" onkeydown="if(event.key==='Enter') apifyImport()">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <input class="input" id="apifyInput" placeholder="แปะลิงก์ vt.tiktok.com/... หรือ พิมพ์ชื่อสินค้า" value="" style="flex:1;min-width:180px" onkeydown="if(event.key==='Enter') apifyImport()">
       <button class="btn btn-secondary btn-sm" onclick="document.getElementById('apifyInput').value='';document.getElementById('apifyResult').textContent='';document.getElementById('apifyResult').className='text-xs text-secondary mt-1'">✕ ล้าง</button>
       <button class="btn btn-primary btn-sm" id="apifyImportBtn" onclick="apifyImport()">🚀 ดึงข้อมูล</button>
-      <button class="btn btn-secondary btn-sm" onclick="openBatchModal()">📦 Batch Upload</button>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+      <button class="btn btn-secondary" onclick="openBatchModal()" style="flex:1;justify-content:center">📦 Batch Upload <span class="text-xs text-secondary">(วางหลายรายการพร้อมกัน)</span></button>
     </div>
     <div id="apifyResult" class="text-xs text-secondary mt-1"></div>
   </div>

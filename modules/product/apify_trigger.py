@@ -99,6 +99,42 @@ def extract_product_title_from_url(url: str) -> str:
         return ""
 
 
+def _clean_keyword(kw: str, max_len: int = 60) -> str:
+    """Tidy a raw product title into a concise search keyword.
+
+    cunning_soil search matches by text; long promotions / bracketed tags /
+    percent-encoding make it return 0 results. Strip brackets and promo words,
+    decode spaces, drop redundant promo tokens, and cap length.
+    """
+    kw = (kw or "").strip()
+    if not kw:
+        return ""
+    # URL-encoded spaces
+    try:
+        if "%" in kw:
+            import urllib.parse as _up
+            kw = _up.unquote(kw)
+    except Exception:
+        pass
+    kw = kw.replace("+", " ")
+    # Drop bracketed promotion tags, e.g. [2 ชิ้น ลด 20% | 3 ชิ้น ลด 30%]
+    import re as _re
+    kw = _re.sub(r"\[[^\]]*\]", " ", kw)
+    kw = _re.sub(r"\([^)]*(ลด|ชิ้น|%|off|OFF)\b[^)]*\)", " ", kw)
+    # Drop standalone promo tokens
+    promo = _re.compile(r"\b(ลด\s*\d+\s*%|\d+\s*%|ชิ้น|ชิ้นขึ้นไป|ลด|off|OFF|%)\b")
+    kw = promo.sub(" ", kw)
+    # Collapse whitespace
+    kw = _re.sub(r"\s+", " ", kw).strip()
+    # Cap length on a word boundary
+    if len(kw) > max_len:
+        cut = kw[:max_len]
+        if " " in cut:
+            cut = cut.rsplit(" ", 1)[0]
+        kw = cut.strip()
+    return kw
+
+
 def resolve_link(link: str) -> Tuple[str, str, str]:
     """Resolve a link to (product_id, canonical_product_url, product_title).
     Handles:
@@ -310,13 +346,18 @@ async def scrape_and_ingest(
     if not keyword:
         return {"success": False, "error": "ไม่สามารถระบุสินค้าได้จากข้อมูลที่ส่งมา (ไม่มี keyword หรือ product id)"}
 
+    # Tidy the keyword: long promo-laden titles make the search actor return 0.
+    search_kw = _clean_keyword(keyword)
+    if not search_kw:
+        search_kw = keyword  # fallback to the raw keyword if we stripped everything
+
     run_input = {
-        "query": keyword,
+        "query": search_kw,
         "region": region,
         "resultsLimit": limit,
         "outputMode": "formatted_filtered",
     }
-    logger.info(f"Keyword search via Apify {ACTOR_SEARCH} (query={keyword}, region={region}, limit={limit})")
+    logger.info(f"Keyword search via Apify {ACTOR_SEARCH} (query={search_kw}, region={region}, limit={limit})")
     items = await _call_actor(ACTOR_SEARCH, run_input)
     actors_used = [ACTOR_SEARCH]
     if not items:
@@ -344,7 +385,10 @@ async def _run_pipeline(
     """Feed one mapped product through ingest_from_apify."""
     product_id = mapped.get("productId", "")
     if not product_id:
-        return {"success": False, "error": "Apify ไม่คืน product_id", "raw": mapped.get("_source_item"), "actors_used": actors_used}
+        logger.error(
+            f"Apify ไม่คืน product_id: raw_source={mapped.get('_source_item')!r} mapped_keys={list(mapped.keys())}"
+        )
+        return {"success": False, "error": "Apify ไม่คืน product_id", "raw": mapped.get("_source_item"), "mapped": mapped, "actors_used": actors_used}
 
     from product.pipeline_service import ingest_from_apify
 

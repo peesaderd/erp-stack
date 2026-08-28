@@ -1143,29 +1143,31 @@ select.input { cursor: pointer; }
       <button class="btn btn-primary btn-sm" id="apifyImportBtn" onclick="apifyImport()">🚀 ดึงข้อมูล</button>
     </div>
     <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
-      <button class="btn btn-secondary" onclick="openBatchModal()" style="flex:1;justify-content:center">📦 Batch Upload <span class="text-xs text-secondary">(วางหลายรายการพร้อมกัน)</span></button>
+      <button class="btn btn-secondary" onclick="openApifyBatchModal()" style="flex:1;justify-content:center">📦 Batch Upload <span class="text-xs text-secondary">(เพิ่ม share link / keyword)</span></button>
     </div>
     <div id="apifyResult" class="text-xs text-secondary mt-1"></div>
   </div>
 
-  <!-- Batch Upload Modal -->
-  <div id="batchModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1000;align-items:center;justify-content:center">
+  <!-- Apify Batch Upload Modal (แยกจาก Batch Generator วิดีโอ — ใช้ id/ฟังก์ชันเฉพาะ ไม่ให้ทับกัน) -->
+  <div id="apifyBatchModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1000;align-items:center;justify-content:center">
     <div style="background:var(--bg-primary,#fff);border-radius:12px;max-width:640px;width:92%;max-height:85vh;overflow:auto;padding:20px;box-shadow:0 10px 40px rgba(0,0,0,0.35)">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <span style="font-weight:700;font-size:15px">📦 Batch Upload (Apify)</span>
-        <button onclick="closeBatchModal()" style="border:none;background:none;cursor:pointer;font-size:20px;line-height:1">✕</button>
+        <button onclick="closeApifyBatchModal()" style="border:none;background:none;cursor:pointer;font-size:20px;line-height:1">✕</button>
       </div>
-      <div class="text-xs text-secondary" style="margin-bottom:8px">วางทีละหลายรายการ แยกบรรทัดละ 1 รายการ (share link หรือ keyword ก็ได้) แล้วกดเริ่ม ระบบจะประมวลผลทีละตัวตามลำดับ</div>
-      <textarea id="batchTextarea" rows="8" class="input" style="width:100%;font-family:monospace;font-size:13px" placeholder="https://vt.tiktok.com/xxxx/
-https://vt.tiktok.com/yyyy/
-ครีมกันแดด SPF50
-..."></textarea>
-      <div style="display:flex;gap:8px;align-items:center;margin-top:10px">
+      <div class="text-xs text-secondary" style="margin-bottom:8px">ใส่ TikTok share link หรือ keyword ทีละอัน กด “➕ เพิ่ม” เพื่อเพิ่มรายการ (ลบได้เมื่อคลิก ✕) แล้วกด “🚀 ส่ง Apify” เพื่อดึงข้อมูลทั้งหมด ระบบจะประมวลผลทีละตัวตามลำดับ — รายการที่เพิ่มไว้จะถูกบันทึกอัตโนมัติ ไม่หายแม้ปิดหน้าต่าง</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input id="batchInput" class="input" placeholder="แปะลิงก์ vt.tiktok.com/... หรือ พิมพ์ชื่อสินค้า / keyword" value="" style="flex:1;min-width:220px" onkeydown="if(event.key==='Enter'){event.preventDefault();addApifyBatchItem()}">
+        <button class="btn btn-primary btn-sm" onclick="addApifyBatchItem()" style="background:linear-gradient(135deg,#8b5cf6,#f43f5e);border:none">➕ เพิ่ม</button>
+      </div>
+      <div id="batchItemsWrap" style="margin-top:10px"></div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:12px">
         <label class="text-xs text-secondary">Region:</label>
         <select id="batchRegion" class="input" style="width:90px"><option value="TH">TH</option><option value="US">US</option><option value="ID">ID</option><option value="MY">MY</option><option value="SG">SG</option><option value="VN">VN</option><option value="PH">PH</option></select>
         <div style="flex:1"></div>
-        <button class="btn btn-secondary btn-sm" onclick="closeBatchModal()">ปิด</button>
-        <button class="btn btn-primary btn-sm" id="batchRunBtn" onclick="apifyBatch()">▶ เริ่ม Batch</button>
+        <button class="btn btn-secondary btn-sm" onclick="clearApifyBatchAll()">🗑 ล้างทั้งหมด</button>
+        <button class="btn btn-secondary btn-sm" onclick="closeApifyBatchModal()">ปิด</button>
+        <button class="btn btn-primary btn-sm" id="batchRunBtn" onclick="apifyBatch()">🚀 ส่ง Apify</button>
       </div>
       <div id="batchResult" class="text-xs mt-2" style="white-space:pre-wrap"></div>
       <div id="batchProgressWrap" style="display:none;margin-top:8px">
@@ -4466,28 +4468,86 @@ async function apifyImport() {
 }
 
 
-/** Open the batch-upload modal. */
-function openBatchModal() {
-  const m = document.getElementById('batchModal');
+/** ═══ Apify Batch Upload modal (แยกจาก Batch Generator วิดีโอ) ═══ */
+/* รายการ share link/keyword ที่เพิ่มไว้ — เก็บใน localStorage เพื่อไม่หายแม้ปิด modal หรือ reload */
+const APIFY_DRAFT_KEY = 'us_batch_apify_draft';
+function apifyGetDraft() {
+  try { return JSON.parse(localStorage.getItem(APIFY_DRAFT_KEY) || '[]'); }
+  catch (e) { return []; }
+}
+function apifySaveDraft(list) {
+  try { localStorage.setItem(APIFY_DRAFT_KEY, JSON.stringify(list)); }
+  catch (e) {}
+}
+
+/** เปิด modal Apify batch upload + render รายการเดิมที่บันทึกไว้ */
+function openApifyBatchModal() {
+  const m = document.getElementById('apifyBatchModal');
   m.style.display = 'flex';
-  document.getElementById('batchTextarea').focus();
+  renderApifyBatchItems();
+  const inp = document.getElementById('batchInput');
+  if (inp) inp.focus();
 }
 
-/** Close the batch-upload modal. */
-function closeBatchModal() {
-  document.getElementById('batchModal').style.display = 'none';
+/** ปิด modal Apify batch upload (รายการถูกบันทึกไว้แล้ว ไม่หาย) */
+function closeApifyBatchModal() {
+  document.getElementById('apifyBatchModal').style.display = 'none';
 }
 
-/** Parse multi-line textarea into a list of non-empty lines. */
-function parseBatchLines(text) {
-  return String(text || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+/** เพิ่มรายการเดียวจากช่อง input ลง draft + render */
+function addApifyBatchItem() {
+  const inp = document.getElementById('batchInput');
+  const val = (inp ? inp.value : '').trim();
+  if (!val) { showToast('กรุณาพิมพ์ share link หรือ keyword ก่อนเพิ่ม'); return; }
+  const list = apifyGetDraft();
+  list.push({ text: val, addedAt: Date.now() });
+  apifySaveDraft(list);
+  if (inp) inp.value = '';
+  renderApifyBatchItems();
+  if (inp) inp.focus();
 }
 
-/** Run batch upload: many share-links / keywords -> Apify -> ingest -> list. */
+/** ลบรายการที่ index หนึ่งจาก draft + render */
+function removeApifyBatchItem(idx) {
+  const list = apifyGetDraft();
+  if (idx >= 0 && idx < list.length) { list.splice(idx, 1); apifySaveDraft(list); }
+  renderApifyBatchItems();
+}
+
+/** ล้างรายการทั้งหมด (ยืนยันแล้ว) */
+function clearApifyBatchAll() {
+  if (!apifyGetDraft().length) return;
+  if (!confirm('ล้างรายการทั้งหมด ' + apifyGetDraft().length + ' รายการที่เพิ่มไว้หรือไม่?')) return;
+  apifySaveDraft([]);
+  renderApifyBatchItems();
+  showToast('ล้างรายการแล้ว');
+}
+
+/** render รายการใน modal (เป็น list ที่มีปุ่มลบทีละอัน) */
+function renderApifyBatchItems() {
+  const wrap = document.getElementById('batchItemsWrap');
+  if (!wrap) return;
+  const list = apifyGetDraft();
+  if (!list.length) {
+    wrap.innerHTML = '<div class="text-xs text-secondary">ยังไม่มีรายการ — ด้านบนพิมพ์แล้วกด “➕ เพิ่ม” เพื่อเพิ่ม TikTok link หรือ keyword</div>';
+    return;
+  }
+  wrap.innerHTML = list.map(function(it, idx) {
+    const isLink = /(vt\.tiktok\.com|shop\.tiktok\.com|tiktok\.com)/i.test(it.text);
+    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--border-primary,rgba(255,255,255,0.08));border-radius:8px;margin-bottom:6px">'
+      + '<span style="font-size:11px;color:var(--text-tertiary);min-width:22px">' + (idx + 1) + '.</span>'
+      + '<span class="badge" style="font-size:10px;background:' + (isLink ? 'rgba(99,102,241,0.16);color:#a5b4fc' : 'rgba(236,72,153,0.16);color:#f9a8d4') + ';font-weight:700">' + (isLink ? '🔗 link' : '🔑 keyword') + '</span>'
+      + '<span style="flex:1;font-size:12.5px;word-break:break-word">' + it.text + '</span>'
+      + '<button onclick="removeApifyBatchItem(' + idx + ')" style="border:none;background:rgba(231,76,60,0.12);color:#e74c3c;cursor:pointer;font-size:13px;border-radius:6px;padding:2px 7px">✕</button>'
+      + '</div>';
+  }).join('');
+}
+
+/** Run Apify batch upload: ใช้รายการที่เพิ่มไว้ -> Apify -> ingest -> list. */
 async function apifyBatch() {
-  const lines = parseBatchLines(document.getElementById('batchTextarea').value);
+  const lines = apifyGetDraft().map(function(it) { return it.text; });
   if (!lines.length) {
-    showToast('กรุณาใส่อย่างน้อย 1 รายการ (link หรือ keyword)');
+    showToast('กรุณาเพิ่มอย่างน้อย 1 รายการ (link หรือ keyword) ก่อนส่ง');
     return;
   }
   const region = document.getElementById('batchRegion').value;
@@ -4539,7 +4599,7 @@ async function apifyBatch() {
     showToast('Batch ผิดพลาด: ' + e.message);
   } finally {
     runBtn.disabled = false;
-    runBtn.textContent = '▶ เริ่ม Batch';
+    runBtn.textContent = '🚀 ส่ง Apify';
   }
 }
 

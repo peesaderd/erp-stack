@@ -1135,10 +1135,10 @@ select.input { cursor: pointer; }
   <div class="card mb-3" style="padding:12px;border:1px dashed var(--border-color)">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
       <span class="text-sm" style="font-weight:600">🤖 ดึงสินค้าใหม่จาก TikTok (Apify)</span>
-      <span class="text-xs text-tertiary">กด Batch Upload เพื่อเพิ่ม share link / keyword ทีละหลายรายการ</span>
+      <span class="text-xs text-tertiary">กดดึงสินค้าจาก TikTok เพื่อเพิ่ม share link / keyword ทีละหลายรายการ</span>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
-      <button class="btn btn-primary" onclick="openApifyBatchModal()" style="flex:1;justify-content:center">📦 Batch Upload <span class="text-xs text-secondary">(เพิ่ม share link / keyword ทีละหลายรายการ)</span></button>
+      <button class="btn btn-primary" onclick="openApifyBatchModal()" style="flex:1;justify-content:center">📦 ดึงสินค้าจาก TikTok <span class="text-xs text-secondary">(เพิ่ม share link / keyword ทีละหลายรายการ)</span></button>
     </div>
   </div>
 
@@ -1146,7 +1146,7 @@ select.input { cursor: pointer; }
   <div id="apifyBatchModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1000;align-items:center;justify-content:center">
     <div style="background:var(--bg-primary,#fff);border-radius:12px;max-width:640px;width:92%;max-height:85vh;overflow:auto;padding:20px;box-shadow:0 10px 40px rgba(0,0,0,0.35)">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-        <span style="font-weight:700;font-size:15px">📦 Batch Upload (Apify)</span>
+        <span style="font-weight:700;font-size:15px">📦 ดึงสินค้าจาก TikTok</span>
         <button onclick="closeApifyBatchModal()" style="border:none;background:none;cursor:pointer;font-size:20px;line-height:1">✕</button>
       </div>
       <div class="text-xs text-secondary" style="margin-bottom:8px">ใส่ TikTok share link หรือ keyword ทีละอัน กด “➕ เพิ่ม” เพื่อเพิ่มรายการ (ลบได้เมื่อคลิก ✕) แล้วกด “🚀 ส่ง Apify” เพื่อดึงข้อมูลทั้งหมด ระบบจะประมวลผลทีละตัวตามลำดับ — รายการที่เพิ่มไว้จะถูกบันทึกอัตโนมัติ ไม่หายแม้ปิดหน้าต่าง</div>

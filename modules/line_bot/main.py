@@ -27,8 +27,23 @@ from fastapi.middleware.cors import CORSMiddleware
 from line_client import line_client, CHANNEL_SECRET, CHANNEL_ACCESS_TOKEN
 from handlers import handle_webhook
 from line_richmenu import setup_rich_menus
+from store_payment import router as store_payment_router
 
 logger = logging.getLogger("line-bot")
+
+# ── โหลด .env จาก root ของ erp-stack (SlipOK / PromptPay / ฯลฯ) ─────────────
+# pm2 `env_file` อาจไม่อ่าน env เข้า child process เสมอไป (โดยเฉพาะหลัง restart) →
+# โหลดตรง ๆ เพื่อให้ process มี SLIPOK_BRANCH_ID / SLIPOK_API_KEY / PROMPTPAY_ID เสมอ
+_env_path = Path(__file__).resolve().parents[2] / ".env"  # /home/openhands/erp-stack/.env
+if _env_path.exists():
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(_env_path, override=False)
+        logger.info(f"Loaded env file: {_env_path}")
+    except Exception as _e:  # pragma: no cover
+        logger.warning(f"dotenv load failed ({_e}); relying on process env")
+else:
+    logger.warning(f".env not found at {_env_path}; using process env only")
 
 # Static dir สำหรับเก็บ QR PromptPay ชั่วคราว (เสิร์ฟผ่าน /slip_qr/*)
 QR_STATIC_DIR = Path(__file__).parent / "qr_static"
@@ -75,6 +90,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ── M2I App Store — ชำระเงินกลาง (ต้อง login ก่อนจ่าย) ─────────────────────
+app.include_router(store_payment_router)
 
 
 # ── LINE Signature Verification ───────────────────────────────────────────

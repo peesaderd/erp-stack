@@ -1,7 +1,7 @@
 """
 SlipOK Client — ตรวจสอบสลิป/ยอดเงินเข้าจริง (verify payslip via SlipOK API)
 
-Docs: SlipOK_API_Guide v1.13 (2026-02-28) — พี่ให้ docs + API key (Branch ID 74705)
+Docs: SlipOK_API_Guide v1.13 (2026-02-28) — พี่ให้ docs + API key (Branch ID จาก .env)
 Endpoint ตรวจสลิป:
   POST https://api.slipok.com/api/line/apikey/<BRANCH_ID>
   Header: { x-authorization: <API_KEY> }

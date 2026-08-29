@@ -1071,11 +1071,13 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
                     # No profile/selected action: use the light-even-layer / gentle
                     # blend hint (owner 2026-08-29: ครีมต้องจาง ๆ เกลี่ยเบา ๆ ไม่เป็นก้อน).
                     _mk_action = _apply_hint(subcategory, category, profile)
+                # Owner 2026-08-29 17:54: start/apply/stop ชัดเจนบนหน้า — ไม่ใช่แค่ holds/continues
+                # Scene 2 = เริ่มยกมือแตะครีม, Scene 3 = เกลี่ยให้ทั่วหน้า, Scene 4 = หยุดทา โชว์ผล
                 beats = [
                     f"Scene 1: {gender_en} holds {vp_product} up close to the camera, label crisp, {gender_en} gives a warm natural smile",
-                    f"Scene 2: {gender_en} {_mk_action}",
-                    f"Scene 3: {gender_en} continues {_mk_action.rstrip('.')} while smiling warmly, face kept clear and forward, product stays sharp",
-                    f"Scene 4: {gender_en} finishes, holds {vp_product} up front, smiling with a happy result, showing the product clearly",
+                    f"Scene 2: {gender_en} begins applying {vp_product} by gently dabbing it onto her face with fingertips, the cream touching her cheek",
+                    f"Scene 3: {gender_en} blends {vp_product} evenly over her entire face with a soft circular motion, cream fully spread on the skin, face kept clear and forward",
+                    f"Scene 4: {gender_en} finishes applying, stops her hands, gently lowers them, turns her smoothened face to the camera and smiles showing the finished even result while {vp_product} stays visible beside her",
                 ]
 
         video_prompt = (

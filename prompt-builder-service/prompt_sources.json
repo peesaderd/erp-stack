@@ -1238,8 +1238,8 @@
         "hand": "her hand",
         "nails": "her nails",
         "lips": "her lips",
-        "body": "her hand",
-        "whole-body": "her hand",
+        "body": "her body",
+        "whole-body": "her body",
         "foot": "her foot"
       },
       "by_subcategory": {
@@ -1261,7 +1261,8 @@
         "stretch_marks": "the stretch marks",
         "eye_cream": "around her eyes",
         "toner": "her face",
-        "foot_cream": "her foot"
+        "foot_cream": "her foot",
+        "makeup_tutorial": "her face"
       },
       "by_category": {
         "skincare": "her face",

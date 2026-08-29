@@ -206,6 +206,14 @@ class UpdateOrderRequest(BaseModel):
     notes: Optional[str] = None
 
 
+class VerifyPaymentRequest(BaseModel):
+    """ตรวจสลิปชำระเงินผ่าน SlipOK + อัปเดต order เป็นจ่ายแล้ว"""
+    order_ref: str                    # เลขใบสั่ง (PD-...) เพื่อค้นหา order
+    tx_id: str                        # เลขธุรกรรมจาก payment กลาง (TX-...)
+    slip_base64: str                  # base64 JSON จาก SlipOK OCR (payment_data)
+    amount: Optional[float] = None    # ยอดที่คาดหวัง (ไม่ให้ = ใช้ยอดจาก payment_central)
+
+
 class UpdateDeliveryRequest(BaseModel):
     """อัปเดตฟิลด์จัดส่ง (ทุก field optional)"""
     status: Optional[str] = None
@@ -1320,11 +1328,53 @@ def create_order(req: CreateOrderRequest):
         if not order:
             raise HTTPException(502, "Failed to create order")
 
+        # 3.5) ต่อ payment กลาง (schema-engine /api/v1/payment/order) — ไม่ทับของดีเดิม
+        #      ถ้า payment กลางล่ม/logic ผิด → order หลักยังต้องสำเร็จ (soft-fail)
+        payment = None
+        try:
+            resp = requests.post(
+                f"{SCHEMA_ENGINE_URL}/api/v1/payment/order",
+                json={
+                    "amount": grand_total,
+                    "source_app": "passport",
+                    "description": f"PassportPhoto order {order.get('order_number')}",
+                    "customer_name": req.customer_name or None,
+                    "customer_id": customer_id,
+                    "order_ref": order.get("order_number"),
+                    "currency": "THB",
+                    "payment_method": "promptpay",
+                    "with_qr": True,
+                },
+                timeout=15,
+            )
+            if resp.status_code == 200:
+                pay = resp.json().get("transaction") or {}
+                tx_id = pay.get("tx_id")
+                if tx_id:
+                    payment = {
+                        "tx_id": tx_id,
+                        "qr": (resp.json().get("qr") or {}) if resp.status_code == 200 else None,
+                    }
+                    # เก็บ ref กลับเข้า commerce_order (ฟิลด์ที่มีอยู่แล้ว)
+                    order_id = order.get("_id")
+                    if order_id:
+                        try:
+                            commerce_client.update_order(order_id, {"m2i_payment_ref": tx_id})
+                            order["m2i_payment_ref"] = tx_id
+                        except Exception as e:
+                            logger.warning(f"[{order.get('order_number')}] update m2i_payment_ref failed: {e}")
+            else:
+                logger.warning(f"[payment] central /order HTTP {resp.status_code}: {resp.text[:200]}")
+        except Exception as e:
+            # soft-fail: อย่าให้ payment กลางล่มแล้วพัง order หลัก
+            logger.warning(f"[payment] central /order call failed (soft-fail): {e}")
+
         return {
             "ok": True,
             "order": order,
             "order_number": order.get("order_number"),
             "grand_total": grand_total,
+            "payment": payment,
         }
     except CommerceError as e:
         raise HTTPException(502, f"Commerce service error: {e}")
@@ -1421,6 +1471,59 @@ def update_delivery_status(delivery_id: str, req: UpdateStatusRequest):
     if not updated:
         raise HTTPException(404, "Delivery not found or update failed")
     return {"ok": True, "delivery": updated}
+
+
+@app.post("/api/passport/order/verify")
+def verify_order_payment(req: VerifyPaymentRequest):
+    """ตรวจสลิปชำระเงิน (SlipOK ผ่าน payment กลาง) + อัปเดต order เป็นจ่ายแล้ว.
+    ต่อ payment กลาง (schema-engine /api/v1/payment/verify) — error ถ้าล่มจะบอกผู้ใช้.
+    """
+    # 1) หา order ตาม order_number
+    order = commerce_client.get_order_by_number(req.order_ref)
+    if not order:
+        raise HTTPException(404, f"Order not found: {req.order_ref}")
+    order_id = order.get("_id")
+
+    # 2) เรียก payment กลาง verify (SlipOK)
+    try:
+        resp = requests.post(
+            f"{SCHEMA_ENGINE_URL}/api/v1/payment/verify",
+            json={
+                "tx_id": req.tx_id,
+                "payment_data": req.slip_base64,
+                "amount": req.amount,
+            },
+            timeout=20,
+        )
+    except Exception as e:
+        raise HTTPException(502, f"Payment verify service error: {e}")
+
+    body = resp.json()
+    if resp.status_code != 200 or not body.get("success"):
+        raise HTTPException(resp.status_code, body.get("error") or "Payment verification failed")
+
+    # 3) สำเร็จ → อัปเดต order เป็นจ่ายแล้ว + เก็บ slip info
+    slip = (body.get("slip") or {})
+    updated = None
+    if order_id:
+        try:
+            updated = commerce_client.update_order(order_id, {
+                "payment_status": "paid",
+                "status": "paid",
+                "payment_method": "promptpay",
+                "notes": (order.get("notes") or "") + f"\n paid via SlipOK trans_ref={slip.get('trans_ref')}",
+            })
+        except Exception as e:
+            logger.warning(f"[verify] update order {req.order_ref} paid failed: {e}")
+
+    return {
+        "ok": True,
+        "order_ref": req.order_ref,
+        "tx_id": req.tx_id,
+        "transaction": (body.get("transaction") or {}),
+        "slip": slip,
+        "order": updated or order,
+    }
 
 
 # ═══════════════════════════════════════════════════════════

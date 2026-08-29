@@ -1098,6 +1098,17 @@ def run_pipeline(
         # auto ใช้บทนั้นเป็น thai_script + บังคับ use_tus_voice=True
         # ไม่มี Gemini TTS lip-sync แล้ว — เสียงในไฟล์จริงคือเสียงของ Wan เท่านั้น
         thai_script = (thai_script or script or "").strip()
+        # 🔴 SAFETY NET (owner 2026-08-29): สุดท้ายก่อนฝังเข้า prompt ให้ Wan
+        # ทับศัพท์ไทยล้วนเสมอ ไม่ว่าบทจะมาจากเส้นทางไหน (ลูกค้าส่งตรง / script_gen /
+        # งานเก่า pre-computed) กันคำยากอังกฤษ (SPF50+ PA++++ 50g 30ml, Dr.PONG ฯลฯ)
+        # หลุดเข้าบทที่ Wan พูด เพราะคำโรมันยาก ๆ Wan อ่านไม่ออกแล้วเพี้ยนช่วงท้าย
+        if thai_script:
+            try:
+                from prompt_builder import _tts_product_name
+                thai_script = _tts_product_name(thai_script) or thai_script
+            except Exception as _e_safety:
+                logger.warning(f"  ⚠ safety-net transliterate skipped: {_e_safety}")
+        thai_script = thai_script.strip()
         if thai_script and not use_tus_voice:
             # เจ้าสั่งให้ Wan พูด Thai script เสมอใน flow ปกติ → เปิดโหมด A อัตโนมัติ
             use_tus_voice = True

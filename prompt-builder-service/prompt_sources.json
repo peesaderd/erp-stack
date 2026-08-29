@@ -1239,7 +1239,8 @@
         "nails": "her nails",
         "lips": "her lips",
         "body": "her hand",
-        "whole-body": "her hand"
+        "whole-body": "her hand",
+        "foot": "her foot"
       },
       "by_subcategory": {
         "underarm_cream": "her underarm",
@@ -1259,7 +1260,8 @@
         "conditioner": "her hair",
         "stretch_marks": "the stretch marks",
         "eye_cream": "around her eyes",
-        "toner": "her face"
+        "toner": "her face",
+        "foot_cream": "her foot"
       },
       "by_category": {
         "skincare": "her face",

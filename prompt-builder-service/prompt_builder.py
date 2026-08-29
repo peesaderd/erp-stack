@@ -708,7 +708,9 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             f"Cohesive consistent style, high quality product photography. --ar 9:16"
         )
         logger.info(f"  Image prompt (no-human single 9:16 {style_l}, {len(image_prompt)} chars)")
-        image_prompt = _apply_prompt_anchor(ugc_style, image_prompt, product_name)
+        image_prompt = _apply_prompt_anchor(ugc_style, image_prompt, product_name,
+                                            category=category, subcategory=subcategory,
+                                            body_part=profile.get("body_part", ""))
         negative = _load_image_negative()  # SSOT prompt_sources.json (owner 2026-08-25)
         logger.info(f"  Image prompt (single 9:16 {len(image_prompt)} chars): {image_prompt[:100]}...")
         return image_prompt, negative
@@ -728,7 +730,9 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         f"photography. --ar 9:16"
     )
     logger.info(f"  Image prompt (single continuous 9:16 {len(image_prompt)} chars): {image_prompt[:100]}...")
-    image_prompt = _apply_prompt_anchor(ugc_style, image_prompt, product_name)
+    image_prompt = _apply_prompt_anchor(ugc_style, image_prompt, product_name,
+                                        category=category, subcategory=subcategory,
+                                        body_part=profile.get("body_part", ""))
     negative = _load_image_negative()  # SSOT prompt_sources.json (owner 2026-08-25)
     return image_prompt, negative
 
@@ -858,12 +862,18 @@ def _apply_hint(subcategory=None, category=None, profile=None):
 
 
 def _apply_prompt_anchor(
-    ugc_style: str, video_prompt: str, vp_product: str = ""
+    ugc_style: str, video_prompt: str, vp_product: str = "",
+    category: str = "", subcategory: str = "", body_part: str = "",
 ) -> str:
     """Append the per-style prompt_anchor (from UGC_STYLES config) to the video
     prompt so Wan knows the shot/composition anchor it must follow. The anchor
     substitutes {product} / [product] placeholders with the (cleaned) product
     name. Falls back to the original prompt if the style has no anchor.
+
+    Auto-update (owner 2026-08-29): for cream/beauty/skincare apply products the
+    anchor is served from the SSOT `apply_cream` style (ugc_styles.json) with the
+    target body area pulled from SSOT apply_hints — so editing the SSOT (area /
+    wording) auto-updates the anchor instead of hardcoding a hold pose.
     """
     style = (ugc_style or "").strip().lower()
     # review is a TALKING style, but gets its OWN placed-on-table anchor
@@ -872,9 +882,57 @@ def _apply_prompt_anchor(
     # maps to talking_head so its dedicated anchor is used.
     if style in ("talking", "talking_head"):
         style = "talking_head"
+    # ── Owner 2026-08-29: cream/beauty apply → use SSOT apply_cream anchor ──
+    sub2 = (subcategory or "").strip().lower()
+    cat2 = (category or "").strip().lower()
+    bp2 = (body_part or "").strip().lower()
+    _FACE_CREAM = {"sunscreen", "moisturizer", "serum", "eye_cream", "toner",
+                   "face_whitening", "foundation"}
+    # Owner 2026-08-29: a product is an "apply" (cream/lotion/serum) when its
+    # category is skincare, or subcategory is in SSOT apply_hints (auto — covers
+    # moisturizer/body_whitening/underarm_cream/stretch_marks/toner/... all spots:
+    # face/arm/belly/underarm/foot), or body_part points at a body area (not hand).
+    _apply_hints_keys = set()
+    _ah_loaded = {}
+    try:
+        _ah_loaded = _load_ssot_extras()["apply_hints"]
+        _apply_hints_keys = set(_ah_loaded.get("by_subcategory", {}).keys())
+    except Exception:
+        _apply_hints_keys = set()
+    _is_apply = (
+        cat2 == "skincare"
+        or cat2 == "beauty"
+        or ("makeup" in sub2)
+        or (sub2 in _FACE_CREAM)
+        or (sub2 in _apply_hints_keys)
+        or (bp2 and bp2.replace(" ", "-").replace("_", "-") not in ("hand", "hands"))
+    )
+    if _is_apply:
+        try:
+            _ah = _ah_loaded or _load_ssot_extras()["apply_hints"]
+            _area = (
+                _ah["by_body_part"].get(bp2.replace(" ", "-").replace("_", "-"))
+                or _ah["by_subcategory"].get(sub2)
+                or _ah["by_category"].get(cat2)
+                or _ah["default_area"]
+            )
+            _styles = _load_ugc_styles().get("UGC_STYLES", {})
+            cream_anchor = (_styles.get("apply_cream", {}) or {}).get("prompt_anchor")
+            if cream_anchor:
+                anchor = (cream_anchor.replace("[product]", vp_product.strip() or "the cream")
+                                    .replace("{product}", vp_product.strip() or "the cream")
+                                    .replace("{area}", _area))
+            else:
+                anchor = None
+        except Exception:
+            anchor = None
+        if anchor:
+            # SSOT apply_cream anchor wins over the generic style anchor for cream.
+            return video_prompt.rstrip() + f" Composition: {anchor.strip()}".rstrip()
     anchor = None
     try:
         _styles = _load_ugc_styles().get("UGC_STYLES", {})
+
         anchor = (_styles.get(style, {}) or {}).get("prompt_anchor")
     except Exception:
         anchor = None
@@ -1034,7 +1092,10 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         logger.info(f"  Video prompt (4-beat, {len(video_prompt)} chars multi-line):")
         for l in video_prompt.split('\n'):
             logger.info(f"    {l}")
-        return _apply_prompt_anchor(ugc_style, video_prompt, vp_product)
+        return _apply_prompt_anchor(ugc_style, video_prompt, vp_product,
+                                    category=profile.get("category", ""),
+                                    subcategory=profile.get("subcategory", ""),
+                                    body_part=profile.get("body_part", ""))
 
     # Build short video prompt with end scene (start + transition + end)
     # Wan 2.7 generates 1 continuous clip from a single image ref.
@@ -1073,7 +1134,10 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
                 f"smooth continuous rotation, no human, no hands in frame, crisp focus, "
                 f"then settles centered showing {_result} at {_end_cam}, 9:16, smooth motion"
             )
-        video_prompt = _apply_prompt_anchor(ugc_style, video_prompt, _vp_product)
+        video_prompt = _apply_prompt_anchor(ugc_style, video_prompt, _vp_product,
+                                            category=profile.get("category", ""),
+                                            subcategory=profile.get("subcategory", ""),
+                                            body_part=profile.get("body_part", ""))
         video_prompt = apply_mouth_steer(video_prompt, ugc_style, is_speaking=bool((script or "").strip()))
         logger.info(f"  Video prompt (no-human {style_l}, {len(video_prompt)} chars): {video_prompt[:80]}...")
         return video_prompt
@@ -1166,7 +1230,10 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     video_prompt = apply_mouth_steer(video_prompt, ugc_style, is_speaking=bool((script or "").strip()))
 
     logger.info(f"  Video prompt ({len(video_prompt)} chars): {video_prompt[:80]}...")
-    return _apply_prompt_anchor(ugc_style, video_prompt, _clean_product_name_for_video(product_name))
+    return _apply_prompt_anchor(ugc_style, video_prompt, _clean_product_name_for_video(product_name),
+                                category=profile.get("category", ""),
+                                subcategory=profile.get("subcategory", ""),
+                                body_part=profile.get("body_part", ""))
 def _normalize_age(raw_age) -> int:
     """Extract the minimum age from target_age range (e.g., '25-35' -> 25).
     Falls back to a default age if parsing fails.

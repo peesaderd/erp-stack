@@ -35,6 +35,26 @@
         }
       ]
     },
+    "apply_cream": {
+      "name": "Apply Cream (Beauty/Skincare)",
+      "description": "ทาครีม/เซรั่ม/โลชั่นลงจุดจริง ตาม SSOT apply_hints (หน้า/แขน/ท้อง/รักแร้/เท้า) สาธิตการใช้งานจริง ไม่ใช่แค่ถือ",
+      "prompt_anchor": "Creator gently applies and blends the cream onto {area} with a soft, even hand motion, product label readable, natural genuine expression, no lifting the product away from the body",
+      "script_structure": "เล่าขั้นตอนการทาจริง 1-2-3 พร้อมย้ำผิวชุ่มชื้น/เนียน/เห็นผล",
+      "has_person": true,
+      "shot_count": 2,
+      "shots": [
+        {
+          "time": "0-4s",
+          "desc": "Creator holding product, opening/squeezing a small amount onto fingertips",
+          "camera": "medium close-up, product in frame"
+        },
+        {
+          "time": "4-8s",
+          "desc": "Applying and blending cream onto the target area in a gentle even circular motion",
+          "camera": "medium close-up, following the hand"
+        }
+      ]
+    },
     "review": {
       "name": "UGC Review",
       "description": "รีวิวสินค้าหลังใช้จริง",

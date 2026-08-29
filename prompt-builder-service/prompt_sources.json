@@ -1313,7 +1313,7 @@
       "unboxing",
       "usage"
     ],
-    "negative_base": "no distorted hands, no extra fingers, no fused or webbed fingers, no hoof-like or claw-like hand, no deformed or stubby fingers, no mangled hand, no unnatural hand gesture, no gibberish speech, no facial morphing or melting, stable face, consistent identity, realistic proportions, no camera zoom, pan or movement, no blurred or warped product, no distorted unreadable label text, no speaking without script, no improvised lines after script ends, silent after script ends, no filler words, no shouting, no gaping mouth",
+    "negative_base": "no extra fingers, no fused or webbed fingers, no deformed or stubby fingers, no distorted or mangled hands, no unnatural hand gesture, no patchy or blobby cream blobs, no thick unblended cream patches, no white cast or chalky residue, no streak marks, no facial morphing or melting, stable face, consistent identity, no camera zoom, pan or movement, no blurred or warped product, no distorted unreadable label text, no speaking without script",
     "negative_talking": [
       "no exaggerated jaw movement",
       "no shouting",
@@ -1343,6 +1343,6 @@
   },
   "image_negative": {
     "_comment": "Owner 2026-08-25: image negative moved out of hardcoded build_image_prompt. SSOT only.",
-    "base": "blurry hands, extra fingers, deformed hands, wrong hand position, unrealistic proportions, wrong number of fingers, unclear product details, low quality, low resolution, distorted faces, bad anatomy, incorrect product placement, unrealistic lighting, unrealistic shadows, unrealistic body parts, unrealistic body gestures, unrealistic body movements"
+    "base": "blurry hands, extra fingers, deformed hands, wrong hand position, unrealistic proportions, wrong number of fingers, patchy or blobby cream on the face, thick unblended cream patches, white cast or chalky residue, streak marks, unclear product details, low quality, low resolution, distorted faces, bad anatomy, incorrect product placement, unrealistic lighting, unrealistic shadows, unrealistic body parts, unrealistic body gestures, unrealistic body movements"
   }
 }

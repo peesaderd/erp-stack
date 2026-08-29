@@ -667,8 +667,10 @@ def generate_video(
             f"พูดช้า ๆ ยืดจังหวะทุกประโยค เน้นคำชัด ๆ เว้นจังหวะเล็กน้อยระหว่างประโยค "
             f"ให้เสียงพูดทั้งหมดยาวเต็ม {duration} วินาทีพอดี ห้ามพูดจบเร็ว ห้ามพูดเร็วจนเนื้อจบก่อนเวลา "
             f"ขยับปากและริมฝีปากให้ตรงกับเสียงพูดภาษาไทยทุกคำ "
-            f"พูดจบแล้วหยุดพูดทันที หุบปากสนิท ยิ้มให้กล้อง แล้วอยู่นิ่งในท่าเดิม "
-            f"กล้องนิ่ง ไม่ซูม ไม่มีการเคลื่อนกล้อง ห้ามพูดและห้ามขยับปากหลังพูดจบ"
+            f"After script ends, stop talking immediately. "
+            f"Remain smiling and hold the product steady in front of camera until end. "
+            f"No movement, no speaking until director says cut. "
+            f"Keep the camera still with no zoom or movement, and keep mouth closed after the last word."
         )
         logger.info(f"  🎙 Voice mode A: ฝัง thai_script คำสั่งพูดไทยล้วน (owner rule 2026-08-25, len={len(final_prompt)})")
 

@@ -611,7 +611,9 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
 
     # Build the composition once (shared by all single-frame branches).
     _cover = _cover_product_desc(profile, product_name)
-    _app_hint = _apply_hint(subcategory, category, profile)
+    # Owner 2026-08-29 15:28: IMAGE ไม่ทาผลิตภัณฑ์อีกต่อไป — "รูปเลิกทาไปเลย".
+    # ลบ _apply_hint ออกจาก image (ภาพมีแค่ถือ/วางตาม recipe) การทาครีม/เกลี่ย
+    # ให้เกิดใน VIDEO prompt scene 2 เท่านั้น.
     if ugc_style == "review":
         # Review recipe (owner 2026-08-26): image places product on the table,
         # model reviews with hands RESTING still on/near the table — NO gesturing,
@@ -624,15 +626,11 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             f"cheerful expression, speaking to camera, {room_desc}, "
             f"medium close-up framing, product large in frame, sharp and clearly readable"
         )
-    elif profile.get("special_target", "").strip():
-        mid_hint = (
-            f"{model_desc} applying the product from the reference image, "
-            f"{_app_hint}, {room_desc}, "
-            f"smiling warmly with a bright cheerful expression, "
-            f"medium close-up framing, the product held prominently toward the camera, "
-            f"product large in frame and clearly readable"
-        )
     else:
+        # Default image pose = plain HOLD for EVERY product — no apply/smear on the
+        # frame (owner 2026-08-29 15:28: "รูปเลิกทาไปเลย"). Applying the cream
+        # happens only in the VIDEO prompt scene 2, never in the image. Covers both
+        # normal products and special_target (cream/face/makeup) alike.
         mid_hint = (
             f"{model_desc} holding the product(s) from the reference image, "
             f"bottles facing the camera, {room_desc}, "
@@ -766,39 +764,20 @@ def _beat_panel_hint(profile, product_name, model_desc, action, scene, panel_rol
     elif panel_role == "middle":
         # Reference-driven (USER TEMPLATE vid_b43d89ab). Compact wording
         # (owner: too wordy) — one clean line, no hardcoded item count.
-        # NEW: apply action ONLY for special_target (e.g. pregnancy cream → face/belly);
-        # all other products (incl. body_part=whole-body) stay a plain HOLD — "ถือสินค้า
-        # พูด" is the fallback when no apply-specific audience is known.
-        _app_hint = _apply_hint((profile or {}).get("subcategory"), (profile or {}).get("category"), profile)
-        # Owner 2026-08-29: beauty/makeup → ท่าทำเมคอัพจริง (ไม่ใช่แค่ถือ) + ยิ้มทุกกรณี
-        # (นางแบบไม่ยิ้มหลายคลิป — เติม smiling กัน scene ที่ไม่มียิ้มทับ)
-        _sub = ((profile or {}).get("subcategory") or "").strip().lower()
-        _cat = ((profile or {}).get("category") or "").strip().lower()
-        _do_makeup = ("makeup" in _sub) or ("makeup" in _cat) or ("beauty" == _cat or "beauty" in _cat)
-        # Owner 2026-08-29: face-cream products (sunscreen/moisturizer/serum/etc.)
-        # must genteelly blend onto the FACE — not hold — like beauty/makeup.
-        _FACE_CREAM = {"sunscreen", "moisturizer", "serum", "eye_cream", "toner", "face_whitening", "foundation"}
-        _do_apply_face = _do_makeup or (_sub in _FACE_CREAM)
-        if (profile.get("special_target") or "").strip() or _do_apply_face:
-            if _do_makeup or _do_apply_face:
-                base = (
-                    f"{model_desc} applying a light, even layer of the product to her face "
-                    f"from the reference image, {_app_hint}, light even coverage on her skin, "
-                    f"no visible blobs, {scene}, smiling warmly with a bright cheerful expression, "
-                    f"medium close-up framing, product large in frame, sharp and clearly readable"
-                )
-            else:
-                base = (
-                    f"{model_desc} applying the product from the reference image, "
-                    f"{_app_hint}, {scene}, smiling warmly with a bright cheerful expression, "
-                    f"medium close-up framing, product large in frame"
-                )
-        else:
-            base = (
-                f"{model_desc} holding the product(s) from the reference image, "
-                f"bottles facing the camera, smiling warmly with a bright cheerful expression, "
-                f"{scene}"
-            )
+        # Owner 2026-08-29 15:28: IMAGE ไม่ทาผลิตภัณฑ์อีกต่อไป — "รูปเลิกทาไปเลย"
+        # (image มีแค่ท่าถือสินค้า ตาม recipe review=วาง/อื่น=ถือ) การทาครีม/เกลี่ย
+        # ให้เกิดใน VIDEO prompt scene 2 เท่านั้น (ไม่ใช่ image). เดิมตรงนี้ special_target/
+        # face_cream/makeup → "applying a light even layer to her face ... light even
+        # coverage" (ภาพติดหน้าทุกอัน) ถูกเอาออกแล้ว เก็บไว้ท่าถือสินค้าเท่านั้น.
+        # (image มีแค่ท่าถือสินค้า ตาม recipe review=วาง/อื่น=ถือ) การทาครีม/เกลี่ย
+        # ให้เกิดใน VIDEO prompt scene 2 เท่านั้น (ไม่ใช่ image). ลบ path apply ทั้งหมด
+        # ที่ทำให้ภาพติดหน้า/ทาหน้าทุกอัน ทิ้งไป (เดิม special_target/face_cream/makeup
+        # → "applying a light even layer to her face ... light even coverage").
+        base = (
+            f"{model_desc} holding the product(s) from the reference image, "
+            f"bottles facing the camera, smiling warmly with a bright cheerful expression, "
+            f"{scene}"
+        )
     else:  # result
         base = (
             f"the same {model_desc} from the first part of the frame, wearing the "

@@ -271,8 +271,11 @@ async def generate_video(req: VideoRequest):
     # script > (hook+value+cta) > prompt > product_demo > fallback.
     if req.script and req.script.strip():
         full_script = req.script
-    elif req.hook and req.value and req.cta:
-        script_parts = [req.hook, req.value, req.cta]
+    elif req.hook or req.value or req.cta:
+        # FIX (owner 2026-08-29): รวมเฉพาะช่องที่มี (hook/value/cta อันไหนมีก็เอา)
+        # เดิมต้องครบทั้ง 3 ถึงจะรวม — กรอกไม่ครบแล้วหลุดไปเป็น "" → prompt-builder
+        # gen ใหม่ทับ script ที่ตั้งไว้ (ของดีหาย)
+        script_parts = [p for p in [req.hook, req.value, req.cta] if p and p.strip()]
         full_script = " ".join(script_parts)
     elif req.prompt:
         full_script = req.prompt
@@ -498,7 +501,11 @@ async def generate_video(req: VideoRequest):
                 "video_prompt": (video_prompts or [""])[0],
                 "video_prompts": video_prompts or [],
                 "job_id": job_id,
-                "script": pb_data.get("scripts", {}).get("tts_script") or pb_data.get("full_script") or full_script or "",
+                # FIX (owner 2026-08-29): ของดีต้องไม่โดนทับ — สคริปต์ที่ผู้ใช้ตั้ง
+                # (req.script / hook+value+cta / prompt → full_script) ต้องชนะ
+                # template ที่ prompt-builder gen เสมอ ไม่งั้น script ดีเดิม
+                # (ทับศัพท์ไทย) หายไปทุกครั้งที่ gen ใหม่
+                "script": full_script or pb_data.get("scripts", {}).get("tts_script") or pb_data.get("full_script") or "",
                 "voice": getattr(req, "voice", None) or "",
                 # ── First/Reference/Last frame + Thai script (Wan พูดเอง) ──
                 "first_frame": getattr(req, "first_frame", None) or "",

@@ -159,6 +159,8 @@ class VideoRequest(BaseModel):
     # ── SSOT subcategory (cat → subcat → style ใน prompt_sources.json) ──
     category: str = ""
     subcategory: str = ""
+    # target_gender จาก product analyzer (สินค้าผู้หญิง→female) — override gender param
+    target_gender: str = ""
 
     @field_validator("duration")
     @classmethod
@@ -291,7 +293,7 @@ async def generate_video(req: VideoRequest):
                 weights=[15, 15, 20, 12, 12, 4, 22], k=1
             )[0],
             description=req.product_description or "",
-            gender=req.gender or "female",
+            gender=(req.target_gender or req.gender or "female"),
             age=req.age or "",
             ugc_style=validate_ugc_style(req.ugc_style),
             external_job_id=req.job_id,

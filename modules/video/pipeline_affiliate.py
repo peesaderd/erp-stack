@@ -1072,7 +1072,9 @@ def run_pipeline(
         # ── STEP 3: Generate Script (skip if pre-computed) ──
         if not script:
             step_start = time.time()
-            script = generate_script(product_name, product_profile, recipe, ugc_style=ugc_style, gender=gender)
+            # target_gender จาก product analyzer ชนะกว่า param (สินค้าผู้หญิง→female เสมอ)
+            _gender = (product_profile or {}).get("target_gender") or gender
+            script = generate_script(product_name, product_profile, recipe, ugc_style=ugc_style, gender=_gender)
             script_duration = int((time.time() - step_start) * 1000)
         else:
             script_duration = 0

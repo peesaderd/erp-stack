@@ -215,6 +215,34 @@ def _auto_select_style(category: str) -> str:
     return "holding"
 
 
+# SSOT subcategory auto-select (mirrors prompt_sources.json category_mapping).
+# When the UI does not send a subcategory, pick the closest one for the product
+# category so the model actually demonstrates the product (e.g. apply makeup)
+# instead of just holding it. Default per category = "" (let prompt-builder pick).
+_SUBCATEGORY_AUTO_MAP = {
+    "beauty": "makeup_tutorial",
+    "skincare": "default",
+    "fashion": "default",
+    "electronics": "default",
+    "health": "default",
+    "home": "default",
+    "food": "default",
+    "pet": "default",
+}
+
+
+def _auto_select_subcategory(category: str, explicit: str = "") -> str:
+    """Pick a subcategory for the product category.
+
+    If the caller already passed an explicit subcategory (e.g. makeup_tutorial),
+    that wins. Otherwise derive from the mapped category via _SUBCATEGORY_AUTO_MAP.
+    """
+    if explicit and isinstance(explicit, str) and explicit.strip():
+        return explicit.strip()
+    cat = _map_category(category)
+    return _SUBCATEGORY_AUTO_MAP.get(cat, "")
+
+
 @router.post("/video/generate")
 async def generate_video(req: VideoRequest):
     """Full UGC pipeline with scenes and metadata."""
@@ -379,6 +407,9 @@ async def generate_video(req: VideoRequest):
             if _resolved_style == "auto":
                 _resolved_style = _auto_select_style(_db_category)
 
+            # Resolve subcategory: explicit request wins, else auto from category
+            _resolved_subcategory = _auto_select_subcategory(_db_category, getattr(req, "subcategory", "") or "")
+
             _update_pipeline_step(job_id, "prompt_builder", "processing")
             pb_result = await _proxy("POST", "prompt-builder", "/api/v1/build", {
                 "product_name": _product_title,
@@ -387,7 +418,7 @@ async def generate_video(req: VideoRequest):
                 "keywords": _db_keywords,
                 "ugc_style": _resolved_style,
                 "category": _db_category,
-                "subcategory": getattr(req, "subcategory", "") or "",
+                "subcategory": _resolved_subcategory,
                 "country": getattr(req, "country", "") or "thai",
                 "target_gender": _db_gender or "",
                 "target_age": _db_age or "",
@@ -457,6 +488,9 @@ async def generate_video(req: VideoRequest):
                 "tags": req.tags or [],
                 "content_type": req.content_type or "affiliate",
                 "ugc_style": _resolved_style,
+                "category": _db_category or "",
+                "subcategory": _resolved_subcategory,
+                "target_gender": _db_gender or "",
                 "aspect_ratio": req.aspect_ratio or "9:16",
                 "negative_prompt": neg_prompt or req.negative_prompt,
                 "bgm_style": req.bgm_style or "",

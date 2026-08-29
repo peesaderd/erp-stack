@@ -14,7 +14,10 @@ import os
 import re
 import shutil
 import sqlite3
+import threading
+from datetime import datetime
 from pathlib import Path
+from uuid import uuid4
 
 import asyncpg
 import httpx
@@ -380,21 +383,107 @@ async def apify_scrape(req: dict):
         raise HTTPException(status_code=502, detail=data.get("error", "Apify scrape failed"))
 
     # Ship back the product summary so the TUS UI can refresh immediately.
+    is_dup = bool(data.get("duplicate"))
     return {
         "success": True,
         "product_id": data.get("product_id"),
         "actors_used": data.get("actors_used"),
         "candidates": data.get("candidates"),
-        "message": "สินค้าเข้าระบบแล้ว",
+        "duplicate": is_dup,
+        "sync_action": data.get("sync_action"),
+        "message": "สินค้าเข้าระบบแล้ว" if not is_dup else "สินค้าซ้ำ (ร้าน+ชื่อเดียวกัน) ข้ามการเพิ่ม",
     }
+
+
+# ── Apify batch async-job store ─────────────────────────────────────────────
+# Batch import runs as a background job (not tied to the HTTP request) so the
+# browser never hits a proxy timeout. Clients poll GET /apify/scrape/batch/{id}.
+
+_BATCH_JOBS: dict = {}
+_BATCH_JOBS_LOCK = threading.Lock()
+
+
+def _new_batch_job(cleaned: list, region: str, limit: int) -> str:
+    job_id = uuid4().hex[:10]
+    with _BATCH_JOBS_LOCK:
+        _BATCH_JOBS[job_id] = {
+            "job_id": job_id,
+            "status": "pending",  # pending | running | done
+            "total": len(cleaned),
+            "processed": 0,
+            "ok": 0,
+            "fail": 0,
+            "duplicates": 0,
+            "region": region,
+            "limit": limit,
+            "items": [{"index": i + 1, "input": it, "is_link": bool(
+                re.search(r"(vt\.tiktok\.com|shop\.tiktok\.com|tiktok\.com)", it, re.I))}
+                for i, it in enumerate(cleaned)],
+            "results": [],
+            "created_at": datetime.utcnow().isoformat(),
+            "finished_at": None,
+        }
+    return job_id
+
+
+async def _run_apify_batch_job(job_id: str):
+    """Background worker: process each item sequentially, updating the job store."""
+    with _BATCH_JOBS_LOCK:
+        job = _BATCH_JOBS.get(job_id)
+    if not job:
+        return
+    job["status"] = "running"
+    region = job["region"]
+    limit = job["limit"]
+
+    async with httpx.AsyncClient(timeout=240.0) as client:
+        for entry in job["items"]:
+            item = entry["input"]
+            payload = {"region": region, "limit": limit}
+            if entry["is_link"]:
+                payload["link"] = item
+            else:
+                payload["keyword"] = item
+            out = dict(entry)  # copy index/input/is_link
+            out.setdefault("success", False)
+            try:
+                resp = await client.post(
+                    f"{SCRAPER_API_URL}/api/v1/apify/scrape",
+                    json=payload,
+                    timeout=240.0,
+                )
+                data = resp.json()
+                if resp.status_code == 200 and data.get("success"):
+                    out["success"] = True
+                    out["product_id"] = data.get("product_id")
+                    out["candidates"] = data.get("candidates")
+                    out["duplicate"] = bool(data.get("duplicate"))
+                    out["message"] = data.get("message", ("สินค้าเข้าระบบแล้ว" if not data.get("duplicate") else "สินค้าซ้ำ (ร้าน+ชื่อเดียวกัน) ข้ามการเพิ่ม"))
+                    if out["duplicate"]:
+                        job["duplicates"] += 1
+                    else:
+                        job["ok"] += 1
+                else:
+                    out["error"] = data.get("detail") or data.get("error") or f"HTTP {resp.status_code}"
+                    job["fail"] += 1
+            except Exception as e:
+                out["error"] = f"การเชื่อมต่อล้มเหลว: {e}"
+                job["fail"] += 1
+            job["results"].append(out)
+            job["processed"] += 1
+
+    job["status"] = "done"
+    job["finished_at"] = datetime.utcnow().isoformat()
 
 
 @router.post("/apify/scrape/batch")
 async def apify_scrape_batch(req: dict):
     """TUS entry: batch import many share-links / keywords at once.
     Body: { items: ["link or keyword", ...], region?, limit? }
-    Processes each item sequentially (Apify is billed per run, and we want to
-    stay within the free-plan credit), collecting per-item results.
+
+    Starts an async background job and returns {job_id} immediately. Poll
+    GET /apify/scrape/batch/{job_id} for progress. Each item is processed
+    sequentially (Apify is billed per run; stays within free-plan credit).
     """
     items = req.get("items") or []
     region = req.get("region", "") or ""
@@ -414,46 +503,37 @@ async def apify_scrape_batch(req: dict):
     if not cleaned:
         raise HTTPException(status_code=400, detail="items ว่าง หลังจากกรองบรรทัดที่ไม่มีข้อมูล")
 
-    results = []
-    ok = 0
-    fail = 0
-    async with httpx.AsyncClient(timeout=200.0) as client:
-        for idx, item in enumerate(cleaned, start=1):
-            is_link = bool(re.search(r"(vt\.tiktok\.com|shop\.tiktok\.com|tiktok\.com)", item, re.I))
-            payload = {"region": region, "limit": limit}
-            if is_link:
-                payload["link"] = item
-            else:
-                payload["keyword"] = item
-            entry = {"index": idx, "input": item, "is_link": is_link, "success": False}
-            try:
-                resp = await client.post(
-                    f"{SCRAPER_API_URL}/api/v1/apify/scrape",
-                    json=payload,
-                    timeout=200.0,
-                )
-                data = resp.json()
-                if resp.status_code == 200 and data.get("success"):
-                    entry["success"] = True
-                    entry["product_id"] = data.get("product_id")
-                    entry["candidates"] = data.get("candidates")
-                    entry["message"] = data.get("message", "สินค้าเข้าระบบแล้ว")
-                    ok += 1
-                else:
-                    entry["error"] = data.get("detail") or data.get("error") or f"HTTP {resp.status_code}"
-                    fail += 1
-            except Exception as e:
-                entry["error"] = f"การเชื่อมต่อล้มเหลว: {e}"
-                fail += 1
-            results.append(entry)
+    job_id = _new_batch_job(cleaned, region, limit)
+    asyncio.create_task(_run_apify_batch_job(job_id))
 
     return {
-        "success": ok > 0,
+        "success": True,
+        "job_id": job_id,
         "total": len(cleaned),
-        "ok": ok,
-        "fail": fail,
-        "items": results,
-        "message": f"สำเร็จ {ok}/{len(cleaned)} รายการ" + (f" (ล้มเหลว {fail})" if fail else ""),
+        "status": "running",
+        "message": "เริ่มประมวลผลแบบ async แล้ว — ดึงสถานะด้วย job_id",
+    }
+
+
+@router.get("/apify/scrape/batch/{job_id}")
+async def apify_scrape_batch_status(job_id: str):
+    """Get the current status / progress / per-item results of a batch job."""
+    with _BATCH_JOBS_LOCK:
+        job = _BATCH_JOBS.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail=f"ไม่พบ batch job {job_id}")
+    return {
+        "job_id": job["job_id"],
+        "status": job["status"],
+        "total": job["total"],
+        "processed": job["processed"],
+        "ok": job["ok"],
+        "fail": job["fail"],
+        "duplicates": job["duplicates"],
+        "items": job["results"],
+        "created_at": job["created_at"],
+        "finished_at": job["finished_at"],
+        "message": f"เสร็จสิ้น {job['ok']}/{job['total']} รายการ" + (f" (ซ้ำ {job['duplicates']})" if job["duplicates"] else "") if job["status"] == "done" else "กำลังประมวลผล...",
     }
 
 

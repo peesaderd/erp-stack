@@ -4560,10 +4560,13 @@ async function apifyBatch() {
   pw.style.display = 'block';
   bar.style.width = '0%';
   resultEl.textContent = '';
+  resultEl.style.color = '#333';
   runBtn.disabled = true;
   runBtn.textContent = '⏳ กำลังประมวลผล...';
+  plab.textContent = 'กำลังเริ่มงาน...';
 
   try {
+    // 1) สตาร์ท async job → ได้ job_id กลับมาทันที (ไม่รอ ไม่ timeout)
     const r = await fetch(API + '/apify/scrape/batch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -4574,25 +4577,52 @@ async function apifyBatch() {
       resultEl.textContent = '❌ ' + (d.detail || d.error || 'batch ล้มเหลว');
       resultEl.style.color = '#e74c3c';
       showToast('Batch ล้มเหลว');
-    } else {
-      resultEl.style.color = '#333';
-      const out = [];
-      (d.items || []).forEach(it => {
-        const st = it.success ? '✅' : '❌';
-        const desc = it.success
-          ? (it.product_id ? ' (ID: ' + it.product_id + ')' : '')
-          : (it.error || 'ล้มเหลว');
-        out.push(st + ' [' + it.index + '/' + d.total + '] ' + (it.is_link ? '🔗 ' : '🔑 ') + it.input + ' ' + desc);
-      });
-      resultEl.textContent = d.message + '\n' + out.join('\n');
-      showToast(d.message);
-      // Progress bar is indeterminate during sequential run; fill at end.
-      bar.style.width = '100%';
-      plab.textContent = 'เสร็จสิ้น';
-      // Refresh the product list.
-      const q = document.getElementById('productSearchInput').value.trim();
-      if (q) searchProducts(); else loadAnalyzedProducts();
+      return;
     }
+    const jobId = d.job_id;
+
+    // 2) Poll สถานะ job ทุก ~3 วิ จนกว่า done
+    let job = d;
+    const pollUrl = API + '/apify/scrape/batch/' + jobId;
+    for (let tries = 0; tries < 400; tries++) {
+      await new Promise(res => setTimeout(res, 3000));
+      try {
+        const pr = await fetch(pollUrl, { method: 'GET' });
+        job = await pr.json().catch(() => job);
+      } catch (e) { /* keep last state, keep polling */ }
+
+      const total = job.total || 1;
+      const proc = job.processed || 0;
+      bar.style.width = Math.min(100, Math.round(proc / total * 100)) + '%';
+      plab.textContent = 'ประมวลผล ' + proc + '/' + total + ' รายการ' + (job.fail ? ' (ล้มเหลว ' + job.fail + ')' : '') + (job.duplicates ? ' (ซ้ำ ' + job.duplicates + ')' : '');
+
+      if (job.status === 'done') break;
+      if (tries >= 399) { // exceeds ~20 นาที
+        resultEl.textContent = '⏰ งานยังไม่เสร็จยาวนานเกินไป (ดู log / ลองใหม่อีกครั้ง)';
+        return;
+      }
+    }
+
+    // 3) แสดงผลรายสินค้า (เสร็จแล้ว)
+    const out = [];
+    (job.items || []).forEach(it => {
+      const st = it.success ? (it.duplicate ? '↩️' : '✅') : '❌';
+      const desc = it.success
+        ? (it.duplicate ? 'ซ้ำ (ร้าน+ชื่อเดียวกัน) → ข้าม' : ((it.product_id ? ' (ID: ' + it.product_id + ')' : '')))
+        : (it.error || 'ล้มเหลว');
+      out.push(st + ' [' + (it.index || '-') + '/' + job.total + '] ' + (it.is_link ? '🔗 ' : '🔑 ') + it.input + ' ' + desc);
+    });
+    resultEl.textContent = (job.message || 'เสร็จสิ้น') + '\n' + out.join('\n');
+    showToast(job.message || 'Batch เสร็จสิ้น');
+    bar.style.width = '100%';
+    plab.textContent = 'เสร็จสิ้น ' + (job.ok||0) + '/' + job.total + ' รายการ' + (job.duplicates ? ' (ซ้ำ ' + job.duplicates + ')' : '') + (job.fail ? ' (ล้มเหลว ' + job.fail + ')' : '');
+
+    // เมื่องานสำเร็จ -> เคลียร์รายการ draft เพื่อไม่ให้ส่งซ้ำ
+    apifySaveDraft([]);
+    renderApifyBatchItems();
+    // Refresh the product list.
+    const q = document.getElementById('productSearchInput').value.trim();
+    if (q) searchProducts(); else loadAnalyzedProducts();
   } catch (e) {
     resultEl.textContent = '❌ ' + e.message;
     resultEl.style.color = '#e74c3c';

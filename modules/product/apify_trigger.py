@@ -406,6 +406,8 @@ async def _run_pipeline(
         "product_id": result.product_id or product_id,
         "actors_used": actors_used,
         "candidates": candidates,
+        "duplicate": result.duplicate,
+        "sync_action": result.sync_action,
         "steps": result.to_dict().get("steps", {}),
     }
     if not result.success:

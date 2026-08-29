@@ -16,6 +16,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import sys
 import time
 import uuid
@@ -48,11 +49,15 @@ class PipelineResult:
         self.step_sync = {"status": "pending", "error": None}
         self.total_time_ms = 0
         self.success = False
+        self.duplicate = False
+        self.sync_action = None
 
     def to_dict(self) -> dict:
         return {
             "product_id": self.product_id,
             "source": self.source,
+            "duplicate": self.duplicate,
+            "sync_action": self.sync_action,
             "steps": {
                 "scrape": self.step_scrape,
                 "analyze": self.step_analyze,
@@ -172,9 +177,11 @@ async def ingest_from_apify(
     # ── Step 3: Sync ─────────────────────────────────────────────────────
     try:
         result.step_sync["status"] = "running"
-        await _step_sync(analyze_data)
+        sync_action = await _step_sync(analyze_data)
         result.step_sync["status"] = "done"
-        logger.info(f"[{run_id}] Step 3 SYNC OK")
+        result.sync_action = sync_action
+        result.duplicate = (sync_action == "duplicate")
+        logger.info(f"[{run_id}] Step 3 SYNC OK (action={sync_action})")
     except Exception as e:
         result.step_sync["status"] = "failed"
         result.step_sync["error"] = str(e)
@@ -324,8 +331,53 @@ async def _step_analyze(raw_data: dict) -> dict:
     return analyzed
 
 
+def _normalize_title(title: str) -> str:
+    """Normalize a product title for duplicate detection.
+
+    Strips casing, whitespace, and removes emoji / punctuation so that the
+    same product listed under slightly different title casing or spacing is
+    still matched as a duplicate.
+    """
+    if not title:
+        return ""
+    # Lowercase + collapse whitespace
+    t = re.sub(r"\s+", " ", str(title).lower()).strip()
+    # Drop emoji / non-word, non-space chars (keep letters, digits, spaces)
+    t = re.sub(r"[^\w\s]+", "", t)
+    return t
+
+
+def _find_duplicate_seller_title(conn, seller_id: str, title: str):
+    """Return an existing product_id whose (seller_id + normalized title)
+    matches, i.e. the same physical product from the same shop even when
+    TikTok assigned a different product_id (common across different links).
+
+    Returns None if no duplicate found (safe to insert).
+    """
+    if not seller_id:
+        return None
+    norm = _normalize_title(title)
+    if not norm:
+        return None
+    # Fetch candidate rows for this seller and compare normalized titles
+    rows = conn.execute(
+        "SELECT product_id, title FROM tus_products WHERE seller_id = ?",
+        (seller_id,),
+    ).fetchall()
+    for r in rows:
+        if _normalize_title(r["title"]) == norm:
+            return r["product_id"]
+    return None
+
+
 async def _step_sync(product_data: dict):
-    """Step 3: Sync analyzed product → tus_products.db."""
+    """Step 3: Sync analyzed product → tus_products.db.
+
+    Returns one of: 'inserted', 'updated', or 'duplicate'.
+    'duplicate' means the same product (same seller_id + normalized title)
+    already exists under a different product_id, so we skip inserting to
+    avoid duplicate products from the same shop.
+    """
     import sqlite3
 
     pid = product_data.get("product_id", "")
@@ -347,16 +399,27 @@ async def _step_sync(product_data: dict):
             f"UPDATE tus_products SET {sets} WHERE product_id = ?",
             list(row.values()) + [pid],
         )
-    else:
-        cols = ", ".join(row.keys())
-        placeholders = ", ".join(["?"] * len(row))
-        conn.execute(
-            f"INSERT INTO tus_products ({cols}) VALUES ({placeholders})",
-            list(row.values()),
-        )
+        conn.commit()
+        conn.close()
+        return "updated"
 
+    # NEW: dedup by (seller_id, normalized title) — same product from the same
+    # shop can carry a different product_id if pulled from a different link.
+    dup_of = _find_duplicate_seller_title(conn, row.get("seller_id", ""), row.get("title", ""))
+    if dup_of:
+        conn.close()
+        logger.info(f"  SKIP duplicate (same seller+title, existing id {dup_of}): {row.get('title', '')[:50]}")
+        return "duplicate"
+
+    cols = ", ".join(row.keys())
+    placeholders = ", ".join(["?"] * len(row))
+    conn.execute(
+        f"INSERT INTO tus_products ({cols}) VALUES ({placeholders})",
+        list(row.values()),
+    )
     conn.commit()
     conn.close()
+    return "inserted"
 
 
 def _build_tus_row(product: dict) -> dict:

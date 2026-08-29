@@ -775,11 +775,16 @@ def _beat_panel_hint(profile, product_name, model_desc, action, scene, panel_rol
         _sub = ((profile or {}).get("subcategory") or "").strip().lower()
         _cat = ((profile or {}).get("category") or "").strip().lower()
         _do_makeup = ("makeup" in _sub) or ("makeup" in _cat) or ("beauty" == _cat or "beauty" in _cat)
-        if (profile.get("special_target") or "").strip() or _do_makeup:
-            if _do_makeup:
+        # Owner 2026-08-29: face-cream products (sunscreen/moisturizer/serum/etc.)
+        # must genteelly blend onto the FACE — not hold — like beauty/makeup.
+        _FACE_CREAM = {"sunscreen", "moisturizer", "serum", "eye_cream", "toner", "face_whitening", "foundation"}
+        _do_apply_face = _do_makeup or (_sub in _FACE_CREAM)
+        if (profile.get("special_target") or "").strip() or _do_apply_face:
+            if _do_makeup or _do_apply_face:
                 base = (
-                    f"{model_desc} applying makeup on her face from the reference image, "
-                    f"{_app_hint}, {scene}, smiling warmly with a bright cheerful expression, "
+                    f"{model_desc} applying a light, even layer of the product to her face "
+                    f"from the reference image, {_app_hint}, light even coverage on her skin, "
+                    f"no visible blobs, {scene}, smiling warmly with a bright cheerful expression, "
                     f"medium close-up framing, product large in frame, sharp and clearly readable"
                 )
             else:
@@ -956,7 +961,10 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         _sub2 = ((profile.get("subcategory") or "").strip().lower())
         _cat2 = ((profile.get("category") or "").strip().lower())
         _do_makeup = ("makeup" in _sub2) or ("beauty" == _cat2 or "beauty" in _cat2)
-        apply_hint = _apply_hint(subcategory, category, profile) if (_is_special or _do_makeup) else (
+        # Owner 2026-08-29: face-cream products must blend onto the FACE (not hold).
+        _FACE_CREAM = {"sunscreen", "moisturizer", "serum", "eye_cream", "toner", "face_whitening", "foundation"}
+        _do_apply_face = _do_makeup or (_sub2 in _FACE_CREAM)
+        apply_hint = _apply_hint(subcategory, category, profile) if (_is_special or _do_apply_face) else (
             _load_ssot_extras()["apply_hints"]["hold_template"].format(product=vp_product)
         )
 
@@ -1013,21 +1021,25 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
                 f"Scene 4: {gender_en} still holding {vp_product} in the same tight close-up, a soft natural smile toward the camera, product stays sharp and centered, no putting down, no hand release",
             ]
 
-            # Owner 2026-08-29: beauty/makeup → เบี่ยงท่าจากถือสินค้าเป็นการแต่งหน้าจริง
-            # (SSOT makeup_tutorial ไม่มี field visual เลยตก fallback เป็นถือสินค้า —
-            #  ตรงนี้ให้ใช้ action/scene ของ product เพื่อให้วิดีโอทำเมคอัพ ไม่ใช่แค่ถือ)
-            if _do_makeup:
+            # Owner 2026-08-29: beauty/makeup + face-cream → เบี่ยงท่าจากถือสินค้าเป็น
+            # ทาเกลี่ยบนหน้าจริง (SSOT makeup_tutorial ไม่มี field visual เลยตก fallback
+            # เป็นถือสินค้า — ตรงนี้ให้ใช้ action/scene ของ product เพื่อให้ทำท่าทาผิวจริง)
+            if _do_apply_face:
                 _mk_action = (profile.get("action") or "").strip() or (
                     (selected.get("action") if isinstance(selected, dict) else "") or ""
                 )
                 if _mk_action:
                     _mk_action = re.sub(r'\s+', ' ', _mk_action).strip()
-                    beats = [
-                        f"Scene 1: {gender_en} holds {vp_product} up close to the camera, label crisp, {gender_en} gives a warm natural smile",
-                        f"Scene 2: {gender_en} {_mk_action}",
-                        f"Scene 3: {gender_en} continues {_mk_action.rstrip('.')} while smiling warmly, face kept clear and forward, product stays sharp",
-                        f"Scene 4: {gender_en} finishes, holds {vp_product} up front, smiling with a happy result, showing the product clearly",
-                    ]
+                else:
+                    # No profile/selected action: use the light-even-layer / gentle
+                    # blend hint (owner 2026-08-29: ครีมต้องจาง ๆ เกลี่ยเบา ๆ ไม่เป็นก้อน).
+                    _mk_action = _apply_hint(subcategory, category, profile)
+                beats = [
+                    f"Scene 1: {gender_en} holds {vp_product} up close to the camera, label crisp, {gender_en} gives a warm natural smile",
+                    f"Scene 2: {gender_en} {_mk_action}",
+                    f"Scene 3: {gender_en} continues {_mk_action.rstrip('.')} while smiling warmly, face kept clear and forward, product stays sharp",
+                    f"Scene 4: {gender_en} finishes, holds {vp_product} up front, smiling with a happy result, showing the product clearly",
+                ]
 
         video_prompt = (
             "A Thai woman naturally speaks the following Thai lines aloud to camera "

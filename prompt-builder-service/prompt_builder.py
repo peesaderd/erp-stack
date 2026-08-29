@@ -1723,6 +1723,13 @@ def _tts_product_name(product_name: str) -> str:
     if not name:
         return name
 
+    # Owner 2026-08-29: drop bracketed promo/variant tokens like [สูตรใหม่], 【new】, (xxx)
+    # so "ครีมโสมไฮยา [สูตรใหม่] เยอร์พอล" becomes "ครีมโสมไฮยา เยอร์พอล" for speech.
+    name = re.sub(r"\s*[\[【（(][^\]】）)]*[\]】）)]\s*", " ", name).strip()
+    # also drop leftover bare "สูตร"/"ใหม่" variant filler (e.g. "สูตรใหม่ ครีมโสม")
+    name = re.sub(r"(?i)\b(?:(?:สูตร)?ใหม่|ใหม่สูตร|รุ่นใหม่|สูตร)\b", " ", name).strip()
+    name = re.sub(r"\s{2,}", " ", name).strip()
+
     # Numeric + plus/unit readouts first (handles SPF50+, PA+++, 30ml, 50g)
     name = re.sub(r"(?i)\bspf\s*(\d+)\s*\+", lambda m: f"เอส พี เอฟ {_thai_number(int(m.group(1)))} พลัส", name)
     name = re.sub(r"(?i)\bpa\s*\+*", "พี เอ พลัส", name)
@@ -1754,7 +1761,8 @@ def _tts_product_name(product_name: str) -> str:
 
     # strip common stopwords / empty filler so the spoken name stays tight
     stop = {"ครีม", "cream", "เซต", "set", "ชิ้น", "มี", "แถม", "ขนาด", "ใหม่", "เจน",
-            "รุ่น", "สี", "แพ็ค", "แพ็ก", "box", "gift", "เซรั่ม", "serum", "elixir"}
+            "รุ่น", "สี", "แพ็ค", "แพ็ก", "box", "gift", "เซรั่ม", "serum", "elixir",
+            "สูตร", "แบบ", "ชนิด", "ชุด", "ลัง", "แพ็กเกจ", "กล่อง"}
     kept = []
     for w in re.split(r"(\s+)", name):
         if not w.strip():

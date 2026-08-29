@@ -1629,33 +1629,166 @@ def _brand_tokens(product_name: str):
     return toks
 
 
+# ─── Thai transliteration for common brand/spec tokens (owner 2026-08-29) ───
+# Rule-based so Wan can speak roman brand names in Thai. Only maps real brands/
+# specs that appear in actual jobs; unknown Latin stays as-is. NOT a per-brand
+# goldmine — missing ones fall back to the existing Latin handling below.
+_THAI_NUM = ["ศูนย์", "หนึ่ง", "สอง", "สาม", "สี่", "ห้า", "หก", "เจ็ด", "แปด", "เก้า"]
+
+
+def _thai_number(n: int) -> str:
+    """Small integer -> Thai spoken digits (e.g. 50 -> ห้าสิบ, 1050 -> หนึ่งพันห้าสิบ)."""
+    n = abs(int(n))
+    if n == 0:
+        return "ศูนย์"
+    digits = list(str(n))
+    num_map = {"0": "", "1": "หนึ่ง", "2": "สอง", "3": "สาม", "4": "สี่",
+               "5": "ห้า", "6": "หก", "7": "เจ็ด", "8": "แปด", "9": "เก้า"}
+    unit_map = {1: "", 2: "สิบ", 3: "ร้อย", 4: "พัน", 5: "หมื่น", 6: "แสน"}
+    place = len(digits)
+    out = []
+    for ch in digits:
+        unit = unit_map.get(place, "")
+        val = num_map[ch]
+        if place == 2 and ch == "1":
+            val = ""  # สิบ not หนึ่งสิบ
+        elif place == 2 and ch == "2":
+            val = "ยี่"  # ยี่สิบ
+        if place == 1 and ch == "1" and len(digits) > 1:
+            val = "เอ็ด"  # 21 -> ยี่สิบเอ็ด
+        if val:
+            out.append(f"{val}{unit}" if unit else val)
+        elif not out and place == 2:
+            out.append(unit)  # handle 10 -> สิบ
+        place -= 1
+    return "".join(out)
+
+
+_THAI_TUP_SAP = {
+    # Brands seen in real jobs
+    "d r . p o n g": "ดร.พงษ์",
+    "dr pong": "ดร.พงษ์",
+    "drpong": "ดร.พงษ์",
+    "skinshe": "สกินชี",
+    "gluta": "กลูต้า",
+    "glutacollagen": "กลูต้าคอลลาเจน",
+    "collagen": "คอลลาเจน",
+    "moleculogy": "โมเลคิวโลจี้",
+    "zeblanc": "เซแบล็งค์",
+    "vaseline": "วาสลีน",
+    "y erp all": "เยอร์พอล",
+    "yerpall": "เยอร์พอล",
+    # Spec / units / numeric readouts (spoken Thai)
+    "spf": "เอส พี เอฟ",
+    "pa": "พี เอ",
+    "ml": "มิลลิลิตร",
+    "g": "กรัม",
+    "cream": "ครีม",
+    "serum": "เซรั่ม",
+    "sunscreen": "ซันสกรีน",
+    "moisturizer": "มอยส์เจอร์ไรเซอร์",
+    "mask": "มาส์ก",
+}
+
+
+def _tup_sap_name(name: str) -> str:
+    """Transliterate roman brand/spec words to spoken Thai using _THAI_TUP_SAP.
+    Whole-word, case/whitespace-insensitive. Unmatched Latin stays untouched."""
+    if not name:
+        return name
+    def _norm_token(w: str) -> str:
+        # lowercase, collapse all non-alnum to nothing for lookup
+        return re.sub(r"[^a-z0-9]", "", w.lower())
+    out_toks = []
+    for w in re.split(r"(\s+)", name):
+        if not w.strip():
+            out_toks.append(w)
+            continue
+        key = _norm_token(w)
+        if key in _THAI_TUP_SAP:
+            out_toks.append(_THAI_TUP_SAP[key])
+        else:
+            out_toks.append(w)
+    return "".join(out_toks)
+
+
 def _tts_product_name(product_name: str) -> str:
     """Thai-dominant short name for SPOKEN script + BRAND kept (owner 2026-08-25:
     "มันไม่มีคำว่า Zeblanc อ่ะ" — brand must be spoken too).
-    Keeps Thai descriptor tokens, then appends the FIRST Latin (brand) token if
-    it fits. Pure-Latin products keep Latin only. Whole tokens only, no chopping."""
+    Owner 2026-08-29: transliterate roman brand/spec tokens to Thai so Wan can
+    speak them (SPF50+ -> เอส พี เอฟ ห้าสิบพลัส, Dr.PONG -> ดร.พงษ์).
+    Keeps Thai descriptor tokens, then appends transliterated Latin brand. Whole
+    tokens only, no chopping."""
     name = (product_name or "").strip()
     if not name:
         return name
-    toks = _brand_tokens(name)
-    thai = [w for w, _ in toks if re.search(r"[\u0E00-\u0E7F]", w)]
-    latin = [w for w, _ in toks if not re.search(r"[\u0E00-\u0E7F]", w)]
 
-    def _join(words):
-        out = ""
-        for w in words:
-            cand = (out + " " + w).strip()
-            if cand and len(cand) > 35 and out:
-                break  # keep whole tokens only — never chop mid-word
-            out = cand
-        return out.strip()
+    # Numeric + plus/unit readouts first (handles SPF50+, PA+++, 30ml, 50g)
+    name = re.sub(r"(?i)\bspf\s*(\d+)\s*\+", lambda m: f"เอส พี เอฟ {_thai_number(int(m.group(1)))} พลัส", name)
+    name = re.sub(r"(?i)\bpa\s*\+*", "พี เอ พลัส", name)
+    name = re.sub(r"(?i)\b(\d+)\s*ml\b", lambda m: f"{_thai_number(int(m.group(1)))} มิลลิลิตร", name)
+    name = re.sub(r"(?i)\b(\d+)\s*g\b", lambda m: f"{_thai_number(int(m.group(1)))} กรัม", name)
 
-    if thai:
-        out = _join(thai)
-        if latin and len(f"{out} {latin[0]}") <= 40:
-            out = f"{out} {latin[0]}".strip()
-        return out or name
-    return _join(latin[:2]) or name
+    # Transliterate contiguous latin brand runs as whole units (handles "Dr.PONG",
+    # "SPF50+", "GLUTA", "Skinshe") BEFORE tokenizing, so multi-word brands are
+    # not split apart and lost. Thai words pass through untouched.
+    def _trans_latin_runs(t: str) -> str:
+        out_parts = []
+        # latin run = letters/digits/+/-/. run (no spaces). Keep surrounding sep.
+        for part in re.split(r"([A-Za-z0-9.+\-]+)", t):
+            if not part:
+                continue
+            if re.fullmatch(r"[A-Za-z0-9.+-]+", part) and re.search(r"[A-Za-z]", part):
+                mapped = _tup_sap_name(part)
+                # also try full-run after dropping spaces if single-word didn't map
+                if mapped == part:
+                    full_key = re.sub(r"[^a-z0-9]", "", part.lower())
+                    if full_key in _THAI_TUP_SAP:
+                        mapped = _THAI_TUP_SAP[full_key]
+                out_parts.append(mapped)
+            else:
+                out_parts.append(part)
+        return "".join(out_parts)
+
+    name = _trans_latin_runs(name)
+
+    # strip common stopwords / empty filler so the spoken name stays tight
+    stop = {"ครีม", "cream", "เซต", "set", "ชิ้น", "มี", "แถม", "ขนาด", "ใหม่", "เจน",
+            "รุ่น", "สี", "แพ็ค", "แพ็ก", "box", "gift", "เซรั่ม", "serum", "elixir"}
+    kept = []
+    for w in re.split(r"(\s+)", name):
+        if not w.strip():
+            kept.append(w)
+            continue
+        key = re.sub(r"[^a-zA-Z0-9ก-๙]", "", w.lower())
+        if key in stop:
+            continue
+        kept.append(w)
+    cleaned = "".join(kept).strip()
+    cleaned = re.sub(r"\s{2,}", " ", cleaned).strip()
+
+    # If at least one Thai token survived (brand mapped or Thai in name), drop the
+    # leftover unknown-latin junk (model codes like U9.9, RENEWAL, 170ML). This keeps
+    # the spoken name tight ("ดร.พงษ์" not "ดร.พงษ์ U9.9 RENEWAL"). Pure-latin names
+    # with no Thai mapping are kept intact (unknown brand preserved).
+    if re.search(r"[\u0E00-\u0E7F]", cleaned):
+        cleaned_toks = []
+        seen_thai = set()
+        for w in re.split(r"(\s+)", cleaned):
+            if not w.strip():
+                cleaned_toks.append(w)
+                continue
+            if re.search(r"[a-zA-Z]", w) and not re.search(r"[\u0E00-\u0E7F]", w):
+                continue  # drop unknown latin junk
+            norm_w = re.sub(r"[^ก-๙a-zA-Z0-9]", "", w.lower())
+            if re.search(r"[\u0E00-\u0E7F]", w):
+                if norm_w in seen_thai:
+                    continue  # dedupe repeated thai brand (วาสลีน วาสลีน)
+                seen_thai.add(norm_w)
+            cleaned_toks.append(w)
+        cleaned = "".join(cleaned_toks)
+        cleaned = re.sub(r"\s{2,}", " ", cleaned).strip()
+    return cleaned or name
 
 
 def _name_variants(*names) -> List[str]:
@@ -1918,6 +2051,11 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
     is_female = target_gender in ("female", "woman")
     reg_hook = "คะ" if is_female else "ครับ"
     reg_val = "ค่ะ" if is_female else "ครับ"
+
+    # Owner 2026-08-29: spoken name = Thai transliterated from FULL product_name
+    # (not product_short which may have the brand chopped off) so the beat reads the
+    # brand in Thai (Dr.PONG -> ดร.พงษ์, Skinshe -> สกินชี).
+    spoken_name = _tts_product_name(product_name or product_short)
     
     # Use customer_problem + main_benefit from Gemini analysis when available
     customer_problem = profile.get("customer_problem", "") if profile else ""
@@ -1930,28 +2068,28 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
     if customer_problem and main_benefit and len(customer_problem) > 5:
         # Shorten problem and benefit for natural spoken Thai and normalize polite particle by gender
         hook_text = _normalize_thai_gender_register(_safe_thai_truncate(customer_problem, 40), is_female)
-        value_text = _normalize_thai_gender_register(f"{product_short} {_safe_thai_truncate(main_benefit, 45)}", is_female)
+        value_text = _normalize_thai_gender_register(f"{spoken_name} {_safe_thai_truncate(main_benefit, 45)}", is_female)
     elif category in ("home", "electronics", "tools"):
         hook_text = f"เจอปัญหานี้อยู่ใช่ไหม{reg_hook}"
-        value_text = f"{product_short} ช่วยได้เยอะเลย{reg_val}"
+        value_text = f"{spoken_name} ช่วยได้เยอะเลย{reg_val}"
     elif "blush" in category.lower() or "cheek" in category.lower():
         hook_text = f"อยากหน้าสดใส ดูมีมิติใช่ไหม{reg_hook}"
-        value_text = f"{product_short} เติมแก้มสวยเป็นธรรมชาติ{reg_val}"
+        value_text = f"{spoken_name} เติมแก้มสวยเป็นธรรมชาติ{reg_val}"
     elif "lip" in category.lower():
         hook_text = f"อยากปากฉ่ำวาว สวยทนนานไหม{reg_hook}"
-        value_text = f"{product_short} ทาแล้วปากชุ่มชื้น สวยปัง{reg_val}"
+        value_text = f"{spoken_name} ทาแล้วปากชุ่มชื้น สวยปัง{reg_val}"
     elif "mask" in category.lower() or "facial" in category.lower():
         hook_text = f"ผิวแห้ง หมองคล้ำ ต้องลองสักครั้ง{reg_hook}"
-        value_text = f"{product_short} ช่วยบำรุงผิวชุ่มชื้นฉ่ำน้ำ{reg_val}"
+        value_text = f"{spoken_name} ช่วยบำรุงผิวชุ่มชื้นฉ่ำน้ำ{reg_val}"
     elif "serum" in category.lower() or "moisturizer" in category.lower():
         hook_text = f"อยากผิวใส ชุ่มชื้น แนะนำเลย{reg_hook}"
-        value_text = f"{product_short} ซึมไว ไม่เหนอะหนะ{reg_val}"
+        value_text = f"{spoken_name} ซึมไว ไม่เหนอะหนะ{reg_val}"
     elif "concealer" in category.lower() or "corrector" in category.lower():
         hook_text = f"กลบรอยใต้ตา เนียนกริบ{reg_hook}"
-        value_text = f"{product_short} ปกปิดเนียนสวย ไม่ตกร่อง{reg_val}"
+        value_text = f"{spoken_name} ปกปิดเนียนสวย ไม่ตกร่อง{reg_val}"
     else:
         hook_text = f"ของดีต้องบอกต่อ{reg_hook}"
-        value_text = f"{product_short} ใช้งานง่าย คุ้มค่ามาก{reg_val}"
+        value_text = f"{spoken_name} ใช้งานง่าย คุ้มค่ามาก{reg_val}"
     cta_text = f"สนใจพิกัดในตะกร้าซ้ายล่างได้เลย{reg_val}"
 
     target_dur_sec = 15
@@ -2040,7 +2178,7 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
         {"key": "cta", "text": cta_text, "duration_sec": cta_dur, "timing": f"{hook_dur+value_dur}-{target_dur_sec}"},
     ]
     # Owner script rules (2026-08-24): Thai-dominant name + speak ONCE, no 'ตัวนี้'
-    _spoken_fb = _tts_product_name(product_short)
+    _spoken_fb = spoken_name or _tts_product_name(product_short)
     _drop_later_name_mentions(segments, _owner_script_variants(_spoken_fb))
     _scrub_placeholder_words(segments)
     

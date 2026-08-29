@@ -24,6 +24,7 @@ if str(_pb_path) not in sys.path:
 from shared_config import GEMINI_API_KEY
 from persona_engine import PERSONA_TEMPLATES, _select_persona
 from config import DEFAULT_DURATION
+from prompt_builder import _tts_product_name
 
 logger = logging.getLogger("tiktok-ugc.script_gen")
 
@@ -352,17 +353,22 @@ def generate_tiktok_review_script(
 
     # ─── Build user data ──────────────────────────────────────────────
     # tone จาก persona ถ้าไม่ override
+    # 🔴 FIX (owner 2026-08-29): ทับศัพท์ product_name/features เป็นไทยล้วน
+    # ก่อนส่งเข้า Gemini ไม่งั้น Gemini ทิ้ง raw อังกฤษ (SPF50+ PA++++ 50g)
+    # ไว้ในบท — ต้องแปลงเป็นไทยพูดได้หมดก่อนไพลเมไป template
+    _pn_thai = _tts_product_name(product_name)
+    _feat_thai = _tts_product_name(features) if features else "-"
     effective_tone = tone or persona_name
     
     user_data = {
-        "product_name": product_name,
+        "product_name": _pn_thai or product_name,
         "customer_problem": customer_problem or "ปัญหาที่พบเจอบ่อย",
         "main_benefit": main_benefit or "คุณภาพดี ใช้งานได้จริง",
         "target_audience": target_audience or "ทุกคนที่กำลังมองหา",
         "tone": effective_tone,
         "cta": cta or "กดดูในตะกร้าเลย",
         "extra_rules": extra_rules or "-",
-        "features": features or "-",
+        "features": _feat_thai or "-",
         "product_appearance": product_appearance or "-",
     }
 

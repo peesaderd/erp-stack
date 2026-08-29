@@ -1796,6 +1796,10 @@ def _tts_product_name(product_name: str) -> str:
             cleaned_toks.append(w)
         cleaned = "".join(cleaned_toks)
         cleaned = re.sub(r"\s{2,}", " ", cleaned).strip()
+    # Owner 2026-08-29: strip leftover special/punctuation ( - / ( ) [ ] * ** bold, ฯลฯ )
+    # — any of these leaking → Wan speaks it wrong ("เพี้ยนปั๊บ"). Keep "." (brand dot in ดร.พงษ์).
+    cleaned = re.sub(r"[^\u0E00-\u0E7Fa-zA-Z0-9.\s]+", "", cleaned)
+    cleaned = re.sub(r"\s{2,}", " ", cleaned).strip()
     return cleaned or name
 
 

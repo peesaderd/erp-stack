@@ -882,7 +882,12 @@ def _apply_prompt_anchor(
     # maps to talking_head so its dedicated anchor is used.
     if style in ("talking", "talking_head"):
         style = "talking_head"
-    # ── Owner 2026-08-29: cream/beauty apply → use SSOT apply_cream anchor ──
+    # ── Owner 2026-08-29 19:19: review KEEPS its own placed-on-table anchor ──
+    # review = วางสินค้าบนโต๊ะ พูดรีวิว มือนิ่ง ไม่ถือ ไม่ทาครีม. The apply_cream
+    # override below (for cream/beauty/skincare) must NOT replace the review
+    # anchor, otherwise a cream product on a review recipe ends up smearing it
+    # on the face instead of leaving it on the table (owner: "เอาตามเดิม").
+    _is_review_hold = style == "review" or style == "product_demo"
     sub2 = (subcategory or "").strip().lower()
     cat2 = (category or "").strip().lower()
     bp2 = (body_part or "").strip().lower()
@@ -900,12 +905,15 @@ def _apply_prompt_anchor(
     except Exception:
         _apply_hints_keys = set()
     _is_apply = (
-        cat2 == "skincare"
-        or cat2 == "beauty"
-        or ("makeup" in sub2)
-        or (sub2 in _FACE_CREAM)
-        or (sub2 in _apply_hints_keys)
-        or (bp2 and bp2.replace(" ", "-").replace("_", "-") not in ("hand", "hands"))
+        (
+            cat2 == "skincare"
+            or cat2 == "beauty"
+            or ("makeup" in sub2)
+            or (sub2 in _FACE_CREAM)
+            or (sub2 in _apply_hints_keys)
+            or (bp2 and bp2.replace(" ", "-").replace("_", "-") not in ("hand", "hands"))
+        )
+        and not _is_review_hold  # review/product_demo วางบนโต๊ะ ไม่ทาครีม
     )
     if _is_apply:
         try:

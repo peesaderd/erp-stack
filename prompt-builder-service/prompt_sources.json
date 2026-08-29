@@ -1313,7 +1313,7 @@
       "unboxing",
       "usage"
     ],
-    "negative_base": "distorted hands, extra fingers, fused or webbed fingers, hoof-like or claw-like hand, deformed or stubby fingers, mangled hand, unnatural hand gesture, facial morphing or melting, stable face, consistent identity, realistic proportions, camera zoom, pan or movement, blurred or warped product, distorted unreadable label text",
+    "negative_base": "no distorted hands, no extra fingers, no fused or webbed fingers, no hoof-like or claw-like hand, no deformed or stubby fingers, no mangled hand, no unnatural hand gesture, no facial morphing or melting, no camera zoom, no pan or movement, no blurred or warped product, no distorted unreadable label text, stable face, consistent identity, realistic proportions",
     "negative_talking": [
       "no exaggerated jaw movement",
       "no shouting",

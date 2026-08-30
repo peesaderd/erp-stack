@@ -1109,10 +1109,9 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             "micro-movements (subtle hand turns and gentle facial expressions), never moving the camera away "
             "from the product. "
             # Owner guard 2026-08-30 (ภาษาไทยล้วน): กัน Wan พูดมั่วต่อท้ายสคริปต์.
-            # หลังพูดจบบทแล้ว ให้หยุดพูดทันที ไม่พูลเกินกว่านั้น ไม่มีเสียงฟุ่มเฟือยตอนท้าย
-            # แล้วยิ้มอยู่นิ่ง ๆ อย่างเป็นธรรมชาติต่อจนจบฉากสุดท้ายเท่านั้น.
-            "หลังจากพูดจบบททั้งหมดแล้ว ให้หยุดพูดทันที ไม่พูดอะไรเพิ่มเติม ไม่มีเสียงต่อท้าย "
-            "แล้วยิ้มอยู่นิ่ง ๆ อย่างเป็นธรรมชาติต่อไปเรื่อย ๆ จนจบฉากสุดท้าย"
+            # หลังพูดจบบทแล้ว ให้หยุดพูดทันที ไม่พูดเกินกว่านั้น ไม่มีเสียงฟุ่มเฟือยตอนท้าย
+            # (owner 12:28: อย่าเพิ่ม "ยิ้มอยู่นิ่ง ๆ จนจบฉากสุดท้าย" — มันทำให้ Wan freeze frame).
+            "หลังจากพูดจบบททั้งหมดแล้ว ให้หยุดพูดทันที ไม่พูดอะไรเพิ่มเติม ไม่มีเสียงต่อท้าย"
         )
         logger.info(f"  Video prompt (4-beat, {len(video_prompt)} chars):")
         video_prompt = re.sub(r'[ \t]+', ' ', video_prompt).strip()
@@ -1398,13 +1397,13 @@ def apply_mouth_steer(video_prompt: str, ugc_style: str = "holding", is_speaking
     steer = [x.strip() for x in mc["steer_talking_prompt"]]
     steer_text = ", ".join(steer)
     # Owner guard 2026-08-30 (ภาษาไทยล้วน): ทุก talking style (holding/talking/review/usage)
-    # ตอนมีสคริปต์พูด ต้องหยุดพูดทันทีหลังจบบท แล้วยิ้มอยู่นิ่ง ๆ ต่อจนจบฉากสุดท้าย
-    # (กัน Wan พูดมั่วต่อท้ายสคริปต์ — owner: "อันอื่นมันก็พูด"). ใส่ต่อท้าย steer
+    # ตอนมีสคริปต์พูด ต้องหยุดพูดทันทีหลังจบบท (กัน Wan พูดมั่วต่อท้ายสคริปต์ — owner: "อันอื่นมันก็พูด").
+    # owner 12:28: อย่าเพิ่ม "ยิ้มอยู่นิ่ง ๆ จนจบฉากสุดท้าย" — มันทำให้ Wan freeze frame
+    # (ปล่อย micro-expression ธรรมชาติตาม steer เดิม). ใส่ต่อท้าย steer
     # เพราะ anchor ถูกเติมไปแล้วก่อนหน้านี้ (anchor ต้องอยู่ท้ายสุด ไม่ชนกัน).
     if is_speaking:
         steer_text += (
-            ", หลังจากพูดจบบทแล้วให้หยุดพูดทันที ไม่พูดอะไรเพิ่มเติม ไม่มีเสียงต่อท้าย "
-            "แล้วยิ้มอยู่นิ่ง ๆ ต่อไปจนจบฉากสุดท้าย"
+            ", หลังจากพูดจบบทแล้วให้หยุดพูดทันที ไม่พูดอะไรเพิ่มเติม ไม่มีเสียงต่อท้าย"
         )
     return video_prompt.rstrip() + f" {steer_text}."
 

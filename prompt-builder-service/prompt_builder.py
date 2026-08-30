@@ -887,7 +887,14 @@ def _apply_prompt_anchor(
     # override below (for cream/beauty/skincare) must NOT replace the review
     # anchor, otherwise a cream product on a review recipe ends up smearing it
     # on the face instead of leaving it on the table (owner: "เอาตามเดิม").
+    #
+    # ── Owner 2026-08-30 06:04: HOLDING is exempt from the apply_cream
+    # override too. holding = ถือสินค้าพูดอย่างเดียว ไม่ทา ไม่ถูกแย่งไปทาครีม
+    # แม้สินค้าจะเข้าข่าย apply (skincare/beauty/apply_hints/body_part). กรณีที่
+    # พี่ต้องการ "ถือพูดอย่างเดียว" ต้องไม่หลุดไปเป็น apply_cream formula.
+    # (ปัญหาทาครีมไม่ตรงจุดจะแก้ละเอียดที่ apply area ทีหลัง — ไม่ใช่ตรงนี้)
     _is_review_hold = style == "review" or style == "product_demo"
+    _is_hold_style = style == "holding" or _is_review_hold
     sub2 = (subcategory or "").strip().lower()
     cat2 = (category or "").strip().lower()
     bp2 = (body_part or "").strip().lower()
@@ -913,7 +920,7 @@ def _apply_prompt_anchor(
             or (sub2 in _apply_hints_keys)
             or (bp2 and bp2.replace(" ", "-").replace("_", "-") not in ("hand", "hands"))
         )
-        and not _is_review_hold  # review/product_demo วางบนโต๊ะ ไม่ทาครีม
+        and not _is_hold_style  # review/product_demo วางบนโต๊ะ ไม่ทา ; holding ถืออย่างเดียว ไม่ทา (owner 2026-08-30)
     )
     if _is_apply:
         try:

@@ -1337,11 +1337,10 @@
     "steer_talking_prompt": [
       "micro-expressions",
       "small natural mouth movements",
-      "minimal jaw motion",
-      "soft spoken",
-      "calm restrained",
-      "barely parted lips",
-      "subtle lip separation"
+      "natural head tilts",
+      "occasional natural blinking",
+      "lively conversational delivery",
+      "warm genuine smile"
     ]
   },
   "image_negative": {

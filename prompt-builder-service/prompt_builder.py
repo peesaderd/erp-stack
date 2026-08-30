@@ -1205,13 +1205,11 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             f"table in front, reviewing it honestly while smiling warmly, {review_scene}"
         )
         # Review end: STOP talking, hands stay still on the table, product stays placed.
-        # Owner guard 2026-08-30 (ภาษาไทยล้วน): กัน Wan พูดมั่วต่อท้ายสคริปต์ — หลังพูดจบ
-        # ให้หยุดพูดทันที ไม่มีเสียงเกินบท แล้วยิ้มอยู่เหมือนเดิมจนจบฉากสุดท้าย.
+        # Guard หยุดพูด / ยิ้มจบฉาก ถูกเติมจาก apply_mouth_steer() อยู่แล้ว (จุดรวม cover ทุก
+        # style) — ห้ามใส่ guard ซ้ำตรงนี้อีก ไม่งั้น video_prompt จะมีภาษาไทยซ้ำ 2 รอบ (owner-2026-08-30).
         end_part = (
             "Face kept clear, then finishes speaking, "
-            "hands staying still on the tabletop, smiling warmly with a bright cheerful expression, "
-            "หลังจากพูดจบบทแล้ว ให้หยุดพูดทันที ไม่พูดอะไรเพิ่มเติม ไม่มีเสียงต่อท้าย "
-            "แล้วยิ้มอยู่นิ่ง ๆ บนโต๊ะต่อไปจนจบฉากสุดท้าย"
+            "hands staying still on the tabletop, smiling warmly with a bright cheerful expression"
         )
         transition = ""
         # Mouth/head-only motion; hands stay STILL on the table (no raising, no gesturing).

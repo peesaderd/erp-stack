@@ -2090,9 +2090,15 @@ def _owner_script_variants(*bases) -> List[str]:
     for b in bases:
         for w, _n in _brand_tokens(b):
             if len(w) >= 4:
-                wl = w.lower()
-                if wl not in {o.lower() for o in out}:
-                    out.append(w)
+                # Owner 2026-08-30: only add LATIN brand tokens as standalone
+                # variants. Do NOT add Thai-rendered pieces (พงษ์, ยูเก้าจุดเก้า,
+                # รีนิวเวิลด์) as drop targets: a Thai product-name fragment must
+                # stay in the spoken name (fix: Dr.PONG ... -> "ดร.พงษ์" keeping
+                # "พงษ์ ยูเก้าจุดเก้า รีนิวเวิลด์" instead of chopping to "ดร. ครีม").
+                if not re.search(r"[\u0E00-\u0E7F]", w):
+                    wl = w.lower()
+                    if wl not in {o.lower() for o in out}:
+                        out.append(w)
     return out
 
 

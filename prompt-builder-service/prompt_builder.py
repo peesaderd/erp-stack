@@ -1014,8 +1014,13 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
         _cat2 = ((profile.get("category") or "").strip().lower())
         _do_makeup = ("makeup" in _sub2) or ("beauty" == _cat2 or "beauty" in _cat2)
         # Owner 2026-08-29: face-cream products must blend onto the FACE (not hold).
+        # ── Owner 2026-08-30 06:24: ตาม recipe/UGC — ถ้าผู้ใช้เลือก ugc_style เป็น
+        # holding ให้ได้ฉากถือพูดอย่างเดียวเสมอ ไม่ถูกบังคับทาหน้าแค่เพราะสินค้าเป็น
+        # ครีม/beauty/face-cream. การทาครีมยังทำได้ปกติเมื่อเลือก style ที่เป็นทา
+        # (usage/apply_cream) เพราะตรงนี้กันแค่ holding ออกจากสูตรทาเท่านั้น.
         _FACE_CREAM = {"sunscreen", "moisturizer", "serum", "eye_cream", "toner", "face_whitening", "foundation"}
-        _do_apply_face = _do_makeup or (_sub2 in _FACE_CREAM)
+        _style_l = (ugc_style or "").strip().lower()
+        _do_apply_face = (_do_makeup or (_sub2 in _FACE_CREAM)) and _style_l != "holding"
         apply_hint = _apply_hint(subcategory, category, profile) if (_is_special or _do_apply_face) else (
             _load_ssot_extras()["apply_hints"]["hold_template"].format(product=vp_product)
         )

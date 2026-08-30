@@ -2406,7 +2406,10 @@ async function autoGenerateAll() {
   const url = document.getElementById('productUrl').value;
   const title = document.getElementById('productTitle').value.trim();
   const details = document.getElementById('productDetails').value.trim();
-  const style = document.getElementById('selectedStyleLabel')?.textContent?.split(' —')[0]?.trim()?.toLowerCase().replace(/ /g,'_') || 'holding';
+  // Use the stored enum value (holding/usage/review/talking) set by selectStyleFromModal.
+  // Do NOT derive from the display label — "UGC Review" -> "ugc_review" (not "review") breaks
+  // prompt-builder's exact-match and makes every style fall back to "holding" (owner 2026-08-30).
+  const style = sessionStorage.getItem('selectedStyle') || 'holding';
   if (!url && !title && !details) { showToast('ใส่ชื่อสินค้าหรือ URL ก่อน','error'); return; }
 
   const dur = parseInt(sessionStorage.getItem('selectedDuration')) || 15;
@@ -2656,7 +2659,8 @@ async function generateScript() {
   const url = document.getElementById('productUrl').value;
   const title = document.getElementById('productTitle').value.trim();
   const details = document.getElementById('productDetails').value.trim();
-  const style = document.getElementById('selectedStyleLabel')?.textContent?.split(' —')[0]?.trim()?.toLowerCase().replace(/ /g,'_') || 'holding';
+  // Use stored enum (holding/usage/review/talking), not label-derived (owner 2026-08-30).
+  const style = sessionStorage.getItem('selectedStyle') || 'holding';
   if (!url && !title && !details) { showToast('ใส่ชื่อสินค้าหรือ URL ก่อน','error'); return; }
 
   setButtonLoading('genScriptBtn', true);
@@ -2730,7 +2734,8 @@ async function generateImageFromStep3() {
   setButtonLoading('genImageBtn', true);
   const productName = document.getElementById('productTitle').value || document.getElementById('productName').value || 'สินค้า';
   const productDetails = document.getElementById('productDetails').value || '';
-  const style = document.getElementById('selectedStyleLabel')?.textContent?.split(' —')[0]?.trim()?.toLowerCase().replace(/ /g,'_') || 'holding';
+  // Use stored enum (holding/usage/review/talking), not label-derived (owner 2026-08-30).
+  const style = sessionStorage.getItem('selectedStyle') || 'holding';
   const productImageUrl = uploadedImages.product || '';
   
   try {

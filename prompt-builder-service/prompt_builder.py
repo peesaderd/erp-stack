@@ -1770,6 +1770,64 @@ _THAI_TUP_SAP = {
     "sunscreen": "ซันสกรีน",
     "moisturizer": "มอยส์เจอร์ไรเซอร์",
     "mask": "มาส์ก",
+    # Owner 2026-08-30: widen transliteration table so real product names stay spoken
+    # (keep brand + series/model + unit, NOT dropped like the old "drop latin junk" logic).
+    # Series / product-type words -> spoken Thai.
+    "renewal": "รีนิวเวิลด์",
+    "renew": "รีนิว",
+    "renewing": "รีนิววิ่ง",
+    "jelly": "เจลลี่",
+    "eye": "อาย",
+    "care": "แคร์",
+    "lotion": "โลชั่น",
+    "toner": "โทนเนอร์",
+    "essence": "เอสเซนซ์",
+    "cleanser": "คลีนเซอร์",
+    "foam": "โฟม",
+    "wash": "วอช",
+    "face": "เฟซ",
+    "body": "บอดี้",
+    "hand": "แฮนด์",
+    "oil": "ออยล์",
+    "balm": "บาล์ม",
+    "milk": "มิลค์",
+    "mist": "มิสต์",
+    "night": "ไนท์",
+    "bright": "ไบรท์",
+    "glow": "โกลว์",
+    "whitening": "ไวเทนนิ่ง",
+    "probiotic": "โปรไบโอติก",
+    "vitamin": "วิตามิน",
+    "repair": "รีแพร์",
+    "repairing": "รีแพริ่ง",
+    "firming": "เฟิร์มมิ่ง",
+    "brightening": "ไบรท์เทนนิ่ง",
+    "mineral": "มิเนอรัล",
+    "active": "แอคทีฟ",
+    "collagenboost": "คอลลาเจนบูสต์",
+    "collagen": "คอลลาเจน",
+    # Common gift/combo/set words
+    "gifteset": "กิฟต์เซ็ต",
+    "gift": "กิฟต์",
+    "set": "เซ็ต",
+    "combo": "คอมโบ",
+    "starter": "สตาร์ทเตอร์",
+    "kit": "คิท",
+    # Brands / series seen in jobs
+    "luna": "ลูน่า",
+    "merlot": "แมร์โลต์",
+    "skin1004": "สกินวันพันสี่",
+    "centella": "เซนเทลลา",
+    "karat": "คารัต",
+    "aloe": "ว่านหางจระเข้",
+    "cerave": "เซราวี",
+    "drgroot": "ดร.กรูท",
+    "plex": "เพล็กซ์",
+    "line": "ไลน์",
+    "tone": "โทน",
+    "milky": "มิลค์กี้",
+    "volume": "วอลุ่ม",
+    "c": "ซี",
 }
 
 
@@ -1812,77 +1870,102 @@ def _tts_product_name(product_name: str) -> str:
     name = re.sub(r"(?i)\b(?:(?:สูตร)?ใหม่|ใหม่สูตร|รุ่นใหม่|สูตร)\b", " ", name).strip()
     name = re.sub(r"\s{2,}", " ", name).strip()
 
-    # Numeric + plus/unit readouts first (handles SPF50+, PA+++, 30ml, 50g)
+    # Numeric + plus/unit readouts first (SPF50+, PA+++, 30ml, 50g, 7.5g, 0.75ml)
     name = re.sub(r"(?i)\bspf\s*(\d+)\s*\+", lambda m: f"เอส พี เอฟ {_thai_number(int(m.group(1)))} พลัส", name)
     name = re.sub(r"(?i)\bpa\s*\+*", "พี เอ พลัส", name)
-    name = re.sub(r"(?i)\b(\d+)\s*ml\b", lambda m: f"{_thai_number(int(m.group(1)))} มิลลิลิตร", name)
-    name = re.sub(r"(?i)\b(\d+)\s*g\b", lambda m: f"{_thai_number(int(m.group(1)))} กรัม", name)
+    # decimal units (7.5g -> เจ็ดจุดห้ากรัม, 0.75ml -> ศูนย์จุดเจ็ดห้ามิลลิลิตร)
+    name = re.sub(r"(?i)\b(\d+\.\d+)\s*ml\b", lambda m: f"{_thai_decimal(m.group(1))}มิลลิลิตร", name)
+    name = re.sub(r"(?i)\b(\d+\.\d+)\s*g\b", lambda m: f"{_thai_decimal(m.group(1))}กรัม", name)
+    # integer units
+    name = re.sub(r"(?i)\b(\d+)\s*ml\b", lambda m: f"{_thai_number(int(m.group(1)))}มิลลิลิตร", name)
+    name = re.sub(r"(?i)\b(\d+)\s*g\b", lambda m: f"{_thai_number(int(m.group(1)))}กรัม", name)
 
-    # Transliterate contiguous latin brand runs as whole units (handles "Dr.PONG",
-    # "SPF50+", "GLUTA", "Skinshe") BEFORE tokenizing, so multi-word brands are
-    # not split apart and lost. Thai words pass through untouched.
+    # Transliterate contiguous latin runs as whole units (brands, model codes).
+    # Known words -> Thai via _THAI_TUP_SAP; unknown with digits -> spell as
+    # model code (U9.9 -> ยูเก้าจุดเก้า); unknown pure letters -> spell by letter
+    # so nothing silently disappears (owner 2026-08-30: keep whole real name).
+    def _norm_key(t: str) -> str:
+        return re.sub(r"[^a-z0-9]", "", t.lower())
+
+    _LETTER = {"A":"เอ","B":"บี","C":"ซี","D":"ดี","E":"อี","F":"เอฟ","G":"จี","H":"เอช","I":"ไอ","J":"เจ","K":"เค","L":"แอล","M":"เอ็ม","N":"เอ็น","O":"โอ","P":"พี","Q":"คิว","R":"อาร์","S":"เอส","T":"ที","U":"ยู","V":"วี","W":"ดับเบิลยู","X":"เอ็กซ์","Y":"วาย","Z":"เซด"}
+
+    def _spell_code(raw: str) -> str:
+        """Spell a short latin token/run to spoken form: letters + thai digits."""
+        out = []
+        num = ""
+        for ch in raw:
+            if ch.isdigit():
+                num += ch
+            elif ch == ".":
+                if num:
+                    out.append(_thai_number(int(num))); num = ""
+                out.append("จุด")
+            elif ch.isalpha():
+                if num:
+                    out.append(_thai_number(int(num))); num = ""
+                out.append(_LETTER.get(ch.upper(), ch))
+            else:
+                if num:
+                    out.append(_thai_number(int(num))); num = ""
+                out.append(ch)
+        if num:
+            out.append(_thai_number(int(num)))
+        return "".join(out)
+
     def _trans_latin_runs(t: str) -> str:
         out_parts = []
-        # latin run = letters/digits/+/-/. run (no spaces). Keep surrounding sep.
         for part in re.split(r"([A-Za-z0-9.+\-]+)", t):
             if not part:
                 continue
             if re.fullmatch(r"[A-Za-z0-9.+-]+", part) and re.search(r"[A-Za-z]", part):
-                mapped = _tup_sap_name(part)
-                # also try full-run after dropping spaces if single-word didn't map
-                if mapped == part:
-                    full_key = re.sub(r"[^a-z0-9]", "", part.lower())
-                    if full_key in _THAI_TUP_SAP:
-                        mapped = _THAI_TUP_SAP[full_key]
-                out_parts.append(mapped)
+                key = _norm_key(part)
+                if key in _THAI_TUP_SAP:
+                    out_parts.append(_THAI_TUP_SAP[key])
+                elif re.search(r"\d", part):
+                    out_parts.append(_spell_code(part))  # model code U9.9 -> ยูเก้าจุดเก้า
+                else:
+                    out_parts.append(_spell_code(part))  # unknown word kept, spelled
             else:
                 out_parts.append(part)
         return "".join(out_parts)
 
     name = _trans_latin_runs(name)
 
-    # strip common stopwords / empty filler so the spoken name stays tight
-    stop = {"ครีม", "cream", "เซต", "set", "ชิ้น", "มี", "แถม", "ขนาด", "ใหม่", "เจน",
-            "รุ่น", "สี", "แพ็ค", "แพ็ก", "box", "gift", "เซรั่ม", "serum", "elixir",
-            "สูตร", "แบบ", "ชนิด", "ชุด", "ลัง", "แพ็กเกจ", "กล่อง"}
-    kept = []
-    for w in re.split(r"(\s+)", name):
-        if not w.strip():
-            kept.append(w)
+    # Dedupe repeated Thai brand tokens (so "ครีมสกินชี สกินชี" stays
+    # "ครีมสกินชี") but keep every latin-rendered word (owner 2026-08-25 dedupe).
+    seen = set()
+    kept_toks = []
+    for w in name.split():
+        norm = re.sub(r"[^ก-๙]", "", w)
+        if not norm:
+            kept_toks.append(w)  # latin/mixed token, keep
             continue
-        key = re.sub(r"[^a-zA-Z0-9ก-๙]", "", w.lower())
-        if key in stop:
-            continue
-        kept.append(w)
-    cleaned = "".join(kept).strip()
+        if norm in seen:
+            continue  # dedupe duplicate Thai brand
+        seen.add(norm)
+        kept_toks.append(w)
+    cleaned = " ".join(kept_toks).strip()
     cleaned = re.sub(r"\s{2,}", " ", cleaned).strip()
 
-    # If at least one Thai token survived (brand mapped or Thai in name), drop the
-    # leftover unknown-latin junk (model codes like U9.9, RENEWAL, 170ML). This keeps
-    # the spoken name tight ("ดร.พงษ์" not "ดร.พงษ์ U9.9 RENEWAL"). Pure-latin names
-    # with no Thai mapping are kept intact (unknown brand preserved).
-    if re.search(r"[\u0E00-\u0E7F]", cleaned):
-        cleaned_toks = []
-        seen_thai = set()
-        for w in re.split(r"(\s+)", cleaned):
-            if not w.strip():
-                cleaned_toks.append(w)
-                continue
-            if re.search(r"[a-zA-Z]", w) and not re.search(r"[\u0E00-\u0E7F]", w):
-                continue  # drop unknown latin junk
-            norm_w = re.sub(r"[^ก-๙a-zA-Z0-9]", "", w.lower())
-            if re.search(r"[\u0E00-\u0E7F]", w):
-                if norm_w in seen_thai:
-                    continue  # dedupe repeated thai brand (วาสลีน วาสลีน)
-                seen_thai.add(norm_w)
-            cleaned_toks.append(w)
-        cleaned = "".join(cleaned_toks)
-        cleaned = re.sub(r"\s{2,}", " ", cleaned).strip()
-    # Owner 2026-08-29: strip leftover special/punctuation ( - / ( ) [ ] * ** bold, ฯลฯ )
-    # — any of these leaking → Wan speaks it wrong ("เพี้ยนปั๊บ"). Keep "." (brand dot in ดร.พงษ์).
+    # Strip leftover special/punctuation (keep "." for brand dot in ดร.พงษ์)
     cleaned = re.sub(r"[^\u0E00-\u0E7Fa-zA-Z0-9.\s]+", "", cleaned)
     cleaned = re.sub(r"\s{2,}", " ", cleaned).strip()
     return cleaned or name
+
+
+def _thai_decimal(dec_str: str) -> str:
+    """'7.5' -> 'เจ็ดจุดห้า'; '0.75' -> 'ศูนย์จุดเจ็ดห้า'. Integer part via
+    _thai_number; each decimal digit read individually."""
+    _DIG = {"0":"ศูนย์","1":"หนึ่ง","2":"สอง","3":"สาม","4":"สี่","5":"ห้า","6":"หก","7":"เจ็ด","8":"แปด","9":"เก้า"}
+    if "." not in dec_str:
+        return _thai_number(int(dec_str)) if dec_str else ""
+    whole, frac = dec_str.split(".", 1)
+    if not whole or whole == "0":
+        w = "ศูนย์"
+    else:
+        w = _thai_number(int(whole))
+    f = "".join(_DIG.get(c, c) for c in frac if c.isdigit())
+    return f"{w}จุด{f}"
 
 
 def _name_variants(*names) -> List[str]:

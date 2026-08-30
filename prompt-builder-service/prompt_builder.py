@@ -1828,6 +1828,92 @@ _THAI_TUP_SAP = {
     "milky": "มิลค์กี้",
     "volume": "วอลุ่ม",
     "c": "ซี",
+    # Owner 2026-08-30 10:57: keep the whole name spoken cleanly; widen the
+    # table so -ing/-er/-common skincare words don't get spelled letter-by-letter
+    # ("Moisturizing" was reading as single letters). Avoid cascading misreads.
+    "moisturizing": "มอยส์เจอร์ไรซิ่ง",
+    "moisture": "มอยส์เจอร์",
+    "hydrating": "ไฮเดรติ้ง",
+    "hydration": "ไฮเดรชั่น",
+    "hydrate": "ไฮเดรท",
+    "powder": "แป้งฝุ่น",
+    "scrub": "สครับ",
+    "gel": "เจล",
+    "water": "วอเตอร์",
+    "extract": "เอ็กซ์แทรกต์",
+    "boost": "บูสต์",
+    "booster": "บูสเตอร์",
+    "perfect": "เพอร์เฟค",
+    "vital": "ไวทัล",
+    "liquid": "ลิควิด",
+    "cleansing": "คลีนซิ่ง",
+    "exfoliating": "เอ็กซ์โฟลิเอติ้ง",
+    "exfoliant": "เอ็กซ์โฟลิเอ็นท์",
+    "lifting": "ลิฟติ้ง",
+    "tightening": "ไทท์เทนนิ่ง",
+    "soothing": "ซูทติ้ง",
+    "calming": "คาลมิ่ง",
+    "nourishing": "นัวริชชิ่ง",
+    "balancing": "บาลานซิ่ง",
+    "purifying": "เพียวริฟายอิ้ง",
+    "clarifying": "คลาริฟายอิ้ง",
+    "radiance": "เรเดียนซ์",
+    "radiant": "เรเดียนท์",
+    "luminous": "ลูมินัส",
+    "retinol": "เรตินอล",
+    "niacinamide": "ไนอาซินาไมด์",
+    "hyaluronic": "ไฮยาลูรอนิก",
+    "hyaluron": "ไฮยาลูรอน",
+    "salicylic": "ซาลิไซลิก",
+    "peptide": "เปปไทด์",
+    "cica": "ซิก้า",
+    "acne": "สิว",
+    "pore": "รูขุมขน",
+    "pores": "รูขุมขน",
+    "sebum": "ซีบัม",
+    "spot": "จุดด่างดำ",
+    "dark": "คล้ำ",
+    "dull": "หมอง",
+    "sun": "กันแดด",
+    "tan": "แทน",
+    "facial": "เฟเชียล",
+    "foot": "เท้า",
+    "lip": "ลิป",
+    "soft": "ซอฟท์",
+    "rich": "ริช",
+    "deep": "ดีพ",
+    "gentle": "เจนเทิล",
+    "mild": "ไมลด์",
+    "pro": "โปร",
+    "watery": "วอเตอร์รี่",
+    "toneup": "โทนอัพ",
+    "coconut": "มะพร้าว",
+    "rose": "กุหลาบ",
+    "tea": "ชา",
+    "green": "เขียว",
+    "honey": "น้ำผึ้ง",
+    "rice": "ข้าว",
+    "sakura": "ซากุระ",
+    "cherry": "เชอร์รี่",
+    "matcha": "มัทฉะ",
+    "orchid": "กล้วยไม้",
+    "white": "ขาว",
+    "gold": "ทอง",
+    "silver": "เงิน",
+    "snail": "หอยทาก",
+    "bee": "ผึ้ง",
+    "royal": "รอยัล",
+    "stem": "สเต็ม",
+    "shea": "เชีย",
+    "argan": "อาร์แกน",
+    "jojoba": "โจโจบา",
+    "avocado": "อโวคาโด",
+    "olive": "โอลีฟ",
+    "rosehip": "โรสฮิป",
+    "aha": "เอเอชเอ",
+    "bha": "บีเอชเอ",
+    "b5": "บีไฟว์",
+    "cera": "เซร่า",
 }
 
 
@@ -1872,7 +1958,11 @@ def _tts_product_name(product_name: str) -> str:
 
     # Numeric + plus/unit readouts first (SPF50+, PA+++, 30ml, 50g, 7.5g, 0.75ml)
     name = re.sub(r"(?i)\bspf\s*(\d+)\s*\+", lambda m: f"เอส พี เอฟ {_thai_number(int(m.group(1)))} พลัส", name)
-    name = re.sub(r"(?i)\bpa\s*\+*", "พี เอ พลัส", name)
+    # PA+++ / PA++++ keep the whole readout. Match a Latin "PA" followed by at
+
+    # followed by at least one "+" (so we never re-trigger on the already-spoken
+    # "พี เอ" or on a stray "เอ"): SPF50+ PA+++ -> ... พลัส พี เอ พลัส (not "เอ").
+    name = re.sub(r"(?i)\bpa\s*\++", "พี เอ พลัส", name)
     # decimal units (7.5g -> เจ็ดจุดห้ากรัม, 0.75ml -> ศูนย์จุดเจ็ดห้ามิลลิลิตร)
     name = re.sub(r"(?i)\b(\d+\.\d+)\s*ml\b", lambda m: f"{_thai_decimal(m.group(1))}มิลลิลิตร", name)
     name = re.sub(r"(?i)\b(\d+\.\d+)\s*g\b", lambda m: f"{_thai_decimal(m.group(1))}กรัม", name)
@@ -1933,9 +2023,11 @@ def _tts_product_name(product_name: str) -> str:
 
     # Dedupe repeated Thai brand tokens (so "ครีมสกินชี สกินชี" stays
     # "ครีมสกินชี") but keep every latin-rendered word (owner 2026-08-25 dedupe).
-    # Owner 2026-08-30: also drop a transliterated brand that merely repeats the
-    # tail of the previous Thai word (Skinshe -> "สกินชี" duplicated after
-    # "ครีมสกินชี"). Keep distinct Thai words; don't drop real model/latin words.
+    # Owner 2026-08-30: drop a transliterated brand that repeats the tail of the
+    # previous Thai word (Skinshe -> "สกินชี" dup after "ครีมสกินชี") or is a
+    # directly-adjacent Thai duplicate (วาสลีน วาสลีน). Do NOT drop a Thai word
+    # that merely repeats an earlier word non-adjacently (SPF50+ PA+++ has two
+    # "พี" from SPF and PA — both must stay: "พี เอฟ ... พี เอ พลัส").
     seen_full = set()
     kept_toks = []
     for w in name.split():
@@ -1943,16 +2035,18 @@ def _tts_product_name(product_name: str) -> str:
         if not norm:
             kept_toks.append(w)  # latin/mixed token, keep
             continue
-        # drop exact-duplicate Thai brand (วาสลีน วาสลีน -> วาสลีน)
-        if norm in seen_full:
-            continue
-        # drop a transliterated brand that is just the tail of the previous
-        # Thai word (ครีมสกินชี ... สกินชี -> keep ครีมสกินชี only)
+        # drop directly-adjacent duplicate Thai (วาสลีน วาสลีน -> วาสลีน)
         if kept_toks:
             prev_norm = re.sub(r"[^ก-๙]", "", kept_toks[-1])
-            if prev_norm != norm and prev_norm.endswith(norm) and len(norm) >= 3:
+            if not prev_norm:
+                kept_toks.append(w)
                 continue
-        seen_full.add(norm)
+            # adjacent Thai duplicate
+            if prev_norm == norm:
+                continue
+            # transliterated brand that is just the tail of the previous Thai word
+            if prev_norm.endswith(norm) and len(norm) >= 3:
+                continue
         kept_toks.append(w)
     cleaned = " ".join(kept_toks).strip()
     cleaned = re.sub(r"\s{2,}", " ", cleaned).strip()

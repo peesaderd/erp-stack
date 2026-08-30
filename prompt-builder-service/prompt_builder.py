@@ -1095,7 +1095,12 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             + "\n\nKeep the same woman and product in every scene, keeping the product in a tight close-up "
             "throughout, the product stays sharp and clearly readable, the model makes only small natural "
             "micro-movements (subtle hand turns and gentle facial expressions), never moving the camera away "
-            "from the product."
+            "from the product. "
+            # Owner guard 2026-08-30 (ภาษาไทยล้วน): กัน Wan พูดมั่วต่อท้ายสคริปต์.
+            # หลังพูดจบบทแล้ว ให้หยุดพูดทันที ไม่พูลเกินกว่านั้น ไม่มีเสียงฟุ่มเฟือยตอนท้าย
+            # แล้วยิ้มอยู่นิ่ง ๆ อย่างเป็นธรรมชาติต่อจนจบฉากสุดท้ายเท่านั้น.
+            "หลังจากพูดจบบททั้งหมดแล้ว ให้หยุดพูดทันที ไม่พูดอะไรเพิ่มเติม ไม่มีเสียงต่อท้าย "
+            "แล้วยิ้มอยู่นิ่ง ๆ อย่างเป็นธรรมชาติต่อไปเรื่อย ๆ จนจบฉากสุดท้าย"
         )
         logger.info(f"  Video prompt (4-beat, {len(video_prompt)} chars):")
         video_prompt = re.sub(r'[ \t]+', ' ', video_prompt).strip()
@@ -1200,9 +1205,13 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             f"table in front, reviewing it honestly while smiling warmly, {review_scene}"
         )
         # Review end: STOP talking, hands stay still on the table, product stays placed.
+        # Owner guard 2026-08-30 (ภาษาไทยล้วน): กัน Wan พูดมั่วต่อท้ายสคริปต์ — หลังพูดจบ
+        # ให้หยุดพูดทันที ไม่มีเสียงเกินบท แล้วยิ้มอยู่เหมือนเดิมจนจบฉากสุดท้าย.
         end_part = (
             "Face kept clear, then finishes speaking, "
-            "hands staying still on the tabletop, smiling warmly with a bright cheerful expression"
+            "hands staying still on the tabletop, smiling warmly with a bright cheerful expression, "
+            "หลังจากพูดจบบทแล้ว ให้หยุดพูดทันที ไม่พูดอะไรเพิ่มเติม ไม่มีเสียงต่อท้าย "
+            "แล้วยิ้มอยู่นิ่ง ๆ บนโต๊ะต่อไปจนจบฉากสุดท้าย"
         )
         transition = ""
         # Mouth/head-only motion; hands stay STILL on the table (no raising, no gesturing).

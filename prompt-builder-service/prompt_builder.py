@@ -1933,16 +1933,26 @@ def _tts_product_name(product_name: str) -> str:
 
     # Dedupe repeated Thai brand tokens (so "ครีมสกินชี สกินชี" stays
     # "ครีมสกินชี") but keep every latin-rendered word (owner 2026-08-25 dedupe).
-    seen = set()
+    # Owner 2026-08-30: also drop a transliterated brand that merely repeats the
+    # tail of the previous Thai word (Skinshe -> "สกินชี" duplicated after
+    # "ครีมสกินชี"). Keep distinct Thai words; don't drop real model/latin words.
+    seen_full = set()
     kept_toks = []
     for w in name.split():
         norm = re.sub(r"[^ก-๙]", "", w)
         if not norm:
             kept_toks.append(w)  # latin/mixed token, keep
             continue
-        if norm in seen:
-            continue  # dedupe duplicate Thai brand
-        seen.add(norm)
+        # drop exact-duplicate Thai brand (วาสลีน วาสลีน -> วาสลีน)
+        if norm in seen_full:
+            continue
+        # drop a transliterated brand that is just the tail of the previous
+        # Thai word (ครีมสกินชี ... สกินชี -> keep ครีมสกินชี only)
+        if kept_toks:
+            prev_norm = re.sub(r"[^ก-๙]", "", kept_toks[-1])
+            if prev_norm != norm and prev_norm.endswith(norm) and len(norm) >= 3:
+                continue
+        seen_full.add(norm)
         kept_toks.append(w)
     cleaned = " ".join(kept_toks).strip()
     cleaned = re.sub(r"\s{2,}", " ", cleaned).strip()

@@ -38,7 +38,7 @@
     "apply_cream": {
       "name": "Apply Cream (Beauty/Skincare)",
       "description": "ทาครีม/เซรั่ม/โลชั่นลงจุดจริง ตาม SSOT apply_hints (หน้า/แขน/ท้อง/รักแร้/เท้า) สาธิตการใช้งานจริง ไม่ใช่แค่ถือ",
-      "prompt_anchor": "Creator gently applies and blends the cream onto {area} with a soft, even hand motion, product label readable, natural genuine expression, no lifting the product away from the body",
+      "prompt_anchor": "ทาครีม/เบสบาง ๆ เบา ๆ ลงจุดที่ต้องการ เพียงรอบเดียวแล้วหยุดทันที ไม่ทาซ้ำ ไม่ขยับมือย้ำ ๆ ไม่เกลี่ยวนไปวนมา ไม่ยกครีมลอยจากตัว แล้วยิ้มน่ารัก ๆ นิ่ง ๆ ต่อจนจบฉาก สีหน้าสบาย ๆ เป็นธรรมชาติ",
       "script_structure": "เล่าขั้นตอนการทาจริง 1-2-3 พร้อมย้ำผิวชุ่มชื้น/เนียน/เห็นผล",
       "has_person": true,
       "shot_count": 2,

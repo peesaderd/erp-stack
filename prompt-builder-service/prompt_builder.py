@@ -1944,7 +1944,14 @@ def _tts_product_name(product_name: str) -> str:
     Owner 2026-08-29: transliterate roman brand/spec tokens to Thai so Wan can
     speak them (SPF50+ -> เอส พี เอฟ ห้าสิบพลัส, Dr.PONG -> ดร.พงษ์).
     Keeps Thai descriptor tokens, then appends transliterated Latin brand. Whole
-    tokens only, no chopping."""
+    tokens only, no chopping.
+
+    ⚠️ MARCKED BY OWNER 2026-08-30: "สคริปต์ผ่านแล้ว ตัดคำ ทับศัพท์ดีมาก ห้ามแก้".
+    This function + _owner_script_variants + _drop_later_name_mentions +
+    _fit_beat_text are the TRANSLITERATION baseline. DO NOT EDIT the transliteration
+    / slicing logic without explicit owner instruction. Known open item: "7.5g"
+    dropped earlier at product_short_for_tts/_shorten (not here) — ask before fixing.
+    """
     name = (product_name or "").strip()
     if not name:
         return name
@@ -2084,7 +2091,13 @@ def _name_variants(*names) -> List[str]:
 
 def _owner_script_variants(*bases) -> List[str]:
     """Name variants for the drop-rule: full names + individual brand tokens
-    (>=4 chars) so TRUNCATED mentions (beat trimmer cuts mid-name) still match."""
+    (>=4 chars) so TRUNCATED mentions (beat trimmer cuts mid-name) still match.
+
+    ⚠️ MARCKED BY OWNER 2026-08-30 (DO NOT EDIT Latin/Thai token splitting):
+    Only LATIN brand tokens are added standalone. Thai-rendered name pieces
+    (พงษ์, ยูเก้าจุดเก้า, รีนิวเวิลด์) must NOT be drop targets — otherwise
+    _drop_later_name_mentions chops the spoken name to "ดร. ครีม" (fix af0918cd).
+    """
     import re as _re
     out = _name_variants(*bases)
     for b in bases:

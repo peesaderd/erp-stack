@@ -1386,9 +1386,16 @@ def apply_mouth_steer(video_prompt: str, ugc_style: str = "holding", is_speaking
     elif not _is_talking_style(ugc_style, mc):
         return video_prompt
     steer = [x.strip() for x in mc["steer_talking_prompt"]]
-    if not steer:
-        return video_prompt
     steer_text = ", ".join(steer)
+    # Owner guard 2026-08-30 (ภาษาไทยล้วน): ทุก talking style (holding/talking/review/usage)
+    # ตอนมีสคริปต์พูด ต้องหยุดพูดทันทีหลังจบบท แล้วยิ้มอยู่นิ่ง ๆ ต่อจนจบฉากสุดท้าย
+    # (กัน Wan พูดมั่วต่อท้ายสคริปต์ — owner: "อันอื่นมันก็พูด"). ใส่ต่อท้าย steer
+    # เพราะ anchor ถูกเติมไปแล้วก่อนหน้านี้ (anchor ต้องอยู่ท้ายสุด ไม่ชนกัน).
+    if is_speaking:
+        steer_text += (
+            ", หลังจากพูดจบบทแล้วให้หยุดพูดทันที ไม่พูดอะไรเพิ่มเติม ไม่มีเสียงต่อท้าย "
+            "แล้วยิ้มอยู่นิ่ง ๆ ต่อไปจนจบฉากสุดท้าย"
+        )
     return video_prompt.rstrip() + f" {steer_text}."
 
 

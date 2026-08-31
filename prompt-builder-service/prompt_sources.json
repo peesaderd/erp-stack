@@ -250,6 +250,32 @@
         "camera": "medium close-up",
         "lighting": "soft ambient light",
         "mood": "immersive, premium"
+      },
+      "solar_light": {
+        "scene": [
+          "sunny garden path lined with solar lights at dusk",
+          "home courtyard with warm glowing solar string lights",
+          "patio area where a solar lamp lights up the evening",
+          "warm evening veranda with subtle golden solar glow",
+          "rooftop terrace with small solar lanterns sparkling"
+        ],
+        "action": "holds the solar light up as it glows, showing the lamp and its warm light",
+        "camera": "medium close-up",
+        "lighting": "warm golden hour light with soft glowing lamp accent",
+        "mood": "cozy, homey, inviting"
+      },
+      "portable_fan": {
+        "scene": [
+          "bright desk in a modern cafe",
+          "person using the fan on a sunny commute",
+          "outdoor picnic table on a warm day",
+          "compact travel setup on a train seat tray",
+          "home office desk with the fan running"
+        ],
+        "action": "holds the portable fan and turns it on, directing cool airflow",
+        "camera": "close-up on hands and fan",
+        "lighting": "clean bright natural light",
+        "mood": "refreshing, handy, practical"
       }
     },
     "health": {
@@ -1214,6 +1240,34 @@
         "outfit": "outfit matching the shoes",
         "result_focus": "comfortable all-day wear",
         "expression": "natural walking pose"
+      }
+    ],
+    "solar_light": [
+      {
+        "scene": "solar light glowing softly among garden plants at night, warm light",
+        "camera": "slow push-in on the glowing lamp"
+      },
+      {
+        "scene": "solar light placed in a cozy home garden, gentle golden glow",
+        "camera": "medium shot"
+      },
+      {
+        "scene": "solar light standing in a calm evening patio, warm atmosphere",
+        "camera": "static wide shot"
+      }
+    ],
+    "portable_fan": [
+      {
+        "scene": "portable fan blowing on a clean desk, cool airflow visible",
+        "camera": "close-up on the fan"
+      },
+      {
+        "scene": "portable fan in use during a sunny day outdoors",
+        "camera": "medium shot"
+      },
+      {
+        "scene": "portable fan resting on a modern table, refreshing vibe",
+        "camera": "medium shot"
       }
     ]
   },

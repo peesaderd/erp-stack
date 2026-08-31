@@ -1991,6 +1991,11 @@ def _tts_product_name(product_name: str) -> str:
     # integer units
     name = re.sub(r"(?i)\b(\d+)\s*ml\b", lambda m: f"{_thai_number(int(m.group(1)))}มิลลิลิตร", name)
     name = re.sub(r"(?i)\b(\d+)\s*g\b", lambda m: f"{_thai_number(int(m.group(1)))}กรัม", name)
+    # meter unit M/m (5M -> ห้าเมตร, 1.5M -> หนึ่งจุดห้าเมตร, 10M -> สิบเมตร)
+    # placed AFTER ml/g so '30ml' is consumed as ml, not m.  Only bare M/m tokens
+    # (preceded by a digit, not a letter) become เมตร.
+    name = re.sub(r"(?i)\b(\d+\.\d+)\s*m\b", lambda m: f"{_thai_decimal(m.group(1))}เมตร", name)
+    name = re.sub(r"(?i)\b(\d+)\s*m\b", lambda m: f"{_thai_number(int(m.group(1)))}เมตร", name)
 
     # Transliterate contiguous latin runs as whole units (brands, model codes).
     # Known words -> Thai via _THAI_TUP_SAP; unknown with digits -> spell as
@@ -2268,8 +2273,20 @@ def _fit_beat_text(text: str, dur_sec: float, thai_cps: float = 14.5, non_thai_c
     # Fast path: already fits
     if _estimate_speech_duration(text) <= dur_sec:
         return text
-    # Walk backward over the whole text, truncating at natural breaks
-    tokens = re.split(r"(\s+)", text)
+    # Guard number+unit pairs (153 กรัม / 10 เมตร / 50 กรัม) as ONE token so a
+    # unit is never severed from its number (owner 2026-08-31: '153 กรัม' must not
+    # become a dangling '153'). We temporarily replace the space between a number
+    # and a Thai unit with a non-breaking space, run the cut logic, then restore.
+    _nb = "\u00A0"
+    _unit_pat = re.compile(r"(\d+(\.\d+)?)\s+(กรัม|มิลลิลิตร|เมตร|มล|ลิตร|กก|กิโลกรัม|กรัม|ชิ้น|ดวง|เซนติเมตร|ซม)")
+    def _lock_sep(m):
+        return f"{m.group(1)}{_nb}{m.group(3)}"
+    locked = _unit_pat.sub(_lock_sep, text)
+    # Walk backward over the whole text, truncating at natural breaks.
+    # IMPORTANT: split ONLY on plain spaces ([ \t]) so the non-breaking space
+    # used to glue a number+unit stays INSIDE one token (\s would also match
+    # \u00A0 and re-sever the pair).
+    tokens = re.split(r"([ \t]+)", locked)
     # tokens: [word0, sep0, word1, sep1, ...] — rebuild from the front
     running = ""
     for i in range(0, len(tokens) - 1, 2):
@@ -2283,9 +2300,12 @@ def _fit_beat_text(text: str, dur_sec: float, thai_cps: float = 14.5, non_thai_c
     trimmed = running.rstrip()
     # Drop a dangling dash/separator left at the tail (e.g. '... —' with nothing after)
     trimmed = re.sub(r"[\s\u2014\u2013\-]+$", "", trimmed)
+    # Restore real spaces from locked number+unit pairs, then trim any breakage.
+    trimmed = trimmed.replace(_nb, " ")
+    trimmed = re.sub(r"\s{2,}", " ", trimmed).strip()
     if not trimmed:
         # even the first word overflows — return first word (best effort)
-        return tokens[0] if tokens else text
+        return tokens[0].replace(_nb, " ") if tokens else text
     return trimmed or text
 
 
@@ -2326,6 +2346,38 @@ def _resolve_scene_text(scene, product_short, customer_problem, main_benefit, ta
     return re.sub(r"\{(\w[^}]*)\}\??", _fill, tpl).strip()
 
 
+def _strip_promo_tokens(name: str) -> str:
+    """Owner rule (2026-08-31): drop shop/promotional noise from a product name
+    BEFORE the spoken script is built, so phrases like 'มีเก็บเงินปลายทาง',
+    'COD', 'พร้อมส่ง' or bracketed prefix '【HS】' never leak into the voiceover.
+
+    Only strips sales/marketing tokens + bracket framing. Leaves the real brand,
+    attributes and quantities (153 กรัม / 5M) untouched. Does NOT touch the
+    transliteration logic in _tts_product_name — this runs on the raw input only.
+    """
+    if not name:
+        return name
+    import re as _re
+    t = name
+    # Promotional / fulfillment / COD tokens (Thai + English), whole-word-ish.
+    _promo = [
+        "มีเก็บเงินปลายทาง", "เก็บเงินปลายทาง", "ปลายทาง", "พร้อมส่ง", "ส่งฟรี",
+        "ส่งไว", "จัดส่ง", "มีโค้ด", "ลดราคา", "ราคาพิเศษ", "โปรโมชั่น", "โปรโมชัน",
+        "ของแถม", "โค้ดลด", "official store", "best seller", "bestseller",
+    ]
+    for p in _promo:
+        t = _re.sub(r"(?i)\s?" + _re.escape(p) + r"\s?", " ", t)
+    # COD / FOB / free-ship style latin abbreviations (standalone, 2-4 letters).
+    t = _re.sub(r"(?i)\b(?:cod|fob|freeship|sale|promo|deal|discount)\b", " ", t)
+    # Bracket framing noise: 【HS】 / [...] / (รอบส่ง 24-48h) style prefixes.
+    t = _re.sub(r"[\[\]【】]+", " ", t)
+    t = _re.sub(r"\([^)]*(?:ส่ง|ราคา|โค้ด|COD|ปลายทาง)[^)]*\)", " ", t)
+    # Collapse spaces / stray pipes / leading hyphens.
+    t = t.replace("|", " ").replace("-", " ")
+    t = _re.sub(r"\s{2,}", " ", t).strip(" -")
+    return t
+
+
 def _build_timing_validated_script(product_name: str, category: str = "beauty", profile: dict = None) -> dict:
     """Build script segments with timing validation.
 
@@ -2335,6 +2387,9 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
     Uses customer_problem + main_benefit from Gemini/Mistral analysis when available.
     Gender-aware: female register (คะ/ค่ะ) for female target_gender.
     """
+    # Owner 2026-08-31: drop promotional/COD noise from the SPOKEN name first so
+    # 'มีเก็บเงินปลายทาง' / '【HS】' never appear in the voiceover script.
+    product_name = _strip_promo_tokens(product_name)
     product_short = product_name
     full_name_chars = len(product_name)
     

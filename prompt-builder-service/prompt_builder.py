@@ -691,6 +691,20 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             no_human_clause = (
                 "NO humans, NO people, NO hands in frame; pure product photography."
             )
+        elif style_l == "ambient_outdoor":
+            # Owner 2026-08-31: ambient outdoor = product glowing at night in a
+            # garden/patio with NO person AND NO hands — the product is the star
+            # (solar/outdoor lights). Must NOT reuse the human holding template or
+            # the first-person POV hands branch (both would show a person).
+            feat_hint = (
+                f"{product_name} glowing softly among garden plants at night, "
+                f"product centered and clearly shown, warm golden light, "
+                f"placed outdoors on grass or a patio, {room_desc}"
+            )
+            no_human_clause = (
+                "NO humans, NO people, NO hands in frame; pure ambient "
+                "product photography, product glowing softly, no person anywhere."
+            )
         else:  # pov — first-person, hands visible, no face
             feat_hint = mid_hint  # first-person hands holding the product
             no_human_clause = (
@@ -1153,6 +1167,18 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
                 f"frame, no face visible, natural hand movement, smooth stable motion, "
                 f"then {_result} at {_end_cam}, 9:16"
             )
+        elif style_l == "ambient_outdoor":
+            # Owner 2026-08-31: ambient outdoor = product glowing in a night garden /
+            # patio, NO person and NO hands (outdoor/solar lights). Not a studio rotate
+            # (product_demo) nor a first-person hands clip (pov) — the product sits
+            # among plants, softly glowing, gentle ambient motion.
+            video_prompt = (
+                f"Ambient outdoor scene at night, the {_vp_product} glowing softly "
+                f"among garden plants and greenery, warm golden light, gentle bokeh, "
+                f"no person, no hands in frame, product centered and clearly shown, "
+                f"subtle ambient motion as the lights glow gently, "
+                f"then {_result} at {_end_cam}, 9:16, smooth motion"
+            )
         else:  # product_demo
             video_prompt = (
                 f"Pure product shot of the {_vp_product}, clean studio background, "
@@ -1164,8 +1190,10 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
                                             category=profile.get("category", ""),
                                             subcategory=profile.get("subcategory", ""),
                                             body_part=profile.get("body_part", ""))
-        video_prompt = apply_mouth_steer(video_prompt, ugc_style, is_speaking=bool((script or "").strip()))
-        logger.info(f"  Video prompt (no-human {style_l}, {len(video_prompt)} chars): {video_prompt[:80]}...")
+        # No-human styles have no person/hands to lip-sync — skip the mouth steer
+        # even when a script exists (Wan would add fake lip micro-movements to a
+        # product-only scene; ambient_outdoor in particular must stay person-free).
+        logger.info(f"  Video prompt (no-human {style_l}, no mouth steer, {len(video_prompt)} chars): {video_prompt[:80]}...")
         return video_prompt
 
     if ugc_style in ("talking", "talking_head"):
@@ -1358,7 +1386,13 @@ def build_negative_prompt(profile: dict, ugc_style: str = "holding", is_speaking
         "no squeezing, no pumping, no unpacking, no taking the product out of its box"
     )
     if is_speaking is True:
-        mouth_terms = ", ".join(x.strip() for x in mc["negative_talking"])
+        # A talking style with a script gets the talking steer; but a NO-HUMAN style
+        # (no person/hands — product_demo/pov/ambient_outdoor) never has a person's
+        # mouth to control, so prefer the non-talking (no open mouth) terms instead.
+        if is_no_human_style:
+            mouth_terms = ", ".join(x.strip() for x in mc["negative_non_talking"])
+        else:
+            mouth_terms = ", ".join(x.strip() for x in mc["negative_talking"])
     elif is_speaking is False:
         mouth_terms = ", ".join(x.strip() for x in mc["negative_non_talking"])
     elif _is_talking_style(ugc_style, mc):
@@ -2197,6 +2231,61 @@ def _drop_later_name_mentions(segments: list, variants: List[str]) -> int:
             drops += 1
     return drops
 
+
+def _dedupe_cross_segment(segments: list) -> int:
+    """Owner rule (2026-08-31): strip repeated CONTENT phrases across segments so
+    the same meaningful claim (e.g. 'บรรยากาศอบอุ่นและรื่นเริง' appearing in both
+    the hook [{problem}] and the solve [{benefit}]) is never spoken twice.
+
+    Collects repeated substrings (>=4 clean chars) from earlier segments and
+    removes any occurrence of that same substring from LATER segments (leaving
+    the first intact), also cleaning dangling connectives. Returns the number of
+    segments trimmed."""
+    import re as _re
+    # Thai has no spaces between words, so match repeated substrings of meaningful
+    # length (>=4 Thai/ASCII chars, clean boundaries) instead of whitespace tokens.
+    MIN_LEN = 4
+
+    def _clean_phrases(text: str):
+        """Extract candidate repeated substrings (all clean substrings >= MIN_LEN)."""
+        out = set()
+        t = text.strip()
+        for i in range(len(t)):
+            for j in range(i + MIN_LEN, min(len(t), i + 18) + 1):
+                sub = t[i:j]
+                # only keep substrings with no leading/trailing space and that
+                # start & end on a Thai/letter boundary (avoid cutting mid-word junk)
+                if sub.strip() != sub:
+                    continue
+                out.add(sub)
+        return out
+
+    prior_phrases = set()
+    trimmed = 0
+    for seg in segments:
+        t = seg.get("text", "") or ""
+        if not t:
+            continue
+        t2 = t
+        # longest first so we cut the maximal repeated phrase
+        for phrase in sorted(prior_phrases, key=len, reverse=True):
+            if len(phrase) < MIN_LEN:
+                continue
+            if phrase in t2 and t2 != phrase:
+                t2 = t2.replace(phrase, "")
+        if t2 != t:
+            t2 = _re.sub(r"\s{2,}", " ", t2).strip()
+            t2 = _re.sub(r"^(และ|หรือ|กับ|ที่|ของ|เพื่อ|เพื่อที่จะ)\s+", "", t2)
+            t2 = _re.sub(r"\s+(และ|หรือ|กับ|ที่|ของ|เพื่อ)+$", "", t2).strip()
+            if t2:  # guard: never empty a segment from over-aggressive dedupe
+                seg["text"] = t2
+                trimmed += 1
+                t = t2
+        # register this segment's clean phrases as prior for the NEXT segments
+        prior_phrases |= _clean_phrases(t)
+    return trimmed
+
+
 # Thai vowel/tone marks that must never dangle at a slice boundary.
 _THAI_VOWEL_ABOVE = set('ีืัุู')
 _THAI_MARK = 'เแโใไะาำิีึืุู็่้๊๋์ํ'  # Thai vowel/tone marks
@@ -2500,6 +2589,9 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
         # Owner script rules: name at most ONCE — later mentions dropped, no 'ตัวนี้'
         _drop_later_name_mentions(segments, _owner_script_variants(spoken_name))
         _scrub_placeholder_words(segments)
+        # Owner 2026-08-31: also drop repeated CONTENT phrases across beats so a
+        # claim in both hook [{problem}] and solve [{benefit}] is spoken once only.
+        _dedupe_cross_segment(segments)
 
         # Recompute timings sequentially from durations (sum of scene durations ≈ duration)
         if segments:

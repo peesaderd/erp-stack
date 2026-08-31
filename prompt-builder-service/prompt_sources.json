@@ -1368,7 +1368,8 @@
       "product_usage",
       "unbox",
       "unboxing",
-      "usage"
+      "usage",
+      "ambient_outdoor"
     ],
     "negative_base": "no distorted hands, no extra fingers, no fused or webbed fingers, no hoof-like or claw-like hand, no deformed or stubby fingers, no mangled hand, no unnatural hand gesture, no facial morphing or melting, no camera zoom, no pan or movement, no blurred or warped product, no distorted unreadable label text, stable face, consistent identity, realistic proportions",
     "negative_talking": [

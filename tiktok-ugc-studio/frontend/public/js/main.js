@@ -747,6 +747,7 @@ function selectRecipe(name) {
     'talking_head': ['🎤', 'Talking Head — พูดหน้ากล้อง'],
     'product_demo': ['📦', 'Product Demo — โชว์สินค้า ไม่มีคน'],
     'fashion_lookbook': ['👗', 'Fashion Lookbook — แฟชั่นสายชิค หรูหรา'],
+    'ambient_outdoor': ['🏮', 'Ambient Outdoor — กลางแจ้ง ไม่มีคน ไฟติด'],
   };
   const s = styleMap[recipe.ugc_style] || ['📦', 'Product Demo'];
   document.getElementById('selectedStyleIcon').textContent = s[0];
@@ -1082,6 +1083,10 @@ async function loadPipelineJobs(force = false) {
             <span>📋 ${j.job_id}</span>
             ${j.status !== 'completed' ? `<button class="btn btn-sm" onclick="retryJob('${j.job_id}')" style="padding:2px 8px;font-size:10.5px;margin-top:2px" title="Retry Job">🔄 ลองใหม่</button>` : ''}
           </div>
+          ${(j.recipe || j.ugc_style) ? `<div style="display:flex;align-items:center;gap:6px;font-size:10.5px;margin-top:2px;flex-wrap:wrap">
+            <span class="badge" style="background:rgba(139,92,246,0.12);color:var(--color-violet-500);padding:1px 7px;border-radius:20px;font-size:10px">🍽 Recipe: ${j.recipe || '—'}</span>
+            <span class="badge" style="background:rgba(16,185,129,0.12);color:var(--accent-green);padding:1px 7px;border-radius:20px;font-size:10px">🎭 UGC: ${j.ugc_style || '—'}</span>
+          </div>` : ''}
         </div>
       </div>`;
     }).join('');
@@ -2792,7 +2797,7 @@ function pubOpenVideoModal(videoUrl, jobId, productName, title, description, has
   }
   document.getElementById('pub-modal-video').src = videoUrl;
   
-  var styleMap = {holding_product:'🤳 ถือสินค้า',product_usage:'✨ ใช้สินค้า',ugc_review:'📝 รีวิว',ugc:'🎬 ทั่วไป',talking_head:'🗣️ พูดกล้อง',unboxing:'📦 แกะกล่อง'};
+  var styleMap = {holding_product:'🤳 ถือสินค้า',product_usage:'✨ ใช้สินค้า',ugc_review:'📝 รีวิว',ugc:'🎬 ทั่วไป',talking_head:'🗣️ พูดกล้อง',unboxing:'📦 แกะกล่อง',ambient_outdoor:'🏮 กลางแจ้ง ไม่มีคน ไฟติด'};
   var displayTitle = title || productName || 'Untitled';
   var htagsHtml = '';
   if (hashtags && hashtags.length) {
@@ -2840,7 +2845,7 @@ async function loadPublisherVideos() {
     
     var scIcons = {
       holding_product: '🤳', product_usage: '✨', ugc_review: '📝',
-      talking_head: '🗣️', ugc: '🎬', unboxing: '📦'
+      talking_head: '🗣️', ugc: '🎬', unboxing: '📦', ambient_outdoor: '🏮'
     };
     
     jobs.forEach(function(job) {
@@ -2849,7 +2854,7 @@ async function loadPublisherVideos() {
       var htags = job.hashtags || [];
       var dur = job.duration || 8;
       var style = job.style || job.ugc_style || 'ugc';
-      var styleLabel = {holding_product:'ถือสินค้า',product_usage:'ใช้สินค้า',ugc_review:'รีวิว',ugc:'ทั่วไป',talking_head:'พูดกล้อง',unboxing:'แกะกล่อง'}[style] || style;
+      var styleLabel = {holding_product:'ถือสินค้า',product_usage:'ใช้สินค้า',ugc_review:'รีวิว',ugc:'ทั่วไป',talking_head:'พูดกล้อง',unboxing:'แกะกล่อง',ambient_outdoor:'กลางแจ้ง ไม่มีคน ไฟติด'}[style] || style;
       var styleIcon = scIcons[style] || '🎬';
       var jobId = job.job_id || '';
       var cost = job.cost ? ('$' + job.cost.toFixed(3)) : '—';

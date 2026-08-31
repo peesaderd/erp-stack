@@ -209,6 +209,31 @@
           "camera": "portrait framing, static, subtle push-in"
         }
       ]
+    },
+    "ambient_outdoor": {
+      "name": "Ambient Outdoor",
+      "description": "โชว์สินค้ากลางแจ้ง ไม่มีคน เน้นบรรยากาศ ไฟติด/สินค้าทำงานเอง",
+      "prompt_anchor": "Ambient outdoor scene at night, [product] glowing softly among garden plants, warm golden light, no person in frame, product centered and clearly shown",
+      "script_structure": "Voiceover บรรยายสินค้า + จินตนาการถึงบรรยากาศใช้จริงกลางแจ้ง (สวน/ลาน/ระเบียง) ตอนกลางคืน",
+      "has_person": false,
+      "shot_count": 3,
+      "shots": [
+        {
+          "time": "0-5s",
+          "desc": "Establishing wide shot of product glowing in night garden/patio, no people",
+          "camera": "wide, slow push in"
+        },
+        {
+          "time": "5-10s",
+          "desc": "Close-up of product's warm light / sensor detail, product centered",
+          "camera": "close-up, static"
+        },
+        {
+          "time": "10-15s",
+          "desc": "Ambient placement — product lighting up the outdoor space at night, no person",
+          "camera": "wide, slow pan"
+        }
+      ]
     }
   },
   "UGC_COMBOS": {

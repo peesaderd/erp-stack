@@ -1,0 +1,72 @@
+# 🏮 Ambient Outdoor — No-person Outdoor Showcase Pipeline Template
+# Wan 2.7 img2vid, no person → โชว์สินค้ากลางแจ้ง (ไฟ/โคม solar) กลางคืน ไฟติดเอง ไม่มีคนในฉาก
+
+name: ambient_outdoor
+description: "Outdoor product showcase — no person, product glowing at night in garden, Wan 2.7 I2V"
+emoji: 🏮
+label: "Ambient Outdoor — กลางแจ้ง ไม่มีคน ไฟติด"
+
+generation:
+  job_type: wan2-7.img2vid.v1
+  needs_audio: true                    # ส่ง audio (TTS 16k) ให้ Wan — voiceover บรรยาย
+  audio_field: audio
+  prompt_extend: false                 # ปิด — physical เพี้ยนเมื่อเปิด (VALIDATED 08:02)
+  image_requirement: product_only      # ภาพ product-only (ไม่มีคน) ตาม has_person=false
+  image_model: nano-banana
+  negative_prompt: "low resolution, error, worst quality, deformed, people, person, human, hands"
+
+scene_prompts:
+  hook: |
+    Wide establishing shot of {product} glowing softly among garden plants at night,
+    warm golden light, no person in frame, product centered and clearly visible,
+    tranquil outdoor atmosphere, {lighting}, {color_palette}, {background}
+
+  value: |
+    Close-up of {product} with its warm glowing light and details,
+    product centered, no people, smooth subtle motion,
+    premium outdoor build visible, {lighting}, {angle}, {color_palette}
+
+  cta: |
+    Final ambient shot of {product} lighting up the night garden/patio,
+    product clearly centered, no person, clean composition ready for CTA overlay,
+    warm inviting finish, {lighting}, {color_palette}
+
+variations:
+  lighting:
+    - warm golden hour dusk
+    - soft moonlight with warm lamp glow
+    - cool blue night with golden product light
+    - warm festoon string light ambiance
+    - deep night with cozy warm glow
+
+  angle:
+    - wide shot from garden path
+    - eye-level patio view
+    - close-up product detail
+    - low angle against night sky
+    - medium shot with plants framing
+
+  color_palette:
+    - warm amber and deep green
+    - golden glow on dark blue night
+    - cozy warm tones
+    - soft luminance teal and amber
+    - warm festoon string light ambiance
+
+  background:
+    - lush night garden
+    - cozy courtyard patio
+    - rooftop terrace at night
+    - garden path lined with plants
+    - veranda with warm lights
+
+video_params:
+  duration: [8, 15]
+  resolution: 720P
+  ratio: "9:16"
+  default_duration: 8
+
+cta_strategy:
+  pool: [direct, social_proof, urgent]
+  position: end_of_video
+  max_length_chars: 50

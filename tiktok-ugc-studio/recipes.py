@@ -148,6 +148,22 @@ RECIPES = [
             "lighting_preference": "soft natural",
         },
     },
+    {
+        "name": "outdoor_ambient",
+        "label": "🏮 Ambient Outdoor (กลางแจ้ง ไม่มีคน ไฟติด)",
+        "description": "สำหรับสินค้ากลางแจ้ง (ไฟ/โคม solar, ไฟคริสต์มาส) โชว์ตอนกลางคืน ไฟติดเอง ไม่มีคนในฉาก",
+        "ugc_style": "ambient_outdoor",
+        "sound_style": "chill_loft",
+        "mood": "ambient",
+        "duration": 8,
+        "bgm_style": "chill_loft",
+        "recipe_name": "ambient_outdoor",
+        "prompt_context": {
+            "category": "electronics",
+            "vibe": "outdoor ambient, night garden, product glowing, no person, automatic light on",
+            "lighting_preference": "warm golden glow at night",
+        },
+    },
 ]
 
 

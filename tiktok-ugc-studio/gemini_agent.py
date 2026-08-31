@@ -52,6 +52,7 @@ PRESET_IMAGE_STYLES = [
     {"id": "lifestyle", "name": "ไลฟ์สไตล์", "description": "สินค้าในชีวิตประจำวัน", "suffix": "Product integrated into everyday lifestyle scene on a clean surface, aesthetic composition, warm tones, no hands, no person in frame"},
     {"id": "close_up", "name": "Close-up", "description": "ถ่ายใกล้แสดงรายละเอียดสินค้า", "suffix": "Extreme close-up of product texture and details on a clean surface, macro photography, shallow depth of field, no hands"},
     {"id": "review_style", "name": "รีวิว", "description": "สไตล์รีวิว TikTok", "suffix": "Review-style setup, product on clean flat-lay or table, authentic lighting, social media aesthetic, no hands"},
+    {"id": "ambient_outdoor", "name": "กลางแจ้ง ไม่มีคน ไฟติด", "description": "สินค้ากลางแจ้งตอนกลางคืน ไฟติดเอง ไม่มีคนในฉาก", "suffix": "Ambient outdoor scene at night, product glowing softly among garden plants, warm golden light, no person, no hands, product centered"},
 ]
 
 

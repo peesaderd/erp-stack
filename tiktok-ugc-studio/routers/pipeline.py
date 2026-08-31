@@ -118,7 +118,7 @@ def pipeline_list(limit: int = 20):
         # Try to enrich with images + title from pipeline_logs.db
         try:
             lconn = sqlite3.connect(str(LOGS_DB_PATH))
-            lrow = lconn.execute("SELECT product_image_path, generated_image_path, product_title, final_video_path, raw_video_path FROM pipeline_jobs WHERE job_id = ?", (r[0],)).fetchone()
+            lrow = lconn.execute("SELECT product_image_path, generated_image_path, product_title, final_video_path, raw_video_path, recipe_name, ugc_style FROM pipeline_jobs WHERE job_id = ?", (r[0],)).fetchone()
             lconn.close()
             if lrow:
                 job["product_image"] = _path_to_web_url(lrow[0]) if lrow[0] else ""
@@ -129,6 +129,10 @@ def pipeline_list(limit: int = 20):
                 job["raw_video_web_url"] = _path_to_web_url(lrow[4]) if lrow[4] else ""
                 job["final_video_path"] = lrow[3] or ""
                 job["final_video_web_url"] = _path_to_web_url(lrow[3]) if lrow[3] else ""
+                # Expose Recipe & UGC style on the job card so the UI can show what
+                # recipe/ugc_style each job actually ran with (owner 2026-08-30).
+                job["recipe"] = lrow[5] if len(lrow) > 5 and lrow[5] else ""
+                job["ugc_style"] = lrow[6] if len(lrow) > 6 and lrow[6] else ""
         except Exception:
             pass
         jobs.append(job)

@@ -500,6 +500,7 @@ async def generate_video(req: VideoRequest):
                 "aspect_ratio": req.aspect_ratio or "9:16",
                 "negative_prompt": neg_prompt or req.negative_prompt,
                 "bgm_style": req.bgm_style or "",
+                "recipe": req.recipe or "tus",
                 "image_prompt": img_prompt or "",
                 "video_prompt": (video_prompts or [""])[0],
                 "video_prompts": video_prompts or [],

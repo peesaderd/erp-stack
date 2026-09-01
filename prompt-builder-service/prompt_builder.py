@@ -1959,6 +1959,10 @@ _THAI_TUP_SAP = {
     "solar": "โซลาร์",
     "powered": "พาวเวอร์",
     "christmas": "คริสต์มาส",
+    "oukeya": "โอกิยะ",       # brand (Thai name already in product_title)
+    "classy": "คลาสซี่",
+    "matte": "แมตต์",
+    "cushion": "คุชชั่น",
     "string": "สตริง",
     "lights": "ไลท์",
     "light": "ไลท์",
@@ -2103,6 +2107,15 @@ def _tts_product_name(product_name: str) -> str:
 
     name = _trans_latin_runs(name)
 
+    # Owner 2026-09-01 (ตัวพี่สั่ง): "ไฟแอลอีดี" must be one joined word (no space).
+    # After transliteration, "ไฟ LED" becomes "ไฟ แอลอีดี" -> join to "ไฟแอลอีดี"
+    # ONLY for the exact pattern <ไฟ> + <แอลอีดี> (a noun describing an LED lamp),
+    # never when แอลอีดี leads ("แอลอีดี ไฟฉาย" must stay split) and never when
+    # แอลอีดี is preceded by another descriptor ("โคมไฟ LED"/"หลอดไฟ LED" stay as
+    # โคมไฟ แอลอีดี — only bare ไฟ joins).
+    name = re.sub(r"(?<![ก-๙])ไฟ\s+แอลอีดี(?!\s*kห)", "ไฟแอลอีดี", name)
+
+
     # Owner 2026-09-01: convert any leftover plain Arabic integer counts (e.g.
     # "20 ดวง" -> "ยี่สิบดวง", "6 ชิ้น" -> "หกชิ้น") to spoken Thai. Only bare
     # integers NOT already consumed as ml/g/m units, so "30ml"/"5M" stay as
@@ -2124,6 +2137,28 @@ def _tts_product_name(product_name: str) -> str:
     # "พี" from SPF and PA — both must stay: "พี เอฟ ... พี เอ พลัส").
     seen_full = set()
     kept_toks = []
+
+    # Owner 2026-09-01 (ตัวพี่สั่ง, OUKEYA): the FULL product name sometimes repeats
+    # as an ADJACENT WHOLE GROUP (e.g. "OUKEYA CLASSY MATTE CUSHION โอกิยะ คลาสซี่
+    # แมตต์ คุชชั่น" -> the latin map AND the pre-existing Thai render to the SAME
+    # group "โอกิยะ คลาสซี่ แมตต์ คุชชั่น โอกิยะ คลาสซี่ แมตต์ คุชชั่น"). Detect a
+    # repeated adjacent group (tokens[i:i+K] == tokens[i+K:i+2K], K>=2 words) and
+    # keep ONLY one copy. Works even when the repeat is not exactly half the whole
+    # list (e.g. "A B C D A B C D E F"). Only exact same full-token groups collapse.
+    _toks = name.split()
+    _K = min(len(_toks) // 2, 5)
+    _merged = False
+    while _K >= 2 and not _merged:
+        for i in range(0, len(_toks) - 2 * _K + 1):
+            if _toks[i:i + _K] == _toks[i + _K:i + 2 * _K]:
+                _toks = _toks[:i + _K] + _toks[i + 2 * _K:]
+                _merged = True
+                break
+        if not _merged:
+            _K -= 1
+    if _merged:
+        name = " ".join(_toks)
+
     for w in name.split():
         norm = re.sub(r"[^ก-๙]", "", w)
         if not norm:
@@ -2305,7 +2340,19 @@ def _dedupe_cross_segment(segments: list) -> int:
             if len(phrase) < MIN_LEN:
                 continue
             if phrase in t2 and t2 != phrase:
-                t2 = t2.replace(phrase, "")
+                # Owner 2026-09-01 (ตัวพี่สั่ง, ไฟ LED): NEVER cut a repeated phrase
+                # that sits MID-WORD in Thai (e.g. hook "บรรยากาศเทศกาลคริสต์มาส" vs
+                # name "รูปต้นคริสต์มาส" — "คริสต์มาส" is a substring of a bigger
+                # word here, cutting it leaves a dangling "รูปต้น"). Only strip when
+                # the phrase is bounded by word-edges / non-Thai on both sides, so a
+                # genuine repeated standalone phrase is removed but a Thai word that
+                # merely CONTAINS the phrase is left intact.
+                _mid = re.compile(
+                    r"(?<![ก-๙])" + re.escape(phrase) + r"(?![ก-๙])"
+                )
+                if _mid.search(t2):
+                    t2 = _mid.sub(" ", t2)
+
         if t2 != t:
             t2 = _re.sub(r"\s{2,}", " ", t2).strip()
             t2 = _re.sub(r"^(และ|หรือ|กับ|ที่|ของ|เพื่อ|เพื่อที่จะ)\s+", "", t2)

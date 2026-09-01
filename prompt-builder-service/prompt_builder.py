@@ -702,11 +702,24 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             # garden/patio with NO person AND NO hands — the product is the star
             # (solar/outdoor lights). Must NOT reuse the human holding template or
             # the first-person POV hands branch (both would show a person).
-            feat_hint = (
-                f"{product_name} glowing softly among garden plants at night, "
-                f"product centered and clearly shown, warm golden light, "
-                f"placed outdoors on grass or a patio, {room_desc}"
-            )
+            # Owner 2026-09-01: ONE single outdoor scene chosen per-product from
+            # category_mapping (e.g. electronics.solar_light -> garden path at dusk,
+            # wall_light -> house entrance gate), warm golden glow, no studio cover,
+            # no logo, no mixing of grass+patio+veranda into one frame.
+            _od_scene = (selected.get("scene") or "").strip()
+            _od_lighting = (selected.get("lighting") or "warm golden light").strip()
+            if _od_scene:
+                feat_hint = (
+                    f"{product_name} glowing softly and clearly visible, "
+                    f"placed in a single, coherent outdoor setting: {_od_scene}; "
+                    f"{_od_lighting}, product centered and clearly shown, warm golden glow"
+                )
+            else:
+                feat_hint = (
+                    f"{product_name} glowing softly among garden plants at night, "
+                    f"product centered and clearly shown, warm golden light, "
+                    f"placed outdoors in a single garden scene, {room_desc}"
+                )
             no_human_clause = (
                 "NO humans, NO people, NO hands in frame; pure ambient "
                 "product photography, product glowing softly, no person anywhere."
@@ -717,12 +730,15 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
                 "First-person POV throughout; no face of the person in frame, "
                 "only hands and product visible."
             )
+        if style_l == "ambient_outdoor":
+            _pfx = f"Single vertical 9:16 frame, ambient outdoor night scene: {feat_hint}"
+        else:
+            _pfx = f"Single vertical 9:16 frame: {_cover}. Featured: {feat_hint}"
         image_prompt = (
-            f"Single vertical 9:16 frame: {_cover}. "
-            f"Featured: {feat_hint}. "
+            f"{_pfx}. "
             f"Product: show exactly the item(s) from the reference product image — "
             f"render every variant/color that appears in it. "
-            f"{parts_colors}{lighting}. "
+            f"{parts_colors} "
             f"{no_human_clause} "
             f"NO text, letters, words, labels, logos or watermark. "
             f"Cohesive consistent style, high quality product photography. --ar 9:16"
@@ -2972,4 +2988,3 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
         "all_segments_fit": total_ok,
         "total_duration": target_dur_sec,
     }
-

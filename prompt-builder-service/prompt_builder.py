@@ -2259,8 +2259,14 @@ def _tts_product_name(product_name: str) -> str:
     cleaned = " ".join(kept_toks).strip()
     cleaned = re.sub(r"\s{2,}", " ", cleaned).strip()
 
-    # Strip leftover special/punctuation (keep "." for brand dot in ดร.พงษ์)
-    cleaned = re.sub(r"[^\u0E00-\u0E7Fa-zA-Z0-9.\s]+", "", cleaned)
+    # Strip leftover special/punctuation (keep "." for brand dot in ดร.พงษ์).
+    # Owner 2026-09-01 (fix): "/" is a WORD SEPARATOR (e.g. สวน/ห้องนอน must read
+    # "สวน ห้องนอน", not "สวนห้องนอน"), so turn it (and other separators) into a
+    # space BEFORE removing leftover junk; never delete chars so two Thai words end
+    # up glued together.
+    cleaned = re.sub(r"[/\\]", " / ", cleaned)
+    cleaned = re.sub(r"[\[\]()（）【】]", " ", cleaned)
+    cleaned = re.sub(r"[^\u0E00-\u0E7F0-9A-Za-z.\s]+", " ", cleaned)
     cleaned = re.sub(r"\s{2,}", " ", cleaned).strip()
     return cleaned or name
 

@@ -709,10 +709,17 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             _od_scene = (selected.get("scene") or "").strip()
             _od_lighting = (selected.get("lighting") or "warm golden light").strip()
             if _od_scene:
+                # Owner 2026-09-01: solar/stake lights must sit LOW to the ground,
+                # stakes plunged into the garden soil — the first generated image
+                # looked too tall/raised. Force grounding for stake/plantable lights.
+                _sub = (profile.get("subcategory") or "")
+                _grounding = ""
+                if _sub in ("solar_light",) or any(w in _sub for w in ("stake", "path", "plant")):
+                    _grounding = " The light sits low to the ground, its stakes plunged into the garden soil, not raised high off the ground."
                 feat_hint = (
                     f"{product_name} glowing softly and clearly visible, "
-                    f"placed in a single, coherent outdoor setting: {_od_scene}; "
-                    f"{_od_lighting}, product centered and clearly shown, warm golden glow"
+                    f"placed in a single, coherent outdoor setting: {_od_scene};"
+                    f"{_grounding} {_od_lighting}, product centered and clearly shown, warm golden glow"
                 )
             else:
                 feat_hint = (

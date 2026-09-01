@@ -1206,12 +1206,23 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             # wall / fence / entrance-gate scene, not a generic garden bed.
             _amb_scene = (selected.get("scene") or "among garden plants and greenery")
             _amb_action = selected.get("action") or "the light glowing softly"
+            # Owner 2026-09-01: outdoor video = MULTI-ANGLE / zoom within a SINGLE
+            # clip (แบบ ก). Wan moves the camera on its own through different angles
+            # and push-ins inside one continuous 9:16 shot — no cutting, no dissolve.
+            # Keeps the same single scene + solar/stake grounding as the approved image.
+            _sub = (profile.get("subcategory") or "")
+            _grounding = ""
+            if _sub in ("solar_light",) or any(w in _sub for w in ("stake", "path", "plant")):
+                _grounding = " the light sits low to the ground, its stakes plunged into the garden soil"
             video_prompt = (
                 f"Ambient outdoor scene at night, {_amb_scene}, where the "
                 f"{_vp_product} {_amb_action}, warm golden light, gentle bokeh, "
                 f"no person, no hands in frame, product centered and clearly shown, "
-                f"subtle ambient motion as the lights glow gently, "
-                f"then {_result} at {_end_cam}, 9:16, smooth motion"
+                f"single continuous shot with cinematic multi-angle camera movement: "
+                f"the camera slowly pushes in on the glowing light, tilts to a low angle "
+                f"beside the light{_grounding}, then pulls back to a wider angle showing "
+                f"the {_amb_scene} at night, gentle zoom in and out, smooth stable motion, "
+                f"no cuts, then {_result} at {_end_cam}, 9:16, smooth motion"
             )
         else:  # product_demo
             video_prompt = (

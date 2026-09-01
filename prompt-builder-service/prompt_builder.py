@@ -1205,13 +1205,34 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             # the category_mapping wall_light scene/action so wall-mounted lights get a
             # wall / fence / entrance-gate scene, not a generic garden bed.
             _amb_scene = (selected.get("scene") or "among garden plants and greenery")
-            _amb_action = selected.get("action") or "the light glowing softly"
+            # ambient_outdoor: product is PLACED/GLOWING among plants, never held —
+            # selected.action often says "holds ... showing" (person template) which
+            # contradicts the no-person rule and makes Wan put hands in frame (owner
+            # 2026-09-01 16:12). Swap to a passive glow verb so the clip stays person-free.
+            _amb_action_raw = (selected.get("action") or "").strip()
+            if any(w in _amb_action_raw.lower() for w in ("hold", "hand", "show", "pick up", "hold up")):
+                # strip leading verb that implies a person; keep the light behaviour
+                _amb_action = "glowing softly among the plants, its warm light gently visible"
+            else:
+                _amb_action = _amb_action_raw or "glowing softly"
+            # Owner 2026-09-01 16:12: เปลี่ยนมุม/ซูมที่ beat 2,3 (ภายในคลิปเดี่ยว 9:16)
+            # ในฉากสวนเดียวนั้น ไม่เปลี่ยน scene (พี่ยืนยัน "ใช่") — beat 2 จ่อกล้องใกล้ไฟ
+            # เบา ๆ, beat 3 ถอยมุมกว้างขึ้นเล็กน้อย, beat 4 settle กลับโปรดักต์ชัด.
+            # ห้ามบอก zoom/dolly ตรง ๆ หนักเพราะ Wan morph สินค้า — ใช้ perspective shift
+            # แบบค่อย ๆ + ยึด product "sharp and centred" ในทุก beat (owner bug 2026-08-23).
+            _ground_hint = (
+                " sits low near the garden soil/stakes, not raised high off the ground"
+                if ((profile.get("subcategory") or "") in ("solar_light",) or any(w in (profile.get("subcategory") or "") for w in ("stake","path","plant")))
+                else ""
+            )
             video_prompt = (
-                f"Ambient outdoor scene at night, {_amb_scene}, where the "
-                f"{_vp_product} {_amb_action}, warm golden light, gentle bokeh, "
-                f"no person, no hands in frame, product centered and clearly shown, "
-                f"subtle ambient motion as the lights glow gently, "
-                f"then {_result} at {_end_cam}, 9:16, smooth motion"
+                f"Single continuous 9:16 shot in one night garden scene: {_amb_scene}. "
+                f"The {_vp_product} {_amb_action}{_ground_hint}."
+                f" Beat 1: wide establishing shot, {_vp_product} glowing softly among the plants, product visible but from a wider angle, product sharp. "
+                f"Beat 2: the camera drifts in closer toward the {_vp_product}, a slightly lower angle beside the glow, warm golden light filling the frame, product stays sharp and centred. "
+                f"Beat 3: the camera eases back out to a slightly wider angle taking in the whole {_amb_scene} at night, the {_vp_product} clearly glowing as the focus point, product sharp. "
+                f"Beat 4: settle back on the {_vp_product} centre-frame, gentle bokeh, subtle ambient glow, product sharp and clearly shown, then {_result} at {_end_cam}. "
+                f"No person, no hands in frame, smooth steady continuous motion, one unbroken shot, 9:16, warm golden light"
             )
         else:  # product_demo
             video_prompt = (

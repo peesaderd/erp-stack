@@ -1988,6 +1988,69 @@ _THAI_TUP_SAP = {
     "usb": "ยูเอสบี",
 }
 
+# ═══════════════════════════════════════════════════════════════════════
+# Owner 2026-09-01 (แบบ 1b): auto-learn Thai name for unknown roman BRANDS.
+# dict (_THAI_TUP_SAP) wins first; unknown pure-letter roman word falls here:
+# ask Gemini ONCE for the natural spoken Thai brand name, cache it to a JSON
+# file (tupsap_cache.json) so next time it is free and reused (no per-run AI).
+# This replaces the old letter-by-letter spelling for brands (JOSE -> โจเซ่,
+# CreamLab -> ครีมแล็บ) which sounded terrible.
+# ═══════════════════════════════════════════════════════════════════════
+_TUPSAP_CACHE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tupsap_cache.json")
+
+def _load_tupsap_cache() -> dict:
+    try:
+        with open(_TUPSAP_CACHE_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+def _save_tupsap_cache(cache: dict) -> None:
+    try:
+        with open(_TUPSAP_CACHE_FILE, "w", encoding="utf-8") as f:
+            json.dump(cache, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        logger.warning(f"failed to save tupsap cache: {e}")
+
+def _learn_thai_name(word: str) -> str:
+    """Return spoken Thai name for an unknown pure-letter roman brand/word.
+    Order: dict -> cache -> Gemini (once, cached). Never letter-by-letter."""
+    key = re.sub(r"[^a-z0-9]", "", (word or "").lower())
+    if not key:
+        return word
+    if key in _THAI_TUP_SAP:
+        return _THAI_TUP_SAP[key]
+    cache = _load_tupsap_cache()
+    if key in cache:
+        return cache[key]
+    # ask Gemini for natural spoken Thai (NOT letter-by-letter)
+    thai_name = None
+    try:
+        prompt = (
+            "You transliterate a roman brand name into its NATURAL spoken Thai "
+            "pronunciation as a Thai would say it on TikTok/Shopee. Do NOT spell "
+            "letter by letter. Give the short spoken name only, no extra text. "
+            "Brand: " + word + " "
+            'Return JSON: {"thai":"..."}'
+        )
+        raw = _call_gemini("", prompt, temperature=0.2, max_output_tokens=40, response_mime_type="application/json")
+        if raw:
+            t = raw.get("thai") if isinstance(raw, dict) else None
+            if not t and isinstance(raw, str):
+                m = re.search(r'"thai"\s*:\s*"([^"]+)"', raw)
+                t = m.group(1) if m else None
+            if t:
+                t = t.strip().strip("\"'").strip()
+                if t:
+                    thai_name = t
+    except Exception as e:
+        logger.warning(f"tupsap learn failed for {word}: {e}")
+    if not thai_name:
+        return word  # keep original (rare; will just be left as-is)
+    cache[key] = thai_name
+    _save_tupsap_cache(cache)
+    return thai_name
+
 
 def _tup_sap_name(name: str) -> str:
     """Transliterate roman brand/spec words to spoken Thai using _THAI_TUP_SAP.
@@ -2114,7 +2177,9 @@ def _tts_product_name(product_name: str) -> str:
                 elif re.search(r"\d", part):
                     out_parts.append(_spell_code(part))  # model code U9.9 -> ยูเก้าจุดเก้า
                 else:
-                    out_parts.append(_spell_code(part))  # unknown word kept, spelled
+                    # Owner 2026-09-01 (แบบ 1b): unknown pure-letter roman -> learn
+                    # Thai name via Gemini (cached), NOT letter-by-letter spelling.
+                    out_parts.append(_learn_thai_name(part))
             else:
                 out_parts.append(part)
         return "".join(out_parts)
@@ -2638,6 +2703,21 @@ def rewrite_clean_title(title: str, category: str = "", profile: dict = None) ->
             break
         out.append(wl)
     cleaned = " ".join(out).strip()
+
+    # Owner 2026-09-01 (guard): drop a roman token whose Thai render already appears
+    # as part of a Thai word in the name, to avoid "ลูน่าอายครีม ... ลูน่า" repetition
+    # (LUNA renders to ลูน่า which duplicates ลูน่า in ลูน่าอายครีม). Only drops tokens
+    # we know a Thai form for (dict); does NOT call Gemini or touch transliteration.
+    _rc_toks = cleaned.split()
+    _rc_roman = [w for w in _rc_toks if re.fullmatch(r"[A-Za-z0-9.+\-]+", w) and re.search(r"[A-Za-z]", w)]
+    _rc_thai_txt = re.sub(r"[A-Za-z0-9.\-]", "", " ".join(_rc_toks))
+    def _rc_render(th):
+        return th and len(th) >= 2 and re.search(re.escape(th), _rc_thai_txt)
+    for _r in _rc_roman:
+        _rc_th = _THAI_TUP_SAP.get(re.sub(r"[^a-z0-9]", "", _r.lower()), "")
+        if _rc_render(_rc_th):
+            _rc_toks = [w for w in _rc_toks if w != _r]
+    cleaned = " ".join(_rc_toks).strip()
 
     # Rule verdict: good if 4 < len <= 45 and no leftover promo markers
     low2 = cleaned.lower()

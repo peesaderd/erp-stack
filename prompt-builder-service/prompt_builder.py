@@ -2023,6 +2023,14 @@ def _tts_product_name(product_name: str) -> str:
     # or hyphenless words. Also strips a leading "รุ่น" right before the code.
     name = re.sub(r"(?i)\bรุ่น\s+[a-z0-9]+(?:-[a-z0-9.]+){1,}\b", " ", name)
     name = re.sub(r"(?i)\b[a-z0-9]+(?:-[a-z0-9.]+){1,}\b", " ", name)
+    # Owner 2026-09-01 15:40 (BROAD exception to the 08-30 "don't touch" mark):
+    # drop the bare leading HS / brand-code prefix from a product name like
+    # "HS ไฟ LED รูปต้นคริสต์มาส ..." . Plain "HS" (no hyphen) is a vendor/series
+    # SKU prefix, not something a shopper needs to hear. We ONLY match the exact
+    # token HS when it is followed by a Thai/known descriptor AND is NOT itself a
+    # real brand in the tupsap (it isn't: brand list has no "hs"). Nothing else
+    # is affected — LED/USB/solar etc are legitimate nouns that must stay.
+    name = re.sub(r"(?i)\bhs\s+(?=[\u0E00-\u0E7F])", " ", name)
     name = re.sub(r"\s{2,}", " ", name).strip()
 
     # Numeric + plus/unit readouts first (SPF50+, PA+++, 30ml, 50g, 7.5g, 0.75ml)

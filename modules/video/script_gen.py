@@ -183,10 +183,11 @@ def _call_gemini(system_prompt: str, user_prompt: str) -> Optional[str]:
             "system_instruction": {"parts": [{"text": system_prompt}]},
             "contents": [{"parts": [{"text": user_prompt}]}],
             "generationConfig": {
-                "temperature": 0.6,
+                "temperature": 0.4,
                 # Gemini 3.6-flash ใช้ thoughtsTokenCount ที่สูงมากและหักออกจาก maxOutputTokens
                 # (วัดจริง ~1100-3000 token เฉพาะคิด) → ต้องตั้ง maxOutputTokens ให้สูงพอ (~4096)
                 # ไม่งั้นเหลือ text budget แค่ ~20-90 token → บทสั้น/ถูกตัดกลางเสมอ (root cause "แก้ไม่หาย")
+                # temperature 0.4 (card 6a5880eb ข้อ 1: ลดจาก 0.7 → 0.4-0.5 คุมมั่ว/ไหล) 2026-09-01
                 "maxOutputTokens": 4096,
             },
         }
@@ -257,6 +258,30 @@ def _brand_tokens(product_name: str):
     return toks
 
 
+def _strip_thai_token_safe(text: str, tok: str) -> str:
+    """Remove a later Thai product-name mention ONLY on a safe word boundary.
+
+    Card 6a5880eb ข้อ 3: _dedupe_product_name used raw .replace() on Thai tokens,
+    which could cut mid-word and leave a dangling fragment ("ยาม", "ผิวเท",
+    "สกินชีและ"). We only strip when the token is flanked by a Thai word
+    boundary or sentence/pause edge, so a genuine standalone brand mention is
+    removed but a token that is a substring of a longer Thai word is left intact.
+    """
+    if not text or not tok:
+        return text
+    # strip when token is standalone: preceded by start/pause and followed by
+    # pause/end. A Thai letter immediately before or after tok means it is MID-WORD
+    # → skip to avoid breaking the word.
+    out = re.sub(
+        r"(?<![฀-๿])" + re.escape(tok) + r"(?![฀-๿])",
+        "",
+        text,
+    )
+    # if nothing changed, the token was embedded mid-word — leave it (safer than
+    # breaking the sentence); caller's _dedupe keeps the full clause then.
+    return out
+
+
 def _dedupe_product_name(script: str, product_name: str) -> str:
     """Owner directive (2026-08-23): the product name is spoken at most ONCE.
 
@@ -291,7 +316,10 @@ def _dedupe_product_name(script: str, product_name: str) -> str:
             # avoid over-stripping: only drop word-boundary matches of the latin token
             rest = re.sub(r"(^|[^A-Za-z0-9])%s(?=[^A-Za-z0-9]|$)" % re.escape(norm), r"\1", rest, flags=re.I)
         else:
-            rest = rest.replace(tok, "")
+            # Thai token: only strip when it sits on a word boundary, NEVER mid-word.
+            # mid-word cut leaves a dangling fragment ("ยาม", "ผิวเท", "สกินชีและ") that
+            # breaks the sentence (card 6a5880eb ข้อ 3) — skip those instead of slicing.
+            rest = _strip_thai_token_safe(rest, tok)
     # collapse doubled spaces left by removals + tidy leftover connectors
     rest = re.sub(r"\s{2,}", " ", rest)
     # a removed token left a connector glued to the previous word + a gap
@@ -357,19 +385,41 @@ def _timing_structure_for_duration(duration: str) -> str:
 
 
 def _trim_script_by_sentences(text: str, max_words: int) -> str:
-    """Safety trim: drop whole trailing clauses (split on 。.!? and Thai เw/ ) until
-    the Thai word count is within budget. NEVER cuts mid-word — only drops whole
-    trailing sentences. Used only if a retry still comes back too long."""
+    """Safety trim: drop whole trailing chunks until the Thai word count is
+    within budget. NEVER cuts mid-word — only drops whole trailing segments.
+
+    We split the script at spacy boundaries into small clause chunks (so we can
+    stop near max_words instead of collapsing to the hook). Each chunk is a
+    whitespace-delimited phrase group; we greedily keep chunks while the running
+    word count stays <= max_words, then stop. Whole-chunk granularity means we
+    never break a word.
+    """
     if _count_thai_words(text) <= max_words:
         return text
-    # split into clauses on common sentence enders (keep delimiter attached)
-    parts = re.split(r"(?<=[。.!?！？])\s+|\s+(?=และ|หรือ|แล้ว|จากนั้น)", text)
-    kept = []
-    for p in parts:
-        if _count_thai_words(" ".join(kept) + " " + p) > max_words:
+    # Split on the sentence/connector boundaries first so clause breaks are clean.
+    clauses = re.split(
+        r"(?<=[。.!?！？])\s+|\s+(?=และ|หรือ|แล้ว|จากนั้น|รวมถึง|ทั้ง)",
+        text,
+    )
+    # Further split each clause into short phrase chunks at each space so we can
+    # stop close to the budget.
+    chunks: list[str] = []
+    for cl in clauses:
+        for w in cl.split(" "):
+            if w.strip():
+                chunks.append(w)
+    kept: list[str] = []
+    run = 0
+    for c in chunks:
+        wcnt = _count_thai_words(c)
+        if run + wcnt > max_words:
             break
-        kept.append(p)
-    return " ".join(kept).strip()
+        kept.append(c)
+        run += wcnt
+    out = " ".join(kept).strip()
+    # Extremely defensive: if nothing kept (first word already over budget, or the
+    # whole text was unsplittable), return the original rather than an empty hook.
+    return out if out else text.strip()
 
 
 def generate_tiktok_review_script(

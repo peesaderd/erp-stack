@@ -182,7 +182,13 @@ def _call_gemini(system_prompt: str, user_prompt: str) -> Optional[str]:
         payload = {
             "system_instruction": {"parts": [{"text": system_prompt}]},
             "contents": [{"parts": [{"text": user_prompt}]}],
-            "generationConfig": {"temperature": 0.7, "maxOutputTokens": 2000},
+            "generationConfig": {
+                "temperature": 0.6,
+                # Gemini 3.6-flash ใช้ thoughtsTokenCount ที่สูงมากและหักออกจาก maxOutputTokens
+                # (วัดจริง ~1100-3000 token เฉพาะคิด) → ต้องตั้ง maxOutputTokens ให้สูงพอ (~4096)
+                # ไม่งั้นเหลือ text budget แค่ ~20-90 token → บทสั้น/ถูกตัดกลางเสมอ (root cause "แก้ไม่หาย")
+                "maxOutputTokens": 4096,
+            },
         }
         resp = httpx.post(url, json=payload, timeout=30)
         if resp.status_code == 200:
@@ -298,6 +304,74 @@ def _dedupe_product_name(script: str, product_name: str) -> str:
     return (result + rest).strip()
 
 
+def _count_thai_words(text: str) -> int:
+    """Approximate number of Thai 'words' in a script for timing validation.
+
+    Thai has no spaces between words, so splitting on whitespace is useless
+    (a whole clause collapses into 1 token). Instead we approximate the word
+    count by total Thai characters / 3 — Thai words average ~3 graphemes
+    (consonant + vowel + tone mark). Good enough to ENFORCE "don't run long".
+    Counts only Thai graphemes; ignores spaces, latin, punctuation, digits.
+    """
+    if not text:
+        return 0
+    thai_chars = re.sub(r"[^\u0E00-\u0E7F]", "", text)
+    if not thai_chars:
+        return 0
+    return max(1, len(thai_chars) // 3)
+
+
+
+def _duration_word_range(duration: str) -> tuple:
+    """Return (min, max) Thai-word budget for a duration string like '15s'."""
+    dur = duration if duration.endswith("s") else f"{duration}s"
+    # These bounds are in the "approx Thai words" scale produced by
+    # _count_thai_words (total Thai chars // 3). 15s ≈ 45-55 words ≈ 135-165 chars.
+    table = {
+        "8s": (22, 28),
+        "10s": (30, 37),
+        "12s": (28, 34),
+        "15s": (45, 55),
+        "16s": (48, 60),
+        "30s": (90, 110),
+    }
+    return table.get(dur, (45, 55))
+
+
+def _timing_structure_for_duration(duration: str) -> str:
+    """Return a Thai per-section timing guideline for a given duration string.
+    The user template consumes this so it isn't hard-wired to 8s. Each line keeps
+    the natural UGC flow (Hook/Problem → Value/Spec → CTA) without forcing the
+    'ตัวนี้' pronoun (product name is spoken once in the VALUE part)."""
+    dur = duration if duration.endswith("s") else f"{duration}s"
+    table = {
+        "8s": "Hook 0-2 วิ / Value 2-6 วิ / CTA 6-8 วิ",
+        "10s": "Hook 0-2 วิ / Value 2-8 วิ / CTA 8-10 วิ",
+        "12s": "Hook 0-3 วิ / Value 3-9 วิ / CTA 9-12 วิ",
+        "15s": "Hook 0-3 วิ / Value 3-12 วิ / CTA 12-15 วิ",
+        "16s": "Hook 0-3 วิ / Value 3-13 วิ / CTA 13-16 วิ",
+        "30s": "Hook 0-4 วิ / Value 4-24 วิ / CTA 24-30 วิ",
+    }
+    return table.get(dur, table["15s"])
+
+
+
+def _trim_script_by_sentences(text: str, max_words: int) -> str:
+    """Safety trim: drop whole trailing clauses (split on 。.!? and Thai เw/ ) until
+    the Thai word count is within budget. NEVER cuts mid-word — only drops whole
+    trailing sentences. Used only if a retry still comes back too long."""
+    if _count_thai_words(text) <= max_words:
+        return text
+    # split into clauses on common sentence enders (keep delimiter attached)
+    parts = re.split(r"(?<=[。.!?！？])\s+|\s+(?=และ|หรือ|แล้ว|จากนั้น)", text)
+    kept = []
+    for p in parts:
+        if _count_thai_words(" ".join(kept) + " " + p) > max_words:
+            break
+        kept.append(p)
+    return " ".join(kept).strip()
+
+
 def generate_tiktok_review_script(
     product_name: str,
     customer_problem: str = "",
@@ -370,6 +444,7 @@ def generate_tiktok_review_script(
         "extra_rules": extra_rules or "-",
         "features": _feat_thai or "-",
         "product_appearance": product_appearance or "-",
+        "timing_structure": _timing_structure_for_duration(duration),
     }
 
     user_prompt = fill_template(user_tpl, user_data)
@@ -380,6 +455,47 @@ def generate_tiktok_review_script(
 
     # ─── Try LLM with persona injection ───────────────────────────────
     raw = _call_gemini(combined_system, user_prompt)
+
+    # ─── Length control (owner 2026-09-01): don't trust Gemini to self-limit. ──
+    # Validate Thai word budget AFTER generation. If over OR under, retry ONCE with
+    # an explicit instruction (shorter / write fuller with Value+spec+CTA); if still
+    # over, safety-trim by whole trailing sentences (never mid-word). Keeps the
+    # spoken script inside the cut-time of the video so Wan/TTS doesn't run over.
+    _lo, _hi = _duration_word_range(duration)
+    if raw:
+        _wc = _count_thai_words(raw)
+        if _wc > _hi:
+            _shrink_hint = (f"สคริปต์ที่ให้มายาวเกิน ({_wc} คำ) แต่ต้องได้ {_lo}-{_hi} คำสำหรับ {duration} "
+                            f"กรุณาตัดให้สั้นลงเหลือ {_lo}-{_hi} คำ โดยตัดเนื้อหาส่วนท้าย/ส่วนซ้ำออก "
+                            "ห้ามตัดกลางคำ ห้ามลัดทับศัพท์ชื่อสินค้า ให้คงชื่อสินค้าไว้")
+            _user_retry = user_prompt + f"\n\n[{_shrink_hint}]"
+            logger.info(f"Script over budget ({_wc}>{_hi}) — retrying once shorter")
+            raw2 = _call_gemini(combined_system, _user_retry)
+            if raw2 and _count_thai_words(raw2) <= _hi:
+                raw = raw2
+                _wc = _count_thai_words(raw)
+            else:
+                # retry still over/no output → safety trim whole trailing sentences
+                trimmed = _trim_script_by_sentences(raw2 or raw, _hi)
+                if trimmed:
+                    raw = trimmed
+                    _wc = _count_thai_words(raw)
+                    logger.info(f"Safety-trimmed script to {_wc} words")
+        elif _wc < _lo:
+            # Too short / likely Gemini truncated early (only the hook/problem).
+            # Retry once telling it to WRITE THE FULL script with all 3 sections.
+            _full_hint = (
+                f"สคริปต์ที่ให้มาสั้นเกินไป ({_wc} คำ) แต่ต้องได้ {_lo}-{_hi} คำสำหรับ {duration} และต้องครบ 3 ส่วน "
+                "(เริ่มด้วยปัญหา/ปัญหาที่เจอ, แล้วแนะนำชื่อสินค้าหนึ่งครั้งพร้อมจุดเด่นและ spec จริงจากคุณสมบัติสินค้า, "
+                "จบด้วยคำกระตุ้นให้ซื้อ) อย่าเพิ่งจบแค่ประโยคเดียว ให้เขียนบทโฆษณาที่สมบูรณ์ตามระยะเวลาคลิป โดยไม่ใช้คำแทนชื่อสินค้า"
+            )
+            _user_retry = user_prompt + f"\n\n[{_full_hint}]"
+            logger.info(f"Script too short ({_wc}<{_lo}) — retrying once fuller")
+            raw2 = _call_gemini(combined_system, _user_retry)
+            if raw2:
+                raw = raw2
+                _wc = _count_thai_words(raw)
+
 
     if raw:
         # Post-process: พูดชื่อสินค้าแค่ครั้งเดียว (ครั้งแรก) ครั้งที่เหลือแทนด้วยสรรพนาม

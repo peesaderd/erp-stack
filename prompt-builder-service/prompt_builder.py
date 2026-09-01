@@ -1172,9 +1172,14 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             # patio, NO person and NO hands (outdoor/solar lights). Not a studio rotate
             # (product_demo) nor a first-person hands clip (pov) — the product sits
             # among plants, softly glowing, gentle ambient motion.
+            # Owner 2026-08-31 (โคมไฟติดผนัง BK-8518 "มันต้องอยู่กับ outdoor"): reuse
+            # the category_mapping wall_light scene/action so wall-mounted lights get a
+            # wall / fence / entrance-gate scene, not a generic garden bed.
+            _amb_scene = (selected.get("scene") or "among garden plants and greenery")
+            _amb_action = selected.get("action") or "the light glowing softly"
             video_prompt = (
-                f"Ambient outdoor scene at night, the {_vp_product} glowing softly "
-                f"among garden plants and greenery, warm golden light, gentle bokeh, "
+                f"Ambient outdoor scene at night, {_amb_scene}, where the "
+                f"{_vp_product} {_amb_action}, warm golden light, gentle bokeh, "
                 f"no person, no hands in frame, product centered and clearly shown, "
                 f"subtle ambient motion as the lights glow gently, "
                 f"then {_result} at {_end_cam}, 9:16, smooth motion"
@@ -2010,6 +2015,14 @@ def _tts_product_name(product_name: str) -> str:
     name = re.sub(r"\s*[\[【（(][^\]】）)]*[\]】）)]\s*", " ", name).strip()
     # also drop leftover bare "สูตร"/"ใหม่" variant filler (e.g. "สูตรใหม่ ครีมโสม")
     name = re.sub(r"(?i)\b(?:(?:สูตร)?ใหม่|ใหม่สูตร|รุ่นใหม่|สูตร)\b", " ", name).strip()
+    # Owner 2026-09-01: drop model/series CODES (รหัสรุ่น) from the spoken name.
+    # Codes like "HS-090-2", "A-100-X" are inventory SKUs, NOT info a shopper
+    # needs to hear; say the product NAME + selling points instead. Match latin
+    # tokens that contain >=1 hyphen tying digits/letters together (a real model
+    # code), which is distinct from a decimal like "U9.9" (ยูเก้าจุดเก้า, kept)
+    # or hyphenless words. Also strips a leading "รุ่น" right before the code.
+    name = re.sub(r"(?i)\bรุ่น\s+[a-z0-9]+(?:-[a-z0-9.]+){1,}\b", " ", name)
+    name = re.sub(r"(?i)\b[a-z0-9]+(?:-[a-z0-9.]+){1,}\b", " ", name)
     name = re.sub(r"\s{2,}", " ", name).strip()
 
     # Numeric + plus/unit readouts first (SPF50+, PA+++, 30ml, 50g, 7.5g, 0.75ml)
@@ -2081,6 +2094,18 @@ def _tts_product_name(product_name: str) -> str:
         return "".join(out_parts)
 
     name = _trans_latin_runs(name)
+
+    # Owner 2026-09-01: convert any leftover plain Arabic integer counts (e.g.
+    # "20 ดวง" -> "ยี่สิบดวง", "6 ชิ้น" -> "หกชิ้น") to spoken Thai. Only bare
+    # integers NOT already consumed as ml/g/m units, so "30ml"/"5M" stay as
+    # สามสิบมิลลิลิตร/ห้าเมตร (no double conversion). Unit word joins directly
+    # (no space): "ยี่สิบดวง" not "ยี่สิบ ดวง".
+    def _num_unit(m):
+        n = _thai_number(int(m.group(1)))
+        unit = (m.group(2) or "").strip()
+        return n + unit if unit else n
+    name = re.sub(r"\b(\d+)\s+([ก-๙][ก-๙\u0E47-\u0E4E]*)", _num_unit, name)
+    name = re.sub(r"\b(\d+)\b", lambda m: _thai_number(int(m.group(1))), name)
 
     # Dedupe repeated Thai brand tokens (so "ครีมสกินชี สกินชี" stays
     # "ครีมสกินชี") but keep every latin-rendered word (owner 2026-08-25 dedupe).
@@ -2462,6 +2487,11 @@ def _strip_promo_tokens(name: str) -> str:
     t = _re.sub(r"[\[\]【】]+", " ", t)
     t = _re.sub(r"\([^)]*(?:ส่ง|ราคา|โค้ด|COD|ปลายทาง)[^)]*\)", " ", t)
     # Collapse spaces / stray pipes / leading hyphens.
+    # Owner 2026-09-01: drop model/series codes (HS-090-2, A-100-X) here, BEFORE
+    # hyphens are stripped to spaces, so the code is removed as one unit and never
+    # leaks back as "รุ่น เอชเอส เก้าสิบ สอง" after transliteration. Shopper does
+    # not need to hear the inventory SKU.
+    t = _re.sub(r"(?i)\b(?:รุ่น\s+)?[a-z0-9]+(?:-[a-z0-9.]+){1,}\b", " ", t)
     t = t.replace("|", " ").replace("-", " ")
     t = _re.sub(r"\s{2,}", " ", t).strip(" -")
     return t

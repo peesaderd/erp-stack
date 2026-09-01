@@ -122,6 +122,13 @@ STYLE_MAP = {
         "keywords": "fashion lookbook, outfit, runway, style, elegant, OOTD",
         "video_motion": "static camera, subtle push-in, model turning slowly in place, gentle head movement, fabric draping naturally"
     },
+    "ambient_outdoor": {
+        "model_action": "no person, product glowing softly in its outdoor mounting spot at night, product centered and clearly shown, warm golden light, automatic light on",
+        "camera": "wide establishing shot of outdoor scene, then close-up on product, product centered no people",
+        "vibe": "ambient, tranquil, warm, cozy, product-focused, no person",
+        "keywords": "ambient outdoor, night outdoor, no person, product glowing, warm light, patio/wall/fence decor",
+        "video_motion": "product glowing in a night outdoor spot, gentle bokeh, subtle ambient motion, no people in frame, camera slowly pushing in on product"
+    },
 }
 
 

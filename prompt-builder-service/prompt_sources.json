@@ -276,6 +276,19 @@
         "camera": "close-up on hands and fan",
         "lighting": "clean bright natural light",
         "mood": "refreshing, handy, practical"
+      },
+      "wall_light": {
+        "scene": [
+          "warm wall-mounted solar lamp glowing beside a house entrance gate at dusk",
+          "bright patio wall where a round LED wall light lights up the evening garden path",
+          "rustic brick wall of a home with a wall lamp glowing next to the front door",
+          "night fence line beside a garden walkway lit by round wall-mounted solar lamps",
+          "porch wall above the door sill with a round LED lamp casting warm light onto steps"
+        ],
+        "action": "shows the round LED wall light mounted on the wall, warm light spilling onto the wall and doorstep",
+        "camera": "medium close-up on the wall-mounted lamp",
+        "lighting": "warm golden dusk light with soft lamp glow on the wall",
+        "mood": "secure, inviting, welcoming"
       }
     },
     "health": {
@@ -1268,6 +1281,20 @@
       {
         "scene": "portable fan resting on a modern table, refreshing vibe",
         "camera": "medium shot"
+      }
+    ],
+    "wall_light": [
+      {
+        "scene": "round LED wall light glowing warmly on the house wall beside the entrance",
+        "camera": "slow push-in on the wall-mounted lamp"
+      },
+      {
+        "scene": "wall light illuminating a garden path wall and fence line at night",
+        "camera": "medium close-up on the mounted lamp"
+      },
+      {
+        "scene": "wall lamp casting warm light onto the doorstep and brick wall of the home",
+        "camera": "static wide shot of the wall and gate"
       }
     ]
   },

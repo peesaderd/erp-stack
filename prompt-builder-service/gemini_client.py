@@ -207,7 +207,7 @@ PRODUCT_ANALYSIS_SYSTEM = """คุณคือระบบวิเคราะ
   - beauty → lipstick / foundation / blush / mascara / concealer
   - food → snack / drink / supplement / meal / dessert
   - fashion → clothing / accessory / shoes / bag
-  - electronics → phone_case / headphone / charger / gadget
+  - electronics → phone_case / headphone / charger / gadget / solar_light / portable_fan / wall_light
   - health → vitamin / medicine / fitness / first_aid
   - home → cleaning / decor / kitchen / furniture
   - other → general
@@ -422,7 +422,7 @@ def analyze_product_image(product_image: str, product_name: str, description: st
 
 
 
-PRODUCT_ONLY_STYLES = {"product_demo", "unboxing", "comparison", "split_comparison"}
+PRODUCT_ONLY_STYLES = {"product_demo", "unboxing", "comparison", "split_comparison", "ambient_outdoor"}
 
 def _generate_media_prompts(
     product_name: str,

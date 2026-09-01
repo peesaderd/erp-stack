@@ -433,6 +433,12 @@ Keywords: {kw_str}"""
     if isinstance(_router_scenes, list) and len(_router_scenes) >= 2:
         profile["router_config"]["scenes"] = _router_scenes
 
+    # Owner 2026-09-01: rewrite messy product title to clean "brand + product type"
+    # ONCE here (analysis time). Downstream _build_timing_validated_script reads
+    # profile["clean_title"] instead of recomputing it on every build (less latency,
+    # AI called at most once per product name).
+    profile["clean_title"] = rewrite_clean_title(product_name, profile.get("category", "other"), profile)
+
     return profile
 
 
@@ -1960,6 +1966,14 @@ _THAI_TUP_SAP = {
     "powered": "พาวเวอร์",
     "christmas": "คริสต์มาส",
     "oukeya": "โอกิยะ",       # brand (Thai name already in product_title)
+    # Owner 2026-09-01: brands learned from AI (natural spoken Thai, not letter-by-letter)
+    "minarita": "มินาริต้า",
+    "ririko": "ริริโกะ",
+    "kathy amrez": "เคธี่ แอมเรซ",
+    "kathyamrez": "เคธี่ แอมเรซ",
+    "kathy": "เคธี่",
+    "amrez": "แอมเรซ",
+    "bodana": "โบดาน่า",
     "classy": "คลาสซี่",
     "matte": "แมตต์",
     "cushion": "คุชชั่น",
@@ -2552,6 +2566,114 @@ def _strip_promo_tokens(name: str) -> str:
     return t
 
 
+
+# ─── Owner 2026-09-01: clean product title (rule + AI fallback) ───
+# Owner direction: bad/messy product names in the DB are the root problem — rewrite
+# the title to "clean" (brand + product type) FIRST so everything downstream (product_short,
+# _tts_product_name, voiceover script) becomes good automatically. Rule-based first (free),
+# only call Gemini when the rule can't produce a short clean result (falls back to AI).
+_TITLE_PROMO = {
+    "hs", "cod", "พร้อมส่ง", "ส่งฟรี", "จัดส่งฟรี", "เก็บเงินปลายทาง", "สั่งซื้อ",
+    "โปรโมชั่น", "ซื้อ", "แถม", "ลด", "ลดราคา", "ลดราคาช็อก", "โปร", "ขายดี",
+    "สินค้าขายดี", "ใหม่", "สูตรใหม่", "สูตรเก่า", "ต้นตำรับ", "ปราศจาก", "ของแท้",
+    "ยกลัง", "ชุด", "เซต", "แพ็ค", "แพ็ก", "คุ้ม", "คุ้มค่า", "สุด", "มาก", "พิเศษ",
+    "ราคาพิเศษ", "เฉพาะ", "ลดสนั่น", "โฮตเซล", "hot", "sale",
+}
+_TITLE_CUT = {
+    "สำหรับ", "เพื่อ", "ใช้", "เหมาะ", "ตกแต่ง", "สร้าง", "ให้", "พร้อม", "กับ",
+    "สามารถ", "ช่วย", "ทั้ง", "ขนาด", "ความ", "ยาว", "ของ", "ระยะ", "กำลัง",
+    "เหมาะกับ", "ใน", "บน", "นอก", "งาน", "แบบ", "ชนิด", "เป็น", "ได้", "ไว้",
+    "มา", "โดย", "และ", "หรือ", "ต่อ", "กัน", "ประหยัด", "ทนทาน", "เนียน", "นุ่ม",
+    "บางเบา", "กลางวัน", "กลางคืน", "ตลอด", "วัน", "เปลี่ยน", "ดูแล", "บำรุง",
+}
+_TITLE_NUMBER_RE = re.compile(r"^\d+(?:\.\d+)?[a-zA-Zก-๙]*$")
+
+_TITLE_AI_SYSTEM = (
+    "You clean a Thai e-commerce product title into a SHORT natural Thai phrase for a "
+    "voiceover. Rules:\n"
+    "- Output ONLY a clean phrase: brand + product type (or product type + brand).\n"
+    "- MAX ~30 Thai chars. NO promotional words (ลดราคา, โปรโมชั่น, ซื้อ, แถม, COD, ส่งฟรี, "
+    "เก็บเงินปลายทาง, ขายดี, ใหม่, สูตร, 100%, มี, ทาง, ชุดครบสูตร). NO model/unit codes "
+    "(50g, 5M, 20ชิ้น). NO long benefit/description sentences.\n"
+    "- Identify the REAL product type (ครีม, เซรั่ม, คุชชั่น, มาสคาร่า, สเปรย์, โคมไฟ, ยาสีฟัน...). "
+    "NEVER echo promotional/sales phrases.\n"
+    "- Keep brand as Latin if it is a roman brand (e.g. MINARITA), or Thai if the brand is "
+    "already Thai. Do NOT spell a roman brand letter-by-letter.\n"
+    "- Output ONLY one line of plain text. No quotes, no JSON, no explanation."
+)
+
+def rewrite_clean_title(title: str, category: str = "", profile: dict = None) -> str:
+    """Owner 2026-09-01: rewrite a messy product title into a clean 'brand + product type'.
+    Rule-based first (free, deterministic). Only when the rule result is too long / has leftover
+    promo tokens / is empty does it call Gemini (via _call_gemini) for a short clean name.
+    Does NOT touch the transliteration inner logic (_tts_product_name); it only cleans the INPUT.
+    """
+    if not title:
+        return title
+    original = title
+    t = title.strip()
+    # 1) bracketed promo [..]/【..】 -> drop whole bracket
+    t = re.sub(r"[\[【][^\]】]*[\]】]", " ", t)
+    # 2) unit brackets "(50g)", "(5M)" -> drop
+    t = re.sub(r"\([^)]*(?:ml|กรัม|g|ซอง|ชิ้น|กล่อง|ชม|ชั่วโมง|เมตร|m)[^)]*\)", " ", t, flags=re.I)
+    # 3) promo pattern "ซื้อ 1 แถม 1" / "1 หลอด แถมฟรี 1"
+    t = re.sub(
+        r"(?:ซื้อ|แถม|ลด)\s*\d+(?:\s*[a-zA-Zก-๙]+)?(?:\s*(?:แถม|ลด|ซื้อ)\s*\d+(?:\s*[a-zA-Zก-๙]+)?)*",
+        " ", t,
+    )
+    # 4) model/series code HS-090-2 / A-100
+    t = re.sub(r"\b(?:รุ่น\s*)?[A-Za-z0-9]+(?:-[A-Za-z0-9.]+){1,}\b", " ", t)
+    # 5) single promo/connector words
+    for w in _TITLE_PROMO:
+        t = re.sub(r"(?i)(^|\s)" + re.escape(w) + r"(\s|$)", r"\1\2", t)
+    t = re.sub(r"[|]", " ", t)
+    t = re.sub(r"\s{2,}", " ", t).strip()
+    # 6) walk tokens, stop at number/unit/cut-word
+    out, cut = [], False
+    for tok in t.split():
+        wl = tok.strip(".,;:!()&/")
+        low = wl.lower()
+        if _TITLE_NUMBER_RE.fullmatch(low) or low in _TITLE_CUT or low in _TITLE_PROMO:
+            cut = True
+            break
+        out.append(wl)
+    cleaned = " ".join(out).strip()
+
+    # Rule verdict: good if 4 < len <= 45 and no leftover promo markers
+    low2 = cleaned.lower()
+    rule_good = (
+        4 < len(cleaned) <= 45
+        and "ซื้อ" not in cleaned
+        and "แถม" not in cleaned
+        and "โปร" not in low2
+        and "ลด" not in cleaned
+        and "hs" not in low2
+        and "cod" not in low2
+        and "พร้อมส่ง" not in cleaned
+        and "ชุดครบ" not in cleaned
+    )
+    if rule_good:
+        return cleaned
+
+    # Rule did not produce a clean short name -> Gemini fallback
+    try:
+        result = _call_gemini(
+            _TITLE_AI_SYSTEM,
+            "Product title to clean:\n" + original,
+            temperature=0.2,
+            max_output_tokens=120,
+        )
+        if result:
+            result = result.strip().strip('\"\'')
+            if 2 <= len(result) <= 45:
+                return result
+    except Exception:
+        pass
+    # fallback: return the best-effort rule output (even if long), never empty the name
+    return cleaned or original
+
+
+
 def _build_timing_validated_script(product_name: str, category: str = "beauty", profile: dict = None) -> dict:
     """Build script segments with timing validation.
 
@@ -2564,6 +2686,15 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
     # Owner 2026-08-31: drop promotional/COD noise from the SPOKEN name first so
     # 'มีเก็บเงินปลายทาง' / '【HS】' never appear in the voiceover script.
     product_name = _strip_promo_tokens(product_name)
+    # Owner 2026-09-01: rewrite messy title to clean 'brand + product type' first
+    # (rule + AI fallback) so product_short / _tts_product_name / voiceover all get a clean input.
+    # Owner 2026-09-01: use the clean title computed once in analyze_product
+    # (profile["clean_title"]) — falls back to recompute only when called directly
+    # without going through analyze_product.
+    if profile and profile.get("clean_title"):
+        product_name = profile["clean_title"]
+    else:
+        product_name = rewrite_clean_title(product_name, category, profile)
     product_short = product_name
     full_name_chars = len(product_name)
     

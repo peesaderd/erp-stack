@@ -651,6 +651,24 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
     # profile so build_video_prompt() reuses the SAME blueprint -> image & video
     # end scenes stay consistent (they no longer drift apart).
     es = _pick_end_scene(category, subcategory=subcategory, profile=profile)
+    # Owner 2026-09-02 (vid_e48adf31): subcategory หลุดเป็น star_projector ทำให้
+    # end scene เป็นของ indoor projector (bedroom/ceiling) → ถ้าเป็น ambient_outdoor
+    # แล้ว end scene มีคำ indoor ใช้ฉากสวนกลางคืนมาตรฐานแทน
+    if ugc_style == "ambient_outdoor":
+        _es_txt = " ".join(str(v) for v in es.values())[:200]
+        _es_indoor_re = re.compile(
+            r"(?i)\b(bedroom|indoor|projector|galaxy|starry|nebula|ceiling|nightstand|curtains|wall|moon)\b",
+        )
+        if _es_indoor_re.search(_es_txt):
+            logger.info(f"  ambient_outdoor end scene indoor-flavored → garden standard")
+            es = {
+                "scene": "solar light glowing softly among garden plants at night, warm light",
+                "camera": "slow push-in on the glowing lamp",
+                "outfit": "",
+                "result_focus": "the light glowing warmly in the outdoor night garden",
+                "expression": "",
+                "product_placement": "product sits in the garden among the plants",
+            }
     profile["_end_scene"] = es
     _outfit = f"; outfit: {es['outfit']}" if es.get("outfit") else ""
     _result = es.get("result_focus") or "a happy result"
@@ -732,6 +750,18 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             # no logo, no mixing of grass+patio+veranda into one frame.
             _od_scene = (selected.get("scene") or "").strip()
             _od_lighting = (selected.get("lighting") or "warm golden light").strip()
+            # Owner 2026-09-02 (vid_e48adf31): subcategory หลุดเป็น star_projector
+            # ทำให้ selected scene/lighting เป็นฉากห้องนอน/โปรเจคเตอร์ ทั้งที่ style นี้ต้องอยู่
+            # กลางแจ้ง → ถ้าฉากมีคำ indoor ตั้งแต่ 1 คำ ถือว่าผิดทั้งก้อน ใช้ฉากสวนมาตรฐาน
+            # ทันที (ไม่ตัดคำทีละคำ เพราะเหลือประโยคพัง เช่น curtains โดนตัด เหลือ with drawn)
+            _od_indoor_re = re.compile(
+                r"(?i)\b(bedroom|indoor|projector|galaxy|starry|nebula|ceiling|nightstand|curtains|wall|moon)\b",
+            )
+            if _od_scene and _od_indoor_re.search(_od_scene):
+                logger.info(f"  ambient_outdoor scene indoor-flavored → fallback garden standard: {_od_scene[:60]}")
+                _od_scene = ""
+            if _od_lighting and _od_indoor_re.search(_od_lighting):
+                _od_lighting = "warm golden light at night"
             if _od_scene:
                 # Owner 2026-09-01: solar/stake lights must sit LOW to the ground,
                 # stakes plunged into the garden soil — the first generated image
@@ -746,10 +776,12 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
                     f"{_grounding} {_od_lighting}, product centered and clearly shown, warm golden glow"
                 )
             else:
+                # Owner 2026-09-02 (vid_e48adf31): ตัด {room_desc} ออกเมื่อ scene หลุดเป็น
+                # indoor เพราะ room_desc = selected.scene (ห้องนอน curtains) จะรั่วเข้าฉากสวน
                 feat_hint = (
                     f"{product_name} glowing softly among garden plants at night, "
                     f"product centered and clearly shown, warm golden light, "
-                    f"placed outdoors in a single garden scene, {room_desc}"
+                    f"placed outdoors in a single garden scene"
                 )
             no_human_clause = (
                 "NO humans, NO people, NO hands in frame; pure ambient "
@@ -1251,6 +1283,16 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             # the category_mapping wall_light scene/action so wall-mounted lights get a
             # wall / fence / entrance-gate scene, not a generic garden bed.
             _amb_scene = (selected.get("scene") or "among garden plants and greenery")
+            # Owner 2026-09-02 (vid_e48adf31): กัน scene/action ในร่มหลุดมาในฉากกลางคืนกลางแจ้ง
+            # (subcategory หลุดเป็น star_projector → ฉาก bedroom/projector) ถ้าฉากมีคำ indoor
+            # ตั้งแต่ 1 คำขึ้นไป ถือว่าผิดทั้งก้อน → ใช้ฉากสวนมาตรฐานทันที (ไม่ตัดคำทีละคำ
+            # เพราะจะเหลือประโยคพัง เช่น curtains โดนตัด เหลือ "with drawn")
+            _amb_indoor_re = re.compile(
+                r"(?i)\b(bedroom|indoor|projector|galaxy|starry|nebula|ceiling|nightstand|curtains|wall|moon)\b",
+            )
+            if _amb_indoor_re.search(_amb_scene):
+                logger.info(f"  ambient_outdoor scene indoor-flavored → fallback garden standard: {_amb_scene[:60]}")
+                _amb_scene = "among garden plants and greenery"
             # ambient_outdoor: product is PLACED/GLOWING among plants, never held —
             # selected.action often says "holds ... showing" (person template) which
             # contradicts the no-person rule and makes Wan put hands in frame (owner
@@ -1261,6 +1303,14 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
                 _amb_action = "glowing softly among the plants, its warm light gently visible"
             else:
                 _amb_action = _amb_action_raw or "glowing softly"
+            # Owner 2026-09-02 (vid_e48adf31): ถ้า selected action เป็นของ indoor projector
+            # (projecting galaxy/bedroom...) ให้ใช้ passive glow ทันที กันฉากในร่มรั่วเข้าคลิป
+            _amb_action_clean = _amb_indoor_re.sub(" ", _amb_action)
+            if _amb_indoor_re.search(_amb_action_raw) and _amb_indoor_re.search(_amb_action):
+                _amb_action = "glowing softly among the plants, its warm light gently visible"
+                logger.info(f"  ambient_outdoor action indoor-flavored → passive glow: {_amb_action_raw[:60]}")
+            elif _amb_action_clean and len(_amb_action_clean) > 10:
+                _amb_action = _amb_action_clean
             # Owner 2026-09-01 16:12: เปลี่ยนมุม/ซูมที่ beat 2,3 (ภายในคลิปเดี่ยว 9:16)
             # ในฉากสวนเดียวนั้น ไม่เปลี่ยน scene (พี่ยืนยัน "ใช่") — beat 2 จ่อกล้องใกล้ไฟ
             # เบา ๆ, beat 3 ถอยมุมกว้างขึ้นเล็กน้อย, beat 4 settle กลับโปรดักต์ชัด.

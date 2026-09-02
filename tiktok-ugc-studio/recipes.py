@@ -164,6 +164,22 @@ RECIPES = [
             "lighting_preference": "warm golden glow at night",
         },
     },
+    {
+        "name": "indoor_projector",
+        "label": "🌌 Indoor Projector (ห้องนอน ไม่มีคน ฉายดาวบนผนัง)",
+        "description": "สำหรับโปรเจคเตอร์ไฟส่องดาว/ดวงจันทร์/เนบิวล่า (เช่น TY01-1) ในห้องนอน ยิงภาพจักรวาลบนผนังและเพดาน เปลี่ยนธีมได้ ไม่มีคนในฉาก",
+        "ugc_style": "indoor_projector",
+        "sound_style": "chill_loft",
+        "mood": "dreamy",
+        "duration": 8,
+        "bgm_style": "chill_loft",
+        "recipe_name": "indoor_projector",
+        "prompt_context": {
+            "category": "electronics",
+            "vibe": "indoor ambient, cozy bedroom at night, starry galaxy projection on wall, no person, theme changing like being in the universe",
+            "lighting_preference": "dark room lit only by the colorful galaxy projection",
+        },
+    },
 ]
 
 

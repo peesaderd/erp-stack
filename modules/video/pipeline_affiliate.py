@@ -325,6 +325,14 @@ def generate_script(
     """
     logger.info(f"Step 3/9: Generate script (Gemini, style={ugc_style})")
 
+    # Owner 2026-09-02: no-person ambient styles (indoor_projector/ambient_outdoor)
+    # have NO speaking person in the clip — skip Gemini sales script entirely so
+    # Wan never reads a broken/boring Thai voiceover over the ambient scene.
+    _nh = (ugc_style or "").strip().lower()
+    if _nh in ("indoor_projector", "ambient_outdoor"):
+        logger.info(f"  No script: style {_nh} is no-person ambient — empty script")
+        return ""
+
     # ── Beat-timed script จาก service (single source of truth) ──────────
     # timing_validation/scripts.full_script ถูก build จาก router_config.scenes
     # (4-beat: hook→agitate→solve→cta) แล้ว → ใช้เลยให้ sync กับ 4-beat video prompt

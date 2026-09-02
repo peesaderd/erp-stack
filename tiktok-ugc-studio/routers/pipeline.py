@@ -171,6 +171,17 @@ async def run_full_pipeline(req: FullPipelineRequest):
         if req.run_video_gen:
             _update_pipeline_step(job_id, "video_gen", "processing")
             if req.product_image:
+                # Owner 2026-09-02: เฉพาะ recipe ที่เป็น no-human ambient (indoor_projector /
+                # ambient_outdoor) บังคับ style ตัวเอง กันภาพหลุดเป็นคนถือสินค้า (vid_4947bbe9)
+                # แต่ recipe ทั่วไปปล่อยให้ style ที่ UI เลือกเป็นตัวตั้ง ไม่ทับงาน talking baseline
+                _style_forced = (getattr(req, "ugc_style", "") or "holding")
+                try:
+                    _rec = get_recipe(req.recipe or "")
+                    _rec_style = (_rec or {}).get("ugc_style") or ""
+                    if _rec_style in ("indoor_projector", "ambient_outdoor"):
+                        _style_forced = _rec_style
+                except Exception:
+                    pass
                 vid_result = await _proxy("POST", "video-gen", "/api/v1/video/generate", {
                     "product_title": req.product_title or "",
                     "product_description": req.product_description or "",
@@ -179,7 +190,7 @@ async def run_full_pipeline(req: FullPipelineRequest):
                     "value": req.value_proposition or "",
                     "cta": req.cta or "",
                     "duration": req.duration or DEFAULT_VIDEO_DURATION,
-                    "ugc_style": req.ugc_style or "holding",
+                    "ugc_style": _style_forced,
                     "category": req.category or "",
                     "subcategory": req.subcategory or "",
                     "recipe": _resolve_video_recipe(req.recipe),

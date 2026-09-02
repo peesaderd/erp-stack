@@ -90,6 +90,94 @@ def _get_gemini_key() -> str:
     return ""
 
 
+# ─── Mistral Nemo Text Fallback (owner 2026-09-02) ────────────────────
+# เมื่อ Gemini ล่ม / billing ถูก deny (403) / timeout ระบบจะสลับไปใช้
+# Mistral Nemo (open-mistral-nemo) แบบหมุน key เหมือน Mistral Vision แทน
+# การตก fallback บทสำเร็จรูปซ้ำ ๆ (ต้นตอ script แย่ที่พี่เจอ)
+
+_mistral_text_key_counter = 0
+
+MISTRAL_TEXT_MODEL = "open-mistral-nemo"
+
+
+def _mistral_keys() -> list:
+    """Collect all available Mistral keys (env + shared_config), dedup."""
+    keys = []
+    seen = set()
+    env_sources = [os.environ]
+    try:
+        from shared_config import _env_dict as _shared_env
+        env_sources.append(_shared_env)
+    except Exception:
+        pass
+    for i in range(1, 10):
+        env_name = "MISTRAL_API_KEY" if i == 1 else f"MISTRAL_API_KEY_{i}"
+        k = ""
+        for src in env_sources:
+            v = src.get(env_name, "")
+            if v:
+                k = v
+                break
+        if not k:
+            try:
+                k = _MISTRAL_API_KEY_LAZY() if callable(_MISTRAL_API_KEY_LAZY) else _MISTRAL_API_KEY_LAZY
+            except Exception:
+                k = ""
+        if k and k not in seen:
+            seen.add(k)
+            keys.append(k)
+    return keys
+
+
+def _call_mistral_text(system_prompt: str, user_text: str, temperature: float = 0.3, max_output_tokens: int = 500) -> Optional[str]:
+    """Call Mistral Nemo (open-mistral-nemo) with text only (no image).
+
+    Round-robins multiple MISTRAL_API_KEY_N keys on 401/429/errors.
+    Returns None when all keys fail (caller decides what to do).
+    """
+    global _mistral_text_key_counter
+    keys = _mistral_keys()
+    if not keys:
+        logger.warning("No MISTRAL_API_KEY set in environment (text fallback)")
+        return None
+
+    start = _mistral_text_key_counter % len(keys)
+    last_err = None
+    for offset in range(len(keys)):
+        idx = (start + offset) % len(keys)
+        api_key = keys[idx]
+        try:
+            client = Mistral(api_key=api_key)
+            response = client.chat.complete(
+                model=MISTRAL_TEXT_MODEL,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_text},
+                ],
+                temperature=temperature,
+                max_tokens=max_output_tokens,
+                timeout_ms=60000,  # 60s cap
+            )
+            if response and response.choices:
+                _mistral_text_key_counter += 1
+                return response.choices[0].message.content
+            logger.warning("Mistral Nemo text returned empty response")
+            return None
+        except Exception as e:
+            last_err = e
+            msg = str(e)
+            if "401" in msg or "Invalid API Key" in msg or "429" in msg or "rate" in msg.lower():
+                logger.warning(f"Mistral Nemo key {idx+1} failed ({msg[:80]}) — trying next key")
+                continue
+            logger.warning(f"Mistral Nemo key {idx+1} error ({msg[:80]}) — trying next key")
+            continue
+
+    _mistral_text_key_counter += 1
+    logger.error(f"Mistral Nemo text call failed with all keys: {last_err}")
+    return None
+
+
+
 def _call_gemini(system_prompt: str, user_text: str, temperature: float = 0.3, max_output_tokens: int = 500, response_mime_type: str = "") -> Optional[str]:
     """Call Gemini API with system instruction.
 
@@ -127,10 +215,14 @@ def _call_gemini(system_prompt: str, user_text: str, temperature: float = 0.3, m
             return data["candidates"][0]["content"]["parts"][0]["text"]
         else:
             logger.error(f"Gemini API error ({resp.status_code}): {resp.text[:200]}")
-            return None
+            # Owner 2026-09-02: Gemini ล่ม/ billing 403 → สลับไป Mistral Nemo
+            # กันการตก fallback บทสำเร็จรูปซ้ำ ๆ (ต้นตอ script แย่ vid_4947bbe9)
+            logger.warning("  → falling back to Mistral Nemo (open-mistral-nemo)")
+            return _call_mistral_text(system_prompt, user_text, temperature, max_output_tokens)
     except Exception as e:
         logger.error(f"Gemini call failed: {e}")
-        return None
+        logger.warning("  → falling back to Mistral Nemo (open-mistral-nemo)")
+        return _call_mistral_text(system_prompt, user_text, temperature, max_output_tokens)
 
 
 def _call_gemini_vision(system_prompt: str, user_text: str, image_url: str, temperature: float = 0.3, max_output_tokens: int = 500, response_mime_type: str = "") -> Optional[str]:
@@ -207,7 +299,7 @@ PRODUCT_ANALYSIS_SYSTEM = """คุณคือระบบวิเคราะ
   - beauty → lipstick / foundation / blush / mascara / concealer
   - food → snack / drink / supplement / meal / dessert
   - fashion → clothing / accessory / shoes / bag
-  - electronics → phone_case / headphone / charger / gadget / solar_light / portable_fan / wall_light
+  - electronics → phone_case / headphone / charger / gadget / solar_light / portable_fan / wall_light / star_projector
   - health → vitamin / medicine / fitness / first_aid
   - home → cleaning / decor / kitchen / furniture
   - other → general

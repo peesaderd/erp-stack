@@ -369,15 +369,18 @@ Keywords: {kw_str}"""
     if not gemini_profile:
         logger.warning("Gemini analysis failed — using default profile with Router context")
         gender_en = "woman"
+        # Owner 2026-09-02 (vid_4947bbe9 script หลุด 【H): fallback ต้องตัดกลางชื่อไม่ได้
+        # ใช้ clean_title ที่ strip โปรโมชันแล้ว (【HS】พร้อมส่ง ฯลฯ) แทนการตัด product_name ตรง ๆ
+        _fb_name = rewrite_clean_title(product_name, "", None) if (product_name or "").strip() else "สินค้านี้"
         profile = {
             "category": "other",
             "subcategory": "",
             "target_gender": "female",
             "target_age": "25-35",
-            "target_audience": f"คนที่กำลังมองหา{product_name[:20]}",
+            "target_audience": f"คนที่กำลังมองหา{_fb_name[:20]}",
             "setting": "clean modern lifestyle setting",
-            "customer_problem": f"ปัญหาที่{product_name[:30]}นี้ช่วยแก้",
-            "main_benefit": f"คุณประโยชน์ของ{product_name[:20]}",
+            "customer_problem": f"ปัญหาที่{_fb_name[:30]}นี้ช่วยแก้",
+            "main_benefit": f"คุณประโยชน์ของ{_fb_name[:20]}",
             "packaging_action": "generic_hold",
             "action_desc": "ถือสินค้าและใช้งานทั่วไป",
             "hashtags": keywords[:5] if len(keywords) >= 5 else _generate_default_hashtags(product_name, description),
@@ -697,6 +700,27 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
             no_human_clause = (
                 "NO humans, NO people, NO hands in frame; pure product photography."
             )
+        elif style_l == "indoor_projector":
+            # Owner 2026-09-02 (TY01-1 star/moon projector): indoor bedroom night
+            # scene, NO person and NO hands. The projector sits on a nightstand /
+            # low table and casts starry galaxy / moon / nebula patterns onto the
+            # bedroom wall and ceiling ("เหมือนอยู่ในจักรวาล"). Product is the
+            # projector itself, clearly visible; the projected light is the hero.
+            # Scene is self-contained (not from category_mapping) so a default
+            # subcategory can never leak a desk/holding scene into the frame.
+            feat_hint = (
+                f"{product_name} placed on a nightstand in a cozy dark bedroom at night, "
+                f"its lens projecting a vivid starry galaxy with moon and nebula "
+                f"patterns across the bedroom wall and ceiling, the projection "
+                f"filling the room like being inside the universe, dark room lit "
+                f"only by the soft colorful galaxy projection, "
+                f"product centered and clearly shown, sharp and in focus"
+            )
+            no_human_clause = (
+                "NO humans, NO people, NO hands in frame; pure ambient indoor "
+                "product photography with galaxy light projection on the wall, "
+                "no person anywhere."
+            )
         elif style_l == "ambient_outdoor":
             # Owner 2026-08-31: ambient outdoor = product glowing at night in a
             # garden/patio with NO person AND NO hands — the product is the star
@@ -737,8 +761,12 @@ def build_image_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
                 "First-person POV throughout; no face of the person in frame, "
                 "only hands and product visible."
             )
-        if style_l == "ambient_outdoor":
-            _pfx = f"Single vertical 9:16 frame, ambient outdoor night scene: {feat_hint}"
+        if style_l in ("ambient_outdoor", "indoor_projector"):
+            _pfx = f"Single vertical 9:16 frame, ambient indoor/outdoor scene: {feat_hint}"
+            if style_l == "ambient_outdoor":
+                _pfx = f"Single vertical 9:16 frame, ambient outdoor night scene: {feat_hint}"
+            else:
+                _pfx = f"Single vertical 9:16 frame, ambient indoor bedroom night scene: {feat_hint}"
         else:
             _pfx = f"Single vertical 9:16 frame: {_cover}. Featured: {feat_hint}"
         image_prompt = (
@@ -1196,6 +1224,24 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
                 f"frame, no face visible, natural hand movement, smooth stable motion, "
                 f"then {_result} at {_end_cam}, 9:16"
             )
+        elif style_l == "indoor_projector":
+            # Owner 2026-09-02 (TY01-1 star/moon projector): indoor bedroom night
+            # scene, NO person and NO hands (like ambient_outdoor but INDOOR). The
+            # projector sits on a nightstand / low table and casts starry galaxy /
+            # moon / nebula patterns on the bedroom wall and ceiling. The projected
+            # light CHANGES through universe themes (galaxy -> moon -> nebula) so
+            # the video shows "เหมือนอยู่ในจักรวาล". Never a person holding it.
+            # Scene/action are self-contained (not from category_mapping) so a
+            # default subcategory can never leak a desk/holding scene into the clip.
+            video_prompt = (
+                f"Single continuous 9:16 shot in one indoor bedroom night scene: a cozy dark bedroom with a nightstand, curtains drawn, dark room lit only by the projection. "
+                f"The {_vp_product} sits on the nightstand projecting a vivid starry galaxy across the wall and ceiling."
+                f" Beat 1: wide establishing shot, {_vp_product} on the nightstand projecting stars onto the wall, product visible from a wider angle, product sharp. "
+                f"Beat 2: the camera drifts in closer toward the {_vp_product}, the galaxy projection on the wall showing a bright moon and stars, product stays sharp and centred. "
+                f"Beat 3: the camera eases back out slightly, the projection changes theme to a glowing nebula filling the wall like being inside the universe, the {_vp_product} clearly the light source, product sharp. "
+                f"Beat 4: settle back on the {_vp_product} centre-frame, the starry projection gently shimmering on the wall behind, product sharp and clearly shown, then {_result} at {_end_cam}. "
+                f"No person, no hands in frame, smooth steady continuous motion, one unbroken shot, 9:16, dark cozy bedroom lit by the galaxy projection"
+            )
         elif style_l == "ambient_outdoor":
             # Owner 2026-08-31: ambient outdoor = product glowing in a night garden /
             # patio, NO person and NO hands (outdoor/solar lights). Not a studio rotate
@@ -1612,7 +1658,7 @@ async def analyze_and_build_prompts(
     # script text directly so it moves lips in sync with the TTS voiceover).
     # If the caller supplied an external `script` (the exact TTS script from the
     # pipeline), use THAT so the video prompt matches the voiceover 1:1.
-    timing_validation = _build_timing_validated_script(product_name, profile.get("category", "other"), profile)
+    timing_validation = _build_timing_validated_script(product_name, profile.get("category", "other"), profile, ugc_style=ugc_style)
     tv = timing_validation if isinstance(timing_validation, dict) else {}
     if script and script.strip():
         # Prefer the caller-provided TTS script verbatim (must match voiceover).
@@ -2804,7 +2850,7 @@ def rewrite_clean_title(title: str, category: str = "", profile: dict = None) ->
 
 
 
-def _build_timing_validated_script(product_name: str, category: str = "beauty", profile: dict = None) -> dict:
+def _build_timing_validated_script(product_name: str, category: str = "beauty", profile: dict = None, ugc_style: str = "") -> dict:
     """Build script segments with timing validation.
 
     Prefers the Router Agent's 4-beat scenes (router_config.scenes) so the script
@@ -2813,6 +2859,18 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
     Uses customer_problem + main_benefit from Gemini/Mistral analysis when available.
     Gender-aware: female register (คะ/ค่ะ) for female target_gender.
     """
+    # Owner 2026-09-02: no-human ambient styles (indoor_projector / ambient_outdoor)
+    # have NO person speaking in the clip — skip the sales voiceover entirely so
+    # Wan never half-mouths a broken/boring Thai sales script over an empty scene.
+    _nh_style = (ugc_style or "").strip().lower()
+    if _nh_style in ("indoor_projector", "ambient_outdoor"):
+        logger.info(f"  No script: style {_nh_style} is no-person ambient — returning empty script")
+        return {
+            "segments": [], "beats": [], "tts_speed": 1.0, "full_script": "",
+            "tts_script": "", "product_short_for_tts": "",
+            "all_segments_fit": True, "total_duration": 0, "recipe": "",
+        }
+
     # Owner 2026-08-31: drop promotional/COD noise from the SPOKEN name first so
     # 'มีเก็บเงินปลายทาง' / '【HS】' never appear in the voiceover script.
     product_name = _strip_promo_tokens(product_name)

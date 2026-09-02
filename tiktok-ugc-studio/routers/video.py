@@ -17,6 +17,7 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
 
 from models import SceneBlock, VideoRequest
+from recipes import get_recipe as _get_recipe
 from pipeline_db import (
     create_job as _create_pipeline_job,
     update_step as _update_pipeline_step,
@@ -408,9 +409,20 @@ async def generate_video(req: VideoRequest):
             if _bp in ("whole-body", "whole body", "body"):
                 _bp_send = "hand"
 
-            # Resolve UGC style: "auto" -> match product category, else use chosen style
+            # Resolve UGC style: เฉพาะ recipe ที่เป็น no-human ambient (indoor_projector /
+            # ambient_outdoor) บังคับ style ของตัวเองเสมอ กันภาพหลุดเป็นคนถือสินค้า
+            # (vid_4947bbe9 / owner 2026-09-02) — แต่ recipe ทั่วไป (tus/gadget/skincare)
+            # ปล่อยให้ style ที่ UI เลือกเป็นตัวตั้ง เพื่อไม่ทับงาน talking baseline ที่พี่ผ่านแล้ว
             _resolved_style = req.ugc_style or "holding"
-            if _resolved_style == "auto":
+            _recipe_decl = None
+            try:
+                _rec = _get_recipe(req.recipe or "")
+                _recipe_decl = (_rec or {}).get("ugc_style") or None
+            except Exception:
+                _recipe_decl = None
+            if _recipe_decl in ("indoor_projector", "ambient_outdoor"):
+                _resolved_style = _recipe_decl
+            elif _resolved_style == "auto":
                 _resolved_style = _auto_select_style(_db_category)
 
             # Resolve subcategory: explicit request wins, else auto from category

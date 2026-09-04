@@ -55,6 +55,22 @@ def _load_mistral_keys():
 PRODUCT_IMAGE_DIR = Path("/home/openhands/erp-stack/tiktok-ugc-studio/storage/product_images")
 PRODUCT_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
 
+_GEMINI_VISION_MODEL = "gemini-3.6-flash"
+_genai_client = None
+
+
+def _get_genai_client():
+    """Lazy singleton google.genai client for Gemini Vision calls."""
+    global _genai_client
+    if _genai_client is None:
+        try:
+            from google import genai as _g
+            _genai_client = _g.Client(api_key=os.environ.get("GEMINI_API_KEY", ""))
+        except Exception as e:
+            logger.warning(f"Could not initialise Gemini client: {e}")
+            _genai_client = False
+    return _genai_client or None
+
 # Proxy for hdnet.workers.dev download
 DATAIMPULSE_PROXY = os.environ.get("DATAIMPULSE_PROXY", "")
 PROXY_DICT = {"http": DATAIMPULSE_PROXY, "https": DATAIMPULSE_PROXY} if DATAIMPULSE_PROXY else None
@@ -135,9 +151,9 @@ async def _download_images_local(product_id: str, image_urls: list) -> list:
 
 
 async def _analyze_and_select_images(product_id: str, raw_images: list) -> tuple:
-    """Use Mistral Pixtral to analyze each product image and select the best ones.
+    """Use Gemini Vision to analyze each product image and select the best ones.
     
-    For each image, it asks Mistral to describe what's in the image and rate its quality.
+    For each image, it asks Gemini to describe what's in the image and rate its quality.
     Images that fail analysis (no product visible, blurry, text-only) get lower scores.
     
     Returns: (selected_urls, all_analyses)
@@ -147,21 +163,21 @@ async def _analyze_and_select_images(product_id: str, raw_images: list) -> tuple
     if not raw_images:
         return [], []
     
-    mistral_key = os.environ.get("MISTRAL_API_KEY", "")
-    if not mistral_key:
-        # No Mistral — use quality gate alone (no vision analysis)
+    gemini_key = os.environ.get("GEMINI_API_KEY", "")
+    if not gemini_key:
+        # No Gemini — use quality gate alone (no vision analysis)
         try:
             from product.sam3_quality_gate import batch_check as _quality_gate
             quality_results = _quality_gate(raw_images)
             keep = [i for i in quality_results if i.get("quality_recommended", True)]
-            logger.info(f"  Quality gate (no Mistral): {len(keep)}/{len(quality_results)} images passed")
+            logger.info(f"  Quality gate (no vision): {len(keep)}/{len(quality_results)} images passed")
             return [img["url"] for img in keep], []
         except ImportError:
             pass
         return [img["url"] for img in raw_images], []
     
     # ─── SAM3 Quality Gate (Rule-based pre-filter) ───────────────
-    # Runs OpenCV analysis on downloaded images BEFORE Mistral vision API
+    # Runs OpenCV analysis on downloaded images BEFORE Gemini vision API
     # Filters out: blurry, too small, low contrast, text-only, corrupted
     # Cost: $0 (FREE) — saves Mistral API calls on bad images
     try:
@@ -204,43 +220,36 @@ async def _analyze_and_select_images(product_id: str, raw_images: list) -> tuple
         )
         
         try:
-            async with httpx.AsyncClient(timeout=30) as client:
-                payload = {
-                    "model": "pixtral-large-2501",
-                    "messages": [{
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": prompt},
-                            {"type": "image_url", "image_url": url}
-                        ]
-                    }],
-                    "temperature": 0.1,
-                    "max_tokens": 300,
-                }
-                resp = await client.post(
-                    "https://api.mistral.ai/v1/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {mistral_key}",
-                        "Content-Type": "application/json",
-                    },
-                    json=payload,
-                )
-                if resp.status_code == 200:
-                    text = resp.json()["choices"][0]["message"]["content"]
-                    # Extract JSON
-                    import re as _re
-                    start = text.find("{")
-                    end = text.rfind("}")
-                    if start >= 0 and end > start:
-                        analysis = json.loads(text[start:end+1])
-                    else:
-                        analysis = {"quality": 5, "has_product": True, "recommended": True}
+            from google.genai import types
+            _genai = _get_genai_client()
+            if _genai is None:
+                raise RuntimeError("google.genai client unavailable")
+            # Prefer the local file we already downloaded; fall back to the URL.
+            local_fp = img.get("local_path") or ""
+            image_src = local_fp if local_fp and os.path.exists(local_fp) else url
+            resp = _genai.models.generate_content(
+                model=_GEMINI_VISION_MODEL,
+                contents=[
+                    prompt,
+                    image_src,
+                ],
+            )
+            if resp and resp.text:
+                text = resp.text.strip()
+                # Extract JSON
+                import re as _re
+                start = text.find("{")
+                end = text.rfind("}")
+                if start >= 0 and end > start:
+                    analysis = json.loads(text[start:end + 1])
                 else:
                     analysis = {"quality": 5, "has_product": True, "recommended": True}
-                    logger.warning(f"Mistral vision error for {img['filename']}: {resp.status_code}")
+            else:
+                analysis = {"quality": 5, "has_product": True, "recommended": True}
+                logger.warning(f"Gemini vision empty for {img['filename']}")
         except Exception as e:
             analysis = {"quality": 5, "has_product": True, "recommended": True}
-            logger.warning(f"Mistral vision exception for {img['filename']}: {e}")
+            logger.warning(f"Gemini vision exception for {img['filename']}: {e}")
         
         analysis["_filename"] = img["filename"]
         analysis["_url"] = img["url"]
@@ -670,15 +679,64 @@ class ProductExporter:
 
 # ─── Helper Functions ────────────────────────────────────────────────────────
 
-async def _call_mistral(prompt: str, max_tokens: int = 500) -> str:
-    """Call Mistral API via MistralKeyRotator with per-key cooldown.
-    
-    Key rotation features:
-    - Per-key cooldown tracking (60s default, respects Retry-After headers)
-    - Rotates to next available key on 429/401 (no sleep between retries)
-    - When all keys exhausted: waits for earliest cooldown, retries with backoff
-    - Concurrent-safe with asyncio.Lock
+async def _call_deepseek(prompt: str, max_tokens: int = 500) -> str:
+    """Text generation via DeepSeek API (OpenAI-compatible).
+
+    Switched to DeepSeek (2026-09-04, owner request): Gemini was returning 403
+    (Lightning dunning decision is deny) and Mistral fallback was also 403
+    (tier_not_allowed), so text enrichment was dead. DeepSeek is the primary now.
+    Base URL + model + key are overridable via env for ops flexibility.
     """
+    key = os.environ.get("DEEPSEEK_API_KEY", "")
+    if not key:
+        logger.warning("No DEEPSEEK_API_KEY set, skipping DeepSeek call")
+        return ""
+    base = (os.environ.get("DEEPSEEK_BASE_URL") or "https://api.deepseek.com").rstrip("/")
+    model = os.environ.get("DEEPSEEK_MODEL") or "deepseek-chat"
+    endpoint = f"{base}/v1/chat/completions" if not base.endswith("/v1") else f"{base}/chat/completions"
+    payload = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.3,
+        "max_tokens": max_tokens,
+    }
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.post(
+                endpoint,
+                headers={
+                    "Authorization": f"Bearer {key}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                text = data["choices"][0]["message"]["content"]
+                if text and text.strip():
+                    return text.strip()
+                logger.warning("DeepSeek text empty")
+            else:
+                logger.error(f"DeepSeek API {resp.status_code}: {resp.text[:200]}")
+    except Exception as e:
+        logger.error(f"DeepSeek call failed, will try Mistral: {e}")
+    return ""
+
+
+async def _call_mistral(prompt: str, max_tokens: int = 500) -> str:
+    """Text generation helper used by all enrich steps (translate/keywords/gender/body).
+
+    PRIMARY NOW DEEPSEEK (2026-09-04, owner request): Gemini was banned with 403
+    (Lightning dunning decision is deny for project) so it is no longer called as the
+    primary. DeepSeek first, then fall back to the Mistral rotator. The function name
+    is kept as ``_call_mistral`` to avoid touching callers.
+    """
+    # Primary: DeepSeek (replaces Gemini which was 403 / billing dunning)
+    text = await _call_deepseek(prompt, max_tokens=max_tokens)
+    if text:
+        return text
+    logger.warning("DeepSeek returned empty — falling back to Mistral rotator")
+    # Fallback: original Mistral rotator path
     if not _mistral_keys:
         _load_mistral_keys()
     try:

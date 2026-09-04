@@ -484,9 +484,19 @@ class ProdiaV2Client:
             # PROVEN (2026-08-19 owner test): wan2-7.img2vid.v1 ต้องการ prompt_extend + negative_prompt
             # ถ้าขาด Prodia reject (additional properties not allowed / type mismatch)
             "prompt_extend": True,
-            "negative_prompt": extra_config.pop("negative_prompt", None)
-            or "low resolution, error, worst quality, deformed, extra limbs, blurry, distorted, bad anatomy",
         }
+        # TEST ONLY (reversible): ค่าปกติ negative_prompt มาจาก pipeline_affiliate เสมอ
+        # (SSOT prompt-builder) แต่ถ้าไม่มี ก็ fallback เป็น default กลางตัวนี้ เพื่อให้
+        # Wan ยังมีnegative บังคับ (proven 2026-08-19).
+        # สำหรับการทดลองตัด negative ออกหมด (owner 2026-09-02): ถ้า env
+        # TUS_TEST_NO_NEGATIVE=1 ให้ DROP negative field ทิ้งเลย ไม่ fallback
+        # → Wan ใช้ค่า default ของมันเอง (ไม่มี negative) เพื่อวัดว่าเบลอมาจาก negative จริงไหม
+        if os.environ.get("TUS_TEST_NO_NEGATIVE") != "1":
+            _neg = extra_config.pop("negative_prompt", None)
+            config["negative_prompt"] = (
+                _neg
+                or "low resolution, error, worst quality, deformed, extra limbs, blurry, distorted, bad anatomy"
+            )
         if duration:
             config["duration"] = duration
         if resolution:

@@ -1109,6 +1109,15 @@ def run_pipeline(
         # Wan 2.7 พูด Thai script เองเสมอ: ถ้ามีบท (script/thai_script) →
         # auto ใช้บทนั้นเป็น thai_script + บังคับ use_tus_voice=True
         # ไม่มี Gemini TTS lip-sync แล้ว — เสียงในไฟล์จริงคือเสียงของ Wan เท่านั้น
+        # 🔴 Owner 2026-09-02: งาน no-human ambient (indoor_projector/ambient_outdoor)
+        # ไม่มีคนในคลิป → ห้ามฝังบทให้ Wan พูดเด็ดขาด (Wan จะสร้างปาก/พูดมั่ว ๆ แทรก
+        # ทับคลิป เช่น vid_081ed2af พูด แอลอีดี ห้าสิบเมตร เพี้ยน) → ตัดบททิ้งเสมอ
+        _nh_style = (ugc_style or "").strip().lower()
+        if _nh_style in ("indoor_projector", "ambient_outdoor"):
+            if thai_script or script:
+                logger.warning(f"  No script for no-human style {_nh_style} — dropping thai_script/script (กัน Wan พูดมั่วแทรก)")
+            thai_script = ""
+            script = ""
         thai_script = (thai_script or script or "").strip()
         # 🔴 SAFETY NET (owner 2026-08-29): สุดท้ายก่อนฝังเข้า prompt ให้ Wan
         # ทับศัพท์ไทยล้วนเสมอ ไม่ว่าบทจะมาจากเส้นทางไหน (ลูกค้าส่งตรง / script_gen /

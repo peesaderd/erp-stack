@@ -1131,6 +1131,12 @@ select.input { cursor: pointer; }
       <button class="btn btn-secondary btn-sm" onclick="document.getElementById('productSearchInput').value='';searchProducts()">✕ ล้าง</button>
       <button class="btn btn-primary btn-sm" onclick="searchProducts()">🔍 ค้นหา</button>
     </div>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">
+      <span class="text-xs text-secondary" style="white-space:nowrap">เรียงสินค้า:</span>
+      <button class="btn btn-sm prod-sort-btn" id="prodSortViralBtn" onclick="setProductSort('viral')" style="white-space:nowrap">🔥 ยอดขาย/Viral สูง</button>
+      <button class="btn btn-sm prod-sort-btn" id="prodSortRecentBtn" onclick="setProductSort('recent')" style="white-space:nowrap">🕒 ล่าสุดที่ดึงมา</button>
+    </div>
+    <div id="productSortHint" class="text-xs text-secondary mt-1"></div>
     <div id="productSearchResults" class="text-xs text-secondary mt-1"></div>
   </div>
 
@@ -1422,6 +1428,7 @@ select.input { cursor: pointer; }
     </div>
 
     <button class="btn btn-primary" id="genScriptBtn" onclick="generateScript()">⚡ Generate Script →</button>
+    <div style="margin-top:10px"><button class="btn btn-primary" id="aiAutoBtn" onclick="runAiAuto()" style="width:100%;background:linear-gradient(135deg,#16a34a,#059669)!important;border:none!important">✨ AUTO (AI คิดแนว+บท+ภาพให้ ใช้สินค้าที่เลือก)</button></div>
     <div style="margin-top:8px"><button class="btn btn-primary" id="autoGenBtn" onclick="autoGenerateAll()" style="width:100%;background:linear-gradient(135deg,#f43f5e,#8b5cf6)!important;border:none!important">⚡ Auto Generate All</button></div>
   </div>
 
@@ -2404,6 +2411,26 @@ function goContentStep(step) {
   document.getElementById('contentStep'+step)?.classList.add('active');
 }
 
+// ─── ปุ่มเดียว AUTO (AI คิดให้ทั้งหมด) — ตามโจทย์พี่ 2026-09-05 ───
+// กดปุ่มนี้แล้วใช้สินค้าที่เลือกไว้จากลิสต์วิเคราะห์, ให้ AI (แทน JSON template) เลือกแนว/บท/ภาพเองให้หมด
+async function runAiAuto() {
+  const url = document.getElementById('productUrl').value;
+  const title = document.getElementById('productTitle').value.trim();
+  const details = document.getElementById('productDetails').value.trim();
+  if (!url && !title && !details) {
+    // ยังไม่มีสินค้าในฟอร์ม → เปิดตัวเลือกสินค้าที่วิเคราะห์ไว้ ให้พี่เลือก แล้วค่อยกดปุ่ม AUTO อีกที
+    showToast('เลือกสินค้าจากลิสต์ก่อนครับ', 'info');
+    openProductPicker();
+    return;
+  }
+  _aiAuto = true;   // บังคับ ugc_style='auto' + งด recipe chip → backend เลือกแนวเองจากหมวดสินค้า
+  try {
+    await autoGenerateAll();
+  } finally {
+    _aiAuto = false; // reset ให้ปุ่ม Auto Generate All เดิมยังทำงานตาม template เหมือนเดิม
+  }
+}
+
 async function autoGenerateAll() {
   // One-click: background pipeline — runs server-side via /video/generate (can close tab!)
   const url = document.getElementById('productUrl').value;
@@ -2412,7 +2439,8 @@ async function autoGenerateAll() {
   // Use the stored enum value (holding/usage/review/talking) set by selectStyleFromModal.
   // Do NOT derive from the display label — "UGC Review" -> "ugc_review" (not "review") breaks
   // prompt-builder's exact-match and makes every style fall back to "holding" (owner 2026-08-30).
-  const style = sessionStorage.getItem('selectedStyle') || 'holding';
+  // ปุ่ม AUTO (AI คิดให้ทั้งหมด, runAiAuto): _aiAuto=true → บังคับ 'auto' ให้ backend เลือกแนว/สไตล์เองจากหมวด
+  const style = _aiAuto ? 'auto' : (sessionStorage.getItem('selectedStyle') || 'holding');
   if (!url && !title && !details) { showToast('ใส่ชื่อสินค้าหรือ URL ก่อน','error'); return; }
 
   const dur = parseInt(sessionStorage.getItem('selectedDuration')) || 15;
@@ -2439,7 +2467,7 @@ async function autoGenerateAll() {
         content_type: sessionStorage.getItem('selectedContentType') || 'affiliate',
         aspect_ratio: sessionStorage.getItem('aspectRatio') || '9:16',
         negative_prompt: document.getElementById('negativePrompt')?.value?.trim() || 'text, subtitle, caption, emoji, icon, logo, watermark, UI, overlay, graphic',
-        recipe: document.querySelector('#recipePicker .style-card.selected')?.getAttribute('data-recipe') || undefined,
+        recipe: _aiAuto ? undefined : (document.querySelector('#recipePicker .style-card.selected')?.getAttribute('data-recipe') || undefined),
       })
     });
     if (!res.ok) {
@@ -2784,6 +2812,7 @@ async function generateImageFromStep3() {
 
 // ── Recipe Templates ─────────────────────────────────────────────
 let _recipes = [];
+let _aiAuto = false; // set true เฉพาะปุ่ม AUTO/AI ใหม่ 1 ปุ่มนี้ (บังคับ ugc_style=auto ไม่ใช้ recipe chip) — reset ใน runAiAuto
 
 async function loadRecipes() {
   const container = document.getElementById('recipePicker');
@@ -4570,9 +4599,13 @@ async function apifyBatch() {
     // เมื่องานสำเร็จ -> เคลียร์รายการ draft เพื่อไม่ให้ส่งซ้ำ
     apifySaveDraft([]);
     renderApifyBatchItems();
-    // Refresh the product list.
-    const q = document.getElementById('productSearchInput').value.trim();
-    if (q) searchProducts(); else loadAnalyzedProducts();
+    // Refresh the product list. — สลับไปโหมด 'ล่าสุด' ให้สินค้าที่เพิ่งดึงมาขึ้นหน้าทันที
+    try { localStorage.setItem(PROD_SORT_KEY, 'recent'); } catch(e) {}
+    document.getElementById('productSearchInput').value = '';
+    const resInfo = document.getElementById('productSearchResults');
+    if (resInfo) resInfo.textContent = '';
+    applyProductSortButtons();
+    loadAnalyzedProducts();
   } catch (e) {
     resultEl.textContent = '❌ ' + e.message;
     resultEl.style.color = '#e74c3c';
@@ -4583,6 +4616,34 @@ async function apifyBatch() {
   }
 }
 
+
+/** ── สลับการเรียง product grid: viral (เดิม) | recent (ล่าสุด) ── */
+const PROD_SORT_KEY = 'tus_prod_sort';
+function getProductSort() {
+  try { return localStorage.getItem(PROD_SORT_KEY) || 'viral'; } catch(e) { return 'viral'; }
+}
+function setProductSort(mode) {
+  try { localStorage.setItem(PROD_SORT_KEY, mode); } catch(e) {}
+  document.getElementById('productSearchInput').value = '';
+  applyProductSortButtons();
+  loadAnalyzedProducts();
+}
+function applyProductSortButtons() {
+  const cur = getProductSort();
+  const vb = document.getElementById('prodSortViralBtn');
+  const rb = document.getElementById('prodSortRecentBtn');
+  const hint = document.getElementById('productSortHint');
+  if (vb) vb.style.cssText = 'border:1px solid var(--accent-blue,#3b82f6);color:var(--accent-blue,#3b82f6);font-weight:700' + (cur==='recent'?';opacity:.55':'');
+  if (rb) rb.style.cssText = 'border:1px solid var(--accent-blue,#3b82f6);color:var(--accent-blue,#3b82f6);font-weight:700' + (cur==='viral'?';opacity:.55':'');
+  const h = cur==='recent' ? 'กำลังแสดงสินค้าล่าสุดที่ดึงเข้าระบบก่อน 🕒' : 'กำลังเรียงตามคะแนน Viral/Sold สูงก่อน 🔥';
+  if (hint) hint.textContent = h;
+}
+function productListUrl(limit) {
+  const cur = getProductSort();
+  let u = '/products/list?limit=' + (limit||200);
+  u += '&sort=' + encodeURIComponent(cur==='recent'?'recent':'viral');
+  return u;
+}
 
 /** Search products by name — queries tus_products.db */
 async function searchProducts() {
@@ -4602,7 +4663,7 @@ async function searchProducts() {
   
   try {
     const encQ = encodeURIComponent(q);
-    const r1 = await fetch(API + '/products/list?limit=50&search=' + encQ);
+    const r1 = await fetch(API + '/products/list?limit=50&search=' + encQ + '&sort=' + (getProductSort()==='recent'?'recent':'viral'));
     const d1 = await r1.json();
     
     const analyzed = d1.products || [];
@@ -4647,9 +4708,10 @@ async function searchProducts() {
 async function loadAnalyzedProducts() {
   const grid = document.getElementById("productGrid");
   if (!grid) return;
+  applyProductSortButtons();
   grid.innerHTML = '<div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line"></div>';
   try {
-    const r = await fetch(API + "/products/list?limit=50&preset=all");
+    const r = await fetch(API + productListUrl(50));
     if (!r.ok) throw new Error("API Error");
     const d = await r.json();
     const products = d.products || [];

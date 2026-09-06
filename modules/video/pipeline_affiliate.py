@@ -173,7 +173,12 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "Visualize the product as it ACTUALLY is and should be shown/used. NEVER assume it is a bottle, jar, tube, "
             "cosmetic container, or anything with a readable label. NEVER use the words 'bottles' or 'label' or the "
             "generic filler 'holding the product'. For clothing/fabric show how it looks WORN: fit, drape, fabric flow. "
-            "For applied cosmetics show realistic use on skin. Category: " + str(category or ""))
+            "For applied cosmetics show realistic use on skin. Category: " + str(category or "") + "\n\n"
+            "UGC SHOWCASE RULE (owner 2026-09-06): this is a TikTok promo video, the model must MOVE and DANCE, never be static. "
+            "Write the video_prompt as ONE continuous dynamic action/motion sequence. NEVER use the word 'freeze' and never describe a "
+            "held crouched/half-body pose or a frozen end frame. The clip MUST end with the model standing full-body, upright, "
+            "facing camera, clearly showing the product (clothing = the jeans/outfit on the body) in a confident final showcase pose. "
+            "Ending a promo on a serious/stable standing product pose is mandatory.")
         _acted_instr = ""
         if (special_target or "").strip():
             _acted_instr += "\nACTION REQUIRED from creator: " + str(special_target).strip()

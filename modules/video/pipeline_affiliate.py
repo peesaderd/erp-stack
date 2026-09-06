@@ -150,7 +150,8 @@ def _deepseek_key() -> str:
 
 
 def _deepseek_product_prompts(product_name: str, description: str, ugc_style: str = "holding",
-                              category: str = "", subcategory: str = "") -> Optional[dict]:
+                              category: str = "", subcategory: str = "",
+                              special_target: str = "", usage_howto: str = "") -> Optional[dict]:
     """Have DeepSeek write the image/video prompts fresh from the actual product.
 
     Owner direction (2026-09-06): prompts must be AI-authored per product, never
@@ -173,8 +174,14 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "cosmetic container, or anything with a readable label. NEVER use the words 'bottles' or 'label' or the "
             "generic filler 'holding the product'. For clothing/fabric show how it looks WORN: fit, drape, fabric flow. "
             "For applied cosmetics show realistic use on skin. Category: " + str(category or ""))
+        _acted_instr = ""
+        if (special_target or "").strip():
+            _acted_instr += "\nACTION REQUIRED from creator: " + str(special_target).strip()
+        if (usage_howto or "").strip():
+            _acted_instr += "\nHOW the product/model should act/be used in the shot: " + str(usage_howto).strip()
         user_text = ("Product: " + str(product_name) + "\nDescription: " + str(description or "") +
-                     "\nUGC style: " + str(ugc_style) + ". Write the image and video prompts now.")
+                     "\nUGC style: " + str(ugc_style) + _acted_instr +
+                     "\nWrite the image and video prompts now. Make the model/pose/motion follow the required ACTION exactly.")
         payload = {
             "model": "deepseek-v4-flash",
             "messages": [{"role": "system", "content": sysprompt},
@@ -280,6 +287,8 @@ def analyze_product(product_name: str, product_image: str = None, description: s
             product_name, description, ugc_style,
             category=category or (profile or {}).get("category", ""),
             subcategory=subcategory or (profile or {}).get("subcategory", ""),
+            special_target=special_target or "",
+            usage_howto=usage_howto or "",
         )
         if _ds and _ds.get("image_prompt") and _ds.get("video_prompt"):
             profile["_image_prompt"] = _ds["image_prompt"]

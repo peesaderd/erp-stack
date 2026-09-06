@@ -135,6 +135,90 @@ def concat_videos(video_paths: list, output_path: Path) -> Path:
 # STEP 1: Analyze Product (Mistral)
 # ═══════════════════════════════════════════════════════════════════════════
 
+def _deepseek_key() -> str:
+    """Resolve DeepSeek API key: env DEEPSEEK_API_KEY first, then openclaw.json."""
+    k = os.environ.get("DEEPSEEK_API_KEY", "") or ""
+    if not k:
+        try:
+            _p = os.path.expanduser("/home/openhands/.openclaw/openclaw.json")
+            if os.path.exists(_p):
+                _cfg = json.load(open(_p))
+                k = _cfg.get("models", {}).get("providers", {}).get("deepseek", {}).get("apiKey") or ""
+        except Exception:
+            k = ""
+    return k
+
+
+def _deepseek_product_prompts(product_name: str, description: str, ugc_style: str = "holding",
+                              category: str = "", subcategory: str = "") -> Optional[dict]:
+    """Have DeepSeek write the image/video prompts fresh from the actual product.
+
+    Owner direction (2026-09-06): prompts must be AI-authored per product, never
+    pasted from a hardcoded bottle/label template. DeepSeek v4-flash is reasoning
+    heavy, so a large max_tokens budget (~1500) is required or it burns it all on
+    hidden reasoning and returns empty content (finish_reason=length).
+
+    Returns {"image_prompt": str, "video_prompt": str} or None on any failure
+    (caller keeps the existing prompt-builder output as fallback).
+    """
+    try:
+        api_key = _deepseek_key()
+        if not api_key:
+            logger.warning("_deepseek_product_prompts: no DEEPSEEK key available")
+            return None
+        sysprompt = (
+            "You are a concise TikTok UGC prompt writer. Given a product's name and short description, "
+            "output ONLY a strict JSON object with keys image_prompt (<=85 words) and video_prompt (<=60 words).\n"
+            "Visualize the product as it ACTUALLY is and should be shown/used. NEVER assume it is a bottle, jar, tube, "
+            "cosmetic container, or anything with a readable label. NEVER use the words 'bottles' or 'label' or the "
+            "generic filler 'holding the product'. For clothing/fabric show how it looks WORN: fit, drape, fabric flow. "
+            "For applied cosmetics show realistic use on skin. Category: " + str(category or ""))
+        user_text = ("Product: " + str(product_name) + "\nDescription: " + str(description or "") +
+                     "\nUGC style: " + str(ugc_style) + ". Write the image and video prompts now.")
+        payload = {
+            "model": "deepseek-v4-flash",
+            "messages": [{"role": "system", "content": sysprompt},
+                          {"role": "user", "content": user_text}],
+            "max_tokens": 1500,
+            "temperature": 0.4,
+        }
+        headers = {"Content-Type": "application/json", "Authorization": "Bearer " + api_key}
+        url = "https://api.deepseek.com/v1/chat/completions"
+        for _attempt in range(3):
+            try:
+                _res = requests.post(url, headers=headers, json=payload, timeout=200)
+                if _res.status_code == 200:
+                    _data = _res.json()
+                    _content = ((_data["choices"][0]["message"].get("content") or "").strip() or "")
+                    if not _content:
+                        logger.warning("_deepseek_product_prompts empty content, retry")
+                        continue
+                    import re as _re
+                    _m = _re.search(r"\{[\s\S]*\}", _content)
+                    _clean = _m.group(0) if _m else _content
+                    try:
+                        _obj = json.loads(_clean)
+                    except Exception:
+                        _obj = {}
+                    _img = (_obj.get("image_prompt") or "").strip()
+                    _vid = (_obj.get("video_prompt") or "").strip()
+                    if _img and _vid:
+                        logger.info(f"_deepseek_product_prompts: got AI prompts from DeepSeek "
+                                    f"(img {len(_img)}ch, vid {len(_vid)}ch)")
+                        return {"image_prompt": _img, "video_prompt": _vid}
+                    logger.warning("_deepseek_product_prompts: JSON missing image/video keys")
+                    return None
+                else:
+                    logger.warning(f"_deepseek_product_prompts api {_res.status_code}: {_res.text[:150]}")
+                    return None
+            except Exception as _e:
+                logger.warning(f"_deepseek_product_prompts attempt {_attempt + 1} error: {_e}")
+        return None
+    except Exception as _e:
+        logger.warning(f"_deepseek_product_prompts failed: {_e}")
+        return None
+
+
 def analyze_product(product_name: str, product_image: str = None, description: str = "", ugc_style: str = "holding", body_part: str = "", special_target: str = "", usage_howto: str = "", ingredient_highlight: str = "", category: str = "", subcategory: str = "") -> dict:
     """
     Step 1: Analyze product via Mistral → product_profile
@@ -186,6 +270,24 @@ def analyze_product(product_name: str, product_image: str = None, description: s
         profile["_image_prompt"] = data.get("image_prompt", "")
         profile["_video_prompt"] = data.get("video_prompt", "")
         profile["_negative_prompt"] = data.get("negative_prompt", "")
+
+        # ── DeepSeek AI-authored prompts override (owner 2026-09-06) ──
+        # prompt-builder returns fixed template prompts (hold/bottle/label) that caused
+        # jeans to be filmed as held bottles. Try to get fresh per-product prompts from
+        # DeepSeek first; if it succeeds, override. If it fails, keep the template so the
+        # run never breaks (builder output stays as safe fallback).
+        _ds = _deepseek_product_prompts(
+            product_name, description, ugc_style,
+            category=category or (profile or {}).get("category", ""),
+            subcategory=subcategory or (profile or {}).get("subcategory", ""),
+        )
+        if _ds and _ds.get("image_prompt") and _ds.get("video_prompt"):
+            profile["_image_prompt"] = _ds["image_prompt"]
+            profile["_video_prompt"] = _ds["video_prompt"]
+            logger.info(f"  ✅ Overwrote image/video prompts with DeepSeek AI-authored version "
+                        f"(replaced template for {product_name!r})")
+        else:
+            logger.info("  DeepSeek AI prompts unavailable/failed — keeping prompt-builder prompts")
 
         # ── Beat-timed script จาก service (single source of truth) ──
         # timing_validation/scripts.full_script สร้างจาก router_config.scenes

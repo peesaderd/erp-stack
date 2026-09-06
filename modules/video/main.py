@@ -266,11 +266,15 @@ async def generate_video(req: VideoRequest):
     """
     from video.pipeline_affiliate import run_pipeline
     
-    # Build script from hook + value + cta if no explicit script provided
+    # Build script from hook + value + cta if no explicit script provided.
+    # Owner 2026-09-06: NEVER fall back to product_title as the spoken Thai script.
+    # product_title is a long romanized name (e.g. "ลายกิ่งไม้ กางเกงยีนส์ขากว้าง... สไตล์อเมริกัน")
+    # that Wan mispronounces. If there is no real hook/value/cta/script, leave script empty
+    # so pipeline generate_script() writes a proper Thai sales line from the product profile.
     script = req.script or ""
     if not script:
         parts = [p for p in [req.hook, req.value, req.cta] if p]
-        script = " ".join(parts) if parts else req.product_title or "รีวิวสินค้า"
+        script = " ".join(parts)
     
     # Build scene prompts from request
     scene_prompts = []

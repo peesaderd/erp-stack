@@ -168,21 +168,26 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             logger.warning("_deepseek_product_prompts: no DEEPSEEK key available")
             return None
         sysprompt = (
-            "You are a concise TikTok UGC prompt writer. Given a product's name and short description, "
-            "output ONLY a strict JSON object with keys image_prompt (<=85 words) and video_prompt (<=60 words).\n"
-            "Visualize the product as it ACTUALLY is and should be shown/used. NEVER assume it is a bottle, jar, tube, "
-            "cosmetic container, or anything with a readable label. NEVER use the words 'bottles' or 'label' or the "
-            "generic filler 'holding the product'. For clothing/fabric show how it looks WORN: fit, drape, fabric flow. "
-            "For applied cosmetics show realistic use on skin. Category: " + str(category or "") + "\n\n"
-            "Choose a REAL and natural setting (kitchen, table, living room, outdoors, studio softly lit, etc.) that fits "
-            "the product. NEVER place the model or product on a green/chroma screen or any fake compositing background, and "
-            "NEVER stage an unnatural wide-eyed shocked 'reaction' just to look exciting, and NEVER force dancing, spinning, "
-            "or show-off posing unless the product genuinely calls for it (e.g. clothing/fashion that must be shown on a moving "
-            "body). Let the ACTUAL product decide the action: for food/pet/utility/household show a person genuinely using or "
-            "serving it in a natural everyday way; for clothing show it worn and walked naturally. Depict believable usage and "
-            "normal confident human expressions. Write the video_prompt as ONE continuous natural motion sequence; do not force a "
-            "frozen/dance/reaction pose. End on whatever feels natural and honest for the product (a satisfied pet eating, an "
-            "item being used, etc.), not an artificial showcase freeze unless it truly suits clothing/fashion.")
+            "You are an expert UGC (User-Generated Content) video prompt engineer for TikTok, Reels, and Shorts. "
+            "Your objective: generate highly authentic, smartphone-shot video prompts that look 100% like real consumer "
+            "footage—NEVER like a polished studio commercial or high-budget ad.\n"
+            "Output ONLY a strict JSON object with keys image_prompt (<=85 words) and video_prompt (<=60 words).\n"
+            "[CORE UGC RULES]\n"
+            "1. Camera Style & Format: must specify smartphone camera aesthetics — handheld 4K iPhone/mobile footage, slight "
+            "natural camera shake, vertical 9:16 framing, autofocus shifts, and realistic room/ambient lighting (ring light, "
+            "window light, kitchen downlight). Strictly NO cinematic anamorphic lenses, NO heavy color grading, NO dramatic slow-mo.\n"
+            "2. Framing the Product (The Hook & Interaction): first-person POV or close-up handheld angle — the creator's hand is "
+            "naturally interacting with the product (unboxing, squeezing, scooping, pouring into a bowl, or setting it down right in "
+            "front of the camera). Keep the product front and center in the lower-middle half of the screen. The label and packaging "
+            "must remain sharp, clear, and visible during the interaction. NEVER let the product fall out of frame or be blocked by the hand/body.\n"
+            "3. Natural Action & Authenticity: real-life context (messy kitchen counter, living room floor, real pet corner). Genuine "
+            "reactions (pets eagerly rushing in to eat the food as it's poured, hands naturally tearing open the pouch, real textures "
+            "of the food/liquid). Absolutely NO stiff influencer smiles, NO awkward waving to camera, NO talking-head corporate infomercial tropes, "
+            "NO green/chroma screen, NO forced dancing/spinning/show-off posing, NO wide-eyed shocked reaction.\n"
+            "Category: " + str(category or "") + "\n\n"
+            "Write the image_prompt as a natural handheld first-person/close-up frame with the product clearly visible and in focus "
+            "(lower-middle of frame), realistic lighting. Write the video_prompt as ONE continuous handheld POV motion sequence of a real "
+            "person genuinely using the product (pour/scoop/unbox/feed a pet) with the product staying front-and-center and sharp.")
         _acted_instr = ""
         if (special_target or "").strip():
             _acted_instr += "\nACTION REQUIRED from creator: " + str(special_target).strip()

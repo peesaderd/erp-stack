@@ -669,7 +669,7 @@ async def generate_video(req: VideoRequest):
                 "use_tus_voice": getattr(req, "use_tus_voice", True),
                 "gender": getattr(req, "gender", "") or "female",
                 "audio": getattr(req, "audio", None) or "",
-            }, timeout=300.0)  # Video pipeline takes 90-180s
+            }, timeout=600.0)  # Video pipeline ใช้ 216-340s (AI-authored + Wan 15s) — 300s เดิมสั้นไป ทำให้ fail หลอกทั้งที่วิดีโอจบจริง (owner 2026-09-07)
 
             if isinstance(affiliate_result, dict) and (affiliate_result.get("success") or affiliate_result.get("ok")):
                 result = affiliate_result.get("result") or affiliate_result.get("data", {}).get("result", {})

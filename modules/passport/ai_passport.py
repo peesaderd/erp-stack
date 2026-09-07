@@ -42,16 +42,12 @@ PRODIA_API_URL = "https://inference.prodia.com/v2/job"
 # ── FLUX i2i Prompt Template ──────────────────────────
 
 def build_prompt(clothing_prompt: str, bg_prompt: str) -> str:
-    """Build FLUX i2i prompt — v4 style, simple."""
+    """Build FLUX i2i prompt, no face/appearance directives (v5 neutral)."""
     return (
-        f"keep the person's face and appearance exactly as it is, "
+        f"official ID passport photo, "
         f"{clothing_prompt}, "
         f"{bg_prompt}, "
-        f"bright even studio lighting, "
-        f"straighten posture slightly, "
-        f"show full head and shoulders, face not too large in frame, "
-        f"hair neat and solid with a clean smooth silhouette, fully filled with its natural hair color with no see-through gaps, no flyaway or stray strands around the head, "
-        f"passport ID photo style, government photo"
+        f"bright even studio lighting, as shot, natural"
     )
 
 
@@ -115,14 +111,14 @@ def _compose_with_clothing(person: np.ndarray, clothing: np.ndarray) -> np.ndarr
     return canvas
 
 
-def flux_i2i(input_image: np.ndarray, prompt: str, strength: float = 0.30) -> np.ndarray:
+def flux_i2i(input_image: np.ndarray, prompt: str, strength: float = 0.6) -> np.ndarray:
     """
     Run FLUX i2i via Prodia API.
     
     Args:
         input_image: RGB numpy array
         prompt: text prompt
-        strength: 0.0-1.0 (lower = more freedom to change composition/face size)
+        strength: 0.0-1.0 (higher = closer to reference composition/face; 0.6 chosen for step1 quality)
     
     Returns:
         RGB numpy array (output image)
@@ -410,7 +406,7 @@ def generate_passport(
     template_info: dict = None,
     clothing_prompt: str = "white formal dress shirt",
     bg_prompt: str = "soft light blue background",
-    strength: float = 0.45,
+    strength: float = 0.6,
     session_id: str = None,
     custom_clothing_bytes: bytes = None,
     extra_prompt: str = None,

@@ -105,7 +105,7 @@ class GenerateRequest(BaseModel):
     background: str = "light_blue" # "light_blue" | "white" | "light_gray" | "custom"
     background_color: Optional[str] = None   # custom hex color
     background_gradient: Optional[str] = None # CSS gradient string
-    strength: float = 0.45         # FLUX i2i strength
+    strength: float = 0.6          # FLUX i2i strength
     crop_preset: str = "standard"  # "standard" | "compact" | "relaxed"
     print_size: str = "4x6"        # "4x6" | "5x7" | "a6" | "a4"
     photo_size: str = "passport"    # "passport" | "25x35" | "30x40" | "50x50" | "50x70"
@@ -129,7 +129,7 @@ class BulkGenerateRequest(BaseModel):
     background: str = "light_blue"
     background_color: Optional[str] = None
     background_gradient: Optional[str] = None
-    strength: float = 0.45
+    strength: float = 0.6
     print_size: str = "4x6"
     photo_count: int = 6
     prompt: Optional[str] = None  # extra prompt hint for FLUX i2i

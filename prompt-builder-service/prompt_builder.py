@@ -2740,6 +2740,135 @@ def _resolve_scene_text(scene, product_short, customer_problem, main_benefit, ta
     return re.sub(r"\{(\w[^}]*)\}\??", _fill, tpl).strip()
 
 
+# ─── AI script writer (Owner 2026-09-05) ──────────────────────────────
+# Route the sales-script authoring to a live, billed capable model (DeepSeek via the
+# same api.deepseek.com provider OpenClaw's main agent runs on) instead of the weak
+# Mistral-Nemo fallback that hallucinated invented brands (e.g. 'มินาริต้า'). The real
+# Gemini key is on a billing/dunning 403 and OpenCode zen-go billing is exhausted, so
+# DeepSeek is the only currently-usable strong model. Key is read from the OpenClaw
+# config live (env DEEPSEEK_API_KEY first, then the JSON provider key) so no pm2 env
+# change is needed.
+
+def _script_model_deepseek(system_prompt: str, user_text: str,
+                          max_output_tokens: int = 900, temperature: float = 0.7) -> Optional[str]:
+    """Call DeepSeek chat (deepseek-v4-flash). deepseek-v4-flash is reasoning-heavy and
+    sometimes spends the whole token budget on hidden reasoning_content and returns empty
+    content (finish_reason=length). Retry up to 3x so a transient over-think doesn't
+    silently drop the AI script back to the rigid template. Returns content or None."""
+    try:
+        api_key = os.environ.get("DEEPSEEK_API_KEY") or ""
+        if not api_key:
+            _p = os.path.expanduser("/home/openhands/.openclaw/openclaw.json")
+            if os.path.exists(_p):
+                try:
+                    _cfg = json.load(open(_p))
+                    api_key = _cfg.get("models", {}).get("providers", {}).get("deepseek", {}).get("apiKey") or ""
+                except Exception:
+                    api_key = ""
+        if not api_key:
+            logger.warning("_script_model_deepseek: no DEEPSEEK key available")
+            return None
+        payload = {
+            "model": "deepseek-v4-flash",
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_text},
+            ],
+            "max_tokens": max_output_tokens,
+            "temperature": temperature,
+        }
+        headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
+        url = "https://api.deepseek.com/v1/chat/completions"
+        last = None
+        for attempt in range(3):
+            try:
+                resp = requests.post(url, headers=headers, json=payload, timeout=150)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    msg = data["choices"][0]["message"]
+                    content = (msg.get("content") or "").strip()
+                    if content:
+                        return content
+                    # empty (reasoning burned budget) -> retry
+                    reason = data.get("choices",[{}])[0].get("finish_reason")
+                    logger.warning(f"_script_model_deepseek attempt {attempt+1}: empty content ({reason}) -> retry")
+                    last = f"empty ({reason})"
+                else:
+                    logger.warning(f"_script_model_deepseek api error {resp.status_code}: {resp.text[:150]}")
+                    return None
+            except Exception as _e:
+                logger.warning(f"_script_model_deepseek attempt {attempt+1} error: {_e}")
+                last = _e
+        logger.warning(f"_script_model_deepseek gave up after 3 attempts: {last}")
+        return None
+    except Exception as _e:
+        logger.warning(f"_script_model_deepseek failed: {_e}")
+        return None
+
+
+def _ai_written_script(scenes: list, product_short: str, spoken_name: str,
+                       customer_problem: str, main_benefit: str,
+                       target_audience: str, is_female: bool,
+                       target_dur_sec: int, profile_feature: str = "") -> list:
+    """Owner 2026-09-05: write the sales voiceover with a real LLM (DeepSeek) instead
+    of stamping rigid PAS literals ('ขอแนะนำ {product}' / 'สนใจลองได้วันนี้เลย').
+    Returns one natural spoken line PER scene (aligned to len(scenes)) on success, or
+    [] on any failure/incomplete so the caller falls back to the template fill for ALL
+    beats (never a partial/canned/AI mix, never blocks the pipeline)."""
+    try:
+        n = len(scenes)
+        if n < 2 or not (product_short or main_benefit):
+            return []
+        secs = [int(sc.get("duration") or 0) for sc in scenes]
+        total_sec = sum(secs) or target_dur_sec or (n * 4)
+        beat_descs = "; ".join(f"{i+1}:{(sc.get('purpose') or sc.get('id') or 'beat')}" for i, sc in enumerate(scenes))
+        reg = "female, polite คะ/ค่ะ" if is_female else "male, polite ครับ"
+        sys_p = (
+            "You write short Thai TikTok product voiceovers. Output ONLY the plain spoken "
+            "Thai lines — exactly " + str(n) + " short lines (one natural sentence each, ~55 Thai "
+            "chars max). No thinking-aloud, no explanation, no numbering, no labels, no "
+            "**markdown**, no quotes. Just the " + str(n) + " lines and nothing else."
+        )
+        # Owner 2026-09-07 (พี่สั่ง): script ควรเอ่ยชื่อสินค้าจริง (เดิมโค้ดสั่ง 'ห้ามเอ่ยชื่อ'
+        # = บทเรียกแค่ 'ตัวนี้/อาหารแมว' ไม่มีชื่อ เช่น ไม่พูด 'เคตซูซุ').
+        # ใหม่: เอ่ยชื่อสินค้าจริง (spoken_name/say_name) ที่ถูกส่งให้พอดีหนึ่งครั้ง
+        # แต่ห้ามมั่วชื่อแบรนด์/รุ่น/SKU/ราคาที่ไม่อยู่ในข้อมูลเดิม (กัน AI หลอนชื่อปลอม)
+        say_name = (spoken_name or product_short or "").strip()
+        if len(say_name) > 40:
+            say_name = say_name[:40].rsplit(" ", 1)[0] or say_name[:40]
+        user = (
+            f"Narrator: {reg}.\n"
+            f"Product category: {product_short}\n"
+            f"Real product name you MUST mention naturally at least once (say it as-is, don't translate): {say_name or '-'}\n"
+            f"Customer problem: {customer_problem or '-'}\n"
+            f"Main benefit: {main_benefit or '-'}\n"
+            f"Feature/use: {profile_feature or '-'}\n"
+            f"Target audience: {target_audience or 'general'}.\n"
+            f"Beat order/purpose (write one line per beat, keep this rough order): {beat_descs}. "
+            f"Total clip ~{total_sec}s.\n"
+            "Write an engaging natural Thai sales script: line 1 = relatable hook about the "
+            "problem; then show/use the item naturally; then prove the benefit; last line = short CTA.\n"
+            "ห้ามใช้ชื่อแบรนด์/ยี่ห้อ/รุ่น ใดๆ นอกเหนือจากชื่อสินค้าจริงที่ระบุไว้ข้างบน (อย่าเติมชื่อที่ไม่อยู่ในข้อมูล) "
+            "ห้ามเติมตัวเลข/ราคา/รหัสสินค้า ที่ไม่อยู่ในข้อมูล. "
+            "ห้ามใช้คำ: ขอแนะนำ, คุณประโยชน์ของ, สนใจลองได้วันนี้เลย, ของดีต้องบอกต่อ.\n"
+            "ตอบภาษาไทยธรรมชาติ พอดี " + str(n) + " บรรทัด"
+        )
+        raw = _script_model_deepseek(sys_p, user, max_output_tokens=3200, temperature=0.7)
+        if not raw:
+            logger.warning("[AISCP] deepseek returned empty/None -> fallback to template")
+            return []
+        lines = [re.sub(r"^\s*\d+[.):]\s*", "", ln).strip() for ln in raw.splitlines() if ln.strip()]
+        # re-fold spills: if the model returned more real sentence-lines than beats,
+        # assume line breaks split one sentence; cap to n is NOT allowed -> reject to keep clean.
+        if len(lines) != n or any(not ln for ln in lines):
+            logger.warning(f"_ai_written_script: got {len(lines)} lines for {n} beats -> fallback")
+            return []
+        return [ln[:180] for ln in lines]
+    except Exception as _e:
+        logger.warning(f"_ai_written_script failed -> fallback to template: {_e}")
+        return []
+
+
 def _strip_promo_tokens(name: str) -> str:
     """Owner rule (2026-08-31): drop shop/promotional noise from a product name
     BEFORE the spoken script is built, so phrases like 'มีเก็บเงินปลายทาง',
@@ -3025,9 +3154,18 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
         # Owner rule 2026-08-24: spoken name = Thai-dominant variant, name spoken ONCE
         # (derive from FULL product_name — product_short may be hard-chopped mid-word)
         spoken_name = _tts_product_name(product_name or product_short)
+        # Owner 2026-09-05: write the voiceover with a real LLM (DeepSeek) instead of the
+        # rigid PAS literals. All-or-nothing: only use the AI lines when we have one for
+        # EVERY beat; otherwise fall back to the existing template fill for all beats.
+        _ai_lines = _ai_written_script(
+            scenes, product_short, spoken_name,
+            customer_problem, main_benefit, target_audience,
+            is_female, target_dur_sec, profile_feature,
+        )
+        _use_ai = bool(_ai_lines) and len(_ai_lines) == len(scenes) and all((x or "").strip() for x in _ai_lines)
         segments = []
-        for sc in scenes:
-            beat_text = _resolve_scene_text(
+        for _i, sc in enumerate(scenes):
+            beat_text = _ai_lines[_i] if (_use_ai and _ai_lines) else _resolve_scene_text(
                 sc, spoken_name, customer_problem, main_benefit, target_audience, profile_feature
             )
             # Gender-register normalize for spoken Thai
@@ -3040,12 +3178,15 @@ def _build_timing_validated_script(product_name: str, category: str = "beauty", 
             beat_text = _fit_beat_text(beat_text, dur)
             segments.append({"key": sc.get("id", "beat"), "text": beat_text, "duration_sec": dur, "timing": ""})
 
-        # Owner script rules: name at most ONCE — later mentions dropped, no 'ตัวนี้'
-        _drop_later_name_mentions(segments, _owner_script_variants(spoken_name))
-        _scrub_placeholder_words(segments)
-        # Owner 2026-08-31: also drop repeated CONTENT phrases across beats so a
-        # claim in both hook [{problem}] and solve [{benefit}] is spoken once only.
-        _dedupe_cross_segment(segments)
+        # Owner script rules: name at most ONCE — later mentions dropped, no 'ตัวนี้'.
+        # (Skipped for AI-written prose: the writer already keeps the name natural and
+        # doesn't overflow these heuristics; mutating free text risks making it awkward.)
+        if not _use_ai:
+            _drop_later_name_mentions(segments, _owner_script_variants(spoken_name))
+            _scrub_placeholder_words(segments)
+            # Owner 2026-08-31: also drop repeated CONTENT phrases across beats so a
+            # claim in both hook [{problem}] and solve [{benefit}] is spoken once only.
+            _dedupe_cross_segment(segments)
 
         # Recompute timings sequentially from durations (sum of scene durations ≈ duration)
         if segments:

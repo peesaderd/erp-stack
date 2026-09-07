@@ -174,19 +174,25 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "cosmetic container, or anything with a readable label. NEVER use the words 'bottles' or 'label' or the "
             "generic filler 'holding the product'. For clothing/fabric show how it looks WORN: fit, drape, fabric flow. "
             "For applied cosmetics show realistic use on skin. Category: " + str(category or "") + "\n\n"
-            "UGC SHOWCASE RULE (owner 2026-09-06): this is a TikTok promo video, the model must MOVE and DANCE, never be static. "
-            "Write the video_prompt as ONE continuous dynamic action/motion sequence. NEVER use the word 'freeze' and never describe a "
-            "held crouched/half-body pose or a frozen end frame. The clip MUST end with the model standing full-body, upright, "
-            "facing camera, clearly showing the product (clothing = the jeans/outfit on the body) in a confident final showcase pose. "
-            "Ending a promo on a serious/stable standing product pose is mandatory.")
+            "Choose a REAL and natural setting (kitchen, table, living room, outdoors, studio softly lit, etc.) that fits "
+            "the product. NEVER place the model or product on a green/chroma screen or any fake compositing background, and "
+            "NEVER stage an unnatural wide-eyed shocked 'reaction' just to look exciting, and NEVER force dancing, spinning, "
+            "or show-off posing unless the product genuinely calls for it (e.g. clothing/fashion that must be shown on a moving "
+            "body). Let the ACTUAL product decide the action: for food/pet/utility/household show a person genuinely using or "
+            "serving it in a natural everyday way; for clothing show it worn and walked naturally. Depict believable usage and "
+            "normal confident human expressions. Write the video_prompt as ONE continuous natural motion sequence; do not force a "
+            "frozen/dance/reaction pose. End on whatever feels natural and honest for the product (a satisfied pet eating, an "
+            "item being used, etc.), not an artificial showcase freeze unless it truly suits clothing/fashion.")
         _acted_instr = ""
         if (special_target or "").strip():
             _acted_instr += "\nACTION REQUIRED from creator: " + str(special_target).strip()
         if (usage_howto or "").strip():
             _acted_instr += "\nHOW the product/model should act/be used in the shot: " + str(usage_howto).strip()
         user_text = ("Product: " + str(product_name) + "\nDescription: " + str(description or "") +
-                     "\nUGC style: " + str(ugc_style) + _acted_instr +
-                     "\nWrite the image and video prompts now. Make the model/pose/motion follow the required ACTION exactly.")
+                     _acted_instr +
+                     "\nWrite natural-realistic image and video prompts for this product. Choose the real-world scene yourself from "
+                     "the product alone; do not rely on any style label. Real settings, believable faces, no green screen / chroma, "
+                     "no exaggerated cartoon reaction faces.")
         payload = {
             "model": "deepseek-v4-flash",
             "messages": [{"role": "system", "content": sysprompt},

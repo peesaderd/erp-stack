@@ -161,6 +161,8 @@ class VideoRequest(BaseModel):
     subcategory: str = ""
     # target_gender จาก product analyzer (สินค้าผู้หญิง→female) — override gender param
     target_gender: str = ""
+    # target_age จาก product analyzer / studio (ช่วงอายุ target) — override age param
+    target_age: str = ""
 
     @field_validator("duration")
     @classmethod
@@ -298,7 +300,7 @@ async def generate_video(req: VideoRequest):
             )[0],
             description=req.product_description or "",
             gender=(req.target_gender or req.gender or "female"),
-            age=req.age or "",
+            age=(req.target_age or req.age or ""),
             ugc_style=validate_ugc_style(req.ugc_style),
             external_job_id=req.job_id,
             duration=req.duration,

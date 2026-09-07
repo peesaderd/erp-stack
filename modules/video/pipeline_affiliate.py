@@ -151,7 +151,8 @@ def _deepseek_key() -> str:
 
 def _deepseek_product_prompts(product_name: str, description: str, ugc_style: str = "holding",
                               category: str = "", subcategory: str = "",
-                              special_target: str = "", usage_howto: str = "") -> Optional[dict]:
+                              special_target: str = "", usage_howto: str = "",
+                              gender: str = "", target_age: str = "") -> Optional[dict]:
     """Have DeepSeek write the image/video prompts fresh from the actual product.
 
     Owner direction (2026-09-06): prompts must be AI-authored per product, never
@@ -184,7 +185,11 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "reactions (pets eagerly rushing in to eat the food as it's poured, hands naturally tearing open the pouch, real textures "
             "of the food/liquid). Absolutely NO stiff influencer smiles, NO awkward waving to camera, NO talking-head corporate infomercial tropes, "
             "NO green/chroma screen, NO forced dancing/spinning/show-off posing, NO wide-eyed shocked reaction.\n"
-            "Category: " + str(category or "") + "\n\n"
+            "Category: " + str(category or "") + "\n"
+            "\nModel/Demonstrator (the person in frame) must MATCH this gender and age group:\n"
+            "gender=" + str(gender or "female") + ("; age_group=" + str(target_age) if target_age else " (adult 25-35 if unspecified)") + "\n"
+            "The person shown must clearly be this gender and this approximate age. Do NOT swap gender/age."
+            "The hands/person interacting with the product must read as a " + str(gender or "female") + " aged " + str(target_age or "25-35") + ".\n\n"
             "Write the image_prompt as a natural handheld first-person/close-up frame with the product clearly visible and in focus "
             "(lower-middle of frame), realistic lighting. Write the video_prompt as ONE continuous handheld POV motion sequence of a real "
             "person genuinely using the product (pour/scoop/unbox/feed a pet) with the product staying front-and-center and sharp.")
@@ -242,7 +247,7 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
         return None
 
 
-def analyze_product(product_name: str, product_image: str = None, description: str = "", ugc_style: str = "holding", body_part: str = "", special_target: str = "", usage_howto: str = "", ingredient_highlight: str = "", category: str = "", subcategory: str = "") -> dict:
+def analyze_product(product_name: str, product_image: str = None, description: str = "", ugc_style: str = "holding", body_part: str = "", special_target: str = "", usage_howto: str = "", ingredient_highlight: str = "", category: str = "", subcategory: str = "", gender: str = "", target_age: str = "") -> dict:
     """
     Step 1: Analyze product via Mistral → product_profile
 
@@ -305,6 +310,8 @@ def analyze_product(product_name: str, product_image: str = None, description: s
             subcategory=subcategory or (profile or {}).get("subcategory", ""),
             special_target=special_target or "",
             usage_howto=usage_howto or "",
+            gender=gender or (profile or {}).get("target_gender", ""),
+            target_age=target_age or (profile or {}).get("target_age", ""),
         )
         if _ds and _ds.get("image_prompt") and _ds.get("video_prompt"):
             profile["_image_prompt"] = _ds["image_prompt"]
@@ -1103,6 +1110,7 @@ def run_pipeline(
     audio_path: Optional[str] = None,
     prompt_extend: bool = False,
     gender: str = "female",
+    age: str = "",
     **kwargs,
 ) -> dict:
     """
@@ -1176,6 +1184,8 @@ def run_pipeline(
         step_start = time.time()
         product_profile = analyze_product(
             product_name, product_image, description, ugc_style=ugc_style,
+            gender=gender,
+            target_age=age,
             body_part=kwargs.get("body_part", ""),
             special_target=kwargs.get("special_target", ""),
             usage_howto=kwargs.get("usage_howto", ""),

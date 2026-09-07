@@ -637,6 +637,7 @@ async def generate_video(req: VideoRequest):
                 "category": _db_category or "",
                 "subcategory": _resolved_subcategory,
                 "target_gender": _db_gender or "",
+                "target_age": _db_age or "",
                 "aspect_ratio": req.aspect_ratio or "9:16",
                 "negative_prompt": neg_prompt or req.negative_prompt,
                 "bgm_style": req.bgm_style or "",

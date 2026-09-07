@@ -87,6 +87,7 @@ _CATEGORY_MAP = {
     "อุปกรณ์ไอทีและอิเล็กทรอนิกส์": "electronics",
     "electronics": "electronics",
     "gadgets": "electronics",
+    "gadget": "electronics",
     "สุขภาพและอาหารเสริม": "health",
     "health": "health",
     "food": "food",
@@ -96,14 +97,76 @@ _CATEGORY_MAP = {
     "home_appliance": "home_appliance",
     "health_hygiene": "health_hygiene",
     "travel_edc": "travel_edc",
+    # หมวดภาษาไทย/อังกฤษที่พบบ่อยใน tus_products.db (เคยเจอจริง) — ขยายให้ _map_category
+    # จับค่าแปลก ๆ ที่เก็บใน DB แล้วแมปเข้ากลุ่มหลักได้ (Owner AUTO fix 2026-09-06)
+    "ครีม": "beauty",
+    "ผิว": "beauty",
+    "สเปรย์": "beauty",
+    "เครื่องสำอาง": "beauty",
+    "บำรุงผิว": "beauty",
+    "สกินแคร์": "beauty",
+    "เครื่องประทิน": "beauty",
+    "แต่งหน้า": "beauty",
+    "เมคอัพ": "beauty",
+    "เมคอัป": "beauty",
+    "เซรั่ม": "beauty",
+    "มาสคาร่า": "beauty",
+    "ลิปสติก": "beauty",
+    "ลิป": "beauty",
+    "คุชชั่น": "beauty",
+    "โทนเนอร์": "beauty",
+    "กันแดด": "beauty",
+    "โคชั่น": "beauty",
+    "eyeshadow": "beauty",
+    "รองพื้น": "beauty",
+    "foundation": "beauty",
+    "เครื่องสำอาง": "beauty",
+    "บิ้วตี้": "beauty",
+    "แต่งเล็บ": "beauty",
+    "เสื้อผ้า": "fashion",
+    "กระโปรง": "fashion",
+    "กางเกง": "fashion",
+    "ยีนส์": "fashion",
+    "jeans": "fashion",
+    "ชุดเดรส": "fashion",
+    "dress": "fashion",
+    "shirt": "fashion",
+    "ชุด": "fashion",
+    "เสื้อ": "fashion",
+    "สัตว์เลี้ยง": "pet",
+    "animal": "pet",
+    "pet": "pet",
+    "pets": "pet",
+    "แมว": "pet",
+    "สุนัข": "pet",
+    "หมา": "pet",
+    "อาหารแมว": "pet",
+    "cat": "pet",
+    "dog": "pet",
+    "electrical": "electronics",
+    "เครื่องใช้ไฟฟ้า": "electronics",
+    "โคมไฟ": "electronics",
+    "ของใช้ไฟฟ้า": "electronics",
+    "ไฟ": "electronics",
+    "แปรงสีฟันไฟฟ้า": "home",
+    "ของใช้ในบ้าน": "home",
+    "แปรง": "home",
+    "ของใช้ครัว": "home",
+    "อาหาร": "food",
+    "snack": "food",
+    "ขนม": "food",
+    "เครื่องดื่ม": "food",
+    "กีฬา": "tools",
+    "sport": "tools",
+    "ออกกำลัง": "health",
 }
 
 # UGC styles with their compatible categories (mirrors schema-engine ugc_style).
 # Ordered by preference so the first match wins for a given category.
 _STYLE_CATEGORY_MAP = [
     ("fashion_lookbook", ["fashion"]),
-    ("product_demo", ["electronics", "home", "tools", "home_appliance", "health_hygiene"]),
-    ("unboxing", ["electronics", "home", "beauty", "fashion", "tools"]),
+    ("product_demo", ["electronics", "home", "tools", "home_appliance", "health_hygiene", "pet"]),
+    ("unboxing", ["electronics", "home", "beauty", "fashion", "tools", "pet"]),
     ("comparison", ["electronics", "home", "tools", "beauty", "health"]),
     ("problem_solution", ["electronics", "home", "tools", "beauty", "health_hygiene"]),
     ("aesthetic_vlog", ["beauty", "fashion", "home", "other"]),
@@ -198,7 +261,9 @@ def _dedupe_product_name_inline(script: str, product_name: str) -> str:
 
 
 def _map_category(category: str) -> str:
-    """Map a TUS product category (Thai full label or English) to an English key."""
+    """Map a TUS product category (Thai full label or English) to an English key.
+
+    Returns "other" when empty / unmatched (kept for backward compat)."""
     if not category:
         return "other"
     c = category.strip().lower()
@@ -208,11 +273,62 @@ def _map_category(category: str) -> str:
     return "other"
 
 
-def _auto_select_style(category: str) -> str:
-    """Pick the best UGC style for a product category. Falls back to holding."""
-    cat = _map_category(category)
+def _infer_category(product_name: str = "", product_desc: str = "") -> str:
+    """เดาหมวดสินค้าจากชื่อ + รายละเอียด เมื่อค่า category ใน DB ว่าง/ไม่รู้จัก
+    (Owner AUTO fix 2026-09-06 — ทาง (3): เลือกสไตล์จากตัวสินค้าจริง ไม่ดิ่ง holding
+    เพราะช่อง category ว่าง). ลำดับคีย์ใน _CATEGORY_MAP: key ที่ยาวกว่าต้องชนะก่อน
+    (เช่น 'อาหารแมว' ก่อน 'แมว'/'อาหาร') ดังนั้นเรียงจาก key ที่ยาวสุด"""
+    text = " ".join(x for x in (product_name or "", product_desc or "") if x)
+    if not text.strip():
+        return ""
+    t = text.lower()
+    # ลำดับความยาวจากมากไปน้อย กัน key สั้นไป match ก่อน key ยาว (เช่น 'แมว' ก่อน 'อาหารแมว')
+    scored = []
+    for key, eng in _CATEGORY_MAP.items():
+        k = key.lower()
+        if not k:
+            continue
+        if k in t:
+            # น้ำหนัก: ยิ่ง key ยาว = ยิ่งเฉพาะเจาะจง/ตรงเป้า → ชนะ
+            scored.append((len(k), eng))
+    if not scored:
+        return ""
+    scored.sort(key=lambda x: -x[0])
+    return scored[0][1]
+
+
+def _resolve_category(_db_category: str, _product_title: str, _product_desc: str) -> str:
+    """แวะผ่าน 1 จุด: ใช้ค่า category จาก DB/request ก่อน ถ้าไม่รู้จัก/ว่าง → เดาหมวดจาก
+    ชื่อ + รายละเอียดสินค้า. คืน English category key (เช่น 'beauty'/'pet'/'fashion')."""
+    mapped = ""
+    if _db_category:
+        mapped = _map_category(_db_category)
+    if mapped and mapped != "other":
+        return mapped
+    inferred = _infer_category(_product_title, _product_desc)
+    return inferred or "other"
+
+
+def _auto_select_style(category: str = "", product_name: str = "", product_desc: str = "") -> str:
+    """Pick the best UGC style for a product. Falls back to holding
+    (Owner AUTO fix 2026-09-06 ทาง 3): ใช้ category ที่ map ได้ก่อน ถ้าไม่รู้จัก/ว่าง →
+    เดาหมวดจากชื่อ+desc (ดู _infer_category) เพื่อให้ AUTO เลือกสไตล์ตามสินค้าจริง
+    ไม่ดิ่ง holding เมื่อไม่มีหมวด."""
+    cat = _resolve_category(category, product_name, product_desc)
     if cat == "other":
+        # ไม่รู้จริง ๆ (ไม่มีหมวด + เดาไม่ออก) → holding เป็น fallback สุดท้าย
         return "holding"
+    # Owner AUTO fix 2026-09-06: สำหรับสินค้าความงามที่ "ใช้ทา/ราด/ฉีด" ให้เน้นการสาธิต
+    # การใช้จริง (usage) มากกว่าแค่ unboxing เปิดกล่อง — ตรงกับงานครีม/สกินแคร์ที่พี่ผ่านมา
+    if cat == "beauty":
+        _applykw = ("ครีม", "เซรั่ม", "เซรัม", "สเปรย์", "บำรุง", "ผิว", "เมคอัพ", "เมค",
+                    "มาสคาร่า", "ลิป", "ลิปสติก", "คุชชั่น", "โทนเนอร์", "กันแดด",
+                    "cream", "serum", "spray", "mist", "lotion", "cream", "foundation",
+                    "lipstick", "mascara", "cusion", "sunscreen", "skincare", "moistur",
+                    "essence", "toner", "cleanser", "scrub", "mask", "บำรุง", "กระชับ")
+        _low = (" ".join(x for x in (product_name or "", product_desc or "") if x)).lower()
+        if any(k in _low for k in _applykw):
+            return "usage"
     for style, cats in _STYLE_CATEGORY_MAP:
         if cat in cats:
             return style
@@ -235,15 +351,15 @@ _SUBCATEGORY_AUTO_MAP = {
 }
 
 
-def _auto_select_subcategory(category: str, explicit: str = "") -> str:
+def _auto_select_subcategory(category: str = "", explicit: str = "", product_name: str = "", product_desc: str = "") -> str:
     """Pick a subcategory for the product category.
 
     If the caller already passed an explicit subcategory (e.g. makeup_tutorial),
     that wins. Otherwise derive from the mapped category via _SUBCATEGORY_AUTO_MAP.
-    """
+    (Owner AUTO fix 2026-09-06): เดาหมวดจากชื่อ/desc เมื่อไม่มีหมวด เช่นเดียวกับ style."""
     if explicit and isinstance(explicit, str) and explicit.strip():
         return explicit.strip()
-    cat = _map_category(category)
+    cat = _resolve_category(category, product_name, product_desc)
     return _SUBCATEGORY_AUTO_MAP.get(cat, "")
 
 
@@ -423,67 +539,79 @@ async def generate_video(req: VideoRequest):
             if _recipe_decl in ("indoor_projector", "ambient_outdoor"):
                 _resolved_style = _recipe_decl
             elif _resolved_style == "auto":
-                _resolved_style = _auto_select_style(_db_category)
+                # Owner AUTO fix 2026-09-06 ทาง 3: ส่งชื่อ+desc เข้าไปด้วย เพื่อให้เลือก
+                # สไตล์จากสินค้าจริงเมื่อ category ว่าง (ไม่ดิ่ง holding เสมอ)
+                _resolved_style = _auto_select_style(_db_category, _product_title, _db_desc)
 
             # Resolve subcategory: explicit request wins, else auto from category
-            _resolved_subcategory = _auto_select_subcategory(_db_category, getattr(req, "subcategory", "") or "")
+            _resolved_subcategory = _auto_select_subcategory(_db_category, getattr(req, "subcategory", "") or "", _product_title, _db_desc)
 
             _update_pipeline_step(job_id, "prompt_builder", "processing")
-            pb_result = await _proxy("POST", "prompt-builder", "/api/v1/build", {
-                "product_name": _product_title,
-                "description": _db_desc,
-                "features": _db_desc,
-                "keywords": _db_keywords,
-                "ugc_style": _resolved_style,
-                "category": _db_category,
-                "subcategory": _resolved_subcategory,
-                "country": getattr(req, "country", "") or "thai",
-                "target_gender": _db_gender or "",
-                "target_age": _db_age or "",
-                # NEW: deep-analysis fields (normalized body_part + audience)
-                "body_part": _bp_send or "",
-                "special_target": _db_special_target or "",
-                "usage_howto": _db_usage_howto or "",
-                "ingredient_highlight": _db_ingredient or "",
-                "product_id": job_id,
-                "price": float(req.product_price) if req.product_price else 0.0,
-                "product_image": _product_image_to_web_url(_db_image),
-                "duration": req.duration or 15,
-                "target_duration": req.duration or 15,
-                "script": full_script,
-            })
+            try:
+                pb_result = await _proxy("POST", "prompt-builder", "/api/v1/build", {
+                    "product_name": _product_title,
+                    "description": _db_desc,
+                    "features": _db_desc,
+                    "keywords": _db_keywords,
+                    "ugc_style": _resolved_style,
+                    "category": _db_category,
+                    "subcategory": _resolved_subcategory,
+                    "country": getattr(req, "country", "") or "thai",
+                    "target_gender": _db_gender or "",
+                    "target_age": _db_age or "",
+                    # NEW: deep-analysis fields (normalized body_part + audience)
+                    "body_part": _bp_send or "",
+                    "special_target": _db_special_target or "",
+                    "usage_howto": _db_usage_howto or "",
+                    "ingredient_highlight": _db_ingredient or "",
+                    "product_id": job_id,
+                    "price": float(req.product_price) if req.product_price else 0.0,
+                    "product_image": _product_image_to_web_url(_db_image),
+                    "duration": req.duration or 15,
+                    "target_duration": req.duration or 15,
+                    "script": full_script,
+                })
+            except Exception as _pbe:
+                # AI-AUTHORED MODE: prompt-builder ล่มไม่ฆ่างาน — pipeline ยังมี
+                # DeepSeek+generate_script คิดเองได้ (pb ใช้แค่ analysis ของ product_demo)
+                logger.warning(f"prompt-builder call skipped (fallback AI): {_pbe}")
+                pb_result = None
 
-            if isinstance(pb_result, dict) and pb_result.get("image_prompt"):
-                pb_data = pb_result
-                
+            # 🔴 AI-AUTHORED MODE (owner 2026-09-07): SKIP ขั้น Template — อย่าเอาผล
+            # prompt-builder ไปฝังเป็น pre-computed ให้ pipeline (มันจะทำให้ STEP 3/4/6
+            # เป็น "Skipped (using pre-computed)" → ใช้ template ถือขวด/bottles ผิดสินค้า
+            # เช่น vid_4e224ef4/9ace7d80) — ปล่อยให้ modules/video pipeline คิดเอง:
+            # analyze_product (DeepSeek override) + generate_script เขียนบทไทย
+            # prompt-builder ยังเรียกเพื่อ data analysis ของ product_demo เท่านั้น
+            pb_data = pb_result if isinstance(pb_result, dict) else {}
+            img_prompt = ""
+            video_prompts = []
+            neg_prompt = req.negative_prompt or ""
+
+            if pb_data:
                 # Product Demo: override scene script with Gemini Vision analysis
                 if req.ugc_style == "product_demo" and scenes:
-                    analysis = pb_data.get("analysis", {}) or {}
-                    feat_raw = analysis.get("features", "")
-                    feat_str = feat_raw if isinstance(feat_raw, str) else \
-                        ", ".join(f.strip() for f in feat_raw if f.strip()) if isinstance(feat_raw, list) else ""
-                    product_appearance = (analysis.get("product_appearance", "") or "")
-                    
-                    parts = [f"{_product_title}"]
-                    if feat_str:
-                        parts.append(feat_str)
-                    elif product_appearance:
-                        parts.append(product_appearance[:200])
-                    elif req.product_description:
-                        parts.append(req.product_description[:200])
-                    scenes[0].script = ": ".join(parts)
-                
-                img_prompt = pb_data.get("image_prompt", "")
-                video_prompts = [pb_data.get("video_prompt", "")] * len(scenes)
-                neg_prompt = pb_data.get("negative_prompt", req.negative_prompt)
-                _update_pipeline_step(job_id, "prompt_builder", "success", {
-                    "image_prompt": (img_prompt or "")[:200],
-                    "video_prompt": ((video_prompts or [""])[0] or "")[:200],
-                    "negative_prompt": (neg_prompt or "")[:200],
-                })
-            else:
-                _update_pipeline_step(job_id, "prompt_builder", "error", {"error": f"Prompt builder failed: {pb_result}"})
-                raise HTTPException(status_code=500, detail=f"Prompt Builder Service Failed: {pb_result}")
+                    try:
+                        analysis = pb_data.get("analysis", {}) or {}
+                        feat_raw = analysis.get("features", "")
+                        feat_str = feat_raw if isinstance(feat_raw, str) else \
+                            ", ".join(f.strip() for f in feat_raw if f.strip()) if isinstance(feat_raw, list) else ""
+                        product_appearance = (analysis.get("product_appearance", "") or "")
+                        parts = [f"{_product_title}"]
+                        if feat_str:
+                            parts.append(feat_str)
+                        elif product_appearance:
+                            parts.append(product_appearance[:200])
+                        elif req.product_description:
+                            parts.append(req.product_description[:200])
+                        scenes[0].script = ": ".join(parts)
+                    except Exception as _pbe:
+                        logger.warning(f"product_demo scene override skipped: {_pbe}")
+
+            _update_pipeline_step(job_id, "prompt_builder", "success", {
+                "mode": "ai_authored",
+                "note": "SKIP template — DeepSeek ใน pipeline คิด prompt/script จากสินค้าจริง (prompt-builder = fallback กันล่ม)",
+            })
 
             selected_sound_style = scenes[0].sound_style if scenes else "upbeat_pop"
 
@@ -513,15 +641,24 @@ async def generate_video(req: VideoRequest):
                 "negative_prompt": neg_prompt or req.negative_prompt,
                 "bgm_style": req.bgm_style or "",
                 "recipe": req.recipe or "tus",
-                "image_prompt": img_prompt or "",
-                "video_prompt": (video_prompts or [""])[0],
-                "video_prompts": video_prompts or [],
+                # AI-AUTHORED (owner 2026-09-07): ไม่ส่ง pre-computed prompt →
+                # pipeline ใช้ DeepSeek คิด prompt/script จากสินค้าจริงเอง
+                "image_prompt": "",
+                "video_prompt": "",
+                "video_prompts": [],
+                # ส่ง context สินค้าจริงให้ DeepSeek ใน analyze_product ใช้
+                "product_description": _db_desc or "",
+                "features": _db_desc or "",
+                "body_part": _bp_send or "",
+                "special_target": _db_special_target or "",
+                "usage_howto": _db_usage_howto or "",
+                "ingredient_highlight": _db_ingredient or "",
                 "job_id": job_id,
                 # FIX (owner 2026-08-29): ของดีต้องไม่โดนทับ — สคริปต์ที่ผู้ใช้ตั้ง
                 # (req.script / hook+value+cta / prompt → full_script) ต้องชนะ
                 # template ที่ prompt-builder gen เสมอ ไม่งั้น script ดีเดิม
                 # (ทับศัพท์ไทย) หายไปทุกครั้งที่ gen ใหม่
-                "script": full_script or pb_data.get("scripts", {}).get("tts_script") or pb_data.get("full_script") or "",
+                "script": full_script or "",
                 "voice": getattr(req, "voice", None) or "",
                 # ── First/Reference/Last frame + Thai script (Wan พูดเอง) ──
                 "first_frame": getattr(req, "first_frame", None) or "",
@@ -615,18 +752,23 @@ async def generate_video(req: VideoRequest):
     _preview_style = req.ugc_style or "holding"
     if _preview_style == "auto":
         _preview_cat = getattr(req, "category", "") or ""
+        _preview_desc = req.product_description or ""
         try:
             _tconn = sqlite3.connect(str(BASE_DIR / "tus_products.db"))
             _trow = _tconn.execute(
-                "SELECT category FROM tus_products WHERE title LIKE ? OR title_th LIKE ? OR product_id = ? LIMIT 1",
+                "SELECT category, COALESCE(description_th, description, '') FROM tus_products "
+                "WHERE title LIKE ? OR title_th LIKE ? OR product_id = ? LIMIT 1",
                 (f"%{_product_title}%", f"%{_product_title}%", req.product_url or "")
             ).fetchone()
             _tconn.close()
-            if _trow and _trow[0]:
-                _preview_cat = _trow[0]
+            if _trow:
+                if _trow[0]:
+                    _preview_cat = _trow[0]
+                _preview_desc = _trow[1] or _preview_desc
         except Exception:
             pass
-        _preview_style = _auto_select_style(_preview_cat)
+        # Owner AUTO fix 2026-09-06 ทาง 3: เดาหมวดจากชื่อ/desc ด้วย เมื่อ category ว่าง
+        _preview_style = _auto_select_style(_preview_cat, _product_title, _preview_desc)
 
     asyncio.create_task(_run())
 

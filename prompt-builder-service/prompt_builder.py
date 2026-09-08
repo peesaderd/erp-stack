@@ -2872,7 +2872,7 @@ def _ai_written_script(scenes: list, product_short: str, spoken_name: str,
             "ห้ามใช้คำ: ขอแนะนำ, คุณประโยชน์ของ, สนใจลองได้วันนี้เลย, ของดีต้องบอกต่อ.\n"
             "ตอบภาษาไทยธรรมชาติ พอดี " + str(n) + " บรรทัด"
         )
-        raw = _script_model_deepseek(sys_p, user, max_output_tokens=3200, temperature=0.7)
+        raw = _script_model_deepseek(sys_p, user, max_output_tokens=8000, temperature=0.7)
         if not raw:
             logger.warning("[AISCP] deepseek returned empty/None -> fallback to template")
             return []

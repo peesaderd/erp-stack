@@ -243,7 +243,7 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
                 "url": "https://token-plan-sgp.xiaomimimo.com/v1/chat/completions",
                 "model": "mimo-v2.5",
                 "key": _mimo_key_,
-                "max_tokens": 1800,
+                "max_tokens": 8000,
             })
             # Mimo v2.5-pro tier = second shot when base returns empty (still 100% Mimo,
             # boss "ใช้ Mimo ทั้งหมดเลย"). pro+dropropriate budget reliably returns the JSON.
@@ -252,7 +252,7 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
                 "url": "https://token-plan-sgp.xiaomimimo.com/v1/chat/completions",
                 "model": "mimo-v2.5-pro",
                 "key": _mimo_key_,
-                "max_tokens": 2000,
+                "max_tokens": 8000,
             })
         # DeepSeek/Gemini/Mistral fallback REMOVED per boss "ใช้ Mimo ทั้งหมดเลย" (2026-09-08).
         if not _providers:

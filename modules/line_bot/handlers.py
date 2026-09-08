@@ -180,6 +180,47 @@ def _format_cart(cart: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def _cart_to_flex(cart: list[dict]) -> dict:
+    """Convert cart to flex message."""
+    if not cart:
+        return line_client.text("🛒 ตะกร้าว่างเปล่า")
+    
+    body_contents = [
+        line_client.flex_text("🛒 ตะกร้าอาหาร", weight="bold", size="lg"),
+    ]
+    
+    total = 0
+    for item in cart:
+        subtotal = item["price"] * item["qty"]
+        total += subtotal
+        body_contents.append(
+            line_client.flex_text(f"{item['name']} × {item['qty']} = {subtotal:.0f} บาท", size="sm")
+        )
+    
+    body_contents.append(line_client.flex_separator())
+    body_contents.append(
+        line_client.flex_text(f"💵 รวมทั้งหมด: {total:.0f} บาท", weight="bold", size="md", color="#ff6600", margin="md")
+    )
+    
+    bubble = line_client.flex_bubble(
+        body_boxes=body_contents,
+        footer=[
+            line_client.flex_button(
+                "✅ ยืนยันสั่ง", "postback",
+                data="checkout",
+                displayText="ยืนยันสั่ง"
+            ),
+            line_client.flex_button(
+                "🗑️ ยกเลิก", "postback",
+                data="clear_cart",
+                displayText="ยกเลิก"
+            ),
+        ],
+    )
+    
+    return line_client.flex("ตะกร้า", line_client.flex_carousel([bubble]))
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # MAIN WEBHOOK HANDLER
 # ═══════════════════════════════════════════════════════════════════════════
@@ -338,7 +379,7 @@ async def _handle_text(text: str, session: dict, reply_token: str, user_id: str)
 
     if text_lower in ("cart", "ตะกร้า", "ดูตะกร้า", "my cart", "บิล"):
         await line_client.reply(reply_token, [
-            line_client.text(_format_cart(session["cart"]))
+            _cart_to_flex(session["cart"])
         ])
         return
 
@@ -585,7 +626,7 @@ async def _handle_postback(event: dict, reply_token: str, user_id: str):
 
     elif action == "view_cart":
         await line_client.reply(reply_token, [
-            line_client.text(_format_cart(session["cart"]))
+            _cart_to_flex(session["cart"])
         ])
 
     elif action == "clear_cart":

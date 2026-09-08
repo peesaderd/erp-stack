@@ -245,7 +245,7 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
                 "url": "https://token-plan-sgp.xiaomimimo.com/v1/chat/completions",
                 "model": "mimo-v2.5",
                 "key": _mimo_key_,
-                "max_tokens": 2000,
+                "max_tokens": 1500,
             })
         if _ds_key_:
             _providers.append({
@@ -262,7 +262,8 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "You are an expert UGC (User-Generated Content) video prompt engineer for TikTok, Reels, and Shorts. "
             "Your objective: generate highly authentic, smartphone-shot video prompts that look 100% like real consumer "
             "footage—NEVER like a polished studio commercial or high-budget ad.\n"
-            "Output ONLY a strict JSON object with keys image_prompt (<=85 words) and video_prompt (<=60 words).\n"
+            "Output ONLY one raw JSON object—no code fences, no markdown, no preface, no reasoning/explanation. "
+            "Reply with the single JSON object alone (keys: image_prompt <=85 words, video_prompt <=60 words).\n"
             "[CORE UGC RULES]\n"
             "1. Camera Style & Format: must specify smartphone camera aesthetics — handheld 4K iPhone/mobile footage, slight "
             "natural camera shake, vertical 9:16 framing, autofocus shifts, and realistic room/ambient lighting (ring light, "

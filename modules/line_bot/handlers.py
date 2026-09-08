@@ -432,8 +432,9 @@ async def _handle_text(text: str, session: dict, reply_token: str, user_id: str)
                         ),
                     ],
                 )
+                carousel = line_client.flex_carousel([bubble])
                 await line_client.reply(reply_token, [
-                    line_client.flex(f"เพิ่มในตะกร้า", [bubble]),
+                    line_client.flex("เพิ่มในตะกร้า", carousel),
                     line_client.text(_format_cart(session['cart']))
                 ])
                 return

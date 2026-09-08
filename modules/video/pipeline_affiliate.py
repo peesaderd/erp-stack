@@ -224,20 +224,18 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
                               category: str = "", subcategory: str = "",
                               special_target: str = "", usage_howto: str = "",
                               gender: str = "", target_age: str = "") -> Optional[dict]:
-    """Have DeepSeek write the image/video prompts fresh from the actual product.
+    """Have Mimo write the image/video prompts fresh from the actual product.
 
-    Owner direction (2026-09-06): prompts must be AI-authored per product, never
-    pasted from a hardcoded bottle/label template. DeepSeek v4-flash is reasoning
-    heavy, so a large max_tokens budget (~1500) is required or it burns it all on
-    hidden reasoning and returns empty content (finish_reason=length).
+    Boss directive 2026-09-08: use Mimo exclusively (ไมใช่ DeepSeek).
+    Mimo v2.5 (xiaomi) is the SOLE prompt-writer here; the previous DeepSeek fallback
+    was removed. On Mimo failure this returns None and the caller keeps the existing
+    prompt-builder output as fallback (never a hard break). DeepSeek/Gemini/Mistral are
+    no longer used to author prompts.
 
-    Returns {"image_prompt": str, "video_prompt": str} or None on any failure
-    (caller keeps the existing prompt-builder output as fallback).
+    Returns {"image_prompt": str, "video_prompt": str} or None on any failure.
     """
     try:
-        # Provider priority: Mimo (xiaomi) first, DeepSeek fallback.
         _mimo_key_ = _mimo_key()
-        _ds_key_ = _deepseek_key()
         _providers = []
         if _mimo_key_:
             _providers.append({
@@ -247,16 +245,9 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
                 "key": _mimo_key_,
                 "max_tokens": 1500,
             })
-        if _ds_key_:
-            _providers.append({
-                "name": "deepseek",
-                "url": "https://api.deepseek.com/v1/chat/completions",
-                "model": "deepseek-v4-flash",
-                "key": _ds_key_,
-                "max_tokens": 1500,
-            })
+        # DeepSeek fallback REMOVED per boss "ใช้ Mimo ทั้งหมดเลย" (2026-09-08).
         if not _providers:
-            logger.warning("_deepseek_product_prompts: no Mimo/DeepSeek key available")
+            logger.warning("_deepseek_product_prompts: no Mimo key available")
             return None
         sysprompt = (
             "You are an expert UGC (User-Generated Content) video prompt engineer for TikTok, Reels, and Shorts. "
@@ -919,13 +910,16 @@ def generate_video(
         # (เพิ่ม commit 7c1a04c8 29-08) ทำให้ Wan ยืดคำ/เดิมแต่งเนื้อมั่ว ให้ยาวจนครบเวลา
         # เมื่อ script สั้น → เอาคำสั่งยืดเวลา/ยาวเต็ม N วิออกทั้งหมด ให้พูดตาม script เท่านั้น
         # ชัดเจน คำต่อคำ ไม่เดิมแต่ง เมื่อจบ script ให้หยุดยิ้มนิ่ง ไม่พูดต่อ (พี่สั่ง 11:57)
+        # 🔴 FIX (owner 2026-09-08): ตัด video_prompt ภาษาอังกฤษ (prompt) ออก ไม่นำหน้า
+        # บทไทย — เดิม final_prompt = prompt + บทไทย = ปน 2 ภาษาให้ Wan งง แล้วพูดเพี้ยนตอนท้าย.
+        # Voice mode A ใช้ first frame สร้างภาพอยู่แล้ว จึงไม่ต้องใช้ video_prompt อังกฤษบรรยาย.
+        # ให้เป็นไทยล้วนตาม comment เดิม (Wan รับ ~2500 คำ ไม่เกินแน่นอน).
         final_prompt = (
-            prompt + 
             f"พูดบทภาษาไทยต่อไปนี้ออกเสียงให้ชัดเจนตามตัวอักษร คำต่อคำ ห้ามข้าม ห้ามเดิมคำ ห้ามแต่งประโยคเพิ่ม ห้ามเติมคำท้าย ห้ามพูดนอกบท:\n\"{thai_script}\" \n"
             f"ออกเสียงแต่ละคำให้ถูกต้องชัดเจน พูดจังหวะกระชับไวขึ้นเล็กน้อย ไม่เนิบ ไม่ช้า ไม่ลากคำ ไม่ยืดเสียง ไม่ลากเสียง ไม่จำเป็นต้องพูดยาวเท่าความยาววิดีโอ "
             f"เมื่ออ่านบทจบทุกประโยคแล้วให้หยุดพูดทันที ปิดปากสนิท ห้ามพูดอะไรต่อจากบทอีกเด็ดขาด "
             f"แล้วยิ้มนิ่ง ๆ ตรงหน้ากล้องต่อไปโดยไม่ขยับ ไม่พูด ไม่ขยับปาก ไม่มีเสียงใด ๆ ซ้ำ "
-            f"กล้องนิ่ง ไม่ซูม ไม่ขยับ ไม่บังคับฉากรูปแบบอื่นใดอีก"
+            f"กล้องนิ่ง ๆ ตรงกล้อง บรรยากาศตามภาพ first frame ไม่ขยับกล้อง ไม่ซูม ไม่บังคับฉากอื่น"
         )
         logger.info(f"  🎙 Voice mode A: ฝัง thai_script คำสั่งพูดไทยล้วน (owner rule 2026-08-25, len={len(final_prompt)})")
 

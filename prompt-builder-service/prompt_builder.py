@@ -1636,13 +1636,12 @@ async def analyze_and_build_prompts(
     # The user's ugc_style selection is always authoritative
     router_config = profile.get("router_config", {})
 
-    # Step 2: If product_image provided, run vision analysis to enrich profile
+    # Step 2: product-image VISION analysis REMOVED (owner 2026-09-08).
+    # Boss directive: "ไม่ใช้ vision วิเคราะห์รูปสินค้า ... เอาออกไปเลย ตัวพังขั้นตอนนี้"
+    # No longer run Gemini/Mistral vision on the product image to build/enrich the prompt
+    # profile (it hung/failed ~120-130s every build). Text-only analysis (title + description)
+    # is the source now; prompt writing itself is Mimo (see pipeline _deepseek_product_prompts).
     vision_profile = None
-    if product_image:
-        try:
-            vision_profile = analyze_product_image(product_image, product_name, description)
-        except Exception as e:
-            logger.warning(f"Vision analysis failed (non-fatal): {e}")
 
     if vision_profile:
         for key in ["category", "target_gender", "target_age", "target_audience",
@@ -2751,55 +2750,75 @@ def _resolve_scene_text(scene, product_short, customer_problem, main_benefit, ta
 
 def _script_model_deepseek(system_prompt: str, user_text: str,
                           max_output_tokens: int = 900, temperature: float = 0.7) -> Optional[str]:
-    """Call DeepSeek chat (deepseek-v4-flash). deepseek-v4-flash is reasoning-heavy and
-    sometimes spends the whole token budget on hidden reasoning_content and returns empty
-    content (finish_reason=length). Retry up to 3x so a transient over-think doesn't
-    silently drop the AI script back to the rigid template. Returns content or None."""
+    """Call the AI script model. Boss directive 2026-09-08: use Mimo (mimo-v2.5, xiaomi)
+    as the PRIMARY; keep DeepSeek only as availability fallback when no Mimo key/Mimo fails
+    (never a hard break — caller still falls back to its rigid template on None).
+    mimo-v2.5 is reasoning-heavy and can burn max_tokens on reasoning_content returning empty
+    (finish_reason=length); retries handle a transient over-think."""
     try:
-        api_key = os.environ.get("DEEPSEEK_API_KEY") or ""
-        if not api_key:
-            _p = os.path.expanduser("/home/openhands/.openclaw/openclaw.json")
-            if os.path.exists(_p):
-                try:
-                    _cfg = json.load(open(_p))
-                    api_key = _cfg.get("models", {}).get("providers", {}).get("deepseek", {}).get("apiKey") or ""
-                except Exception:
-                    api_key = ""
-        if not api_key:
-            logger.warning("_script_model_deepseek: no DEEPSEEK key available")
-            return None
-        payload = {
-            "model": "deepseek-v4-flash",
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_text},
-            ],
-            "max_tokens": max_output_tokens,
-            "temperature": temperature,
-        }
-        headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
-        url = "https://api.deepseek.com/v1/chat/completions"
-        last = None
-        for attempt in range(3):
+        # Provider priority: Mimo (xiaomi) first, DeepSeek fallback unless Mimo key present.
+        _cfg_path = "/home/openhands/.openclaw/openclaw.json"
+        def _m_key():
             try:
-                resp = requests.post(url, headers=headers, json=payload, timeout=150)
-                if resp.status_code == 200:
-                    data = resp.json()
-                    msg = data["choices"][0]["message"]
-                    content = (msg.get("content") or "").strip()
-                    if content:
-                        return content
-                    # empty (reasoning burned budget) -> retry
-                    reason = data.get("choices",[{}])[0].get("finish_reason")
-                    logger.warning(f"_script_model_deepseek attempt {attempt+1}: empty content ({reason}) -> retry")
-                    last = f"empty ({reason})"
-                else:
-                    logger.warning(f"_script_model_deepseek api error {resp.status_code}: {resp.text[:150]}")
-                    return None
-            except Exception as _e:
-                logger.warning(f"_script_model_deepseek attempt {attempt+1} error: {_e}")
-                last = _e
-        logger.warning(f"_script_model_deepseek gave up after 3 attempts: {last}")
+                _c = json.load(open(_cfg_path))
+                return _c.get("models", {}).get("providers", {}).get("xiaomi", {}).get("apiKey") or ""
+            except Exception:
+                return ""
+        def _d_key():
+            k = os.environ.get("DEEPSEEK_API_KEY") or ""
+            if not k:
+                try:
+                    _c = json.load(open(_cfg_path))
+                    k = _c.get("models", {}).get("providers", {}).get("deepseek", {}).get("apiKey") or ""
+                except Exception:
+                    k = ""
+            return k
+        _providers = []
+        _m = _m_key()
+        if _m:
+            _providers.append({"name": "mimo", "url": "https://token-plan-sgp.xiaomimimo.com/v1/chat/completions",
+                               "model": "mimo-v2.5", "key": _m})
+        _d = _d_key()
+        if not _m and _d:
+            # DeepSeek only when no Mimo key available (keep robustness, Mimo is default)
+            _providers.append({"name": "deepseek", "url": "https://api.deepseek.com/v1/chat/completions",
+                               "model": "deepseek-v4-flash", "key": _d})
+        if not _providers:
+            logger.warning("_script_model_deepseek: no Mimo / DeepSeek key available")
+            return None
+        for _prov in _providers:
+            payload = {
+                "model": _prov["model"],
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_text},
+                ],
+                "max_tokens": max_output_tokens,
+                "temperature": temperature,
+            }
+            headers = {"Content-Type": "application/json", "Authorization": f"Bearer {_prov['key']}"}
+            url = _prov["url"]
+            last = None
+            for attempt in range(3):
+                try:
+                    resp = requests.post(url, headers=headers, json=payload, timeout=150)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        msg = data["choices"][0]["message"]
+                        content = (msg.get("content") or "").strip()
+                        if content:
+                            return content
+                        reason = data.get("choices",[{}])[0].get("finish_reason")
+                        logger.warning(f"_script_model_deepseek [{_prov['name']}] attempt {attempt+1}: empty content ({reason}) -> retry")
+                        last = f"empty ({reason})"
+                    else:
+                        logger.warning(f"_script_model_deepseek [{_prov['name']}] api error {resp.status_code}: {resp.text[:150]}")
+                        break  # try next provider if any
+                except Exception as _e:
+                    logger.warning(f"_script_model_deepseek [{_prov['name']}] attempt {attempt+1} error: {_e}")
+                    last = _e
+                # after 3 attempts on this provider fail, move to next provider
+            logger.warning(f"_script_model_deepseek [{_prov['name']}] gave up after 3 attempts: {last}")
         return None
     except Exception as _e:
         logger.warning(f"_script_model_deepseek failed: {_e}")

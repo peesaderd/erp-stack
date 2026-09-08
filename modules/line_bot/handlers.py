@@ -406,8 +406,35 @@ async def _handle_text(text: str, session: dict, reply_token: str, user_id: str)
             item = next((m for m in menu if m["id"] == item_id), None)
             if item:
                 session["cart"].append({"id": item["id"], "name": item["name"], "price": item["price"], "qty": qty})
+                # Show flex message with item details
+                bubble = line_client.flex_bubble(
+                    body_boxes=[
+                        line_client.flex_text(f"✅ เพิ่ม {item['name']} x{qty}", weight="bold", size="lg"),
+                        line_client.flex_text(
+                            item.get("description", item["name"]),
+                            size="sm", color="#888888", wrap=True
+                        ),
+                        line_client.flex_text(
+                            f"💰 {item['price'] * qty:.0f} บาท",
+                            size="md", color="#ff6600", weight="bold", margin="md"
+                        ),
+                    ],
+                    footer=[
+                        line_client.flex_button(
+                            "🛒 ดูตะกร้า", "postback",
+                            data="view_cart",
+                            displayText="ดูตะกร้า"
+                        ),
+                        line_client.flex_button(
+                            "➕ สั่งอีก", "postback",
+                            data="show_menu",
+                            displayText="สั่งอีก"
+                        ),
+                    ],
+                )
                 await line_client.reply(reply_token, [
-                    line_client.text(f"✅ เพิ่ม {item['name']} x{qty} ({item['price'] * qty:.0f} บาท) ในตะกร้าแล้ว\n\n{_format_cart(session['cart'])}")
+                    line_client.flex(f"เพิ่มในตะกร้า", [bubble]),
+                    line_client.text(_format_cart(session['cart']))
                 ])
                 return
     
@@ -488,16 +515,41 @@ async def _search_and_show(reply_token: str, keyword: str):
         ])
         return
 
-    items_text = "\n".join(
-        f"• {m['name']} — {m['price']:.0f} บาท"
-        for m in results[:15]
-    )
-    await line_client.reply(reply_token, [
-        line_client.text(
-            f"🔍 พบ {len(results)} รายการ:\n\n{items_text}\n\n"
-            f"พิมพ์ชื่อเมนูเพื่อเพิ่มในตะกร้า 📝"
+    # Show flex carousel with results
+    bubbles = []
+    for item in results[:10]:
+        bubble = line_client.flex_bubble(
+            body_boxes=[
+                line_client.flex_text(item["name"], weight="bold", size="md"),
+                line_client.flex_text(
+                    item.get("description", item["name"]),
+                    size="xs", color="#888888", wrap=True
+                ),
+                line_client.flex_text(
+                    f"💰 {item['price']:.0f} บาท",
+                    size="sm", color="#ff6600", weight="bold", margin="md"
+                ),
+            ],
+            footer=[
+                line_client.flex_button(
+                    "➕ เพิ่ม", "postback",
+                    data=f"add_cart|{item['id']}|{item['name']}|{item['price']}",
+                    displayText=f"เพิ่ม {item['name']}"
+                ),
+            ],
         )
-    ])
+        bubbles.append(bubble)
+    
+    if bubbles:
+        carousel = line_client.flex_carousel(bubbles)
+        await line_client.reply(reply_token, [
+            line_client.text(f"🔍 พบ {len(results)} รายการ:"),
+            line_client.flex("รายการอาหาร", carousel),
+        ])
+    else:
+        await line_client.reply(reply_token, [
+            line_client.text(f"🔍 ไม่พบ '{keyword}' ในเมนู")
+        ])
 
 
 # ═══════════════════════════════════════════════════════════════════════════

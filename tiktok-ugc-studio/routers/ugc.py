@@ -111,48 +111,22 @@ async def ugc_scripts_generate(req: dict):
                 cta = sentences[-1]
                 hook = sentences[0]
     
-    # Also get hashtags + prompts from prompt-builder (single call, reuse across fields)
+    # JSON-template PROMPT PIPELINE REMOVED (owner 2026-09-08 "เอา JSON prompt pipeline
+    # ออกไปเลย" 14:47): เดิมตรงนี้เรียก prompt-builder /api/v1/build แล้วเอาค่า
+    # image_prompt/video_prompt ที่เป็น JSON template ถือขวด/label (ผิดสินค้า เช่น ยีนส์ชาย
+    # -> "Thai woman holds product / office persona / label crisp") กลับมาแสดง/คืน frontend
+    # เพื่อไปสร้างรูป/วิดีโอ ตรงข้ามกับเส้นทาง /video/generate ที่เป็น Mimo AI-authored อยู่แล้ว
+    # การสร้างวิดีโอจริง (ทั้ง one-click startGeneration และ step-wizard) ผ่าน /video/generate
+    # = Mimo เขียน prompt ล้วน ไม่ต้องใช้ template นี้.
+    # เหลือแฮชแท็ก/ฉาก/เสียงที่ได้จาก script (video module) ไม่ใช้ pb-template อีกต่อไป.
     hashtags = []
-    image_prompt = ""
-    video_prompt = ""
-    negative_prompt = ""
     scene = ""
     voice = ""
     mood = ""
-    try:
-        pb_result = await _proxy("POST", "prompt-builder", "/api/v1/build", {
-            "product_name": product_title,
-            "description": req.get("product_details", req.get("description", "")),
-            "features": req.get("features", req.get("product_features", "")),
-            "keywords": req.get("keywords", req.get("product_keywords", [])),
-            "category": req.get("category", req.get("product_category", "")),
-            "product_category": req.get("product_category", ""),
-            "target_age": req.get("target_age", ""),
-            "target_gender": req.get("target_gender", ""),
-            "price": req.get("price", 0),
-            "product_image": req.get("product_image", req.get("image_url", req.get("product_image_url", ""))),
-            "ugc_style": req.get("ugc_style", "holding"),
-        })
-        pb_data = pb_result.get("data") if isinstance(pb_result.get("data"), dict) else (pb_result if isinstance(pb_result, dict) else {})
-        if pb_data:
-            analysis = pb_data.get("analysis", {})
-            if isinstance(analysis, str):
-                analysis = {}
-            hashtags = analysis.get("hashtags", [])
-            image_prompt = pb_data.get("image_prompt", "")
-            video_prompt = pb_data.get("video_prompt", "")
-            negative_prompt = pb_data.get("negative_prompt", "")
-            setting = analysis.get("setting", "")
-            target_gender = analysis.get("target_gender", "female")
-            target_age = analysis.get("target_age")
-            ugc_style_display = {"holding":"ถือสินค้า", "usage":"ใช้สินค้า", "review":"รีวิว", "unboxing":"แกะกล่อง"}.get(req.get("ugc_style", "holding"), req.get("ugc_style", "holding"))
-            # Derive scene/voice/mood from analysis data (age from analysis only — no fallback)
-            scene = f"UGC {ugc_style_display} หน้ากากหลัง {setting or 'เรียบ'}"
-            age_desc = f" อายุ {target_age}" if target_age else ""
-            voice = f"เสียงไทย{target_gender}{age_desc} น้ำเสียง{req.get('tone', 'เป็นกันเอง')}"
-            mood = f"{req.get('tone', 'เป็นกันเอง')}, สบายๆ, อบอุ่น"
-    except Exception:
-        pass
+    _style_disp = {"holding":"ถือสินค้า", "usage":"ใช้สินค้า", "review":"รีวิว", "unboxing":"แกะกล่อง"}.get(req.get("ugc_style", "holding"), req.get("ugc_style", "holding"))
+    scene = f"UGC {_style_disp} หน้ากล้อง ฉากเรียบ"
+    voice = f"เสียงไทย{req.get('target_gender', req.get('gender', '')) or 'หญิง'} น้ำเสียง{req.get('tone', 'เป็นกันเอง')}".replace("หญิง ", "หญิง ") if req.get('target_gender') or req.get('gender') else f"เสียงไทย น้ำเสียง{req.get('tone', 'เป็นกันเอง')}"
+    mood = f"{req.get('tone', 'เป็นกันเอง')}, สบายๆ, อบอุ่น"
 
     return {
         "success": True,
@@ -164,9 +138,10 @@ async def ugc_scripts_generate(req: dict):
         "duration": script_obj.get("duration", "8s"),
         "product": script_obj.get("product", ""),
         "hashtags": hashtags,
-        "prompt": image_prompt,
-        "video_prompt": video_prompt,
-        "negative_prompt": negative_prompt,
+        # JSON-template prompts removed — video/script generation ใช้ /video/generate (Mimo)
+        "prompt": "",
+        "video_prompt": "",
+        "negative_prompt": "",
         "scene": scene,
         "voice": voice,
         "mood": mood,
@@ -174,62 +149,32 @@ async def ugc_scripts_generate(req: dict):
 
 @router.post("/ugc/images/build-prompt")
 async def ugc_images_build_prompt(req: dict):
-    """Frontend compatibility endpoint for image prompt generation."""
-    result = await _proxy("POST", "prompt-builder", "/api/v1/build", req)
-    if result.get("ok"):
-        data = result.get("data", {})
-        return {"prompt": data.get("image_prompt", "")}
-    raise HTTPException(status_code=500, detail=result.get("error", "Prompt generation failed"))
+    """Frontend compatibility endpoint for image prompt generation.
+    JSON-template PROMPT PIPELINE REMOVED (owner 2026-09-08): เดิมคืน pb JSON-template
+    image_prompt (ถือขวด/label ผิดสินค้า). ตอนนี้ image/video prompt เขียนโดย Mimo ผ่าน
+    เส้นทาง /video/generate pipeline เท่านั้น — ตัว build-prompt แบบ editor นี้ออกไปแล้ว.
+    """
+    # No pb JSON-template authoring here anymore. The video pipeline (analyze_product,
+    # Mimo) authors product-correct prompts. Return empty so editor doesn't fire a
+    # wrong-product template image.
+    raise HTTPException(status_code=410, detail="JSON-template prompt pipeline removed — ใช้เส้นทาง /video/generate (Mimo เขียน prompt เอง) แทน")
 
 @router.post("/ugc/images/generate")
 async def ugc_images_generate(req: dict):
     """Frontend compatibility endpoint for image generation.
-    Frontend calls build-prompt first, then sends {prompt, count, image_url} here."""
-    prompt = req.get("prompt", "")
-    if not prompt:
-        # Fallback: build prompt from product data if frontend didn't pre-build
-        prompt_result = await _proxy("POST", "prompt-builder", "/api/v1/build", req)
-        if prompt_result.get("ok"):
-            prompt = prompt_result.get("data", {}).get("image_prompt", "")
-    if not prompt:
-        raise HTTPException(status_code=500, detail="No image prompt provided or generated")
-
-    gen_req = {
-        "prompt": prompt,
-        "aspectRatio": req.get("aspect_ratio", "9:16"),
-        "model": "nano-banana",
-    }
-    # Pass image_url as inputImage for img2img (Nano Banana)
-    if req.get("image_url"):
-        gen_req["inputImage"] = req["image_url"]
-    result = await _proxy("POST", "image-gen", "/api/v1/image/generate", gen_req)
-    if result.get("ok"):
-        # image-gen returns the full image record directly (no envelope)
-        # Wrap it as {"data": <record>} so frontend can read data.images[0].url
-        return {"data": result}
-    raise HTTPException(status_code=500, detail=result.get("error", "Image generation failed"))
+    JSON-template PROMPT PIPELINE REMOVED (owner 2026-09-08): image_prompt ของ nano-banana
+    ต้องมาจาก Mimo ของ video pipeline ไม่ใช่ pb JSON template (ถือขวด/label ผิดสินค้า).
+    """
+    raise HTTPException(status_code=410, detail="JSON-template image generation removed — ใช้ /video/generate (Mimo เขียน prompt เอง) แทน")
 
 @router.post("/ugc/videos/build-prompt")
 async def ugc_videos_build_prompt(req: dict):
-    """Build video prompt from product data (Step 3→4 bridge).
-    Calls Prompt Builder then returns video_prompt + negative_prompt.
+    """Build video prompt — JSON-template PROMPT PIPELINE REMOVED (owner 2026-09-08).
+    เดิมคืน pb JSON-template video_prompt (ถือขวด/label ผิดสินค้า). ตอนนี้ไม่มีอีกแล้ว:
+    video prompt เขียนโดย Mimo ของ video pipeline ผ่าน /video/generate เท่านั้น
+    (routes/video.py ส่ง prompt ว่าง -> analyze_product คิดเองด้วย Mimo).
     """
-    result = await _proxy("POST", "prompt-builder", "/api/v1/build", req)
-    data = result.get("data") if isinstance(result.get("data"), dict) else (result if isinstance(result, dict) else {})
-    if data:
-        analysis = data.get("analysis", {})
-        if isinstance(analysis, str):
-            try:
-                import json as _json
-                analysis = _json.loads(analysis)
-            except Exception:
-                analysis = {}
-        return {
-            "video_prompt": data.get("video_prompt", ""),
-            "negative_prompt": data.get("negative_prompt", ""),
-            "script": analysis,
-        }
-    raise HTTPException(status_code=500, detail=result.get("error", "Prompt generation failed"))
+    raise HTTPException(status_code=410, detail="JSON-template video-prompt removed — ใช้ /video/generate (Mimo เขียน prompt เอง) แทน")
 
 from fastapi.staticfiles import StaticFiles
 

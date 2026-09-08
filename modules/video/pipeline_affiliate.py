@@ -149,6 +149,20 @@ def _deepseek_key() -> str:
     return k
 
 
+def _mimo_key() -> str:
+    """Resolve Mimo (xiaomi) API key: env MIMO_API_KEY first, then openclaw.json provider 'xiaomi'."""
+    k = os.environ.get("MIMO_API_KEY", "") or ""
+    if not k:
+        try:
+            _p = os.path.expanduser("/home/openhands/.openclaw/openclaw.json")
+            if os.path.exists(_p):
+                _cfg = json.load(open(_p))
+                k = _cfg.get("models", {}).get("providers", {}).get("xiaomi", {}).get("apiKey") or ""
+        except Exception:
+            k = ""
+    return k
+
+
 def _deepseek_product_prompts(product_name: str, description: str, ugc_style: str = "holding",
                               category: str = "", subcategory: str = "",
                               special_target: str = "", usage_howto: str = "",
@@ -164,9 +178,28 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
     (caller keeps the existing prompt-builder output as fallback).
     """
     try:
-        api_key = _deepseek_key()
-        if not api_key:
-            logger.warning("_deepseek_product_prompts: no DEEPSEEK key available")
+        # Provider priority: Mimo (xiaomi) first, DeepSeek fallback.
+        _mimo_key_ = _mimo_key()
+        _ds_key_ = _deepseek_key()
+        _providers = []
+        if _mimo_key_:
+            _providers.append({
+                "name": "mimo",
+                "url": "https://token-plan-sgp.xiaomimimo.com/v1/chat/completions",
+                "model": "mimo-v2.5",
+                "key": _mimo_key_,
+                "max_tokens": 2000,
+            })
+        if _ds_key_:
+            _providers.append({
+                "name": "deepseek",
+                "url": "https://api.deepseek.com/v1/chat/completions",
+                "model": "deepseek-v4-flash",
+                "key": _ds_key_,
+                "max_tokens": 1500,
+            })
+        if not _providers:
+            logger.warning("_deepseek_product_prompts: no Mimo/DeepSeek key available")
             return None
         sysprompt = (
             "You are an expert UGC (User-Generated Content) video prompt engineer for TikTok, Reels, and Shorts. "
@@ -214,44 +247,55 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
                      "\nWrite natural-realistic image and video prompts for this product. Choose the real-world scene yourself from "
                      "the product alone; do not rely on any style label. Real settings, believable faces, no green screen / chroma, "
                      "no exaggerated cartoon reaction faces.")
-        payload = {
-            "model": "deepseek-v4-flash",
-            "messages": [{"role": "system", "content": sysprompt},
-                          {"role": "user", "content": user_text}],
-            "max_tokens": 1500,
-            "temperature": 0.4,
-        }
-        headers = {"Content-Type": "application/json", "Authorization": "Bearer " + api_key}
-        url = "https://api.deepseek.com/v1/chat/completions"
-        for _attempt in range(3):
-            try:
-                _res = requests.post(url, headers=headers, json=payload, timeout=200)
-                if _res.status_code == 200:
-                    _data = _res.json()
-                    _content = ((_data["choices"][0]["message"].get("content") or "").strip() or "")
-                    if not _content:
-                        logger.warning("_deepseek_product_prompts empty content, retry")
-                        continue
-                    import re as _re
-                    _m = _re.search(r"\{[\s\S]*\}", _content)
-                    _clean = _m.group(0) if _m else _content
-                    try:
-                        _obj = json.loads(_clean)
-                    except Exception:
+        for _prov in _providers:
+            payload = {
+                "model": _prov["model"],
+                "messages": [{"role": "system", "content": sysprompt},
+                              {"role": "user", "content": user_text}],
+                "max_tokens": _prov["max_tokens"],
+                "temperature": 0.4,
+            }
+            headers = {"Content-Type": "application/json", "Authorization": "Bearer " + _prov["key"]}
+            url = _prov["url"]
+            for _attempt in range(3):
+                try:
+                    _res = requests.post(url, headers=headers, json=payload, timeout=200)
+                    if _res.status_code == 200:
+                        _data = _res.json()
+                        _content = ((_data["choices"][0]["message"].get("content") or "").strip() or "")
+                        if not _content:
+                            logger.warning(f"_deepseek_product_prompts [{_prov['name']}] empty content, retry")
+                            continue
+                        import re as _re
                         _obj = {}
-                    _img = (_obj.get("image_prompt") or "").strip()
-                    _vid = (_obj.get("video_prompt") or "").strip()
-                    if _img and _vid:
-                        logger.info(f"_deepseek_product_prompts: got AI prompts from DeepSeek "
-                                    f"(img {len(_img)}ch, vid {len(_vid)}ch)")
-                        return {"image_prompt": _img, "video_prompt": _vid}
-                    logger.warning("_deepseek_product_prompts: JSON missing image/video keys")
-                    return None
-                else:
-                    logger.warning(f"_deepseek_product_prompts api {_res.status_code}: {_res.text[:150]}")
-                    return None
-            except Exception as _e:
-                logger.warning(f"_deepseek_product_prompts attempt {_attempt + 1} error: {_e}")
+                        try:
+                            # Try direct full-JSON parse first (Mimo often returns clean JSON)
+                            _obj = json.loads(_content)
+                        except Exception:
+                            # Fallback: strip any leading prose and grab outer {...}
+                            _s = _content.find("{")
+                            if _s != -1:
+                                _e = _content.rfind("}")
+                                if _e > _s:
+                                    try:
+                                        _obj = json.loads(_content[_s:_e + 1])
+                                    except Exception:
+                                        _obj = {}
+                                    else:
+                                        _obj = _obj or {}
+                        _img = (_obj.get("image_prompt") or "").strip()
+                        _vid = (_obj.get("video_prompt") or "").strip()
+                        if _img and _vid:
+                            logger.info(f"_deepseek_product_prompts: got AI prompts from {_prov['name']} "
+                                        f"({_prov['model']}, img {len(_img)}ch, vid {len(_vid)}ch)")
+                            return {"image_prompt": _img, "video_prompt": _vid}
+                        logger.warning(f"_deepseek_product_prompts [{_prov['name']}] JSON missing image/video keys")
+                        break
+                    else:
+                        logger.warning(f"_deepseek_product_prompts [{_prov['name']}] api {_res.status_code}: {_res.text[:150]}")
+                        break
+                except Exception as _e:
+                    logger.warning(f"_deepseek_product_prompts [{_prov['name']}] attempt {_attempt + 1} error: {_e}")
         return None
     except Exception as _e:
         logger.warning(f"_deepseek_product_prompts failed: {_e}")

@@ -16,6 +16,7 @@ import os
 import json
 import hashlib
 import hmac
+import base64
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -23,11 +24,6 @@ from pathlib import Path
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse, PlainTextResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-
-from line_client import line_client, CHANNEL_SECRET, CHANNEL_ACCESS_TOKEN
-from handlers import handle_webhook
-from line_richmenu import setup_rich_menus
-from store_payment import router as store_payment_router
 
 logger = logging.getLogger("line-bot")
 
@@ -38,12 +34,19 @@ _env_path = Path(__file__).resolve().parents[2] / ".env"  # /home/openhands/erp-
 if _env_path.exists():
     try:
         from dotenv import load_dotenv
-        load_dotenv(_env_path, override=False)
+        load_dotenv(_env_path, override=True)
         logger.info(f"Loaded env file: {_env_path}")
     except Exception as _e:  # pragma: no cover
         logger.warning(f"dotenv load failed ({_e}); relying on process env")
 else:
     logger.warning(f".env not found at {_env_path}; using process env only")
+
+from line_client import line_client, CHANNEL_SECRET, CHANNEL_ACCESS_TOKEN
+from handlers import handle_webhook
+from line_richmenu import setup_rich_menus
+from store_payment import router as store_payment_router
+
+
 
 # Static dir สำหรับเก็บ QR PromptPay ชั่วคราว (เสิร์ฟผ่าน /slip_qr/*)
 QR_STATIC_DIR = Path(__file__).parent / "qr_static"
@@ -97,20 +100,25 @@ app.include_router(store_payment_router)
 
 # ── LINE Signature Verification ───────────────────────────────────────────
 
+# Accept BOTH channel secrets (user has 2 LINE channels pointing to same webhook)
+_SECONDARY_SECRET = os.environ.get("LINE_CHANNEL_SECRET", "")
+
 def _verify_signature(body: bytes, signature: str) -> bool:
-    """Verify LINE webhook signature using channel secret."""
+    """Verify LINE webhook signature using channel secret (tries both secrets)."""
     if not CHANNEL_SECRET:
         logger.warning("CHANNEL_SECRET not set — skipping signature verification")
         return True
     if not signature:
         logger.warning("No signature in request")
         return False
-    expected = hmac.new(
-        CHANNEL_SECRET.encode("utf-8"),
-        body,
-        hashlib.sha256,
-    ).hexdigest()
-    return hmac.compare_digest(expected, signature)
+    # Try primary secret first
+    for secret in [s for s in [CHANNEL_SECRET, _SECONDARY_SECRET] if s]:
+        expected = base64.b64encode(
+            hmac.new(secret.encode("utf-8"), body, hashlib.sha256).digest()
+        ).decode()
+        if hmac.compare_digest(expected, signature):
+            return True
+    return False
 
 
 # ── Routes ────────────────────────────────────────────────────────────────

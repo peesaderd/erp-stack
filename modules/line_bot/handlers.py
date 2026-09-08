@@ -43,6 +43,48 @@ async def _get_reward_handler():
 
 logger = logging.getLogger("line-bot.handlers")
 
+# ── AI Integration (Gemini) ──────────────────────────────────────────────
+import google.generativeai as genai
+
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+
+async def _parse_order_with_ai(text: str, menu: list[dict]) -> list[dict]:
+    """Use Gemini AI to parse natural language order."""
+    if not GEMINI_API_KEY:
+        return []
+    
+    menu_list = "\n".join([f"- {m['id']}: {m['name']} ({m['price']} บาท)" for m in menu])
+    
+    prompt = f"""You are a Thai restaurant order parser. Parse the user's message into a list of menu items.
+
+Available menu items:
+{menu_list}
+
+User message: {text}
+
+Return ONLY a JSON array of objects with format:
+[{{"item_id": "MAIN001", "qty": 2}}]
+
+If the message is not an order, return an empty array [].
+Do not include any explanation, only JSON."""
+    
+    try:
+        model = genai.GenerativeModel("gemini-2.0-flash")
+        response = model.generate_content(prompt)
+        result = response.text.strip()
+        # Extract JSON from response
+        if "[" in result and "]" in result:
+            start = result.index("[")
+            end = result.index("]") + 1
+            import json
+            items = json.loads(result[start:end])
+            return items
+    except Exception as e:
+        logger.error(f"AI parse error: {e}")
+    return []
+
 # ── Payment (PromptPay QR + SlipOK verify) Integration ─────────────────
 _payment_handlers = None
 async def _get_payment_handlers():

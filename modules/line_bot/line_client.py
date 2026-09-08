@@ -22,7 +22,9 @@ logger = logging.getLogger("line-bot.client")
 # ── Credentials ──────────────────────────────────────────────────────────
 
 CHANNEL_ACCESS_TOKEN = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN", "")
-CHANNEL_SECRET = os.environ.get("LINE_BOT_CHANNEL_SECRET", "")
+# 优先使用 LINE_BOT_CHANNEL_SECRET (@138rbuez)
+CHANNEL_SECRET = os.environ.get("LINE_BOT_CHANNEL_SECRET", "") or os.environ.get("LINE_CHANNEL_SECRET", "")
+print(f"[LINE-BOT] Using channel secret: {CHANNEL_SECRET[:8]}... (from {'LINE_BOT_CHANNEL_SECRET' if os.environ.get('LINE_BOT_CHANNEL_SECRET') else 'LINE_CHANNEL_SECRET'})")
 
 # ── API Endpoints ────────────────────────────────────────────────────────
 

@@ -109,7 +109,7 @@ async def _get_menu_from_pos() -> list[dict]:
     """Fetch menu from POS API, fallback to mock."""
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
-            resp = await client.get(f"{POS_API_URL}/pos/public/menu")
+            resp = await client.get(f"{POS_API_URL}/pos/menu")
             if resp.status_code == 200:
                 data = resp.json()
                 if data:
@@ -369,9 +369,53 @@ async def _handle_text(text: str, session: dict, reply_token: str, user_id: str)
         return
 
     # ── Search menu ────────────────────────────────────────────────────
+    # Thai name aliases
+    THAI_ALIASES = {
+        "ผัดไทย": "MAIN001", "ผัดไทยกุ้ง": "MAIN001",
+        "ต้มยำ": "APP002", "ต้มยำกุ้ง": "APP002",
+        "ส้มตำ": "APP003", "ส้มตำไทย": "APP003",
+        "สะเต๊ะ": "APP004", "สะเต๊ะไก่": "APP004",
+        "แกงเขียวหวาน": "MAIN002", "แกงเขียวหวานไก่": "MAIN002",
+        "แกงมัสมั่น": "MAIN003",
+        "ผัดกะเพรา": "MAIN004", "กะเพราหมู": "MAIN004", "ข้าวผัดกะเพราหมู": "MAIN004",
+        "ต้มข่า": "MAIN005", "ต้มข่าไก่": "MAIN005",
+        "ผัดซีอิ๊ว": "MAIN006",
+        "แกงพะแนง": "MAIN008", "พะแนง": "MAIN008",
+        "ข้าวเหนียวมะม่วง": "DES001", "มะม่วง": "DES001",
+        "ชาเย็น": "BEV001", "ชาไทย": "BEV001",
+        "กาแฟเย็น": "BEV002", "โอเลี้ยง": "BEV002",
+        "ข้าวสวย": "SID001", "ข้าวเปล่า": "SID001",
+        "ไข่ดาว": "SID003",
+        "น้ำเปล่า": "BEV006", "น้ำ": "BEV006",
+        "เบียร์สิงห์": "BEV007", "สิงห์": "BEV007",
+        "เบียร์ช้าง": "BEV008", "ช้าง": "BEV008",
+    }
+    
     # Check if text matches a menu item pattern
     menu = await _get_menu_from_pos()
+    
+    # Try to parse "ผัดไทย 1 จาน" format
+    import re
+    order_match = re.match(r'(.+?)\s*(\d+)\s*(จาน|ถ้วย|แก้ว|ชิ้น|แผ่น| bunch| glass)?', text_lower)
+    if order_match:
+        food_name = order_match.group(1).strip()
+        qty = int(order_match.group(2))
+        # Check Thai aliases
+        if food_name in THAI_ALIASES:
+            item_id = THAI_ALIASES[food_name]
+            item = next((m for m in menu if m["id"] == item_id), None)
+            if item:
+                session["cart"].append({"id": item["id"], "name": item["name"], "price": item["price"], "qty": qty})
+                await line_client.reply(reply_token, [
+                    line_client.text(f"✅ เพิ่ม {item['name']} x{qty} ({item['price'] * qty:.0f} บาท) ในตะกร้าแล้ว\n\n{_format_cart(session['cart'])}")
+                ])
+                return
+    
     found = [m for m in menu if text_lower in m["name"].lower() or text_lower in m.get("description", "").lower()]
+    # Also check Thai aliases
+    if not found and text_lower in THAI_ALIASES:
+        item_id = THAI_ALIASES[text_lower]
+        found = [m for m in menu if m["id"] == item_id]
 
     if found:
         # Show matching items with add-to-cart buttons

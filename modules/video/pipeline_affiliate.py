@@ -227,10 +227,9 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
     """Have Mimo write the image/video prompts fresh from the actual product.
 
     Boss directive 2026-09-08: use Mimo exclusively (ไมใช่ DeepSeek).
-    Mimo v2.5 (xiaomi) is the SOLE prompt-writer here; the previous DeepSeek fallback
-    was removed. On Mimo failure this returns None and the caller keeps the existing
-    prompt-builder output as fallback (never a hard break). DeepSeek/Gemini/Mistral are
-    no longer used to author prompts.
+    Mimo v2.5 / mimo-v2.5-pro (xiaomi) are the ONLY prompt-writers here; the previous
+    DeepSeek fallback was removed. On total Mimo failure this returns None and the caller
+    fails loudly (never falls back to the prompt-builder JSON bottle template).
 
     Returns {"image_prompt": str, "video_prompt": str} or None on any failure.
     """
@@ -238,14 +237,24 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
         _mimo_key_ = _mimo_key()
         _providers = []
         if _mimo_key_:
+            # Mimo v2.5 base tier first.
             _providers.append({
                 "name": "mimo",
                 "url": "https://token-plan-sgp.xiaomimimo.com/v1/chat/completions",
                 "model": "mimo-v2.5",
                 "key": _mimo_key_,
-                "max_tokens": 1500,
+                "max_tokens": 1800,
             })
-        # DeepSeek fallback REMOVED per boss "ใช้ Mimo ทั้งหมดเลย" (2026-09-08).
+            # Mimo v2.5-pro tier = second shot when base returns empty (still 100% Mimo,
+            # boss "ใช้ Mimo ทั้งหมดเลย"). pro+dropropriate budget reliably returns the JSON.
+            _providers.append({
+                "name": "mimo-pro",
+                "url": "https://token-plan-sgp.xiaomimimo.com/v1/chat/completions",
+                "model": "mimo-v2.5-pro",
+                "key": _mimo_key_,
+                "max_tokens": 2000,
+            })
+        # DeepSeek/Gemini/Mistral fallback REMOVED per boss "ใช้ Mimo ทั้งหมดเลย" (2026-09-08).
         if not _providers:
             logger.warning("_deepseek_product_prompts: no Mimo key available")
             return None
@@ -325,8 +334,6 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
                             _vid = _prompts[0].strip()
                         _img = _obj.get("image_prompt")
                         _img = _img.strip() if isinstance(_img, str) else ""
-                        _img = _obj.get("image_prompt")
-                        _img = _img.strip() if isinstance(_img, str) else ""
                         if _img and _vid:
                             logger.info(f"_deepseek_product_prompts: got AI prompts from {_prov['name']} "
                                         f"({_prov['model']}, img {len(_img)}ch, vid {len(_vid)}ch)")
@@ -391,16 +398,18 @@ def analyze_product(product_name: str, product_image: str = None, description: s
         profile = data.get("analysis", {})
         logger.info(f"  Analyzed: {profile.get('category')} / {profile.get('target_gender')}")
 
-        # เก็บ image_prompt + video_prompt + negative_prompt ที่ได้จาก API
-        profile["_image_prompt"] = data.get("image_prompt", "")
-        profile["_video_prompt"] = data.get("video_prompt", "")
+        # Only the negative_prompt (exclusion keywords, not the bottle template) is safe to
+        # keep from prompt-builder. image/video prompts are authored by Mimo below — we do
+        # NOT install the pb JSON-template image/video_prompt anymore (boss 2026-09-08).
+        profile["_image_prompt"] = ""
+        profile["_video_prompt"] = ""
         profile["_negative_prompt"] = data.get("negative_prompt", "")
 
-        # ── DeepSeek AI-authored prompts override (owner 2026-09-06) ──
-        # prompt-builder returns fixed template prompts (hold/bottle/label) that caused
-        # jeans to be filmed as held bottles. Try to get fresh per-product prompts from
-        # DeepSeek first; if it succeeds, override. If it fails, keep the template so the
-        # run never breaks (builder output stays as safe fallback).
+        # ── Mimo AI-authored prompts (boss 2026-09-08): Mimo is the SOLE image/video prompt
+        # author. pb /build is only used above for analysis (category/scenes/script), never for
+        # authoring image/video prompts. The old fallback that kept the pb JSON template
+        # (hold/bottle/label, caused jeans→bottles) is removed — if Mimo fails we fail loudly
+        # rather than ship a wrong-template prompt ("break is break" owner note).
         _ds = _deepseek_product_prompts(
             product_name, description, ugc_style,
             category=category or (profile or {}).get("category", ""),
@@ -413,10 +422,12 @@ def analyze_product(product_name: str, product_image: str = None, description: s
         if _ds and _ds.get("image_prompt") and _ds.get("video_prompt"):
             profile["_image_prompt"] = _ds["image_prompt"]
             profile["_video_prompt"] = _ds["video_prompt"]
-            logger.info(f"  ✅ Overwrote image/video prompts with DeepSeek AI-authored version "
-                        f"(replaced template for {product_name!r})")
+            logger.info(f"  ✅ Mimo authored image/video prompts for {product_name!r} (no JSON template)")
         else:
-            logger.info("  DeepSeek AI prompts unavailable/failed — keeping prompt-builder prompts")
+            logger.error(f"  Mimo failed to author prompts for {product_name!r} — refusing prompt-builder JSON template fallback")
+            raise RuntimeError(
+                f"Mimo prompt authoring failed (no JSON-template fallback). Product={product_name!r}: prompt-builder returned no usable Mimo prompt"
+            )
 
         # ── Beat-timed script จาก service (single source of truth) ──
         # timing_validation/scripts.full_script สร้างจาก router_config.scenes

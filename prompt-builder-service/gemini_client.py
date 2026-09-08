@@ -178,99 +178,73 @@ def _call_mistral_text(system_prompt: str, user_text: str, temperature: float = 
 
 
 
-def _call_gemini(system_prompt: str, user_text: str, temperature: float = 0.3, max_output_tokens: int = 500, response_mime_type: str = "") -> Optional[str]:
-    """Call Gemini API with system instruction.
+def _mimo_key() -> str:
+    """Resolve Mimo (xiaomi) API key: env MIMO_API_KEY first, then openclaw.json provider 'xiaomi'."""
+    k = os.environ.get("MIMO_API_KEY", "") or ""
+    if not k:
+        try:
+            _p = os.path.expanduser("/home/openhands/.openclaw/openclaw.json")
+            if os.path.exists(_p):
+                _cfg = json.load(open(_p))
+                k = _cfg.get("models", {}).get("providers", {}).get("xiaomi", {}).get("apiKey") or ""
+        except Exception:
+            k = ""
+    return k
 
-    thinking_config: disables Gemini 2.5 thinking tokens so long/JSON responses
-    are not cut mid-way by MAX_TOKENS (finishReason=MAX_TOKENS bug where the
-    model spends its budget on hidden thoughts, then output gets truncated).
+
+def _call_gemini(system_prompt: str, user_text: str, temperature: float = 0.3, max_output_tokens: int = 500, response_mime_type: str = "") -> Optional[str]:
+    """Product-analysis / decision text LLM. Boss directive 2026-09-08 "ใช้ Mimo ทั้งหมดเลย":
+    this now routes through Mimo (mimo-v2.5 then mimo-v2.5-pro), NOT Gemini. Every call site
+    that historically depended on Gemini (pb analyze_product, router text, title-clean,
+    spoken-name translit) automatically becomes Mimo here — single transport lever.
+
+    max_tokens is BUMST to >=8000 internally because Mimo reasoning_content (~4500 tokens)
+    otherwise eats the budget and returns content="" (finish_reason=length). The caller-facing
+    signature keeps max_output_tokens so downstream has the same contract, but we floor it
+    at 8000 to guarantee content room after reasoning.
     """
-    api_key = _get_gemini_key()
-    if not api_key:
-        logger.warning("No GEMINI_API_KEY set in environment")
+    _key = _mimo_key()
+    if not _key:
+        logger.warning("No MIMO_API_KEY set in environment (Mimo-only, boss 2026-09-08)")
         return None
-    try:
-        model = GEMINI_MODEL_NAME
-        url = f"{GEMINI_API_URL}/{model}:generateContent"
-        gen_config = {
-            "temperature": temperature,
-            "maxOutputTokens": max_output_tokens,
-            "thinkingConfig": {"thinkingBudget": 0},
-        }
-        if response_mime_type:
-            gen_config["responseMimeType"] = response_mime_type
+    if response_mime_type:
+        # Mimo text transport returns raw text; the caller JSON-decodes via _extract_json.
+        pass
+    _floor = max(int(max_output_tokens or 500), 8000)
+    url = "https://token-plan-sgp.xiaomimimo.com/v1/chat/completions"
+    tiers = [("mimo", "mimo-v2.5", _floor), ("mimo-pro", "mimo-v2.5-pro", _floor)]
+    for _nm, _mdl, _mt in tiers:
         payload = {
-            "system_instruction": {"parts": [{"text": system_prompt}]},
-            "contents": [{"parts": [{"text": user_text}]}],
-            "generationConfig": gen_config,
+            "model": _mdl,
+            "messages": [{"role": "system", "content": system_prompt},
+                          {"role": "user", "content": user_text}],
+            "max_tokens": _mt,
+            "temperature": float(temperature or 0.3),
         }
-        resp = requests.post(
-            url,
-            headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
-            json=payload,
-            timeout=30,
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            return data["candidates"][0]["content"]["parts"][0]["text"]
-        else:
-            logger.error(f"Gemini API error ({resp.status_code}): {resp.text[:200]}")
-            # Owner 2026-09-02: Gemini ล่ม/ billing 403 → สลับไป Mistral Nemo
-            # กันการตก fallback บทสำเร็จรูปซ้ำ ๆ (ต้นตอ script แย่ vid_4947bbe9)
-            logger.warning("  → falling back to Mistral Nemo (open-mistral-nemo)")
-            return _call_mistral_text(system_prompt, user_text, temperature, max_output_tokens)
-    except Exception as e:
-        logger.error(f"Gemini call failed: {e}")
-        logger.warning("  → falling back to Mistral Nemo (open-mistral-nemo)")
-        return _call_mistral_text(system_prompt, user_text, temperature, max_output_tokens)
+        try:
+            resp = requests.post(url, headers={"Content-Type": "application/json", "Authorization": "Bearer " + _key}, json=payload, timeout=90)
+            if resp.status_code == 200:
+                _c = ((resp.json()["choices"][0]["message"].get("content") or "").strip() or "")
+                if _c:
+                    return _c
+                logger.warning(f"Mimo {_nm} empty (reasoning ate budget?) -> next tier")
+            else:
+                logger.warning(f"Mimo {_nm} api error {resp.status_code}: {resp.text[:200]}")
+        except Exception as e:
+            logger.error(f"Mimo {_nm} call failed: {e}")
+    # Mimo-only: no Gemini / Mistral fallback (fail loudly = None, caller decides).
+    return None
 
 
 def _call_gemini_vision(system_prompt: str, user_text: str, image_url: str, temperature: float = 0.3, max_output_tokens: int = 500, response_mime_type: str = "") -> Optional[str]:
-    """Call Gemini API with image input (multimodal)."""
-    api_key = _get_gemini_key()
-    if not api_key:
-        logger.warning("No GEMINI_API_KEY set in environment")
-        return None
-    if not image_url:
-        return None
-    try:
-        image_url = _resolve_image_url(image_url)
-        img_resp = requests.get(image_url, timeout=30)
-        img_resp.raise_for_status()
-        img_b64 = base64.b64encode(img_resp.content).decode("utf-8")
-        mime = img_resp.headers.get("content-type", "image/jpeg")
-        model = GEMINI_MODEL_NAME
-        url = f"{GEMINI_API_URL}/{model}:generateContent"
-        gen_config = {
-            "temperature": temperature,
-            "maxOutputTokens": max_output_tokens,
-            "thinkingConfig": {"thinkingBudget": 0},
-        }
-        if response_mime_type:
-            gen_config["responseMimeType"] = response_mime_type
-        payload = {
-            "system_instruction": {"parts": [{"text": system_prompt}]},
-            "contents": [{"parts": [
-                {"text": user_text},
-                {"inlineData": {"mimeType": mime, "data": img_b64}}
-            ]}],
-            "generationConfig": gen_config,
-        }
-        resp = requests.post(
-            url,
-            headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
-            json=payload,
-            timeout=60,
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            return data["candidates"][0]["content"]["parts"][0]["text"]
-        else:
-            logger.error(f"Gemini Vision API error ({resp.status_code}): {resp.text[:200]}")
-            return None
-    except Exception as e:
-        logger.error(f"Gemini Vision call failed: {e}")
-        return None
+    """Gemini-Vision product/image analysis — DISABLED.
+
+    Boss directive 2026-09-08 "ไม่เอา vision วิเคราะห์รูปสินค้า เอาออกไปเลย": never
+    run pixel analysis on the product image. Analysis is text-only elsewhere. This shim
+    always returns None so any residual caller cannot fire a Gemini-Vision request.
+    """
+    logger.warning("_call_gemini_vision DISABLED (boss 2026-09-08 no vision on product image)")
+    return None
 
 
 # ═══════════════════════════════════════════════════════════════════════

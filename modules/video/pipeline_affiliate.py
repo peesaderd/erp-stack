@@ -135,6 +135,63 @@ def concat_videos(video_paths: list, output_path: Path) -> Path:
 # STEP 1: Analyze Product (Mistral)
 # ═══════════════════════════════════════════════════════════════════════════
 
+def _extract_json_obj(_content: str):
+    """Robustly pull a JSON object from an LLM reply that may contain prose / markdown fences
+    / extra nested braces. Tries, in order: direct whole-string parse, ```json ... ``` fence,
+    then a balanced outer-brace slice (tracks depth so prose braces don't truncate the object)."""
+    import re as _re
+    _content = (_content or "").strip()
+    # 1) direct
+    try:
+        _o = json.loads(_content)
+        if isinstance(_o, dict):
+            return _o
+    except Exception:
+        pass
+    # 2) fenced ```json ... ```
+    _m = _re.search(r"```(?:json)?\s*([\s\S]*?)```", _content, _re.IGNORECASE)
+    if _m:
+        try:
+            _o = json.loads(_m.group(1).strip())
+            if isinstance(_o, dict):
+                return _o
+        except Exception:
+            pass
+    # 3) balanced outer braces: find first '{', then depth-scan for the matching final '}'
+    _i = _content.find("{")
+    while _i != -1:
+        _depth = 0
+        _in_str = False
+        _esc = False
+        for _j in range(_i, len(_content)):
+            _ch = _content[_j]
+            if _in_str:
+                if _esc:
+                    _esc = False
+                elif _ch == "\\":
+                    _esc = True
+                elif _ch == '"':
+                    _in_str = False
+                continue
+            if _ch == '"':
+                _in_str = True
+            elif _ch == "{":
+                _depth += 1
+            elif _ch == "}":
+                _depth -= 1
+                if _depth == 0:
+                    _cand = _content[_i:_j + 1]
+                    try:
+                        _o = json.loads(_cand)
+                        if isinstance(_o, dict):
+                            return _o
+                    except Exception:
+                        pass
+                    break
+        _i = _content.find("{", _i + 1)
+    return {}
+
+
 def _deepseek_key() -> str:
     """Resolve DeepSeek API key: env DEEPSEEK_API_KEY first, then openclaw.json."""
     k = os.environ.get("DEEPSEEK_API_KEY", "") or ""
@@ -267,29 +324,22 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
                             logger.warning(f"_deepseek_product_prompts [{_prov['name']}] empty content, retry")
                             continue
                         import re as _re
-                        _obj = {}
-                        try:
-                            # Try direct full-JSON parse first (Mimo often returns clean JSON)
-                            _obj = json.loads(_content)
-                        except Exception:
-                            # Fallback: strip any leading prose and grab outer {...}
-                            _s = _content.find("{")
-                            if _s != -1:
-                                _e = _content.rfind("}")
-                                if _e > _s:
-                                    try:
-                                        _obj = json.loads(_content[_s:_e + 1])
-                                    except Exception:
-                                        _obj = {}
-                                    else:
-                                        _obj = _obj or {}
-                        _img = (_obj.get("image_prompt") or "").strip()
-                        _vid = (_obj.get("video_prompt") or "").strip()
+                        _obj = _extract_json_obj(_content)
+                        # Accept either video_prompt (str) or video_prompts (list[str])
+                        _vid = _obj.get("video_prompt")
+                        _vid = _vid.strip() if isinstance(_vid, str) else ""
+                        _prompts = _obj.get("video_prompts")
+                        if not _vid and isinstance(_prompts, list) and _prompts and isinstance(_prompts[0], str):
+                            _vid = _prompts[0].strip()
+                        _img = _obj.get("image_prompt")
+                        _img = _img.strip() if isinstance(_img, str) else ""
+                        _img = _obj.get("image_prompt")
+                        _img = _img.strip() if isinstance(_img, str) else ""
                         if _img and _vid:
                             logger.info(f"_deepseek_product_prompts: got AI prompts from {_prov['name']} "
                                         f"({_prov['model']}, img {len(_img)}ch, vid {len(_vid)}ch)")
                             return {"image_prompt": _img, "video_prompt": _vid}
-                        logger.warning(f"_deepseek_product_prompts [{_prov['name']}] JSON missing image/video keys")
+                        logger.warning(f"_deepseek_product_prompts [{_prov['name']}] JSON missing image/video keys (img={bool(_img)}, vid={bool(_vid)})")
                         break
                     else:
                         logger.warning(f"_deepseek_product_prompts [{_prov['name']}] api {_res.status_code}: {_res.text[:150]}")

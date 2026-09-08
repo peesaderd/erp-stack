@@ -43,18 +43,11 @@ async def _get_reward_handler():
 
 logger = logging.getLogger("line-bot.handlers")
 
-# ── AI Integration (Gemini) ──────────────────────────────────────────────
-import google.generativeai as genai
-
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
+# ── AI Integration (OpenClaw) ────────────────────────────────────────────
+OPENCLAW_URL = os.environ.get("OPENCLAW_URL", "http://127.0.0.1:18789")
 
 async def _parse_order_with_ai(text: str, menu: list[dict]) -> list[dict]:
-    """Use Gemini AI to parse natural language order."""
-    if not GEMINI_API_KEY:
-        return []
-    
+    """Use OpenClaw AI to parse natural language order."""
     menu_list = "\n".join([f"- {m['id']}: {m['name']} ({m['price']} บาท)" for m in menu])
     
     prompt = f"""You are a Thai restaurant order parser. Parse the user's message into a list of menu items.
@@ -71,16 +64,25 @@ If the message is not an order, return an empty array [].
 Do not include any explanation, only JSON."""
     
     try:
-        model = genai.GenerativeModel("gemini-2.0-flash")
-        response = model.generate_content(prompt)
-        result = response.text.strip()
-        # Extract JSON from response
-        if "[" in result and "]" in result:
-            start = result.index("[")
-            end = result.index("]") + 1
-            import json
-            items = json.loads(result[start:end])
-            return items
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{OPENCLAW_URL}/v1/chat/completions",
+                json={
+                    "model": "openclaw",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 500,
+                },
+                timeout=30.0,
+            )
+            if response.status_code == 200:
+                data = response.json()
+                result = data["choices"][0]["message"]["content"].strip()
+                # Extract JSON from response
+                if "[" in result and "]" in result:
+                    start = result.index("[")
+                    end = result.index("]") + 1
+                    items = json.loads(result[start:end])
+                    return items
     except Exception as e:
         logger.error(f"AI parse error: {e}")
     return []

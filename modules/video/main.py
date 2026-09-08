@@ -73,6 +73,29 @@ try:
 except Exception:
     pass
 
+# ─── Age Guard: pick LOWEST age from target_age range (owner 2026-09-08) ──
+import re as _re
+
+def _resolve_age(target_age: str) -> str:
+    """Guard: convert a target_age range (e.g. "25-40") to the SINGLE lowest
+    age so the on-camera creator reads as the youngest/most youthful target.
+    Rules:
+      - has a range "A-B" -> pick A (lowest bound)
+      - single int "30" -> use 30
+      - whitespace/variants ("25 ~ 40", "25-40 ปี") -> parse first integer as lowest
+      - empty / unparsable -> default 20
+    Handles Thai suffix text and multiple number tokens by taking the smallest integer found.
+    """
+    if not target_age:
+        return "20"
+    s = str(target_age).strip()
+    # Find every integer token (including negatives avoided):
+    nums = _re.findall(r"\d+", s)
+    if not nums:
+        return "20"
+    # Data is a range/lowest-bound intent -> use the MINIMUM (youngest) token
+    return str(min(int(n) for n in nums))
+
 # ─── Pydantic Models ──────────────────────────────────────────────────
 
 class ScriptRequest(BaseModel):
@@ -300,7 +323,7 @@ async def generate_video(req: VideoRequest):
             )[0],
             description=req.product_description or "",
             gender=(req.target_gender or req.gender or "female"),
-            age=(req.target_age or req.age or ""),
+            age=_resolve_age(req.target_age or req.age or ""),
             ugc_style=validate_ugc_style(req.ugc_style),
             external_job_id=req.job_id,
             duration=req.duration,

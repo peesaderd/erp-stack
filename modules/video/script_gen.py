@@ -21,7 +21,7 @@ _pb_path = _erp_stack / "prompt-builder-service"
 if str(_pb_path) not in sys.path:
     sys.path.insert(0, str(_pb_path))
 
-from shared_config import GEMINI_API_KEY
+from shared_config import GEMINI_API_KEY  # kept import for back-compat; actual model transport now Mimo (boss directive 2026-09-08)
 from persona_engine import PERSONA_TEMPLATES, _select_persona
 from config import DEFAULT_DURATION
 from prompt_builder import _tts_product_name
@@ -168,39 +168,64 @@ def adjust_prompt_for_duration(duration_type: str = "15s") -> str:
             "\n- ห้ามยืดเนื้อหาเกินจำเป็น ให้กระชับในทุกช่วง"
         )
     return ""
-def _call_gemini(system_prompt: str, user_prompt: str) -> Optional[str]:
-    """Call Gemini API for script generation."""
-    api_key = GEMINI_API_KEY()
-    if not api_key:
-        logger.error("No GEMINI_API_KEY configured — cannot generate script")
-        raise RuntimeError("No GEMINI_API_KEY configured")
+def _mimo_key() -> str:
+    """Resolve Mimo (xiaomi) API key: env MIMO_API_KEY first, then openclaw.json provider 'xiaomi'."""
+    k = os.environ.get("MIMO_API_KEY", "") or ""
+    if not k:
+        try:
+            _p = os.path.expanduser("/home/openhands/.openclaw/openclaw.json")
+            if os.path.exists(_p):
+                _cfg = json.load(open(_p))
+                k = _cfg.get("models", {}).get("providers", {}).get("xiaomi", {}).get("apiKey") or ""
+        except Exception:
+            k = ""
+    return k
 
-    try:
-        import httpx
-        gemini_model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{gemini_model}:generateContent?key={api_key}"
+
+def _call_mimo(system_prompt: str, user_prompt: str) -> Optional[str]:
+    """Mimo (xiaomi) chat-completions call, two-tier: base mimo-v2.5 then mimo-v2.5-pro.
+
+    Boss directive 2026-09-08 "ใช้ Mimo ทั้งหมดเลย": the old Gemini script transport
+    (403 dunning / PERMISSION_DENIED) and its successor choices are gone — Mimo is the
+    ONLY LLM for script writing here. Same provider shaping as pipeline_affiliate's
+    authoring path so the wizard script matches the video pipeline's Mimo script.
+    """
+    _key = _mimo_key()
+    if not _key:
+        logger.error("No MIMO_API_KEY configured — cannot generate script")
+        raise RuntimeError("No MIMO_API_KEY configured (Mimo is required, boss 2026-09-08)")
+    import httpx
+    _url = "https://token-plan-sgp.xiaomimimo.com/v1/chat/completions"
+    tiers = [("mimo", "mimo-v2.5", 8000), ("mimo-pro", "mimo-v2.5-pro", 8000)]
+    for _name, _model, _mt in tiers:
         payload = {
-            "system_instruction": {"parts": [{"text": system_prompt}]},
-            "contents": [{"parts": [{"text": user_prompt}]}],
-            "generationConfig": {
-                "temperature": 0.4,
-                # Gemini 3.6-flash ใช้ thoughtsTokenCount ที่สูงมากและหักออกจาก maxOutputTokens
-                # (วัดจริง ~1100-3000 token เฉพาะคิด) → ต้องตั้ง maxOutputTokens ให้สูงพอ (~4096)
-                # ไม่งั้นเหลือ text budget แค่ ~20-90 token → บทสั้น/ถูกตัดกลางเสมอ (root cause "แก้ไม่หาย")
-                # temperature 0.4 (card 6a5880eb ข้อ 1: ลดจาก 0.7 → 0.4-0.5 คุมมั่ว/ไหล) 2026-09-01
-                "maxOutputTokens": 4096,
-            },
+            "model": _model,
+            "messages": [{"role": "system", "content": system_prompt},
+                          {"role": "user", "content": user_prompt}],
+            "max_tokens": _mt,
+            "temperature": 0.4,
         }
-        resp = httpx.post(url, json=payload, timeout=30)
-        if resp.status_code == 200:
-            data = resp.json()
-            return data["candidates"][0]["content"]["parts"][0]["text"]
-        else:
-            logger.warning(f"Gemini API error ({resp.status_code}): {resp.text[:200]}")
-            return None
-    except Exception as e:
-        logger.error(f"Gemini call failed: {e}")
-        return None
+        headers = {"Content-Type": "application/json", "Authorization": "Bearer " + _key}
+        try:
+            resp = httpx.post(_url, headers=headers, json=payload, timeout=60)
+            if resp.status_code == 200:
+                _content = ((resp.json()["choices"][0]["message"].get("content") or "").strip() or "")
+                if _content:
+                    return _content
+                logger.warning(f"Mimo {_name} returned empty content — escalating to pro")
+            else:
+                logger.warning(f"Mimo {_name} API error ({resp.status_code}): {resp.text[:200]}")
+        except Exception as e:
+            logger.error(f"Mimo {_name} call failed: {e}")
+    # Mimo-only (boss 2026-09-08): no Gemini/DeepSeek fallback. Returning None makes the
+    # caller raise RuntimeError (fail loudly) rather than write a wrong/silent script.
+    return None
+
+
+# Back-compat alias: every historical caller names this '_call_gemini', but the
+# transport is now Mimo-first (boss 2026-09-08).
+def _call_gemini(system_prompt: str, user_prompt: str) -> Optional[str]:
+    return _call_mimo(system_prompt, user_prompt)
 
 
 # ─── Prompt Loader ─────────────────────────────────────────────────────────

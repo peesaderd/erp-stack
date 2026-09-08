@@ -125,8 +125,16 @@ async def ugc_scripts_generate(req: dict):
     mood = ""
     _style_disp = {"holding":"ถือสินค้า", "usage":"ใช้สินค้า", "review":"รีวิว", "unboxing":"แกะกล่อง"}.get(req.get("ugc_style", "holding"), req.get("ugc_style", "holding"))
     scene = f"UGC {_style_disp} หน้ากล้อง ฉากเรียบ"
-    voice = f"เสียงไทย{req.get('target_gender', req.get('gender', '')) or 'หญิง'} น้ำเสียง{req.get('tone', 'เป็นกันเอง')}".replace("หญิง ", "หญิง ") if req.get('target_gender') or req.get('gender') else f"เสียงไทย น้ำเสียง{req.get('tone', 'เป็นกันเอง')}"
-    mood = f"{req.get('tone', 'เป็นกันเอง')}, สบายๆ, อบอุ่น"
+    _g = (req.get("target_gender") or req.get("gender") or "").lower().strip()
+    if _g in ("ชาย", "male", "man", "men", "m"):
+        _sex = "ชาย"
+    elif _g in ("หญิง", "female", "woman", "women", "f"):
+        _sex = "หญิง"
+    else:
+        _sex = ""
+    _tone = req.get("tone", "เป็นกันเอง")
+    voice = f"เสียงไทย{_sex} น้ำเสียง{_tone}" if _sex else f"เสียงไทย น้ำเสียง{_tone}"
+    mood = f"{_tone}, สบายๆ, อบอุ่น"
 
     return {
         "success": True,

@@ -411,7 +411,7 @@ async def _handle_text(text: str, session: dict, reply_token: str, user_id: str)
                     body_boxes=[
                         line_client.flex_text(f"✅ เพิ่ม {item['name']} x{qty}", weight="bold", size="lg"),
                         line_client.flex_text(
-                            item.get("description", item["name"]),
+                            item.get("description") or item["name"],
                             size="sm", color="#888888", wrap=True
                         ),
                         line_client.flex_text(
@@ -452,7 +452,7 @@ async def _handle_text(text: str, session: dict, reply_token: str, user_id: str)
                 body_boxes=[
                     line_client.flex_text(item["name"], weight="bold", size="lg"),
                     line_client.flex_text(
-                        item.get("description", item["name"]),
+                        item.get("description") or item["name"],
                         size="sm", color="#888888", wrap=True
                     ),
                     line_client.flex_text(
@@ -522,7 +522,7 @@ async def _search_and_show(reply_token: str, keyword: str):
             body_boxes=[
                 line_client.flex_text(item["name"], weight="bold", size="md"),
                 line_client.flex_text(
-                    item.get("description", item["name"]),
+                    item.get("description") or item["name"],
                     size="xs", color="#888888", wrap=True
                 ),
                 line_client.flex_text(

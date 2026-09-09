@@ -708,6 +708,55 @@ class ProductExporter:
 
 # ─── Helper Functions ────────────────────────────────────────────────────────
 
+def _mimo_key() -> str:
+    """Resolve Mimo (xiaomi) API key: env MIMO_API_KEY first, then openclaw.json provider 'xiaomi'.
+    Same resolution used by video pipeline (pipeline_affiliate._mimo_key)."""
+    k = os.environ.get("MIMO_API_KEY", "") or ""
+    if not k:
+        try:
+            _p = os.path.expanduser("/home/openhands/.openclaw/openclaw.json")
+            if os.path.exists(_p):
+                _cfg = json.load(open(_p))
+                k = _cfg.get("models", {}).get("providers", {}).get("xiaomi", {}).get("apiKey") or ""
+        except Exception:
+            k = ""
+    return k
+
+async def _call_mimo(prompt: str, max_tokens: int = 2000) -> str:
+    """Text generation via Mimo (xiaomi) API — PRIMARY enrichment model.
+    Owner 2026-09-09: ใช้ Mimo เข้า pipeline (DeepSeek 402 / Mistral 403 / Gemini 403 ล่มหมด)."""
+    key = _mimo_key()
+    if not key:
+        logger.warning("No Mimo key available, skipping Mimo call")
+        return ""
+    base = (os.environ.get("MIMO_BASE_URL") or "https://token-plan-sgp.xiaomimimo.com/v1").rstrip("/")
+    model = os.environ.get("MIMO_MODEL") or "mimo-v2.5"
+    endpoint = f"{base}/chat/completions"
+    payload = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.3,
+        "max_tokens": max_tokens,
+    }
+    try:
+        async with httpx.AsyncClient(timeout=90) as client:
+            resp = await client.post(
+                endpoint,
+                headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+                json=payload,
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                text = data["choices"][0]["message"].get("content") or ""
+                if text and text.strip():
+                    return text.strip()
+                logger.warning("Mimo text empty")
+            else:
+                logger.error(f"Mimo API {resp.status_code}: {resp.text[:200]}")
+    except Exception as e:
+        logger.error(f"Mimo call failed: {e}")
+    return ""
+
 async def _call_deepseek(prompt: str, max_tokens: int = 500) -> str:
     """Text generation via DeepSeek API (OpenAI-compatible).
 
@@ -755,12 +804,17 @@ async def _call_deepseek(prompt: str, max_tokens: int = 500) -> str:
 async def _call_mistral(prompt: str, max_tokens: int = 500) -> str:
     """Text generation helper used by all enrich steps (translate/keywords/gender/body).
 
-    PRIMARY NOW DEEPSEEK (2026-09-04, owner request): Gemini was banned with 403
-    (Lightning dunning decision is deny for project) so it is no longer called as the
-    primary. DeepSeek first, then fall back to the Mistral rotator. The function name
-    is kept as ``_call_mistral`` to avoid touching callers.
+    PRIMARY NOW MIMO (2026-09-09, owner request "ใช้ Mimo นะ เอา Mimo เข้า pipeline เลย"):
+    DeepSeek 402 (Insufficient Balance) / Mistral rotator 403 (tier_not_allowed) /
+    Gemini 403 (project denied) — all dead. Mimo first, then DeepSeek fallback,
+    then Mistral rotator. Function name kept as ``_call_mistral`` to avoid touching callers.
     """
-    # Primary: DeepSeek (replaces Gemini which was 403 / billing dunning)
+    # Primary: Mimo (owner 2026-09-09)
+    text = await _call_mimo(prompt, max_tokens=max_tokens)
+    if text:
+        return text
+    logger.warning("Mimo returned empty — falling back to DeepSeek")
+    # Secondary: DeepSeek
     text = await _call_deepseek(prompt, max_tokens=max_tokens)
     if text:
         return text

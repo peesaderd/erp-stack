@@ -277,20 +277,29 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "HOW to keep it hero depends on the product type.\n"
             "   * APPAREL / GARMENTS (jeans, trousers, shirt, dress, skirt, T-shirt...): the product is most convincing when the model is "
             "WEARING it on their body, not when they hold a detached folded/on-a-hanger garment off to one side. So the IMAGE first frame = the model "
-            "already wearing the garment, standing naturally (mirror or full-length) so the fit/length/print is on display. The video then shows them "
-            "WALK / turn / smooth the worn fabric / pinch or tug the waistband / zip & button / run a hand down the leg / show the print while worn — "
-            "camera framing (mid-to-low shot, or walking-toward-lens) keeps the WORN garment front-and-center and sharp."
+            "already wearing the garment, standing naturally (mirror or full-length) so the fit/length/print is on display. IMPORTANT (owner 2026-09-09): "
+            "do NOT write a hand doing a close-up gesture on the garment (no 'a hand running down the leg', no 'hand pinching/tugging the waistband', no "
+            "'smoothing the fabric with the hand'). Hands close-ups on cloth make Wan render extra/mangled fingers. Instead show the WORN garment through the "
+            "MODEL'S BODY and the CAMERA: the model WALKS toward the lens, TURNS left then pivots to show the side/back and leg-opening, STEPS and shifts stance "
+            "so the fabric naturally moves/swings, and the camera slowly pans/zooms from full length down to a comfortable waist-and-up or leg crop to show the "
+            "print/fit. Hands stay relaxed and low (at the sides, on hips, or in the pockets) and are never the subject."
             "\n"
             "   * ALL OTHER PRODUCTS (food pouch, bottle, box, electronics, bag...): the hands pick up / open / pour / guide it toward the lens so "
             "the packaging/label/branding is large and legible in the lower-middle frame, kept in sharp focus, never tiny/off-side/out-of-frame/occluded."
             "2b. THE ENDING (last ~2-3s) must land back on the product as a clean hero beat, never end on a bare face/bust close-up or an empty shot. "
-            "For apparel: a close (waist/crotch-to-knee crop) static beat of the worn garment — the model turns slightly and a hand pulls/pinches the "
-            "waistband or smooths the print so the tag/waist/print reads for the camera, then holds that pose one second. For other products: the creator "
+            "For apparel: the worn garment gets a clean closing beat by the model simply standing naturally / turning once to the mirror or to the side / "
+            "taking one small step while the camera settles on a waist-and-up or leg crop that shows the print and fit. Avoid narrating a hand detail gesture at "
+            "the end (no 'a hand holds the waistband' close-up) so the closing frame stays clean. For other products: the creator "
             "brings the packaging/label up close to the lens and holds it steady. The last shot clearly re-centers the sold item. \n"
             "3. Natural Action & Authenticity: real-life context (messy kitchen counter, living room floor, real pet corner). Genuine "
             "reactions (pets eagerly rushing in to eat the food as it's poured, hands naturally tearing open the pouch, real textures "
             "of the food/liquid). Absolutely NO stiff influencer smiles, NO awkward waving to camera, NO talking-head corporate infomercial tropes, "
-            "NO green/chroma screen, NO forced dancing/spinning/show-off posing, NO wide-eyed shocked reaction.\n"
+            "NO green/chroma screen, NO exaggerated dancing/spinning/show-off posing, NO wide-eyed shocked reaction.\n"
+            "   * LINGERIE / UNDERWEAR note (owner 2026-09-09): this is sold apparel the woman is already wearing. Model it as a clean, modest "
+            "try-on/fashion clip: the woman stands fully dressed in the set, and she MUST move — a slow turn to the side, a turn to show the back waistband, "
+            "one or two small side steps that make the lace/waist sway, and a gentle pause to let the fabric/print read. Do NOT freeze her in one static pose, "
+            "and do NOT describe her 'removing' or fully 'changing into' the underwear (that triggers a still/safety freeze). Keep it tasteful: comfortable "
+            "bra-and-panty-style set coverage, no nudity, no sexualized poses, straight-to-camera or mirror framing.\n"
             "Category: " + str(category or "") + "\n"
             "\nModel/Demonstrator (the person in frame) must MATCH this gender and age group:\n"
             "gender=" + str(gender or "female") + ("; age_group=" + str(target_age) if target_age else " (adult 25-35 if unspecified)") + "\n"
@@ -938,18 +947,17 @@ def generate_video(
         # (เพิ่ม commit 7c1a04c8 29-08) ทำให้ Wan ยืดคำ/เดิมแต่งเนื้อมั่ว ให้ยาวจนครบเวลา
         # เมื่อ script สั้น → เอาคำสั่งยืดเวลา/ยาวเต็ม N วิออกทั้งหมด ให้พูดตาม script เท่านั้น
         # ชัดเจน คำต่อคำ ไม่เดิมแต่ง เมื่อจบ script ให้หยุดยิ้มนิ่ง ไม่พูดต่อ (พี่สั่ง 11:57)
-        # 🔴 FIX (owner 2026-09-08): ตัด video_prompt ภาษาอังกฤษ (prompt) ออก ไม่นำหน้า
-        # บทไทย — เดิม final_prompt = prompt + บทไทย = ปน 2 ภาษาให้ Wan งง แล้วพูดเพี้ยนตอนท้าย.
-        # Voice mode A ใช้ first frame สร้างภาพอยู่แล้ว จึงไม่ต้องใช้ video_prompt อังกฤษบรรยาย.
-        # ให้เป็นไทยล้วนตาม comment เดิม (Wan รับ ~2500 คำ ไม่เกินแน่นอน).
+        # 🔴 FIX (owner 2026-09-09 03:35): ลบท่อน "ยิ้มนิ่ง/ไม่ขยับ/กล้องนิ่ง" ออก
+        # ตามพี่สั่ง (ตอนนี้ prompt_extend=False แล้ว Wan ไม่เสริมการเคลื่อนไหวเอง)
+        # → ท่อนนี้ทำให้ภาพแทบขยับ (ที่พี่เจอ = นิ่งแค่ยิ้ม) เพราะสั่ง freeze ทั้งตัว+กล้อง
+        # เหลือแค่คำสั่งพูดไทยล้วน: ออกเสียงชัด พูดจบแล้วหยุด ห้ามแต่งประโยค.
+        # (บังคับท่าทาง/โชว์สินค้า ว่ารอ step ใหม่ที่แทรก motion เป็นไทยล้วนทีหลัง)
         final_prompt = (
             f"พูดบทภาษาไทยต่อไปนี้ออกเสียงให้ชัดเจนตามตัวอักษร คำต่อคำ ห้ามข้าม ห้ามเดิมคำ ห้ามแต่งประโยคเพิ่ม ห้ามเติมคำท้าย ห้ามพูดนอกบท:\n\"{thai_script}\" \n"
             f"ออกเสียงแต่ละคำให้ถูกต้องชัดเจน พูดจังหวะกระชับไวขึ้นเล็กน้อย ไม่เนิบ ไม่ช้า ไม่ลากคำ ไม่ยืดเสียง ไม่ลากเสียง ไม่จำเป็นต้องพูดยาวเท่าความยาววิดีโอ "
-            f"เมื่ออ่านบทจบทุกประโยคแล้วให้หยุดพูดทันที ปิดปากสนิท ห้ามพูดอะไรต่อจากบทอีกเด็ดขาด "
-            f"แล้วยิ้มนิ่ง ๆ ตรงหน้ากล้องต่อไปโดยไม่ขยับ ไม่พูด ไม่ขยับปาก ไม่มีเสียงใด ๆ ซ้ำ "
-            f"กล้องนิ่ง ๆ ตรงกล้อง บรรยากาศตามภาพ first frame ไม่ขยับกล้อง ไม่ซูม ไม่บังคับฉากอื่น"
+            f"เมื่ออ่านบทจบทุกประโยคแล้วให้หยุดพูดทันที ปิดปากสนิท ห้ามพูดอะไรต่อจากบทอีกเด็ดขาด"
         )
-        logger.info(f"  🎙 Voice mode A: ฝัง thai_script คำสั่งพูดไทยล้วน (owner rule 2026-08-25, len={len(final_prompt)})")
+        logger.info(f"  🎙 Voice mode A: ฝัง thai_script คำสั่งพูดไทยล้วน (owner rule 2026-09-09 edit, len={len(final_prompt)})")
 
 # ลบ comment เดิม "ห้ามฝัง" แล้วแทนด้วยโหมดฝังเมื่อเปิด
 

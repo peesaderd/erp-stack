@@ -1173,10 +1173,13 @@ def compose_video(
 
         if bgm_path.exists():
             bgm_output = STORAGE_DIR / f"affiliate_{run_id}_bgm.mp4"
-            # Strategy: mix BGM with video audio so BGM fills the whole clip.
-            # audio track (voice) may be shorter than the video (e.g. 11s in 15s),
-            # so apad the video audio to target_duration and mix with the looped
-            # BGM using duration=longest — covers the silent tail.
+            # Strategy: mix BGM under the narration with SIDECHAIN DUCKING (owner 2026-09-09
+            # 16:3x — boss: "เสียงพากย์ซ้อน"). Root: the narration (Wan voice mode A, embedded in
+            # video audio) is fully clean/single in the raw; the perceived "doubled/layered voice"
+            # came from the BGM bed staying at full level UNDER/OVER the whole narration with no
+            # ducking, so voiced/sustained music overlapped the Thai voice. Fix: BGM volume drops
+            # sharply the moment the narration speaks (sidechaincompress) and only returns in
+            # pauses/tail, so voice never overlaps music → clean single narration.
             try:
                 cmd_mix = [
                     "ffmpeg", "-y",
@@ -1185,8 +1188,10 @@ def compose_video(
                     "-i", str(bgm_path),
                     "-filter_complex",
                     "[0:a]apad=pad_dur=20[va];"
-                    "[1:a]volume=0.15[bg];"
-                    "[va][bg]amix=inputs=2:duration=longest:dropout_transition=0[out]",
+                    "[1:a]volume=0.5[bg];"   # raise BGM so ducking target is audible in pauses
+                    "[va]asplit=2[voice][side];"
+                    "[bg][side]sidechaincompress=threshold=0.04:ratio=12:attack=25:release=650[duck];"
+                    "[voice][duck]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0[out]",
                     "-map", "0:v",
                     "-map", "[out]",
                     "-c:v", "copy",
@@ -1194,8 +1199,8 @@ def compose_video(
                     "-t", str(target_duration),
                     str(bgm_output),
                 ]
-                subprocess.run(cmd_mix, check=True, capture_output=True, timeout=60)
-                logger.info(f"    BGM mixed")
+                subprocess.run(cmd_mix, check=True, capture_output=True, timeout=90)
+                logger.info(f"    BGM mixed (sidechain ducked under narration)")
                 final_path = bgm_output
             except Exception as e:
                 logger.warning(f"    BGM mix failed ({e}), trying BGM-only")

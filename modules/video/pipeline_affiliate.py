@@ -428,8 +428,9 @@ def analyze_product(product_name: str, product_image: str = None, description: s
             "ingredient_highlight": ingredient_highlight or "",
         }
 
-        # timeout 130s per owner (prompt-builder วิเคราะห์ภาพ+vision ช้า บางที 120-130s, เดิม 60 สั้นไป fail)
-        resp = requests.post(url, json=payload, timeout=130)
+        # timeout 300s per 2026-09-09 (prompt-builder วิเคราะห์ภาพ+vision ช้า และเมื่อคิวทับ single-worker
+        # งานรอในคิวอาจเกิน 130s → เดิม 130 ถูกตัดทิ้งทั้งที่ 8117 ทำสำเร็จทีหลัง ขึ้นเป็น 300 กัน false-timeout)
+        resp = requests.post(url, json=payload, timeout=300)
         resp.raise_for_status()
         data = resp.json()
 

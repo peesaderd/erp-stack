@@ -204,7 +204,11 @@ async def get_analyzed_products(
                     "gmv_total": r.gmv_total or 0,
                     "commission_rate": r.commission_rate or 0,
                     "description": r.description or "",
-                    "description_th": r.title_th or "",
+                    "description_th": (
+                        r.description or r.title_th or ""
+                        if (r.description or "") and (r.description or "") != (r.title or "")
+                        else (r.title_th or "")
+                    ),
                     "enriched": r.enriched,
                     "gender": r.gender or "",
                     "target_age": r.target_age or "",

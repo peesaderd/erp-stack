@@ -463,7 +463,12 @@ def _build_tus_row(product: dict) -> dict:
         "seller_id": product.get("seller_id", ""),
         "url": product.get("url", f"https://www.tiktok.com/@product/{pid}"),
         "description": product.get("description", ""),
-        "description_th": "",
+        "description_th": (
+            product.get("description_th")
+            or product.get("description")
+            or product.get("title_th")
+            or ""
+        ),
         "images": json.dumps(images),
         "keywords": json.dumps(keywords if isinstance(keywords, list) else []),
         "hashtags": json.dumps(hashtags if isinstance(hashtags, list) else []),

@@ -372,6 +372,7 @@ class UnifiedProduct:
     title: str = ""
     title_th: str = ""
     description: str = ""
+    description_th: str = ""
     price_min: float = 0.0
     price_max: float = 0.0
     price_avg: float = 0.0
@@ -638,7 +639,33 @@ class ProductEnricher:
             
             # 4. Store both: all_downloaded + selected
             product.images = selected_urls if selected_urls else all_photo_urls
-            
+
+            # ── B1 (card f6839480): guarantee a real product description ──
+            # Apify search returns no long description + export_for_tus dropped the
+            # field, so tus_products.description/description_th were always empty and the
+            # AI-authored video pipeline only saw a title. Now that enrich() has computed
+            # title_th + usage/ingredient/audience meta, synthesize a Thai description
+            # when the raw one is empty or is just a title echo.
+            _raw_desc = (product.description or "").strip()
+            if not product.description_th:
+                _is_title_echo = _raw_desc and (
+                    _raw_desc == product.title
+                    or _raw_desc == product.title_th
+                    or _raw_desc.lower() == product.title.lower()
+                )
+                if not _raw_desc or _is_title_echo:
+                    _th_desc = await _gen_thai_description(
+                        product.title_th, product.title,
+                        category=product.category,
+                        usage_howto=product.usage_howto,
+                        ingredient=product.ingredient_highlight,
+                        special_target=product.special_target,
+                        target_age=product.target_age,
+                    )
+                    product.description_th = _th_desc
+                    # keep the raw/original description too if we truly had one
+                    product.description = product.description or _th_desc
+
             product.enriched = True
             return product
         except Exception as e:
@@ -660,6 +687,8 @@ class ProductExporter:
             if filters.get("category") and p.category != filters["category"]: continue
             result.append({
                 "product_id": p.product_id, "title": p.title, "title_th": p.title_th,
+                "description": p.description or "",
+                "description_th": p.description_th or p.title_th or "",
                 "price_thb": p.price_avg,
                 "price_min": p.price_min, "price_max": p.price_max, "price_avg": p.price_avg,
                 "rating": p.rating, "sold_total": p.sold_total,
@@ -776,6 +805,62 @@ async def _translate_to_thai(text: str) -> str:
             result = result[len(prefix):].strip()
     _cache.set(cache_key, result)
     return result
+
+async def _gen_thai_description(title_th: str, title: str, category: str = "",
+                               usage_howto: str = "", ingredient: str = "",
+                               special_target: str = "", target_age: str = "") -> str:
+    """B1 (card f6839480): synthesize a short, UGC-usable Thai product description.
+
+    Apify search actors return no long description, and export_for_tus historically
+    dropped the field, so tus_products.description/description_th were always empty —
+    the AI-authored video pipeline only ever saw the title. This builds one readable
+    Thai sentence for TikTok from the enrichment meta already computed in enrich().
+
+    Returns a non-empty string (falls back to title) and NEVER raises.
+    """
+    name = (title_th or title or "").strip()
+    if not name:
+        return ""
+    cache_key = f"thdesc_{name[:80]}_{(usage_howto or '')[:40]}"
+    try:
+        cached = _cache.get(cache_key)
+        if cached:
+            return cached
+    except Exception:
+        cached = None
+
+    parts = [p for p in [category or "", usage_howto or "", ingredient or "",
+                         special_target or "", target_age or ""] if p and p.strip()]
+    if not parts:
+        # nothing richer than the name — keep the Thai name as the description
+        _cache.set(cache_key, name)
+        return name
+
+    prompt = (
+        "Write ONE concise Thai sentence (2-3 clauses, under ~60 Thai words, no emoji, "
+        "no bullets) describing this TikTok-sold product for an auto-generated UGC ad. "
+        "State what it is and its key selling point/usage naturally. Return ONLY the Thai sentence."
+        f"\nชื่อ: {name}"
+        + (f"\nหมวด: {category}" if category else "")
+        + (f"\nวิธีใช้: {usage_howto}" if usage_howto else "")
+        + (f"\nจุดขาย/ส่วนผสม: {ingredient}" if ingredient else "")
+        + (f"\nกลุ่มพิเศษ: {special_target}" if special_target else "")
+        + (f"\nช่วงอายุเป้า: {target_age}" if target_age else "")
+    )
+    try:
+        result = await _call_mistral(prompt, max_tokens=200)
+    except Exception as e:
+        logger.warning(f"_gen_thai_description call failed: {e}")
+        result = ""
+    if not result or not result.strip():
+        result = name
+    result = result.strip().split("\n")[0].strip()
+    result = result.strip('"').strip("'").strip()
+    if not result:
+        result = name
+    _cache.set(cache_key, result)
+    return result
+
 
 async def _extract_keywords(title: str, description: str) -> list:
     if not title: return []

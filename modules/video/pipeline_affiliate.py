@@ -297,7 +297,7 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "{\n"
             " \"thai_script\": \"หนูรู้ว่ามือใหม่หัดแต่งหน้าต้องเจอปัญหาครีมกันแดดเป็นคราบ ตัวนี้เนื้อบางเบาเกลี่ยง่าย ผิวไม่ขาววอก กันแดด SPF50 PA++++ ทาแล้วติดทนทั้งวัน ลองดูนะคะ มีโค้ดลดในคอมเมนต์\",\n"
             "}\n"
-            "(Return thai_script only as a hint; build image_prompt and video_prompt around the real product.)"
+            "(Your thai_script IS the actual spoken voice-over — write it cleanly. Build image_prompt and video_prompt around the real product so image + motion + script all match.)"
         )
         _acted_instr = ""
         if (special_target or "").strip():
@@ -350,10 +350,17 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
                             _vid = _prompts[0].strip()
                         _img = _obj.get("image_prompt")
                         _img = _img.strip() if isinstance(_img, str) else ""
+                        _tst = _obj.get("thai_script")
+                        _tst = _tst.strip() if isinstance(_tst, str) else ""
+                        if _tst:
+                            # Normalize: Thai ตัวอักษร, ตัด wrap/quotes, ตัดเครื่องหมายคำพูดซ้ำที่อาจหลุดมา
+                            _tst = _re.sub(r"[\u201c\u201d\"']+", "", _tst).strip()
                         if _img and _vid:
+                            # (ข) owner 2026-09-09 23:0x: คืน thai_script ที่ Mimo เขียนด้วย (เดิมโดนทิ้ง) →
+                            # ใช้เป็นตัวพูดจริง ให้คนเดียว author บท+ภาพ+วิดีโอ sync กัน (แก้ APPEND 15 conflict)
                             logger.info(f"_deepseek_product_prompts: got AI prompts from {_prov['name']} "
-                                        f"({_prov['model']}, img {len(_img)}ch, vid {len(_vid)}ch)")
-                            return {"image_prompt": _img, "video_prompt": _vid}
+                                        f"({_prov['model']}, img {len(_img)}ch, vid {len(_vid)}ch, script {len(_tst)}ch)")
+                            return {"image_prompt": _img, "video_prompt": _vid, "thai_script": _tst}
                         logger.warning(f"_deepseek_product_prompts [{_prov['name']}] JSON missing image/video keys (img={bool(_img)}, vid={bool(_vid)})")
                         break
                     else:
@@ -439,7 +446,9 @@ def analyze_product(product_name: str, product_image: str = None, description: s
         if _ds and _ds.get("image_prompt") and _ds.get("video_prompt"):
             profile["_image_prompt"] = _ds["image_prompt"]
             profile["_video_prompt"] = _ds["video_prompt"]
-            logger.info(f"  ✅ Mimo authored image/video prompts for {product_name!r} (no JSON template)")
+            # (ข) Mimo thai_script → ให้ generate_script ใช้เป็นตัวพูดจริง (คนเดียว author บท+ภาพ+วิดีโอ)
+            profile["_mimo_thai_script"] = (_ds.get("thai_script") or "").strip()
+            logger.info(f"  ✅ Mimo authored image/video/script prompts for {product_name!r} (script {len(profile['_mimo_thai_script'])}ch)")
         else:
             logger.error(f"  Mimo failed to author prompts for {product_name!r} — refusing prompt-builder JSON template fallback")
             raise RuntimeError(
@@ -591,6 +600,15 @@ def generate_script(
     if _nh in ("indoor_projector", "ambient_outdoor"):
         logger.info(f"  No script: style {_nh} is no-person ambient — empty script")
         return ""
+
+    # ── (ข) Mimo-authored thai_script ชนะก่อน (owner 2026-09-09 23:0x) ──
+    # Mimo เขียน image+video_prompt+thai_script พร้อมกันใน call เดียว → ใช้บทนั้นเป็นตัวพูด
+    # จะได้ บท+ภาพ+วิดีโอ sync จากผู้เขียนคนเดียว (แก้ APPEND 15: เดิม Mimo เขียนบทแต่โดนทิ้ง
+    # แล้วไปใช้ beat_timed 184ch ที่ภาพไม่ sync) — ถ้า Mimo ไม่ส่งบท ค่อยใช้ beat_timed
+    mimo_script = (product_profile.get("_mimo_thai_script") or "").strip()
+    if mimo_script:
+        logger.info(f"  Script: Mimo-authored thai_script (sync ภาพ+วิดีโอ, {len(mimo_script)}ch): {mimo_script[:80]}...")
+        return mimo_script
 
     # ── Beat-timed script จาก service (single source of truth) ──────────
     # timing_validation/scripts.full_script ถูก build จาก router_config.scenes

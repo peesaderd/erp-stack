@@ -224,7 +224,24 @@ def _num(v) -> float:
 def map_product_item(item: dict) -> dict:
     """Map cunning_soil product-scraper output (formatted_filtered / full_readable)
     to the camelCase keys ProductNormalizer._normalize_apify expects.
+
+    Owner 2026-09-09: ACTOR_PRODUCT returns {"product_info": {"products": [{...}]}}.
+    Flatten the inner product up so title/price/images/seller map the same way
+    as the search-actor flat rows. Specifications live deep at
+    additional.raw_product.product_base.specifications — they become the
+    description so imported rows are never desc-less.
     """
+    _meta = item.get("product_info") or {}
+    _prods = (_meta or {}).get("products") or []
+    if _prods:
+        _merged = dict(item)
+        _merged.update({k: v for k, v in _prods[0].items() if v not in (None, "")})
+        item = _merged
+    # Deep-dive into ACTOR_PRODUCT's raw product for specs (desc source)
+    _add = (item.get("additional") or {}).get("raw_product") or {}
+    _pb = _add.get("product_base") or {}
+    _specs = _pb.get("specifications") or []
+    item.setdefault("specifications", _specs)
     out: Dict[str, Any] = {}
 
     # product id
@@ -239,51 +256,101 @@ def map_product_item(item: dict) -> dict:
     # title
     out["title"] = item.get("title") or item.get("product_name") or ""
 
-    # price
-    price = item.get("price") or {}
+    # price — handle both search-actor (price dict) and product-actor (pricing dict)
+    price = item.get("price") or item.get("pricing") or {}
     if isinstance(price, dict):
         # cunning_soil search returns price.sale_price / price.original_price
-        out["minPrice"] = _num(price.get("sale_price") or price.get("min_price"))
-        out["maxPrice"] = _num(price.get("original_price") or price.get("max_price"))
-        out["price"] = _num(price.get("sale_price"))
-        out["currency"] = price.get("currency", "THB")
+        # cunning_soil product actor returns pricing.sale_price ("฿79.00") / original_price / raw.min_sku_price
+        sale = price.get("sale_price") or price.get("min_price") or ""
+        orig = price.get("original_price") or price.get("max_price") or ""
+        raw_p = price.get("raw") or {}
+        if not sale:
+            sale = raw_p.get("real_price") or raw_p.get("min_sku_price") or ""
+        out["minPrice"] = _num(sale)
+        out["maxPrice"] = _num(orig or sale)
+        out["price"] = _num(sale)
+        out["currency"] = price.get("currency", item.get("currency", "THB"))
     else:
         out["price"] = _num(price)
         out["currency"] = item.get("currency", "THB")
 
-    # images: try images / image_urls / image (single) / primaryImage
+    # images: try images / image_urls / image (single) / primaryImage / media.images|image_urls
     images = item.get("images") or item.get("image_urls") or []
-    if isinstance(images, list) and images:
-        out["images"] = [u for u in images if isinstance(u, str)]
+    media = item.get("media") or {}
+    if not images and isinstance(media, dict):
+        # media.image_urls = list[str] (preferred); media.images = list[dict] (thumb_url_list)
+        images = media.get("image_urls") or media.get("images") or []
+    url_list: list = []
+    if isinstance(images, list):
+        for u in images:
+            if isinstance(u, str):
+                url_list.append(u)
+            elif isinstance(u, dict):
+                # media.images entries carry thumb_url_list / url
+                tl = u.get("thumb_url_list") or u.get("url") or []
+                if isinstance(tl, list):
+                    url_list.extend(x for x in tl if isinstance(x, str))
+                elif isinstance(tl, str):
+                    url_list.append(tl)
+    if url_list:
+        out["images"] = url_list
     elif item.get("image"):
         out["images"] = [item["image"]]
     elif item.get("primaryImage"):
         out["primaryImage"] = item["primaryImage"]
 
-    # stock / sales
-    out["stock"] = item.get("stock", 0)
-    out["soldCount"] = item.get("sales_count") or item.get("sold_count") or 0
+    # description — search actor may not include it; ACTOR_PRODUCT has none
+    # (only specs). Use specifications as a light desc fallback so enrich
+    # (B1 _gen_thai_description) has some input.
+    if not out.get("description"):
+        specs = item.get("specifications") or (item.get("product_base") or {}).get("specifications") or []
+        if isinstance(specs, list) and specs:
+            parts = []
+            for s in specs:
+                if isinstance(s, dict):
+                    name = s.get("name") or ""
+                    val = s.get("value") or ""
+                    if name and val:
+                        parts.append(f"{name}: {val}")
+                elif isinstance(s, str):
+                    parts.append(s)
+            if parts:
+                out["description"] = " ".join(parts)[:400]
+    # Final guard: never ship a desc-less row — fall back to the title so every
+    # imported product has a non-empty description (owner 2026-09-09).
+    if not out.get("description") and out.get("title"):
+        out["description"] = out["title"]
 
-    # seller
-    store = item.get("store_info") or {}
-    if store:
+    # stock / sales
+    inv = item.get("inventory") or {}
+    out["stock"] = item.get("stock", 0) or (inv.get("total_quantity") if isinstance(inv, dict) else 0) or 0
+    sales = item.get("sales") or {}
+    out["soldCount"] = (item.get("sales_count") or item.get("sold_count") or 0) or (sales.get("sold_count") if isinstance(sales, dict) else 0) or 0
+
+    # seller — search actor: store_info; product actor: seller
+    store = item.get("store_info") or item.get("seller") or {}
+    if isinstance(store, dict) and store:
         out["shopName"] = store.get("name", "")
-        out["sellerId"] = store.get("shop_id") or store.get("id") or ""
+        out["sellerId"] = store.get("shop_id") or store.get("id") or store.get("seller_id") or ""
         out["rating"] = store.get("rating", 0)
     else:
         out["shopName"] = item.get("seller_name", "")
         out["sellerId"] = item.get("seller_id", "")
 
     # rating / reviews
-    if "rating" not in out or not out["rating"]:
+    if not out.get("rating"):
         out["rating"] = item.get("product_rating", item.get("rating", 0))
-    out["reviewCount"] = item.get("review_count") or item.get("comment_count") or 0
+    reviews = item.get("reviews") or {}
+    out["reviewCount"] = (item.get("review_count") or item.get("comment_count") or 0) or (reviews.get("review_count") if isinstance(reviews, dict) else 0) or 0
 
     # commission not in actor output; leave 0
     out["commissionRate"] = item.get("commission_rate", 0)
 
-    # description if present
-    out["description"] = item.get("description", "")
+    # description if present — merge only when the raw item really has one
+    # (ACTOR_PRODUCT has no top-level description; specs-built desc must survive)
+    _raw_desc = item.get("description") or item.get("product_name") or ""
+    if _raw_desc and not out.get("description"):
+        out["description"] = _raw_desc
 
     # keep original for debugging
     out["_source_item"] = item
@@ -325,7 +392,8 @@ async def scrape_and_ingest(
     actors_used = []
 
     # 1) Resolve share/product link -> real PDP, then drive it through the
-    #    search actor (the actor that runs on the free plan, per owner).
+    #    product actor (ACTOR_PRODUCT) so we fetch THAT EXACT product.
+    #    Owner 2026-09-09: search actor returns look-alike products ("คนละตัว").
     pid = ""
     pdp_url = ""
     link_title = ""
@@ -335,6 +403,20 @@ async def scrape_and_ingest(
             # Could not extract an id from the link; fall back to searching the
             # link text itself as a keyword.
             keyword = keyword or link
+
+    # 1b) Exact-product path: PDP/VT link resolves to an id -> scrape it directly.
+    #     productInput + region are both required (no region => products empty).
+    if pid:
+        try:
+            direct, direct_actor = await _scrape_product_direct(pid, pdp_url, region)
+        except Exception as e:
+            logger.warning(f"direct product scrape failed ({e}) — falling back to keyword search")
+            direct, direct_actor = None, ""
+        if direct:
+            return await _run_pipeline(
+                direct, [direct_actor], link=link, keyword=pid, candidates=1
+            )
+        logger.warning("direct product scrape returned nothing — falling back to keyword search")
 
     # 2) Keyword search — used for both direct keyword input and the resolved
     #    link (we search by the product title since the search actor is
@@ -377,6 +459,33 @@ async def scrape_and_ingest(
     return await _run_pipeline(
         chosen, actors_used, link=link, keyword=keyword, candidates=len(mapped)
     )
+
+
+async def _scrape_product_direct(pid: str, pdp_url: str, region: str):
+    """Fetch one exact TikTok Shop product via ACTOR_PRODUCT (mobile-api).
+
+    Returns (mapped_product_dict_or_None, actor_id). productInput accepts the
+    PDP URL or a bare id; region must be set or products come back empty.
+    """
+    if not pdp_url:
+        pdp_url = f"https://shop.tiktok.com/view/product/{pid}"
+    run_input = {"productInput": pdp_url, "region": region or "TH"}
+    logger.info(f"Exact product scrape via {ACTOR_PRODUCT} (pid={pid}, region={region or 'TH'})")
+    items = await _call_actor(ACTOR_PRODUCT, run_input, timeout=120)
+    if not items:
+        logger.warning(f"_scrape_product_direct: actor returned no items for {pid}")
+        return None, ACTOR_PRODUCT
+    mapped = map_search_items(items)  # flattens product_info.products + maps
+    chosen = None
+    for m in mapped:
+        if str(m.get("productId", "")) == str(pid):
+            chosen = m
+            break
+    if chosen is None and mapped:
+        chosen = mapped[0]
+    if chosen is None:
+        logger.warning(f"_scrape_product_direct: no mapped product for {pid}")
+    return chosen, ACTOR_PRODUCT
 
 
 async def _run_pipeline(

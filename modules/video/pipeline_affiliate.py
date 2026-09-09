@@ -306,16 +306,18 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "The person shown must clearly be this gender and this approximate age. Do NOT swap gender/age."
             "The hands/person interacting with the product must read as a " + str(gender or "female") + " aged " + str(target_age or "25-35") + ".\n"
             "[MODEL APPEARANCE GUIDE — write this ONCE as one fixed identity line and REUSE it verbatim in BOTH image_prompt and video_prompt]\n"
-            "Pick ONE specific, GOOD-LOOKING adult creator and describe her/him concretely so the image model is not left to invent a random plain face. "
-            "The on-camera model MUST be genuinely attractive and camera-friendly (well-groomed, clear glowing skin, bright natural eyes, neat hair, "
-            "pleasant symmetrical features), for BOTH female and male models — never cast a dull/averagely plain or sloppy-looking person. "
-            "Specify: ethnic look (e.g. Thai / East-Asian), age, face shape (oval/round/soft jawline), clear natural eyes and brows, neat styled hair "
-            "(shoulder-length, wavy, or tied back for women; short clean-cut for men), slim-toned healthy build, and a simple but neat/elevated casual home outfit "
-            "(plain tee/tank or everyday top — clean, well-fitted, not wrinkled or grubby). Aim for an attractive, fresh, photogenic real person — "
-            "appealing but still natural/credible (NOT dolled-up heavy makeup, NOT plastic/uncanny, NOT a glamour photoshoot). "
-            "Prioritize good looks for both genders, but keep it believable UGC (healthily pretty/handsome, not airbrushed). "
-            "NEVER change this identity between image and video, or between first frame and later frames — same attractive person throughout. "
+            "Pick ONE specific adult creator and describe her/him concretely so the image model is not left to invent a random plain face. "
+            "Owner rule 2026-09-09: VARY the model every video — do NOT reuse the same look every time (not always a \"Thai/East-Asian 18-25 slim girl in a plain tee\"). "
+            "Choose a natural, credible creator that fits THIS product and category: vary age within the target group, ethnic look, face shape, hair, "
+            "and outfit (casual home wear, workwear, sporty, comfy loungewear...) so each video feels fresh and non-repetitive. "
+            "Still keep the person believable UGC: well-groomed and camera-friendly (clear skin, neat hair, pleasant features) but NOT dolled-up, "
+            "NOT plastic/uncanny, NOT a glamour photoshoot, NOT airbrushed, never a dull/sloppy look. "
+            "NEVER change this identity between image and video, or between first frame and later frames — same person throughout. "
             "Absolutely NO extra limbs, NO wrong finger counts, NO deformed/asymmetrical face.\n\n"
+            "[ANTI-HALLUCINATION — owner 2026-09-09]: Never invent brand names, logos, readable label text, ingredient lists, quantities, prices, "
+            "packaging shapes, or product features that are NOT present in the given Product/Description. If the description is missing, messy, "
+            "or in a foreign language (e.g. Vietnamese), base the visuals ONLY on the product type/name: keep packaging generic (plain bottle/jar/pouch, "
+            "soft-blurred or blank label, NO legible text) rather than hallucinated branding. Describe plastic/glass/colour/usage from what the product actually is.\n\n"
             "Write the IMAGE_PROMPT as one natural handheld on-model frame (for apparel the model is WEARING the garment and it is clearly on their "
             "body in focus; for other products the product/label is held or present in the lower-middle frame), realistic lighting. "
             "Write the VIDEO_PROMPT as one continuous, natural handheld motion sequence that moves through the real action "
@@ -326,10 +328,20 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             _acted_instr += "\nACTION REQUIRED from creator: " + str(special_target).strip()
         if (usage_howto or "").strip():
             _acted_instr += "\nHOW the product/model should act/be used in the shot: " + str(usage_howto).strip()
-        user_text = ("Product: " + str(product_name) + "\nDescription: " + str(description or "") +
+        # Clean messy product text (promo labels / Vietnamese / broken EN) before
+        # Mimo sees it — owner 2026-09-09 (Teashell: "9.9 SALE [Hot] ... ฟื้นbarier").
+        try:
+            from product.text_clean import clean_text, clean_description
+            _name_clean = clean_text(product_name) or str(product_name or "")
+            _desc_clean = clean_description(description, fallback_title=_name_clean)
+        except Exception:
+            _name_clean, _desc_clean = str(product_name or ""), str(description or "")
+        user_text = ("Product: " + _name_clean + "\nDescription: " + _desc_clean +
                      _acted_instr +
-                     "\nWrite natural-realistic image and video prompts for this product. Choose the real-world scene yourself from "
-                     "the product alone; do not rely on any style label. Real settings, believable faces, no green screen / chroma, "
+                     "\nWrite natural-realistic image and video prompts for this product. Base the visuals ONLY on the given "
+                     "Product/Description — never invent brand names, logos, label text, ingredients, quantities, prices, or packaging "
+                     "details not present. If the description is missing or in a foreign language, keep packaging generic (plain bottle/jar/pouch, "
+                     "soft-blurred or blank label, no legible text). Real settings, believable faces, no green screen / chroma, "
                      "no exaggerated cartoon reaction faces.")
         for _prov in _providers:
             payload = {

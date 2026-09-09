@@ -606,6 +606,12 @@ class ProductEnricher:
         try:
             product.category = await _detect_category(product.title, product.categories)
             product.title_th = await _translate_to_thai(product.title)
+            # Owner 2026-09-09: clean messy promo/VN/EN-mixed text before it
+            # reaches Mimo/prompt writing (Teashell case: "9.9 SALE [Hot] ... ฟื้นbarier")
+            from product.text_clean import clean_text, clean_description
+            product.title_th = clean_text(product.title_th) or product.title_th
+            product.title = clean_text(product.title) or product.title
+            product.description = clean_description(product.description, fallback_title=product.title)
             product.keywords = await _extract_keywords(product.title, product.description)
             meta = await _extract_gender_age_hashtags(product.title, product.description, product.category)
             if not product.gender:

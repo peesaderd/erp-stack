@@ -204,9 +204,12 @@ def _call_prodia(type_: str, config: dict, accept: str = "image/png", files: dic
 # exactly the same"). Re-describing the person's look/outfit overrides the real photo with
 # guessed text. Anchor the reference instead.
 IMG2IMG_ANCHOR = (
-    "Keep the product exactly as shown in the reference image, and keep the same "
-    "person, pose, outfit, and setting. Only adjust the scene as described. "
-    "Do NOT change the product or the person's look."
+    "Using the product shown in the reference image as the hero item, create a completely "
+    "new fresh scene: a realistic Thai woman newly generated, holding this exact product "
+    "from the reference image so its real color, shape and label are reproduced faithfully "
+    "and unblurred. Do not copy any existing person, background, or layout from the reference; "
+    "draw a new genuine Thai woman, a new real Thai home setting, and place the reference product "
+    "in her hands as the sharp centered focus."
 )
 
 THAI_NEGATIVE = (
@@ -223,12 +226,13 @@ def nano_banana_img2img(prompt: str, input_image: str, negative_prompt: str = ""
     Prodia sync model: POST /v2/job with multipart → image/png response.
     No polling. No async. Single call.
     """
-    # Prodia img2img: describe the CHANGE anchored to the reference image.
-    # Owner direction (2026-08-24): every prompt is a single 9:16 frame, so
-    # always preserve the original composition via the anchor.
+    # Prodia img2img already SEES the reference product image. The anchor is the
+    # PRIMARY directive (boss 2026-09-09 15:08): always draw a NEW Thai woman + fresh
+    # scene, and place the reference product (from the supplied image) in her hands.
+    # Always prepend it so a product-only cutout never gets "kept as-is" — the boss wants
+    # a newly generated person holding the real product, not a copy of the input layout.
     prompt = prompt.rstrip(",. ")
-    if not any(k in prompt.lower() for k in ("keep", "same as", "reference")):
-        prompt = IMG2IMG_ANCHOR + " " + prompt
+    prompt = IMG2IMG_ANCHOR + " " + prompt
     if not negative_prompt:
         negative_prompt = THAI_NEGATIVE
 

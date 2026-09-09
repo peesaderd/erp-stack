@@ -457,6 +457,10 @@ async def generate_video(req: VideoRequest):
             _db_image = req.product_image or ""
             _db_gender = getattr(req, "gender", "") or ""
             _db_age = getattr(req, "age", "") or ""
+            # FIX (owner 2026-09-09 / card f6839480): explicit req.product_price wins;
+            # else fallback to DB price_thb (was 0.0 always when req empty — price never reached AI)
+            _req_price = req.product_price
+            _db_price = req.product_price  # explicit wins by default
 
             # Load deep-analysis fields (body_part/usage/special_target/ingredient) from tus_products.db
             _db_body_part = ""
@@ -466,10 +470,16 @@ async def generate_video(req: VideoRequest):
             try:
                 tconn = sqlite3.connect(str(BASE_DIR / "tus_products.db"))
                 trow = tconn.execute(
-                    "SELECT description_th, description, keywords, images, category, gender, target_age, notes FROM tus_products WHERE title LIKE ? OR title_th LIKE ? OR product_id = ? LIMIT 1",
+                    "SELECT description_th, description, keywords, images, category, gender, target_age, notes, price_thb FROM tus_products WHERE title LIKE ? OR title_th LIKE ? OR product_id = ? LIMIT 1",
                     (f"%{_product_title}%", f"%{_product_title}%", req.product_url or "")
                 ).fetchone()
                 if trow:
+                    # price fallback from DB when request didn't carry an explicit price
+                    if not _req_price and trow[8] is not None:
+                        try:
+                            _db_price = float(trow[8])
+                        except Exception:
+                            _db_price = 0.0
                     # description: DB อาจว่าง → ถั่วให้ build จาก notes (usage + ingredient) ที่วิเคราะห์ไว้แล้ว
                     _db_desc = trow[0] or trow[1] or _db_desc
                     _db_category = trow[4] or _db_category
@@ -565,7 +575,7 @@ async def generate_video(req: VideoRequest):
                     "usage_howto": _db_usage_howto or "",
                     "ingredient_highlight": _db_ingredient or "",
                     "product_id": job_id,
-                    "price": float(req.product_price) if req.product_price else 0.0,
+                    "price": float(_db_price) if _db_price is not None else 0.0,
                     "product_image": _product_image_to_web_url(_db_image),
                     "duration": req.duration or 15,
                     "target_duration": req.duration or 15,
@@ -624,7 +634,7 @@ async def generate_video(req: VideoRequest):
                 "product_title": req.product_title or "",
                 "product_name": _product_title or req.product_title or "สินค้า",
                 "product_image": product_img_local or "",
-                "product_price": req.product_price,
+                "product_price": _db_price if _db_price is not None else req.product_price,
                 "product_commission": req.product_commission,
                 "hook": req.hook or "",
                 "value": req.value or "",
@@ -696,10 +706,10 @@ async def generate_video(req: VideoRequest):
 
             # Store final rich result
             video_web_url = f"/api/tiktok/static/videos/final_{job_id}.mp4"
-            
+
             _update_pipeline_step(job_id, "result", "success", {
                 "product_name": (req.product_title or "")[:100],
-                "product_price": req.product_price,
+                "product_price": _db_price if _db_price is not None else req.product_price,
                 "product_image": _product_image_to_web_url(req.product_image or ""),
                 "script_hook": (req.hook or "")[:200],
                 "script_value": (req.value or "")[:200],
@@ -726,7 +736,7 @@ async def generate_video(req: VideoRequest):
                     "product_name": req.product_title or "",
                     "product_url": req.product_url or "",
                     "product_image": _product_image_to_web_url(req.product_image or ""),
-                    "product_price": req.product_price,
+                    "product_price": _db_price if _db_price is not None else req.product_price,
                     "product_commission": req.product_commission,
                     "tags": req.tags,
                     "hashtags": result.get("hashtags", []),

@@ -171,7 +171,14 @@ class VideoRequest(BaseModel):
     last_frame: Optional[str] = None
     thai_script: Optional[str] = None
     use_tus_voice: bool = True
-    prompt_extend: bool = True
+    # 🔴 prompt_extend DEFAULT = False (fixed 2026-09-09). ก่อนหน้านี้ค่า default เป็น True และ
+    # main.py ส่ง prompt_extend=req.prompt_extend ตรง ๆ → ทุก job ที่ยิงผ่าน /video/generate
+    # (โดยไม่ส่ง prompt_extend=false) จะได้ prompt_extend=True เข้า Prodia → Wan 2.7 ได้รับคำสั่ง
+    # ให้ EXTEND/เติมฉากเองจนครบ 15s → สร้างเสียง/ขยับปาก/มั่วแถมท้าย 2-3 วิ + พูดเนิบเพื่อยืดเวลา
+    # (ตรง studio template ปิด prompt_extend=false ไว้นานแล้ว physical เพี้ยนเมื่อเปิด เจอ validated
+    #  08:02 — แต่ path API นี้เคย default True => หลุดเปิดอยู่). Wan พูด thai_script เองในโหมด
+    # Voice-A ต้องให้ model หยุดพูดเมื่อจบบท ไม่ใช่ถูกสั่งให้เติมจนเต็มเวลา.
+    prompt_extend: bool = False
     # ── FL2V+Audio (Wan 2.7 start-end interpolation + 16kHz mono WAV lip-sync) ──
     audio: Optional[str] = None  # path/URL ของไฟล์เสียง 16kHz mono WAV (Prodia lip-sync)
     # ── SSOT deep-analysis fields (จาก Product Analyzer 8106 → ส่งเข้า prompt-builder) ──

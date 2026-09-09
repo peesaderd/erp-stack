@@ -467,7 +467,10 @@ def mistral_analyze_image(image_path: str, prompt: str) -> str:
     if not token:
         raise ValueError("MISTRAL_API_KEY not configured")
 
-    if image_path.startswith("http"):
+    if image_path.startswith("data:"):
+        # base64 data URI — extract encoded part directly
+        image_b64 = image_path.split(",", 1)[1] if "," in image_path else ""
+    elif image_path.startswith("http"):
         resp = requests.get(image_path, timeout=30)
         resp.raise_for_status()
         image_b64 = __import__("base64").b64encode(resp.content).decode()

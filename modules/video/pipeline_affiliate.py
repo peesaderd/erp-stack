@@ -323,7 +323,7 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             " \"thai_script\": \"<Natural spoken Thai hook + benefit + CTA, KEEP SHORT ~90-120 characters>\",\n"
             " \"image_prompt\": \"<Rich, concrete still-frame anchor, ~60-90 words>\",\n"
             " \"video_prompt\": \"<ONE continuous shot, ONE simple action + settle, grounded in physical detail, 60-90 words>\"\n"
-            " \"negative_prompt\": \"<short comma-separated visual flaws to avoid, ~60-120 chars, e.g. distorted hands, extra fingers, melted face, warped product, blurry>\"\n"
+            " \"negative_prompt\": \"<comma-separated list where EVERY item MUST start with a negative word - 'no ...' or 'don't ...'. ~60-120 chars. Example: no distorted fingers, no extra hands, no warped product, no blurry label, no melted face>\"\n"
             "}\n\n"
             "[TARGET AUDIENCE & CREATOR]\n"
             "- Choose the youngest age in the target demographic (e.g. 25-35: use 25).\n"
@@ -394,6 +394,12 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "   delivery in the video_prompt (never write phrases like \"she speaks naturally\" or \"friendly warm \n"
             "   expression\") - describing speech makes the model generate extra unscripted audio. Keep the mouth \n"
             "   and facial expression NEUTRAL and let the provided script carry the voice.\n"
+            "[NEGATIVE PROMPT - owner 2026-09-10] The negative_prompt is a list of things the model MUST NOT do.\n"
+            "   EVERY item MUST begin with a negative word - \"no ...\" or \"don't ...\". A bare noun\n"
+            "   (e.g. \"distorted fingers\") is READ AS AN INSTRUCTION and the model WILL render it. So write\n"
+            "   \"no distorted fingers, no extra hands, no warped product, no blurry label, no melted face\".\n"
+            "   ALWAYS include language-lock items: \"don't speak Vietnamese language, no Vietnamese speech,\n"
+            "   no Vietnamese accent\" - the voice must speak Thai only. Keep it comma-separated, ~60-120 chars.\n"
             "TARGET LENGTH: 60-90 words, ONE paragraph, present tense. NEVER under 60 words - a short prompt \n"
             "drops physical detail and the model invents errors. Cover all four blocks above so the length fills \n"
             "itself. Vivid and specific, grounded in physical detail. Describe what the person DOES in plain \n"
@@ -467,6 +473,7 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
                         _tst = _tst.strip() if isinstance(_tst, str) else ""
                         _neg = _obj.get("negative_prompt")
                         _neg = _neg.strip() if isinstance(_neg, str) else ""
+                        _neg = _normalize_negative_prompt(_neg)
                         if _tst:
                             # Normalize: Thai ตัวอักษร, ตัด wrap/quotes, ตัดเครื่องหมายคำพูดซ้ำที่อาจหลุดมา
                             _tst = _re.sub(r"[\u201c\u201d\"']+", "", _tst).strip()
@@ -487,6 +494,35 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
     except Exception as _e:
         logger.warning(f"_deepseek_product_prompts failed: {_e}")
         return None
+
+
+def _normalize_negative_prompt(neg: str) -> str:
+    """owner 2026-09-10: EVERY comma item in the negative_prompt MUST carry an explicit
+    negative word, otherwise the model renders the bare noun. Force 'no ' prefix where
+    missing, and always append the Thai-language lock."""
+    if not neg or not isinstance(neg, str):
+        return neg or ""
+    _NEG_PREFIX = ("no ", "don't ", "dont ", "not ", "never ", "without ", "avoid ")
+    _tokens = []
+    for _t in neg.split(","):
+        _t = _t.strip()
+        if not _t:
+            continue
+        if not _t.lower().startswith(_NEG_PREFIX):
+            _t = "no " + _t
+        _tokens.append(_t)
+    # dedupe while preserving order
+    _seen, _uniq = set(), []
+    for _t in _tokens:
+        _k = _t.lower()
+        if _k not in _seen:
+            _seen.add(_k)
+            _uniq.append(_t)
+    # language lock (Thai only) — always present
+    _lock = "don't speak Vietnamese language"
+    if not any("vietnam" in _t.lower() for _t in _uniq):
+        _uniq.append(_lock)
+    return ", ".join(_uniq)
 
 
 def analyze_product(product_name: str, product_image: str = None, description: str = "", ugc_style: str = "holding", body_part: str = "", special_target: str = "", usage_howto: str = "", ingredient_highlight: str = "", category: str = "", subcategory: str = "", gender: str = "", target_age: str = "") -> dict:
@@ -542,7 +578,7 @@ def analyze_product(product_name: str, product_image: str = None, description: s
         # NOT install the pb JSON-template image/video_prompt anymore (boss 2026-09-08).
         profile["_image_prompt"] = ""
         profile["_video_prompt"] = ""
-        profile["_negative_prompt"] = data.get("negative_prompt", "")
+        profile["_negative_prompt"] = _normalize_negative_prompt(data.get("negative_prompt", ""))
 
         # ── Mimo AI-authored prompts (boss 2026-09-08): Mimo is the SOLE image/video prompt
         # author. pb /build is only used above for analysis (category/scenes/script), never for
@@ -570,7 +606,7 @@ def analyze_product(product_name: str, product_image: str = None, description: s
             profile["_mimo_thai_script"] = _norm_ts
             # (B) owner 2026-09-10: negative สั้น ๆ ที่ Mimo เขียน (เป็นคำ positive-style ไม่มีคำ "no")
             # ใช้แทน negative ยาวจาก prompt-builder ที่ wan อ่านแล้วเพี้ยน — ถ้า Mimo ไม่ส่งมา คงค่า pb ไว้
-            _mimo_neg = (_ds.get("negative_prompt") or "").strip()
+            _mimo_neg = _normalize_negative_prompt((_ds.get("negative_prompt") or "").strip())
             if _mimo_neg:
                 profile["_negative_prompt"] = _mimo_neg
                 logger.info(f"  ✅ Mimo negative_prompt ({len(_mimo_neg)}ch) แทน pb negative")

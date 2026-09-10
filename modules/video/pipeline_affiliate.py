@@ -205,6 +205,12 @@ _THAI_ABBR = [
     (r"นาที\.", "นาที"), (r"วินาที\.", "วินาที"),
 ]
 _THAI_SYM = [("%", "เปอร์เซ็นต์")]
+# Latin tech/brand words that commonly slip through -> Thai phonetic spelling.
+_THAI_LATIN = {
+    "bluetooth": "บลูทูธ", "usb": "ยูเอสบี", "led": "แอลอีดี", "aac": "เอเอซี",
+    "spf": "เอสพีเอฟ", "anc": "เอเอ็นซี", "hdmi": "เอชดีเอ็มไอ", "wifi": "ไวไฟ",
+    "wi-fi": "ไวไฟ", "gps": "จีพีเอส", "type-c": "ไทป์ซี", "type c": "ไทป์ซี",
+}
 
 def normalize_thai_spoken_script(text: str) -> str:
     """Convert abbreviations + stray symbols in a Thai spoken script to full,
@@ -216,6 +222,13 @@ def normalize_thai_spoken_script(text: str) -> str:
         out = re.sub(pat, rep, out)
     for sym, rep in _THAI_SYM:
         out = out.replace(sym, " " + rep + " ")
+    # transliterate known Latin tech/brand words (case-insensitive, word-ish boundary)
+    for lat, rep in _THAI_LATIN.items():
+        out = re.sub(r"(?<![A-Za-z])" + re.escape(lat) + r"(?![A-Za-z])", rep, out, flags=re.IGNORECASE)
+    # separate any remaining Latin/digit run glued to Thai (e.g. "น้อยBluetooth" handled above;
+    # this inserts a space so leftover Latin never fuses into a Thai word)
+    out = re.sub(r"([\u0E00-\u0E7F])([A-Za-z0-9])", r"\1 \2", out)
+    out = re.sub(r"([A-Za-z0-9])([\u0E00-\u0E7F])", r"\1 \2", out)
     # tidy double spaces created by replacements
     out = re.sub(r"[ \t]{2,}", " ", out).strip()
     return out
@@ -330,9 +343,11 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "the hero. The final beat settles on the product or the worn fit.\n\n"
             "[SELLING FLOW in thai_script]\n"
             "Write a punchy, easy-to-say Thai voice-over line: relatable pain point or desire -> how the product "
-            "fixes it -> a quick believable result -> a soft push to buy/link. KEEP IT SHORT ~90-120 characters, \n"
-            "ONE clear idea, easy to say smoothly. Do NOT ramble, do NOT stack many benefits, do NOT add \n"
-            "filler sentences. Fewer clear words beat a long list.\n"
+            "fixes it -> a quick believable result -> a soft push to buy/link. \n"
+            "HARD LIMIT: 90-120 Thai characters TOTAL, counted exactly. FIRM CAP - never exceed 120. \n"
+            "ONE clear idea, easy to say smoothly. Do NOT ramble, do NOT stack many benefits, do NOT list specs, \n"
+            "do NOT add filler sentences. Fewer clear words beat a long list. If over 120 chars, delete the \n"
+            "weakest clause until under it.\n"
             "[SPOKEN-SCRIPT RULES - owner 2026-09-10] The thai_script is READ ALOUD by a Thai TTS/Wan voice, so it \n"
             "must be written exactly how it should be pronounced:\n"
             "  * NEVER use abbreviations or short forms - always write the full spoken word. Examples: 'ชม.' -> \n"
@@ -340,8 +355,10 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "    '%' -> 'เปอร์เซ็นต์', 'ANC' -> 'เอเอ็นซี'. Abbreviations are read letter-by-letter or wrong.\n"
             "  * Write out English words, brand names, and numbers in Thai phonetic spelling so the voice reads them \n"
             "    naturally (e.g. 'SPF50' -> 'เอสพีเอฟห้าสิบ', 'Vitamin C' -> 'วิตามินซี', '2 แถม 1' -> 'สองแถมหนึ่ง').\n"
-            "  * Keep ONLY real Thai words and Thai phonetic spellings. No Latin letters, no numbers, no symbols, \n"
-            "    no slashes, no 'x' meaning 'แถม'.\n\n"
+            "  * Keep ONLY real Thai words and Thai phonetic spellings. NO Latin letters at all - not even brand \n"
+            "    or tech words like Bluetooth, USB, LED, SPF, AAC. Transliterate them: Bluetooth -> บลูทูธ, \n"
+            "    USB -> ยูเอสบี, LED -> แอลอีดี, AAC -> เอเอซี, SPF -> เอสพีเอฟ. No numbers, no symbols, \n"
+            "    no slashes, no 'x' meaning 'แถม'. Every word must be readable Thai.\n\n"
             "[VIDEO PROMPT - positive direction only - owner 2026-09-10]\n"
             "Think of the video_prompt as one continuous shot that EXTENDS the still frame you already described \n"
             "in image_prompt. Follow these five rules:\n"
@@ -1072,11 +1089,20 @@ def generate_video(
         #   → Wan ปนคำสั่งพวกนี้เข้าไปกับบทพูด = ท้ายเพี้ยน
         #   แก้: ใช้คำสั่งสั้น ชัด "พูดตาม script นี้เท่านั้น" — เนื้อบทพูดเป็น DATA (thai_script) ล้วน
         #   ไม่มี hard-code ข้อความ script ใด ๆ ในนี้; motion ก็เป็น DATA (prompt) เช่นกัน
-        final_prompt = f"พูดตาม script นี้เท่านั้น:\n{thai_script}"
+        # 🔴 FIX (owner 2026-09-10 10:44): "ท้ายคลิปมีเสียงหลุด" — Wan พูด script จบ (~10.9s)
+        # แล้วยัง "พูดต่อ/พึมพำ" ในเวลาที่เหลือจนถึง 15s (วัดจริง: 11.3-12.4s และ 13.1-15s
+        # ยังมีเสียงพูดดัง -7.8dB) เพราะ prompt ไม่เคยสั่ง "พูดจบแล้วหยุดพูด" เลย (ท่อนนั้นถอดออก
+        # หลายรอบก่อนหน้าแต่ไม่เคยใส่กลับเป็นคำสั่งบวก) → ใส่ STOP RULE ชัดเจนเป็นภาษาไทย
+        _stop_rule = (
+            "อ่านออกเสียงเฉพาะข้อความใน «» นี้เท่านั้น:\n"
+            f"«{thai_script}»\n"
+            "เมื่ออ่านจบข้อความใน «» แล้ว ให้หยุดพูดทันที ห้ามพูดต่อ ห้ามพึมพำ ห้ามแต่งประโยคเพิ่ม "
+            "ห้ามออกเสียงใด ๆ จนจบคลิป — ปิดปากเงียบ แต่ยังขยับร่างกายตามท่อนการเคลื่อนไหวด้านล่างได้"
+        )
+        final_prompt = _stop_rule
         if _motion_on and _motion_txt:
             final_prompt = (
-                f"พูดตาม script นี้เท่านั้น:\n"
-                f"{thai_script}\n\n"
+                f"{_stop_rule}\n\n"
                 f"[MOVEMENT / การเคลื่อนไหว — อย่าอ่านออกเสียงท่อนนี้]:\n{_motion_txt}"
             )
         logger.info(f"  🎙 Voice mode A: speak-only-script + motion {'AFTER-script' if (_motion_on and _motion_txt) else 'OFF'} (owner fix 2026-09-10 05:52, len={len(final_prompt)}, motion={len(_motion_txt)}ch)")

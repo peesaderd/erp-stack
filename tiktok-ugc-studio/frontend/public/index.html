@@ -2466,7 +2466,7 @@ async function autoGenerateAll() {
         ugc_style: style,
         content_type: sessionStorage.getItem('selectedContentType') || 'affiliate',
         aspect_ratio: sessionStorage.getItem('aspectRatio') || '9:16',
-        negative_prompt: document.getElementById('negativePrompt')?.value?.trim() || 'text, subtitle, caption, emoji, icon, logo, watermark, UI, overlay, graphic',
+        negative_prompt: document.getElementById('negativePrompt')?.value?.trim() || undefined,
         // ไม่ส่ง recipe → ไม่ให้ backend ถูกบังคับแนวจาก chip
         recipe: undefined,
       })

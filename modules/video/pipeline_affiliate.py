@@ -1513,8 +1513,23 @@ def run_pipeline(
             if _vp:
                 video_prompts = [_vp]
                 logger.info(f"  Wired _video_prompt from prompt-builder ({len(_vp)} chars)")
-        if not negative_prompt:
-            negative_prompt = (product_profile or {}).get("_negative_prompt") or ""
+        # 🔴 FIX 2026-09-10 (owner: "หลุด guard" from vid_179fcbda): the request may carry a
+        # UI-supplied DEFAULT negative (frontend sends a 75-char generic text/watermark string
+        # when the user leaves the field blank). That non-empty value used to short-circuit
+        # `if not negative_prompt:` and DROP the superior Mimo-authored negative (~178ch with
+        # distorted hands / extra fingers / warped product). Fix: the Mimo/prompt-builder
+        # authored negative (product_profile["_negative_prompt"]) ALWAYS wins when present,
+        # regardless of what the caller passed in.
+        _authored_neg = (product_profile or {}).get("_negative_prompt") or ""
+        if _authored_neg:
+            if negative_prompt and negative_prompt.strip() != _authored_neg.strip():
+                logger.info(
+                    f"  🔁 override request negative_prompt ({len(negative_prompt)}ch) "
+                    f"with authored Mimo/pb negative ({len(_authored_neg)}ch)"
+                )
+            negative_prompt = _authored_neg
+        elif not negative_prompt:
+            negative_prompt = _authored_neg
         analyze_duration = int((time.time() - step_start) * 1000)
 
         try:

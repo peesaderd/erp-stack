@@ -186,7 +186,9 @@
         "action": "holds the bowl of the prepared dish upright, then eats a bite to show it",
         "camera": "medium shot, slow pull-back to reveal the whole bowl, product stays centered",
         "lighting": "warm appetizing natural light",
-        "mood": "hot, appetizing, comforting"
+        "mood": "hot, appetizing, comforting",
+        "realism": "realistic appetizing food photography look, noodles and broth in sharp natural focus, visible strand texture and steam, true-to-life food, crisp detail on the noodles not blurry or smeared",
+        "negative_hint": "no blurry noodles, no smeared mushy food, no melted plastic-looking food, no fake CGI food, no distorted strand shape"
       }
     },
     "fashion": {

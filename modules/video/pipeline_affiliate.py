@@ -366,7 +366,12 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "  * Keep ONLY real Thai words and Thai phonetic spellings. NO Latin letters at all - not even brand \n"
             "    or tech words like Bluetooth, USB, LED, SPF, AAC. Transliterate them: Bluetooth -> บลูทูธ, \n"
             "    USB -> ยูเอสบี, LED -> แอลอีดี, AAC -> เอเอซี, SPF -> เอสพีเอฟ. No numbers, no symbols, \n"
-            "    no slashes, no 'x' meaning 'แถม'. Every word must be readable Thai.\n\n"
+            "    no slashes, no 'x' meaning 'แถม'. Every word must be readable Thai.\n"
+            "  * BRAND NAME - MANDATORY: the product's brand name MUST be written in Thai phonetic spelling, \n"
+            "    NEVER left as Latin letters. If you leave it in Latin (e.g. 'RUEATHONG'), the voice reads it \n"
+            "    letter-by-letter and it comes out WRONG (e.g. 'รูอะทอง'). Spell the actual sound in Thai, e.g. \n"
+            "    'RUEATHONG' -> 'เรือทอง', 'JBL' -> 'เจบีแอล', 'Love Angel' -> 'เลิฟแองเจิ้ล'. Use the real \n"
+            "    Thai brand name if the product description already gives one.\n\n"
             "[VIDEO PROMPT - positive direction only - owner 2026-09-10]\n"
             "Think of the video_prompt as one continuous shot that EXTENDS the still frame you already described \n"
             "in image_prompt. Follow these five rules:\n"
@@ -387,6 +392,11 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "   (b) MAIN ACTION: the one main action, naming WHICH HAND holds/does WHAT and where it touches;\n"
             "   (c) CAMERA: the single subtle camera behaviour from rule 4;\n"
             "   (d) SETTLE: the final beat settling calmly on the product (stable hero hold).\n"
+            "6b. FOOD REALISM (when the product is food/drink): the dish must look REAL and appetizing - \n"
+            "   noodles/strands are crisp and clearly defined, broth glistens, steam is natural. NEVER a \n"
+            "   blurry, smeared, mushy, or plastic/CGI look. Say so in the video_prompt (e.g. 'noodles in \n"
+            "   sharp natural focus with visible strand texture') and add negatives like 'no blurry noodles, \n"
+            "   no smeared mushy food, no fake CGI food'.\n"
             "6. SCENE FIDELITY (hard rule) - the video_prompt may ONLY contain objects, tools, and setting that \n"
             "   image_prompt ALREADY shows. It is FORBIDDEN to introduce ANY new object of ANY kind - no kettle, \n"
             "   no chopsticks, no spoon, no extra bowls, no pans, no pots, no boxes, no sachets unless that exact \n"
@@ -402,8 +412,9 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "   EVERY item MUST begin with a negative word - \"no ...\" or \"don't ...\". A bare noun\n"
             "   (e.g. \"distorted fingers\") is READ AS AN INSTRUCTION and the model WILL render it. So write\n"
             "   \"no distorted fingers, no extra hands, no warped product, no blurry label, no melted face\".\n"
-            "   ALWAYS include language-lock items: \"don't speak Vietnamese language, no Vietnamese speech,\n"
-            "   no Vietnamese accent\" - the voice must speak Thai only. Keep it comma-separated, ~60-120 chars.\n"
+            "   Keep it comma-separated, ~60-120 chars. Do NOT name any language in the negative prompt\n"
+            "   (never write \"Vietnamese\" or any language) - it seeds random speech; the spoken-\n"
+            "   language guard is handled by the script rule instead. Only list visual flaws.\n"
             "TARGET LENGTH: 60-90 words, ONE paragraph, present tense. NEVER under 60 words - a short prompt \n"
             "drops physical detail and the model invents errors. Cover all four blocks above so the length fills \n"
             "itself. Vivid and specific, grounded in physical detail. Describe what the person DOES in plain \n"
@@ -503,7 +514,11 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
 def _normalize_negative_prompt(neg: str) -> str:
     """owner 2026-09-10: EVERY comma item in the negative_prompt MUST carry an explicit
     negative word, otherwise the model renders the bare noun. Force 'no ' prefix where
-    missing, and always append the Thai-language lock."""
+    missing. NOTE (owner 2026-09-10 18:2x): removed the Vietnamese-language lock —
+    mentioning 'Vietnamese' in the negative made Wan babble random speech (it is not
+    Vietnamese, so the term had no effect and may have seeded noise). Only generic
+    visual-flaw negatives should be used; the spoken-language guard lives in the script
+    stop-rule (speak ONLY the Thai script), not in the negative prompt."""
     if not neg or not isinstance(neg, str):
         return neg or ""
     _NEG_PREFIX = ("no ", "don't ", "dont ", "not ", "never ", "without ", "avoid ")
@@ -522,10 +537,7 @@ def _normalize_negative_prompt(neg: str) -> str:
         if _k not in _seen:
             _seen.add(_k)
             _uniq.append(_t)
-    # language lock (Thai only) — always present
-    _lock = "don't speak Vietnamese language"
-    if not any("vietnam" in _t.lower() for _t in _uniq):
-        _uniq.append(_lock)
+    # owner 2026-09-10 18:2x: Vietnamese lock REMOVED (caused babbling, no benefit).
     return ", ".join(_uniq)
 
 
@@ -1160,15 +1172,17 @@ def generate_video(
         # ในช่องว่างระหว่างวลี → สั่งเพิ่ม: อ่านทุกวลีตามจริง ห้ามเติมคำ/เสียงคั่นระหว่างวลี
         # 555 เว้นจังหวะได้แค่หายใจสั้น ๆ; ห้ามพูดคำที่ไม่ปรากฏใน «» รวมทั้งกลางบท
         _stop_rule = (
+            "พูดเฉพาะข้อความใน «» นี้เท่านั้น ห้ามพูดอย่างอื่นเด็ดขาด\n"
+            f"«{thai_script}»\n"
             "พูดออกเสียงด้วยน้ำเสียงเป็นธรรมชาติ เหมือนพูดคุยกับเพื่อนหน้าเฟซบุ๊ก "
             "เสียงดังชัดเจนในระดับพูดคุยปกติ กระฉับกระเฉง มีพลังแบบคนขายของออนไลน์ ไม่กระซิบ "
-            "ไม่อู้อี้ ไม่พึมพำ ไม่พูดเบา ๆ เปิดปากออกเสียงเต็มที่ทุกคำ\n"
-            "อ่านออกเสียงคำต่อคำตามข้อความใน «» นี้เท่านั้น:\n"
-            f"«{thai_script}»\n"
+            "ไม่อู้อี้ ไม่พึมพำ เปิดปากออกเสียงเต็มที่ทุกคำ\n"
             "อ่านทุกคำตามที่เขียน ห้ามเพิ่มคำ ห้ามสลับคำ ห้ามเติมเสียงหรือคำเชื่อมใด ๆ ระหว่างวลี "
-            "เว้นจังหวะได้แค่การหายใจสั้น ๆ ตามธรรมชาติเท่านั้น "
-            "เมื่ออ่านจบข้อความใน «» แล้ว ให้หยุดพูดทันที ห้ามพูดต่อ ห้ามพึมพำ ห้ามแต่งประโยคเพิ่ม "
-            "ห้ามออกเสียงใด ๆ จนจบคลิป — ปิดปากเงียบ แต่ยังขยับร่างกายตามท่อนการเคลื่อนไหวด้านล่างได้"
+            "เว้นจังหวะได้แค่การหายใจสั้น ๆ ตามธรรมชาติเท่านั้น\n"
+            "ห้ามพูดเกินจาก Thai script นี้เด็ดขาด หลังจากจบบทพูดแล้ว ไม่สร้างเสียงอะไรต่อ "
+            "เมื่ออ่านจบข้อความใน «» แล้ว ให้หยุดพูดทันที ปิดปากเงียบ ห้ามออกเสียงใด ๆ "
+            "ห้ามพึมพำ ห้ามพูดต่อ ห้ามเติมประโยค ห้ามสร้างเสียงอื่นใดจนจบคลิป "
+            "แต่ยังขยับร่างกายตามท่อนการเคลื่อนไหวด้านล่างได้"
         )
         final_prompt = _stop_rule
         if _motion_on and _motion_txt:

@@ -200,16 +200,14 @@ def _call_prodia(type_: str, config: dict, accept: str = "image/png", files: dic
 # ═══════════════════════════════════════════════════════════════════
 
 # Prodia Nano Banana img2img (see Prodia docs): the model ALREADY SEES the input image.
-# "Describe the change, not the whole scene" + anchor preservation ("keep everything else
-# exactly the same"). Re-describing the person's look/outfit overrides the real photo with
-# guessed text. Anchor the reference instead.
+# "Anchor the reference product" (owner 2026-09-10 06:22): keep the product EXACTLY like the
+# reference image (real color/shape/label) — do NOT redesign it. Only the person + scene are new.
+# Keep the directive SHORT and imperative: too much description confuses the model.
 IMG2IMG_ANCHOR = (
-    "Using the product shown in the reference image as the hero item, create a completely "
-    "new fresh scene: a realistic Thai woman newly generated, holding this exact product "
-    "from the reference image so its real color, shape and label are reproduced faithfully "
-    "and unblurred. Do not copy any existing person, background, or layout from the reference; "
-    "draw a new genuine Thai woman, a new real Thai home setting, and place the reference product "
-    "in her hands as the sharp centered focus."
+    "Use the product from the reference image exactly as it is — same real color, shape, size "
+    "and label text, unchanged, sharp and unblurred. Do not redesign or restyle the product. "
+    "Place this exact product in the hand of a newly generated realistic Thai woman, "
+    "product held up centered as the clear focus. The woman and scene are new; the product is not."
 )
 
 THAI_NEGATIVE = (

@@ -139,7 +139,7 @@
           "modern kitchen with warm lighting",
           "outdoor patio table"
         ],
-        "action": "holds product, presenting to camera",
+        "action": "holds the product upright facing camera, presenting it clearly",
         "camera": "eye-level shot",
         "lighting": "warm natural light",
         "mood": "appetizing, inviting"
@@ -176,6 +176,17 @@
         "camera": "medium shot",
         "lighting": "clean bright light",
         "mood": "healthy, trustworthy"
+      },
+      "cooked_meal": {
+        "scene": [
+          "bright kitchen counter with a bowl of the prepared dish already plated",
+          "warm wooden dining table with the finished bowl centered",
+          "cozy cafe table with the hot dish ready to eat"
+        ],
+        "action": "holds the bowl of the prepared dish upright, then eats a bite to show it",
+        "camera": "medium shot, slow pull-back to reveal the whole bowl, product stays centered",
+        "lighting": "warm appetizing natural light",
+        "mood": "hot, appetizing, comforting"
       }
     },
     "fashion": {

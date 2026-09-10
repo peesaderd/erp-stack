@@ -118,24 +118,50 @@ async def scrape_and_generate(req: ScrapeAndGenerateRequest):
 # ─── TTS ───────────────────────────────────────────────────────────────────
 
 @router.get("/products/list")
-def list_products(limit: int = 200, preset: str = "all", search: str = ""):
-    """List products from tus_products.db for the frontend product grid."""
+def list_products(limit: int = 200, preset: str = "all", search: str = "", sort: str = "viral", hours: int = 0):
+    """List products from tus_products.db for the frontend product grid.
+
+    sort:
+      - "viral"  (default) -> weirng viral_score DESC (original behaviour)
+      - "recent" -> เรียง imported_at DESC (ของใหม่ขึ้นก่อน)
+      - "viral_recent" -> ของที่ import เข้ามาใน `hours` ชม.ล่าสุด ขึ้นก่อน (เรียง viral ในกลุ่มนั้น)
+                         แล้วตามด้วยของเก่า (viral DESC) — ใช้ showcase สินค้าใหม่โดยไม่ทิ้งของ viral
+    hours: ใช้คู่กับ sort=viral_recent เท่านั้น
+    """
     db_path = str(BASE_DIR / "tus_products.db")
     if not os.path.exists(db_path):
         return {"products": []}
-    
+
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
-    
+
+    # ---- BUILD ORDER BY อย่างปลอดภัย (ไม่ให้ inject) ----
+    order = "viral_score DESC"  # default เติมพฤติกรรมเดิม
+    if sort == "recent":
+        order = "imported_at DESC"
+    elif sort == "viral_recent":
+        # ของใหม่ (import ใน hours ชม.ล่าสุด) ถูก 'ดัน' ขึ้นก่อน
+        try:
+            hh = max(0, int(hours))
+        except Exception:
+            hh = 24
+        if hh > 0:
+            # ใช้ CASE เพื่อเลื่อนของใหม่ขึ้นก่อน แล้วค่อยเรียง viral ภายในกลุ่มเดิม
+            order = (f"(CASE WHEN imported_at >= datetime('now', '-{hh} hours') "
+                     f"THEN 0 ELSE 1 END) ASC, "
+                     f"viral_score DESC")
+        else:
+            order = "viral_score DESC"
+
     if search:
         like = f"%{search}%"
         rows = conn.execute(
-            "SELECT * FROM tus_products WHERE title LIKE ? ORDER BY viral_score DESC LIMIT ?",
+            f"SELECT * FROM tus_products WHERE title LIKE ? ORDER BY {order} LIMIT ?",
             (like, limit)
         ).fetchall()
     else:
         rows = conn.execute(
-            "SELECT * FROM tus_products ORDER BY viral_score DESC LIMIT ?", (limit,)
+            f"SELECT * FROM tus_products ORDER BY {order} LIMIT ?", (limit,)
         ).fetchall()
     conn.close()
     

@@ -1362,13 +1362,13 @@ select.input { cursor: pointer; }
 
 
 
-    <!-- Recipe Presets -->
-    <div class="mb-3">
+    <!-- Recipe Presets — ซ่อนตามพี่สั่ง 2026-09-05: ใช้ปุ่ม AUTO ให้ AI เลือกเอง ไม่ให้เห็นตัวเลือก recipe -->
+    <div class="mb-3" style="display:none">
       <label class="text-sm text-secondary mb-2" style="display:block">🎬 Recipe Preset (เลือกแนว)</label>
       <div id="recipePicker" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px"></div>
     </div>
 
-    <div class="mb-4">
+    <div class="mb-4" style="display:none">
       <label class="text-sm text-secondary mb-2" style="display:block">UGC Style <span class="text-xs text-secondary">(ปรับเอง)</span></label>
       <div id="selectedStyleChip" onclick="document.getElementById('styleModal').classList.add('open')" style="padding:10px 14px;border:1px solid var(--border-primary);border-radius:var(--radius-lg);cursor:pointer;display:flex;align-items:center;gap:8px">
         <span id="selectedStyleIcon">🤳</span>
@@ -1427,9 +1427,10 @@ select.input { cursor: pointer; }
       <div class="text-xs text-secondary mt-1" id="durationHint">8 วิ = 1 scene, 15 วิ = 1 scene</div>
     </div>
 
-    <button class="btn btn-primary" id="genScriptBtn" onclick="generateScript()">⚡ Generate Script →</button>
+    <button class="btn btn-primary" id="genScriptBtn" onclick="generateScript()" style="display:none">⚡ Generate Script →</button>
     <div style="margin-top:10px"><button class="btn btn-primary" id="aiAutoBtn" onclick="runAiAuto()" style="width:100%;background:linear-gradient(135deg,#16a34a,#059669)!important;border:none!important">✨ AUTO (AI คิดแนว+บท+ภาพให้ ใช้สินค้าที่เลือก)</button></div>
-    <div style="margin-top:8px"><button class="btn btn-primary" id="autoGenBtn" onclick="autoGenerateAll()" style="width:100%;background:linear-gradient(135deg,#f43f5e,#8b5cf6)!important;border:none!important">⚡ Auto Generate All</button></div>
+    <!-- ปุ่ม Auto Generate All เดิม ถูกซ่อน (2026-09-05): ใช้แค่ปุ่ม AUTO เขียวเดียวให้ระบบเลือกเอง ไม่ให้ยึด recipe/UGC ค้างบนหน้า -->
+    <div style="margin-top:8px;display:none"><button class="btn btn-primary" id="autoGenBtn" onclick="autoGenerateAll()" style="width:100%;background:linear-gradient(135deg,#f43f5e,#8b5cf6)!important;border:none!important">⚡ Auto Generate All</button></div>
   </div>
 
   <!-- Step 2: Script -->
@@ -1545,7 +1546,7 @@ select.input { cursor: pointer; }
       </div>
     </div>
 
-    <button class="btn btn-primary w-full" id="genBtn" onclick="startGeneration()" style="justify-content:center">🚀 Generate Video</button>
+    <button class="btn btn-primary w-full" id="genBtn" onclick="startGeneration()" style="justify-content:center;display:none">🚀 Generate Video</button>
 
     <!-- ═══ Auto Pipeline Section ═══ -->
     <div class="card" style="margin-top:20px;border:1px solid rgba(139,92,246,0.2);background:rgba(139,92,246,0.03)">
@@ -2413,6 +2414,7 @@ function goContentStep(step) {
 
 // ─── ปุ่มเดียว AUTO (AI คิดให้ทั้งหมด) — ตามโจทย์พี่ 2026-09-05 ───
 // กดปุ่มนี้แล้วใช้สินค้าที่เลือกไว้จากลิสต์วิเคราะห์, ให้ AI (แทน JSON template) เลือกแนว/บท/ภาพเองให้หมด
+// autoGenerateAll() ตอนนี้บังคับ ugc_style='auto' + งด recipe เสมอ → ปุ่มเขียว=ปุ่มเดียวที่คุมเอง ไม่ยึด recipe/UGC ค้างหน้า
 async function runAiAuto() {
   const url = document.getElementById('productUrl').value;
   const title = document.getElementById('productTitle').value.trim();
@@ -2423,12 +2425,7 @@ async function runAiAuto() {
     openProductPicker();
     return;
   }
-  _aiAuto = true;   // บังคับ ugc_style='auto' + งด recipe chip → backend เลือกแนวเองจากหมวดสินค้า
-  try {
-    await autoGenerateAll();
-  } finally {
-    _aiAuto = false; // reset ให้ปุ่ม Auto Generate All เดิมยังทำงานตาม template เหมือนเดิม
-  }
+  await autoGenerateAll();
 }
 
 async function autoGenerateAll() {
@@ -2439,8 +2436,8 @@ async function autoGenerateAll() {
   // Use the stored enum value (holding/usage/review/talking) set by selectStyleFromModal.
   // Do NOT derive from the display label — "UGC Review" -> "ugc_review" (not "review") breaks
   // prompt-builder's exact-match and makes every style fall back to "holding" (owner 2026-08-30).
-  // ปุ่ม AUTO (AI คิดให้ทั้งหมด, runAiAuto): _aiAuto=true → บังคับ 'auto' ให้ backend เลือกแนว/สไตล์เองจากหมวด
-  const style = _aiAuto ? 'auto' : (sessionStorage.getItem('selectedStyle') || 'holding');
+  // ห้ามยึด recipe/UGC ค้างหน้า UI อีก (owner 2026-09-05): เส้นสร้างวิดีโอ full นี้ให้ AI เลือกเองเสมอ (auto) ไม่ว่าเรียกจากปุ่มไหน/batch
+  const style = 'auto';
   if (!url && !title && !details) { showToast('ใส่ชื่อสินค้าหรือ URL ก่อน','error'); return; }
 
   const dur = parseInt(sessionStorage.getItem('selectedDuration')) || 15;
@@ -2459,15 +2456,19 @@ async function autoGenerateAll() {
         product_url: url,
         product_description: details,
         product_image: imageUrl,
-        hook: document.getElementById('scriptHook')?.value || '',
-        value: document.getElementById('scriptValue')?.value || '',
-        cta: document.getElementById('scriptCta')?.value || '',
+        // script: อย่าส่ง hook/value/cta ค้างเดิมจากฟอร์ม (ที่ recipe/template เติมไว้ เช่น "ขอแนะนำ..." "สนใจลองได้วันนี้เลย...")
+        // เพราะ backend ให้ลำดับ script > hook/value/cta → ถ้าส่งบทค้างจะได้ script ห่วยเดิมทันที (owner 2026-09-05)
+        // ปุ่ม AUTO = ให้ AI เขียนบทใหม่จากข้อมูลสินค้าจริง ที่ prompt-builder (ส่ง script เปล่า → gen ใหม่)
+        hook: '',
+        value: '',
+        cta: '',
         duration: dur,
         ugc_style: style,
         content_type: sessionStorage.getItem('selectedContentType') || 'affiliate',
         aspect_ratio: sessionStorage.getItem('aspectRatio') || '9:16',
         negative_prompt: document.getElementById('negativePrompt')?.value?.trim() || 'text, subtitle, caption, emoji, icon, logo, watermark, UI, overlay, graphic',
-        recipe: _aiAuto ? undefined : (document.querySelector('#recipePicker .style-card.selected')?.getAttribute('data-recipe') || undefined),
+        // ไม่ส่ง recipe → ไม่ให้ backend ถูกบังคับแนวจาก chip
+        recipe: undefined,
       })
     });
     if (!res.ok) {
@@ -2812,7 +2813,6 @@ async function generateImageFromStep3() {
 
 // ── Recipe Templates ─────────────────────────────────────────────
 let _recipes = [];
-let _aiAuto = false; // set true เฉพาะปุ่ม AUTO/AI ใหม่ 1 ปุ่มนี้ (บังคับ ugc_style=auto ไม่ใช้ recipe chip) — reset ใน runAiAuto
 
 async function loadRecipes() {
   const container = document.getElementById('recipePicker');

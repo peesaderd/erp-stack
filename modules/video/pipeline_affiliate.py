@@ -207,8 +207,19 @@ def _deepseek_key() -> str:
 
 
 def _mimo_key() -> str:
-    """Resolve Mimo (xiaomi) API key: env MIMO_API_KEY first, then openclaw.json provider 'xiaomi'."""
+    """Resolve Mimo (xiaomi) API key.
+
+    Order (2026-09-10 fix): os.environ -> shared_config .env files -> openclaw.json.
+    openclaw.json is root-only (0600) so module services running as `openhands`
+    cannot read it; the key must live in a readable .env (erp-stack/.env) or env.
+    """
     k = os.environ.get("MIMO_API_KEY", "") or ""
+    if not k:
+        try:
+            from shared_config import _env_dict  # type: ignore
+            k = (_env_dict or {}).get("MIMO_API_KEY", "") or ""
+        except Exception:
+            k = ""
     if not k:
         try:
             _p = os.path.expanduser("/home/openhands/.openclaw/openclaw.json")

@@ -192,6 +192,35 @@ def _extract_json_obj(_content: str):
     return {}
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# Thai spoken-script safeguard (owner 2026-09-10)
+# Wan reads thai_script ALOUD (Voice mode A) — abbreviations get mis-read
+# (e.g. "ชม." -> "ชม" not "ชั่วโมง"). Normalize before the script reaches Wan.
+# ═══════════════════════════════════════════════════════════════════════════
+_THAI_ABBR = [
+    (r"ชม\.", "ชั่วโมง"), (r"ชั่วโมง\.", "ชั่วโมง"),
+    (r"ม\.ล\.", "มิลลิลิตร"), (r"ซ\.ม\.", "เซนติเมตร"),
+    (r"ก\.ก\.", "กิโลกรัม"), (r"ก\.", "กรัม"),
+    (r"บ\.", "บาท"), (r"น\.", "นาฬิกา"),
+    (r"นาที\.", "นาที"), (r"วินาที\.", "วินาที"),
+]
+_THAI_SYM = [("%", "เปอร์เซ็นต์")]
+
+def normalize_thai_spoken_script(text: str) -> str:
+    """Convert abbreviations + stray symbols in a Thai spoken script to full,
+    pronounceable Thai words so the voice model reads them correctly."""
+    if not text:
+        return text
+    out = text
+    for pat, rep in _THAI_ABBR:
+        out = re.sub(pat, rep, out)
+    for sym, rep in _THAI_SYM:
+        out = out.replace(sym, " " + rep + " ")
+    # tidy double spaces created by replacements
+    out = re.sub(r"[ \t]{2,}", " ", out).strip()
+    return out
+
+
 def _deepseek_key() -> str:
     """Resolve DeepSeek API key: env DEEPSEEK_API_KEY first, then openclaw.json."""
     k = os.environ.get("DEEPSEEK_API_KEY", "") or ""
@@ -303,7 +332,16 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "Write a punchy, easy-to-say Thai voice-over line: relatable pain point or desire -> how the product "
             "fixes it -> a quick believable result -> a soft push to buy/link. KEEP IT SHORT ~90-120 characters, \n"
             "ONE clear idea, easy to say smoothly. Do NOT ramble, do NOT stack many benefits, do NOT add \n"
-            "filler sentences. Fewer clear words beat a long list.\n\n"
+            "filler sentences. Fewer clear words beat a long list.\n"
+            "[SPOKEN-SCRIPT RULES - owner 2026-09-10] The thai_script is READ ALOUD by a Thai TTS/Wan voice, so it \n"
+            "must be written exactly how it should be pronounced:\n"
+            "  * NEVER use abbreviations or short forms - always write the full spoken word. Examples: 'ชม.' -> \n"
+            "    'ชั่วโมง', 'ก.' -> 'กรัม', 'ซ.ม.' -> 'เซนติเมตร', 'ม.ล.' -> 'มิลลิลิตร', 'บ.' -> 'บาท', \n"
+            "    '%' -> 'เปอร์เซ็นต์', 'ANC' -> 'เอเอ็นซี'. Abbreviations are read letter-by-letter or wrong.\n"
+            "  * Write out English words, brand names, and numbers in Thai phonetic spelling so the voice reads them \n"
+            "    naturally (e.g. 'SPF50' -> 'เอสพีเอฟห้าสิบ', 'Vitamin C' -> 'วิตามินซี', '2 แถม 1' -> 'สองแถมหนึ่ง').\n"
+            "  * Keep ONLY real Thai words and Thai phonetic spellings. No Latin letters, no numbers, no symbols, \n"
+            "    no slashes, no 'x' meaning 'แถม'.\n\n"
             "[VIDEO PROMPT - positive direction only - owner 2026-09-10]\n"
             "Think of the video_prompt as one continuous shot that EXTENDS the still frame you already described \n"
             "in image_prompt. Follow these five rules:\n"
@@ -485,7 +523,12 @@ def analyze_product(product_name: str, product_image: str = None, description: s
             profile["_image_prompt"] = _ds["image_prompt"]
             profile["_video_prompt"] = _ds["video_prompt"]
             # (ข) Mimo thai_script → ให้ generate_script ใช้เป็นตัวพูดจริง (คนเดียว author บท+ภาพ+วิดีโอ)
-            profile["_mimo_thai_script"] = (_ds.get("thai_script") or "").strip()
+            # owner 2026-09-10: normalize คำย่อ/สัญลักษณ์ → คำเต็มก่อน (Wan พูดเอง อ่านผิดถ้าเป็นคำย่อ)
+            _raw_ts = (_ds.get("thai_script") or "").strip()
+            _norm_ts = normalize_thai_spoken_script(_raw_ts)
+            if _norm_ts != _raw_ts:
+                logger.info(f"  🔧 normalize thai_script: {_raw_ts!r} -> {_norm_ts!r}")
+            profile["_mimo_thai_script"] = _norm_ts
             # (B) owner 2026-09-10: negative สั้น ๆ ที่ Mimo เขียน (เป็นคำ positive-style ไม่มีคำ "no")
             # ใช้แทน negative ยาวจาก prompt-builder ที่ wan อ่านแล้วเพี้ยน — ถ้า Mimo ไม่ส่งมา คงค่า pb ไว้
             _mimo_neg = (_ds.get("negative_prompt") or "").strip()
@@ -649,7 +692,7 @@ def generate_script(
     # Mimo เขียน image+video_prompt+thai_script พร้อมกันใน call เดียว → ใช้บทนั้นเป็นตัวพูด
     # จะได้ บท+ภาพ+วิดีโอ sync จากผู้เขียนคนเดียว (แก้ APPEND 15: เดิม Mimo เขียนบทแต่โดนทิ้ง
     # แล้วไปใช้ beat_timed 184ch ที่ภาพไม่ sync) — ถ้า Mimo ไม่ส่งบท ค่อยใช้ beat_timed
-    mimo_script = (product_profile.get("_mimo_thai_script") or "").strip()
+    mimo_script = normalize_thai_spoken_script((product_profile.get("_mimo_thai_script") or "").strip())
     if mimo_script:
         logger.info(f"  Script: Mimo-authored thai_script (sync ภาพ+วิดีโอ, {len(mimo_script)}ch): {mimo_script[:80]}...")
         return mimo_script

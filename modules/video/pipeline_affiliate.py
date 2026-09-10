@@ -1093,9 +1093,15 @@ def generate_video(
         # แล้วยัง "พูดต่อ/พึมพำ" ในเวลาที่เหลือจนถึง 15s (วัดจริง: 11.3-12.4s และ 13.1-15s
         # ยังมีเสียงพูดดัง -7.8dB) เพราะ prompt ไม่เคยสั่ง "พูดจบแล้วหยุดพูด" เลย (ท่อนนั้นถอดออก
         # หลายรอบก่อนหน้าแต่ไม่เคยใส่กลับเป็นคำสั่งบวก) → ใส่ STOP RULE ชัดเจนเป็นภาษาไทย
+        # 🔴 FIX#2 (owner 2026-09-10 11:39): "มีแทรกหลังคำว่า เชื่อมเร็ว" — Wan ใส่คำ/เสียง
+        # แทรกกลางบท ตรงรอยต่อระหว่างวลี (หลัง 'เชื่อมเร็ว' ก่อนวลีสุดท้าย) เพราะมันเติมเสียง
+        # ในช่องว่างระหว่างวลี → สั่งเพิ่ม: อ่านทุกวลีตามจริง ห้ามเติมคำ/เสียงคั่นระหว่างวลี
+        # 555 เว้นจังหวะได้แค่หายใจสั้น ๆ; ห้ามพูดคำที่ไม่ปรากฏใน «» รวมทั้งกลางบท
         _stop_rule = (
-            "อ่านออกเสียงเฉพาะข้อความใน «» นี้เท่านั้น:\n"
+            "อ่านออกเสียงคำต่อคำตามข้อความใน «» นี้เท่านั้น:\n"
             f"«{thai_script}»\n"
+            "อ่านทุกคำตามที่เขียน ห้ามเพิ่มคำ ห้ามสลับคำ ห้ามเติมเสียงหรือคำเชื่อมใด ๆ ระหว่างวลี "
+            "เว้นจังหวะได้แค่การหายใจสั้น ๆ ตามธรรมชาติเท่านั้น "
             "เมื่ออ่านจบข้อความใน «» แล้ว ให้หยุดพูดทันที ห้ามพูดต่อ ห้ามพึมพำ ห้ามแต่งประโยคเพิ่ม "
             "ห้ามออกเสียงใด ๆ จนจบคลิป — ปิดปากเงียบ แต่ยังขยับร่างกายตามท่อนการเคลื่อนไหวด้านล่างได้"
         )
@@ -1325,6 +1331,12 @@ def compose_video(
             # sharply the moment the narration speaks (sidechaincompress) and only returns in
             # pauses/tail, so voice never overlaps music → clean single narration.
             try:
+                # 🔴 FIX (owner 2026-09-10 11:39): "มีแทรกหลังคำว่า เชื่อมเร็ว" — ต้นตอ =
+                # BGM (kontraa_water, speech-band ~-25dB) โผล่กลับมาใน "ช่องว่างระหว่างวลี"
+                # เพราะ volume=0.5 สูงไป + release=650ms สั้นไป → จังหวะที่บทพูดหยุดพักหายใจ
+                # ระหว่างวลี ดนตรีดีดกลับดัง → ฟังเป็น "เสียงแทรก". แก้: ลด BGM เป็น 0.18
+                # (ดนตรีเป็นแค่เบด ไม่แข่งกับเสียงพูด) + ducking หนักขึ้น (threshold สูงขึ้น,
+                # ratio สูง, release ยาว 1200ms ให้ดนตรีค้างลงนานระหว่างวลี ไม่งั้นมันเด้งกลับ)
                 cmd_mix = [
                     "ffmpeg", "-y",
                     "-i", str(final_path),
@@ -1332,9 +1344,9 @@ def compose_video(
                     "-i", str(bgm_path),
                     "-filter_complex",
                     "[0:a]apad=pad_dur=20[va];"
-                    "[1:a]volume=0.5[bg];"   # raise BGM so ducking target is audible in pauses
+                    "[1:a]volume=0.18[bg];"   # BGM as a soft bed only — never compete with narration
                     "[va]asplit=2[voice][side];"
-                    "[bg][side]sidechaincompress=threshold=0.04:ratio=12:attack=25:release=650[duck];"
+                    "[bg][side]sidechaincompress=threshold=0.06:ratio=20:attack=20:release=1200[duck];"
                     "[voice][duck]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0[out]",
                     "-map", "0:v",
                     "-map", "[out]",

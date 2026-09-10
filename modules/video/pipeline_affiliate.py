@@ -290,12 +290,16 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "[SELLING FLOW in thai_script]\n"
             "Write a punchy, easy-to-say Thai voice-over line: relatable pain point or desire -> how the product "
             "fixes it -> a quick believable result -> a soft push to buy/link. Keep the length short and natural.\n\n"
+            "[CTA RULE — owner 2026-09-10] NEVER end every script with the same canned line such as "
+            "\"\u0e25\u0e2d\u0e07\u0e40\u0e25\u0e22\u0e04\u0e48\u0e30 \u0e21\u0e35\u0e42\u0e04\u0e49\u0e14\u0e25\u0e14\u0e43\u0e19\u0e04\u0e2d\u0e21\u0e40\u0e21\u0e19\u0e15\u0e4c\". Vary the closing EVERY job \u2014 write a fresh, "
+            "product-specific CTA each time (e.g. \u0e02\u0e2d\u0e07\u0e2b\u0e21\u0e14\u0e44\u0e27\u0e01\u0e14\u0e40\u0e25\u0e22, \u0e42\u0e1b\u0e23\u0e43\u0e19\u0e15\u0e30\u0e01\u0e23\u0e49\u0e32\u0e23\u0e2d\u0e19\u0e30, \u0e23\u0e31\u0e1a\u0e44\u0e1b\u0e25\u0e2d\u0e07\u0e01\u0e48\u0e2d\u0e19\u0e43\u0e04\u0e23). "
+            "Do NOT copy the example closing verbatim.\n"
             "[FREE TO THINK]\n"
             "You are free to decide the best framing, gesture, setting, and word choice for each product from its "
             "real details. Create fresh, lively, on-brand content every time.\n"
             "\nHIGH-VALUE EXAMPLE for beauty (the youngest target uses the product and speaks its real benefit):\n"
             "{\n"
-            " \"thai_script\": \"หนูรู้ว่ามือใหม่หัดแต่งหน้าต้องเจอปัญหาครีมกันแดดเป็นคราบ ตัวนี้เนื้อบางเบาเกลี่ยง่าย ผิวไม่ขาววอก กันแดด SPF50 PA++++ ทาแล้วติดทนทั้งวัน ลองดูนะคะ มีโค้ดลดในคอมเมนต์\",\n"
+            " \"thai_script\": \"หนูรู้ว่ามือใหม่หัดแต่งหน้าต้องเจอปัญหาครีมกันแดดเป็นคราบ ตัวนี้เนื้อบางเบาเกลี่ยง่าย ผิวไม่ขาววอก กันแดด SPF50 PA++++ ทาแล้วติดทนทั้งวัน ตุนไว้ก่อนของหมด\",\n"
             "}\n"
             "(Your thai_script IS the actual spoken voice-over — write it cleanly. Build image_prompt and video_prompt around the real product so image + motion + script all match.)"
         )
@@ -968,9 +972,25 @@ def generate_video(
         # เทคนิค: (1) กันขอบเขตบทด้วยเครื่องหมาย "«»" ให้ Wan เห็นชัดว่าบทจบตรงไหน (2) เน้นว่าหยุดได้/เงียบได้
         # ไม่ต้องพูดให้เต็มความยาววิดีโอ (กันมัน "อยากทำให้เต็มเวลา") (3) ตอกย้ำจบ = ปิดปาก พยุดเสียง
         # ไม่เพิ่มคำ/เสียง/ต่อบท (4) ห้ามใส่ "ยิ้มนิ่ง/ไม่ขยับ/กล้องนิ่ง" (พี่ 09-09 03:35 เอาออกเพราะทำภาพนิ่งเกิน)
+        # 🔴 FIX (owner 2026-09-10 03:5x): "prompt ขยับแต่คลิปนิ่ง" — ต้นตอ = ท่อนนี้เดิม **ทับ**
+        # video_prompt (action 688ch) ด้วยคำสั่งพูดไทยล้วน ⇒ Wan ไม่มี motion direction เลย → นิ่ง
+        # แก้: คงบทพูดไทยเป็นหลัก (กันพูดเพี้ยน) แต่ **ต่อ motion/action กลับเข้าไป** ให้ Wan รู้ว่าต้องขยับอะไร
+        #   - motion_prompt = video_prompt (Mimo เขียนไว้) — เก็บเป็น "สิ่งที่ต้องทำตอนพูด"
+        #   - วาง motion ไว้ "ก่อน" บท เพื่อให้ Wan เห็น action แล้วค่อยอ่านบท (และปิดท้ายด้วย stop instruction เดิม)
+        #   - toggle ได้ด้วย env WAN_VOICE_MOTION (default เปิด) เผื่อ owner อยากเทียบก่อน/หลัง
+        import os as _os
+        _motion_on = _os.getenv("WAN_VOICE_MOTION", "1").strip().lower() not in ("0", "false", "no", "off")
+        _motion_txt = (prompt or "").strip()
+        _motion_block = ""
+        if _motion_on and _motion_txt:
+            _motion_block = (
+                f"ในขณะพูด ให้แสดงท่าทาง/การเคลื่อนไหวตามฉากนี้จริง ๆ อย่างเป็นธรรมชาติ "
+                f"(ขยับตัว/มือ/สีหน้า ให้เห็นการเคลื่อนไหวชัดเจน ไม่ใช่ยืนนิ่ง):\n{_motion_txt}\n"
+            )
         final_prompt = (
             f"คุณเป็นเธอสาวไทยคนเดียวกับในคลิป ท่านแม่ค้าไทยตัวจริง พูดภาษาไทยสำเนียงไทยชัดเจน ด้วยเสียงผู้หญิงนุ่มนวลเป็นธรรมชาติ "
-            f"คนพูดคือผู้หญิงไทยอายุตามที่ระบุคนเดียวกันทั้งคลิป ห้ามเปลี่ยนเป็นผู้ชาย ห้ามเป็นคนต่างชาติ/ต่างภาษา "
+            f"คนพูดคือผู้หญิงไทยอายุตามที่ระบุคนเดียวกันทั้งคลิป ห้ามเปลี่ยนเป็นผู้ชาย ห้ามเป็นคนต่างชาติ/ต่างภาษา \n"
+            f"{_motion_block}"
             f"ให้อ่านบทภาษาไทยต่อไปนี้เท่านั้น ออกเสียงหญิงชัดเจนตามตัวอักษร ทีละคำ ถูกต้องตามเสียงภาษาไทย:\n"
             f"«{thai_script}»\n"
             f"อ่านจบเมื่อถึงเครื่องหมาย » ปิดสุดท้าย ห้ามอ่านเลยบท ห้ามข้ามคำ ห้ามเติมคำ ห้ามแต่งประโยคเพิ่ม "
@@ -979,7 +999,7 @@ def generate_video(
             f"เงียบได้ พูดจบแล้วปิดปากทันที หยุดส่งเสียงทั้งหมด ไม่ฮัม ไม่พึมำ ไม่พูดต่อ ไม่เพิ่มบท ไม่ร้องคำใหม่ "
             f"เมื่ออ่านบทจบแล้วให้เงียบสนิทจนจบคลิปเท่านั้น"
         )
-        logger.info(f"  🎙 Voice mode A: ฝัง thai_script คำสั่งพูดไทยล้วน + stop แบบ enclosed (owner fix 2026-09-09 12:5x, len={len(final_prompt)})")
+        logger.info(f"  🎙 Voice mode A: บทพูดไทยล้วน + motion {'ON' if _motion_block else 'OFF'} (owner fix 2026-09-10 03:5x, len={len(final_prompt)}, motion={len(_motion_block)}ch)")
 
 # ลบ comment เดิม "ห้ามฝัง" แล้วแทนด้วยโหมดฝังเมื่อเปิด
 

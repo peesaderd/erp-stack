@@ -469,10 +469,38 @@ async def generate_video(req: VideoRequest):
             _db_ingredient = ""
             try:
                 tconn = sqlite3.connect(str(BASE_DIR / "tus_products.db"))
-                trow = tconn.execute(
-                    "SELECT description_th, description, keywords, images, category, gender, target_age, notes, price_thb FROM tus_products WHERE title LIKE ? OR title_th LIKE ? OR product_id = ? LIMIT 1",
-                    (f"%{_product_title}%", f"%{_product_title}%", req.product_url or "")
-                ).fetchone()
+                # GUARD 1 (owner 2026-09-10): only JOIN when we have a REAL product
+                # identity. An empty / placeholder / too-short title makes
+                # `title LIKE '%%'` match the FIRST row of tus_products (it happened to
+                # be a pregnancy cream) and leaks its special_target/body_part into
+                # EVERY job — e.g. JBL earbuds painted with a pregnant model.
+                # Nothing that reaches here is a lookup key -> skip the join entirely.
+                _GUARD_TITLE = (_product_title or "").strip()
+                _GENERIC_TITLES = {"สินค้า", "product", "item", "test", "ทดสอบ", "-", "."}
+                _lookup_ok = (
+                    len(_GUARD_TITLE) >= 4
+                    and _GUARD_TITLE.lower() not in _GENERIC_TITLES
+                )
+                trow = None
+                if _lookup_ok or (req.product_url or "").strip():
+                    if _lookup_ok:
+                        # Prefer exact-ish match, fall back to LIKE only with a real key.
+                        trow = tconn.execute(
+                            "SELECT description_th, description, keywords, images, category, gender, target_age, notes, price_thb FROM tus_products WHERE title_th = ? OR title = ? LIMIT 1",
+                            (_GUARD_TITLE, _GUARD_TITLE)
+                        ).fetchone()
+                        if not trow:
+                            trow = tconn.execute(
+                                "SELECT description_th, description, keywords, images, category, gender, target_age, notes, price_thb FROM tus_products WHERE title LIKE ? OR title_th LIKE ? LIMIT 1",
+                                (f"%{_GUARD_TITLE}%", f"%{_GUARD_TITLE}%")
+                            ).fetchone()
+                    if not trow and (req.product_url or "").strip():
+                        trow = tconn.execute(
+                            "SELECT description_th, description, keywords, images, category, gender, target_age, notes, price_thb FROM tus_products WHERE product_id = ? LIMIT 1",
+                            (req.product_url or "",)
+                        ).fetchone()
+                else:
+                    logger.info("tus_products lookup skipped — no usable product key (empty/generic title)")
                 if trow:
                     # price fallback from DB when request didn't carry an explicit price
                     if not _req_price and trow[8] is not None:
@@ -527,6 +555,36 @@ async def generate_video(req: VideoRequest):
                 tconn.close()
             except Exception as dbe:
                 logger.debug(f"DB lookup exception: {dbe}")
+
+            # GUARD 2 (owner 2026-09-10): `pregnant` is an AUDIENCE, never an
+            # apply-area. Only keep it when the product text actually signals
+            # pregnancy (ท้อง/ครรภ์/คุณแม่/maternity/pregnan/postpartum). Otherwise
+            # drop it — a mismatch used to send the whole prompt layer to a belly
+            # blueprint / "visibly pregnant" model (e.g. JBL earbuds).
+            try:
+                _AUDIENCE_ONLY = {"pregnant", "pregnancy", "maternity", "postpartum"}
+                if (_db_special_target or "").strip().lower() in _AUDIENCE_ONLY:
+                    _hint_blob = " ".join([
+                        (_product_title or ""),
+                        (_db_desc or ""),
+                        (_db_usage_howto or ""),
+                        (_db_ingredient or ""),
+                        (_db_category or ""),
+                    ]).lower()
+                    _preg_signal = any(k in _hint_blob for k in (
+                        "pregnan", "ท้อง", "ครรภ์", "คุณแม่", "ตั้งครรภ์",
+                        "maternity", "postpartum", "แม่ท้อง", "คนท้อง",
+                    ))
+                    if not _preg_signal:
+                        logger.warning(
+                            "GUARD2: dropped special_target=%r (no pregnancy signal in product text)",
+                            _db_special_target,
+                        )
+                        _db_special_target = ""
+                        if (_db_body_part or "").strip().lower() in ("belly",):
+                            _db_body_part = ""
+            except Exception as _ge:
+                logger.debug(f"GUARD2 exception: {_ge}")
 
             # NEW: body_part normalization — "whole-body" maps to a natural hand/apply
             # action (owner rule): never show full-body smearing, just the hand applying.

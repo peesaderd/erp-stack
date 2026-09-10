@@ -1425,21 +1425,16 @@
       "ambient_outdoor",
       "indoor_projector"
     ],
-    "negative_base": "no distorted hands, no extra fingers, no fused or webbed fingers, no hoof-like or claw-like hand, no deformed or stubby fingers, no mangled hand, no unnatural hand gesture, no facial morphing or melting, no jarring or erratic camera motion, no excessive camera shake, no sudden cutting or jumping frames, no blurred or warped product, no distorted unreadable label text, stable face, consistent identity, realistic proportions",
+    "negative_base": "distorted hands, extra fingers, fused fingers, deformed hand, melted face, warped product, blurred label, unreadable text, erratic camera motion, excessive camera shake, jumping frames",
     "negative_talking": [
-      "no exaggerated jaw movement",
-      "no shouting",
-      "no gaping mouth",
-      "no unnaturally wide open mouth"
+      "exaggerated jaw movement",
+      "shouting",
+      "gaping mouth"
     ],
     "negative_non_talking": [
-      "no open mouth",
-      "no wide open mouth",
-      "no gaping mouth",
-      "no dropped jaw",
-      "no unhinged mouth",
-      "no shouting",
-      "no screaming"
+      "open mouth",
+      "gaping mouth",
+      "shouting"
     ],
     "steer_talking_prompt": [
       "micro-expressions",

@@ -1533,8 +1533,7 @@ def build_negative_prompt(profile: dict, ugc_style: str = "holding", is_speaking
     # Summary-first order so truncation at the 500-char Prodia cap loses the tail
     # verbs first while keeping the "closed and in hand" anchor.
     anti_open = "" if is_no_human_style else (
-        "product stays closed and in hand, no opening the product, no uncapping, "
-        "no squeezing, no pumping, no unpacking, no taking the product out of its box"
+        "product kept closed, held steady in hand"
     )
     if is_speaking is True:
         # A talking style with a script gets the talking steer; but a NO-HUMAN style

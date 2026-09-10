@@ -270,6 +270,7 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             " \"thai_script\": \"<Natural spoken Thai hook + benefit + CTA, KEEP SHORT ~90-120 characters>\",\n"
             " \"image_prompt\": \"<Rich, concrete still-frame anchor, ~60-90 words>\",\n"
             " \"video_prompt\": \"<ONE simple continuous action, ~20-35 words ONLY, 2-3 beats max>\"\n"
+            " \"negative_prompt\": \"<short comma-separated visual flaws to avoid, ~60-120 chars, e.g. distorted hands, extra fingers, melted face, warped product, blurry>\"\n"
             "}\n\n"
             "[TARGET AUDIENCE & CREATOR]\n"
             "- Choose the youngest age in the target demographic (e.g. 25-35: use 25).\n"
@@ -292,13 +293,12 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "fixes it -> a quick believable result -> a soft push to buy/link. KEEP IT SHORT ~90-120 characters, \n"
             "ONE clear idea, easy to say smoothly. Do NOT ramble, do NOT stack many benefits, do NOT add \n"
             "filler sentences. Fewer clear words beat a long list.\n\n"
-            "[VIDEO PROMPT - keep it MINIMAL - owner 2026-09-10]\n"
-            "The video_prompt must be ONE simple continuous action, ~20-35 words, with only 2-3 beats TOTAL. \n"
-            "Do NOT write a sequence of many separate actions. Do NOT chain more than 3 beats. Do NOT add \n"
-            "side-to-side head turns, pointing, spinning, or busy hand choreography. Pick the single most \n"
-            "natural product moment (e.g. opens the compact, applies it gently, then holds it steady toward \n"
-            "the camera), keep the face calm and steady, then stop. Simple and stable = sharp and realistic; \n"
-            "busy = blurry and melting.\n\n"
+            "[VIDEO PROMPT - positive direction only - owner 2026-09-10]\n"
+            "The video_prompt is ONE simple continuous action, ~20-35 words, 2-3 beats TOTAL. \n"
+            "Pick the single most natural product moment (e.g. opens the compact, applies it gently, then \n"
+            "holds it steady toward the camera). Keep the face calm and steady, end on a settled beat. \n"
+            "Describe what the person DOES in plain positive words. Simple, stable motion reads as sharp \n"
+            "and realistic (a busy shot reads as blurry).\n\n"
             "[CTA RULE — owner 2026-09-10] NEVER end every script with the same canned line such as "
             "\"\u0e25\u0e2d\u0e07\u0e40\u0e25\u0e22\u0e04\u0e48\u0e30 \u0e21\u0e35\u0e42\u0e04\u0e49\u0e14\u0e25\u0e14\u0e43\u0e19\u0e04\u0e2d\u0e21\u0e40\u0e21\u0e19\u0e15\u0e4c\". Vary the closing EVERY job \u2014 write a fresh, "
             "product-specific CTA each time (e.g. \u0e02\u0e2d\u0e07\u0e2b\u0e21\u0e14\u0e44\u0e27\u0e01\u0e14\u0e40\u0e25\u0e22, \u0e42\u0e1b\u0e23\u0e43\u0e19\u0e15\u0e30\u0e01\u0e23\u0e49\u0e32\u0e23\u0e2d\u0e19\u0e30, \u0e23\u0e31\u0e1a\u0e44\u0e1b\u0e25\u0e2d\u0e07\u0e01\u0e48\u0e2d\u0e19\u0e43\u0e04\u0e23). "
@@ -332,8 +332,8 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
                      "details not present. IMPORTANT: if a product image is provided, draw the product exactly as it appears "
                      "in that image — real color, real shape, sharp unblurred label — never generic and never blurred. Only if there is "
                      "no product image AND no useful description may you describe plain generic packaging with a soft-blurred/blank label. "
-                     "Real settings, believable faces, no green screen / chroma, "
-                     "no exaggerated cartoon reaction faces.")
+                     "Use real, lived-in settings and believable, natural faces. "
+                     "Keep the shot in a real place, the face relaxed and true to life.")
         for _prov in _providers:
             payload = {
                 "model": _prov["model"],
@@ -365,6 +365,8 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
                         _img = _img.strip() if isinstance(_img, str) else ""
                         _tst = _obj.get("thai_script")
                         _tst = _tst.strip() if isinstance(_tst, str) else ""
+                        _neg = _obj.get("negative_prompt")
+                        _neg = _neg.strip() if isinstance(_neg, str) else ""
                         if _tst:
                             # Normalize: Thai ตัวอักษร, ตัด wrap/quotes, ตัดเครื่องหมายคำพูดซ้ำที่อาจหลุดมา
                             _tst = _re.sub(r"[\u201c\u201d\"']+", "", _tst).strip()
@@ -373,7 +375,7 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
                             # ใช้เป็นตัวพูดจริง ให้คนเดียว author บท+ภาพ+วิดีโอ sync กัน (แก้ APPEND 15 conflict)
                             logger.info(f"_deepseek_product_prompts: got AI prompts from {_prov['name']} "
                                         f"({_prov['model']}, img {len(_img)}ch, vid {len(_vid)}ch, script {len(_tst)}ch)")
-                            return {"image_prompt": _img, "video_prompt": _vid, "thai_script": _tst}
+                            return {"image_prompt": _img, "video_prompt": _vid, "thai_script": _tst, "negative_prompt": _neg}
                         logger.warning(f"_deepseek_product_prompts [{_prov['name']}] JSON missing image/video keys (img={bool(_img)}, vid={bool(_vid)})")
                         break
                     else:
@@ -461,6 +463,12 @@ def analyze_product(product_name: str, product_image: str = None, description: s
             profile["_video_prompt"] = _ds["video_prompt"]
             # (ข) Mimo thai_script → ให้ generate_script ใช้เป็นตัวพูดจริง (คนเดียว author บท+ภาพ+วิดีโอ)
             profile["_mimo_thai_script"] = (_ds.get("thai_script") or "").strip()
+            # (B) owner 2026-09-10: negative สั้น ๆ ที่ Mimo เขียน (เป็นคำ positive-style ไม่มีคำ "no")
+            # ใช้แทน negative ยาวจาก prompt-builder ที่ wan อ่านแล้วเพี้ยน — ถ้า Mimo ไม่ส่งมา คงค่า pb ไว้
+            _mimo_neg = (_ds.get("negative_prompt") or "").strip()
+            if _mimo_neg:
+                profile["_negative_prompt"] = _mimo_neg
+                logger.info(f"  ✅ Mimo negative_prompt ({len(_mimo_neg)}ch) แทน pb negative")
             logger.info(f"  ✅ Mimo authored image/video/script prompts for {product_name!r} (script {len(profile['_mimo_thai_script'])}ch)")
         else:
             logger.error(f"  Mimo failed to author prompts for {product_name!r} — refusing prompt-builder JSON template fallback")

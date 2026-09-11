@@ -468,11 +468,14 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
         if (usage_howto or "").strip():
             _acted_instr += "\nHOW the product/model should act/be used in the shot: " + str(usage_howto).strip()
         # Clean messy product text (promo labels / Vietnamese / broken EN) before
-        # Mimo sees it — owner 2026-09-09 (Teashell: "9.9 SALE [Hot] ... ฟื้นbarier").
+        # Mimo sees it — owner 2026-09-09 (Teashell: "9.9 SALE [Hot] ... ฟื้นบarier").
+        # owner 2026-09-11 (C): use the combined helper so title+desc are cleaned with
+        # the SAME rules as the router choke point — never send the raw title when desc is empty.
         try:
-            from product.text_clean import clean_text, clean_description
-            _name_clean = clean_text(product_name) or str(product_name or "")
-            _desc_clean = clean_description(description, fallback_title=_name_clean)
+            from product.text_clean import clean_product_text
+            _name_clean, _desc_clean = clean_product_text(
+                product_name or "", description or ""
+            )
         except Exception:
             _name_clean, _desc_clean = str(product_name or ""), str(description or "")
         user_text = ("Product: " + _name_clean + "\nDescription: " + _desc_clean +

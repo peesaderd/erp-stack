@@ -567,6 +567,33 @@ async def generate_video(req: VideoRequest):
             except Exception as dbe:
                 logger.debug(f"DB lookup exception: {dbe}")
 
+            # ── C (owner 2026-09-11, card 167f84eb): clean the product text ONCE at this
+            # choke point so EVERY downstream consumer (auto-style/subcategory picker,
+            # prompt-builder /build, Mimo prompt author, /video/generate payload) gets the
+            # same clean text and NEVER the raw dirty title (TikTok promo labels "9.9 SALE
+            # [Hot]", Vietnamese spec labels, broken spellings "barier"). This keeps the
+            # prompt to only in-frame product facts -> less visual drift.
+            try:
+                import sys as _sys
+                from pathlib import Path as _Path
+                _modules_dir = str(_Path(__file__).resolve().parent.parent.parent / "modules")
+                if _modules_dir not in _sys.path:
+                    _sys.path.insert(0, _modules_dir)
+                from product.text_clean import clean_product_text
+                _title_clean, _desc_clean = clean_product_text(
+                    _product_title or "", _db_desc or ""
+                )
+                if _title_clean:
+                    _product_title = _title_clean
+                if _desc_clean:
+                    _db_desc = _desc_clean
+                logger.info(
+                    "C text_clean: title=%r desc=%r",
+                    (_product_title or "")[:60], (_db_desc or "")[:60],
+                )
+            except Exception as _ce:
+                logger.warning(f"C text_clean skipped: {_ce}")
+
             # GUARD 2 (owner 2026-09-10): `pregnant` is an AUDIENCE, never an
             # apply-area. Only keep it when the product text actually signals
             # pregnancy (ท้อง/ครรภ์/คุณแม่/maternity/pregnan/postpartum). Otherwise

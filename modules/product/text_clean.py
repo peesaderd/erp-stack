@@ -46,6 +46,26 @@ _WORD_FIXES = [
     (re.compile(r"Ketzuzu", re.I), "เคตซูซุ"),
     (re.compile(r"OUKEYA", re.I), "โอเกยะ"),
     (re.compile(r"JBL", re.I), "เจบีแอล"),
+    # owner 2026-09-11 (C): generic English product/tech words that leak into
+    # titles from TikTok Shop ("ADVANCED RECOVERY SERUM", "Vit C", "Whitening
+    # Cream"). Translate the ones we can, drop packaging/marketing filler.
+    (re.compile(r"\bAdvanced\b", re.I), "แอดวานซ์"),
+    (re.compile(r"\bRecovery\b", re.I), "รีคัฟเวอรี"),
+    (re.compile(r"\bSerum\b", re.I), "เซรั่ม"),
+    (re.compile(r"\bWhitening\b", re.I), "ไวท์เทนนิ่ง"),
+    (re.compile(r"\bCream\b", re.I), "ครีม"),
+    (re.compile(r"\bFace\b", re.I), "เฟส"),
+    (re.compile(r"\bSunscreen\b", re.I), "กันแดด"),
+    (re.compile(r"\bShampoo\b", re.I), "แชมพู"),
+    (re.compile(r"\bSoap\b", re.I), "สบู่"),
+    (re.compile(r"\bLotion\b", re.I), "โลชั่น"),
+    (re.compile(r"\bVit(?:amin)?\s*C\b", re.I), "วิตามินซี"),
+    (re.compile(r"\bVC\b"), "วีซี"),
+    (re.compile(r"\bBio\b", re.I), "ไบโอ"),
+    (re.compile(r"\bPre-?Serum\b", re.I), "พรีเซรั่ม"),    (re.compile(r"\bRenewal\b", re.I), "รีนิวอัล"),
+    (re.compile(r"\bSTEP\b", re.I), "ขั้นตอน"),
+    (re.compile(r"\bg\.?\b(?=\s|$)", re.I), "กรัม"),
+    (re.compile(r"\bml\b", re.I), "มิลลิลิตร"),
 ]
 
 # ── Promotional prefixes/suffixes to drop ──
@@ -64,9 +84,32 @@ _PROMO_PATTERNS = [
     re.compile(r"\bCOD\b", re.I),
     re.compile(r"\bพร้อมส่ง\b"),
     re.compile(r"\bส่งฟรี\b"),
+    # owner 2026-09-11 (C): Thai hype words seen in real titles
+    # ("ลดสนั่น!", "ลดกระหน่ำ", "โปรแรง", "ถูกสุดในสามโลก" ...)
+    re.compile(r"ลดสนั่น!?"),
+    re.compile(r"ลดกระหน่ำ!?"),
+    re.compile(r"ลดจัดหนัก!?"),
+    re.compile(r"โปร(?:โมชั่น)?(?:แรง|พิเศษ|ส่งท้าย)!?"),
+    re.compile(r"ถูกสุดในสามโลก!?"),
+    re.compile(r"ราคาโปร"),
+    re.compile(r"ของแท้100%", re.I),
+    # "Fs. 2 in 1" / "2in1" / "1 แถม 1" style bundle promos
+    re.compile(r"\bFs\.\s*\d+\s*in\s*\d+\b", re.I),
+    re.compile(r"\b\d+\s*in\s*1\b", re.I),
+    re.compile(r"\b\d+\s*แถม\s*\d+\b"),
+    # standalone "9.9" / "11.11" / "12.12" / "9.9.9" sale events
+    re.compile(r"\b\d{1,2}(?:\.\d{1,2}){1,3}\b(?=\s|$)"),
+    # promo number glued to a letter ("U9.9", "X9.9") -> keep letter, drop the number
+    re.compile(r"(?<=[A-Za-z])\d{1,2}(?:\.\d{1,2}){1,3}\b"),
 ]
 
 _BRACKET_RE = re.compile(r"\[[^\]]*\]|\([^)]*(?:ซื้อ|แถม|ลด|sale|SALE|ชิ้น|%|off|OFF|2|3)[^)]*\)")
+
+# Trailing filler after the real product name (owner 2026-09-11):
+# "... เซรั่ม - เซรั่มบำรุง" / "... 50ml." -> drop the " - <category repeat>" tail
+_TAIL_RE = re.compile(r"\s*[-–—]\s*(?:เซรั่ม|ครีม|โลชั่น|สบู่|แชมพู|กันแดด|หูฟัง|พัดลม)\s*บำรุง\s*$")
+# Drop a trailing bare size/weight anywhere mid-string ("50g ", "100 กรัม ", "4+4 g. ")
+_SIZE_TAIL_RE = re.compile(r"\b\d+(?:\s*\+\s*\d+)?\s*(?:กรัม|มิลลิลิตร|มล\.?|g\.?|ml\.?|kg|ซีซี|cc)\b\.?", re.I)
 
 
 def clean_text(text: str, max_len: int = 200) -> str:
@@ -85,9 +128,16 @@ def clean_text(text: str, max_len: int = 200) -> str:
     # Broken EN spellings → Thai/clean
     for pat, repl in _WORD_FIXES:
         t = pat.sub(repl, t)
+    # Trailing "." left over after a promo token was removed ("ลดสนั่น!" / "9.9.")
+    t = re.sub(r"^[\s.!\-–—,]+|[\s.]+$", "", t).strip()
+    # Drop bare size/weight tokens ("50 กรัม", "50g") — they are packaging facts,
+    # never useful visual direction, and bloat the prompt (owner 2026-09-11 C).
+    t = _SIZE_TAIL_RE.sub("", t).strip()
+    t = _TAIL_RE.sub("", t).strip()
     # Collapse whitespace + punctuation cleanup
     t = re.sub(r"\s{2,}", " ", t).strip()
-    t = re.sub(r"\s*,\s*", ", ", t).strip(" ,:-")
+    t = re.sub(r"\s*\+\s*", "+", t)
+    t = re.sub(r"\s*,\s*", ", ", t).strip(" ,:-–—")
     if max_len and len(t) > max_len:
         cut = t[:max_len]
         if " " in cut:
@@ -102,3 +152,20 @@ def clean_description(desc: str, fallback_title: str = "", max_len: int = 400) -
     if not d and fallback_title:
         d = clean_text(fallback_title, max_len=max_len)
     return d
+
+
+def clean_product_text(title: str = "", description: str = "") -> tuple:
+    """Return (clean_title, clean_description) in one call.
+
+    Used at the pipeline/router choke point so EVERY downstream consumer
+    (auto-style/subcategory picker, prompt-builder, Mimo author, video-gen)
+    receives the same clean text and never the raw dirty title
+    (owner 2026-09-11, card 167f84eb step C).
+    """
+    t = clean_text(title)
+    d = clean_description(description, fallback_title=t)
+    # Never let the description be an exact clone of the title (adds no signal
+    # and just repeats promo residue). Keep the title in that case.
+    if d and t and d.strip() == t.strip():
+        d = t
+    return t, d

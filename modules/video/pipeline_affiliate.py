@@ -416,10 +416,16 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "   table - the person simply PRESENTS and/or EATS the ready dish. NEVER write verbs like \n"
             "   'pours', 'boils', 'adds water', 'cooks', or 'prepares' in the video_prompt, and NEVER a \n"
             "   kettle or pot unless that exact object is already in image_prompt.\n"
-            "7. SPEECH: the voice-over is ALREADY written in thai_script. Do NOT describe speech, talking, or facial \n"
-            "   delivery in the video_prompt (never write phrases like \"she speaks naturally\" or \"friendly warm \n"
-            "   expression\") - describing speech makes the model generate extra unscripted audio. Keep the mouth \n"
-            "   and facial expression NEUTRAL and let the provided script carry the voice.\n"
+            "7. SPEECH - SPEAK-ONLY-SCRIPT LOCK (owner 2026-09-11): the voice-over is ALREADY written in \n"
+            "   thai_script. Do NOT describe speech, talking, or facial delivery, and NEVER write phrases like \n"
+            "   \"she speaks naturally\" or \"friendly warm expression\" - describing speech makes the model \n"
+            "   generate extra unscripted audio. Keep the mouth and facial expression NEUTRAL.\n"
+            "   MANDATORY: because Wan reads the video_prompt LAST, you MUST open the video_prompt with the \n"
+            "   English sentence \"The person speaks ONLY the given Thai script, word for word, and says \n"
+            "   nothing before it, nothing between its phrases, and nothing after it.\" AND close the \n"
+            "   video_prompt with this exact sentence: \"Audio: only the provided Thai script is spoken; \n"
+            "   no words, no babbling, no filler before the first word or after the last word - silent \n"
+            "   otherwise.\" These two sentences are REQUIRED in every video_prompt.\n"
             "[NEGATIVE PROMPT - owner 2026-09-10] The negative_prompt is a list of things the model MUST NOT do.\n"
             "   EVERY item MUST begin with a negative word - \"no ...\" or \"don't ...\". A bare noun\n"
             "   (e.g. \"distorted fingers\") is READ AS AN INSTRUCTION and the model WILL render it. So write\n"
@@ -1196,11 +1202,20 @@ def generate_video(
             "พูดตาม script ข้างบนนี้เท่านั้น พูดเสร็จแล้วเงียบ สงบ ปิดปาก นิ่ง ไม่มีเสียงใด ๆ "
             "ยังขยับร่างกายและนำเสนอสินค้าต่อตามท่อนการเคลื่อนไหวด้านล่างได้"
         )
-        final_prompt = _stop_rule
+        # 🔴 owner 2026-09-11 00:54: Wan พูดแทรกก่อน CTA และหลัง CTA.
+        # owner: "ใส่ไปใน video prompt ว่าให้พูดตาม Script" — Wan อ่าน video_prompt เป็นท่อนสุดท้าย
+        # จึงต้องมีคำสั่ง speech-lock ปิดท้าย "หลัง" motion block ด้วย (ท่อนสุดท้ายที่ Wan เห็น)
+        _speech_tail = (
+            "\n\n[SPEECH LOCK — ท่อนสุดท้าย พูดเฉพาะบทเท่านั้น]: "
+            "พูดเฉพาะข้อความใน «» ด้านบนนี้เท่านั้น คำต่อคำ ไม่มีคำพูดหรือเสียงใด ๆ "
+            "ก่อนคำแรก ระหว่างวลี หรือหลังคำสุดท้าย เพิ่มเติมเด็ดขาด — นอกนั้นเงียบ"
+        )
+        final_prompt = _stop_rule + _speech_tail
         if _motion_on and _motion_txt:
             final_prompt = (
                 f"{_stop_rule}\n\n"
                 f"[MOVEMENT / การเคลื่อนไหว — อย่าอ่านออกเสียงท่อนนี้]:\n{_motion_txt}"
+                f"{_speech_tail}"
             )
         logger.info(f"  🎙 Voice mode A: speak-only-script + motion {'AFTER-script' if (_motion_on and _motion_txt) else 'OFF'} (owner fix 2026-09-10 05:52, len={len(final_prompt)}, motion={len(_motion_txt)}ch)")
 

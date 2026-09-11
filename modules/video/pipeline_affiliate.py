@@ -277,7 +277,7 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
                               category: str = "", subcategory: str = "",
                               special_target: str = "", usage_howto: str = "",
                               gender: str = "", target_age: str = "",
-                              product_image: str = "") -> Optional[dict]:
+                              product_image: str = "", duration: int = 15) -> Optional[dict]:
     """Have Mimo write the image/video prompts fresh from the actual product.
 
     Boss directive 2026-09-08: use Mimo exclusively (ไมใช่ DeepSeek).
@@ -312,6 +312,20 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
         if not _providers:
             logger.warning("_deepseek_product_prompts: no Mimo key available")
             return None
+        # owner 2026-09-11: thai_script MUST fill the clip. vid_2134a3b0 (boat noodles) had a 102ch
+        # script (~6-8s of Thai) against a 15s clip -> Wan ran out of script and improvised
+        # gibberish for the last ~7s ('พูดเพี้ยน'). Make the char budget duration-aware so the
+        # spoken line spans the whole clip with only a short settle tail.
+        try:
+            _dur = int(duration) if duration else 15
+        except Exception:
+            _dur = 15
+        if _dur <= 8:
+            _char_min, _char_max = 70, 100
+        elif _dur <= 12:
+            _char_min, _char_max = 100, 145
+        else:
+            _char_min, _char_max = 135, 185
         sysprompt = (
             "You are a top-tier Thai UGC creator making premium, beautiful, and hyper-authentic video concepts "
             "for TikTok Shop, Reels, and Shorts. Your goal is to make the audience feel: I have this problem -> "
@@ -321,7 +335,7 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "[STRICT OUTPUT FORMAT]\n"
             "Return ONLY a valid, raw JSON object. No markdown wrappers, no backticks, no conversational text.\n"
             "{\n"
-            " \"thai_script\": \"<Natural spoken Thai hook + benefit + CTA, KEEP SHORT ~90-120 characters>\",\n"
+            " \"thai_script\": \"<Natural spoken Thai hook + benefit + CTA, MUST fill ~" + str(_dur) + "s of speech (~" + str(_char_min) + "-" + str(_char_max) + " characters)>\",\n"
             " \"image_prompt\": \"<Rich, concrete still-frame anchor, ~60-90 words>\",\n"
             " \"video_prompt\": \"<ONE continuous shot, ONE simple action + settle, grounded in physical detail, 60-90 words>\"\n"
             " \"negative_prompt\": \"<comma-separated list where EVERY item MUST start with a negative word - 'no ...' or 'don't ...'. ~60-120 chars. Example: no distorted fingers, no extra hands, no warped product, no blurry label, no melted face>\"\n"
@@ -366,10 +380,17 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "[SELLING FLOW in thai_script]\n"
             "Write a punchy, easy-to-say Thai voice-over line: relatable pain point or desire -> how the product "
             "fixes it -> a quick believable result -> a soft push to buy/link. \n"
-            "HARD LIMIT: 90-120 Thai characters TOTAL, counted exactly. FIRM CAP - never exceed 120. \n"
-            "ONE clear idea, easy to say smoothly. Do NOT ramble, do NOT stack many benefits, do NOT list specs, \n"
-            "do NOT add filler sentences. Fewer clear words beat a long list. If over 120 chars, delete the \n"
-            "weakest clause until under it.\n"
+            "HARD LIMIT for this " + str(_dur) + "-second clip: " + str(_char_min) + "-" + str(_char_max) + " Thai characters TOTAL, counted exactly. "
+            "FIRM CAP - never exceed " + str(_char_max) + ". A spoken Thai line takes roughly 12-14 chars per second read "
+            "aloud, so this budget fills the clip. \n"
+            "CRITICAL - FILL THE WHOLE CLIP: the voice-over MUST keep speaking for almost the entire " + str(_dur) + " seconds; "
+            "if you write a SHORT script the video model runs out of words and IMPROVISES GIBBERISH for the remaining "
+            "seconds (this is the known 'พูดเพี้ยน' bug). Write enough real Thai so there is at most a short 1-2s settle "
+            "tail - never leave a long silent/gibberish gap. Do NOT pad with repeated or nonsense words; every word must "
+            "be real, sane Thai that carries the sell. \n"
+            "ONE clear idea. Do NOT list specs or stack unrelated benefits, but DO give the single idea enough natural "
+            "spoken detail to comfortably fill the time. If under " + str(_char_min) + " chars, expand the idea with real "
+            "product-benefit wording until it reaches the range; if over " + str(_char_max) + " chars, delete the weakest clause.\n"
             "[SPOKEN-SCRIPT RULES - owner 2026-09-10] The thai_script is READ ALOUD by a Thai TTS/Wan voice, so it \n"
             "must be written exactly how it should be pronounced:\n"
             "  * NEVER use abbreviations or short forms - always write the full spoken word. Examples: 'ชม.' -> \n"
@@ -599,7 +620,7 @@ def _normalize_negative_prompt(neg: str) -> str:
     return ", ".join(_uniq)
 
 
-def analyze_product(product_name: str, product_image: str = None, description: str = "", ugc_style: str = "holding", body_part: str = "", special_target: str = "", usage_howto: str = "", ingredient_highlight: str = "", category: str = "", subcategory: str = "", gender: str = "", target_age: str = "") -> dict:
+def analyze_product(product_name: str, product_image: str = None, description: str = "", ugc_style: str = "holding", body_part: str = "", special_target: str = "", usage_howto: str = "", ingredient_highlight: str = "", category: str = "", subcategory: str = "", gender: str = "", target_age: str = "", duration: int = 15) -> dict:
     """
     Step 1: Analyze product via Mistral → product_profile
 
@@ -668,6 +689,7 @@ def analyze_product(product_name: str, product_image: str = None, description: s
             usage_howto=usage_howto or "",
             gender=gender or (profile or {}).get("target_gender", ""),
             target_age=target_age or (profile or {}).get("target_age", ""),
+            duration=duration,
         )
         if _ds and _ds.get("image_prompt") and _ds.get("video_prompt"):
             profile["_image_prompt"] = _ds["image_prompt"]
@@ -1641,6 +1663,7 @@ def run_pipeline(
             ingredient_highlight=kwargs.get("ingredient_highlight", ""),
             category=kwargs.get("category", ""),
             subcategory=kwargs.get("subcategory", ""),
+            duration=(duration if duration and duration > 0 else kwargs.get("duration", 15)),
         )
 
         # ── Wire prompt-builder (SSOT) outputs into pipeline args ──

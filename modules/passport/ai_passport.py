@@ -111,7 +111,7 @@ def _compose_with_clothing(person: np.ndarray, clothing: np.ndarray) -> np.ndarr
     return canvas
 
 
-def flux_i2i(input_image: np.ndarray, prompt: str, strength: float = 0.6) -> np.ndarray:
+def flux_i2i(input_image: np.ndarray, prompt: str, strength: float = 0.6, negative_prompt: str = None) -> np.ndarray:
     """
     Run FLUX i2i via Prodia API.
     
@@ -119,6 +119,7 @@ def flux_i2i(input_image: np.ndarray, prompt: str, strength: float = 0.6) -> np.
         input_image: RGB numpy array
         prompt: text prompt
         strength: 0.0-1.0 (higher = closer to reference composition/face; 0.6 chosen for step1 quality)
+        negative_prompt: optional negative prompt
     
     Returns:
         RGB numpy array (output image)
@@ -132,13 +133,16 @@ def flux_i2i(input_image: np.ndarray, prompt: str, strength: float = 0.6) -> np.
     input_bytes = buf.tobytes()
 
     BOUNDARY = "----ProdiaPassportV2"
+    job_cfg = {
+        "prompt": prompt,
+        "steps": 4,
+        "strength": strength,
+    }
+    if negative_prompt:
+        job_cfg["negative_prompt"] = negative_prompt
     job_json = json.dumps({
         "type": "inference.flux-2.klein.4b.img2img.v1",
-        "config": {
-            "prompt": prompt,
-            "steps": 4,
-            "strength": strength,
-        }
+        "config": job_cfg,
     })
 
     body = b""
@@ -453,7 +457,18 @@ def generate_passport(
         info["key"] = "normal"
 
     # Step 1.5: FLUX ปรับแสง先行 — skip if image already came from lighting adjustment
-    if not skip_lighting:
+    # For HIGH-key photos that are already bright/blown, the lighting step does more
+    # harm than good (it lifts highlights to pure white). Skip it and let Step 2 handle it.
+    high_key_skip = key_info and key_info["key"] == "high" and key_info.get("clipped_high_pct", 0) > 3.0
+    if skip_lighting or high_key_skip:
+        if high_key_skip and not skip_lighting:
+            logger.info("Step 1.5: Skipped (high-key already bright — lighting would blow highlights)")
+            info["lighting_skip_reason"] = "high-key already bright"
+        else:
+            logger.info("Step 1.5: Skipped (skip_lighting=True)")
+            info["lighting_skip_reason"] = "skip_lighting flag set"
+        info["lighting_adjusted"] = False
+    else:
         if key_info:
             lighting_strength = key_info["lighting_strength"]
             lighting_prompt = key_info["lighting_prompt"]
@@ -471,10 +486,6 @@ def generate_passport(
         except Exception as e:
             logger.warning(f"Lighting adjustment failed, continuing without: {e}")
             info["lighting_adjusted"] = False
-    else:
-        logger.info("Step 1.5: Skipped (skip_lighting=True)")
-        info["lighting_adjusted"] = False
-        info["lighting_skip_reason"] = "skip_lighting flag set"
 
     # Step 1.8: Optional custom clothing — composite side-by-side with person
     custom_clothing = None
@@ -504,7 +515,19 @@ def generate_passport(
     if extra_prompt and extra_prompt.strip():
         prompt = prompt + ", " + extra_prompt.strip()
         logger.info(f"Extra prompt appended: {extra_prompt.strip()[:80]}")
-    generated = flux_i2i(prepared, prompt, strength)
+    # Key-adaptive Step 2 strength: already-bright photos wash out fast, so scale
+    # the clothing i2i down for high-key (owner 2026-09-11: "มันสว่างเกินไป").
+    step2_strength = strength
+    if key_info and key_info.get("step2_scale"):
+        step2_strength = round(max(0.30, min(strength, strength * key_info["step2_scale"])), 3)
+        logger.info(f"Step 2 strength scaled {strength}->{step2_strength} (key={key_info['key']})")
+    # Highlight-guard negative for already-bright photos so Step 2 doesn't wash midtones.
+    negative = None
+    if key_info and key_info["key"] == "high":
+        negative = ("overexposed, blown highlights, washed out, white clipped areas, "
+                    "harsh bright light, hot spots on forehead, pale washed skin, "
+                    "low contrast haze")
+    generated = flux_i2i(prepared, prompt, step2_strength, negative_prompt=negative)
     info["flux_size"] = [generated.shape[1], generated.shape[0]]
 
     # Detect face in output for later cropping reference

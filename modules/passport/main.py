@@ -625,6 +625,7 @@ async def generate_passport_v2(req: GenerateRequest):
         "transparent_ready": transparent_ready,
         "key": result.get("info", {}).get("key"),
         "key_info": result.get("info", {}).get("key_info"),
+        "mimo_lighting": result.get("info", {}).get("mimo_lighting"),
         "dimensions_px": result["dimensions_px"],
         "face_info": result["info"].get("face_in_output"),
         "time_seconds": elapsed,

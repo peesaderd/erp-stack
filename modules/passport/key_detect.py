@@ -88,6 +88,23 @@ def classify_key(image: np.ndarray) -> dict:
     # a bright wall = frame-driven high-key). Use face for the low-key side.
     bright_signal = max(face_mean, frame_mean)
 
+    # Ambiguity score (for the A hybrid gate): how CLOSE each signal sits to its
+    # decision boundary. Near a boundary = borderline = let Mimo vision confirm.
+    LOW_EDGE = 132.0
+    HIGH_EDGE = 178.0
+    d_low = abs(face_mean - LOW_EDGE)
+    d_high = abs(bright_signal - HIGH_EDGE)
+    nearest = min(d_low, d_high)
+    if nearest >= 18:
+        confidence = 0.95          # clearly on one side
+    elif nearest >= 10:
+        confidence = 0.8
+    elif nearest >= 5:
+        confidence = 0.6           # borderline -> Mimo should confirm
+    else:
+        confidence = 0.45          # right on the line -> definitely ask Mimo
+    ambiguous = confidence < 0.62
+
     # Decision thresholds (validated against real sessions in storage/):
     #   dark portraits  -> face_mean ~60-130, p90 < 180, some crushed lows
     #   normal          -> face_mean ~135-188 AND frame not already bright
@@ -131,6 +148,8 @@ def classify_key(image: np.ndarray) -> dict:
         "step2_scale": step2_scale,
         "lighting_prompt": prompt,
         "reason": reason,
+        "confidence": confidence,
+        "ambiguous": ambiguous,
     }
-    logger.info(f"key_detect: {key} ({reason}), strength={strength}")
+    logger.info(f"key_detect: {key} ({reason}), strength={strength}, conf={confidence}")
     return result

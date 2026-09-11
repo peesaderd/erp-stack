@@ -456,6 +456,43 @@ def generate_passport(
         logger.warning(f"Key classification failed, using normal: {e}")
         info["key"] = "normal"
 
+    # Step 1.4b: HYBRID (A+D) — when the statistical key sits near a decision
+    # boundary, ask Mimo vision to (A) confirm the key/strength and (D) write a
+    # context-aware lighting prompt. Clear-cut photos skip Mimo entirely (fast/free).
+    mimo_info = {}
+    if key_info and key_info.get("ambiguous"):
+        try:
+            from mimo_vision import analyze_lighting
+            mimo_info = analyze_lighting(image_bytes, stat_hint=key_info) or {}
+        except Exception as e:
+            logger.warning(f"Mimo vision lighting analysis failed: {e}")
+            mimo_info = {}
+        if mimo_info:
+            # (A) Let Mimo override the key/strength when it is confident.
+            if mimo_info.get("key") in ("low", "normal", "high"):
+                if mimo_info["key"] != key_info["key"]:
+                    logger.info(f"Mimo overrode key {key_info['key']} -> {mimo_info['key']}")
+                key_info["key"] = mimo_info["key"]
+                info["key"] = mimo_info["key"]
+            if mimo_info.get("lighting_strength") is not None:
+                key_info["lighting_strength"] = mimo_info["lighting_strength"]
+            # (D) context-aware prompt replaces the static one.
+            if (mimo_info.get("lighting_prompt") or "").strip():
+                key_info["lighting_prompt"] = mimo_info["lighting_prompt"].strip()
+            key_info["mimo_context"] = mimo_info.get("context", "")
+            key_info["mimo_confirmed"] = True
+            info["mimo_lighting"] = {
+                "key": mimo_info.get("key"),
+                "context": mimo_info.get("context"),
+                "confidence": mimo_info.get("confidence"),
+                "reason": mimo_info.get("reason"),
+            }
+            info["key_info"] = key_info
+    else:
+        if key_info:
+            logger.info(f"Step 1.4b: Mimo vision skipped (stat key clear: "
+                        f"{key_info['key']}, conf={key_info.get('confidence')})")
+
     # Step 1.5: FLUX ปรับแสง先行 — skip if image already came from lighting adjustment
     # For HIGH-key photos that are already bright/blown, the lighting step does more
     # harm than good (it lifts highlights to pure white). Skip it and let Step 2 handle it.
@@ -522,11 +559,16 @@ def generate_passport(
         step2_strength = round(max(0.30, min(strength, strength * key_info["step2_scale"])), 3)
         logger.info(f"Step 2 strength scaled {strength}->{step2_strength} (key={key_info['key']})")
     # Highlight-guard negative for already-bright photos so Step 2 doesn't wash midtones.
+    # Mimo's context-aware negative (D) takes precedence when available.
     negative = None
     if key_info and key_info["key"] == "high":
         negative = ("overexposed, blown highlights, washed out, white clipped areas, "
                     "harsh bright light, hot spots on forehead, pale washed skin, "
                     "low contrast haze")
+    _mimo_neg = (mimo_info.get("negative_prompt") or "").strip() if mimo_info else ""
+    if _mimo_neg:
+        negative = _mimo_neg
+        logger.info(f"Step 2 negative from Mimo: {_mimo_neg[:90]}")
     generated = flux_i2i(prepared, prompt, step2_strength, negative_prompt=negative)
     info["flux_size"] = [generated.shape[1], generated.shape[0]]
 

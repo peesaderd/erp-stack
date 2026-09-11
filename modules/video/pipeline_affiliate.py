@@ -336,10 +336,24 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "Return ONLY a valid, raw JSON object. No markdown wrappers, no backticks, no conversational text.\n"
             "{\n"
             " \"thai_script\": \"<Natural spoken Thai hook + benefit + CTA, MUST fill ~" + str(_dur) + "s of speech (~" + str(_char_min) + "-" + str(_char_max) + " characters)>\",\n"
+            " \"script_beats\": [\n"
+            "   {\"label\": \"hook\", \"seconds\": <int>, \"text\": \"<spoken Thai, ~3-4s>\"},\n"
+            "   {\"label\": \"value\", \"seconds\": <int>, \"text\": \"<spoken Thai, the main benefit, ~6-8s>\"},\n"
+            "   {\"label\": \"cta\", \"seconds\": <int>, \"text\": \"<spoken Thai buy-push ending on a firm closing particle, ~2-3s>\"},\n"
+            "   {\"label\": \"settle\", \"seconds\": <int>, \"text\": \"\"}\n"
+            " ],\n"
             " \"image_prompt\": \"<Rich, concrete still-frame anchor, ~60-90 words>\",\n"
             " \"video_prompt\": \"<ONE continuous shot, ONE simple action + settle, grounded in physical detail, 60-90 words>\"\n"
             " \"negative_prompt\": \"<comma-separated list where EVERY item MUST start with a negative word - 'no ...' or 'don't ...'. ~60-120 chars. Example: no distorted fingers, no extra hands, no warped product, no blurry label, no melted face>\"\n"
             "}\n\n"
+            "[SCRIPT_BEATS - owner 2026-09-11] You MUST also return \"script_beats\": an ordered array that splits "
+            "the spoken script into timed beats. Rules: (a) labels are exactly hook, value, cta, settle in that order; "
+            "(b) the seconds of hook+value+cta+settle must add up to ~" + str(_dur) + " total; (c) the cta beat MUST end on a "
+            "firm closing particle (เลยค่ะ / เลยนะคะ / นะครับ / ไว้เลย / เลย); (d) the final \"settle\" beat has EMPTY text "
+            "and holds the last 1-2 seconds - it is deliberate SILENCE where the person keeps presenting the product on "
+            "camera but says nothing; (e) the concatenation hook+value+cta (ignoring settle) must equal thai_script exactly "
+            "(same words, same order). This timed structure tells the video model exactly when the speech ends so it does "
+            "not improvise a garbled tag into the silent tail.\n\n"
             "[TARGET AUDIENCE & CREATOR]\n"
             "- Choose the youngest age in the target demographic (e.g. 25-35: use 25).\n"
             "- Creator: an attractive, youthful, believable Thai person matching the product audience - fresh "
@@ -574,6 +588,9 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
                         _neg = _obj.get("negative_prompt")
                         _neg = _neg.strip() if isinstance(_neg, str) else ""
                         _neg = _normalize_negative_prompt(_neg)
+                        # owner 2026-09-11: structured beats (Fix C) — timed script so Wan knows
+                        # where the speech ends and the silent settle tail begins.
+                        _beats = _normalize_script_beats(_obj.get("script_beats"))
                         if _tst:
                             # Normalize: Thai ตัวอักษร, ตัด wrap/quotes, ตัดเครื่องหมายคำพูดซ้ำที่อาจหลุดมา
                             _tst = _re.sub(r"[\u201c\u201d\"']+", "", _tst).strip()
@@ -581,8 +598,9 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
                             # (ข) owner 2026-09-09 23:0x: คืน thai_script ที่ Mimo เขียนด้วย (เดิมโดนทิ้ง) →
                             # ใช้เป็นตัวพูดจริง ให้คนเดียว author บท+ภาพ+วิดีโอ sync กัน (แก้ APPEND 15 conflict)
                             logger.info(f"_deepseek_product_prompts: got AI prompts from {_prov['name']} "
-                                        f"({_prov['model']}, img {len(_img)}ch, vid {len(_vid)}ch, script {len(_tst)}ch)")
-                            return {"image_prompt": _img, "video_prompt": _vid, "thai_script": _tst, "negative_prompt": _neg}
+                                        f"({_prov['model']}, img {len(_img)}ch, vid {len(_vid)}ch, script {len(_tst)}ch, beats {len(_beats)})")
+                            return {"image_prompt": _img, "video_prompt": _vid, "thai_script": _tst,
+                                    "negative_prompt": _neg, "script_beats": _beats}
                         logger.warning(f"_deepseek_product_prompts [{_prov['name']}] JSON missing image/video keys (img={bool(_img)}, vid={bool(_vid)})")
                         break
                     else:
@@ -594,6 +612,68 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
     except Exception as _e:
         logger.warning(f"_deepseek_product_prompts failed: {_e}")
         return None
+
+
+def _normalize_script_beats(beats) -> list:
+    """owner 2026-09-11 (Fix C): normalize the Mimo-authored timed script beats.
+    Returns a list of {'label','seconds','text'} with labels hook/value/cta/settle in order.
+    Robust to missing/loose input: filters junk, coerces seconds to int, keeps empty-text
+    settle beats. Empty list if nothing usable (caller then falls back to the flat script)."""
+    if not isinstance(beats, list):
+        return []
+    _order = {"hook": 0, "value": 1, "cta": 2, "settle": 3}
+    _out = []
+    for _b in beats:
+        if not isinstance(_b, dict):
+            continue
+        _label = str(_b.get("label") or "").strip().lower()
+        if _label not in _order:
+            continue
+        try:
+            _secs = int(round(float(_b.get("seconds") or 0)))
+        except (TypeError, ValueError):
+            _secs = 0
+        _text = _b.get("text")
+        _text = _text.strip() if isinstance(_text, str) else ""
+        if _secs <= 0:
+            continue
+        _out.append({"label": _label, "seconds": _secs, "text": _text})
+    _out.sort(key=lambda b: _order[b["label"]])
+    return _out
+
+
+def _synthesize_script_beats(script: str, duration: int) -> list:
+    """Fallback beat synthesis (Fix C) when the AI omits script_beats.
+    Split the flat Thai script into hook/value/cta by sentence-ish boundaries and reserve a
+    1-2s SILENT settle tail, so the Wan prompt still gets a timeline. Thai uses few spaces,
+    so we split on common clause separators; if we cannot split cleanly we keep one spoken
+    beat + settle (still gives Wan an explicit end + silent tail)."""
+    if not script or not script.strip():
+        return []
+    _dur = int(duration or 15)
+    _text = script.strip()
+    # Split on whitespace and common Thai clause breaks; keep it simple + safe.
+    import re as _re
+    _parts = [p.strip() for p in _re.split(r"\s+", _text) if p.strip()]
+    _spoken_total = max(1, _dur - 2)  # reserve ~2s silent settle
+    if len(_parts) >= 3:
+        _hook_w, _cta_w = 0.30, 0.25
+        _hook_end = max(1, round(len(_parts) * _hook_w))
+        _cta_start = max(_hook_end + 1, len(_parts) - max(1, round(len(_parts) * _cta_w)))
+        _hook = " ".join(_parts[:_hook_end]).strip()
+        _value = " ".join(_parts[_hook_end:_cta_start]).strip()
+        _cta = " ".join(_parts[_cta_start:]).strip()
+    else:
+        _hook, _value, _cta = _text, "", ""
+    _beats = []
+    for _lbl, _txt in (("hook", _hook), ("value", _value), ("cta", _cta)):
+        if not _txt:
+            continue
+        _secs = max(1, round(_spoken_total * len(_txt) / max(1, len(_hook) + len(_value) + len(_cta))))
+        _beats.append({"label": _lbl, "seconds": _secs, "text": _txt})
+    if _beats:
+        _beats.append({"label": "settle", "seconds": max(1, _dur - sum(b["seconds"] for b in _beats)), "text": ""})
+    return _beats
 
 
 def _normalize_negative_prompt(neg: str) -> str:
@@ -707,6 +787,18 @@ def analyze_product(product_name: str, product_image: str = None, description: s
             if _norm_ts != _raw_ts:
                 logger.info(f"  🔧 normalize thai_script: {_raw_ts!r} -> {_norm_ts!r}")
             profile["_mimo_thai_script"] = _norm_ts
+            # (C) owner 2026-09-11 (Fix C): structured timed beats from Mimo → passed to the Wan
+            # prompt builder so the model sees a timeline and a SILENT settle tail (no gibberish).
+            _beats = _ds.get("script_beats") or []
+            if not _beats and _norm_ts:
+                # Fallback: synthesize a 3-beat + settle split from the flat script so Fix C still
+                # works even if the AI omits script_beats (duration-aware, 12-14 chars/second).
+                _beats = _synthesize_script_beats(_norm_ts, duration)
+                if _beats:
+                    logger.info(f"  🔧 script_beats: synthesized {len(_beats)} beats from flat script (AI omitted them)")
+            if _beats:
+                profile["_script_beats"] = _beats
+                logger.info(f"  ✅ script_beats ({len(_beats)}): " + ", ".join(f"{b['label']}={b['seconds']}s" for b in _beats))
             # (B) owner 2026-09-10: negative สั้น ๆ ที่ Mimo เขียน (เป็นคำ positive-style ไม่มีคำ "no")
             # ใช้แทน negative ยาวจาก prompt-builder ที่ wan อ่านแล้วเพี้ยน — ถ้า Mimo ไม่ส่งมา คงค่า pb ไว้
             _mimo_neg = _normalize_negative_prompt((_ds.get("negative_prompt") or "").strip())
@@ -1153,6 +1245,7 @@ def generate_video(
     use_tus_voice: bool = True,
     prompt_extend: bool = False,
     ugc_style: str = "holding",
+    script_beats: Optional[list] = None,
 ) -> tuple:
     """
     Step 8: Generate video via Wan 2.7 Async API (shared ProdiaV2Client)
@@ -1290,13 +1383,47 @@ def generate_video(
             "พูดตาม script ข้างบนนี้เท่านั้น ครบทุกคำจนถึงเครื่องหมาย [จบบท] แล้วปิดปาก เงียบ สนิท "
             "ไม่มีเสียงใด ๆ อีก (ยังขยับร่างกายและนำเสนอสินค้าต่อตามท่อนการเคลื่อนไหวด้านล่างได้)"
         )
+        # 🔴 owner 2026-09-11 08:0x (Fix C): STRUCTURED BEATS — send the script as a TIMED timeline
+        # instead of one blob. Root cause of the CTA tail leak = a TIME-BUDGET problem: Wan must
+        # fill N seconds of audio, so when the flat script ends it improvises a garbled tag into
+        # the leftover seconds. Fix: tell Wan each beat's window AND give the last 1-2s an explicit
+        # SILENT settle beat (it generates motion, not speech, exactly where it used to babble).
+        _beats = script_beats or []
+        if _beats:
+            _lines = []
+            _spoken_secs = 0
+            for _b in _beats:
+                _lbl = _b.get("label", "")
+                _secs = _b.get("seconds", 0)
+                _txt = (_b.get("text") or "").strip()
+                if _lbl == "settle" or not _txt:
+                    _lines.append(f"  - [SETTLE {_secs}s]: เงียบสนิท ไม่มีเสียงพูด — ยังขยับตัว นำเสนอสินค้า และยิ้มให้กล้อง")
+                else:
+                    _spoken_secs += _secs
+                    _lines.append(f"  - [{_lbl} ~{_secs}s]: «{_txt}»")
+            _timeline = "\n".join(_lines)
+            _stop_rule = (
+                "พูดตาม script นี้เท่านั้น ตามลำดับเวลา (timeline) ด้านล่าง:\n"
+                f"{_timeline}\n"
+                "(ข้อความใน «» แต่ละบรรทัดคือบทพูดของช่วงนั้น — อ่านเรียงตามลำดับ ไม่ข้าม ไม่สลับ)\n"
+                "อ่านเฉพาะข้อความใน «» เท่านั้น — ห้ามออกเสียงป้ายกำกับ [hook]/[value]/[cta]/[SETTLE] "
+                "และห้ามออกเสียงคำในวงเล็บ [ ] ใด ๆ\n"
+                "เมื่ออ่านบทในช่วง [cta] จบ (เป็นช่วงสุดท้ายที่ให้พูด) ให้ปิดปาก เงียบ สนิททันที "
+                "และคงความเงียบตลอดช่วง [SETTLE] ที่เหลือจนจบคลิป — ห้ามมีเสียง คำ หรือเสียงพึมพำใด ๆ "
+                "หลังคำสุดท้ายของช่วง [cta] เด็ดขาด\n"
+                "พูดภาษาไทยให้ฉะฉาน ชัดถ้อยชัดคำ ออกเสียงทุกพยางค์ครบถ้วน หนักเบาและวรรณยุกต์ถูกต้อง "
+                "เหมือนพิธีกรหรือคนขายของออนไลน์มืออาชีพที่พูดคล่องแคล่ว "
+                "เสียงดังชัดเจนในระดับพูดคุยปกติ กระฉับกระเฉง มีพลัง อ่านทุกคำตามที่เขียน เว้นจังหวะหายใจสั้น ๆ ตามธรรมชาติ"
+            )
+            logger.info(f"  🎙 Fix C beats: {len(_beats)} beats, spoken~{_spoken_secs}s + settle")
         # 🔴 owner 2026-09-11 00:54: Wan พูดแทรกก่อน CTA และหลัง CTA.
         # owner: "ใส่ไปใน video prompt ว่าให้พูดตาม Script" — Wan อ่าน video_prompt เป็นท่อนสุดท้าย
         # จึงต้องมีคำสั่ง speech-lock ปิดท้าย "หลัง" motion block ด้วย (ท่อนสุดท้ายที่ Wan เห็น)
         _speech_tail = (
             "\n\n[SPEECH LOCK — ท่อนสุดท้าย]: "
-            "พูดเฉพาะข้อความใน «» ด้านบนนี้เท่านั้น คำต่อคำ จนถึงคำสุดท้ายก่อนเครื่องหมาย [จบบท] "
-            "ห้ามออกเสียงคำว่า 'จบบท' และห้ามมีเสียง คำ หรือเสียงพึมพำใด ๆ หลังคำสุดท้ายของบท "
+            "พูดเฉพาะข้อความใน «» ด้านบนนี้เท่านั้น คำต่อคำ ในลำดับเวลา "
+            "จนถึงคำสุดท้ายของช่วง [cta] แล้วหยุดพูดทันที — ห้ามออกเสียงป้าย [ ] และห้ามมีเสียง "
+            "คำ หรือเสียงพึมพำใด ๆ หลังคำสุดท้ายของช่วง [cta] เด็ดขาด (ช่วง [SETTLE] ต้องเงียบสนิท) "
             "Keep silence after the Thai script. เงียบไว้หลังบทไทยจนจบคลิป "
             "(still present the product on camera, just stay silent)"
         )
@@ -1779,6 +1906,22 @@ def run_pipeline(
             except Exception as _e_safety:
                 logger.warning(f"  ⚠ safety-net transliterate skipped: {_e_safety}")
         thai_script = thai_script.strip()
+        # 🔴 Fix C: pull the timed beats for this job (if any) and apply the SAME transliteration
+        # safety net to each spoken beat so the timeline text matches the flat thai_script.
+        _beats_for_job = []
+        try:
+            _beats_for_job = list(product_profile.get("_script_beats") or [])
+        except Exception:
+            _beats_for_job = []
+        if _beats_for_job and thai_script:
+            try:
+                from prompt_builder import _tts_product_name as _tts_pn
+                _beats_for_job = [
+                    {**b, "text": (_tts_pn(b.get("text") or "") or b.get("text") or "") if b.get("text") else ""}
+                    for b in _beats_for_job
+                ]
+            except Exception as _e_beats:
+                logger.warning(f"  ⚠ beats transliterate skipped: {_e_beats}")
         if thai_script and not use_tus_voice:
             # เจ้าสั่งให้ Wan พูด Thai script เสมอใน flow ปกติ → เปิดโหมด A อัตโนมัติ
             use_tus_voice = True
@@ -1906,6 +2049,7 @@ def run_pipeline(
             use_tus_voice=use_tus_voice,
             prompt_extend=prompt_extend,
             ugc_style=ugc_style,
+            script_beats=_beats_for_job,
         )
         video_paths.append(vid_path)
         

@@ -23,7 +23,7 @@ function updatePoolUI(){
 }
 function setView(v){
   S.view=v;
-  if(v==='sheet'){$('btnDl').textContent='⬇️ Download Sheet';$('btnDlT').classList.add('hidden');}
+  if(v==='sheet'){$('btnDl').textContent='⬇️ Download Sheet';}
   else{$('btnDl').textContent='⬇️ Download';}
 }
 
@@ -82,10 +82,26 @@ async function loadBgs(){
         div.style.background=b.hex||'#ccc';
       }
       div.title=b.name;
-      div.onclick=function(){S.bgc=b.key;S.bg=b.key;$$('.bg-d').forEach(function(x){x.classList.remove('on')});div.classList.add('on')};
+      div.onclick=function(){S.bgc=b.key;S.bg=b.key;$$('.bg-d').forEach(function(x){x.classList.remove('on')});div.classList.add('on');applyBgColor(b)};
       el.appendChild(div);
     });
   }catch(e){console.error('loadBgs:',e)}
+}
+
+/* One-button flow (owner 2026-09-11): picking a BG color instantly repaints the
+   existing transparent PNG locally (FREE, no Prodia). No separate button. */
+async function applyBgColor(b){
+  if(!S.sid)return;
+  // gradient presets carry css; solids carry hex
+  var color=(b&&(b.type==='gradient'?b.css:b.hex))||S.bgcHex||'#C4DCFF';
+  if(!color)return;
+  S.bgcHex=color;
+  // instant local feedback
+  var bg=$('previewBg');if(bg)bg.style.background=(b&&b.css)||color;
+  try{
+    var d=await api('/remove-bg',{session_id:S.sid,background_color:color});
+    if(d.ok){bumpImg();$('ri').src=API+'/download/'+S.sid+'_passport.jpg?v='+S.imgV;toast('Background: '+(b&&b.name||'applied')+' ✓','ok');}
+  }catch(e){/* transparent not ready yet — preview keeps local color */}
 }
 
 /* ══════════ CLOTHING ══════════ */
@@ -273,7 +289,7 @@ function renderUploadedPreview(){
   $('previewBg').style.background='';
   // no detail text under preview — that slot belongs to the batch thumbnail slider
   // downloads appear only after the first generation
-  $('btnDl').classList.add('hidden');$('btnDlT').classList.add('hidden');
+  $('btnDl').classList.add('hidden');
 }
 
 function newPhoto(){
@@ -358,7 +374,12 @@ function showResult(d,isBulk){
   $('previewCard').classList.remove('hidden');
     // Owner flow: preview always square, full image, no forced crop
   updatePreviewAspect(null);
-  $('btnDl').classList.remove('hidden');$('btnDlT').classList.remove('hidden');
+  // One-button: transparent is ready → show BG picker immediately, auto-apply default bg
+  if(d&&d.transparent_ready){
+    S.transparentReady=true;
+    autoApplyDefaultBg();
+  }
+  $('btnDl').classList.remove('hidden');
   if(isBulk&&d.results&&d.results.length>1){
     S.pool=d.results.map(function(r){return r.session_id});
     updatePoolUI();
@@ -390,6 +411,20 @@ function selectBatchResult(sid,i){
   $$('.slide-item').forEach(function(el,idx){
     el.querySelector('img').style.borderColor=idx===i?'#6366f1':'#334155';
   });
+}
+
+/* Auto-apply the currently-selected BG preset after generation finishes. */
+async function autoApplyDefaultBg(){
+  var key=S.bgc||'light_blue';
+  var cur=null;
+  for(var i=0;i<BD.length;i++){if(BD[i].key===key){cur=BD[i];break}}
+  var color=(cur&&(cur.type==='gradient'?cur.css:cur.hex))||'#C4DCFF';
+  S.bgcHex=color;
+  var bg=$('previewBg');if(bg)bg.style.background=(cur&&cur.css)||color;
+  try{
+    var d=await api('/remove-bg',{session_id:S.sid,background_color:color});
+    if(d.ok){bumpImg();$('ri').src=API+'/download/'+S.sid+'_passport.jpg?v='+S.imgV;}
+  }catch(e){}
 }
 
 /* ══════════ CROP ══════════ */

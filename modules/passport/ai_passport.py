@@ -42,12 +42,12 @@ PRODIA_API_URL = "https://inference.prodia.com/v2/job"
 # ── FLUX i2i Prompt Template ──────────────────────────
 
 def build_prompt(clothing_prompt: str, bg_prompt: str) -> str:
-    """Build FLUX i2i prompt, no face/appearance directives (v5 neutral)."""
+    """Build FLUX i2i prompt — natural, fashion-forward, face preserved."""
     return (
-        f"official ID passport photo, "
+        f"professional portrait photo, "
         f"{clothing_prompt}, "
         f"{bg_prompt}, "
-        f"bright even studio lighting, as shot, natural"
+        f"soft even studio lighting, natural warm skin tones, realistic, high quality"
     )
 
 
@@ -410,6 +410,7 @@ def generate_passport(
     session_id: str = None,
     custom_clothing_bytes: bytes = None,
     extra_prompt: str = None,
+    skip_lighting: bool = False,
 ) -> dict:
     """
     Generate passport photo source using Prodia FLUX i2i.
@@ -438,7 +439,44 @@ def generate_passport(
     prepared = prepare_for_flux(original)
     info["prepared_size"] = [prepared.shape[1], prepared.shape[0]]
 
-    # Step 1.5: Optional custom clothing — composite side-by-side with person
+    # Step 1.4: Classify exposure key (low / normal / high) on the ORIGINAL
+    # so the lighting step uses a key-appropriate strength instead of a fixed one.
+    # (owner: "บางรูป low key, high key, normal key ต่างกัน ถ้าใช้ step เดียวรูปเพี้ยน")
+    key_info = None
+    try:
+        from key_detect import classify_key
+        key_info = classify_key(original)
+        info["key"] = key_info["key"]
+        info["key_info"] = key_info
+    except Exception as e:
+        logger.warning(f"Key classification failed, using normal: {e}")
+        info["key"] = "normal"
+
+    # Step 1.5: FLUX ปรับแสง先行 — skip if image already came from lighting adjustment
+    if not skip_lighting:
+        if key_info:
+            lighting_strength = key_info["lighting_strength"]
+            lighting_prompt = key_info["lighting_prompt"]
+            logger.info(f"Step 1.5: FLUX adjust lighting (key={key_info['key']}, strength={lighting_strength})...")
+        else:
+            lighting_strength = 0.30
+            lighting_prompt = "bright even lighting across entire photo, well-lit face, uniform bright illumination, smooth soft light, same person same clothes same background, natural skin tones"
+            logger.info("Step 1.5: FLUX adjust lighting (default)...")
+        try:
+            prepared = flux_i2i(prepared, lighting_prompt, strength=lighting_strength)
+            info["lighting_adjusted"] = True
+            info["lighting_strength"] = lighting_strength
+            info["lighting_size"] = [prepared.shape[1], prepared.shape[0]]
+            logger.info(f"Lighting adjusted: {prepared.shape[1]}x{prepared.shape[0]}")
+        except Exception as e:
+            logger.warning(f"Lighting adjustment failed, continuing without: {e}")
+            info["lighting_adjusted"] = False
+    else:
+        logger.info("Step 1.5: Skipped (skip_lighting=True)")
+        info["lighting_adjusted"] = False
+        info["lighting_skip_reason"] = "skip_lighting flag set"
+
+    # Step 1.8: Optional custom clothing — composite side-by-side with person
     custom_clothing = None
     if custom_clothing_bytes:
         try:

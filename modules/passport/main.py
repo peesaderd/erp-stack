@@ -19,6 +19,7 @@ import time
 import logging
 import base64
 from pathlib import Path
+from datetime import datetime
 
 import cv2
 import numpy as np
@@ -35,6 +36,7 @@ import requests
 
 from passport import commerce_client
 from passport.commerce_client import CommerceError
+from passport import payment_notify
 
 _erp_stack = Path(__file__).parent.parent.parent
 if str(_erp_stack) not in sys.path:
@@ -119,6 +121,7 @@ class GenerateRequest(BaseModel):
     border_width_mm: float = 3.0
     hairline: bool = False
     cutlines: bool = False   # draw dashed cut guides around photos
+    skip_lighting: bool = False   # skip FLUX step 1.5 if image already lighting-adjusted
 
 class BulkGenerateRequest(BaseModel):
     images: Optional[list] = None  # list of base64 strings (backward compat)
@@ -209,9 +212,9 @@ class UpdateOrderRequest(BaseModel):
 class VerifyPaymentRequest(BaseModel):
     """ตรวจสลิปชำระเงินผ่าน SlipOK + อัปเดต order เป็นจ่ายแล้ว"""
     order_ref: str                    # เลขใบสั่ง (PD-...) เพื่อค้นหา order
-    tx_id: str                        # เลขธุรกรรมจาก payment กลาง (TX-...)
     slip_base64: str                  # base64 JSON จาก SlipOK OCR (payment_data)
-    amount: Optional[float] = None    # ยอดที่คาดหวัง (ไม่ให้ = ใช้ยอดจาก payment_central)
+    tx_id: Optional[str] = None       # เลขธุรกรรมจาก payment กลาง (TX-...) — ไม่บังคับ
+    amount: Optional[float] = None    # ยอดที่คาดหวัง (ไม่ให้ = ใช้ยอดจาก order)
 
 
 class UpdateDeliveryRequest(BaseModel):
@@ -473,6 +476,7 @@ async def generate_passport_v2(req: GenerateRequest):
         session_id=session_id,
         custom_clothing_bytes=custom_clothing_bytes,
         extra_prompt=req.prompt,
+        skip_lighting=req.skip_lighting,
     )
 
     if not result["ok"]:
@@ -482,6 +486,31 @@ async def generate_passport_v2(req: GenerateRequest):
     out_img = result["result"]
     out_bytes = _encode_image(out_img)
     pstate.save_current(session_id, out_bytes, "raw", STORAGE_DIR)
+
+    # ── One-button transparent (owner 2026-09-11) ────────────────
+    # Immediately cut the background so the user picks a BG color with ONE release
+    # (no separate Transparent button / step). Failure here is non-fatal: the raw
+    # photo is still saved and the legacy remove-bg endpoint remains available.
+    transparent_ready = False
+    try:
+        from bg_remover import remove_background, apply_background
+        transparent_png, pil_rgba = remove_background(out_bytes)
+        with open(STORAGE_DIR / f"{session_id}_transparent.png", "wb") as f:
+            f.write(transparent_png)
+        pstate.invalidate_recrop_base(session_id, STORAGE_DIR)
+        transparent_ready = True
+        logger.info(f"[{session_id}] transparent PNG ready (one-button)")
+        # Apply the chosen background color right away so the preview already shows it
+        try:
+            bg_hex = req.background_color or "#C4DCFF"
+            colored = apply_background(pil_rgba, bg_hex)
+            colored_np = np.array(colored.convert("RGB"))[:, :, ::-1].copy()
+            pstate.save_current(session_id, colored_np, "bg", STORAGE_DIR)
+            info_bg_applied = True
+        except Exception as e:
+            logger.warning(f"[{session_id}] apply-bg after transparent failed: {e}")
+    except Exception as e:
+        logger.warning(f"[{session_id}] one-button transparent failed (non-fatal): {e}")
 
     # Auto-crop with preset — SQUARE mode (no forced passport ratio, no chin cut)
     crop_preset = req.crop_preset if req.crop_preset in ("standard", "compact", "relaxed") else "standard"
@@ -593,6 +622,9 @@ async def generate_passport_v2(req: GenerateRequest):
         "background": bg["name"],
         "print_info": print_info,
         "crop_info": crop_info,
+        "transparent_ready": transparent_ready,
+        "key": result.get("info", {}).get("key"),
+        "key_info": result.get("info", {}).get("key_info"),
         "dimensions_px": result["dimensions_px"],
         "face_info": result["info"].get("face_in_output"),
         "time_seconds": elapsed,
@@ -1475,55 +1507,87 @@ def update_delivery_status(delivery_id: str, req: UpdateStatusRequest):
 
 @app.post("/api/passport/order/verify")
 def verify_order_payment(req: VerifyPaymentRequest):
-    """ตรวจสลิปชำระเงิน (SlipOK ผ่าน payment กลาง) + อัปเดต order เป็นจ่ายแล้ว.
-    ต่อ payment กลาง (schema-engine /api/v1/payment/verify) — error ถ้าล่มจะบอกผู้ใช้.
+    """ตรวจสลิปชำระเงิน (SlipOK) + อัปเดต order เป็นจ่ายแล้ว + ส่ง LINE notification."""
+    try:
+        result = payment_notify.handle_manual_verify(
+            order_ref=req.order_ref,
+            slip_base64=req.slip_base64,
+            amount=req.amount,
+        )
+        return {
+            "ok": True,
+            "order_ref": req.order_ref,
+            "slip": result.get("slip"),
+            "order": result.get("order"),
+        }
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    except Exception as e:
+        raise HTTPException(500, f"Verify failed: {e}")
+
+
+@app.post("/api/passport/payment/webhook")
+def slipok_webhook(request: Request):
+    """SlipOK Webhook Endpoint — รับแจ้งเตือนเมื่อมีเงินเข้า.
+
+    SlipOK จะ POST request มาที่ endpoint นี้พร้อมสลิป data.
+    ต้อง return 200 ภายใน 5 วินาที (SlipOK จะ retry ถ้า timeout).
+
+    Flow:
+      1. รับ webhook body
+      2. ตรวจสลิปกับ SlipOK API (verify)
+      3. อัปเดต order เป็น paid
+      4. ส่ง LINE notification ให้ลูกค้า
     """
-    # 1) หา order ตาม order_number
+    import asyncio
+
+    async def _process():
+        try:
+            body = await request.json()
+        except Exception:
+            return {"success": False, "error": "Invalid JSON"}
+
+        try:
+            result = payment_notify.handle_slipok_webhook(body)
+            return result
+        except Exception as e:
+            logger.error(f"[webhook] processing error: {e}")
+            return {"success": False, "error": str(e)}
+
+    # ทำงานแบบ sync เพื่อ return 200 ทัน (SlipOK ต้องการ response ภายใน 5s)
+    try:
+        body = json.loads(
+            asyncio.get_event_loop().run_until_complete(request.body())
+            if hasattr(request, '_body') else b'{}'
+        )
+    except Exception:
+        body = {}
+
+    try:
+        result = payment_notify.handle_slipok_webhook(body)
+        return result
+    except Exception as e:
+        logger.error(f"[webhook] error: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@app.post("/api/passport/payment/notify-test")
+def test_notify(req: VerifyPaymentRequest):
+    """ทดสอบ LINE notification (ไม่ตรวจสลิป)"""
     order = commerce_client.get_order_by_number(req.order_ref)
     if not order:
         raise HTTPException(404, f"Order not found: {req.order_ref}")
-    order_id = order.get("_id")
 
-    # 2) เรียก payment กลาง verify (SlipOK)
-    try:
-        resp = requests.post(
-            f"{SCHEMA_ENGINE_URL}/api/v1/payment/verify",
-            json={
-                "tx_id": req.tx_id,
-                "payment_data": req.slip_base64,
-                "amount": req.amount,
-            },
-            timeout=20,
-        )
-    except Exception as e:
-        raise HTTPException(502, f"Payment verify service error: {e}")
-
-    body = resp.json()
-    if resp.status_code != 200 or not body.get("success"):
-        raise HTTPException(resp.status_code, body.get("error") or "Payment verification failed")
-
-    # 3) สำเร็จ → อัปเดต order เป็นจ่ายแล้ว + เก็บ slip info
-    slip = (body.get("slip") or {})
-    updated = None
-    if order_id:
-        try:
-            updated = commerce_client.update_order(order_id, {
-                "payment_status": "paid",
-                "status": "paid",
-                "payment_method": "promptpay",
-                "notes": (order.get("notes") or "") + f"\n paid via SlipOK trans_ref={slip.get('trans_ref')}",
-            })
-        except Exception as e:
-            logger.warning(f"[verify] update order {req.order_ref} paid failed: {e}")
-
-    return {
-        "ok": True,
-        "order_ref": req.order_ref,
-        "tx_id": req.tx_id,
-        "transaction": (body.get("transaction") or {}),
-        "slip": slip,
-        "order": updated or order,
+    slip_info = {
+        "amount": req.amount or order.get("grand_total", 0),
+        "trans_ref": "TEST-REF-0001",
+        "sender_display_name": "Test User",
+        "trans_date": datetime.utcnow().strftime("%Y-%m-%d"),
+        "trans_time": datetime.utcnow().strftime("%H:%M:%S"),
     }
+
+    payment_notify.notify_payment_success(order, slip_info)
+    return {"ok": True, "message": "Notification sent", "order": order}
 
 
 # ═══════════════════════════════════════════════════════════

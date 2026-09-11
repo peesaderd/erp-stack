@@ -276,7 +276,8 @@ def _mimo_key() -> str:
 def _deepseek_product_prompts(product_name: str, description: str, ugc_style: str = "holding",
                               category: str = "", subcategory: str = "",
                               special_target: str = "", usage_howto: str = "",
-                              gender: str = "", target_age: str = "") -> Optional[dict]:
+                              gender: str = "", target_age: str = "",
+                              product_image: str = "") -> Optional[dict]:
     """Have Mimo write the image/video prompts fresh from the actual product.
 
     Boss directive 2026-09-08: use Mimo exclusively (ไมใช่ DeepSeek).
@@ -331,6 +332,16 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "glowing skin, pleasant, natural, relatable. Default: Thai female, mid-20s.\n"
             "- Setting: a stylish, lived-in Thai home (bright condo living room, aesthetic vanity, tidy kitchen) "
             "under warm, flattering natural light that makes her look great.\n\n"
+            "[FORM FACTOR - HARD RULE - owner 2026-09-11]\n"
+            "- If a reference product image is provided, you MUST read the product's EXACT FORM FACTOR and\n"
+            "   physical shape from that image, and describe the product exactly as it appears. NEVER guess\n"
+            "   the form factor from the product TITLE alone.\n"
+            "- HEADPHONES/AUDIO: look at the image and decide - IN-EAR (small earbuds inserted into the ear\n"
+            "   canal, usually shown with a charging case) vs OVER-EAR/ON-EAR (large cups on a headband worn\n"
+            "   OVER the head). Use ONLY the form factor the image shows. If the title says only \"หูฟัง/headphones\",\n"
+            "   the IMAGE decides - never default to over-ear.\n"
+            "- Never mix two form factors in one shot (e.g. do NOT show over-ear cups AND a small case together\n"
+            "   unless the real product genuinely is that). Match the image 1:1.\n"
             "[PRODUCT FOCUS MANDATE - HERO FIRST]\n"
             "- The product is the ABSOLUTE hero; the human demonstrator is strictly secondary. "
             "Product in sharp focus, background slightly softer.\n"
@@ -423,9 +434,9 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "   MANDATORY: because Wan reads the video_prompt LAST, you MUST open the video_prompt with the \n"
             "   English sentence \"The person speaks ONLY the given Thai script, word for word, and says \n"
             "   nothing before it, nothing between its phrases, and nothing after it.\" AND close the \n"
-            "   video_prompt with this exact sentence: \"Audio: only the provided Thai script is spoken; \n"
-            "   no words, no babbling, no filler before the first word or after the last word - silent \n"
-            "   otherwise.\" These two sentences are REQUIRED in every video_prompt.\n"
+            "   video_prompt with this exact sentence: \"Audio: speak only the provided Thai script, \n"
+            "   word for word, then keep silence after the Thai script.\" These two sentences are \n"
+            "   REQUIRED in every video_prompt.\n"
             "[NEGATIVE PROMPT - owner 2026-09-10] The negative_prompt is a list of things the model MUST NOT do.\n"
             "   EVERY item MUST begin with a negative word - \"no ...\" or \"don't ...\". A bare noun\n"
             "   (e.g. \"distorted fingers\") is READ AS AN INSTRUCTION and the model WILL render it. So write\n"
@@ -474,10 +485,18 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
                      "Use real, lived-in settings and believable, natural faces. "
                      "Keep the shot in a real place, the face relaxed and true to life.")
         for _prov in _providers:
+            # owner 2026-09-11: send the REAL product image to Mimo (vision) so it reads the
+            # exact form factor/shape instead of guessing from the title (over-ear vs in-ear bug).
+            _user_content = user_text
+            if (product_image or "").strip():
+                _user_content = [
+                    {"type": "text", "text": user_text},
+                    {"type": "image_url", "image_url": {"url": product_image.strip()}},
+                ]
             payload = {
                 "model": _prov["model"],
                 "messages": [{"role": "system", "content": sysprompt},
-                              {"role": "user", "content": user_text}],
+                              {"role": "user", "content": _user_content}],
                 "max_tokens": _prov["max_tokens"],
                 "temperature": 0.4,
             }
@@ -621,6 +640,7 @@ def analyze_product(product_name: str, product_image: str = None, description: s
         # rather than ship a wrong-template prompt ("break is break" owner note).
         _ds = _deepseek_product_prompts(
             product_name, description, ugc_style,
+            product_image=(product_image or ""),
             category=category or (profile or {}).get("category", ""),
             subcategory=subcategory or (profile or {}).get("subcategory", ""),
             special_target=special_target or "",
@@ -1206,9 +1226,10 @@ def generate_video(
         # owner: "ใส่ไปใน video prompt ว่าให้พูดตาม Script" — Wan อ่าน video_prompt เป็นท่อนสุดท้าย
         # จึงต้องมีคำสั่ง speech-lock ปิดท้าย "หลัง" motion block ด้วย (ท่อนสุดท้ายที่ Wan เห็น)
         _speech_tail = (
-            "\n\n[SPEECH LOCK — ท่อนสุดท้าย พูดเฉพาะบทเท่านั้น]: "
-            "พูดเฉพาะข้อความใน «» ด้านบนนี้เท่านั้น คำต่อคำ ไม่มีคำพูดหรือเสียงใด ๆ "
-            "ก่อนคำแรก ระหว่างวลี หรือหลังคำสุดท้าย เพิ่มเติมเด็ดขาด — นอกนั้นเงียบ"
+            "\n\n[SPEECH LOCK — ท่อนสุดท้าย]: "
+            "พูดเฉพาะข้อความใน «» ด้านบนนี้เท่านั้น คำต่อคำ พูดจบแล้ว "
+            "Keep silence after the Thai script. เงียบไว้หลังบทไทยจนจบคลิป "
+            "(still present the product on camera, just stay silent)"
         )
         final_prompt = _stop_rule + _speech_tail
         if _motion_on and _motion_txt:

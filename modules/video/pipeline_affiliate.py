@@ -391,6 +391,12 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "ONE clear idea. Do NOT list specs or stack unrelated benefits, but DO give the single idea enough natural "
             "spoken detail to comfortably fill the time. If under " + str(_char_min) + " chars, expand the idea with real "
             "product-benefit wording until it reaches the range; if over " + str(_char_max) + " chars, delete the weakest clause.\n"
+            "ENDING RULE (owner 2026-09-11 - fixes the CTA tail leak): the LAST word of the script must be a firm "
+            "CLOSING word that shuts the sentence closed - end with a closing particle such as 'เลยค่ะ', 'เลยนะคะ', "
+            "'นะครับ', 'ไว้เลย', 'เลย' - NEVER end on an open trailing word (a noun, a dangling benefit, a lone 'ค่ะ/นะ' "
+            "after a soft word) because the video model then keeps mumbling a garbled tag right after the last word. "
+            "Put the buy-push (CTA) in the SECOND-TO-LAST clause, and let the final 2-4 words be a clean closing "
+            "phrase that ends the line. The whole script must read as ONE complete sentence that clearly finishes.\n"
             "[SPOKEN-SCRIPT RULES - owner 2026-09-10] The thai_script is READ ALOUD by a Thai TTS/Wan voice, so it \n"
             "must be written exactly how it should be pronounced:\n"
             "  * NEVER use abbreviations or short forms - always write the full spoken word. Examples: 'ชม.' -> \n"
@@ -1255,22 +1261,42 @@ def generate_video(
         # 🔴 owner 2026-09-11 00:01: "สั่งให้มันพูดตาม script เท่านั้น ใส่ใน positive prompt"
         # owner rule: เลี่ยงคำสั่งห้ามซ้อนหลายชั้น — ใช้คำสั่งเชิงบวกที่ชัด วางต้น+ท้ายของบล็อก
         # วลีเดี่ยว "พูดตาม script เท่านั้น" ทั้งขึ้นต้นและลงท้าย เพื่อโฟกัสสูงสุด
+        _script_clean = (thai_script or "").strip()
+        # owner 2026-09-11 07:2x: "ช่วง CTA มีปัญหา ตชอด" — leak ตรงรอยต่อหลัง CTA.
+        # CTA เป็นวลีสุดท้ายของบท -> พอ Wan พูดจบ ยังมีเวลาวิดีโอเหลือ ~2-3s ที่ไม่มีบท
+        # -> Wan ต่อเสียงมั่วตรงรอยต่อนั้น (vid_62b4ea4c ท้ายได้ 'phai hay pier, bri khiba, oi').
+        # FIX A: ใส่เครื่องหมายจบบทให้ Wan เห็นขอบเขตจริงใน «» — เพิ่ม "[จบบท]" ต่อท้ายบท
+        # + สั่งย้ำว่าคำสุดท้ายคือคำก่อนเครื่องหมาย ห้ามมีเสียงหลังคำนั้น.
+        _last_word_hint = ""
+        if _script_clean:
+            _flat = _script_clean.replace("\n", " ").strip()
+            # Thai has few spaces; a whitespace split gives the whole final clause.
+            # Take the trailing ~3 words (or the last ~20 chars) as the end pointer.
+            _tail_words = _flat.split()
+            if _tail_words and len(_tail_words[-1]) <= 20:
+                _last_word_hint = _tail_words[-1]
+            else:
+                _last_word_hint = _flat[-20:]
         _stop_rule = (
             "พูดตาม script นี้เท่านั้น:\n"
-            f"«{thai_script}»\n"
+            f"«{_script_clean} [จบบท]»\n"
+            "อ่านเฉพาะข้อความที่อยู่ก่อนเครื่องหมาย [จบบท] เท่านั้น — ห้ามออกเสียงคำว่า 'จบบท' "
+            "และห้ามมีเสียง คำ หรือเสียงพึมพำใด ๆ ต่อจากคำสุดท้ายของบท "
+            f"(คำสุดท้ายคือ '{_last_word_hint}')\n"
             "พูดภาษาไทยให้ฉะฉาน ชัดถ้อยชัดคำ ออกเสียงทุกพยางค์ครบถ้วน หนักเบาและวรรณยุกต์ถูกต้อง "
             "เหมือนพิธีกรหรือคนขายของออนไลน์มืออาชีพที่พูดคล่องแคล่ว "
             "เสียงดังชัดเจนในระดับพูดคุยปกติ กระฉับกระเฉง มีพลัง เปิดปากกว้างออกเสียงเต็มที่ทุกคำ "
             "อ่านทุกคำตามที่เขียนใน «» อย่างครบถ้วน เว้นจังหวะหายใจสั้น ๆ ตามธรรมชาติระหว่างวลี\n"
-            "พูดตาม script ข้างบนนี้เท่านั้น พูดเสร็จแล้วเงียบ สงบ ปิดปาก นิ่ง ไม่มีเสียงใด ๆ "
-            "ยังขยับร่างกายและนำเสนอสินค้าต่อตามท่อนการเคลื่อนไหวด้านล่างได้"
+            "พูดตาม script ข้างบนนี้เท่านั้น ครบทุกคำจนถึงเครื่องหมาย [จบบท] แล้วปิดปาก เงียบ สนิท "
+            "ไม่มีเสียงใด ๆ อีก (ยังขยับร่างกายและนำเสนอสินค้าต่อตามท่อนการเคลื่อนไหวด้านล่างได้)"
         )
         # 🔴 owner 2026-09-11 00:54: Wan พูดแทรกก่อน CTA และหลัง CTA.
         # owner: "ใส่ไปใน video prompt ว่าให้พูดตาม Script" — Wan อ่าน video_prompt เป็นท่อนสุดท้าย
         # จึงต้องมีคำสั่ง speech-lock ปิดท้าย "หลัง" motion block ด้วย (ท่อนสุดท้ายที่ Wan เห็น)
         _speech_tail = (
             "\n\n[SPEECH LOCK — ท่อนสุดท้าย]: "
-            "พูดเฉพาะข้อความใน «» ด้านบนนี้เท่านั้น คำต่อคำ พูดจบแล้ว "
+            "พูดเฉพาะข้อความใน «» ด้านบนนี้เท่านั้น คำต่อคำ จนถึงคำสุดท้ายก่อนเครื่องหมาย [จบบท] "
+            "ห้ามออกเสียงคำว่า 'จบบท' และห้ามมีเสียง คำ หรือเสียงพึมพำใด ๆ หลังคำสุดท้ายของบท "
             "Keep silence after the Thai script. เงียบไว้หลังบทไทยจนจบคลิป "
             "(still present the product on camera, just stay silent)"
         )

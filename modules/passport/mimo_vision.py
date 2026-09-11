@@ -132,6 +132,44 @@ def _extract_json(text: str) -> dict:
         return {}
 
 
+# Words that make FLUX REPAINT the whole face -> over-beautify / identity drift.
+# Owner lesson (2026-09-09 / 2026-09-11 "รูปดูดีเกินไป"). Never allow these in a
+# lighting prompt (they belong on the IMAGE side, not the identity side).
+_FORBIDDEN_PROMPT_WORDS = (
+    "passport", "id photo", "studio", "professional portrait", "portrait photo",
+    "beauty", "beautiful", "flawless", "smooth skin", "airbrush", "airbrushed",
+    "skin smoothing", "retouch", "retouched", "glamour", "perfect skin",
+    "model", "high quality", "8k", "ultra detailed",
+)
+
+
+def _sanitize_lighting_prompt(prompt: str) -> str:
+    """Strip face-repaint trigger words from a model-authored lighting prompt.
+
+    Keeps only what we WANT (lighting/contrast/tone) and removes beautification
+    triggers that cause identity drift. Returns '' if nothing usable remains.
+    """
+    if not prompt:
+        return ""
+    import re as _re
+    out = prompt
+    removed = []
+    for w in _FORBIDDEN_PROMPT_WORDS:
+        if _re.search(_re.escape(w), out, flags=_re.IGNORECASE):
+            removed.append(w)
+            out = _re.sub(_re.escape(w), "", out, flags=_re.IGNORECASE)
+    # tidy leftover punctuation/commas
+    out = _re.sub(r"\s*,\s*,\s*", ", ", out)
+    out = _re.sub(r"^[\s,]+|[\s,]+$", "", out).strip(" ,")
+    if removed:
+        logger.warning(f"mimo_vision: stripped face-repaint words from prompt: {removed}")
+    # Guard: always append identity-preservation so FLUX keeps the same face.
+    keep = "keep the same face and natural skin texture"
+    if "same face" not in out.lower():
+        out = (out + ", " + keep).strip(", ") if out else keep
+    return out
+
+
 def analyze_lighting(image_bytes: bytes, stat_hint: dict = None) -> dict:
     """
     Ask Mimo to (A) confirm the exposure key and (D) write a context-aware prompt.
@@ -173,8 +211,13 @@ def analyze_lighting(image_bytes: bytes, stat_hint: dict = None) -> dict:
         "lighting for THIS photo specifically. Must keep the same person, same clothes, "
         "same background. If already bright, ask to tame highlights / not wash out. If "
         "backlit, ask for soft frontal fill on the face. If hard side light, ask to "
-        "soften and even out. Do NOT mention 'passport', 'studio lighting' or "
-        "'professional portrait' (those make FLUX repaint the whole face).\n"
+        "soften and even out. CRITICAL: NEVER use the words 'passport', 'id photo', "
+        "'studio', 'professional portrait', 'portrait photo', 'beauty', 'flawless', "
+        "'smooth skin', 'airbrush', 'retouch', 'glamour', 'model', 'high quality', "
+        "'8k' or 'ultra detailed' — those make FLUX REPAINT and BEAUTIFY the whole "
+        "face (identity drift, plastic skin). Also do NOT ask to slim/reshape the "
+        "face, brighten the eyes, or remove pores. Only talk about LIGHT, contrast "
+        "and colour balance.\n"
         "- negative_prompt: optional short English negatives (e.g. overexposed, blown "
         "highlights, washed out) or empty string.\n"
         "- reason: one short sentence.\n\n"
@@ -190,6 +233,9 @@ def analyze_lighting(image_bytes: bytes, stat_hint: dict = None) -> dict:
     if not data or "lighting_strength" not in data:
         logger.warning(f"mimo_vision: unparseable reply: {raw[:160]!r}")
         return {}
+    # Sanitize the model-authored prompt: never let face-repaint words through.
+    if data.get("lighting_prompt"):
+        data["lighting_prompt"] = _sanitize_lighting_prompt(data["lighting_prompt"])
     # sanitise strength
     try:
         s = float(data.get("lighting_strength", 0.2))

@@ -42,12 +42,22 @@ PRODIA_API_URL = "https://inference.prodia.com/v2/job"
 # ── FLUX i2i Prompt Template ──────────────────────────
 
 def build_prompt(clothing_prompt: str, bg_prompt: str) -> str:
-    """Build FLUX i2i prompt — natural, fashion-forward, face preserved."""
+    """Build FLUX i2i prompt — natural, identity-preserving, face kept as-is.
+
+    OWNER LESSON (2026-09-09 / 2026-09-11 "รูปดูดีเกินไป"): words like
+    "passport photo", "studio lighting", "professional portrait", "beauty",
+    "flawless", "smooth skin" make FLUX REPAINT the whole face -> over-beautified,
+    plastic skin, identity drift (slimmer jaw, brighter eyes, lost pores).
+    So we only state what we want CHANGED (clothing/lighting/bg) and explicitly
+    ask to keep the same face / natural skin texture.
+    """
     return (
-        f"professional portrait photo, "
+        f"photo of the same person with an unchanged face, "
+        f"keep the exact same facial identity, same face shape, same skin texture "
+        f"with visible pores and natural skin detail, no retouching, "
         f"{clothing_prompt}, "
         f"{bg_prompt}, "
-        f"soft even studio lighting, natural warm skin tones, realistic, high quality"
+        f"even natural lighting, true-to-life natural skin tones"
     )
 
 

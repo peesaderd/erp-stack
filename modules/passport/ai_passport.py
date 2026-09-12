@@ -42,36 +42,21 @@ PRODIA_API_URL = "https://inference.prodia.com/v2/job"
 # ── FLUX i2i Prompt Template ──────────────────────────
 
 def build_prompt(clothing_prompt: str, bg_prompt: str, key: str = None) -> str:
-    """Build FLUX i2i prompt — natural, fashion-forward, face preserved.
+    """Build FLUX i2i prompt — natural, fashion-forward, face preserved (V3).
 
-    OWNER LESSON (2026-09-11 late): v3 output was ACCEPTABLE as an ID photo
-    (Mimo rated 9/10 — symmetric, eyes level, straight mouth). v4 additionally
-    forced 'unchanged face / visible pores / no retouching' which made FLUX copy
-    the source's ASYMMETRY (droopy eye, crooked mouth) -> it stopped looking like
-    an ID photo. So we DO want the model to tidy/formalise the face, just not to
-    overly beautify it.
-
-    OWNER LESSON (2026-09-12): the SAME face-tidying must happen for EVERY key
-    (low/normal/high) — bright photos should be handled gently on LIGHTING, not
-    by skipping the face regularisation. So the ID-format clause below is always
-    present; only the strength/direction of the lighting varies by key.
+    OWNER DECISION (2026-09-12): revert to the V3 prompt. The later ID-format
+    clause ("face straight and frontal, even symmetric facial features, ...")
+    added in cf06575a made FLUX OVER-BEAUTIFY the face (plastic/airbrushed skin
+    — owner: "หน้ามันดีเกินไป"). V3 (dcd3f3c8) was the owner-approved look
+    (Mimo rated 9/10). So we keep the V3 base prompt with NO face-tidying
+    directives — the model naturally keeps realistic skin texture.
     """
-    base = (
+    return (
         f"professional portrait photo, "
         f"{clothing_prompt}, "
         f"{bg_prompt}, "
         f"soft even studio lighting, natural warm skin tones, realistic, high quality"
     )
-    # ID-format regulariser: tidy the face to a neutral, frontal, symmetric
-    # passport look (keeps identity, removes casual/uneven expression), WITHOUT
-    # over-beautifying (no plastic skin / no changing who the person is).
-    id_format = (
-        "passport-style ID photo, face straight and frontal, "
-        "neutral relaxed expression, eyes level and open, mouth closed and straight, "
-        "even symmetric facial features, natural realistic skin texture, "
-        "no beauty retouching, no plastic skin"
-    )
-    return f"{base}, {id_format}"
 
 
 # ── FLUX i2i Core ─────────────────────────────────────
@@ -578,14 +563,12 @@ def generate_passport(
     # Key-adaptive Step 2 strength: already-bright photos wash out fast, so scale
     # the clothing i2i down for high-key (owner 2026-09-11: "มันสว่างเกินไป").
     #
-    # OWNER LESSON (2026-09-12): Step 2 does TWO jobs at once — it changes the
-    # clothing AND it tidies the face into a symmetric ID-portrait format. If we
-    # scale Step 2 down too far (old high-key floor 0.30) the face keeps the
-    # source's asymmetry (droopy eye, crooked mouth) -> stops looking like an ID
-    # photo. So we keep a FORMAT FLOOR: never go below 0.40 for the clothing/face
-    # pass, regardless of key. Bright photos just get a lighter touch above it.
+    # OWNER DECISION (2026-09-12): revert to V3 floor (0.30). Raising it to 0.40
+    # to force symmetric face-tidying on every key made FLUX over-beautify the
+    # face ("หน้ามันดีเกินไป") — remember strength can override prompt text. Back
+    # to 0.30 and let the V3 prompt alone define the look.
     step2_strength = strength
-    FORMAT_FLOOR = 0.40
+    FORMAT_FLOOR = 0.30
     if key_info and key_info.get("step2_scale"):
         scaled = strength * key_info["step2_scale"]
         step2_strength = round(max(FORMAT_FLOOR, min(strength, scaled)), 3)

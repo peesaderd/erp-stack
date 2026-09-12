@@ -796,15 +796,6 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "   Instead, end the video_prompt with a plain ACTION beat (no speech words at all), e.g. \"She \n"
             "   keeps presenting: a small confident smile to camera while holding the product steady and \n"
             "   showing the packs.\" The ONE closing silence directive is appended by the system, not you.\n"
-            "7b. HANDS - SIMPLE, ANATOMICAL, SMALL IN FRAME (owner 2026-09-12 11:5x): Wan melts/merges\n"
-            "   hands when the prompt gives a hand two jobs at once or shoves the hand large into frame.\n"
-            "   RULES: (i) at most ONE hand acts at a time; never two hands doing different things at once.\n"
-            "   (ii) describe the grip POSITIVELY and anatomically - write the exact words: \"her hand holds\n"
-            "   the pack with five clearly separated fingers, a visible thumb on the front edge, relaxed\n"
-            "   knuckles, natural skin\". (iii) keep the hand SMALL in the frame - the pack is the hero, the\n"
-            "   hand only supports it from the lower edge; never a close-up of the hand. (iv) the other hand\n"
-            "   stays out of frame or still at her side. (v) NEVER say a hand grips the product AND rests on\n"
-            "   the bowl/table simultaneously. One clear action per beat.\n"
             "[NEGATIVE PROMPT - owner 2026-09-10] The negative_prompt is a list of things the model MUST NOT do.\n"
             "   EVERY item MUST begin with a negative word - \"no ...\" or \"don't ...\". A bare noun\n"
             "   (e.g. \"distorted fingers\") is READ AS AN INSTRUCTION and the model WILL render it. So write\n"
@@ -1386,16 +1377,14 @@ def analyze_product(product_name: str, product_image: str = None, description: s
                     # (b) no count-locking phrases (they contradict the story action -> model
                     #     materialises packs). Only neutral state guards remain.
                     # (c) keep it short so the combined negative stays well under Prodia's 500 cap.
-                    _food_neg = ("no merged fingers, no melted hand, no extra hands, no third hand, "
+                    _food_neg = ("no distorted fingers, no extra hands, no third hand, "
                                  "no warped product, no blurry label, no melted face, "
                                  "no blurry noodles, no smeared mushy food, no fake CGI food, "
-                                 "no multiple bowls, no self-moving product, no pack floating, "
-                                 "no new pack added, no invented colour pack, no green pack, "
+                                 "no bowl dominating the frame, no cooked dish as the hero, no multiple bowls, "
+                                 "no self-moving product, no pack floating, no new pack added, "
+                                 "no invented colour pack, no green pack, "
                                  "no camera wobble, no frame warp")
-                    # owner 2026-09-12 12:0x: put the food safety guards FIRST so that when the
-                    # 480ch cap trims from the END, it drops Mimo's lower-priority filler items -
-                    # never our hand-anatomy / pack-colour / wobble safeguards.
-                    _mimo_neg = _normalize_negative_prompt(_food_neg + ", " + _mimo_neg)
+                    _mimo_neg = _normalize_negative_prompt(_mimo_neg + ", " + _food_neg)
                     # owner 2026-09-12 ('มีซองสีเขียวหลุดมาด้วย มันมีสีเขียวเหรอ'): Mimo invented a GREEN
                     # pack (real set = red/yellow/blue/orange). Deterministic guard: remove a 'green '
                     # colour attribution from the pack description so the still/wan never render a green pack.

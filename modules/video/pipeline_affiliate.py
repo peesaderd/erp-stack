@@ -391,7 +391,8 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "- APPLIED (skincare/cosmetics): show a natural, correct application gesture on the right area, or hold "
             "the product cleanly at chest level facing the lens.\n"
             "- THE ENDING BEAT: the final 2-3 seconds must settle calmly with the product clearly presented "
-            "AND the demonstrator still fully visible in frame (e.g. holding the product up to camera) "
+            "AND the demonstrator still fully visible in frame - the product may be HELD UP to camera OR RESTING "
+            "on the surface (either is correct; do not force a grip) "
             "- never end on an empty product-only shot, never drop the person from frame, and never end "
             "on a bare face/bust close-up.\n"
             "- Camera: vertical 9:16 smartphone, natural subtle handheld movement, crisp focus on the product "
@@ -604,7 +605,26 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
         # owner 2026-09-12: styles that MUST change hand behaviour. A buried sysprompt rule
         # was ignored by Mimo, so hoist the requirement into the user_text (high attention).
         _style_instr = ""
-        if (ugc_style or "").strip().lower() in ("tabletop", "tabletop_demo", "demo"):
+        _style_lc = (ugc_style or "").strip().lower()
+        if _style_lc in ("holding", "holding_demo", "handheld"):
+            # owner 2026-09-12: HOIST the holding behaviour into user_text (Mimo ignores the
+            # buried sysprompt rule). 'Holding' must NOT mean a death-grip for the whole clip.
+            _style_instr = (
+                "\n\n*** STYLE = HOLDING (HIGHEST PRIORITY, MUST OBEY) ***\n"
+                "The demonstrator presents the product by HOLDING it up at chest level, upright, label facing "
+                "the lens, for the MAIN part of the clip. 'Holding' is the DEFAULT for this style.\n"
+                "BUT the clip must NOT read as one rigid grip from the first frame to the last (owner 2026-09-12: "
+                "fixes 'Holding too strong, never puts it down'). The video_prompt MUST contain BOTH of these "
+                "literal phrases, each describing a real beat:\n"
+                "  (1) 'sets the product down on the table and releases it' - one beat where the hand puts the "
+                "product back on a clean surface and lets go;\n"
+                "  (2) 'picks the product back up and holds it to camera' - then she lifts it again to present.\n"
+                "Preserve this release-then-re-lift beat. The hand must look relaxed and real, never frozen "
+                "gripping the product for all 15 seconds. The product stays clearly visible and centred in every "
+                "beat whether held or resting. Do NOT describe the product as held by BOTH hands at chest level "
+                "for the entire clip."
+            )
+        elif _style_lc in ("tabletop", "tabletop_demo", "demo"):
             _style_instr = (
                 "\n\n*** STYLE = TABLETOP (HIGHEST PRIORITY, MUST OBEY) ***\n"
                 "The product must be RESTING ON A CLEAN FLAT TABLE/COUNTER for a real part of the clip - "

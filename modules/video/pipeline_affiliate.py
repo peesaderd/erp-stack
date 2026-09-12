@@ -1384,13 +1384,11 @@ def analyze_product(product_name: str, product_image: str = None, description: s
                     # (b) no count-locking phrases (they contradict the story action -> model
                     #     materialises packs). Only neutral state guards remain.
                     # (c) keep it short so the combined negative stays well under Prodia's 500 cap.
-                    _food_neg = ("no distorted fingers, no merged fingers, no melted hand, no extra hands, "
-                                 "no third hand, no hand as a shapeless blob, "
+                    _food_neg = ("no merged fingers, no melted hand, no extra hands, no third hand, "
                                  "no warped product, no blurry label, no melted face, "
                                  "no blurry noodles, no smeared mushy food, no fake CGI food, "
-                                 "no bowl dominating the frame, no cooked dish as the hero, no multiple bowls, "
-                                 "no self-moving product, no pack floating, no new pack added, "
-                                 "no invented colour pack, no green pack, "
+                                 "no multiple bowls, no self-moving product, no pack floating, "
+                                 "no new pack added, no invented colour pack, no green pack, "
                                  "no camera wobble, no frame warp")
                     _mimo_neg = _normalize_negative_prompt(_mimo_neg + ", " + _food_neg)
                     # owner 2026-09-12 ('มีซองสีเขียวหลุดมาด้วย มันมีสีเขียวเหรอ'): Mimo invented a GREEN

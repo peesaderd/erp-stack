@@ -661,10 +661,11 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "   following dated/cheesy choices: plain white tank top or plain sleeveless top, stiff buttoned office blouse, \n"
             "   floral 'auntie' print, ill-fitting classic shirt, old-fashioned cardigan sets, dated denim. The face reads \n"
             "   YOUNG and FRESH (early-to-mid 20s), current hair, current makeup - never middle-aged, tired, or dated.\n"
-            "1c. PRESENTER ACTUALLY SPEAKS (MANDATORY - fixes 'นางแบบไม่พูด'): the presenter MUST be shown TALKING \n"
-            "   TO CAMERA - mouth visibly moving, mouth-articulation throughout the shot, looking into the lens with \n"
-            "   a natural warm expression. She is delivering the Thai sales script to the viewer the whole time. Never \n"
-            "   render her silent, still-lipped, smiling-but-not-speaking, turned away, or looking down at the product.\n"
+            "1c. PRESENTER FACES THE CAMERA, NATURAL NEUTRAL EXPRESSION (owner 2026-09-12 - fixes 'คำสั่งขัดกัน'): \n"
+            "   the presenter LOOKS AT THE CAMERA with a natural warm expression and her face relaxed and NEUTRAL. \n"
+            "   Do NOT describe her talking, speaking, mouth moving, or mouth-articulation anywhere - the system \n"
+            "   drives the Thai voice-over from thai_script. Never turn her away from the camera and never have her \n"
+            "   look down at the product the whole time.\n"
             "   Her EYES ARE OPEN and directed at the camera lens in the still frame too - never eyes-closed, never \n"
             "   mid-blink, never gazing down at the table.\n"
             "1d. PRODUCTS ARE STATIC OBJECTS - NO SELF-MOVING (MANDATORY - fixes 'ถุงสินค้าขยับเอง'): the packs/\n"
@@ -726,7 +727,8 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "   (b) MAIN ACTION: the one main action, naming WHICH HAND holds/does WHAT and where it touches;\n"
             "   (c) CAMERA: the single subtle camera behaviour from rule 4;\n"
             "   (d) SETTLE: the final beat settling calmly with the product presented to camera, "
-            "the person still in frame, STILL TALKING to the lens.\n"
+            "the person still in frame, in a calm natural expression (mouth and face NEUTRAL - do NOT "
+            "mention talking or speech; the system drives the voice).\n"
             "   (f) NO SET-DOWN/RE-PICK CHAIN (owner 2026-09-12 - fixes 'ถุงสินค้าขยับเอง', see rule 3b): NEVER write "
             "the presenter setting the product down, releasing it, or picking it back up. Keep the SAME hand in "
             "contact with each pack from the moment it is lifted through to the settle - the pack is never left to "
@@ -2128,6 +2130,11 @@ def generate_video(
                         _frag = _re_mv.sub(r"[,;:]", " ", _frag)
                         _frag = _re_mv.sub(r"\s{2,}", " ", _frag).strip(" .-")
                         _frag = _re_mv.sub(r"\s+(?:to|at|towards?|into)\s+the\s+(?:lens|camera)\s*$", "", _frag, flags=_re_mv.I)
+                        # owner 2026-09-12 13:5x: also drop any dangling ", to the camera/lens" that
+                        # survives mid-sentence (e.g. "wearing the jeans to the camera with a natural
+                        # expression" after the speech verb was removed) so no speech-address fragment stays.
+                        _frag = _re_mv.sub(r"[,;]?\s+(?:to|at|towards?|into)\s+the\s+(?:lens|camera)\b", "", _frag, flags=_re_mv.I)
+                        _frag = _re_mv.sub(r"\s{2,}", " ", _frag)
                         if _LEAD.search(_frag):  # leftover stub -> drop
                             continue
                         if len(_frag.split()) >= 5:
@@ -2140,6 +2147,26 @@ def generate_video(
                     _motion_clean = _motion_txt  # safety: never blank the motion block
                 elif _motion_clean != _motion_txt:
                     logger.info(f"  🧹 motion block: removed ALL speech/audio text ({len(_motion_txt)}ch -> {len(_motion_clean)}ch) - action only")
+                # owner 2026-09-12 13:5x (fixes 'talking to the lens.' leaking into the positive prompt):
+                # even after the sentence/clause strip, a trailing speech phrase like ", talking to the
+                # lens." / "speaking to the camera" can survive as a fragment. Scrub those deterministically
+                # so the video_prompt NEVER ends on a speech directive that fights the silent settle tail.
+                _TAIL_SPEECH = _re_mv.compile(
+                    r"[,\s]*(?:and\s+|while\s+|then\s+|still\s+)?"
+                    r"(?:talking|speaking|speaks|talk|speak|says|saying)\s+"
+                    r"(?:to|at|into|towards?)\s+the\s+(?:lens|camera|viewer|audience)\s*[.!]?\s*$",
+                    _re_mv.IGNORECASE)
+                _before_tail = _motion_clean
+                for _ in range(4):  # loop: strip nested trailing speech fragments
+                    _motion_clean = _TAIL_SPEECH.sub("", _motion_clean).strip()
+                    if _motion_clean == _before_tail:
+                        break
+                    _before_tail = _motion_clean
+                if _motion_clean and _motion_clean[-1] not in ".!?":
+                    _motion_clean += "."
+                _motion_clean = _re_mv.sub(r"\s{2,}", " ", _motion_clean).strip()
+                if _motion_clean != _before_tail:
+                    logger.info("  🧹 stripped trailing 'talking/speaking to the lens/camera' from video_prompt")
             except Exception as _e_mv:
                 logger.warning(f"  motion speech-strip skipped: {_e_mv}")
             final_prompt = (

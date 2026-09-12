@@ -58,6 +58,7 @@ class ImageGenRequest(BaseModel):
     style: Optional[str] = "thai_realistic"
     model: Optional[str] = "nano-banana"
     aspectRatio: Optional[str] = "9:16"
+    placement: Optional[str] = "hold"  # hold | place | place_and_hold (owner 2026-09-12)
 
 
 class LipSyncRequest(BaseModel):
@@ -203,12 +204,39 @@ def _call_prodia(type_: str, config: dict, accept: str = "image/png", files: dic
 # "Anchor the reference product" (owner 2026-09-10 06:22): keep the product EXACTLY like the
 # reference image (real color/shape/label) — do NOT redesign it. Only the person + scene are new.
 # Keep the directive SHORT and imperative: too much description confuses the model.
+#
+# owner 2026-09-12: the anchor MUST stay neutral about HOLD vs PLACE. The old anchor hard-coded
+# "product held up centered" and was prepended to EVERY prompt, so any "rest on the table"
+# instruction was overridden and the product was always gripped in the hand (owner: "วางด้วย ถือด้วย").
+# Now the anchor only locks PRODUCT FIDELITY (same color/shape/label) + real Thai person + fresh
+# scene; PLACEMENT is decided by the caller's prompt / the placement directive below.
 IMG2IMG_ANCHOR = (
     "Use the product from the reference image exactly as it is — same real color, shape, size "
     "and label text, unchanged, sharp and unblurred. Do not redesign or restyle the product. "
-    "Place this exact product in the hand of a newly generated realistic Thai woman, "
-    "product held up centered as the clear focus. The woman and scene are new; the product is not."
+    "Draw a newly generated realistic Thai woman in a fresh real scene with this exact product as the "
+    "clear focus. The woman and scene are new; the product is not."
 )
+
+# Placement directives appended AFTER the caller prompt (owner 2026-09-12: "วางด้วย ถือด้วย").
+# "place"  = product sits on a surface, no hand gripping it (hand may rest/reach beside it).
+# "place_and_hold" = the still shows BOTH: product placed on the surface, hand reaching in to pick up.
+PLACEMENT_DIRECTIVES = {
+    "hold": (
+        "The woman holds the product up, upright and centered, facing the camera, as the clear focus."
+    ),
+    "place": (
+        "The product is RESTING ON A CLEAN FLAT SURFACE (table / vanity / counter) in front of her, "
+        "sitting upright with the label facing the camera. NO hand is gripping the product — her hands "
+        "rest relaxed on the surface beside it. Show the whole placed product clearly."
+    ),
+    "place_and_hold": (
+        "The product stays RESTING flat and fully seated ON A CLEAN FLAT SURFACE (table / counter) in "
+        "front of her, upright with the label facing the camera. NO hand grips or lifts the product at any "
+        "point — the product never leaves the surface. One of her hands comes into frame and rests on the "
+        "surface right beside the product, fingers open and relaxed, as if about to pick it up. The placed "
+        "product stays the clear hero; the resting hand is secondary. Hand relaxed and real, not frozen."
+    ),
+}
 
 THAI_NEGATIVE = (
     "Chinese face, Korean face, East Asian anime style, plastic surgery face, "
@@ -218,19 +246,26 @@ THAI_NEGATIVE = (
 )
 
 
-def nano_banana_img2img(prompt: str, input_image: str, negative_prompt: str = "", aspect_ratio: str = "9:16", width: int = None, height: int = None) -> dict:
+def nano_banana_img2img(prompt: str, input_image: str, negative_prompt: str = "", aspect_ratio: str = "9:16", width: int = None, height: int = None, placement: str = "hold") -> dict:
     """Generate Thai product image via Nano Banana img2img.
 
     Prodia sync model: POST /v2/job with multipart → image/png response.
     No polling. No async. Single call.
+
+    placement: "hold" (default) | "place" | "place_and_hold" — controls whether the
+    product is held up, resting on a surface, or placed-with-hand-reaching (owner 2026-09-12).
     """
     # Prodia img2img already SEES the reference product image. The anchor is the
     # PRIMARY directive (boss 2026-09-09 15:08): always draw a NEW Thai woman + fresh
-    # scene, and place the reference product (from the supplied image) in her hands.
-    # Always prepend it so a product-only cutout never gets "kept as-is" — the boss wants
-    # a newly generated person holding the real product, not a copy of the input layout.
+    # scene, and place the reference product (from the supplied image) in the shot.
+    # owner 2026-09-12: anchor no longer forces "held up centered" — placement comes first
+    # (from the caller prompt), then a placement directive is appended so the model obeys
+    # hold vs place deterministically.
     prompt = prompt.rstrip(",. ")
+    placement_dir = PLACEMENT_DIRECTIVES.get((placement or "hold").strip().lower(), "")
     prompt = IMG2IMG_ANCHOR + " " + prompt
+    if placement_dir:
+        prompt = prompt + " " + placement_dir
     if not negative_prompt:
         negative_prompt = THAI_NEGATIVE
 
@@ -546,6 +581,7 @@ async def generate_image(req: ImageGenRequest):
             aspect_ratio=req.aspectRatio or "9:16",
             width=req.width,
             height=req.height,
+            placement=req.placement or "hold",
         )
 
     # txt2img fallback — no reference image, use Flux 2 Dev

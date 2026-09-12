@@ -1161,6 +1161,7 @@ def generate_image(
     product_image: str = None,
     aspect_ratio: str = "9:16",
     model: str = "nano-banana",
+    placement: str = "hold",
 ) -> tuple:
     """
     Step 5: Generate image via Prodia.
@@ -1170,11 +1171,12 @@ def generate_image(
         product_image: URL ของรูปสินค้า (reference)
         aspect_ratio: 9:16 (TikTok portrait — owner direction, always 9:16)
         model: "nano-banana" (default) or "flux-2-klein" (klein 4B img2img)
+        placement: "hold" | "place" | "place_and_hold" — hold-vs-place (owner 2026-09-12)
 
     Returns:
         tuple: (image_url, cost_usd)
     """
-    logger.info(f"Step 5/9: Generate image ({model}, {aspect_ratio})")
+    logger.info(f"Step 5/9: Generate image ({model}, {aspect_ratio}, placement={placement})")
     logger.info(f"  Prompt: {prompt[:40]}...")
     logger.info(f"  Reference: {product_image or 'None'}")
 
@@ -1184,6 +1186,7 @@ def generate_image(
         "upscale": False,
         "aspectRatio": aspect_ratio,
         "model": model,
+        "placement": placement,
     }
 
     if product_image:
@@ -2056,7 +2059,18 @@ def run_pipeline(
         # Always portrait; do NOT switch to 16:9 landscape no matter what the
         # image_prompt text says.
         img_aspect = "9:16"
-        img_url, cost_image = generate_image(image_prompt, product_image, aspect_ratio=img_aspect)
+        # owner 2026-09-12: default placement = "place_and_hold" (product resting on the
+        # surface with a hand reaching in) so the still frame is the "วางด้วย ถือด้วย" shot
+        # the owner asked for. "holding"/"handheld" styles use place_and_hold; tabletop/demo
+        # also place. Any other style falls back to hold.
+        _plc_style = (ugc_style or "").strip().lower()
+        if _plc_style in ("holding", "holding_demo", "handheld", "tabletop", "tabletop_demo", "demo", "review"):
+            _placement = "place_and_hold"
+        else:
+            _placement = "hold"
+        img_url, cost_image = generate_image(
+            image_prompt, product_image, aspect_ratio=img_aspect, placement=_placement
+        )
         img_path = TMP_DIR / f"image_{run_id}.png"
         download_file(img_url, img_path)
         image_duration = int((time.time() - step_start) * 1000)

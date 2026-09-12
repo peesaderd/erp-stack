@@ -2047,9 +2047,7 @@ def generate_video(
             "พูดตาม Thai script นี้เท่านั้น:\n"
             f"«{_script_clean}»\n"
             "อ่านเฉพาะข้อความใน «» ครบทุกคำตามที่เขียน แล้วปิดปาก เงียบสนิท "
-            f"(คำสุดท้ายคือ '{_last_word_hint}')\n"
-            "พูดภาษาไทยชัดถ้อยชัดคำ ออกเสียงครบทุกพยางค์ วรรณยุกต์ถูกต้อง จังหวะหายใจเป็นธรรมชาติ "
-            "ภาพนิ่งมั่นคง ไม่สั่น ไม่ไหว (steady shot, no wobble)"
+            f"(คำสุดท้ายคือ '{_last_word_hint}')"
         )
         # 🔴 owner 2026-09-11 08:0x (Fix C): STRUCTURED BEATS — send the script as a TIMED timeline
         # instead of one blob. Root cause of the CTA tail leak = a TIME-BUDGET problem: Wan must
@@ -2074,8 +2072,7 @@ def generate_video(
                 "พูดตาม Thai script นี้เท่านั้น ตามลำดับเวลา (timeline) ด้านล่าง:\n"
                 f"{_timeline}\n"
                 "อ่านเฉพาะข้อความใน «» ตามลำดับ — ห้ามออกเสียงป้ายกำกับ [ ] ใด ๆ\n"
-                "อ่านครบทุกคำจนจบช่วงสุดท้าย แล้วปิดปาก เงียบสนิท\n"
-                "พูดภาษาไทยชัดถ้อยชัดคำ ออกเสียงครบทุกพยางค์ วรรณยุกต์ถูกต้อง จังหวะหายใจเป็นธรรมชาติ"
+                "อ่านครบทุกคำจนจบช่วงสุดท้าย แล้วปิดปาก เงียบสนิท"
             )
             logger.info(f"  🎙 Fix C beats: {len(_beats)} beats, spoken~{_spoken_secs}s + settle")
         # 🔴 owner 2026-09-11 00:54: Wan พูดแทรกก่อน CTA และหลัง CTA.
@@ -2085,10 +2082,10 @@ def generate_video(
         # พร่ำเพรื่อ กลายเป็น Wan งง เสียงสั่น + video ละลาย". The speech instruction already lives
         # in _stop_rule; a second full speech-lock tail = duplicated ordering -> Wan gets confused.
         # Keep ONE short English closing directive only: keep silence after the script ends.
-        _speech_tail = (
-            "\n\nKeep silence after script end — after the last Thai word, stay completely "
-            "silent for the ending scene (still present the product on camera, no speech)."
-        )
+        # owner 2026-09-12 14:2x: _speech_tail REMOVED — the silence is already stated once
+        # (flat: "ปิดปาก เงียบสนิท"; beats: the [SETTLE] line). A second English "stay silent"
+        # was the duplicate "คำสั่งซ้อน" that confused Wan. One speech source only.
+        _speech_tail = ""
         final_prompt = _stop_rule + _speech_tail
         if _motion_on and _motion_txt:
             # owner 2026-09-12 (speech-source leak): the [MOVEMENT] block came from Mimo's English

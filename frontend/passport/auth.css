@@ -1,0 +1,14 @@
+/* Shared auth: header login button + account/payment/settings panel (used by index/gallery/print/order) */
+.hdr-user{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);color:#fff;font-size:.68rem;font-weight:700;padding:7px 12px;border-radius:20px;cursor:pointer;font-family:inherit;transition:.18s;white-space:nowrap;flex-shrink:0}.hdr-user:hover{background:rgba(255,255,255,.14)}.hdr-user .hdr-caret{display:flex;align-items:center}.hdr-user .hdr-caret svg{width:14px;height:14px;stroke:#fff;stroke-width:2;fill:none}
+
+.acct-panel{position:fixed;top:54px;right:16px;width:min(360px,calc(100vw - 32px));background:#fff;border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.35);z-index:300;overflow:hidden;border:1px solid rgba(255,255,255,.06)}
+.acct-tabs{display:flex;background:#f1f5f9;border-bottom:1px solid #e2e8f0}
+.acct-tab{flex:1;padding:11px 4px;background:transparent;border:none;font-size:.68rem;font-weight:700;color:#64748b;cursor:pointer;font-family:inherit;position:relative;transition:.15s}
+.acct-tab.on{color:#6366f1}.acct-tab.on:after{content:'';position:absolute;left:16%;right:16%;bottom:0;height:2px;background:#6366f1;border-radius:2px}
+.acct-body{padding:16px;max-height:56vh;overflow-y:auto}
+.acct-oauth{display:flex;align-items:center;justify-content:center;gap:10px;padding:12px;border:none;border-radius:10px;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:.15s;width:100%}
+.acct-oauth.line{background:#06c755;color:#fff}
+.acct-oauth:not(.line){background:#fff;color:#0f172a;border:1px solid #e2e8f0}
+.acct-avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:1rem;flex-shrink:0}
+.acct-mini-btn{padding:9px 14px;border:1px solid #e2e8f0;border-radius:9px;background:#fff;color:#64748b;font-size:.7rem;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s}.acct-mini-btn:hover{background:#f1f5f9}
+.acct-close{position:absolute;top:10px;right:12px;background:transparent;border:none;color:#94a3b8;font-size:1.1rem;cursor:pointer;line-height:1}

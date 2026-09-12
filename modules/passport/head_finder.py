@@ -52,6 +52,57 @@ CROP_PRESETS = {
 }
 
 
+def normalize_face_size(image, size_px, target_face_frac=0.38, margin_pct=0.10):
+    """
+    Center the detected face and scale so the face occupies a FIXED fraction of
+    the square frame (owner 2026-09-12: "รูปคน ... มันไม่เท่ากันสักกะรูป").
+
+    Without this, the square-mode center crop keeps each FLUX render's own face
+    size (3.3%–6.6% of frame), so the person looks bigger/smaller per outfit.
+    This normalizes face height to target_face_frac of size_px for every render.
+
+    No-op when no face is found.
+    """
+    h, w = image.shape[:2]
+    face = detect_face(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+    if face is None:
+        return image
+    fx, fy, fw, fh = [int(v) for v in face]
+    if fh <= 0:
+        return image
+
+    # scale so face height == target fraction of the output square
+    target_fh = target_face_frac * size_px
+    scale = target_fh / fh
+    scale = min(max(scale, 0.4), 2.5)          # sanity clamp
+
+    new_w, new_h = int(round(w * scale)), int(round(h * scale))
+    resized = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_LANCZOS4)
+
+    # face center + head-top in the resized image
+    fcx = int(round((fx + fw / 2.0) * scale))
+    f_htop = int(round(fy * scale))
+    f_h = int(round(fh * scale))
+
+    # where the head-top should sit so headspace is uniform across renders
+    want_htop = int(round(size_px * margin_pct))
+    x1 = fcx - size_px // 2
+    y1 = f_htop - want_htop
+
+    pad_l = max(0, -x1); pad_t = max(0, -y1)
+    pad_r = max(0, (x1 + size_px) - new_w); pad_b = max(0, (y1 + size_px) - new_h)
+    if pad_l or pad_t or pad_r or pad_b:
+        edge = resized[0, 0].tolist()
+        resized = cv2.copyMakeBorder(resized, pad_t, pad_b, pad_l, pad_r,
+                                     cv2.BORDER_CONSTANT, value=edge)
+        x1 += pad_l; y1 += pad_t
+        new_w, new_h = resized.shape[1], resized.shape[0]
+
+    x1 = max(0, min(x1, new_w - size_px))
+    y1 = max(0, min(y1, new_h - size_px))
+    return resized[y1:y1 + size_px, x1:x1 + size_px]
+
+
 def crop_passport_auto(image, preset="standard", dpi=300, square=True, size_px=None):
     """
     Auto-crop passport photo.
@@ -71,12 +122,10 @@ def crop_passport_auto(image, preset="standard", dpi=300, square=True, size_px=N
         # ── SQUARE MODE: keep full square, no forced passport ratio ──
         side = size_px if size_px else min(h, w)
         side = min(side, h, w)
-        # center crop square from the image
-        x1 = max(0, (w - side) // 2)
-        y1 = max(0, (h - side) // 2)
-        cropped = image[y1:y1 + side, x1:x1 + side]
+        # Normalize face size + center so every outfit render is identical scale.
+        cropped = normalize_face_size(image, side)
         # if requested size differs, resize
-        if size_px and size_px != side:
+        if size_px and size_px != cropped.shape[0]:
             cropped = cv2.resize(cropped, (size_px, size_px), interpolation=cv2.INTER_LANCZOS4)
         face = detect_face(cv2.cvtColor(cropped, cv2.COLOR_BGR2RGB))
         head = find_head_top(cropped)
@@ -84,8 +133,8 @@ def crop_passport_auto(image, preset="standard", dpi=300, square=True, size_px=N
             "ok": True,
             "result": cropped,
             "headspace_in_crop": (head["headspace_from_top"] if head else "n/a"),
-            "crop_region": {"x": x1, "y": y1, "w": side, "h": side},
-            "output": f"{cropped.shape[1]}x{cropped.shape[0]}px (square, no passport-ratio crop)",
+            "crop_region": {"x": 0, "y": 0, "w": side, "h": side},
+            "output": f"{cropped.shape[1]}x{cropped.shape[0]}px (square, face-normalized)",
             "square": True,
             "face": [int(v) for v in face] if face is not None else None,
         }

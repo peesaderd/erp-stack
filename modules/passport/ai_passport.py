@@ -423,6 +423,7 @@ def generate_passport(
     custom_clothing_bytes: bytes = None,
     extra_prompt: str = None,
     skip_lighting: bool = False,
+    strength_floor: float = None,
 ) -> dict:
     """
     Generate passport photo source using Prodia FLUX i2i.
@@ -569,6 +570,15 @@ def generate_passport(
     # to 0.30 and let the V3 prompt alone define the look.
     step2_strength = strength
     FORMAT_FLOOR = 0.30
+    # Per-item floor (owner 2026-09-12): some garments (e.g. slim high-neck lace)
+    # drift to a 3/4 torso pose at low Step-2 strength. Items can declare a
+    # higher floor so the frontal pose holds.
+    if strength_floor is not None:
+        try:
+            FORMAT_FLOOR = max(FORMAT_FLOOR, float(strength_floor))
+            logger.info(f"Step 2 strength_floor from clothing: {FORMAT_FLOOR}")
+        except (TypeError, ValueError):
+            pass
     if key_info and key_info.get("step2_scale"):
         scaled = strength * key_info["step2_scale"]
         step2_strength = round(max(FORMAT_FLOOR, min(strength, scaled)), 3)

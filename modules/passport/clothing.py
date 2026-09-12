@@ -6,6 +6,20 @@ Male & Female clothing options for FLUX i2i prompt generation.
 
 import random
 
+# ── Pose directive (owner 2026-09-12) ──────────────────
+# Owner: "ตัว model ไม่หันตรง หน้าตรงแต่ตัวเอียง" — the model's BODY (shoulders/
+# torso) turns 3/4 while the head stays frontal. Cause: the clothing prompts
+# describe the GARMENT only (product-shot phrasing) and carry no pose/facing
+# clause, so FLUX renders the garment front-on and rotates the torso.
+# This clause pins the WHOLE body frontal (head AND shoulders square to camera,
+# symmetric) WITHOUT any face-retouching words — so it does not re-trigger the
+# V3 over-beautify problem the owner rejected.
+POSEFRONT = ("subject facing the camera directly with the entire body frontal, "
+             "shoulders square and level to the camera, symmetric posture, "
+             "head and torso pointing straight ahead, both shoulders equally visible, "
+             "both shoulders at the same distance from the camera, not rotated, not turned, "
+             "no three-quarter body angle, fully front-on pose")
+
 # ── Male Clothing ──────────────────────────────────────
 MALE_CLOTHING = {
     "keep_original": {
@@ -15,23 +29,23 @@ MALE_CLOTHING = {
     },
     "white_shirt": {
         "name": "เสื้อเชิ้ตสีขาว",
-        "prompt": "white formal dress shirt, crisp white collar, professional business attire",
+        "prompt": f"white formal dress shirt, crisp white collar, professional business attire, {POSEFRONT}",
     },
     "blue_shirt": {
         "name": "เสื้อเชิ้ตสีน้ำเงิน",
-        "prompt": "light blue formal dress shirt, professional business attire",
+        "prompt": f"light blue formal dress shirt, professional business attire, {POSEFRONT}",
     },
     "black_suit": {
         "name": "สูทสีดำ + เนกไท",
-        "prompt": "black formal suit jacket, white dress shirt, black necktie, professional business attire",
+        "prompt": f"black formal suit jacket, white dress shirt, black necktie, professional business attire, {POSEFRONT}",
     },
     "gray_blazer": {
         "name": "เบลเซอร์สีเทา",
-        "prompt": "gray blazer jacket, white dress shirt, professional business attire",
+        "prompt": f"gray blazer jacket, white dress shirt, professional business attire, {POSEFRONT}",
     },
     "navy_suit": {
         "name": "สูทสีกรมท่า",
-        "prompt": "navy blue suit jacket, white dress shirt, professional business attire",
+        "prompt": f"navy blue suit jacket, white dress shirt, professional business attire, {POSEFRONT}",
     },
 }
 
@@ -41,32 +55,35 @@ MALE_CLOTHING = {
 FEMALE_CLOTHING = {
     "white_blouse": {
         "name": "เสื้อเบลาส์สีขาว",
-        "prompt": "white formal blouse, tailored fit, professional business attire, modest neckline",
+        "prompt": f"white formal blouse, tailored fit, professional business attire, modest neckline, {POSEFRONT}",
         "default": True,
     },
     "white_lace_blouse": {
         "name": "เสื้อลูกไม้สีขาวคอสูง",
-        "prompt": "white floral lace blouse, long sleeves, high mock neckline with scalloped lace edge, slim tailored fit, elegant formal attire, modest",
+        "prompt": f"white floral lace blouse, long sleeves, high mock neckline with scalloped lace edge, slim tailored fit, elegant formal attire, modest, {POSEFRONT}",
+        # Slim high-neck lace garment drifts to a 3/4 torso at low strength —
+        # raise the Step-2 floor for this item so the frontal pose holds.
+        "strength_floor": 0.70,
     },
     "pink_blazer": {
         "name": "เบลเซอร์สีชมพู + เสื้อขาว",
-        "prompt": "dusty pink rose tailored blazer jacket with notched lapel, three-quarter sleeves, worn over a plain white top, elegant formal attire, modest",
+        "prompt": f"dusty pink rose tailored blazer jacket with notched lapel, three-quarter sleeves, worn over a plain white top, elegant formal attire, modest, {POSEFRONT}",
     },
     "black_blouse": {
         "name": "เสื้อเบลาส์สีดำ",
-        "prompt": "black formal blouse, tailored fit, professional business attire, modest neckline",
+        "prompt": f"black formal blouse, tailored fit, professional business attire, modest neckline, {POSEFRONT}",
     },
     "cream_suit": {
         "name": "สูทครีม + เสื้อเชิ้ตขาว",
-        "prompt": "oversized cream ivory suit blazer with white collared shirt underneath, professional fashion attire, modest, elegant",
+        "prompt": f"oversized cream ivory suit blazer with white collared shirt underneath, professional fashion attire, modest, elegant, {POSEFRONT}",
     },
     "navy_blazer": {
         "name": "เบลเซอร์กรมท่า + เสื้อเชิ้ตขาว",
-        "prompt": "navy blue blazer jacket with white dress shirt underneath, professional business attire, modest neckline",
+        "prompt": f"navy blue blazer jacket with white dress shirt underneath, professional business attire, modest neckline, {POSEFRONT}",
     },
     "white_turtleneck": {
         "name": "เสื้อคอเต่าสีขาว",
-        "prompt": "white turtleneck top, professional business attire, modest neckline",
+        "prompt": f"white turtleneck top, professional business attire, modest neckline, {POSEFRONT}",
     },
     "keep_original": {
         "name": "เก็บชุดเดิม",

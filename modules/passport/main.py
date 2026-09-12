@@ -477,6 +477,7 @@ async def generate_passport_v2(req: GenerateRequest):
         custom_clothing_bytes=custom_clothing_bytes,
         extra_prompt=req.prompt,
         skip_lighting=req.skip_lighting,
+        strength_floor=clothing.get("strength_floor"),
     )
 
     if not result["ok"]:
@@ -1081,6 +1082,7 @@ async def bulk_generate(req: BulkGenerateRequest):
             bg_prompt=bg["prompt"],
             strength=req.strength,
             extra_prompt=req.prompt,
+            strength_floor=clothing.get("strength_floor"),
         )
 
         if not result["ok"]:

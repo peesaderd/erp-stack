@@ -516,11 +516,30 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "in image_prompt. Follow these five rules:\n"
             "1. CONTINUITY WITH THE IMAGE: keep the exact same subject, wardrobe, product, and setting from your \n"
             "   image_prompt. Start from the pose and framing the image establishes.\n"
-            "1b. WARDROBE VARIETY ACROSS CLIPS (owner 2026-09-12 v2 - fixes 'model always in the same plain white \n"
-            "   tank top'): CHOOSE a specific, varied outfit for the presenter in the image_prompt - casual but real \n"
-            "   (e.g. a pastel oversized tee, a linen shirt, a light cardigan over a tee, a simple blouse). NEVER \n"
-            "   default to a plain white tank top / plain white sleeveless top. Vary top colour, sleeve length, and \n"
-            "   neckline so clips don't all look identical. Keep the outfit modest and appropriate for the setting.\n"
+            "1b. WARDROBE VARIETY ACROSS CLIPS (owner 2026-09-12 v3 - fixes 'model always in the same plain white \n"
+            "   tank top' AND 'the outfit looks old/เชย'): CHOOSE a specific, MODERN, on-trend outfit for the \n"
+            "   presenter in the image_prompt - the kind a stylish 20-27 year old would actually wear on camera now. \n"
+            "   Good picks: a cropped knit vest over a tee, an oversized graphic/plain tee half-tucked, a pastel \n"
+            "   linen overshirt/co-ord set, a modern ribbed blouse, a wide-leg trouser + fitted top, a soft cardigan \n"
+            "   over a tee, a simple sundress. NEVER default to a plain white tank top / plain white sleeveless top, \n"
+            "   NEVER an old-fashioned/stiff buttoned office blouse or dated print. Vary top colour, sleeve length, \n"
+            "   neckline, and silhouette so clips don't all look identical. Keep the outfit modest and appropriate \n"
+            "   for the setting. The presenter reads as YOUNG and FRESH (early-to-mid 20s), natural light makeup, \n"
+            "   modern tidy hair - never middle-aged, never dated styling.\n"
+            "1c. PRESENTER ACTUALLY SPEAKS (MANDATORY - fixes 'นางแบบไม่พูด'): the presenter MUST be shown TALKING \n"
+            "   TO CAMERA - mouth visibly moving, mouth-articulation throughout the shot, looking into the lens with \n"
+            "   a natural warm expression. She is delivering the Thai sales script to the viewer the whole time. Never \n"
+            "   render her silent, still-lipped, smiling-but-not-speaking, turned away, or looking down at the product.\n"
+            "1d. PRODUCTS ARE STATIC OBJECTS - NO SELF-MOVING (MANDATORY - fixes 'ถุงสินค้าขยับเอง'): the packs/\n"
+            "   bottles/boxes are INANIMATE. They NEVER move, slide, drift, rotate, float, or reposition on their own. \n"
+            "   A pack only moves because a HAND is physically holding and moving it. Whenever a pack is at rest on the \n"
+            "   table it stays EXACTLY where it is, perfectly still, until a hand touches it again. NEVER let the product \n"
+            "   hover, glide, or animate by itself.\n"
+            "1e. PREPARED-FOOD PROP (food/instant-noodle products - fixes 'ไม่มีรูปก๋วยเตี๋ยวใส่ชามวางไว้'): show ONE \n"
+            "   bowl/cup of the PREPARED dish resting on the table beside the packs as a supporting prop - appetising, \n"
+            "   real, steam optional. It sits still on the surface. It is a small secondary prop: it NEVER becomes the \n"
+            "   hero, NEVER dominates the frame, and NEVER hides the packs. (For non-food products: choose one natural \n"
+            "   real-world prop that suits the product and keep it small and static.)\n"
             "2. PHYSICAL GROUNDING: say which hand holds which object and where it touches (fingertip, palm, wrist). \n"
             "   Keep the hands and the product engaged through the whole motion - never let a hand drift off the \n"
             "   product or float unanchored.\n"
@@ -542,6 +561,15 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "   sequence of steps (do not show open->pour->stir->lift). One action, described in full physical detail, \n"
             "   every beat grounded. End on a calm, settled beat. (Exception: the 2b container open/use/close loop is \n"
             "   part of the one action - keep it, it is required.)\n"
+            "3b. NEVER SET DOWN + RE-GRAB (hard rule - owner 2026-09-12, fixes 'the pack moves by itself'): once the \n"
+            "   presenter picks the product up, that hand STAYS in contact with it all the way to the final settle. It \n"
+            "   is FORBIDDEN to write 'she sets it down', 'she releases it', 'she lets go', 'she puts it back', or \n"
+            "   'she picks it up again'. If you want a two-product beat, KEEP THE FIRST PACK IN HER HAND and have her \n"
+            "   bring the second pack up with her OTHER hand - never release and re-grab. A released pack animates and \n"
+            "   drifts on its own (the exact bug being fixed).\n"
+            "3c. THAI SCRIPT ONLY - NO LATIN LETTERS AT ALL (hard rule): the thai_script must contain ONLY Thai \n"
+            "   characters and spaces. NO English words, NO Latin letters - transliterate every borrowed word into \n"
+            "   Thai spelling (Texture -> เทกซ์เจอร์, Halal -> ฮาลาล, etc.). If a word has no Thai form, drop it.\n"
             "4. CAMERA AND LIGHT: carry over the camera angle, lens feel, and light source from your image_prompt, \n"
             "   then add ONE subtle camera behaviour. PREFER a slow PULL-BACK / zoom-out that REVEALS the whole \n"
             "   product, or a gentle drift - AVOID ending on a tight close-up of the body (ear, skin, strap). The \n"
@@ -551,8 +579,12 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "   (b) MAIN ACTION: the one main action, naming WHICH HAND holds/does WHAT and where it touches;\n"
             "   (c) CAMERA: the single subtle camera behaviour from rule 4;\n"
             "   (d) SETTLE: the final beat settling calmly with the product presented to camera, "
-            "the person still in frame.\n"
-            "   (e) WORDING: NEVER write the words 'hero shot', 'hero hold', or 'product-only' in the "
+            "the person still in frame, STILL TALKING to the lens.\n"
+            "   (f) NO SET-DOWN/RE-PICK CHAIN (owner 2026-09-12 - fixes 'ถุงสินค้าขยับเอง', see rule 3b): NEVER write "
+            "the presenter setting the product down, releasing it, or picking it back up. Keep the SAME hand in "
+            "contact with each pack from the moment it is lifted through to the settle - the pack is never left to "
+            "rest-and-then-re-grab, or it will glide by itself.\n"
+            "   (g) WORDING: NEVER write the words 'hero shot', 'hero hold', or 'product-only' in the "
             "video_prompt - the model then renders an empty product shot and the PERSON DISAPPEARS from the "
             "frame. Always describe the person and the product TOGETHER in the final beat.\n"
             "6b. FOOD REALISM (when the product is food/drink): the dish must look REAL and appetizing - \n"
@@ -561,7 +593,8 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "   sharp natural focus with visible strand texture') and add negatives like 'no blurry noodles, \n"
             "   no smeared mushy food, no fake CGI food, no kettle, no pot, no pouring, no cooking'.\n"
             "6. SCENE FIDELITY (hard rule) - the video_prompt may ONLY contain objects, tools, and setting that \n"
-            "   image_prompt ALREADY shows. It is FORBIDDEN to introduce ANY new object of ANY kind - no kettle, \n"
+            "   image_prompt ALREADY shows (PLUS the single prepared-food/dish prop from rule 1e for food products). \n"
+            "   It is FORBIDDEN to introduce ANY other new object of ANY kind - no kettle, \n"
             "   no chopsticks, no spoon, no extra bowls, no pans, no pots, no boxes, no sachets unless that exact \n"
             "   object is already visible in image_prompt. For FOOD: the dish is ALREADY plated/ready on the \n"
             "   surface - the action is presenting and/or eating the ready dish, NEVER preparing or cooking it. \n"
@@ -949,6 +982,31 @@ def _normalize_negative_prompt(neg: str) -> str:
     return ", ".join(_uniq)
 
 
+def _sanitize_video_prompt(vp: str) -> str:
+    """Owner 2026-09-12: strip the set-down / release / re-grab chain that makes the product
+    animate by itself in Wan. Rewrites those clauses into a 'keeps holding it' beat.
+
+    The LLM sysprompt forbids this (rule 3b) but Mimo drifts back to the pattern, so we also
+    hard-clean the string here as belt-and-suspenders.
+    """
+    if not vp:
+        return vp
+    import re as _re
+    out = vp
+    # Remove whole sentences that describe releasing / setting down / re-picking the product.
+    _pat = _re.compile(
+        r"[^.]*?\b(sets? (?:the |it |the product |the pack )?(?:product|pack|item|it)?\s*(?:back )?down|"
+        r"set (?:it|the product|the pack) down|releases? (?:it|the product|the pack)|lets go of (?:it|the product|the pack)|"
+        r"puts? (?:it|the product|the pack) back|places? (?:it|the product|the pack) (?:back )?on|"
+        r"picks? (?:the product|the pack|it) (?:back )?up again)[^.]*\.",
+        _re.IGNORECASE,
+    )
+    cleaned = _pat.sub("", out)
+    # Collapse any doubled spaces / stray ' .'
+    cleaned = _re.sub(r"\s{2,}", " ", cleaned).replace(" .", ".").strip()
+    return cleaned if len(cleaned) > len(out) * 0.5 else out
+
+
 def analyze_product(product_name: str, product_image: str = None, description: str = "", ugc_style: str = "holding", body_part: str = "", special_target: str = "", usage_howto: str = "", ingredient_highlight: str = "", category: str = "", subcategory: str = "", gender: str = "", target_age: str = "", duration: int = 15, product_images: list = None, features: str = "") -> dict:
     """
     Step 1: Analyze product via Mistral → product_profile
@@ -1026,7 +1084,13 @@ def analyze_product(product_name: str, product_image: str = None, description: s
         )
         if _ds and _ds.get("image_prompt") and _ds.get("video_prompt"):
             profile["_image_prompt"] = _ds["image_prompt"]
-            profile["_video_prompt"] = _ds["video_prompt"]
+            # owner 2026-09-12: sanitize the video_prompt so a slipped-through set-down/re-grab
+            # chain (which makes the pack animate by itself) is rewritten to a keep-in-hand beat.
+            _vp_raw = _ds["video_prompt"]
+            _vp_clean = _sanitize_video_prompt(_vp_raw)
+            if _vp_clean != _vp_raw:
+                logger.info(f"  🔧 sanitize video_prompt (set-down/re-grab): {_vp_raw!r} -> {_vp_clean!r}")
+            profile["_video_prompt"] = _vp_clean
             # (ข) Mimo thai_script → ให้ generate_script ใช้เป็นตัวพูดจริง (คนเดียว author บท+ภาพ+วิดีโอ)
             # owner 2026-09-10: normalize คำย่อ/สัญลักษณ์ → คำเต็มก่อน (Wan พูดเอง อ่านผิดถ้าเป็นคำย่อ)
             _raw_ts = (_ds.get("thai_script") or "").strip()
@@ -1076,6 +1140,10 @@ def analyze_product(product_name: str, product_image: str = None, description: s
                 if _food_sig:
                     _food_neg = ("no bowl dominating the frame, no giant bowl of cooked noodles, "
                                  "no cooked dish as the hero, no pack hidden behind a bowl, "
+                                 "no second bowl, no multiple bowls, "
+                                 "no pack floating, no pack sliding on its own, no pack moving by itself, "
+                                 "no self-moving product, no levitating product, "
+                                 "no silent still-mouthed presenter, "
                                  "no single colour only, no blurry pack label")
                     _mimo_neg = _normalize_negative_prompt(_mimo_neg + ", " + _food_neg)
                 profile["_negative_prompt"] = _mimo_neg

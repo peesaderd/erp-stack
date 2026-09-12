@@ -205,6 +205,16 @@ _THAI_ABBR = [
     (r"นาที\.", "นาที"), (r"วินาที\.", "วินาที"),
 ]
 _THAI_SYM = [("%", "เปอร์เซ็นต์")]
+# owner 2026-09-12: hard consonant clusters at the START of a clip come out garbled by Wan
+# (real bug: "เบื่อก๋วยเตี๋ยว..." at pos-1 decoded as "Buer cuitit..." = the กล-ว cluster is
+# unreadable with no preceding context). Fix the worst offenders phonetically + never OPEN the
+# script with them. "ก๋วยเตี๋ยว" -> "กวยเตี๋ยว" reads cleanly.
+_THAI_CLUSTER_FIX = [
+    (r"ก๋วยเตี๋ยว", "กวยเตี๋ยว"),
+    (r"ก๋วยจั๊บ", "กวยจับ"),
+]
+# Hard clusters that must NOT be the very first content word of the spoken script.
+_THAI_HARD_OPENER = ("ก๋วย", "กวยเตี๋ยว", "ก๋วยเตี๋ยว", "ก๋วยจั๊บ")
 # Latin tech/brand words that commonly slip through -> Thai phonetic spelling.
 _THAI_LATIN = {
     "bluetooth": "บลูทูธ", "usb": "ยูเอสบี", "led": "แอลอีดี", "aac": "เอเอซี",
@@ -218,6 +228,10 @@ def normalize_thai_spoken_script(text: str) -> str:
     if not text:
         return text
     out = text
+    # owner 2026-09-12: phonetic fix for hard opening clusters (ก๋วยเตี๋ยว -> กวยเตี๋ยว) BEFORE
+    # anything else, so the very first word Wan speaks is pronounceable.
+    for pat, rep in _THAI_CLUSTER_FIX:
+        out = re.sub(pat, rep, out)
     for pat, rep in _THAI_ABBR:
         out = re.sub(pat, rep, out)
     for sym, rep in _THAI_SYM:
@@ -231,6 +245,33 @@ def normalize_thai_spoken_script(text: str) -> str:
     out = re.sub(r"([A-Za-z0-9])([\u0E00-\u0E7F])", r"\1 \2", out)
     # tidy double spaces created by replacements
     out = re.sub(r"[ \t]{2,}", " ", out).strip()
+    # owner 2026-09-12 (fixes 'เพี้ยนตั้งแต่ต้น'): the voice has NO context for word #1, so a hard
+    # consonant cluster there comes out garbled (verified: 'เบื่อก๋วยเตี๋ยว...' at pos-1).
+    # Deterministic guard - if the script OPENS with a hard cluster, keep the rest but re-open with
+    # an easy common word derived from the sentence so the first syllable reads cleanly.
+    try:
+        _head = out[:24]
+        _opens_hard = any(_head.startswith(_w) for _w in _THAI_HARD_OPENER) or bool(
+            re.match(r"^(?:เบื่อ|ชอบ|อยาก|หิว|รสดี)?\s*ก(๋)?วย", _head)
+        )
+        if _opens_hard:
+            # Keep the meaning: move the cluster-noun out of position #1 and re-open with an easy
+            # hook, then re-insert the (phonetic) noun mid-sentence.
+            _rest = out
+            _noun = ""
+            for _w in ("ก๋วยเตี๋ยว", "กวยเตี๋ยว", "ก๋วยจั๊บ", "กวยจับ"):
+                if _w in _rest:
+                    _noun = "กวยเตี๋ยว" if "เตี๋ยว" in _w else "กวยจับ"
+                    break
+            for _w in tuple(_THAI_HARD_OPENER) + ("กวยเตี๋ยว", "ก๋วยเตี๋ยว", "กวยจับ", "ก๋วยจั๊บ"):
+                _rest = re.sub(r"^(?:เบื่อ|ชอบ|อยาก|หิว)?" + _w + r"\s*", "", _rest, count=1)
+            _rest = re.sub(r"^(?:เบื่อ|ชอบ|อยาก|หิว)\s*", "", _rest, count=1)
+            _rest = _rest.strip(" ,")
+            if _rest and _rest != out:
+                # re-insert the noun right after the easy opener so the subject is still named
+                out = ("หิวใช่ไหม " + (_noun + " " if _noun else "") + _rest).strip()
+    except Exception:
+        pass
     return out
 
 
@@ -406,9 +447,12 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
         if _dur <= 8:
             _char_min, _char_max = 70, 100
         elif _dur <= 12:
-            _char_min, _char_max = 100, 145
+            _char_min, _char_max = 110, 150
         else:
-            _char_min, _char_max = 135, 185
+            # owner 2026-09-12: 15s clips still left a ~2s silent tail because 135-185ch ≈ 11-13.5s.
+            # Raise the floor so the spoken line truly fills 15s (12-14 chars/sec), but keep a HARD
+            # CEILING so Mimo doesn't overshoot into a rushed read (291ch was too long).
+            _char_min, _char_max = 175, 200
         sysprompt = (
             "You are a top-tier Thai UGC creator making premium, beautiful, and hyper-authentic video concepts "
             "for TikTok Shop, Reels, and Shorts. Your goal is to make the audience feel: I have this problem -> "
@@ -586,7 +630,12 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "        the main fix for 'ลิ้นเปลี้ย': short comma-separated clauses read clean, long unbroken runs \n"
             "        get garbled.\n"
             "    (v) Keep the speakable length inside the char budget so the voice never has to rush - a calmer \n"
-            "        pace at the right length always beats cramming extra words in.\n\n"
+            "        pace at the right length always beats cramming extra words in.\n"
+            "    (vi) THE VERY FIRST WORD MATTERS MOST (owner 2026-09-12 - fixes 'เพี้ยนตั้งแต่ต้น'): the voice has\n"
+            "        no context for word #1, so NEVER open the script with a hard consonant cluster like 'ก๋วยเตี๋ยว' /\n"
+            "        'ก๋วยจั๊บ'. Start with an easy, common cluster-free word instead - e.g. open with 'เบื่อ' 'หิว'\n"
+            "        'อยาก' 'รส' 'ซอง' 'อร่อย' 'ทำไม' 'ใคร' (NOT 'ก๋วยเตี๋ยว...'). Write 'กวยเตี๋ยว' phonetically if the\n"
+            "        word must appear later in the sentence.\n\n"
             "[VIDEO PROMPT - positive direction only - owner 2026-09-10]\n"
             "Think of the video_prompt as one continuous shot that EXTENDS the still frame you already described \n"
             "in image_prompt. Follow these five rules:\n"
@@ -1217,6 +1266,22 @@ def analyze_product(product_name: str, product_image: str = None, description: s
                 logger.warning(f"  thai_script sanitizer skipped: {_e_ts}")
             if _norm_ts != _raw_ts:
                 logger.info(f"  🔧 normalize thai_script: {_raw_ts!r} -> {_norm_ts!r}")
+            # owner 2026-09-12: HARD length cap - if Mimo overshoots the duration budget the voice
+            # rushes. Trim the weakest trailing clauses (keep hook + the buy CTA) until it fits.
+            try:
+                _dur_cap = int(duration) if duration else 15
+                _cap = 200 if _dur_cap > 12 else (150 if _dur_cap > 8 else 100)
+                if len(_norm_ts) > _cap:
+                    _parts = [p.strip() for p in _norm_ts.split(",") if p.strip()]
+                    while len(", ".join(_parts)) > _cap and len(_parts) > 2:
+                        # drop from the middle (keep first hook + last CTA)
+                        _parts.pop(len(_parts) - 2)
+                    _trimmed = ", ".join(_parts)
+                    if _trimmed and len(_trimmed) <= _cap:
+                        logger.info(f"  ✂️ thai_script trimmed {len(_norm_ts)}ch -> {len(_trimmed)}ch (dur cap {_cap})")
+                        _norm_ts = _trimmed
+            except Exception as _e_cap:
+                logger.warning(f"  thai_script cap skipped: {_e_cap}")
             profile["_mimo_thai_script"] = _norm_ts
             # owner 2026-09-12: which reference image Mimo picked (multi-variant sets).
             if _ds.get("reference_image_index") is not None:

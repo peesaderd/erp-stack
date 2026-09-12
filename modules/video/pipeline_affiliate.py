@@ -622,7 +622,13 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
                 "Preserve this release-then-re-lift beat. The hand must look relaxed and real, never frozen "
                 "gripping the product for all 15 seconds. The product stays clearly visible and centred in every "
                 "beat whether held or resting. Do NOT describe the product as held by BOTH hands at chest level "
-                "for the entire clip."
+                "for the entire clip.\n"
+                "*** IMAGE / FIRST FRAME (owner 2026-09-12 - fixes 'the still frame shows her gripping it'): The "
+                "image_prompt must describe a STILL frame in which the product is RESTING ON A CLEAN SURFACE "
+                "(table/vanity/counter), sitting upright with the label facing the lens, and NO hand is holding it "
+                "- the demonstrator's hands are relaxed beside it (or she is standing beside it). Do NOT write an "
+                "image_prompt where she is holding the jar at chest level. The still frame is the tabletop hero "
+                "shot; the hand only comes in to lift the product during the VIDEO beats."
             )
         elif _style_lc in ("tabletop", "tabletop_demo", "demo"):
             _style_instr = (

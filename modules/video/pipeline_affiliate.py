@@ -273,11 +273,50 @@ def _mimo_key() -> str:
     return k
 
 
+def _pick_variant_reference_index(images: list) -> Optional[int]:
+    """owner 2026-09-12: for a multi-variant product set, ask Mimo (vision) which supplied
+    reference image shows the MOST variants/packs together, so the still frame can show the
+    full colour/flavour line instead of only image[0]. Returns an int index or None.
+    """
+    try:
+        _k = _mimo_key()
+        if not _k:
+            return None
+        _imgs = [u for u in images if isinstance(u, str) and u.strip()][:6]
+        if len(_imgs) < 2:
+            return None
+        _content = [{"type": "text", "text": (
+            f"There are {len(_imgs)} reference images of the SAME product line. Which single "
+            "image shows the MOST packs/variants TOGETHER in one photo? "
+            "Answer with ONLY the 0-based index number (0, 1, 2, ...)."
+        )}]
+        for _u in _imgs:
+            _content.append({"type": "image_url", "image_url": {"url": _u}})
+        _payload = {"model": "mimo-v2.5",
+                    "messages": [{"role": "user", "content": _content}],
+                    "max_tokens": 400, "temperature": 0.3}
+        _r = requests.post("https://token-plan-sgp.xiaomimimo.com/v1/chat/completions",
+                           headers={"Authorization": "Bearer " + _k, "Content-Type": "application/json"},
+                           json=_payload, timeout=60)
+        if _r.status_code != 200:
+            return None
+        _c = (_r.json()["choices"][0]["message"].get("content") or "").strip()
+        import re as _re
+        _m = _re.search(r"\d+", _c)
+        if not _m:
+            return None
+        _idx = int(_m.group(0))
+        return _idx if 0 <= _idx < len(_imgs) else None
+    except Exception:
+        return None
+
+
 def _deepseek_product_prompts(product_name: str, description: str, ugc_style: str = "holding",
                               category: str = "", subcategory: str = "",
                               special_target: str = "", usage_howto: str = "",
                               gender: str = "", target_age: str = "",
-                              product_image: str = "", duration: int = 15) -> Optional[dict]:
+                              product_image: str = "", duration: int = 15,
+                              product_images: list = None) -> Optional[dict]:
     """Have Mimo write the image/video prompts fresh from the actual product.
 
     Boss directive 2026-09-08: use Mimo exclusively (ไมใช่ DeepSeek).
@@ -343,6 +382,7 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "   {\"label\": \"settle\", \"seconds\": <int>, \"text\": \"\"}\n"
             " ],\n"
             " \"image_prompt\": \"<Rich, concrete still-frame anchor, ~60-90 words>\",\n"
+            " \"reference_image_index\": <int: 0-based index of the supplied reference image that BEST shows the product to copy - for a multi-variant set pick the image that shows the MOST variants/packs together>,\n"
             " \"video_prompt\": \"<ONE continuous shot, ONE simple action + settle, grounded in physical detail, 60-90 words>\"\n"
             " \"negative_prompt\": \"<comma-separated list where EVERY item MUST start with a negative word - 'no ...' or 'don't ...'. ~60-120 chars. Example: no distorted fingers, no extra hands, no warped product, no blurry label, no melted face>\"\n"
             "}\n\n"
@@ -384,6 +424,21 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "- PACKAGED GOODS: the packaging/bottle/box is held upright, facing the lens, stabilized and centered - "
             "NEVER let it drift off-screen or get occluded by the hands. The real label of the reference product "
             "shows clearly.\n"
+            "- PACKAGED FOOD = THE PACK IS THE HERO (owner 2026-09-12 - fixes 'a bowl of noodles keeps stealing the "
+            "shot'): when the product is PACKAGED FOOD (instant noodles, snacks, drinks, sachets, boxes), the "
+            "SEALED PACK / SACHET / BOX is the hero of the frame - NOT a cooked dish. The reference image shows the "
+            "PRODUCT PACK; draw THE PACK as the clear hero, upright, label facing the lens, sharp and fully "
+            "readable. A bowl/cup of the PREPARED food may appear ONLY as a small secondary prop (never more than "
+            "~15% of the frame, never in front of the pack, never the focus) OR may be omitted entirely. NEVER "
+            "write an image_prompt where 'a bowl of noodles sits as the clear hero' or where the cooked dish "
+            "dominates the frame - the SEALED PACK is the star. The script sells the PACK the viewer will buy.\n"
+            "- MULTI-VARIANT / MULTI-FLAVOUR PACK (owner 2026-09-12 - fixes 'only one colour/scent shown, other "
+            "variants never mentioned'): if the product is a set with MORE THAN ONE variant (flavours, scents, "
+            "colours, sizes, noodle types), and the reference/description lists them, SHOW the different variants "
+            "together (e.g. the differently-coloured packs standing side by side, labels readable) and MENTION "
+            "the variety in the script (name at least two real variants actually listed for the product). NEVER "
+            "collapse a multi-variant set down to a single colour/flavour, and never invent variants that are "
+            "not in the product data.\n"
             "- APPAREL / GARMENTS: the garment is the hero - frame torso-to-knee or a full-body mirror view so the "
             "cut, silhouette and drape dominate; never sacrifice garment visibility for an extreme face close-up. "
             "Model WEARS it and shows fit and drape with gentle turns and soft steps, hands relaxed, letting the "
@@ -643,8 +698,28 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
                 "'leaves it resting' - and at least one beat where NO hand holds the product. "
                 "Do NOT write a video_prompt where the product is gripped from start to finish."
             )
+        # owner 2026-09-12: when MORE THAN ONE product image is supplied, the product is a
+        # multi-variant set (flavours/colours/noodle types). HOIST this into user_text at high
+        # attention - Mimo otherwise collapses the set to the single image[0] colour (the
+        # "only one colour shown, other variants never mentioned" bug).
+        _variant_instr = ""
+        _n_imgs = len([u for u in (product_images or []) if isinstance(u, str) and u.strip()])
+        if _n_imgs > 1:
+            _variant_instr = (
+                "\n\n*** MULTI-VARIANT SET (HIGHEST PRIORITY, MUST OBEY) ***\n"
+                f"You are given {_n_imgs} reference images of the SAME product line - these are the DIFFERENT "
+                "variants (flavours / colours / scents / noodle types). Look at ALL of them.\n"
+                "Rules:\n"
+                "  (1) The image_prompt MUST show MORE THAN ONE variant TOGETHER - the differently-coloured "
+                "packs/bottles standing side by side on the surface, each label readable, as the hero group. "
+                "Do NOT describe a single pack/colour only.\n"
+                "  (2) In the thai_script, NAME at least two real variants actually shown in the images "
+                "(e.g. the different noodle types / flavours / scents). Never mention variants not visible "
+                "or not in the product data.\n"
+                "  (3) The negative_prompt MUST include 'no single colour only, no missing variants'.\n"
+            )
         user_text = ("Product: " + _name_clean + "\nDescription: " + _desc_clean +
-                     _acted_instr + _style_instr +
+                     _acted_instr + _style_instr + _variant_instr +
                      "\nWrite natural-realistic image and video prompts for this product. Base the visuals ONLY on the given "
                      "Product/Description — never invent brand names, logos, label text, ingredients, quantities, prices, or packaging "
                      "details not present. IMPORTANT: if a product image is provided, draw the product exactly as it appears "
@@ -656,11 +731,20 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             # owner 2026-09-11: send the REAL product image to Mimo (vision) so it reads the
             # exact form factor/shape instead of guessing from the title (over-ear vs in-ear bug).
             _user_content = user_text
-            if (product_image or "").strip():
-                _user_content = [
-                    {"type": "text", "text": user_text},
-                    {"type": "image_url", "image_url": {"url": product_image.strip()}},
-                ]
+            # owner 2026-09-12: send ALL variant images (multi-flavour/colour) so Mimo can read
+            # the full set (e.g. red/yellow/blue noodle packs) instead of only image[0].
+            _imgs_to_send = [u.strip() for u in (product_images or []) if isinstance(u, str) and u.strip()]
+            if not _imgs_to_send and (product_image or "").strip():
+                _imgs_to_send = [product_image.strip()]
+            # owner 2026-09-12: Mimo's media fetch is INTERMITTENT ("failed to download or process
+            # media content" on some images / when too many are sent). Degrade gracefully:
+            # try ALL images -> FIRST image only -> NO image, so the job never dies on vision.
+            _image_sets = []
+            if _imgs_to_send:
+                _image_sets.append(_imgs_to_send[:6])
+                if len(_imgs_to_send) > 1:
+                    _image_sets.append(_imgs_to_send[:1])
+            _image_sets.append([])  # last resort: text-only
             payload = {
                 "model": _prov["model"],
                 "messages": [{"role": "system", "content": sysprompt},
@@ -670,50 +754,74 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             }
             headers = {"Content-Type": "application/json", "Authorization": "Bearer " + _prov["key"]}
             url = _prov["url"]
-            for _attempt in range(3):
-                try:
-                    _res = requests.post(url, headers=headers, json=payload, timeout=200)
-                    if _res.status_code == 200:
-                        _data = _res.json()
-                        _content = ((_data["choices"][0]["message"].get("content") or "").strip() or "")
-                        if not _content:
-                            logger.warning(f"_deepseek_product_prompts [{_prov['name']}] empty content, retry")
-                            continue
-                        import re as _re
-                        _obj = _extract_json_obj(_content)
-                        # Accept either video_prompt (str) or video_prompts (list[str])
-                        _vid = _obj.get("video_prompt")
-                        _vid = _vid.strip() if isinstance(_vid, str) else ""
-                        _prompts = _obj.get("video_prompts")
-                        if not _vid and isinstance(_prompts, list) and _prompts and isinstance(_prompts[0], str):
-                            _vid = _prompts[0].strip()
-                        _img = _obj.get("image_prompt")
-                        _img = _img.strip() if isinstance(_img, str) else ""
-                        _tst = _obj.get("thai_script")
-                        _tst = _tst.strip() if isinstance(_tst, str) else ""
-                        _neg = _obj.get("negative_prompt")
-                        _neg = _neg.strip() if isinstance(_neg, str) else ""
-                        _neg = _normalize_negative_prompt(_neg)
-                        # owner 2026-09-11: structured beats (Fix C) — timed script so Wan knows
-                        # where the speech ends and the silent settle tail begins.
-                        _beats = _normalize_script_beats(_obj.get("script_beats"))
-                        if _tst:
-                            # Normalize: Thai ตัวอักษร, ตัด wrap/quotes, ตัดเครื่องหมายคำพูดซ้ำที่อาจหลุดมา
-                            _tst = _re.sub(r"[\u201c\u201d\"']+", "", _tst).strip()
-                        if _img and _vid:
-                            # (ข) owner 2026-09-09 23:0x: คืน thai_script ที่ Mimo เขียนด้วย (เดิมโดนทิ้ง) →
-                            # ใช้เป็นตัวพูดจริง ให้คนเดียว author บท+ภาพ+วิดีโอ sync กัน (แก้ APPEND 15 conflict)
-                            logger.info(f"_deepseek_product_prompts: got AI prompts from {_prov['name']} "
-                                        f"({_prov['model']}, img {len(_img)}ch, vid {len(_vid)}ch, script {len(_tst)}ch, beats {len(_beats)})")
-                            return {"image_prompt": _img, "video_prompt": _vid, "thai_script": _tst,
-                                    "negative_prompt": _neg, "script_beats": _beats}
-                        logger.warning(f"_deepseek_product_prompts [{_prov['name']}] JSON missing image/video keys (img={bool(_img)}, vid={bool(_vid)})")
-                        break
-                    else:
-                        logger.warning(f"_deepseek_product_prompts [{_prov['name']}] api {_res.status_code}: {_res.text[:150]}")
-                        break
-                except Exception as _e:
-                    logger.warning(f"_deepseek_product_prompts [{_prov['name']}] attempt {_attempt + 1} error: {_e}")
+            for _istep, _iset in enumerate(_image_sets):
+                if _iset:
+                    _user_content = [{"type": "text", "text": user_text}]
+                    for _u in _iset:
+                        _user_content.append({"type": "image_url", "image_url": {"url": _u}})
+                else:
+                    _user_content = user_text
+                payload["messages"] = [{"role": "system", "content": sysprompt},
+                                       {"role": "user", "content": _user_content}]
+                _media_fail = False
+                for _attempt in range(3):
+                    try:
+                        _res = requests.post(url, headers=headers, json=payload, timeout=200)
+                        if _res.status_code == 200:
+                            _data = _res.json()
+                            _content = ((_data["choices"][0]["message"].get("content") or "").strip() or "")
+                            if not _content:
+                                logger.warning(f"_deepseek_product_prompts [{_prov['name']}] empty content, retry")
+                                continue
+                            import re as _re
+                            _obj = _extract_json_obj(_content)
+                            # Accept either video_prompt (str) or video_prompts (list[str])
+                            _vid = _obj.get("video_prompt")
+                            _vid = _vid.strip() if isinstance(_vid, str) else ""
+                            _prompts = _obj.get("video_prompts")
+                            if not _vid and isinstance(_prompts, list) and _prompts and isinstance(_prompts[0], str):
+                                _vid = _prompts[0].strip()
+                            _img = _obj.get("image_prompt")
+                            _img = _img.strip() if isinstance(_img, str) else ""
+                            # owner 2026-09-12: Mimo may pick which supplied reference image to use
+                            # (multi-variant sets -> the image showing the most packs together).
+                            _ref_idx = _obj.get("reference_image_index")
+                            try:
+                                _ref_idx = int(_ref_idx) if _ref_idx is not None else None
+                            except Exception:
+                                _ref_idx = None
+                            _tst = _obj.get("thai_script")
+                            _tst = _tst.strip() if isinstance(_tst, str) else ""
+                            _neg = _obj.get("negative_prompt")
+                            _neg = _neg.strip() if isinstance(_neg, str) else ""
+                            _neg = _normalize_negative_prompt(_neg)
+                            # owner 2026-09-11: structured beats (Fix C) — timed script so Wan knows
+                            # where the speech ends and the silent settle tail begins.
+                            _beats = _normalize_script_beats(_obj.get("script_beats"))
+                            if _tst:
+                                # Normalize: Thai ตัวอักษร, ตัด wrap/quotes, ตัดเครื่องหมายคำพูดซ้ำที่อาจหลุดมา
+                                _tst = _re.sub(r"[\u201c\u201d\"']+", "", _tst).strip()
+                            if _img and _vid:
+                                # (ข) owner 2026-09-09 23:0x: คืน thai_script ที่ Mimo เขียนด้วย (เดิมโดนทิ้ง) →
+                                # ใช้เป็นตัวพูดจริง ให้คนเดียว author บท+ภาพ+วิดีโอ sync กัน (แก้ APPEND 15 conflict)
+                                logger.info(f"_deepseek_product_prompts: got AI prompts from {_prov['name']} "
+                                            f"({_prov['model']}, img {len(_img)}ch, vid {len(_vid)}ch, script {len(_tst)}ch, beats {len(_beats)})")
+                                return {"image_prompt": _img, "video_prompt": _vid, "thai_script": _tst,
+                                        "negative_prompt": _neg, "script_beats": _beats,
+                                        "reference_image_index": _ref_idx}
+                            logger.warning(f"_deepseek_product_prompts [{_prov['name']}] JSON missing image/video keys (img={bool(_img)}, vid={bool(_vid)})")
+                            break
+                        else:
+                            logger.warning(f"_deepseek_product_prompts [{_prov['name']}] api {_res.status_code}: {_res.text[:150]}")
+                            # media-download 400 => drop images and retry with fewer/none
+                            if _res.status_code == 400 and "media" in _res.text.lower() and _iset:
+                                _media_fail = True
+                            break
+                    except Exception as _e:
+                        logger.warning(f"_deepseek_product_prompts [{_prov['name']}] attempt {_attempt + 1} error: {_e}")
+                if _media_fail:
+                    logger.warning(f"_deepseek_product_prompts [{_prov['name']}] media fetch failed with {len(_iset)} image(s) - degrading")
+                    continue
         return None
     except Exception as _e:
         logger.warning(f"_deepseek_product_prompts failed: {_e}")
@@ -812,7 +920,7 @@ def _normalize_negative_prompt(neg: str) -> str:
     return ", ".join(_uniq)
 
 
-def analyze_product(product_name: str, product_image: str = None, description: str = "", ugc_style: str = "holding", body_part: str = "", special_target: str = "", usage_howto: str = "", ingredient_highlight: str = "", category: str = "", subcategory: str = "", gender: str = "", target_age: str = "", duration: int = 15) -> dict:
+def analyze_product(product_name: str, product_image: str = None, description: str = "", ugc_style: str = "holding", body_part: str = "", special_target: str = "", usage_howto: str = "", ingredient_highlight: str = "", category: str = "", subcategory: str = "", gender: str = "", target_age: str = "", duration: int = 15, product_images: list = None) -> dict:
     """
     Step 1: Analyze product via Mistral → product_profile
 
@@ -875,6 +983,7 @@ def analyze_product(product_name: str, product_image: str = None, description: s
         _ds = _deepseek_product_prompts(
             product_name, description, ugc_style,
             product_image=(product_image or ""),
+            product_images=(product_images or []),
             category=category or (profile or {}).get("category", ""),
             subcategory=subcategory or (profile or {}).get("subcategory", ""),
             special_target=special_target or "",
@@ -893,6 +1002,21 @@ def analyze_product(product_name: str, product_image: str = None, description: s
             if _norm_ts != _raw_ts:
                 logger.info(f"  🔧 normalize thai_script: {_raw_ts!r} -> {_norm_ts!r}")
             profile["_mimo_thai_script"] = _norm_ts
+            # owner 2026-09-12: which reference image Mimo picked (multi-variant sets).
+            if _ds.get("reference_image_index") is not None:
+                profile["_reference_image_index"] = _ds.get("reference_image_index")
+            # owner 2026-09-12: robust fallback - if the set is multi-variant and the main call did
+            # not return an index, ask Mimo a tiny dedicated vision question to choose the reference
+            # image that shows the MOST variants together (verified: mimo picks the multi-pack shot).
+            _pimgs_all = [u for u in (product_images or []) if isinstance(u, str) and u.strip()]
+            if profile.get("_reference_image_index") is None and len(_pimgs_all) > 1:
+                try:
+                    _ri = _pick_variant_reference_index(_pimgs_all)
+                    if _ri is not None:
+                        profile["_reference_image_index"] = _ri
+                        logger.info(f"  🎨 variant reference index (dedicated pick) = {_ri}")
+                except Exception as _e_pick:
+                    logger.warning(f"  variant reference pick skipped: {_e_pick}")
             # (C) owner 2026-09-11 (Fix C): structured timed beats from Mimo → passed to the Wan
             # prompt builder so the model sees a timeline and a SILENT settle tail (no gibberish).
             _beats = _ds.get("script_beats") or []
@@ -909,6 +1033,19 @@ def analyze_product(product_name: str, product_image: str = None, description: s
             # ใช้แทน negative ยาวจาก prompt-builder ที่ wan อ่านแล้วเพี้ยน — ถ้า Mimo ไม่ส่งมา คงค่า pb ไว้
             _mimo_neg = _normalize_negative_prompt((_ds.get("negative_prompt") or "").strip())
             if _mimo_neg:
+                # owner 2026-09-12 (food hero): for PACKAGED FOOD, the sealed pack must be the hero
+                # and a cooked bowl must never dominate -> append proven negatives so the model can't
+                # render "a bowl of noodles as the clear hero" (the bug the owner keeps seeing).
+                _cat_lc = (profile.get("category") or category or "").strip().lower()
+                _food_sig = any(k in (_cat_lc + " " + (product_name or "").lower()) for k in (
+                    "food", "snack", "noodle", "drink", "beverage", "ก๋วยเตี๋ยว", "instant",
+                    "บะหมี่", "มาม่า", "เครื่องดื่ม", "ขนม", "กาแฟ", "ชา", "นม", "เรือ",
+                ))
+                if _food_sig:
+                    _food_neg = ("no bowl dominating the frame, no giant bowl of cooked noodles, "
+                                 "no cooked dish as the hero, no pack hidden behind a bowl, "
+                                 "no single colour only, no blurry pack label")
+                    _mimo_neg = _normalize_negative_prompt(_mimo_neg + ", " + _food_neg)
                 profile["_negative_prompt"] = _mimo_neg
                 logger.info(f"  ✅ Mimo negative_prompt ({len(_mimo_neg)}ch) แทน pb negative")
             logger.info(f"  ✅ Mimo authored image/video/script prompts for {product_name!r} (script {len(profile['_mimo_thai_script'])}ch)")
@@ -933,7 +1070,7 @@ def analyze_product(product_name: str, product_image: str = None, description: s
         # fails we must fail loudly so it's fixable — a silently-substituted
         # hardcoded image/video/negative prompt would bypass your JSON prompt
         # sources and quietly produce off-brand output. ("break is break")
-        logger.error(f"Analyze failed (prompt-builder unreachable/no prompt): {e}")
+        logger.error(f"Analyze failed (prompt-builder unreachable/no prompt): {type(e).__name__}: {e}")
         raise RuntimeError(
             f"prompt-builder returned no usable prompt (refusing hardcoded fallback): {e}"
         ) from e
@@ -1828,6 +1965,7 @@ def run_pipeline(
     description: Optional[str] = None,
     ugc_style: str = "holding",
     external_job_id: Optional[str] = None,
+    product_images: Optional[list] = None,
     duration: int = 15,
     image_prompt: Optional[str] = None,
     video_prompt: Optional[str] = None,
@@ -1917,6 +2055,7 @@ def run_pipeline(
         step_start = time.time()
         product_profile = analyze_product(
             product_name, product_image, description, ugc_style=ugc_style,
+            product_images=(product_images or []),
             gender=gender,
             target_age=age,
             body_part=kwargs.get("body_part", ""),
@@ -2068,8 +2207,20 @@ def run_pipeline(
             _placement = "place_and_hold"
         else:
             _placement = "hold"
+        # owner 2026-09-12: when a multi-variant set was supplied and Mimo picked a reference
+        # image (the one showing the most variants), use THAT as the img2img reference so the
+        # still shows the full colour/flavour set instead of only image[0].
+        _img_ref = product_image
+        try:
+            _ri = product_profile.get("_reference_image_index")
+            _pimgs = [u for u in (product_images or []) if isinstance(u, str) and u.strip()]
+            if _ri is not None and _pimgs and 0 <= int(_ri) < len(_pimgs):
+                _img_ref = _pimgs[int(_ri)]
+                logger.info(f"  🎨 reference image from Mimo index {_ri}: {_img_ref}")
+        except Exception as _e_ref:
+            logger.warning(f"  reference image override skipped: {_e_ref}")
         img_url, cost_image = generate_image(
-            image_prompt, product_image, aspect_ratio=img_aspect, placement=_placement
+            image_prompt, _img_ref, aspect_ratio=img_aspect, placement=_placement
         )
         img_path = TMP_DIR / f"image_{run_id}.png"
         download_file(img_url, img_path)

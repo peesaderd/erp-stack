@@ -137,6 +137,8 @@ class VideoRequest(BaseModel):
     product_name: Optional[str] = None
     product_url: str = ""
     product_image: str = ""
+    # owner 2026-09-12: ALL variant images (multi-flavour/colour) so Mimo vision sees the full set
+    product_images: list[str] = []
     product_price: Optional[float] = None
     product_commission: Optional[float] = None
     gender: str = ""
@@ -333,6 +335,7 @@ async def generate_video(req: VideoRequest):
             result = run_pipeline(
                 product_name=req.product_name or req.product_title or (script[:60] if script else "สินค้า"),
                 product_image=product_image if product_image else None,
+                product_images=req.product_images or [],
                 recipe_name=req.recipe or "tus",
                 voice=req.voice or "Aoede",
                 bgm_style=req.bgm_style or random.choices(

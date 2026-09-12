@@ -68,6 +68,8 @@ class VideoRequest(BaseModel):
     product_title: str = ""
     product_url: str = ""
     product_image: str = ""
+    # owner 2026-09-12: all variant images (multi-flavour/colour) — passed to Mimo vision
+    product_images: list[str] = []
     product_price: Optional[float] = None
     product_description: Optional[str] = ""
     product_commission: Optional[float] = None

@@ -467,6 +467,7 @@ async def generate_video(req: VideoRequest):
             _db_keywords = req.tags or []
             _db_category = getattr(req, "category", "") or ""
             _db_image = req.product_image or ""
+            _all_imgs = []  # owner 2026-09-12: all variant images (multi-flavour/colour)
             _db_gender = getattr(req, "gender", "") or ""
             _db_age = getattr(req, "age", "") or ""
             # FIX (owner 2026-09-09 / card f6839480): explicit req.product_price wins;
@@ -560,8 +561,12 @@ async def generate_video(req: VideoRequest):
                             imgs = json.loads(trow[3])
                             if isinstance(imgs, list) and imgs:
                                 _db_image = imgs[0]
+                                # owner 2026-09-12: keep ALL variant images so Mimo can see the
+                                # full multi-flavour/multi-colour set instead of only image[0].
+                                _all_imgs = [x for x in imgs if isinstance(x, str) and x.strip()]
                             elif isinstance(trow[3], str) and trow[3].strip():
                                 _db_image = trow[3]
+                                _all_imgs = [trow[3]]
                         except Exception:
                             _db_image = trow[3] if isinstance(trow[3], str) else ""
                 tconn.close()
@@ -731,6 +736,9 @@ async def generate_video(req: VideoRequest):
                 "product_title": req.product_title or "",
                 "product_name": _product_title or req.product_title or "สินค้า",
                 "product_image": product_img_local or "",
+                # owner 2026-09-12: pass ALL variant images so Mimo vision sees every flavour/colour
+                # (fixes "only one colour shown, other variants never mentioned").
+                "product_images": [_product_image_to_web_url(u) for u in (_all_imgs or []) if u],
                 "product_price": _db_price if _db_price is not None else req.product_price,
                 "product_commission": req.product_commission,
                 "hook": req.hook or "",

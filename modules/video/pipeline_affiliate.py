@@ -474,14 +474,11 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             " \"video_prompt\": \"<ONE continuous shot, ONE simple action + settle, grounded in physical detail, 60-90 words>\"\n"
             " \"negative_prompt\": \"<comma-separated list where EVERY item MUST start with a negative word - 'no ...' or 'don't ...'. ~60-120 chars. Example: no distorted fingers, no extra hands, no warped product, no blurry label, no melted face>\"\n"
             "}\n\n"
-            "[SCRIPT_BEATS - owner 2026-09-11] You MUST also return \"script_beats\": an ordered array that splits "
-            "the spoken script into timed beats. Rules: (a) labels are exactly hook, value, cta, settle in that order; "
-            "(b) the seconds of hook+value+cta+settle must add up to ~" + str(_dur) + " total; (c) the cta beat MUST end on a "
-            "firm closing particle (เลยค่ะ / เลยนะคะ / นะครับ / ไว้เลย / เลย); (d) the final \"settle\" beat has EMPTY text "
-            "and holds the last 1-2 seconds - it is deliberate SILENCE where the person keeps presenting the product on "
-            "camera but says nothing; (e) the concatenation hook+value+cta (ignoring settle) must equal thai_script exactly "
-            "(same words, same order). This timed structure tells the video model exactly when the speech ends so it does "
-            "not improvise a garbled tag into the silent tail.\n\n"
+            "[SCRIPT_BEATS - owner 2026-09-12] DO NOT write \"script_beats\" yourself. The SYSTEM splits your "
+            "flat thai_script into timed beats automatically (hook/value/cta + a silent settle tail) - one flat script "
+            "is the SINGLE SOURCE OF TRUTH, so the spoken timeline can never drift from the script shown on screen "
+            "(root cause of Wan speaking words that were not in the script). Just write ONE clean flat thai_script and "
+            "stop. Optional: you MAY still return \"script_beats\" but it will be IGNORED.\n\n"
             "[TARGET AUDIENCE & CREATOR]\n"
             "- Choose the youngest age in the target demographic (e.g. 25-35: use 25).\n"
             "- Creator: an attractive, youthful, believable Thai person matching the product audience - fresh "
@@ -596,6 +593,11 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "seconds (this is the known 'พูดเพี้ยน' bug). Write enough real Thai so there is at most a short 1-2s settle "
             "tail - never leave a long silent/gibberish gap. Do NOT pad with repeated or nonsense words; every word must "
             "be real, sane Thai that carries the sell. \n"
+            "NO OVERCLAIM / NO CERTIFICATION WORDS (owner 2026-09-12): the spoken script must NOT contain "
+            "certification or endorsement words taken from the product title/metadata - e.g. ฮาลาล (halal), "
+            "รับรอง (guarantee), การันตี (warranty), อย. (FDA), มาตรฐาน (standard). The title may say '(มีฮาลาล)' "
+            "but the VOICE-OVER must NEVER say it - speak only about real taste, texture, ingredients and how to use. "
+            "Never invent a certification the customer did not ask to hear.\n"
             "ONE clear idea. Do NOT list specs or stack unrelated benefits, but DO give the single idea enough natural "
             "spoken detail to comfortably fill the time. If under " + str(_char_min) + " chars, expand the idea with real "
             "product-benefit wording until it reaches the range; if over " + str(_char_max) + " chars, delete the weakest clause.\n"
@@ -1332,7 +1334,12 @@ def analyze_product(product_name: str, product_image: str = None, description: s
                     logger.warning(f"  variant reference pick skipped: {_e_pick}")
             # (C) owner 2026-09-11 (Fix C): structured timed beats from Mimo → passed to the Wan
             # prompt builder so the model sees a timeline and a SILENT settle tail (no gibberish).
-            _beats = _ds.get("script_beats") or []
+            # owner 2026-09-12: FLAT = SOURCE OF TRUTH. Discard Mimo's own script_beats and ALWAYS
+            # re-synthesize the timeline beats from the flat thai_script, so the spoken timeline
+            # cannot drift from the script shown on screen (root cause: Mimo wrote "รับรองฮาลาล"
+            # into a beat but NOT into the flat script -> Wan spoke words absent from the script).
+            # One flat script -> beats -> Wan. Single source of truth.
+            _beats = []
             # owner 2026-09-12: the TIMELINE (what Wan actually reads) came from Mimo's RAW beat
             # text, which bypassed normalize_thai_spoken_script -> the opening cluster fix + the
             # 'หิวใช่ไหม' re-open never applied to the spoken timeline (real bug: hook stayed
@@ -2168,7 +2175,7 @@ def generate_video(
                 logger.warning(f"  motion speech-strip skipped: {_e_mv}")
             final_prompt = (
                 f"{_stop_rule}\n\n"
-                f"[MOVEMENT / การเคลื่อนไหว — ท่อนนี้เป็นคำสั่งการเคลื่อนไหวเท่านั้น อย่าอ่านออกเสียง]:\n{_motion_clean}"
+                f"[MOVEMENT / การเคลื่อนไหว]:\n{_motion_clean}"
                 f"{_speech_tail}"
             )
         logger.info(f"  🎙 Voice mode A: speak-only-script + motion {'AFTER-script' if (_motion_on and _motion_txt) else 'OFF'} (owner fix 2026-09-10 05:52, len={len(final_prompt)}, motion={len(_motion_txt)}ch)")

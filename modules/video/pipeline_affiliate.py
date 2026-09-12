@@ -561,22 +561,42 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "    NEVER left as Latin letters. If you leave it in Latin (e.g. 'RUEATHONG'), the voice reads it \n"
             "    letter-by-letter and it comes out WRONG (e.g. 'รูอะทอง'). Spell the actual sound in Thai, e.g. \n"
             "    'RUEATHONG' -> 'เรือทอง', 'JBL' -> 'เจบีแอล', 'Love Angel' -> 'เลิฟแองเจิ้ล'. Use the real \n"
-            "    Thai brand name if the product description already gives one.\n\n"
+            "    Thai brand name if the product description already gives one.\n"
+            "  * CLEAR-ARTICULATION / EASY-TO-PRONOUNCE (owner 2026-09-12 - fixes 'คำพูดเพี้ยน ลิ้นเปลี้ย'): \n"
+            "    the script is read aloud fast, so EVERY word must be easy to say clearly in one breath. Obey:\n"
+            "    (i) PREFER short common Thai words over long/formal/Pali-Sanskrit compounds - say 'อร่อย' not \n"
+            "        'รสชาติอร่อยกลมกล่อม', say 'เข้มข้น' not 'รสสัมผัสอันลึกล้ำ'.\n"
+            "    (ii) AVOID hard consonant clusters and tongue-twister pairs, and avoid jamming many long-vowel \n"
+            "        words together (e.g. never write 'เส้นหมี่เส้นเล็ก' stuck together - break them with commas).\n"
+            "    (iii) LIMIT enumerated lists to AT MOST 3-4 short items separated by commas, and never pile \n"
+            "        technical/loan words one after another.\n"
+            "    (iv) ADD natural commas (,) between every clause so the voice inserts a small pause - this is \n"
+            "        the main fix for 'ลิ้นเปลี้ย': short comma-separated clauses read clean, long unbroken runs \n"
+            "        get garbled.\n"
+            "    (v) Keep the speakable length inside the char budget so the voice never has to rush - a calmer \n"
+            "        pace at the right length always beats cramming extra words in.\n\n"
             "[VIDEO PROMPT - positive direction only - owner 2026-09-10]\n"
             "Think of the video_prompt as one continuous shot that EXTENDS the still frame you already described \n"
             "in image_prompt. Follow these five rules:\n"
             "1. CONTINUITY WITH THE IMAGE: keep the exact same subject, wardrobe, product, and setting from your \n"
             "   image_prompt. Start from the pose and framing the image establishes.\n"
-            "1b. WARDROBE VARIETY ACROSS CLIPS (owner 2026-09-12 v3 - fixes 'model always in the same plain white \n"
-            "   tank top' AND 'the outfit looks old/เชย'): CHOOSE a specific, MODERN, on-trend outfit for the \n"
-            "   presenter in the image_prompt - the kind a stylish 20-27 year old would actually wear on camera now. \n"
-            "   Good picks: a cropped knit vest over a tee, an oversized graphic/plain tee half-tucked, a pastel \n"
-            "   linen overshirt/co-ord set, a modern ribbed blouse, a wide-leg trouser + fitted top, a soft cardigan \n"
-            "   over a tee, a simple sundress. NEVER default to a plain white tank top / plain white sleeveless top, \n"
-            "   NEVER an old-fashioned/stiff buttoned office blouse or dated print. Vary top colour, sleeve length, \n"
-            "   neckline, and silhouette so clips don't all look identical. Keep the outfit modest and appropriate \n"
-            "   for the setting. The presenter reads as YOUNG and FRESH (early-to-mid 20s), natural light makeup, \n"
-            "   modern tidy hair - never middle-aged, never dated styling.\n"
+            "1b. FASHION LOOK - ONE COHESIVE, MODERN ON-TREND STYLING (owner 2026-09-12 v4 - fixes \"เสื้อนางแบบเชย/แก่, ไม่แฟชั่น, ไม่ไปทางเดียวกัน\"): THIS IS A FASHION BRIEF. The presenter must look like a \n"
+            "   stylish Thai creator aged 20-26 who is genuinely INTO fashion - never 'trying to look modern' on top of an \n"
+            "   old frame. LOCK ONE single styling direction and carry it through the WHOLE clip: outfit + hair + makeup + \n"
+            "   accessories + setting must all belong to the SAME look (\"ไปทางเดียวกัน\"). Choose exactly ONE look board:\n"
+            "     * LOOK A 'streetwear Gen-Z': cropped oversized graphic tee or baby tee + wide-leg cargo/parachute trousers, \n"
+            "        boxy overshirt worn open, chunky sneakers, claw-clip or slick middle-part hair, glossy lip. Setting: \n"
+            "        a trendy cafe-style kitchen counter or loft corner with plants and neon-ish accents.\n"
+            "     * LOOK B 'soft-girl aesthetic': fitted ribbed knit top or cropped cardigan in cream/pistachio/lilac, \n"
+            "        pleated or flowy midi skirt, delicate thin gold jewellery, soft wavy hair + claw clip, dewy natural \n"
+            "        makeup. Setting: bright pastel condo kitchen with soft daylight and small plants.\n"
+            "     * LOOK C 'minimal clean-girl': oversized blazer or crisp linen overshirt over a fitted white tank-free \n"
+            "        base, wide-leg tailored trousers, sleek straight or low-bun hair, satin-skin makeup, small gold hoops. \n"
+            "        Setting: a minimal bright kitchen with stone countertop and one statement vase.\n"
+            "   PICK ONE LOOK PER CLIP and stay inside it. NEVER mix eras (no lace blouse + cargo pants). NEVER the \n"
+            "   following dated/cheesy choices: plain white tank top or plain sleeveless top, stiff buttoned office blouse, \n"
+            "   floral 'auntie' print, ill-fitting classic shirt, old-fashioned cardigan sets, dated denim. The face reads \n"
+            "   YOUNG and FRESH (early-to-mid 20s), current hair, current makeup - never middle-aged, tired, or dated.\n"
             "1c. PRESENTER ACTUALLY SPEAKS (MANDATORY - fixes 'นางแบบไม่พูด'): the presenter MUST be shown TALKING \n"
             "   TO CAMERA - mouth visibly moving, mouth-articulation throughout the shot, looking into the lens with \n"
             "   a natural warm expression. She is delivering the Thai sales script to the viewer the whole time. Never \n"
@@ -621,9 +641,11 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "   'she picks it up again'. If you want a two-product beat, KEEP THE FIRST PACK IN HER HAND and have her \n"
             "   bring the second pack up with her OTHER hand - never release and re-grab. A released pack animates and \n"
             "   drifts on its own (the exact bug being fixed).\n"
-            "3c. THAI SCRIPT ONLY - NO LATIN LETTERS AT ALL (hard rule): the thai_script must contain ONLY Thai \n"
-            "   characters and spaces. NO English words, NO Latin letters - transliterate every borrowed word into \n"
-            "   Thai spelling (Texture -> เทกซ์เจอร์, Halal -> ฮาลาล, etc.). If a word has no Thai form, drop it.\n"
+            "3c. THAI SCRIPT ONLY - NO LATIN LETTERS, NO CJK, NO FOREIGN SCRIPT (hard rule): the thai_script \n"
+            "   must contain ONLY Thai characters (U+0E00-U+0E7F) and spaces/commas. NO English words, NO Latin \n"
+            "   letters, and NO CHINESE/JAPANESE/KOREAN characters (no 安心, no 认证, no 漢字 - these have leaked \n"
+            "   in before and are read as garbage). Transliterate every borrowed word into Thai spelling \n"
+            "   (Texture -> เทกซ์เจอร์, Halal -> ฮาลาล). If a word has no Thai form, DROP it entirely.\n"
             "4. CAMERA AND LIGHT: carry over the camera angle, lens feel, and light source from your image_prompt, \n"
             "   then add ONE subtle camera behaviour. PREFER a slow PULL-BACK / zoom-out that REVEALS the whole \n"
             "   product, or a gentle drift - AVOID ending on a tight close-up of the body (ear, skin, strap). The \n"
@@ -1149,6 +1171,16 @@ def analyze_product(product_name: str, product_image: str = None, description: s
             # owner 2026-09-10: normalize คำย่อ/สัญลักษณ์ → คำเต็มก่อน (Wan พูดเอง อ่านผิดถ้าเป็นคำย่อ)
             _raw_ts = (_ds.get("thai_script") or "").strip()
             _norm_ts = normalize_thai_spoken_script(_raw_ts)
+            # owner 2026-09-12: hard Thai-only filter - Mimo has leaked Chinese (\"认证放心\") and Latin.
+            try:
+                import re as _re_ts
+                _ts_filt = _re_ts.sub(r"[^\u0E00-\u0E7F\s,]+", " ", _norm_ts)
+                _ts_filt = _re_ts.sub(r"\s+", " ", _ts_filt).strip(" ,")
+                if _ts_filt and _ts_filt != _norm_ts:
+                    logger.info(f"  🧹 thai_script sanitized (non-Thai stripped): {_norm_ts[:50]!r} -> {_ts_filt[:50]!r}")
+                    _norm_ts = _ts_filt
+            except Exception as _e_ts:
+                logger.warning(f"  thai_script sanitizer skipped: {_e_ts}")
             if _norm_ts != _raw_ts:
                 logger.info(f"  🔧 normalize thai_script: {_raw_ts!r} -> {_norm_ts!r}")
             profile["_mimo_thai_script"] = _norm_ts
@@ -1198,7 +1230,9 @@ def analyze_product(product_name: str, product_image: str = None, description: s
                                  "no pack floating, no pack sliding on its own, no pack moving by itself, "
                                  "no self-moving product, no levitating product, "
                                  "no silent still-mouthed presenter, "
-                                 "no single colour only, no blurry pack label")
+                                 "no single colour only, no blurry pack label, "
+                                 "no mumbled speech, no slurred words, no garbled pronunciation, "
+                                 "no tongue-tied fast reading, no rushed speech")
                     _mimo_neg = _normalize_negative_prompt(_mimo_neg + ", " + _food_neg)
                 profile["_negative_prompt"] = _mimo_neg
                 logger.info(f"  ✅ Mimo negative_prompt ({len(_mimo_neg)}ch) แทน pb negative")
@@ -1755,6 +1789,20 @@ def generate_video(
         # owner rule: เลี่ยงคำสั่งห้ามซ้อนหลายชั้น — ใช้คำสั่งเชิงบวกที่ชัด วางต้น+ท้ายของบล็อก
         # วลีเดี่ยว "พูดตาม script เท่านั้น" ทั้งขึ้นต้นและลงท้าย เพื่อโฟกัสสูงสุด
         _script_clean = (thai_script or "").strip()
+        # owner 2026-09-12 (speech polish belt-and-suspenders): hard-strip ANY non-Thai script from the
+        # spoken line - Mimo leaked Chinese ('认证放心') and Latin transliterations before, which the voice
+        # reads as garbage. Keep Thai (U+0E00-U+0E7F), spaces, and commas only.
+        try:
+            import re as _re_th
+            _th_only = _re_th.sub(r"[^\u0E00-\u0E7F\s,]+", " ", _script_clean)
+            _th_only = _re_th.sub(r"\s+", " ", _th_only).strip(" ,")
+            if _th_only and _th_only != _script_clean:
+                logger.info(f"  🧹 script sanitized (non-Thai stripped): {_script_clean[:40]}... -> {_th_only[:40]}...")
+                _script_clean = _th_only
+            elif not _th_only and _script_clean:
+                logger.warning("  script sanitizer: all non-Thai -> keeping original")
+        except Exception as _e_th:
+            logger.warning(f"  script sanitizer skipped: {_e_th}")
         # owner 2026-09-11 07:2x: "ช่วง CTA มีปัญหา ตชอด" — leak ตรงรอยต่อหลัง CTA.
         # CTA เป็นวลีสุดท้ายของบท -> พอ Wan พูดจบ ยังมีเวลาวิดีโอเหลือ ~2-3s ที่ไม่มีบท
         # -> Wan ต่อเสียงมั่วตรงรอยต่อนั้น (vid_62b4ea4c ท้ายได้ 'phai hay pier, bri khiba, oi').

@@ -544,7 +544,10 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "a colour per variant. If the references show a group shot with red + brown + yellow + blue packs, "
             "describe exactly those colours. When you cannot tell which colour goes with which variant, DESCRIBE "
             "THE COLOURS ONLY ('four packs in red, brown, yellow and blue standing side by side') and do NOT "
-            "pair a colour to a named variant. ALSO: include the multi-pack GROUP SHOT reference as the primary "
+            "pair a colour to a named variant. HARD RULE: NEVER write a pack colour that does NOT appear in the "
+            "reference images (owner 2026-09-12 - the model invented a 'green' pack that does not exist; the real "
+            "set is red/yellow/blue/orange). Any colour you name MUST be literally visible in the references. "
+            "ALSO: include the multi-pack GROUP SHOT reference as the primary "
             "composition - reproduce the whole coloured line together, not one pack repeated.\n"
             "- APPAREL / GARMENTS: the garment is the hero - frame torso-to-knee or a full-body mirror view so the "
             "cut, silhouette and drape dominate; never sacrifice garment visibility for an extreme face close-up. "
@@ -791,7 +794,11 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "   English sentence \"The person speaks ONLY the given Thai script, word for word, and says \n"
             "   nothing before it, nothing between its phrases, and nothing after it.\" AND close the \n"
             "   video_prompt with this exact sentence: \"Audio: speak only the provided Thai script, \n"
-            "   word for word, then keep silence after the Thai script.\" These two sentences are \n"
+            "   word for word, and after the final word make NO further sound.\" Then IMMEDIATELY add a \n"
+            "   SETTLE beat so the model has a silent ACTION to perform after the last word instead of \n"
+            "   improvising audio (owner 2026-09-12 - fixes tail garble): \"After the last word, she keeps \n"
+            "   presenting: a small confident smile to camera while still holding the product steady and \n"
+            "   still showing the pack - silent, no extra speech, no new sound.\" These sentences are \n"
             "   REQUIRED in every video_prompt.\n"
             "[NEGATIVE PROMPT - owner 2026-09-10] The negative_prompt is a list of things the model MUST NOT do.\n"
             "   EVERY item MUST begin with a negative word - \"no ...\" or \"don't ...\". A bare noun\n"
@@ -1272,11 +1279,20 @@ def analyze_product(product_name: str, product_image: str = None, description: s
                 _dur_cap = int(duration) if duration else 15
                 _cap = 200 if _dur_cap > 12 else (150 if _dur_cap > 8 else 100)
                 if len(_norm_ts) > _cap:
+                    # 1) try comma-clause trimming (drop weakest middle clauses, keep hook + CTA)
                     _parts = [p.strip() for p in _norm_ts.split(",") if p.strip()]
                     while len(", ".join(_parts)) > _cap and len(_parts) > 2:
-                        # drop from the middle (keep first hook + last CTA)
                         _parts.pop(len(_parts) - 2)
                     _trimmed = ", ".join(_parts)
+                    # 2) if still over (script had few/no commas), trim WHOLE WORDS from the tail of
+                    #    the middle, always preserving the final CTA clause (last ~4 words).
+                    if len(_trimmed) > _cap:
+                        _words = _trimmed.split()
+                        _keep_tail = _words[-4:] if len(_words) > 5 else _words
+                        _head = _words[:-4] if len(_words) > 5 else []
+                        while len(" ".join(_head + _keep_tail)) > _cap and len(_head) > 3:
+                            _head.pop()
+                        _trimmed = " ".join(_head + _keep_tail)
                     if _trimmed and len(_trimmed) <= _cap:
                         logger.info(f"  ✂️ thai_script trimmed {len(_norm_ts)}ch -> {len(_trimmed)}ch (dur cap {_cap})")
                         _norm_ts = _trimmed
@@ -1332,12 +1348,49 @@ def analyze_product(product_name: str, product_image: str = None, description: s
                                  "no single colour only, no blurry pack label, "
                                  "no missing pack, no three packs only, no 3 of 4 packs, no pack out of frame, "
                                  "no hidden pack, no packs merged together, no duplicated pack, "
+                                 "no invented colour pack, no pack colour that is not in the photo, "
+                                 "no green pack, no extra colour pack, "
                                  "no camera wobble, no camera shake, no frame warp, no rippling distortion, "
                                  "no liquid waving frame, no bending edges, no warped walls, no melting lines, "
                                  "no wobbling face, no distorted speech, no warbling voice, "
                                  "no mumbled speech, no slurred words, no garbled pronunciation, "
                                  "no tongue-tied fast reading, no rushed speech")
                     _mimo_neg = _normalize_negative_prompt(_mimo_neg + ", " + _food_neg)
+                    # owner 2026-09-12 ('มีซองสีเขียวหลุดมาด้วย มันมีสีเขียวเหรอ'): Mimo invented a GREEN
+                    # pack (real set = red/yellow/blue/orange). Deterministic guard: remove a 'green '
+                    # colour attribution from the pack description so the still/wan never render a green pack.
+                    try:
+                        import re as _re_gr
+                        _fields = []
+                        _kmap = {"image_prompt": "_image_prompt", "video_prompt": "_video_prompt"}
+                        for _k in ("image_prompt", "video_prompt"):
+                            _v = _ds.get(_k) if isinstance(_ds, dict) else None
+                            # only strip 'green' where it is a PACK colour (keep clothing green like
+                            # "sage green ribbed top"). Pack-colour context = the word sits in a colour
+                            # LIST with another pack colour nearby, or right after 'packs'/'colours'.
+                            # a 'green' that sits next to another pack colour word (in either
+                            # direction) is treated as a PACK colour and stripped; a lone 'green'
+                            # (e.g. clothing 'sage green top') is left untouched.
+                            _pack_green_re = (r"\bgreen\b[\s,()]*(?:and\b[\s,()]*)?(?:red|blue|yellow|orange|brown|gold)\b"
+                                              r"|(?:red|blue|yellow|orange|brown|gold)\b[\s,()]*(?:and\b[\s,()]*)?\bgreen\b")
+                            if isinstance(_v, str) and _re_gr.search(_pack_green_re, _v, _re_gr.I):
+                                _nv = _re_gr.sub(r",?\s*\bgreen\b\s*(and\s+)?", "", _v, flags=_re_gr.I)
+                                _nv = _re_gr.sub(r"\bgreen\b\s*(and\s+)?", "", _nv, flags=_re_gr.I)
+                                # tidy dangling separators/connectives left by the removal
+                                _nv = _re_gr.sub(r"[\s,()]*\band\b\s*\)", ")", _nv, flags=_re_gr.I)
+                                _nv = _re_gr.sub(r",\s*and\s*\)", ")", _nv, flags=_re_gr.I)
+                                _nv = _re_gr.sub(r",\s*and\b", "", _nv, flags=_re_gr.I)
+                                _nv = _re_gr.sub(r"\s*,?(\s*,)+\s*", ", ", _nv)
+                                _nv = _re_gr.sub(r",\s*(\)|[-.])", r"\1", _nv)
+                                _nv = _re_gr.sub(r"\s{2,}", " ", _nv).strip()
+                                if _nv != _v:
+                                    _ds[_k] = _nv
+                                    profile[_kmap[_k]] = _nv
+                                    _fields.append(_k)
+                        if _fields:
+                            logger.info(f"  🎨 stripped invented 'green' pack colour from {_fields}")
+                    except Exception as _e_gr:
+                        logger.warning(f"  green-colour guard skipped: {_e_gr}")
                     # owner 2026-09-12 ("ควรจะมีก๋วยเตี๋ยว ใส่ชามวางไว้ด้วย"): rule 1e is MANDATORY but
                     # Mimo still drops the bowl from the image_prompt some runs -> the still has NO bowl,
                     # so Wan has none to work from. Hard-inject the prepared-dish prop deterministically.

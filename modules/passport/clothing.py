@@ -36,55 +36,41 @@ MALE_CLOTHING = {
 }
 
 # ── Female Clothing ────────────────────────────────────
+# ชุดมืออาชีพสำหรับรูปติดบัตร (เปลี่ยนชุดออกให้หมด — 2026-09-12)
+# ไม่มีชุดลำลอง (เสื้อยืด/สเวตเตอร์/linen) ในชุดนี้
 FEMALE_CLOTHING = {
+    "white_blouse": {
+        "name": "เสื้อเบลาส์สีขาว",
+        "prompt": "white formal blouse, tailored fit, professional business attire, modest neckline",
+        "default": True,
+    },
+    "blue_blouse": {
+        "name": "เสื้อเบลาส์สีฟ้า",
+        "prompt": "light blue formal blouse, tailored fit, professional business attire, modest neckline",
+    },
+    "pink_blouse": {
+        "name": "เสื้อเบลาส์สีชมพู",
+        "prompt": "light pink formal blouse, tailored fit, professional business attire, modest neckline",
+    },
+    "black_blouse": {
+        "name": "เสื้อเบลาส์สีดำ",
+        "prompt": "black formal blouse, tailored fit, professional business attire, modest neckline",
+    },
+    "cream_suit": {
+        "name": "สูทครีม + เสื้อเชิ้ตขาว",
+        "prompt": "oversized cream ivory suit blazer with white collared shirt underneath, professional fashion attire, modest, elegant",
+    },
+    "navy_blazer": {
+        "name": "เบลเซอร์กรมท่า + เสื้อเชิ้ตขาว",
+        "prompt": "navy blue blazer jacket with white dress shirt underneath, professional business attire, modest neckline",
+    },
+    "white_turtleneck": {
+        "name": "เสื้อคอเต่าสีขาว",
+        "prompt": "white turtleneck top, professional business attire, modest neckline",
+    },
     "keep_original": {
         "name": "เก็บชุดเดิม",
         "prompt": "keep the person's original clothing exactly as it is, do not change clothing",
-        "default": True,
-    },
-    "white_blouse": {
-        "name": "เสื้อ.blouse สีขาว",
-        "prompt": "white formal blouse, professional business attire, modest neckline",
-    },
-    "pink_blouse": {
-        "name": "เสื้อ.blouse สีชมพู",
-        "prompt": "light pink formal blouse, professional business attire, modest neckline",
-    },
-    "blue_blouse": {
-        "name": "เสื้อ.blouse สีน้ำเงิน",
-        "prompt": "light blue formal blouse, professional business attire, modest neckline",
-    },
-    "black_top": {
-        "name": "เสื้อสีดำ",
-        "prompt": "black formal top, professional business attire, modest neckline",
-    },
-    "white_turtleneck": {
-        "name": "เสื้อคอกลมสีขาว",
-        "prompt": "white turtleneck top, professional business attire, modest neckline",
-    },
-    "red_blouse": {
-        "name": "เสื้อ.blouse สีแดง",
-        "prompt": "red formal blouse, professional business attire, modest neckline",
-    },
-    "green_blouse": {
-        "name": "เสื้อ.blouse สีเขียว",
-        "prompt": "green formal blouse, professional business attire, modest neckline",
-    },
-    "purple_blouse": {
-        "name": "เสื้อ.blouse สีม่วง",
-        "prompt": "purple casual blouse, relaxed fit, modest neckline, everyday wear",
-    },
-    "casual_cotton_top": {
-        "name": "เสื้อยืดคอกลม",
-        "prompt": "casual cotton round-neck t-shirt, soft pastel color, relaxed fit, casual everyday wear",
-    },
-    "linen_blouse": {
-        "name": "เสื้อเชิ้ต linen",
-        "prompt": "casual linen blouse, relaxed fit, natural fabric texture, comfortable everyday wear",
-    },
-    "knit_sweater_top": {
-        "name": "เสื้อกันหนาวถัก",
-        "prompt": "casual knit sweater top, soft ribbed texture, comfortable relaxed fit, everyday casual wear",
     },
 }
 

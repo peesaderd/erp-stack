@@ -2,6 +2,7 @@
 var API='/api/passport';
 var S={photo:null,photos:[],uploaded:[],imgV:0,bulk:false,view:'photo',sheetUrl:null,pool:[],gender:'male',clothing:'keep_original',bg:'light_blue',bgType:'solid',gradient:null,bgc:null,tpl:'thai_passport',cw:null,ch:null,sid:null,cropPreset:'standard',customClothing:null,customClothingUrl:null,customClothingName:null};
 var CD={male:[],female:[]},BD=[],TD=[];
+function defaultClothingKey(g){var l=CD[g]||[];for(var i=0;i<l.length;i++){if(l[i].default)return l[i].key}return (l[0]&&l[0].key)||'keep_original';}
 var FLAGS={Thailand:'🇹🇭',Japan:'🇯🇵',China:'🇨🇳','South Korea':'🇰🇷','United States':'🇺🇸','United Kingdom':'🇬🇧','European Union':'🇪🇺',Canada:'🇨🇦',Australia:'🇦🇺',India:'🇮🇳',Singapore:'🇸🇬',Malaysia:'🇲🇾',Philippines:'🇵🇭',Indonesia:'🇮🇩',Vietnam:'🇻🇳',Cambodia:'🇰🇭',Laos:'🇱🇦',Myanmar:'🇲🇲','Hong Kong':'🇭🇰',France:'🇫🇷',Germany:'🇩🇪'};
 var SOLID_COLORS=[
   {key:'light_blue',name:'Sky Blue',hex:'#C4DCFF'},
@@ -64,6 +65,7 @@ async function loadOptions(){
     CD=d.clothing||{male:[],female:[]};
     BD=d.backgrounds||[];
     TD=d.templates||[];
+    S.clothing=defaultClothingKey(S.gender);
     renderClothing();renderCountrySelect();
   }catch(e){console.error('loadOptions:',e)}
 }
@@ -126,7 +128,7 @@ function renderClothing(){
     var d=document.createElement('div');
     d.className='gtab'+(S.gender===g.k?' on':'');
     d.textContent=g.l;
-    d.onclick=function(){S.gender=g.k;$$('.gtab').forEach(function(x){x.classList.remove('on')});d.classList.add('on');S.clothing='keep_original';renderClothing()};
+    d.onclick=function(){S.gender=g.k;$$('.gtab').forEach(function(x){x.classList.remove('on')});d.classList.add('on');S.clothing=defaultClothingKey(g.k);renderClothing()};
     gt.appendChild(d);
   });
   $('genBtn').disabled=false;

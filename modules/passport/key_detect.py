@@ -50,6 +50,68 @@ def _face_region(img: np.ndarray):
     return img[max(0, cy - h // 3):cy + h // 3, max(0, cx - w // 3):cx + w // 3]
 
 
+def _subject_brightness(image: np.ndarray):
+    """Mean luminance of the SUBJECT only (background excluded).
+
+    OWNER LESSON (2026-09-12): a blown-out WHITE background fools the key detector.
+    Real case: a subject was lit from the front but standing in front of a pure-white
+    wall (43% of the frame clipped to white). The frame mean read ~150 and the FACE-box
+    mean read ~159 because the face box (detect_face + 25% pad) included tons of the
+    surrounding white wall. The detector called it HIGH-key and skipped the brightening
+    pass -> the face came out under-lit AND FLUX created a new face (identity drift).
+
+    Approach: we do NOT trust a padded box, and we do NOT trust a global threshold
+    (a mid-grey wall breaks the bright/dark branching). Instead we:
+      1. detect the face box,
+      2. shrink it to the CENTRAL FACE CORE (drop ~30% on each side) so walls/hair/
+         background edges are excluded and only skin+eyes+nose stay,
+      3. take the MEDIAN of that core (robust to a few blown specular highlights).
+    Falls back to the plain centre crop when no face is detected.
+
+    Returns (subject_mean, bg_mean, core_ratio).
+    """
+    h, w = image.shape[:2]
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if image.ndim == 3 else image
+
+    try:
+        from ai_passport import detect_face
+        face = detect_face(image)
+    except Exception:
+        face = None
+
+    if face is not None:
+        x, y, fw, fh = [int(v) for v in face]
+        # shrink to the face CORE: central 60% width x 70% height (skin + features)
+        cx0 = x + int(fw * 0.20)
+        cy0 = y + int(fh * 0.12)
+        cx1 = min(w, x + int(fw * 0.80))
+        cy1 = min(h, y + int(fh * 0.85))
+        if cx1 - cx0 >= 8 and cy1 - cy0 >= 8:
+            core = gray[cy0:cy1, cx0:cx1]
+            subject_mean = float(np.median(core))
+            rr = 0.6
+        else:
+            subject_mean = None
+            rr = 0.0
+    else:
+        # fallback: central 40% box (typical head-and-shoulders framing)
+        cy, cx = h // 2, w // 2
+        core = gray[max(0, cy - int(h * 0.20)):cy + int(h * 0.20),
+                    max(0, cx - int(w * 0.20)):cx + int(w * 0.20)]
+        subject_mean = float(np.median(core)) if core.size else None
+        rr = 0.4
+
+    # background reference: the border ring median (for logging / hints only)
+    ring = np.concatenate([
+        gray[0:max(1, h // 20), :].ravel(),
+        gray[-max(1, h // 20):, :].ravel(),
+        gray[:, 0:max(1, w // 20)].ravel(),
+        gray[:, -max(1, w // 20):].ravel(),
+    ])
+    bg_mean = float(np.median(ring))
+    return subject_mean, bg_mean, rr
+
+
 def classify_key(image: np.ndarray) -> dict:
     """
     Classify exposure key of a portrait image (RGB or BGR; only luminance matters).
@@ -58,6 +120,12 @@ def classify_key(image: np.ndarray) -> dict:
     front of a bright wall so the FRAME is already near high-key even though the face
     reads "normal", and a 0.30 lift then blows the whole image (>50% clipped). So we
     measure BOTH the face region AND the whole frame and decide on the BRIGHTER signal.
+
+    IMPORTANT (owner 2026-09-12): BUT a blown-out white WALL next to a dark subject makes
+    BOTH the frame mean and the padded face-box mean read bright, so the earlier logic
+    wrongly said "high-key" for a subject who was actually under-lit and needed brightening.
+    We now ALSO measure the SUBJECT-ONLY brightness (background excluded) and let it drive
+    the LOW-key decision: a dark subject wins over a bright background.
 
     Returns dict:
         key: "low" | "normal" | "high"
@@ -84,15 +152,27 @@ def classify_key(image: np.ndarray) -> dict:
     clipped_low = float((gray < 15).mean() * 100.0)
     clipped_high = float((gray > 240).mean() * 100.0)
 
-    # Use the brighter of face/frame to decide the high-key side (avatar sitting on
-    # a bright wall = frame-driven high-key). Use face for the low-key side.
-    bright_signal = max(face_mean, frame_mean)
+    # Owner 2026-09-12: measure the SUBJECT-only brightness (BACKGROUND EXCLUDED) so a
+    # blown-out white wall cannot masquerade as "high-key" over an under-lit person.
+    # subj_mean = median of the FACE CORE (padded box shrunk to skin+features).
+    subj_mean, bg_mean, core_ratio = _subject_brightness(image)
+    # The padded face-box mean is unreliable: it eats dark hair/background. For the LOW
+    # side prefer the SUBJECT-core median when we have it, else fall back to face_mean.
+    face_signal = subj_mean if subj_mean is not None else face_mean
+    dark_subject = subj_mean is not None and subj_mean < 118.0
+
+    # High-key side = brighter of face/frame BUT a genuinely dark subject core outranks
+    # a bright background (dark person in front of a white wall still needs a lift).
+    if dark_subject:
+        bright_signal = face_signal
+    else:
+        bright_signal = max(face_signal, frame_mean)
 
     # Ambiguity score (for the A hybrid gate): how CLOSE each signal sits to its
     # decision boundary. Near a boundary = borderline = let Mimo vision confirm.
-    LOW_EDGE = 132.0
+    LOW_EDGE = 124.0
     HIGH_EDGE = 178.0
-    d_low = abs(face_mean - LOW_EDGE)
+    d_low = abs(face_signal - LOW_EDGE)
     d_high = abs(bright_signal - HIGH_EDGE)
     nearest = min(d_low, d_high)
     if nearest >= 18:
@@ -106,17 +186,23 @@ def classify_key(image: np.ndarray) -> dict:
     ambiguous = confidence < 0.62
 
     # Decision thresholds (validated against real sessions in storage/):
-    #   dark portraits  -> face_mean ~60-130, p90 < 180, some crushed lows
-    #   normal          -> face_mean ~135-188 AND frame not already bright
-    #   bright ones     -> face/frame > ~188, or already blown highlights
-    if face_mean < 132 or (p90 < 185 and clipped_low > 4.0):
+    #   dark portraits  -> subject core < ~124, p90 < 185, some crushed lows
+    #   normal          -> subject core ~135-175 AND frame not already bright
+    #   bright ones     -> face/frame > ~178, or already blown highlights
+    # NOTE: the LOW side now uses face_signal (subject-core median when available),
+    # NOT the padded face-box mean which is dragged down by dark hair/background.
+    if dark_subject or face_signal < 124.0 or (p90 < 185 and clipped_low > 4.0 and face_signal < 135.0):
         key = "low"
         strength = 0.42          # stronger lift to open up shadows
         step2_scale = 1.0        # dark photos can take full clothing i2i
         prompt = ("brighten and lift the shadows, evenly lit face, soft fill light, "
                   "clear bright even illumination across the whole face, "
                   "same person same clothes same background, natural skin tones")
-        reason = f"face_mean={face_mean:.0f} dark -> stronger lift"
+        if dark_subject:
+            reason = (f"subject_core={subj_mean:.0f} dark (bg={bg_mean:.0f}) "
+                      f"-> brighten subject, not fooled by bright bg")
+        else:
+            reason = f"face_signal={face_signal:.0f} dark -> stronger lift"
     elif bright_signal > 178 or clipped_high > 6.0 or frame_clip_high > 8.0:
         key = "high"
         strength = 0.14          # very gentle — already bright, avoid blowing highlights
@@ -124,7 +210,7 @@ def classify_key(image: np.ndarray) -> dict:
         prompt = ("even out the lighting, tame the highlights, balanced exposure, "
                   "soft even illumination, same person same clothes same background, "
                   "natural skin tones, no blown-out areas, keep midtones from washing out")
-        reason = (f"face_mean={face_mean:.0f}/frame_mean={frame_mean:.0f} already bright "
+        reason = (f"face_signal={face_signal:.0f}/frame={frame_mean:.0f} already bright "
                   f"-> gentle, tame highlights")
     else:
         key = "normal"
@@ -139,6 +225,9 @@ def classify_key(image: np.ndarray) -> dict:
         "key": key,
         "face_mean": round(face_mean, 1),
         "frame_mean": round(frame_mean, 1),
+        "subject_mean": round(subj_mean, 1) if subj_mean is not None else None,
+        "bg_mean": round(bg_mean, 1) if bg_mean is not None else None,
+        "core_ratio": round(core_ratio, 3),
         "p10": round(p10, 1),
         "p50": round(p50, 1),
         "p90": round(p90, 1),

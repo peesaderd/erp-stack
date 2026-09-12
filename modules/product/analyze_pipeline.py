@@ -410,6 +410,7 @@ class UnifiedProduct:
     usage_howto: str = ""            # วิธีใช้สั้น ๆ
     special_target: str = ""         # กลุ่มพิเศษ: pregnant/sensitive/kids/...
     ingredient_highlight: str = ""   # จุดขาย/ส่วนผสมเด่น
+    features: str = ""              # owner 2026-09-12 (plan B): structured product options/variants/specs
     enriched: bool = False
 
 # ─── Stage 1: Normalizer ─────────────────────────────────────────────────────
@@ -532,6 +533,7 @@ class ProductNormalizer:
             url=d.get("url", d.get("productUrl", d.get("link", ""))),
             gender=str(d.get("gender", "") or ""),
             target_age=str(d.get("age_group", d.get("target_age", "")) or ""),
+            features=str(d.get("features", "") or ""),
             source="apify",
             scrape_timestamp=datetime.utcnow().isoformat(),
         )

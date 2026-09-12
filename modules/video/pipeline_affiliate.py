@@ -316,7 +316,7 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
                               special_target: str = "", usage_howto: str = "",
                               gender: str = "", target_age: str = "",
                               product_image: str = "", duration: int = 15,
-                              product_images: list = None) -> Optional[dict]:
+                              product_images: list = None, features: str = "") -> Optional[dict]:
     """Have Mimo write the image/video prompts fresh from the actual product.
 
     Boss directive 2026-09-08: use Mimo exclusively (ไมใช่ DeepSeek).
@@ -669,6 +669,10 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             )
         except Exception:
             _name_clean, _desc_clean = str(product_name or ""), str(description or "")
+        # owner 2026-09-12 (plan A): the REAL structured features (variant list / noodle types /
+        # flavours / spice levels / specs). This is what Mimo must use to name variants in the
+        # script. Kept separate from Description so it is not buried inside a prose paragraph.
+        _features_clean = str(features or "").strip()
         # owner 2026-09-12: styles that MUST change hand behaviour. A buried sysprompt rule
         # was ignored by Mimo, so hoist the requirement into the user_text (high attention).
         _style_instr = ""
@@ -730,7 +734,20 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
                 "or not in the product data.\n"
                 "  (3) The negative_prompt MUST include 'no single colour only, no missing variants'.\n"
             )
-        user_text = ("Product: " + _name_clean + "\nDescription: " + _desc_clean +
+        # owner 2026-09-12 (plan A): surface the structured features as their own high-attention
+        # line. Mimo must NAME these real features/variants in the script (fixes "Mimo never
+        # mentions the flavours/spice levels even though the data exists").
+        _feat_instr = ""
+        if _features_clean:
+            _feat_instr = (
+                "\nProduct features (REAL, use these EXACTLY - never invent others): " + _features_clean + "\n"
+                "*** FEATURE-DRIVEN SCRIPT (HIGHEST PRIORITY, MUST OBEY) ***\n"
+                "The 'Product features' line above is authoritative. The thai_script MUST explicitly name the "
+                "REAL variants/options/flavours/specs listed there (e.g. the actual noodle types / flavours / "
+                "spice levels), not a generic subset and not invented ones. If it lists several variants, name "
+                "at least three distinct ones. Also include any listed spice/heat range or key spec."
+            )
+        user_text = ("Product: " + _name_clean + "\nDescription: " + _desc_clean + _feat_instr +
                      _acted_instr + _style_instr + _variant_instr +
                      "\nWrite natural-realistic image and video prompts for this product. Base the visuals ONLY on the given "
                      "Product/Description — never invent brand names, logos, label text, ingredients, quantities, prices, or packaging "
@@ -932,7 +949,7 @@ def _normalize_negative_prompt(neg: str) -> str:
     return ", ".join(_uniq)
 
 
-def analyze_product(product_name: str, product_image: str = None, description: str = "", ugc_style: str = "holding", body_part: str = "", special_target: str = "", usage_howto: str = "", ingredient_highlight: str = "", category: str = "", subcategory: str = "", gender: str = "", target_age: str = "", duration: int = 15, product_images: list = None) -> dict:
+def analyze_product(product_name: str, product_image: str = None, description: str = "", ugc_style: str = "holding", body_part: str = "", special_target: str = "", usage_howto: str = "", ingredient_highlight: str = "", category: str = "", subcategory: str = "", gender: str = "", target_age: str = "", duration: int = 15, product_images: list = None, features: str = "") -> dict:
     """
     Step 1: Analyze product via Mistral → product_profile
 
@@ -969,6 +986,8 @@ def analyze_product(product_name: str, product_image: str = None, description: s
             "special_target": special_target or "",
             "usage_howto": usage_howto or "",
             "ingredient_highlight": ingredient_highlight or "",
+            # owner 2026-09-12 (plan A): real structured features (variants/specs) → prompt-builder
+            "features": features or "",
         }
 
         # timeout 300s per 2026-09-09 (prompt-builder วิเคราะห์ภาพ+vision ช้า และเมื่อคิวทับ single-worker
@@ -1003,6 +1022,7 @@ def analyze_product(product_name: str, product_image: str = None, description: s
             gender=gender or (profile or {}).get("target_gender", ""),
             target_age=target_age or (profile or {}).get("target_age", ""),
             duration=duration,
+            features=features or "",
         )
         if _ds and _ds.get("image_prompt") and _ds.get("video_prompt"):
             profile["_image_prompt"] = _ds["image_prompt"]
@@ -2077,6 +2097,7 @@ def run_pipeline(
             category=kwargs.get("category", ""),
             subcategory=kwargs.get("subcategory", ""),
             duration=(duration if duration and duration > 0 else kwargs.get("duration", 15)),
+            features=kwargs.get("features", "") or "",
         )
 
         # ── Wire prompt-builder (SSOT) outputs into pipeline args ──

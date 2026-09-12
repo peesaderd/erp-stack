@@ -470,6 +470,11 @@ async def generate_video(req: VideoRequest):
             _all_imgs = []  # owner 2026-09-12: all variant images (multi-flavour/colour)
             _db_gender = getattr(req, "gender", "") or ""
             _db_age = getattr(req, "age", "") or ""
+            # owner 2026-09-12 (plan A): features = REAL structured product features (noodle
+            # types / flavours / spice levels / specs). Prefer the request's `features` field;
+            # the DB row may carry a `features`/`notes.features` value (populated by the analyzer).
+            # Falls back to description text so we never send an empty features string.
+            _db_features = getattr(req, "features", "") or ""
             # FIX (owner 2026-09-09 / card f6839480): explicit req.product_price wins;
             # else fallback to DB price_thb (was 0.0 always when req empty — price never reached AI)
             _req_price = req.product_price
@@ -507,6 +512,16 @@ async def generate_video(req: VideoRequest):
                                 "SELECT description_th, description, keywords, images, category, gender, target_age, notes, price_thb FROM tus_products WHERE title LIKE ? OR title_th LIKE ? LIMIT 1",
                                 (f"%{_GUARD_TITLE}%", f"%{_GUARD_TITLE}%")
                             ).fetchone()
+                        # owner 2026-09-12 (plan B): tolerant match — DB titles are stored
+                        # WITHOUT spaces around the pack count ("เซต 3 ซอง" vs "เซต3ซอง")
+                        # so a space-normalized LIKE avoids missing the row (and its features).
+                        if not trow:
+                            _norm_key = _GUARD_TITLE.replace(" ", "")
+                            if len(_norm_key) >= 4:
+                                trow = tconn.execute(
+                                    "SELECT description_th, description, keywords, images, category, gender, target_age, notes, price_thb FROM tus_products WHERE REPLACE(title,' ','') LIKE ? OR REPLACE(title_th,' ','') LIKE ? LIMIT 1",
+                                    (f"%{_norm_key}%", f"%{_norm_key}%")
+                                ).fetchone()
                     if not trow and (req.product_url or "").strip():
                         trow = tconn.execute(
                             "SELECT description_th, description, keywords, images, category, gender, target_age, notes, price_thb FROM tus_products WHERE product_id = ? LIMIT 1",
@@ -535,7 +550,14 @@ async def generate_video(req: VideoRequest):
                             _db_usage_howto = _notes.get("usage_howto", "") or ""
                             _db_special_target = _notes.get("special_target", "") or ""
                             _db_ingredient = _notes.get("ingredient_highlight", "") or ""
-                            # ถ้า description ว่าง ให้ building from notes ที่วิเคราะห์ไว้
+                            # owner 2026-09-12 (plan A+B): structured product features (variants /
+                            # specs / flavours) live in notes.features when the analyzer/importer has
+                            # populated them; fall back to the description so it is never empty.
+                            _feat = _notes.get("features", "") or ""
+                            if isinstance(_feat, (list, tuple)):
+                                _feat = ", ".join(str(x) for x in _feat if x)
+                            if _feat and not _db_features:
+                                _db_features = _feat                            # ถ้า description ว่าง ให้ building from notes ที่วิเคราะห์ไว้
                             if not _db_desc:
                                 _build = [
                                     _db_usage_howto,
@@ -556,6 +578,14 @@ async def generate_video(req: VideoRequest):
                             _db_keywords = json.loads(trow[2])
                         except Exception:
                             pass
+                    # owner 2026-09-12 (plan A): last-resort features seed from keywords so Mimo
+                    # always has SOME structured spec signal even when description is a bare tagline.
+                    if not _db_features and _db_keywords:
+                        try:
+                            _db_features = ", ".join(str(k) for k in _db_keywords if k)[:400]
+                        except Exception:
+                            pass
+                    logger.info(f"  features-seed: {(_db_features or '(none)')[:150]}")
                     if trow[3] and not _db_image:
                         try:
                             imgs = json.loads(trow[3])
@@ -663,7 +693,8 @@ async def generate_video(req: VideoRequest):
                 pb_result = await _proxy("POST", "prompt-builder", "/api/v1/build", {
                     "product_name": _product_title,
                     "description": _db_desc,
-                    "features": _db_desc,
+                    # owner 2026-09-12 (plan A): send the REAL features field, not a copy of description
+                    "features": _db_features or _db_desc,
                     "keywords": _db_keywords,
                     "ugc_style": _resolved_style,
                     "category": _db_category,
@@ -764,7 +795,10 @@ async def generate_video(req: VideoRequest):
                 "video_prompts": [],
                 # ส่ง context สินค้าจริงให้ DeepSeek ใน analyze_product ใช้
                 "product_description": _db_desc or "",
-                "features": _db_desc or "",
+                # owner 2026-09-12 (plan A): pass the REAL features (variant/spec data) to the
+                # pipeline so Mimo authors the script from structured features, not just a tagline.
+                # Previously this was `_db_desc` (description) — features never reached Mimo.
+                "features": _db_features or _db_desc or "",
                 "body_part": _bp_send or "",
                 "special_target": _db_special_target or "",
                 "usage_howto": _db_usage_howto or "",

@@ -256,6 +256,28 @@ def map_product_item(item: dict) -> dict:
     # title
     out["title"] = item.get("title") or item.get("product_name") or ""
 
+    # features (owner 2026-09-12 / plan B): the REAL product options/variants live in the
+    # SKU list (inventory.skus[].sku_sale_props[].prop_value). For a multi-variant product
+    # (different noodle types / flavours / sizes) these are the authoritative feature names
+    # the script must mention - the PDP has no prose description. Build a clean comma list.
+    try:
+        _inv = item.get("inventory") or {}
+        _skus = _inv.get("skus") or []
+        _seen_feats: list = []
+        for _s in _skus:
+            if not isinstance(_s, dict):
+                continue
+            for _pr in (_s.get("sku_sale_props") or []):
+                _v = (_pr or {}).get("prop_value", "")
+                if isinstance(_v, str):
+                    _v = _v.strip().strip('\u200b\ufe0f').strip()
+                if _v and _v not in _seen_feats:
+                    _seen_feats.append(_v)
+        if _seen_feats:
+            out["features"] = ", ".join(_seen_feats)
+    except Exception:
+        pass
+
     # price — handle both search-actor (price dict) and product-actor (pricing dict)
     price = item.get("price") or item.get("pricing") or {}
     if isinstance(price, dict):

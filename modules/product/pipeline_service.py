@@ -447,6 +447,10 @@ def _build_tus_row(product: dict) -> dict:
     usage_howto = product.get("usage_howto", "")
     special_target = product.get("special_target", "")
     ingredient = product.get("ingredient_highlight", "")
+    # owner 2026-09-12 (plan B): structured product features (real variants/options/specs e.g.
+    # noodle types / flavours / spice levels) - carried into the notes JSON so the video
+    # pipeline can name them in the script instead of guessing from images.
+    features = product.get("features", "") or ""
 
     return {
         "product_id": pid,
@@ -484,6 +488,7 @@ def _build_tus_row(product: dict) -> dict:
             "usage_howto": usage_howto,
             "special_target": special_target,
             "ingredient_highlight": ingredient,
+            "features": features,
         }),
     }
 

@@ -250,26 +250,26 @@ def normalize_thai_spoken_script(text: str) -> str:
     # Deterministic guard - if the script OPENS with a hard cluster, keep the rest but re-open with
     # an easy common word derived from the sentence so the first syllable reads cleanly.
     try:
-        _head = out[:24]
-        _opens_hard = any(_head.startswith(_w) for _w in _THAI_HARD_OPENER) or bool(
-            re.match(r"^(?:เบื่อ|ชอบ|อยาก|หิว|รสดี)?\s*ก(๋)?วย", _head)
-        )
-        if _opens_hard:
-            # Keep the meaning: move the cluster-noun out of position #1 and re-open with an easy
-            # hook, then re-insert the (phonetic) noun mid-sentence.
-            _rest = out
-            _noun = ""
-            for _w in ("ก๋วยเตี๋ยว", "กวยเตี๋ยว", "ก๋วยจั๊บ", "กวยจับ"):
-                if _w in _rest:
-                    _noun = "กวยเตี๋ยว" if "เตี๋ยว" in _w else "กวยจับ"
-                    break
-            for _w in tuple(_THAI_HARD_OPENER) + ("กวยเตี๋ยว", "ก๋วยเตี๋ยว", "กวยจับ", "ก๋วยจั๊บ"):
-                _rest = re.sub(r"^(?:เบื่อ|ชอบ|อยาก|หิว)?" + _w + r"\s*", "", _rest, count=1)
-            _rest = re.sub(r"^(?:เบื่อ|ชอบ|อยาก|หิว)\s*", "", _rest, count=1)
-            _rest = _rest.strip(" ,")
-            if _rest and _rest != out:
-                # re-insert the noun right after the easy opener so the subject is still named
-                out = ("หิวใช่ไหม " + (_noun + " " if _noun else "") + _rest).strip()
+        # owner 2026-09-12 (rewritten): the voice garbles its FIRST syllable when a hard cluster
+        # (กวยเตี๋ยว / กวยจั๊บ) sits within the opening words. Real bug 'ใครที่เบื่อกวยเตี๋ยว...' had the
+        # cluster at pos ~9 - the old pos-1-only check missed it. New rule: if a hard cluster appears
+        # inside the FIRST TWO whitespace-words, re-open the line with an easy hook ("หิวใช่ไหม")
+        # followed by the (phonetic) noun, then the rest of the sentence with the cluster removed from
+        # its leading position. Safe no-op when the opening is already clean.
+        _CLUSTERS = ("กวยเตี๋ยว", "กวยจับ", "ก๋วยเตี๋ยว", "ก๋วยจั๊บ")
+        _first2 = " ".join(out.split()[:2])
+        _hit = next((_c for _c in _CLUSTERS if _c in _first2), None)
+        # already opens with the easy hook -> nothing to do
+        if _hit and not out.startswith("หิวใช่ไหม"):
+            _noun = "กวยเตี๋ยว" if "เตี๋ยว" in _hit else "กวยจับ"
+            # drop the FIRST cluster occurrence from the opening, then trim the leading filler
+            # ("ใครที่เบื่อ" / "เบื่อ" / "อยากกิน" ...) so the sentence re-opens cleanly.
+            _rest = out.replace(_hit, " ", 1)
+            _rest = re.sub(r"^(?:ใครที่|ใคร|และ|ที่|ก็)?\s*(?:เบื่อ|ชอบ|อยาก|หิว|รสดี|กิน)?\s*", "", _rest, count=1)
+            _rest = re.sub(r"^กิน\s*", "", _rest, count=1)
+            _rest = re.sub(r"\s{2,}", " ", _rest).strip(" ,")
+            if _rest:
+                out = ("หิวใช่ไหม " + _noun + " " + _rest).strip()
     except Exception:
         pass
     return out
@@ -2088,9 +2088,51 @@ def generate_video(
         )
         final_prompt = _stop_rule + _speech_tail
         if _motion_on and _motion_txt:
+            # owner 2026-09-12 (speech-source leak): the [MOVEMENT] block came from Mimo's English
+            # video_prompt, which OPENS with "The person speaks ONLY the given Thai script, word for
+            # word..." and CLOSES with "Audio: speak only the provided Thai script...". Those English
+            # SPEECH directives sit right before the final speech-lock and contain NO Thai text, so
+            # Wan generates speech from the English description itself -> it 'thinks up its own words'
+            # and the opening diverges from the Thai script. Strip EVERY speech/audio sentence from
+            # the movement block so it is PURE ACTION; the Thai «» timeline is the ONLY speech source.
+            _motion_clean = _motion_txt
+            try:
+                import re as _re_mv
+                # A sentence is "pure speech" if it mentions speaking/audio/script AND has no real
+                # physical action - only those are dropped (keeps "picks up the pack" style beats).
+                _SPEECH_HINT = _re_mv.compile(
+                    r"\b(speak|speaks|speaking|spoken|says|say|saying|talking|talk|talks|voice|"
+                    r"word for word|given Thai script|provided Thai script|no further sound|no extra speech|"
+                    r"lip[- ]?sync|narration|voice[- ]?over)\b",
+                    _re_mv.IGNORECASE)
+                _ACTION_HINT = _re_mv.compile(
+                    r"\b(reach|pick|lift|hold|set|place|rest|stand|walk|smile|turn|lean|nod|present|"
+                    r"hand|arm|pack|table|bowl|camera|frame|noodle|eyes|gaze|show|product|lens|chest|"
+                    r"side|shoulder|surface|floor|room|kitchen|background|shot|view)s?\b",
+                    _re_mv.IGNORECASE)
+                _sents = _re_mv.split(r"(?<=[.!?])\s+", _motion_txt)
+                _kept = []
+                for _x in _sents:
+                    if not _x.strip():
+                        continue
+                    if _SPEECH_HINT.search(_x) and not _ACTION_HINT.search(_x):
+                        continue
+                    _kept.append(_x)
+                _motion_clean = " ".join(_kept).strip()
+                # neutralise remaining inline speech verbs so Wan never reads them as a speech cue
+                _motion_clean = _re_mv.sub(r"\s*(while|as)\s+talk(?:ing|s)?\b", "", _motion_clean, flags=_re_mv.I)
+                _motion_clean = _re_mv.sub(r"\s*[-–,]?\s*silent,\s*no extra speech\b", "", _motion_clean, flags=_re_mv.I)
+                _motion_clean = _re_mv.sub(r"\bafter the last word\b", "at the end", _motion_clean, flags=_re_mv.I)
+                _motion_clean = _re_mv.sub(r"\s{2,}", " ", _motion_clean).strip()
+                if not _motion_clean:
+                    _motion_clean = _motion_txt  # safety: never blank the motion block
+                elif _motion_clean != _motion_txt:
+                    logger.info(f"  🧹 motion block: stripped speech/audio sentences ({len(_motion_txt)}ch -> {len(_motion_clean)}ch) - Thai script is the only speech source")
+            except Exception as _e_mv:
+                logger.warning(f"  motion speech-strip skipped: {_e_mv}")
             final_prompt = (
                 f"{_stop_rule}\n\n"
-                f"[MOVEMENT / การเคลื่อนไหว — อย่าอ่านออกเสียงท่อนนี้]:\n{_motion_txt}"
+                f"[MOVEMENT / การเคลื่อนไหว — ท่อนนี้เป็นคำสั่งการเคลื่อนไหวเท่านั้น อย่าอ่านออกเสียง]:\n{_motion_clean}"
                 f"{_speech_tail}"
             )
         logger.info(f"  🎙 Voice mode A: speak-only-script + motion {'AFTER-script' if (_motion_on and _motion_txt) else 'OFF'} (owner fix 2026-09-10 05:52, len={len(final_prompt)}, motion={len(_motion_txt)}ch)")
@@ -2112,6 +2154,20 @@ def generate_video(
         if len(negative_prompt) > 500:
             logger.warning(f"generate_video: negative_prompt len={len(negative_prompt)} > 500 → truncating to 500 (Prodia cap)")
         neg_p = negative_prompt[:500]
+        # owner 2026-09-12 (debug): dump the EXACT prompt + config sent to Prodia so we can
+        # see word-for-word what Wan reads (incl. the «» timeline + [MOVEMENT] block).
+        try:
+            _dbg = TMP_DIR / f"wan_prompt_{uuid.uuid4().hex[:8]}.txt"
+            _dbg.write_text(
+                "=== PROMPT (" + str(len(final_prompt)) + "ch) ===\n" + final_prompt +
+                "\n\n=== NEGATIVE (" + str(len(neg_p)) + "ch) ===\n" + neg_p +
+                "\n\n=== META ===\nprompt_extend=" + str(prompt_extend) +
+                "\naudio_bytes=" + str(len(audio_bytes) if audio_bytes else None) +
+                "\nduration=" + str(duration) + "\nresolution=" + str(resolution) + "\n",
+                encoding="utf-8")
+            logger.info(f"  🧾 Wan prompt dumped: {_dbg}")
+        except Exception as _e_dbg:
+            logger.warning(f"  prompt dump skipped: {_e_dbg}")
         result = client.generate_video(
             prompt=final_prompt,
             input_image=image_data,

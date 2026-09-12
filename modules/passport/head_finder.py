@@ -52,17 +52,40 @@ CROP_PRESETS = {
 }
 
 
-def normalize_face_size(image, size_px, target_face_frac=0.38, margin_pct=0.10):
+# ── ID-photo framing spec (owner 2026-09-12) ───────────────────────────────
+# Two owner-approved framing modes. The window "head-top → face-bottom" is
+# scaled to a FIXED fraction of the square so the person is identical across
+# every render AND we see head + shoulders + upper chest (not half body).
+# "ย่อ" = zoom OUT = SMALLER face_frac = MORE chest visible.
+ID_FRAME_A = {"face_frac": 0.41, "head_top_frac": 0.115}  # owner pick 14:45 (C: ~half chest)
+ID_FRAME_B = {"face_frac": 0.55, "head_top_frac": 0.09}   # tighter (neck/shoulders only)
+DEFAULT_FRAME = ID_FRAME_A   # owner picked C (face 41%, ~half chest) 14:45
+
+
+def normalize_face_size(image, size_px, target_face_frac=None, margin_pct=None,
+                        face_frac=None, head_top_frac=None):
     """
-    Center the detected face and scale so the face occupies a FIXED fraction of
-    the square frame (owner 2026-09-12: "รูปคน ... มันไม่เท่ากันสักกะรูป").
+    Center the face and scale so the head-to-chin window occupies a FIXED
+    fraction of the square frame.
 
-    Without this, the square-mode center crop keeps each FLUX render's own face
-    size (3.3%–6.6% of frame), so the person looks bigger/smaller per outfit.
-    This normalizes face height to target_face_frac of size_px for every render.
+    Owner 2026-09-12: (a) "รูปคน ... มันไม่เท่ากันสักกะรูป" -> face size must be
+    identical across renders; (b) "ไม่ใช่ format รูปติดบัตร ... เห็นครึ่งตัว" ->
+    must show head + shoulders + upper chest, not half body;
+    (c) "ผมขาด ... ตอนแรกมันมี space" -> must NOT clip the hair at the top.
 
+    We measure the DETECTED FACE (Haar) which runs roughly hairline->chin. We
+    scale so face-height == face_frac * frame, then anchor the ACTUAL HAIR TOP
+    (find_head_top) at head_top_frac * frame so real headroom is preserved.
+    Everything below the chin is left visible (chest).
+
+    Back-compat: target_face_frac/margin_pct still accepted.
     No-op when no face is found.
     """
+    if face_frac is None:
+        face_frac = target_face_frac if target_face_frac is not None else DEFAULT_FRAME["face_frac"]
+    if head_top_frac is None:
+        head_top_frac = margin_pct if margin_pct is not None else DEFAULT_FRAME["head_top_frac"]
+
     h, w = image.shape[:2]
     face = detect_face(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
     if face is None:
@@ -71,23 +94,32 @@ def normalize_face_size(image, size_px, target_face_frac=0.38, margin_pct=0.10):
     if fh <= 0:
         return image
 
-    # scale so face height == target fraction of the output square
-    target_fh = target_face_frac * size_px
+    # ── scale so face height == target fraction of the output square ──
+    target_fh = face_frac * size_px
     scale = target_fh / fh
     scale = min(max(scale, 0.4), 2.5)          # sanity clamp
 
     new_w, new_h = int(round(w * scale)), int(round(h * scale))
     resized = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_LANCZOS4)
 
-    # face center + head-top in the resized image
+    # face center in the resized image
     fcx = int(round((fx + fw / 2.0) * scale))
-    f_htop = int(round(fy * scale))
-    f_h = int(round(fh * scale))
 
-    # where the head-top should sit so headspace is uniform across renders
-    want_htop = int(round(size_px * margin_pct))
+    # ── anchor on the ACTUAL hair top, not the Haar face box ──
+    # Haar's face box starts BELOW the hairline, so pinning the face top clips
+    # the hair above it (owner 2026-09-12: "ผมขาด ... ตอนแรกมันมี space").
+    # find_head_top scans the real bg→hair boundary, so we get true headroom.
+    head = find_head_top(resized)
+    if head is not None:
+        hair_top = int(head["head_top_y"])
+    else:
+        # fallback: estimate hair top above the face box (~35% of face height)
+        hair_top = int(round((fy - 0.35 * fh) * scale))
+
+    # place the hair top at head_top_frac of the frame
+    want_htop = int(round(size_px * head_top_frac))
     x1 = fcx - size_px // 2
-    y1 = f_htop - want_htop
+    y1 = hair_top - want_htop
 
     pad_l = max(0, -x1); pad_t = max(0, -y1)
     pad_r = max(0, (x1 + size_px) - new_w); pad_b = max(0, (y1 + size_px) - new_h)

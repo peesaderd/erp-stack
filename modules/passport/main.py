@@ -1209,6 +1209,27 @@ def cleanup_old_photos(days: int = 7):
     return {"ok": True, "deleted_count": len(deleted), "files": deleted}
 
 
+def _load_pristine_source(session_id, storage):
+    """Return the most pristine (never-resized) image for this session.
+
+    Priority: transparent PNG (has full alpha, resized only by recrop which now
+    restores the base) -> flux raw -> current ledger image. Owner 2026-09-12:
+    the crop source must be clean so repeated resizes do not accumulate scaling
+    artifacts. Returns (image, kind) or (None, None).
+    """
+    for name, kind in (
+        (f"{session_id}_transparent.png", "transparent"),
+        (f"{session_id}_flux_raw.jpg", "raw"),
+    ):
+        p = storage / name
+        if p.exists():
+            img = cv2.imread(str(p), cv2.IMREAD_UNCHANGED)
+            if img is not None:
+                return img, kind
+    # fall back to whatever the ledger says is current
+    return pstate.load_current(session_id, storage, cv2.IMREAD_UNCHANGED)
+
+
 @app.post("/api/passport/recrop")
 def recrop_photo(req: dict):
     """
@@ -1224,10 +1245,14 @@ def recrop_photo(req: dict):
     storage = STORAGE_DIR
 
     # ── pristine source snapshot (SSOT): ledger decides; mtime only migrates legacy once ──
+    # Owner rule 2026-09-12: the crop source must be PRISTINE. `load_current`
+    # can already hold a RESIZED image (recrop writes back into the canonical
+    # raw/bg file), so repeated resizes would accumulate scaling artifacts
+    # ("crop ยึดภาพล่าสุด ... มั่วสะสม"). Prefer a never-resized source.
     cur_kind = None
     base_path = storage / f"{session_id}_recrop_base.png"
     if not base_path.exists():
-        src_img, src_kind = pstate.load_current(session_id, storage, cv2.IMREAD_UNCHANGED)
+        src_img, src_kind = _load_pristine_source(session_id, storage)
         if src_img is None:
             raise HTTPException(404, f"No image found for {session_id}. Generate a photo first.")
         cv2.imwrite(str(base_path), src_img)  # untouched pixels forever
@@ -1240,6 +1265,7 @@ def recrop_photo(req: dict):
     if img is None:
         raise HTTPException(500, "Failed to read base image")
     has_alpha = img.ndim == 3 and img.shape[2] == 4
+    pristine_snapshot = img.copy()  # restored after resize (see save step)
 
     # ── Owner rule: resize = anchor TOP-CENTER then SCALE ──
     width_mm = float(req.get("width_mm") or req.get("custom_width") or 35)
@@ -1272,17 +1298,30 @@ def recrop_photo(req: dict):
         final = resized[0:target_h, :]
 
     # ── save outputs (SSOT) ──
+    # Owner rule 2026-09-12: a resize must NEVER feed back into the pristine
+    # source, otherwise repeated resizes accumulate scaling artifacts
+    # ("crop ยึดภาพล่าสุด ... มั่วสะสม"). The recrop preview is written ONLY to
+    # the consumer view (_passport.jpg / _transparent_preview.png); the pristine
+    # canonical files (_transparent.png, _flux_raw.jpg, _bg.jpg) are untouched.
     download_url = f"/api/passport/download/{session_id}_passport.jpg"
     if has_alpha:
         ok_png, png_buf = cv2.imencode(".png", final)  # BGRA kept intact
         if not ok_png:
             raise HTTPException(500, "Failed to encode PNG")
-        pstate.save_current(session_id, png_buf.tobytes(), "transparent", storage)
+        (storage / f"{session_id}_transparent_preview.png").write_bytes(png_buf.tobytes())
+        # white-composited consumer view so the frontend <img> works
+        rgba = cv2.imdecode(np.frombuffer(png_buf.tobytes(), np.uint8), cv2.IMREAD_UNCHANGED)
+        bgr = pstate._white_composite(rgba)
+        cv2.imwrite(str(storage / f"{session_id}_passport.jpg"), bgr,
+                    [cv2.IMWRITE_JPEG_QUALITY, 95])
         download_url = f"/api/passport/download/{session_id}_transparent.png"
     else:
-        kind_out = cur_kind if cur_kind in ("bg", "raw") else "raw"
         out_bgr = final if final.ndim == 3 else cv2.cvtColor(final, cv2.COLOR_GRAY2BGR)
-        pstate.save_current(session_id, out_bgr, kind_out, storage)
+        cv2.imwrite(str(storage / f"{session_id}_passport.jpg"), out_bgr,
+                    [cv2.IMWRITE_JPEG_QUALITY, 95])
+    # the pristine recrop base always survives (never delete / never shrink)
+    if pristine_snapshot is not None:
+        cv2.imwrite(str(base_path), pristine_snapshot)
 
 
     gray_mode = cv2.COLOR_BGRA2GRAY if has_alpha else cv2.COLOR_BGR2GRAY

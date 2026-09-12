@@ -273,6 +273,47 @@ def _mimo_key() -> str:
     return k
 
 
+def _hue_diverse_reference_index(images: list) -> Optional[int]:
+    """owner 2026-09-12 (colour fidelity): deterministic fallback when Mimo vision can't pick.
+    Downloads the candidate images and returns the index of the one with the MOST distinct
+    saturated hues (the multi-colour GROUP SHOT), so the still frame reproduces the whole
+    coloured line instead of one repeated single-colour pack. Returns None if unsure.
+    """
+    try:
+        from PIL import Image
+        import colorsys
+        import io as _io
+        _urls = [u for u in images if isinstance(u, str) and u.strip()][:6]
+        if len(_urls) < 2:
+            return None
+        _scores = []
+        for _u in _urls:
+            try:
+                _r = requests.get(_u, timeout=20)
+                if _r.status_code != 200 or not _r.content:
+                    _scores.append(-1)
+                    continue
+                _im = Image.open(_io.BytesIO(_r.content)).convert("RGB").resize((16, 16))
+                _hues = set()
+                for (_rr, _gg, _bb) in list(_im.getdata()):
+                    _h, _s, _v = colorsys.rgb_to_hsv(_rr / 255, _gg / 255, _bb / 255)
+                    if _s > 0.35 and _v > 0.25:
+                        _hues.add(int(_h * 12))
+                _scores.append(len(_hues))
+            except Exception:
+                _scores.append(-1)
+        if not _scores or max(_scores) < 0:
+            return None
+        _best = max(range(len(_scores)), key=lambda _i: _scores[_i])
+        # only trust it when the winner is meaningfully MORE colourful than the runner-up
+        _sorted = sorted(_scores, reverse=True)
+        if len(_sorted) > 1 and _sorted[0] < _sorted[1] + 2:
+            return None
+        return _best
+    except Exception:
+        return None
+
+
 def _pick_variant_reference_index(images: list) -> Optional[int]:
     """owner 2026-09-12: for a multi-variant product set, ask Mimo (vision) which supplied
     reference image shows the MOST variants/packs together, so the still frame can show the
@@ -304,11 +345,14 @@ def _pick_variant_reference_index(images: list) -> Optional[int]:
         import re as _re
         _m = _re.search(r"\d+", _c)
         if not _m:
-            return None
+            return _hue_diverse_reference_index(_imgs)
         _idx = int(_m.group(0))
-        return _idx if 0 <= _idx < len(_imgs) else None
+        return _idx if 0 <= _idx < len(_imgs) else _hue_diverse_reference_index(_imgs)
     except Exception:
-        return None
+        try:
+            return _hue_diverse_reference_index(images)
+        except Exception:
+            return None
 
 
 def _deepseek_product_prompts(product_name: str, description: str, ugc_style: str = "holding",
@@ -441,6 +485,13 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "and, when the data lists spice/heat levels, NAME the spice range too (e.g. 'มีทั้งเผ็ดน้อย เผ็ดกลาง เผ็ดมาก'). "
             "Do NOT stop at two - cover the actual range. NEVER collapse a multi-variant set down to a single "
             "colour/flavour, and never invent variants that are not in the product data.\n"
+            "COLOUR FIDELITY (owner 2026-09-12 - fixes 'all packs render the same red'): the pack COLOURS in your "
+            "image_prompt MUST MATCH the colours you actually SEE in the provided reference images - do NOT invent "
+            "a colour per variant. If the references show a group shot with red + brown + yellow + blue packs, "
+            "describe exactly those colours. When you cannot tell which colour goes with which variant, DESCRIBE "
+            "THE COLOURS ONLY ('four packs in red, brown, yellow and blue standing side by side') and do NOT "
+            "pair a colour to a named variant. ALSO: include the multi-pack GROUP SHOT reference as the primary "
+            "composition - reproduce the whole coloured line together, not one pack repeated.\n"
             "- APPAREL / GARMENTS: the garment is the hero - frame torso-to-knee or a full-body mirror view so the "
             "cut, silhouette and drape dominate; never sacrifice garment visibility for an extreme face close-up. "
             "Model WEARS it and shows fit and drape with gentle turns and soft steps, hands relaxed, letting the "
@@ -530,16 +581,19 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "   TO CAMERA - mouth visibly moving, mouth-articulation throughout the shot, looking into the lens with \n"
             "   a natural warm expression. She is delivering the Thai sales script to the viewer the whole time. Never \n"
             "   render her silent, still-lipped, smiling-but-not-speaking, turned away, or looking down at the product.\n"
+            "   Her EYES ARE OPEN and directed at the camera lens in the still frame too - never eyes-closed, never \n"
+            "   mid-blink, never gazing down at the table.\n"
             "1d. PRODUCTS ARE STATIC OBJECTS - NO SELF-MOVING (MANDATORY - fixes 'ถุงสินค้าขยับเอง'): the packs/\n"
             "   bottles/boxes are INANIMATE. They NEVER move, slide, drift, rotate, float, or reposition on their own. \n"
             "   A pack only moves because a HAND is physically holding and moving it. Whenever a pack is at rest on the \n"
             "   table it stays EXACTLY where it is, perfectly still, until a hand touches it again. NEVER let the product \n"
             "   hover, glide, or animate by itself.\n"
-            "1e. PREPARED-FOOD PROP (food/instant-noodle products - fixes 'ไม่มีรูปก๋วยเตี๋ยวใส่ชามวางไว้'): show ONE \n"
-            "   bowl/cup of the PREPARED dish resting on the table beside the packs as a supporting prop - appetising, \n"
-            "   real, steam optional. It sits still on the surface. It is a small secondary prop: it NEVER becomes the \n"
-            "   hero, NEVER dominates the frame, and NEVER hides the packs. (For non-food products: choose one natural \n"
-            "   real-world prop that suits the product and keep it small and static.)\n"
+            "1e. PREPARED-FOOD PROP (MANDATORY for food/instant-noodle products - fixes 'ไม่มีรูปก๋วยเตี๋ยวใส่ชามวางไว้'): your \n"
+            "   image_prompt MUST include ONE bowl/cup of the PREPARED dish resting on the table beside the packs - appetising, \n"
+            "   real, sharp focus, steam optional. It sits STILL on the surface. It is a small secondary prop (~10-20% of the \n"
+            "   frame): it NEVER becomes the hero, NEVER dominates the frame, NEVER sits in front of the packs, and NEVER hides \n"
+            "   the packs. It is REQUIRED - do NOT omit it. (For non-food products: choose one natural real-world prop that \n"
+            "   suits the product and keep it small and static.)\n"
             "2. PHYSICAL GROUNDING: say which hand holds which object and where it touches (fingertip, palm, wrist). \n"
             "   Keep the hands and the product engaged through the whole motion - never let a hand drift off the \n"
             "   product or float unanchored.\n"
@@ -2315,7 +2369,22 @@ def run_pipeline(
         try:
             _ri = product_profile.get("_reference_image_index")
             _pimgs = [u for u in (product_images or []) if isinstance(u, str) and u.strip()]
-            if _ri is not None and _pimgs and 0 <= int(_ri) < len(_pimgs):
+            # owner 2026-09-12: Mimo's index refers to the ORIGINAL product_images order.
+            # Determine the group-shot image (the one showing the most variants) and always use it
+            # as the img2img anchor when available - this is what makes the still show the full
+            # coloured line instead of a single repeated pack.
+            _group_url = None
+            if len(_pimgs) > 1:
+                try:
+                    _gi = _pick_variant_reference_index(_pimgs)
+                    if _gi is not None and 0 <= _gi < len(_pimgs):
+                        _group_url = _pimgs[_gi]
+                except Exception:
+                    pass
+            if _group_url:
+                _img_ref = _group_url
+                logger.info(f"  🎨 reference image = group shot ({_group_url})")
+            elif _ri is not None and _pimgs and 0 <= int(_ri) < len(_pimgs):
                 _img_ref = _pimgs[int(_ri)]
                 logger.info(f"  🎨 reference image from Mimo index {_ri}: {_img_ref}")
         except Exception as _e_ref:

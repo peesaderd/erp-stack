@@ -1167,6 +1167,24 @@ def _sanitize_video_prompt(vp: str) -> str:
         _re.IGNORECASE,
     )
     cleaned = _chain.sub("", out)
+    # Owner 2026-09-12 (second pass): a DANGLING re-grab can survive with no set-down before it
+    # (Mimo emits "Beat 3: she picks the product back up ..." on its own). Wan then performs a
+    # phantom second lift + adds an extra pack + extra speech at the tail. Strip any standalone
+    # 'picks it back up / picks up again / lifts it again' sentence unconditionally.
+    _regrab_only = _re.compile(
+        r"(?<=[.]\s)"
+        r"(?:Beat\s*\d+\s*:?\s*)?"
+        r"(?:(?:she|he|they|the (?:presenter|woman|man|model|person))\s+)?"
+        r"(?:picks?|lifts?|grabs?|takes?)\s+"
+        r"(?:the |it |the (?:same |red |blue |yellow |orange |brown |gold )?(?:product|pack|item))?\s*"
+        r"(?:back\s?up|back\s+up|up again|again)\b[^.]*\.",
+        _re.IGNORECASE,
+    )
+    cleaned = _regrab_only.sub("", cleaned)
+    # Owner 2026-09-12: 'revealing all four packs' triggers Wan to DRAW extra packs when the camera
+    # pulls back. Replace with a count-preserving phrasing.
+    cleaned = _re.sub(r"revealing all (?:four|4) packs", "the same packs remain on the table, unchanged, no new pack appears", cleaned, flags=_re.IGNORECASE)
+    cleaned = _re.sub(r"revealing all (\w+) packs", r"the same packs remain on the table, unchanged, no new pack appears", cleaned, flags=_re.IGNORECASE)
     # Collapse any doubled spaces / stray ' .'
     cleaned = _re.sub(r"\s{2,}", " ", cleaned).replace(" .", ".").strip()
     # Guard: if the strip nuked too much, keep the original (safety).
@@ -1346,8 +1364,15 @@ def analyze_product(product_name: str, product_image: str = None, description: s
                                  "no self-moving product, no levitating product, "
                                  "no silent still-mouthed presenter, "
                                  "no single colour only, no blurry pack label, "
-                                 "no missing pack, no three packs only, no 3 of 4 packs, no pack out of frame, "
-                                 "no hidden pack, no packs merged together, no duplicated pack, "
+                                 # owner 2026-09-12: NEVER constrain the pack COUNT. 'no missing pack'
+                                 # / 'no three packs only' / 'no pack out of frame' fight the story action
+                                 # (she LIFTS one pack -> the table legitimately has 3 while 1 is held).
+                                 # Wan resolves the contradiction by MATERIALISING an extra pack ("เสกมา").
+                                 # Use NEUTRAL phrasing instead: no pack appears from nowhere, no NEW pack
+                                 # is added mid-clip, the count that exists at the start is preserved.
+                                 "no pack appearing from nowhere, no new pack added, no pack count changing, "
+                                 "no pack materialising mid-clip, no duplicated pack, "
+                                 "no packs merged together, "
                                  "no invented colour pack, no pack colour that is not in the photo, "
                                  "no green pack, no extra colour pack, "
                                  "no camera wobble, no camera shake, no frame warp, no rippling distortion, "

@@ -189,6 +189,7 @@ _STYLE_CATEGORY_MAP = [
     ("talking", ["beauty", "health", "fashion", "other"]),
     ("review", ["beauty", "food", "fashion", "home", "health"]),
     ("usage", ["beauty", "home", "tools", "health_hygiene"]),
+    ("tabletop", ["beauty", "fashion", "food", "home", "health", "other"]),
     ("pov", ["home", "fashion", "food", "other", "travel_edc"]),
     ("holding", ["beauty", "fashion", "food", "other"]),
 ]

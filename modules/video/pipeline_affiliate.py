@@ -1088,17 +1088,32 @@ def _sanitize_video_prompt(vp: str) -> str:
         return vp
     import re as _re
     out = vp
-    # Remove whole sentences that describe releasing / setting down / re-picking the product.
-    _pat = _re.compile(
+    # Owner 2026-09-12 (v2 tail fix): "ตอนท้ายเพี้ยน" came from a PARTIAL strip - we removed the
+    # set-down sentence but LEFT the orphaned "Then she picks the pack back up ..." sentence right
+    # after it, so Wan saw a re-grab with no set-down and improvised a physical break/garble at the
+    # tail. Strip the WHOLE handoff chain in one pass (set-down/release/place-down + the orphaned
+    # re-grab that follows) while KEEPING the legitimate first pick-up that comes before the set-down.
+    cleaned = out
+    # Strategy: find the FIRST set-down/release/put-back in the text. Everything from that point up to
+    # the end of the FOLLOWING re-grab clause is the forbidden handoff chain - remove it in one shot,
+    # but KEEP the legitimate first pick-up/hold that comes BEFORE the set-down.
+    _chain = _re.compile(
+        r"(?<=[.]\s)"  # start right after a sentence end (so we don't clip mid-sentence)
         r"[^.]*?\b(sets? (?:the |it |the product |the pack )?(?:product|pack|item|it)?\s*(?:back )?down|"
         r"set (?:it|the product|the pack) down|releases? (?:it|the product|the pack)|lets go of (?:it|the product|the pack)|"
         r"puts? (?:it|the product|the pack) back|places? (?:it|the product|the pack) (?:back )?on|"
-        r"picks? (?:the product|the pack|it) (?:back )?up again)[^.]*\.",
+        r"picks? (?:the product|the pack|it) (?:back )?up again)[^.]*\."
+        r"(?:\s*(?:Then|After(?:wards| that| a brief pause)?|Next|Finally|Later|Subsequently|Again)?\s*,?\s*"
+        r"(?:she|he|they|the (?:presenter|woman|man|model|person))?\s*"
+        r"(?:picks?|picks? up|lifts?|lifts? up|grabs?|takes?)\s*"
+        r"(?:the (?:same |red |blue |yellow |green |brown )?(?:product|pack|item)|it)?\s*"
+        r"(?:back up|back|up again|again)?[^.]*\.)?",  # optional trailing re-grab (may be absent)
         _re.IGNORECASE,
     )
-    cleaned = _pat.sub("", out)
+    cleaned = _chain.sub("", out)
     # Collapse any doubled spaces / stray ' .'
     cleaned = _re.sub(r"\s{2,}", " ", cleaned).replace(" .", ".").strip()
+    # Guard: if the strip nuked too much, keep the original (safety).
     return cleaned if len(cleaned) > len(out) * 0.5 else out
 
 
@@ -1258,6 +1273,28 @@ def analyze_product(product_name: str, product_image: str = None, description: s
                                  "no mumbled speech, no slurred words, no garbled pronunciation, "
                                  "no tongue-tied fast reading, no rushed speech")
                     _mimo_neg = _normalize_negative_prompt(_mimo_neg + ", " + _food_neg)
+                    # owner 2026-09-12 ("ควรจะมีก๋วยเตี๋ยว ใส่ชามวางไว้ด้วย"): rule 1e is MANDATORY but
+                    # Mimo still drops the bowl from the image_prompt some runs -> the still has NO bowl,
+                    # so Wan has none to work from. Hard-inject the prepared-dish prop deterministically.
+                    try:
+                        _bowl_words = ("bowl", "ชาม", "cup of", "ก๋วยเตี๋ยว", "noodles in", "dish of",
+                                       "soup", "น้ำซุป", "พร้อมเสิร์ฟ", "prepared")
+                        _ip_now = (profile.get("_image_prompt") or "")
+                        _bowl_in_ip = any(w in _ip_now.lower() for w in _bowl_words)
+                        if _ip_now and not _bowl_in_ip:
+                            _bowl_clause = (" A small bowl of the prepared dish (a hot bowl of noodles/broth) "
+                                            "rests on the table beside the packs as a secondary prop - "
+                                            "appetising, sharp, in the lower foreground, NOT in front of the packs.")
+                            profile["_image_prompt"] = _ip_now.rstrip().rstrip(".") + "." + _bowl_clause
+                            logger.info("  🍜 image_prompt bowl injected (food prop mandatory - Mimo omitted it)")
+                        _vp_now = (profile.get("_video_prompt") or "")
+                        _bowl_in_vp = any(w in _vp_now.lower() for w in _bowl_words)
+                        if _vp_now and not _bowl_in_vp:
+                            profile["_video_prompt"] = (_vp_now.rstrip() + " A small bowl of the prepared "
+                                                        "noodles sits still on the table beside the packs throughout the shot.")
+                            logger.info("  🍜 video_prompt bowl injected (food prop mandatory - Mimo omitted it)")
+                    except Exception as _e_bowl:
+                        logger.warning(f"  bowl injection skipped: {_e_bowl}")
                 profile["_negative_prompt"] = _mimo_neg
                 logger.info(f"  ✅ Mimo negative_prompt ({len(_mimo_neg)}ch) แทน pb negative")
             logger.info(f"  ✅ Mimo authored image/video/script prompts for {product_name!r} (script {len(profile['_mimo_thai_script'])}ch)")

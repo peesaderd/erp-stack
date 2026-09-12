@@ -375,6 +375,12 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "Product in sharp focus, background slightly softer.\n"
             "- SCREEN SHARE: the product must occupy roughly 30-40% of the frame and stay in the "
             "lower-to-middle foreground through the whole clip, never tiny, off to one side, or out of frame.\n"
+            "- HELD *OR* PLACED (owner 2026-09-12 - fixes 'Holding too strong, never puts it down'): being "
+            "the hero does NOT mean the hand must grip it continuously. A product RESTING upright on a clean "
+            "surface (table/vanity/counter) IS a valid hero presentation, as long as it stays in sharp focus "
+            "in the lower-to-middle foreground and the label faces the lens. The demonstrator may PLACE the "
+            "product DOWN and leave it sitting on the surface for a beat - or for the whole clip - and this is "
+            "CORRECT, not a failure. Never force a continuous grip.\n"
             "- PACKAGED GOODS: the packaging/bottle/box is held upright, facing the lens, stabilized and centered - "
             "NEVER let it drift off-screen or get occluded by the hands. The real label of the reference product "
             "shows clearly.\n"
@@ -400,6 +406,12 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "   facing the lens, occupying a clear hero spot; (c) when the person lifts it, the spot where it sat \n"
             "   stays visibly the SAME surface (continuity), and when returned it goes back to the SAME spot; \n"
             "   (d) the surface must be present and visible in EVERY beat - never let it vanish or morph.\n"
+            "   MANDATORY BEAT ORDER for tabletop (owner 2026-09-12 - fixes 'never puts it down'): the FIRST beat "
+            "   must OPEN with the product SITTING ON THE SURFACE, untouched, hands away or resting beside it - the "
+            "   video starts on a static tabletop hero shot. Only AFTER that may a hand reach in and pick it up. "
+            "   Include at least one explicit PLACE-DOWN beat: the hand sets the product back DOWN on the same spot "
+            "   and RELEASES it, leaving it resting on the surface (hands away) for the final settle. The clip must "
+            "   contain a clear moment where NO hand is holding the product - it is visibly sitting on the table.\n"
             "[SELLING FLOW in thai_script]\n"
             "Write a punchy, easy-to-say Thai voice-over line: relatable pain point or desire -> how the product "
             "fixes it -> a quick believable result -> a soft push to buy/link. \n"
@@ -517,6 +529,15 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "   in-case -> in-hand -> in-ear -> back-in-hand -> back-in-case, and never skip a step. If the clip \n"
             "   shows one earbud used, say which ear and what the OTHER earbud is doing (still in the case). Never \n"
             "   add an earbud that was not already shown.\n"
+            "   PICKUP vs INSERT must be TWO SEPARATE, EXPLICIT BEATS (owner 2026-09-12 - 'khip-insert' glitch): "
+            "   do NOT compress 'pick up and put in ear' into one blurred motion. Write beat 1 as the hand "
+            "   clearly PINCHING one earbud OUT of the open case (case steady in the other hand, the remaining "
+            "   earbud STILL sitting in its case slot), then beat 2 as the earbud traveling to the ear and being "
+            "   inserted. State the recipient EAR explicitly ('into her RIGHT ear'). At the instant of pickup the "
+            "   case must still hold the second earbud; at the instant of insertion the first earbud must NO LONGER "
+            "   be in the case. Never let a single earbud appear in the case and the hand at the same time during "
+            "   the handoff - name the hand that holds the case (e.g. left) and the hand that picks and inserts "
+            "   (e.g. right), and keep those roles fixed for the whole clip.\n"
             "7. SPEECH - SPEAK-ONLY-SCRIPT LOCK (owner 2026-09-11): the voice-over is ALREADY written in \n"
             "   thai_script. Do NOT describe speech, talking, or facial delivery, and NEVER write phrases like \n"
             "   \"she speaks naturally\" or \"friendly warm expression\" - describing speech makes the model \n"
@@ -538,6 +559,8 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "   improvise the defect: \"no cap floating or inserted at the wrong spot\" and \"no second spot touched, \n"
             "   no double application\".\n"
             "   ALSO include, when relevant, these proven physical-defect negatives (owner 2026-09-12):\n"
+            "   tabletop/holding-too-strong: \"no product gripped continuously the whole clip, no hand always "
+            "covering the product, no product lifted off the table for the entire shot\";\n"
             "   jar/tub cream: \"no cream on a finger that never touched the jar, no vanishing lid, no floating lid\";\n"
             "   tube/bottle: \"no oversized product, no giant tube, no leftover product blobs, no stringy residue, \n"
             "   no messy uneven application\";\n"
@@ -578,8 +601,24 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             )
         except Exception:
             _name_clean, _desc_clean = str(product_name or ""), str(description or "")
+        # owner 2026-09-12: styles that MUST change hand behaviour. A buried sysprompt rule
+        # was ignored by Mimo, so hoist the requirement into the user_text (high attention).
+        _style_instr = ""
+        if (ugc_style or "").strip().lower() in ("tabletop", "tabletop_demo", "demo"):
+            _style_instr = (
+                "\n\n*** STYLE = TABLETOP (HIGHEST PRIORITY, MUST OBEY) ***\n"
+                "The product must be RESTING ON A CLEAN FLAT TABLE/COUNTER for a real part of the clip - "
+                "NOT held the whole time. Build the shot so that:\n"
+                "  * The video OPENS with the product sitting alone on the table, no hand touching it.\n"
+                "  * A hand then PICKs IT UP to present to camera for the middle.\n"
+                "  * Near the end the hand SETS IT BACK DOWN on the same spot and RELEASES it, leaving it "
+                "resting on the table for the final settle - hands away.\n"
+                "The video_prompt MUST contain the words 'sitting on the table', 'sets it back down', and "
+                "'leaves it resting' - and at least one beat where NO hand holds the product. "
+                "Do NOT write a video_prompt where the product is gripped from start to finish."
+            )
         user_text = ("Product: " + _name_clean + "\nDescription: " + _desc_clean +
-                     _acted_instr +
+                     _acted_instr + _style_instr +
                      "\nWrite natural-realistic image and video prompts for this product. Base the visuals ONLY on the given "
                      "Product/Description — never invent brand names, logos, label text, ingredients, quantities, prices, or packaging "
                      "details not present. IMPORTANT: if a product image is provided, draw the product exactly as it appears "

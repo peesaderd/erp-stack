@@ -1335,6 +1335,24 @@ def analyze_product(product_name: str, product_image: str = None, description: s
             # (C) owner 2026-09-11 (Fix C): structured timed beats from Mimo → passed to the Wan
             # prompt builder so the model sees a timeline and a SILENT settle tail (no gibberish).
             _beats = _ds.get("script_beats") or []
+            # owner 2026-09-12: the TIMELINE (what Wan actually reads) came from Mimo's RAW beat
+            # text, which bypassed normalize_thai_spoken_script -> the opening cluster fix + the
+            # 'หิวใช่ไหม' re-open never applied to the spoken timeline (real bug: hook stayed
+            # 'เบื่อก๋วยเตี๋ยวเรือ...'). Normalize each beat's text now and re-apply the opening guard
+            # to the hook so the timeline matches the normalized flat script.
+            if _beats:
+                try:
+                    for _bi, _b in enumerate(_beats):
+                        if not isinstance(_b, dict):
+                            continue
+                        _bt = (_b.get("text") or "").strip()
+                        if _bt:
+                            _b["text"] = normalize_thai_spoken_script(_bt)
+                    _hook_b = next((b for b in _beats if isinstance(b, dict) and b.get("label") == "hook"), None)
+                    if _hook_b and _hook_b.get("text"):
+                        logger.info(f"  🔧 normalized beat texts for timeline (hook now {_hook_b['text'][:40]!r})")
+                except Exception as _e_nb:
+                    logger.warning(f"  beat normalize skipped: {_e_nb}")
             if not _beats and _norm_ts:
                 # Fallback: synthesize a 3-beat + settle split from the flat script so Fix C still
                 # works even if the AI omits script_beats (duration-aware, 12-14 chars/second).

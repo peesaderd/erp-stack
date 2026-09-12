@@ -786,20 +786,16 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "   be in the case. Never let a single earbud appear in the case and the hand at the same time during "
             "   the handoff - name the hand that holds the case (e.g. left) and the hand that picks and inserts "
             "   (e.g. right), and keep those roles fixed for the whole clip.\n"
-            "7. SPEECH - SPEAK-ONLY-SCRIPT LOCK (owner 2026-09-11): the voice-over is ALREADY written in \n"
-            "   thai_script. Do NOT describe speech, talking, or facial delivery, and NEVER write phrases like \n"
-            "   \"she speaks naturally\" or \"friendly warm expression\" - describing speech makes the model \n"
-            "   generate extra unscripted audio. Keep the mouth and facial expression NEUTRAL.\n"
-            "   MANDATORY: because Wan reads the video_prompt LAST, you MUST open the video_prompt with the \n"
-            "   English sentence \"The person speaks ONLY the given Thai script, word for word, and says \n"
-            "   nothing before it, nothing between its phrases, and nothing after it.\" AND close the \n"
-            "   video_prompt with this exact sentence: \"Audio: speak only the provided Thai script, \n"
-            "   word for word, and after the final word make NO further sound.\" Then IMMEDIATELY add a \n"
-            "   SETTLE beat so the model has a silent ACTION to perform after the last word instead of \n"
-            "   improvising audio (owner 2026-09-12 - fixes tail garble): \"After the last word, she keeps \n"
-            "   presenting: a small confident smile to camera while still holding the product steady and \n"
-            "   still showing the pack - silent, no extra speech, no new sound.\" These sentences are \n"
-            "   REQUIRED in every video_prompt.\n"
+            "7. SPEECH - NO SPEECH TEXT IN THE VIDEO PROMPT (owner 2026-09-12 11:3x): the voice-over is \n"
+            "   ALREADY written and spoken by the system from thai_script (timeline). The video_prompt must \n"
+            "   describe MOTION ONLY. Do NOT mention speech, talking, voice, audio, the script, \"word for \n"
+            "   word\", silence, or facial delivery ANYWHERE in the video_prompt, and NEVER write sentences \n"
+            "   like \"The person speaks ONLY the given script...\" / \"Audio: speak only...\" / \"silent, \n"
+            "   no extra speech\". Owner feedback: repeating speech instructions confuses Wan (the audio model) \n"
+            "   -> shaky voice + melting video. Keep the mouth and facial expression NEUTRAL.\n"
+            "   Instead, end the video_prompt with a plain ACTION beat (no speech words at all), e.g. \"She \n"
+            "   keeps presenting: a small confident smile to camera while holding the product steady and \n"
+            "   showing the packs.\" The ONE closing silence directive is appended by the system, not you.\n"
             "[NEGATIVE PROMPT - owner 2026-09-10] The negative_prompt is a list of things the model MUST NOT do.\n"
             "   EVERY item MUST begin with a negative word - \"no ...\" or \"don't ...\". A bare noun\n"
             "   (e.g. \"distorted fingers\") is READ AS AN INSTRUCTION and the model WILL render it. So write\n"
@@ -2046,19 +2042,12 @@ def generate_video(
             else:
                 _last_word_hint = _flat[-20:]
         _stop_rule = (
-            "พูดตาม script นี้เท่านั้น:\n"
-            f"«{_script_clean} [จบบท]»\n"
-            "อ่านเฉพาะข้อความที่อยู่ก่อนเครื่องหมาย [จบบท] เท่านั้น — ห้ามออกเสียงคำว่า 'จบบท' "
-            "และห้ามมีเสียง คำ หรือเสียงพึมพำใด ๆ ต่อจากคำสุดท้ายของบท "
+            "พูดตาม Thai script นี้เท่านั้น:\n"
+            f"«{_script_clean}»\n"
+            "อ่านเฉพาะข้อความใน «» ครบทุกคำตามที่เขียน แล้วปิดปาก เงียบสนิท "
             f"(คำสุดท้ายคือ '{_last_word_hint}')\n"
-            "พูดภาษาไทยให้ฉะฉาน ชัดถ้อยชัดคำ ออกเสียงทุกพยางค์ครบถ้วน หนักเบาและวรรณยุกต์ถูกต้อง "
-            "เหมือนพิธีกรหรือคนขายของออนไลน์มืออาชีพที่พูดคล่องแคล่ว "
-            "เสียงดังชัดเจนในระดับพูดคุยปกติ กระฉับกระเฉง มีพลัง เปิดปากกว้างออกเสียงเต็มที่ทุกคำ "
-            "อ่านทุกคำตามที่เขียนใน «» อย่างครบถ้วน เว้นจังหวะหายใจสั้น ๆ ตามธรรมชาติระหว่างวลี "
-            "ภาพนิ่งมั่นคง ไม่สั่น ไม่ไหว ไม่บิดเบี้ยว (steady stable shot, no wobble) "
-            "เสียงพูดนิ่ง ชัด ไม่สั่นเครือ ไม่เพี้ยนตามภาพ "
-            "พูดตาม script ข้างบนนี้เท่านั้น ครบทุกคำจนถึงเครื่องหมาย [จบบท] แล้วปิดปาก เงียบ สนิท "
-            "ไม่มีเสียงใด ๆ อีก (ยังขยับร่างกายและนำเสนอสินค้าต่อตามท่อนการเคลื่อนไหวด้านล่างได้)"
+            "พูดภาษาไทยชัดถ้อยชัดคำ ออกเสียงครบทุกพยางค์ วรรณยุกต์ถูกต้อง จังหวะหายใจเป็นธรรมชาติ "
+            "ภาพนิ่งมั่นคง ไม่สั่น ไม่ไหว (steady shot, no wobble)"
         )
         # 🔴 owner 2026-09-11 08:0x (Fix C): STRUCTURED BEATS — send the script as a TIMED timeline
         # instead of one blob. Root cause of the CTA tail leak = a TIME-BUDGET problem: Wan must
@@ -2080,29 +2069,23 @@ def generate_video(
                     _lines.append(f"  - [{_lbl} ~{_secs}s]: «{_txt}»")
             _timeline = "\n".join(_lines)
             _stop_rule = (
-                "พูดตาม script นี้เท่านั้น ตามลำดับเวลา (timeline) ด้านล่าง:\n"
+                "พูดตาม Thai script นี้เท่านั้น ตามลำดับเวลา (timeline) ด้านล่าง:\n"
                 f"{_timeline}\n"
-                "(ข้อความใน «» แต่ละบรรทัดคือบทพูดของช่วงนั้น — อ่านเรียงตามลำดับ ไม่ข้าม ไม่สลับ)\n"
-                "อ่านเฉพาะข้อความใน «» เท่านั้น — ห้ามออกเสียงป้ายกำกับ [hook]/[value]/[cta]/[SETTLE] "
-                "และห้ามออกเสียงคำในวงเล็บ [ ] ใด ๆ\n"
-                "เมื่ออ่านบทในช่วง [cta] จบ (เป็นช่วงสุดท้ายที่ให้พูด) ให้ปิดปาก เงียบ สนิททันที "
-                "และคงความเงียบตลอดช่วง [SETTLE] ที่เหลือจนจบคลิป — ห้ามมีเสียง คำ หรือเสียงพึมพำใด ๆ "
-                "หลังคำสุดท้ายของช่วง [cta] เด็ดขาด\n"
-                "พูดภาษาไทยให้ฉะฉาน ชัดถ้อยชัดคำ ออกเสียงทุกพยางค์ครบถ้วน หนักเบาและวรรณยุกต์ถูกต้อง "
-                "เหมือนพิธีกรหรือคนขายของออนไลน์มืออาชีพที่พูดคล่องแคล่ว "
-                "เสียงดังชัดเจนในระดับพูดคุยปกติ กระฉับกระเฉง มีพลัง อ่านทุกคำตามที่เขียน เว้นจังหวะหายใจสั้น ๆ ตามธรรมชาติ"
+                "อ่านเฉพาะข้อความใน «» ตามลำดับ — ห้ามออกเสียงป้ายกำกับ [ ] ใด ๆ\n"
+                "อ่านครบทุกคำจนจบช่วงสุดท้าย แล้วปิดปาก เงียบสนิท\n"
+                "พูดภาษาไทยชัดถ้อยชัดคำ ออกเสียงครบทุกพยางค์ วรรณยุกต์ถูกต้อง จังหวะหายใจเป็นธรรมชาติ"
             )
             logger.info(f"  🎙 Fix C beats: {len(_beats)} beats, spoken~{_spoken_secs}s + settle")
         # 🔴 owner 2026-09-11 00:54: Wan พูดแทรกก่อน CTA และหลัง CTA.
         # owner: "ใส่ไปใน video prompt ว่าให้พูดตาม Script" — Wan อ่าน video_prompt เป็นท่อนสุดท้าย
         # จึงต้องมีคำสั่ง speech-lock ปิดท้าย "หลัง" motion block ด้วย (ท่อนสุดท้ายที่ Wan เห็น)
+        # owner 2026-09-12 11:3x: Pete - "เราบอกแค่พูด Thai script แหล่ะ ... อย่าไปเน้นซ้ำซ้อน
+        # พร่ำเพรื่อ กลายเป็น Wan งง เสียงสั่น + video ละลาย". The speech instruction already lives
+        # in _stop_rule; a second full speech-lock tail = duplicated ordering -> Wan gets confused.
+        # Keep ONE short English closing directive only: keep silence after the script ends.
         _speech_tail = (
-            "\n\n[SPEECH LOCK — ท่อนสุดท้าย]: "
-            "พูดเฉพาะข้อความใน «» ด้านบนนี้เท่านั้น คำต่อคำ ในลำดับเวลา "
-            "จนถึงคำสุดท้ายของช่วง [cta] แล้วหยุดพูดทันที — ห้ามออกเสียงป้าย [ ] และห้ามมีเสียง "
-            "คำ หรือเสียงพึมพำใด ๆ หลังคำสุดท้ายของช่วง [cta] เด็ดขาด (ช่วง [SETTLE] ต้องเงียบสนิท) "
-            "Keep silence after the Thai script. เงียบไว้หลังบทไทยจนจบคลิป "
-            "(still present the product on camera, just stay silent)"
+            "\n\nKeep silence after script end — after the last Thai word, stay completely "
+            "silent for the ending scene (still present the product on camera, no speech)."
         )
         final_prompt = _stop_rule + _speech_tail
         if _motion_on and _motion_txt:
@@ -2116,36 +2099,47 @@ def generate_video(
             _motion_clean = _motion_txt
             try:
                 import re as _re_mv
-                # A sentence is "pure speech" if it mentions speaking/audio/script AND has no real
-                # physical action - only those are dropped (keeps "picks up the pack" style beats).
-                _SPEECH_HINT = _re_mv.compile(
-                    r"\b(speak|speaks|speaking|spoken|says|say|saying|talking|talk|talks|voice|"
-                    r"word for word|given Thai script|provided Thai script|no further sound|no extra speech|"
-                    r"lip[- ]?sync|narration|voice[- ]?over)\b",
-                    _re_mv.IGNORECASE)
-                _ACTION_HINT = _re_mv.compile(
-                    r"\b(reach|pick|lift|hold|set|place|rest|stand|walk|smile|turn|lean|nod|present|"
-                    r"hand|arm|pack|table|bowl|camera|frame|noodle|eyes|gaze|show|product|lens|chest|"
-                    r"side|shoulder|surface|floor|room|kitchen|background|shot|view)s?\b",
+                # owner 2026-09-12 11:3x: Pete saw the movement block STILL carried speech text
+                # ("...nothing before it, nothing between its phrases, and nothing after it." and
+                # "Audio: speak only the provided Thai script... silent, no extra speech, no new
+                # sound."). Those English speech directives duplicate the Thai ordering above and
+                # make Wan "งง" -> shaky voice + melting video. Strip EVERY speech/audio/script
+                # mention from the movement block, unconditionally, so it is 100% action only.
+                _SPEECH_RE = _re_mv.compile(
+                    r"\b(?:speaks?|speaking|spoken|says?|saying|talks?|talking|voice|voice[- ]?over|"
+                    r"audio|word for word|given Thai script|provided Thai script|Thai script|"
+                    r"script|lip[- ]?sync|narration|no further sound|no extra speech|no new sound|"
+                    r"stay silent|silent|after the last word)\b",
                     _re_mv.IGNORECASE)
                 _sents = _re_mv.split(r"(?<=[.!?])\s+", _motion_txt)
                 _kept = []
+                _LEAD = _re_mv.compile(
+                    r"^\s*[,;:]?\s*(?:the person|audio|voice|keep silence|silent|only the|she (?:speaks|says|talks))\b",
+                    _re_mv.IGNORECASE)
                 for _x in _sents:
                     if not _x.strip():
                         continue
-                    if _SPEECH_HINT.search(_x) and not _ACTION_HINT.search(_x):
+                    if _SPEECH_RE.search(_x):
+                        if _LEAD.search(_x):  # pure speech directive -> drop whole sentence
+                            continue
+                        # drop every speech clause inside the sentence, keep the action that remains
+                        _frag = _SPEECH_RE.sub(" ", _x)
+                        _frag = _re_mv.sub(r"\b(?:and|while|as|but|then|still)\b\s*", " ", _frag)
+                        _frag = _re_mv.sub(r"[,;:]", " ", _frag)
+                        _frag = _re_mv.sub(r"\s{2,}", " ", _frag).strip(" .-")
+                        _frag = _re_mv.sub(r"\s+(?:to|at|towards?|into)\s+the\s+(?:lens|camera)\s*$", "", _frag, flags=_re_mv.I)
+                        if _LEAD.search(_frag):  # leftover stub -> drop
+                            continue
+                        if len(_frag.split()) >= 5:
+                            _kept.append(_frag + ".")
                         continue
                     _kept.append(_x)
                 _motion_clean = " ".join(_kept).strip()
-                # neutralise remaining inline speech verbs so Wan never reads them as a speech cue
-                _motion_clean = _re_mv.sub(r"\s*(while|as)\s+talk(?:ing|s)?\b", "", _motion_clean, flags=_re_mv.I)
-                _motion_clean = _re_mv.sub(r"\s*[-–,]?\s*silent,\s*no extra speech\b", "", _motion_clean, flags=_re_mv.I)
-                _motion_clean = _re_mv.sub(r"\bafter the last word\b", "at the end", _motion_clean, flags=_re_mv.I)
                 _motion_clean = _re_mv.sub(r"\s{2,}", " ", _motion_clean).strip()
                 if not _motion_clean:
                     _motion_clean = _motion_txt  # safety: never blank the motion block
                 elif _motion_clean != _motion_txt:
-                    logger.info(f"  🧹 motion block: stripped speech/audio sentences ({len(_motion_txt)}ch -> {len(_motion_clean)}ch) - Thai script is the only speech source")
+                    logger.info(f"  🧹 motion block: removed ALL speech/audio text ({len(_motion_txt)}ch -> {len(_motion_clean)}ch) - action only")
             except Exception as _e_mv:
                 logger.warning(f"  motion speech-strip skipped: {_e_mv}")
             final_prompt = (

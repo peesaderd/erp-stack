@@ -44,13 +44,13 @@ FEMALE_CLOTHING = {
         "prompt": "white formal blouse, tailored fit, professional business attire, modest neckline",
         "default": True,
     },
-    "blue_blouse": {
-        "name": "เสื้อเบลาส์สีฟ้า",
-        "prompt": "light blue formal blouse, tailored fit, professional business attire, modest neckline",
+    "white_lace_blouse": {
+        "name": "เสื้อลูกไม้สีขาวคอสูง",
+        "prompt": "white floral lace blouse, long sleeves, high mock neckline with scalloped lace edge, slim tailored fit, elegant formal attire, modest",
     },
-    "pink_blouse": {
-        "name": "เสื้อเบลาส์สีชมพู",
-        "prompt": "light pink formal blouse, tailored fit, professional business attire, modest neckline",
+    "pink_blazer": {
+        "name": "เบลเซอร์สีชมพู + เสื้อขาว",
+        "prompt": "dusty pink rose tailored blazer jacket with notched lapel, three-quarter sleeves, worn over a plain white top, elegant formal attire, modest",
     },
     "black_blouse": {
         "name": "เสื้อเบลาส์สีดำ",

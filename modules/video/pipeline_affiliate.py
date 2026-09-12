@@ -796,6 +796,13 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "   Instead, end the video_prompt with a plain ACTION beat (no speech words at all), e.g. \"She \n"
             "   keeps presenting: a small confident smile to camera while holding the product steady and \n"
             "   showing the packs.\" The ONE closing silence directive is appended by the system, not you.\n"
+            "7b. HANDS - SIMPLE AND ANATOMICAL (owner 2026-09-12 11:5x): Wan melts/merges hands when the\n"
+            "   video_prompt gives a hand two jobs at once. Keep hand motion SIMPLE: at most ONE hand\n"
+            "   acts at a time; never describe two hands doing different things simultaneously. When a hand\n"
+            "   holds the product, describe a natural relaxed grip (\"her right hand holds the red pack\n"
+            "   lightly, all fingers visible, thumb on the front edge\"). NEVER say the hand grips the\n"
+            "   product AND rests on the bowl/table at the same time. The other hand stays out of frame or\n"
+            "   still at her side. One clear action per beat.\n"
             "[NEGATIVE PROMPT - owner 2026-09-10] The negative_prompt is a list of things the model MUST NOT do.\n"
             "   EVERY item MUST begin with a negative word - \"no ...\" or \"don't ...\". A bare noun\n"
             "   (e.g. \"distorted fingers\") is READ AS AN INSTRUCTION and the model WILL render it. So write\n"
@@ -1377,7 +1384,8 @@ def analyze_product(product_name: str, product_image: str = None, description: s
                     # (b) no count-locking phrases (they contradict the story action -> model
                     #     materialises packs). Only neutral state guards remain.
                     # (c) keep it short so the combined negative stays well under Prodia's 500 cap.
-                    _food_neg = ("no distorted fingers, no extra hands, no third hand, "
+                    _food_neg = ("no distorted fingers, no merged fingers, no melted hand, no extra hands, "
+                                 "no third hand, no hand as a shapeless blob, "
                                  "no warped product, no blurry label, no melted face, "
                                  "no blurry noodles, no smeared mushy food, no fake CGI food, "
                                  "no bowl dominating the frame, no cooked dish as the hero, no multiple bowls, "

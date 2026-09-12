@@ -1390,7 +1390,10 @@ def analyze_product(product_name: str, product_image: str = None, description: s
                                  "no multiple bowls, no self-moving product, no pack floating, "
                                  "no new pack added, no invented colour pack, no green pack, "
                                  "no camera wobble, no frame warp")
-                    _mimo_neg = _normalize_negative_prompt(_mimo_neg + ", " + _food_neg)
+                    # owner 2026-09-12 12:0x: put the food safety guards FIRST so that when the
+                    # 480ch cap trims from the END, it drops Mimo's lower-priority filler items -
+                    # never our hand-anatomy / pack-colour / wobble safeguards.
+                    _mimo_neg = _normalize_negative_prompt(_food_neg + ", " + _mimo_neg)
                     # owner 2026-09-12 ('มีซองสีเขียวหลุดมาด้วย มันมีสีเขียวเหรอ'): Mimo invented a GREEN
                     # pack (real set = red/yellow/blue/orange). Deterministic guard: remove a 'green '
                     # colour attribution from the pack description so the still/wan never render a green pack.

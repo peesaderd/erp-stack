@@ -1357,29 +1357,19 @@ def analyze_product(product_name: str, product_image: str = None, description: s
                     "บะหมี่", "มาม่า", "เครื่องดื่ม", "ขนม", "กาแฟ", "ชา", "นม", "เรือ",
                 ))
                 if _food_sig:
-                    _food_neg = ("no bowl dominating the frame, no giant bowl of cooked noodles, "
-                                 "no cooked dish as the hero, no pack hidden behind a bowl, "
-                                 "no second bowl, no multiple bowls, "
-                                 "no pack floating, no pack sliding on its own, no pack moving by itself, "
-                                 "no self-moving product, no levitating product, "
-                                 "no silent still-mouthed presenter, "
-                                 "no single colour only, no blurry pack label, "
-                                 # owner 2026-09-12: NEVER constrain the pack COUNT. 'no missing pack'
-                                 # / 'no three packs only' / 'no pack out of frame' fight the story action
-                                 # (she LIFTS one pack -> the table legitimately has 3 while 1 is held).
-                                 # Wan resolves the contradiction by MATERIALISING an extra pack ("เสกมา").
-                                 # Use NEUTRAL phrasing instead: no pack appears from nowhere, no NEW pack
-                                 # is added mid-clip, the count that exists at the start is preserved.
-                                 "no pack appearing from nowhere, no new pack added, no pack count changing, "
-                                 "no pack materialising mid-clip, no duplicated pack, "
-                                 "no packs merged together, "
-                                 "no invented colour pack, no pack colour that is not in the photo, "
-                                 "no green pack, no extra colour pack, "
-                                 "no camera wobble, no camera shake, no frame warp, no rippling distortion, "
-                                 "no liquid waving frame, no bending edges, no warped walls, no melting lines, "
-                                 "no wobbling face, no distorted speech, no warbling voice, "
-                                 "no mumbled speech, no slurred words, no garbled pronunciation, "
-                                 "no tongue-tied fast reading, no rushed speech")
+                    # owner 2026-09-12 (neg<=500): lean, VOICE-FREE negative list.
+                    # (a) ALL speech/voice items REMOVED - we never instruct voice, so there is
+                    #     nothing to counter-instruct (owner: "ถ้าเราไม่สั่ง voice ก็ไม่เสี่ยง").
+                    # (b) no count-locking phrases (they contradict the story action -> model
+                    #     materialises packs). Only neutral state guards remain.
+                    # (c) keep it short so the combined negative stays well under Prodia's 500 cap.
+                    _food_neg = ("no distorted fingers, no extra hands, no third hand, "
+                                 "no warped product, no blurry label, no melted face, "
+                                 "no blurry noodles, no smeared mushy food, no fake CGI food, "
+                                 "no bowl dominating the frame, no cooked dish as the hero, no multiple bowls, "
+                                 "no self-moving product, no pack floating, no new pack added, "
+                                 "no invented colour pack, no green pack, "
+                                 "no camera wobble, no frame warp")
                     _mimo_neg = _normalize_negative_prompt(_mimo_neg + ", " + _food_neg)
                     # owner 2026-09-12 ('มีซองสีเขียวหลุดมาด้วย มันมีสีเขียวเหรอ'): Mimo invented a GREEN
                     # pack (real set = red/yellow/blue/orange). Deterministic guard: remove a 'green '
@@ -1438,6 +1428,21 @@ def analyze_product(product_name: str, product_image: str = None, description: s
                             logger.info("  🍜 video_prompt bowl injected (food prop mandatory - Mimo omitted it)")
                     except Exception as _e_bowl:
                         logger.warning(f"  bowl injection skipped: {_e_bowl}")
+                # owner 2026-09-12 (HARD 500 CAP): Prodia wan2-7.img2vid.v1 accepts a negative
+                # of at most 500 chars; anything longer is silently TRUNCATED (which dropped all
+                # the tail safeguards). Enforce a 480-char ceiling here so the system never breaks.
+                _HARD_NEG_CAP = 480
+                if len(_mimo_neg) > _HARD_NEG_CAP:
+                    # keep whole comma items only, drop from the END until it fits
+                    _items = [t.strip() for t in _mimo_neg.split(",") if t.strip()]
+                    _kept = []
+                    for _it in _items:
+                        if len(", ".join(_kept + [_it])) > _HARD_NEG_CAP:
+                            break
+                        _kept.append(_it)
+                    _trimmed = ", ".join(_kept)
+                    logger.warning(f"  ⚠️ negative_prompt {len(_mimo_neg)}ch > {_HARD_NEG_CAP} → trimmed to {len(_trimmed)}ch (dropped {len(_items)-len(_kept)} items)")
+                    _mimo_neg = _trimmed
                 profile["_negative_prompt"] = _mimo_neg
                 logger.info(f"  ✅ Mimo negative_prompt ({len(_mimo_neg)}ch) แทน pb negative")
             logger.info(f"  ✅ Mimo authored image/video/script prompts for {product_name!r} (script {len(profile['_mimo_thai_script'])}ch)")

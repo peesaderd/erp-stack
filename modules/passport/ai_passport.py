@@ -41,24 +41,37 @@ PRODIA_API_URL = "https://inference.prodia.com/v2/job"
 
 # ── FLUX i2i Prompt Template ──────────────────────────
 
-def build_prompt(clothing_prompt: str, bg_prompt: str) -> str:
-    """Build FLUX i2i prompt — natural, identity-preserving, face kept as-is.
+def build_prompt(clothing_prompt: str, bg_prompt: str, key: str = None) -> str:
+    """Build FLUX i2i prompt — natural, fashion-forward, face preserved.
 
-    OWNER LESSON (2026-09-09 / 2026-09-11 "รูปดูดีเกินไป"): words like
-    "passport photo", "studio lighting", "professional portrait", "beauty",
-    "flawless", "smooth skin" make FLUX REPAINT the whole face -> over-beautified,
-    plastic skin, identity drift (slimmer jaw, brighter eyes, lost pores).
-    So we only state what we want CHANGED (clothing/lighting/bg) and explicitly
-    ask to keep the same face / natural skin texture.
+    OWNER LESSON (2026-09-11 late): v3 output was ACCEPTABLE as an ID photo
+    (Mimo rated 9/10 — symmetric, eyes level, straight mouth). v4 additionally
+    forced 'unchanged face / visible pores / no retouching' which made FLUX copy
+    the source's ASYMMETRY (droopy eye, crooked mouth) -> it stopped looking like
+    an ID photo. So we DO want the model to tidy/formalise the face, just not to
+    overly beautify it.
+
+    OWNER LESSON (2026-09-12): the SAME face-tidying must happen for EVERY key
+    (low/normal/high) — bright photos should be handled gently on LIGHTING, not
+    by skipping the face regularisation. So the ID-format clause below is always
+    present; only the strength/direction of the lighting varies by key.
     """
-    return (
-        f"photo of the same person with an unchanged face, "
-        f"keep the exact same facial identity, same face shape, same skin texture "
-        f"with visible pores and natural skin detail, no retouching, "
+    base = (
+        f"professional portrait photo, "
         f"{clothing_prompt}, "
         f"{bg_prompt}, "
-        f"even natural lighting, true-to-life natural skin tones"
+        f"soft even studio lighting, natural warm skin tones, realistic, high quality"
     )
+    # ID-format regulariser: tidy the face to a neutral, frontal, symmetric
+    # passport look (keeps identity, removes casual/uneven expression), WITHOUT
+    # over-beautifying (no plastic skin / no changing who the person is).
+    id_format = (
+        "passport-style ID photo, face straight and frontal, "
+        "neutral relaxed expression, eyes level and open, mouth closed and straight, "
+        "even symmetric facial features, natural realistic skin texture, "
+        "no beauty retouching, no plastic skin"
+    )
+    return f"{base}, {id_format}"
 
 
 # ── FLUX i2i Core ─────────────────────────────────────
@@ -564,10 +577,20 @@ def generate_passport(
         logger.info(f"Extra prompt appended: {extra_prompt.strip()[:80]}")
     # Key-adaptive Step 2 strength: already-bright photos wash out fast, so scale
     # the clothing i2i down for high-key (owner 2026-09-11: "มันสว่างเกินไป").
+    #
+    # OWNER LESSON (2026-09-12): Step 2 does TWO jobs at once — it changes the
+    # clothing AND it tidies the face into a symmetric ID-portrait format. If we
+    # scale Step 2 down too far (old high-key floor 0.30) the face keeps the
+    # source's asymmetry (droopy eye, crooked mouth) -> stops looking like an ID
+    # photo. So we keep a FORMAT FLOOR: never go below 0.40 for the clothing/face
+    # pass, regardless of key. Bright photos just get a lighter touch above it.
     step2_strength = strength
+    FORMAT_FLOOR = 0.40
     if key_info and key_info.get("step2_scale"):
-        step2_strength = round(max(0.30, min(strength, strength * key_info["step2_scale"])), 3)
-        logger.info(f"Step 2 strength scaled {strength}->{step2_strength} (key={key_info['key']})")
+        scaled = strength * key_info["step2_scale"]
+        step2_strength = round(max(FORMAT_FLOOR, min(strength, scaled)), 3)
+        logger.info(f"Step 2 strength scaled {strength}->{step2_strength} "
+                    f"(key={key_info['key']}, floor={FORMAT_FLOOR})")
     # Highlight-guard negative for already-bright photos so Step 2 doesn't wash midtones.
     # Mimo's context-aware negative (D) takes precedence when available.
     negative = None

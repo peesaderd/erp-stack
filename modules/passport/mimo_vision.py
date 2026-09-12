@@ -132,22 +132,26 @@ def _extract_json(text: str) -> dict:
         return {}
 
 
-# Words that make FLUX REPAINT the whole face -> over-beautify / identity drift.
-# Owner lesson (2026-09-09 / 2026-09-11 "รูปดูดีเกินไป"). Never allow these in a
-# lighting prompt (they belong on the IMAGE side, not the identity side).
+# Words that OVER-BEAUTIFY the face (plastic skin / identity drift). We still want
+# the model to produce a tidy, symmetric ID portrait, so we only strip the worst
+# beauty/retouch triggers from a model-authored lighting prompt — NOT generic
+# words like 'studio' or 'high quality' (v3 used those and the result was fine).
 _FORBIDDEN_PROMPT_WORDS = (
-    "passport", "id photo", "studio", "professional portrait", "portrait photo",
-    "beauty", "beautiful", "flawless", "smooth skin", "airbrush", "airbrushed",
-    "skin smoothing", "retouch", "retouched", "glamour", "perfect skin",
-    "model", "high quality", "8k", "ultra detailed",
+    "beauty filter", "beautify", "flawless", "perfect skin", "poreless",
+    "smooth skin", "skin smoothing", "airbrush", "airbrushed", "retouch",
+    "retouched", "glamour", "plastic", "wax", "porcelain", "doll",
+    "slim the face", "slim face", "reshape the face", "reshape face",
+    "brighten the eyes", "whiten the eyes", "v-shaped face",
 )
 
 
 def _sanitize_lighting_prompt(prompt: str) -> str:
-    """Strip face-repaint trigger words from a model-authored lighting prompt.
+    """Strip OVER-BEAUTIFY trigger words from a model-authored lighting prompt.
 
-    Keeps only what we WANT (lighting/contrast/tone) and removes beautification
-    triggers that cause identity drift. Returns '' if nothing usable remains.
+    Keeps lighting/contrast/tone instructions; removes only beautification words
+    that cause plastic skin / identity drift. Does NOT force 'same face' (v4 did
+    that and it made FLUX copy the source's asymmetry -> lost the ID format).
+    Returns '' if nothing usable remains.
     """
     if not prompt:
         return ""
@@ -158,15 +162,10 @@ def _sanitize_lighting_prompt(prompt: str) -> str:
         if _re.search(_re.escape(w), out, flags=_re.IGNORECASE):
             removed.append(w)
             out = _re.sub(_re.escape(w), "", out, flags=_re.IGNORECASE)
-    # tidy leftover punctuation/commas
     out = _re.sub(r"\s*,\s*,\s*", ", ", out)
     out = _re.sub(r"^[\s,]+|[\s,]+$", "", out).strip(" ,")
     if removed:
-        logger.warning(f"mimo_vision: stripped face-repaint words from prompt: {removed}")
-    # Guard: always append identity-preservation so FLUX keeps the same face.
-    keep = "keep the same face and natural skin texture"
-    if "same face" not in out.lower():
-        out = (out + ", " + keep).strip(", ") if out else keep
+        logger.warning(f"mimo_vision: stripped over-beautify words from prompt: {removed}")
     return out
 
 
@@ -211,13 +210,11 @@ def analyze_lighting(image_bytes: bytes, stat_hint: dict = None) -> dict:
         "lighting for THIS photo specifically. Must keep the same person, same clothes, "
         "same background. If already bright, ask to tame highlights / not wash out. If "
         "backlit, ask for soft frontal fill on the face. If hard side light, ask to "
-        "soften and even out. CRITICAL: NEVER use the words 'passport', 'id photo', "
-        "'studio', 'professional portrait', 'portrait photo', 'beauty', 'flawless', "
-        "'smooth skin', 'airbrush', 'retouch', 'glamour', 'model', 'high quality', "
-        "'8k' or 'ultra detailed' — those make FLUX REPAINT and BEAUTIFY the whole "
-        "face (identity drift, plastic skin). Also do NOT ask to slim/reshape the "
-        "face, brighten the eyes, or remove pores. Only talk about LIGHT, contrast "
-        "and colour balance.\n"
+        "soften and even out. Do NOT ask for beauty retouching (no 'flawless', "
+        "'smooth skin', 'airbrush', 'beauty filter', 'slim the face', 'brighten the "
+        "eyes', 'v-shaped face') — we want a tidy, natural, symmetric ID portrait, "
+        "not a plastic beautified one. Only talk about LIGHT, contrast and colour "
+        "balance.\n"
         "- negative_prompt: optional short English negatives (e.g. overexposed, blown "
         "highlights, washed out) or empty string.\n"
         "- reason: one short sentence.\n\n"

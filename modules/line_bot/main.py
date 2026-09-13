@@ -117,7 +117,9 @@ def _verify_signature(body: bytes, signature: str) -> bool:
             hmac.new(secret.encode("utf-8"), body, hashlib.sha256).digest()
         ).decode()
         if hmac.compare_digest(expected, signature):
+            logger.info(f"Signature verified with secret: {secret[:8]}...")
             return True
+    logger.warning(f"Signature mismatch! sig={signature[:30]}...")
     return False
 
 

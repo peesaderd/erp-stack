@@ -961,6 +961,26 @@ async def pipeline_ingest_apify(data: dict):
     return result.to_dict()
 
 
+class ApifyScrapeRequest(BaseModel):
+    link: str = ""
+    keyword: str = ""
+    region: str = ""
+    limit: int = 5
+
+
+@app.post("/api/v1/apify/scrape")
+async def apify_scrape(req: ApifyScrapeRequest):
+    """TUS entry: link/keyword -> Apify actor -> ingest_from_apify -> TUS Product."""
+    from product.apify_trigger import scrape_and_ingest
+    result = await scrape_and_ingest(
+        link=req.link,
+        keyword=req.keyword,
+        region=req.region,
+        limit=req.limit,
+    )
+    return result
+
+
 @app.post("/api/v1/pipeline/sync")
 async def pipeline_sync(req: PipelineSyncRequest = None):
     """Sync PostgreSQL → tus_products.db. ONLY way to update TUS products."""

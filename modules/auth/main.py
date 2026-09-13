@@ -128,6 +128,24 @@ def _user_to_dict(user: User) -> dict:
     }
 
 
+def _safe_redirect(raw: Optional[str], default: str = "/") -> str:
+    """Return a safe redirect URL from a client-supplied return path.
+    Only same-origin (m2igen) relative paths are allowed to avoid open-redirect.
+    """
+    if not raw:
+        return default
+    raw = str(raw).strip()
+    # Allow relative paths only (start with / and not // which can be protocol-relative).
+    if raw.startswith("/") and not raw.startswith("//"):
+        return raw
+    # Allow explicit passport.m2igen.com / m2igen.com origins.
+    if raw.startswith("https://passport.m2igen.com/"):
+        return raw
+    if raw.startswith("https://m2igen.com/"):
+        return raw
+    return default
+
+
 # ──────────────────────────────────────────────
 # Startup
 # ──────────────────────────────────────────────
@@ -282,9 +300,24 @@ async def oauth_login(req: OAuthRequest, db: AsyncSession = Depends(get_db)):
 
 
 @app.get("/api/v1/auth/me", response_model=AuthResponse)
-async def get_profile(user: User = Depends(get_current_user)):
-    """Get current user profile."""
-    return AuthResponse(ok=True, user=_user_to_dict(user))
+async def get_profile(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Get current user profile (includes line_user_id / google_user_id when linked)."""
+    data = _user_to_dict(user)
+    # Attach linked OAuth identities (e.g. LINE userId) so callers can push to LINE.
+    data["providers"] = []
+    try:
+        res = await db.execute(select(AuthProvider).where(AuthProvider.user_id == user.id))
+        for p in res.scalars():
+            ident = {"provider": p.provider, "email": p.provider_email,
+                     "provider_user_id": p.provider_user_id}
+            data["providers"].append(ident)
+            if p.provider == "line":
+                data["line_user_id"] = p.provider_user_id
+            if p.provider == "google":
+                data["google_user_id"] = p.provider_user_id
+    except Exception:
+        pass
+    return AuthResponse(ok=True, user=data)
 
 
 @app.put("/api/v1/auth/profile")
@@ -753,20 +786,31 @@ async def biometric_delete_credential(
 # ──────────────────────────────────────────────
 
 @app.get("/api/v1/auth/google/login")
-async def google_login():
+async def google_login(return_to: Optional[str] = None, state: Optional[str] = None):
     client_id = os.environ.get("GOOGLE_OAUTH_CLIENT_ID") or os.environ.get("GOOGLE_CLIENT_ID")
     redirect_uri = os.environ.get("GOOGLE_OAUTH_REDIRECT_URI") or os.environ.get("GOOGLE_REDIRECT_URI")
     if not client_id or not redirect_uri:
         raise HTTPException(status_code=400, detail="Google OAuth not configured on server")
     
     from urllib.parse import urlencode
-    import secrets
+    import secrets, json
+    if not state:
+        state = secrets.token_urlsafe(16)
+    if return_to:
+        try:
+            state_payload = json.loads(state)
+        except Exception:
+            state_payload = {}
+        if not isinstance(state_payload, dict):
+            state_payload = {}
+        state_payload["return_to"] = return_to
+        state = json.dumps(state_payload)
     params = {
         "client_id": client_id,
         "redirect_uri": redirect_uri,
         "response_type": "code",
         "scope": "openid email profile",
-        "state": secrets.token_urlsafe(16),
+        "state": state,
     }
     url = f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(params)}"
     return RedirectResponse(url)
@@ -870,7 +914,18 @@ async def google_callback(code: str, state: Optional[str] = None, db: AsyncSessi
             raise HTTPException(status_code=403, detail="Account is disabled")
         
         jwt_token = _create_token(user.id)
-        return RedirectResponse(f"https://m2igen.com/?token={jwt_token}")
+        # Google callback — redirect back to originating page with token.
+        return_to = None
+        if state:
+            try:
+                _st = json.loads(state)
+                if isinstance(_st, dict):
+                    return_to = _st.get("return_to")
+            except Exception:
+                return_to = None
+        ret = _safe_redirect(return_to, default="https://m2igen.com/")
+        sep = "&" if "?" in ret else "?"
+        return RedirectResponse(f"{ret}{sep}token={jwt_token}")
 
 
 @app.get("/api/v1/auth/facebook/login")
@@ -991,19 +1046,32 @@ async def facebook_callback(code: str, state: Optional[str] = None, db: AsyncSes
 
 
 @app.get("/api/v1/auth/line/login")
-async def line_login():
+async def line_login(return_to: Optional[str] = None, state: Optional[str] = None):
     channel_id = os.environ.get("LINE_CHANNEL_ID")
     redirect_uri = os.environ.get("LINE_REDIRECT_URI") or "https://m2igen.com/api/auth/line/callback"
     if not channel_id:
         raise HTTPException(status_code=400, detail="LINE login not configured on server")
     
     from urllib.parse import urlencode
-    import secrets
+    import secrets, json
+    # Carry the caller's return_to inside the OAuth state token so the callback
+    # can redirect back to the originating page after login.
+    if not state:
+        state = secrets.token_urlsafe(16)
+    if return_to:
+        try:
+            state_payload = json.loads(state)
+        except Exception:
+            state_payload = {}
+        if not isinstance(state_payload, dict):
+            state_payload = {}
+        state_payload["return_to"] = return_to
+        state = json.dumps(state_payload)
     params = {
         "response_type": "code",
         "client_id": channel_id,
         "redirect_uri": redirect_uri,
-        "state": secrets.token_urlsafe(16),
+        "state": state,
         "scope": "profile openid email",
     }
     url = f"https://access.line.me/oauth2/v2.1/authorize?{urlencode(params)}"
@@ -1103,8 +1171,20 @@ async def line_callback(code: str, state: Optional[str] = None, db: AsyncSession
         if not user or not user.is_active:
             raise HTTPException(status_code=403, detail="Account is disabled")
         
+        # LINE callback — redirect back to originating page with token.
         jwt_token = _create_token(user.id)
-        return RedirectResponse(f"https://m2igen.com/?token={jwt_token}")
+        # state may carry {return_to: ...} when login was initiated with return_to.
+        return_to = None
+        if state:
+            try:
+                _st = json.loads(state)
+                if isinstance(_st, dict):
+                    return_to = _st.get("return_to")
+            except Exception:
+                return_to = None
+        ret = _safe_redirect(return_to, default="https://m2igen.com/")
+        sep = "&" if "?" in ret else "?"
+        return RedirectResponse(f"{ret}{sep}token={jwt_token}")
 
 
 

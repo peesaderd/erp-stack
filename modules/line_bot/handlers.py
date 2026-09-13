@@ -336,6 +336,7 @@ async def _handle_message(event: dict, reply_token: str, user_id: str):
 async def _handle_text(text: str, session: dict, reply_token: str, user_id: str):
     """Handle text message — commands and natural language."""
     text_lower = text.lower().strip()
+    logger.info(f"Processing text: '{text}' from user {user_id[:8]}...")
 
     
     # ── TUS UGC Studio Commands ────────────────────────────────────────

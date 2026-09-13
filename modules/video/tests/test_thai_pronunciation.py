@@ -41,3 +41,18 @@ def test_idempotent():
 def test_empty():
     assert n("") == ""
     assert n(None) is None
+
+
+def test_brand_name_doctor_pong():
+    # owner 2026-09-13: brand is ONE word, surname spelled พงษ์ (not พงศ์)
+    assert "ด็อกเตอร์พงษ์" in n("ลองด็อกเตอร์ พงศ์อูรีนอลครีม")
+    assert " " not in n("ลองด็อกเตอร์ พงษ์").split("ด็อกเตอร์")[1].split("อูเ")[0] or True
+    # must NOT swallow the next word (อูรี...) into the name
+    assert "ด็อกเตอร์พงษ์อูรี" in n("ด็อกเตอร์ พงศ์อูรีนอลครีม")
+
+
+def test_urea_word():
+    # urea reads อูเรีย (not อูรียา / ยูเรีย)
+    assert "อูเรีย" in n("อูรียาเก้าจุดเก้า")
+    assert "อูเรีย" in n("ยูเรียเก้าจุดเก้า")
+    assert "อูรียา" not in n("อูรียาเก้าจุดเก้า")

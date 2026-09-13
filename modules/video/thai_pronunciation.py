@@ -67,6 +67,21 @@ THAI_CLUSTER_FIX = [
 # (after the phonetic rewrite above, these are the "กวย*" forms).
 THAI_HARD_OPENER = ("ก๋วย", "กวยเตี๋ยว", "ก๋วยเตี๋ยว", "ก๋วยจั๊บ")
 
+# 5. Whole-word / brand corrections (owner 2026-09-13). These are NOT plain
+#    pronunciations - Mimo writes the brand lexeme wrong or glues a word to its
+#    neighbour, which then reads back garbled:
+#      * "ด็อกเตอร์ พงศ์..." -> "ด็อกเตอร์พงษ์..."  (brand name is ONE word, and
+#        the surname is "พงษ์" not "พงศ์"). The lookahead is BOUNDED to the next
+#        3 Thai letters so we never swallow a following word (e.g. "พงศ์อูรี..."
+#        must keep "อูรี" intact).
+#      * "อูรี..."/"ยูเรีย" -> "อูเรีย"  (urea = อูเรีย, not อูรียา).
+#    Order: run AFTER the abbreviation pass (which already split ดร -> "ด็อกเตอร์ ").
+THAI_WORD_FIX = [
+    (r"ด็อกเตอร์\s*พงศ์(?=[\u0E00-\u0E7F]{0,3})", "ด็อกเตอร์พงษ์"),
+    (r"อูรียา", "อูเรีย"),
+    (r"ยูเรีย", "อูเรีย"),
+]
+
 # Clusters used by the opening-guard re-open logic.
 _OPENING_CLUSTERS = ("กวยเตี๋ยว", "กวยจับ", "ก๋วยเตี๋ยว", "ก๋วยจั๊บ")
 
@@ -94,6 +109,12 @@ def _apply_latin(text: str) -> str:
 
 def _apply_cluster_fix(text: str) -> str:
     for pat, rep in THAI_CLUSTER_FIX:
+        text = re.sub(pat, rep, text)
+    return text
+
+
+def _apply_word_fix(text: str) -> str:
+    for pat, rep in THAI_WORD_FIX:
         text = re.sub(pat, rep, text)
     return text
 
@@ -145,6 +166,7 @@ def normalize_thai_spoken_script(text: str) -> str:
     out = _apply_abbr(out)              # ดร. -> ด็อกเตอร์, ชม. -> ชั่วโมง, ...
     out = _apply_symbols(out)           # % -> เปอร์เซ็นต์
     out = _apply_latin(out)             # spf -> เอสพีเอฟ, ...
+    out = _apply_word_fix(out)          # ด็อกเตอร์พงศ์ -> ด็อกเตอร์พงษ์, อูรียา -> อูเรีย
     out = _separate_glued_script(out)   # keep Latin/digit from fusing to Thai
     out = _tidy_spaces(out)
     out = _guard_hard_opening(out)

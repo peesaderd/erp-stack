@@ -452,7 +452,7 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             # owner 2026-09-12: 15s clips still left a ~2s silent tail because 135-185ch ≈ 11-13.5s.
             # Raise the floor so the spoken line truly fills 15s (12-14 chars/sec), but keep a HARD
             # CEILING so Mimo doesn't overshoot into a rushed read (291ch was too long).
-            _char_min, _char_max = 175, 200
+            _char_min, _char_max = 195, 215
         sysprompt = (
             "You are a top-tier Thai UGC creator making premium, beautiful, and hyper-authentic video concepts "
             "for TikTok Shop, Reels, and Shorts. Your goal is to make the audience feel: I have this problem -> "
@@ -552,16 +552,20 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "fabric move naturally.\n"
             "- APPLIED (skincare/cosmetics): show a natural, correct application gesture on the right area, or hold "
             "the product cleanly at chest level facing the lens.\n"
-            "- THE ENDING BEAT: the final 2-3 seconds must settle calmly with the product clearly presented "
-            "AND the demonstrator still fully visible in frame - the product may be HELD UP to camera OR RESTING "
+            "- THE ENDING BEAT: the final 2-3 seconds must stay BRIGHT and FULLY LIT with the product clearly "
+            "presented AND the demonstrator still fully visible in frame - LIGHTING AND EXPOSURE STAY "
+            "CONSTANT to the very last frame (owner 2026-09-13: never fade to black / never darken / never "
+            "dim the image as the clip ends). The product may be HELD UP to camera OR RESTING "
             "on the surface (either is correct; do not force a grip) "
             "- never end on an empty product-only shot, never drop the person from frame, and never end "
             "on a bare face/bust close-up.\n"
             "- ENDING CAMERA - PULL OUT TO THE FULL PACKSHOT (owner 2026-09-12 v2 - fixes 'ending zoomed IN on "
             "just the held bag'): for a MULTI-ITEM / multi-variant product the last beat MUST be a slow "
             "PULL-BACK / ZOOM-OUT that REVEALS the WHOLE set - ALL packs together side by side - as the final "
-            "packshot. NEVER zoom IN on the single item being held at the end. The final frame shows the "
-            "complete product line, labels readable, person still in frame beside it.\n"
+            "packshot. NEVER zoom IN on the single item being held at the end. The pull-back is a CAMERA "
+            "MOVE ONLY - the image stays fully lit and identical in exposure; it does NOT fade, dim or go "
+            "black at any point. The final frame shows the complete product line, labels readable, person "
+            "still in frame beside it, at full brightness.\n"
             "- Camera: vertical 9:16 smartphone, STEADY and stable (tripod-like) with at most ONE slow smooth "
             "move (a slow pull-back), crisp focus on the product "
             "while the person stays in frame with it. NEVER handheld wobble, shake, ripple or warp - the frame "
@@ -702,12 +706,20 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "   sequence of steps (do not show open->pour->stir->lift). One action, described in full physical detail, \n"
             "   every beat grounded. End on a calm, settled beat. (Exception: the 2b container open/use/close loop is \n"
             "   part of the one action - keep it, it is required.)\n"
-            "3b. NEVER SET DOWN + RE-GRAB (hard rule - owner 2026-09-12, fixes 'the pack moves by itself'): once the \n"
-            "   presenter picks the product up, that hand STAYS in contact with it all the way to the final settle. It \n"
-            "   is FORBIDDEN to write 'she sets it down', 'she releases it', 'she lets go', 'she puts it back', or \n"
-            "   'she picks it up again'. If you want a two-product beat, KEEP THE FIRST PACK IN HER HAND and have her \n"
-            "   bring the second pack up with her OTHER hand - never release and re-grab. A released pack animates and \n"
-            "   drifts on its own (the exact bug being fixed).\n"
+            "3b. SET-DOWN IS ALLOWED EXACTLY ONCE (owner 2026-09-13 - fixes 'holding too strong, never puts it \n"
+            "   down, hand melts'): the presenter MAY set the product down on the clean surface ONE time as a real \n"
+            "   physical beat, and MAY pick ONE pack back up to present. So these TWO beats ARE allowed: \n"
+            "   'she sets the product down on the table and releases it' and 'she picks the product back up and \n"
+            "   holds it to camera'. What is FORBIDDEN is the set-down + RE-GRAB LOOP: never set down and re-grab \n"
+            "   the SAME pack more than once, never release-and-grab-repeatedly. A pack that is released and grabbed \n"
+            "   over and over animates and drifts on its own (the bug being fixed). One clean set-down and at most one \n"
+            "   re-lift is fine - after that the hand STAYS in contact with the product to the final settle.\n"
+            "3b-ii. WEARABLE PRODUCTS (owner 2026-09-13 - fixes 'model wears the jeans and still holds them'): if \n"
+            "   the product is WORN/APPLIED (jeans, shirt, dress, jacket, shoes, accessory, jewellery), the model \n"
+            "   MUST NOT keep holding it after putting it on. Show the model WEARING the product and let BOTH hands \n"
+            "   hang naturally at her sides (or rest on her hip) - NEVER hold the worn garment in her hand. It is \n"
+            "   FORBIDDEN to write that she is wearing the garment AND holding the same garment at the same time. A \n"
+            "   worn item that is also held in the hand makes the garment vanish/distort on any movement.\n"
             "3c. THAI SCRIPT ONLY - NO LATIN LETTERS, NO CJK, NO FOREIGN SCRIPT (hard rule): the thai_script \n"
             "   must contain ONLY Thai characters (U+0E00-U+0E7F) and spaces/commas. NO English words, NO Latin \n"
             "   letters, and NO CHINESE/JAPANESE/KOREAN characters (no 安心, no 认证, no 漢字 - these have leaked \n"
@@ -877,7 +889,15 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
                 "Preserve this release-then-re-lift beat. The hand must look relaxed and real, never frozen "
                 "gripping the product for all 15 seconds. The product stays clearly visible and centred in every "
                 "beat whether held or resting. Do NOT describe the product as held by BOTH hands at chest level "
-                "for the entire clip.\n"
+                "for the entire clip. After the ONE re-lift, the hand KEEPS contact with the product to the end "
+                "- do not set it down and re-grab a second time (that loop makes the pack drift on its own).\n"
+                "*** WEARABLE PRODUCT (owner 2026-09-13 - fixes 'model wears the jeans and still holds them', "
+                "*** garment vanishes on movement) ***: if the product is WORN/APPLIED (jeans, trousers, shirt, "
+                "dress, jacket, shoes, accessory, jewellery), the model puts it ON and then her BOTH hands hang "
+                "naturally at her sides (or one hand rests on her hip) - she MUST NOT hold the worn garment in "
+                "her hand. It is FORBIDDEN to write that she is wearing the garment AND holding the same garment "
+                "at the same time; a worn item that is also held makes the garment vanish/distort on movement. "
+                "Present a wearable by wearing it and moving naturally, not by carrying it.\n"
                 "*** IMAGE / FIRST FRAME (owner 2026-09-12 - fixes 'the still frame shows her gripping it'): The "
                 "image_prompt must describe a STILL frame in which the product is RESTING ON A CLEAN SURFACE "
                 "(table/vanity/counter), sitting upright with the label facing the lens, and NO hand is holding it "
@@ -1093,10 +1113,16 @@ def _synthesize_script_beats(script: str, duration: int) -> list:
     else:
         _hook, _value, _cta = _text, "", ""
     _beats = []
+    # owner 2026-09-12: allocate beat SECONDS by CHARACTER COUNT, not word count.
+    # Thai has few spaces, so a word-count split gave value/cta more seconds than the
+    # text needs -> Wan had to STRETCH the words to fill the beat -> "เสียงยืด/เพี้ยน".
+    # Anchor on the real Thai read rate (12-14 chars/sec) and only use the beat text
+    # length as the relative weight inside the spoken window.
+    _total_chars = max(1, len(_hook) + len(_value) + len(_cta))
     for _lbl, _txt in (("hook", _hook), ("value", _value), ("cta", _cta)):
         if not _txt:
             continue
-        _secs = max(1, round(_spoken_total * len(_txt) / max(1, len(_hook) + len(_value) + len(_cta))))
+        _secs = max(1, round(_spoken_total * len(_txt) / _total_chars))
         _beats.append({"label": _lbl, "seconds": _secs, "text": _txt})
     if _beats:
         _beats.append({"label": "settle", "seconds": max(1, _dur - sum(b["seconds"] for b in _beats)), "text": ""})
@@ -1134,53 +1160,40 @@ def _normalize_negative_prompt(neg: str) -> str:
 
 
 def _sanitize_video_prompt(vp: str) -> str:
-    """Owner 2026-09-12: strip the set-down / release / re-grab chain that makes the product
-    animate by itself in Wan. Rewrites those clauses into a 'keeps holding it' beat.
+    """Owner 2026-09-13: set-down is now ALLOWED (rule 3b was relaxed) - we keep the legitimate
+    ONE clean set-down + ONE re-lift beat. Only the *repeated* set-down/re-grab LOOP is stripped
+    (that is what makes the pack animate by itself in Wan).
 
-    The LLM sysprompt forbids this (rule 3b) but Mimo drifts back to the pattern, so we also
-    hard-clean the string here as belt-and-suspenders.
+    Previously (2026-09-12) this stripped ALL set-down beats, which made Mimo/Wan keep a
+    death-grip on the product for the whole clip -> hand melts / fingers distort.
     """
     if not vp:
         return vp
     import re as _re
     out = vp
-    # Owner 2026-09-12 (v2 tail fix): "ตอนท้ายเพี้ยน" came from a PARTIAL strip - we removed the
-    # set-down sentence but LEFT the orphaned "Then she picks the pack back up ..." sentence right
-    # after it, so Wan saw a re-grab with no set-down and improvised a physical break/garble at the
-    # tail. Strip the WHOLE handoff chain in one pass (set-down/release/place-down + the orphaned
-    # re-grab that follows) while KEEPING the legitimate first pick-up that comes before the set-down.
+    # ── owner 2026-09-13: KEEP the first legitimate set-down + re-lift ──────────────
+    # Rule 3b is now relaxed (one clean set-down + one re-lift IS allowed). We must NOT
+    # delete that beat any more - deleting it made Mimo/Wan hold the product in a dead
+    # grip for the whole clip (hand melts, fingers distort, worn-garment vanishes).
+    # We ONLY strip the *repeated* set-down -> re-grab LOOP (2nd+ handoff), which is what
+    # makes an unheld pack animate/drift on its own.
     cleaned = out
-    # Strategy: find the FIRST set-down/release/put-back in the text. Everything from that point up to
-    # the end of the FOLLOWING re-grab clause is the forbidden handoff chain - remove it in one shot,
-    # but KEEP the legitimate first pick-up/hold that comes BEFORE the set-down.
-    _chain = _re.compile(
-        r"(?<=[.]\s)"  # start right after a sentence end (so we don't clip mid-sentence)
-        r"[^.]*?\b(sets? (?:the |it |the product |the pack )?(?:product|pack|item|it)?\s*(?:back )?down|"
-        r"set (?:it|the product|the pack) down|releases? (?:it|the product|the pack)|lets go of (?:it|the product|the pack)|"
-        r"puts? (?:it|the product|the pack) back|places? (?:it|the product|the pack) (?:back )?on|"
-        r"picks? (?:the product|the pack|it) (?:back )?up again)[^.]*\."
-        r"(?:\s*(?:Then|After(?:wards| that| a brief pause)?|Next|Finally|Later|Subsequently|Again)?\s*,?\s*"
-        r"(?:she|he|they|the (?:presenter|woman|man|model|person))?\s*"
-        r"(?:picks?|picks? up|lifts?|lifts? up|grabs?|takes?)\s*"
-        r"(?:the (?:same |red |blue |yellow |green |brown )?(?:product|pack|item)|it)?\s*"
-        r"(?:back up|back|up again|again)?[^.]*\.)?",  # optional trailing re-grab (may be absent)
-        _re.IGNORECASE,
-    )
-    cleaned = _chain.sub("", out)
-    # Owner 2026-09-12 (second pass): a DANGLING re-grab can survive with no set-down before it
-    # (Mimo emits "Beat 3: she picks the product back up ..." on its own). Wan then performs a
-    # phantom second lift + adds an extra pack + extra speech at the tail. Strip any standalone
-    # 'picks it back up / picks up again / lifts it again' sentence unconditionally.
-    _regrab_only = _re.compile(
+    # Count the set-down / re-grab handoffs. If there is more than ONE handoff, the extra
+    # ones (the loop) are the bug: keep the first set-down sentence, drop subsequent ones.
+    _handoff = _re.compile(
         r"(?<=[.]\s)"
-        r"(?:Beat\s*\d+\s*:?\s*)?"
-        r"(?:(?:she|he|they|the (?:presenter|woman|man|model|person))\s+)?"
-        r"(?:picks?|lifts?|grabs?|takes?)\s+"
-        r"(?:the |it |the (?:same |red |blue |yellow |orange |brown |gold )?(?:product|pack|item))?\s*"
-        r"(?:back\s?up|back\s+up|up again|again)\b[^.]*\.",
+        r"[^.]*?\b(?:sets? (?:the |it |the product |the pack )?(?:product|pack|item|it)?\s*(?:back )?down|"
+        r"set (?:it|the product|the pack) down|releases? (?:it|the product|the pack)|"
+        r"lets go of (?:it|the product|the pack)|puts? (?:it|the product|the pack) back|"
+        r"places? (?:it|the product|the pack) (?:back )?on|"
+        r"picks? (?:the product|the pack|it) (?:back )?up again)[^.]*\.",
         _re.IGNORECASE,
     )
-    cleaned = _regrab_only.sub("", cleaned)
+    _matches = list(_handoff.finditer(cleaned))
+    if len(_matches) > 1:
+        # Keep the FIRST handoff, remove the rest (the forbidden loop).
+        for m in reversed(_matches[1:]):
+            cleaned = cleaned[:m.start()] + cleaned[m.end():]
     # Owner 2026-09-12: 'revealing all four packs' triggers Wan to DRAW extra packs when the camera
     # pulls back. Replace with a count-preserving phrasing.
     cleaned = _re.sub(r"revealing all (?:four|4) packs", "the same packs remain on the table, unchanged, no new pack appears", cleaned, flags=_re.IGNORECASE)
@@ -1392,7 +1405,8 @@ def analyze_product(product_name: str, product_image: str = None, description: s
                                  "no bowl dominating the frame, no cooked dish as the hero, no multiple bowls, "
                                  "no self-moving product, no pack floating, no new pack added, "
                                  "no invented colour pack, no green pack, "
-                                 "no camera wobble, no frame warp")
+                                 "no camera wobble, no frame warp, no fade to black, no darkening, "
+                                 "no dimming, no vignette, no gradual blackout, no fade out")
                     _mimo_neg = _normalize_negative_prompt(_mimo_neg + ", " + _food_neg)
                     # owner 2026-09-12 ('มีซองสีเขียวหลุดมาด้วย มันมีสีเขียวเหรอ'): Mimo invented a GREEN
                     # pack (real set = red/yellow/blue/orange). Deterministic guard: remove a 'green '
@@ -1455,6 +1469,12 @@ def analyze_product(product_name: str, product_image: str = None, description: s
                 # of at most 500 chars; anything longer is silently TRUNCATED (which dropped all
                 # the tail safeguards). Enforce a 480-char ceiling here so the system never breaks.
                 _HARD_NEG_CAP = 480
+                # owner 2026-09-13: the fade/dark guard is a MUST-KEEP item - pin it to the
+                # FRONT of the list so the trim can never drop it (the trim drops from the END).
+                _FADE_GUARD = "no fade to black, no darkening, no dimming, no vignette, no gradual blackout"
+                _items0 = [t.strip() for t in _mimo_neg.split(",") if t.strip()]
+                _items0 = [t for t in _items0 if t.lower() not in ("no fade to black", "no darkening", "no dimming", "no vignette", "no gradual blackout", "no fade out")]
+                _mimo_neg = ", ".join([_FADE_GUARD] + _items0)
                 if len(_mimo_neg) > _HARD_NEG_CAP:
                     # keep whole comma items only, drop from the END until it fits
                     _items = [t.strip() for t in _mimo_neg.split(",") if t.strip()]

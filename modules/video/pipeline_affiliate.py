@@ -396,6 +396,57 @@ def _pick_variant_reference_index(images: list) -> Optional[int]:
             return None
 
 
+def _mimo_image_ref(u: str) -> Optional[str]:
+    """owner 2026-09-13 (card 8c264f8b verify): turn a product-image reference into something
+    Mimo's vision endpoint accepts. Mimo rejects ANY non-http(s)/base64 URL (error:
+    'the provided url is not valid, only base64, http or https URLs allowed'), but TUS products
+    store images as RELATIVE public paths like '/ugc/static/product_images/x.webp'.
+
+    Resolution order:
+      1) already http(s) / data:  -> use as-is
+      2) relative public path / bare filename -> resolve to the on-disk file under
+         tiktok-ugc-studio/storage/product_images/ and inline it as a base64 data URL
+         (base64 is host-independent; the service is also reachable over the tus.m2igen.com
+         domain in the browser, so we cannot rely on an internal http:// host/port here)
+      3) anything else -> None (drop it; caller degrades to fewer/no images)
+    """
+    if not isinstance(u, str):
+        return None
+    s = u.strip()
+    if not s:
+        return None
+    if s.startswith("http://") or s.startswith("https://") or s.startswith("data:"):
+        return s
+    # protocol-relative
+    if s.startswith("//"):
+        return "https:" + s
+    # relative public paths -> map to the on-disk product_images dir
+    _fn = s.rsplit("/", 1)[-1]
+    if not _fn:
+        return None
+    _base = Path(__file__).resolve().parent.parent.parent / "tiktok-ugc-studio" / "storage" / "product_images"
+    _fp = _base / _fn
+    try:
+        if not _fp.is_file():
+            return None
+        import base64 as _b64
+        _mime = "image/png"
+        _ext = _fp.suffix.lower()
+        if _ext in (".jpg", ".jpeg"):
+            _mime = "image/jpeg"
+        elif _ext == ".webp":
+            _mime = "image/webp"
+        elif _ext == ".gif":
+            _mime = "image/gif"
+        _raw = _fp.read_bytes()
+        # guard against huge files (base64 inflates ~33%); Mimo caps media size
+        if len(_raw) > 6_000_000:
+            return None
+        return "data:%s;base64,%s" % (_mime, _b64.b64encode(_raw).decode("ascii"))
+    except Exception:
+        return None
+
+
 def _deepseek_product_prompts(product_name: str, description: str, ugc_style: str = "holding",
                               category: str = "", subcategory: str = "",
                               special_target: str = "", usage_howto: str = "",
@@ -999,9 +1050,20 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             _user_content = user_text
             # owner 2026-09-12: send ALL variant images (multi-flavour/colour) so Mimo can read
             # the full set (e.g. red/yellow/blue noodle packs) instead of only image[0].
-            _imgs_to_send = [u.strip() for u in (product_images or []) if isinstance(u, str) and u.strip()]
-            if not _imgs_to_send and (product_image or "").strip():
-                _imgs_to_send = [product_image.strip()]
+            _imgs_raw = [u.strip() for u in (product_images or []) if isinstance(u, str) and u.strip()]
+            if not _imgs_raw and (product_image or "").strip():
+                _imgs_raw = [product_image.strip()]
+            # owner 2026-09-13: Mimo only accepts http(s)/base64/data URLs. TUS products store
+            # RELATIVE public paths ('/ugc/static/product_images/x.webp'), which Mimo rejects with
+            # 'the provided url is not valid' -> hard failure. Normalize each ref (relative local
+            # file -> base64 data URL); drop refs that cannot be normalized.
+            _imgs_to_send = []
+            for _u in _imgs_raw:
+                _norm = _mimo_image_ref(_u)
+                if _norm:
+                    _imgs_to_send.append(_norm)
+                else:
+                    logger.warning(f"_deepseek_product_prompts: dropped unusable image ref: {_u[:80]}")
             # owner 2026-09-12: Mimo's media fetch is INTERMITTENT ("failed to download or process
             # media content" on some images / when too many are sent). Degrade gracefully:
             # try ALL images -> FIRST image only -> NO image, so the job never dies on vision.
@@ -1079,8 +1141,11 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
                             break
                         else:
                             logger.warning(f"_deepseek_product_prompts [{_prov['name']}] api {_res.status_code}: {_res.text[:150]}")
-                            # media-download 400 => drop images and retry with fewer/none
-                            if _res.status_code == 400 and "media" in _res.text.lower() and _iset:
+                            # media-download / bad-url 400 => drop images and retry with fewer/none
+                            _low = _res.text.lower()
+                            if _res.status_code == 400 and _iset and (
+                                    "media" in _low or "url is not valid" in _low or "not valid" in _low
+                                    or "unsupported" in _low or "download" in _low):
                                 _media_fail = True
                             break
                     except Exception as _e:

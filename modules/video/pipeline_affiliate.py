@@ -2210,8 +2210,37 @@ def generate_video(
                     if _SPEECH_RE.search(_x):
                         if _LEAD.search(_x):  # pure speech directive -> drop whole sentence
                             continue
-                        # drop every speech clause inside the sentence, keep the action that remains
-                        _frag = _SPEECH_RE.sub(" ", _x)
+                        # owner 2026-09-13 17:0x (fixes 'faces the camera HER THAI LINE ALOUD' garbage
+                        # -> Wan improvises a SECOND speech line = 'พูดเพี้ยน / 2 เส้นซ้อน'):
+                        # the plain _SPEECH_RE.sub only removes the speech VERB, leaving its object
+                        # phrase ('her Thai line aloud', 'her line', 'the given script') stuck to the
+                        # action clause. Wan reads that dangling fragment and invents speech from it.
+                        # Pre-strip the WHOLE speech clause (verb + its line/script object) first.
+                        _frag = _x
+                        _SPEECH_CLAUSE = _re_mv.compile(
+                            r"\b(?:speaks?|speaking|spoken|says?|saying|talks?|talking|delivers?|delivering|reads?|reading|narrates?|narrating)\b"
+                            r"[^.!?]{0,60}?\b(?:her|his|their|the|a)?\s*"
+                            r"(?:thai\s+)?(?:line|lines|script|dialogue|words?|voice[- ]?over|narration|audio)\b"
+                            r"(?:\s+(?:aloud|out\s+loud|naturally|word\s+for\s+word))?",
+                            _re_mv.IGNORECASE)
+                        _frag = _SPEECH_CLAUSE.sub(" ", _frag)
+                        # then drop any remaining bare speech keywords
+                        _frag = _SPEECH_RE.sub(" ", _frag)
+                        # owner 2026-09-13 17:0x: even with no speech verb left, a dangling OBJECT
+                        # phrase like 'her Thai line aloud' / 'her line' / 'the given script' / 'the
+                        # provided audio' survives and Wan invents a second speech line from it.
+                        # Remove those standalone object phrases too (idempotent, safe).
+                        _ORPHAN_OBJ = _re_mv.compile(
+                            r"\b(?:her|his|their|the|a)?\s*(?:thai\s+)?"
+                            r"(?:line|lines|script|dialogue|voice[- ]?over|narration|audio)\b"
+                            r"(?:\s+(?:aloud|out\s+loud|word\s+for\s+word|naturally,\s+mouth\s+moving[^.!?]*))?",
+                            _re_mv.IGNORECASE)
+                        _frag = _ORPHAN_OBJ.sub(" ", _frag)
+                        # owner 2026-09-13 17:0x: also drop leftover 'mouth moving naturally' fragments
+                        # (the 'she is speaking' fact already lives once in the opening directive).
+                        _frag = _re_mv.sub(
+                            r"[,\s]*(?:,\s*)?mouth\s+(?:moving|open|moving\s+naturally)[^.!?]*?(?=\.|$)",
+                            "", _frag, flags=_re_mv.IGNORECASE)
                         _frag = _re_mv.sub(r"\b(?:and|while|as|but|then|still)\b\s*", " ", _frag)
                         _frag = _re_mv.sub(r"[,;:]", " ", _frag)
                         _frag = _re_mv.sub(r"\s{2,}", " ", _frag).strip(" .-")

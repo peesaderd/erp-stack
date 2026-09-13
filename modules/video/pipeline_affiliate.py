@@ -194,86 +194,21 @@ def _extract_json_obj(_content: str):
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Thai spoken-script safeguard (owner 2026-09-10)
-# Wan reads thai_script ALOUD (Voice mode A) — abbreviations get mis-read
-# (e.g. "ชม." -> "ชม" not "ชั่วโมง"). Normalize before the script reaches Wan.
+# Wan reads thai_script ALOUD (Voice mode A) - abbreviations get mis-read
+# (e.g. "ชม." -> "ชม" not "ชั่วโมง", "ดร." -> "ดอน"). The mapping lives in the
+# shared deterministic library `thai_pronunciation.py` (owner 2026-09-13) so the
+# same rules cover every script path and stay out of the Mimo system prompt.
 # ═══════════════════════════════════════════════════════════════════════════
-_THAI_ABBR = [
-    (r"ชม\.", "ชั่วโมง"), (r"ชั่วโมง\.", "ชั่วโมง"),
-    (r"ม\.ล\.", "มิลลิลิตร"), (r"ซ\.ม\.", "เซนติเมตร"),
-    (r"ก\.ก\.", "กิโลกรัม"), (r"ก\.", "กรัม"),
-    (r"บ\.", "บาท"), (r"น\.", "นาฬิกา"),
-    (r"นาที\.", "นาที"), (r"วินาที\.", "วินาที"),
-]
-_THAI_SYM = [("%", "เปอร์เซ็นต์")]
-# owner 2026-09-12: hard consonant clusters at the START of a clip come out garbled by Wan
-# (real bug: "เบื่อก๋วยเตี๋ยว..." at pos-1 decoded as "Buer cuitit..." = the กล-ว cluster is
-# unreadable with no preceding context). Fix the worst offenders phonetically + never OPEN the
-# script with them. "ก๋วยเตี๋ยว" -> "กวยเตี๋ยว" reads cleanly.
-_THAI_CLUSTER_FIX = [
-    (r"ก๋วยเตี๋ยว", "กวยเตี๋ยว"),
-    (r"ก๋วยจั๊บ", "กวยจับ"),
-]
-# Hard clusters that must NOT be the very first content word of the spoken script.
-_THAI_HARD_OPENER = ("ก๋วย", "กวยเตี๋ยว", "ก๋วยเตี๋ยว", "ก๋วยจั๊บ")
-# Latin tech/brand words that commonly slip through -> Thai phonetic spelling.
-_THAI_LATIN = {
-    "bluetooth": "บลูทูธ", "usb": "ยูเอสบี", "led": "แอลอีดี", "aac": "เอเอซี",
-    "spf": "เอสพีเอฟ", "anc": "เอเอ็นซี", "hdmi": "เอชดีเอ็มไอ", "wifi": "ไวไฟ",
-    "wi-fi": "ไวไฟ", "gps": "จีพีเอส", "type-c": "ไทป์ซี", "type c": "ไทป์ซี",
-}
-
-def normalize_thai_spoken_script(text: str) -> str:
-    """Convert abbreviations + stray symbols in a Thai spoken script to full,
-    pronounceable Thai words so the voice model reads them correctly."""
-    if not text:
-        return text
-    out = text
-    # owner 2026-09-12: phonetic fix for hard opening clusters (ก๋วยเตี๋ยว -> กวยเตี๋ยว) BEFORE
-    # anything else, so the very first word Wan speaks is pronounceable.
-    for pat, rep in _THAI_CLUSTER_FIX:
-        out = re.sub(pat, rep, out)
-    for pat, rep in _THAI_ABBR:
-        out = re.sub(pat, rep, out)
-    for sym, rep in _THAI_SYM:
-        out = out.replace(sym, " " + rep + " ")
-    # transliterate known Latin tech/brand words (case-insensitive, word-ish boundary)
-    for lat, rep in _THAI_LATIN.items():
-        out = re.sub(r"(?<![A-Za-z])" + re.escape(lat) + r"(?![A-Za-z])", rep, out, flags=re.IGNORECASE)
-    # separate any remaining Latin/digit run glued to Thai (e.g. "น้อยBluetooth" handled above;
-    # this inserts a space so leftover Latin never fuses into a Thai word)
-    out = re.sub(r"([\u0E00-\u0E7F])([A-Za-z0-9])", r"\1 \2", out)
-    out = re.sub(r"([A-Za-z0-9])([\u0E00-\u0E7F])", r"\1 \2", out)
-    # tidy double spaces created by replacements
-    out = re.sub(r"[ \t]{2,}", " ", out).strip()
-    # owner 2026-09-12 (fixes 'เพี้ยนตั้งแต่ต้น'): the voice has NO context for word #1, so a hard
-    # consonant cluster there comes out garbled (verified: 'เบื่อก๋วยเตี๋ยว...' at pos-1).
-    # Deterministic guard - if the script OPENS with a hard cluster, keep the rest but re-open with
-    # an easy common word derived from the sentence so the first syllable reads cleanly.
-    try:
-        # owner 2026-09-12 (rewritten): the voice garbles its FIRST syllable when a hard cluster
-        # (กวยเตี๋ยว / กวยจั๊บ) sits within the opening words. Real bug 'ใครที่เบื่อกวยเตี๋ยว...' had the
-        # cluster at pos ~9 - the old pos-1-only check missed it. New rule: if a hard cluster appears
-        # inside the FIRST TWO whitespace-words, re-open the line with an easy hook ("หิวใช่ไหม")
-        # followed by the (phonetic) noun, then the rest of the sentence with the cluster removed from
-        # its leading position. Safe no-op when the opening is already clean.
-        _CLUSTERS = ("กวยเตี๋ยว", "กวยจับ", "ก๋วยเตี๋ยว", "ก๋วยจั๊บ")
-        _first2 = " ".join(out.split()[:2])
-        _hit = next((_c for _c in _CLUSTERS if _c in _first2), None)
-        # already opens with the easy hook -> nothing to do
-        if _hit and not out.startswith("หิวใช่ไหม"):
-            _noun = "กวยเตี๋ยว" if "เตี๋ยว" in _hit else "กวยจับ"
-            # drop the FIRST cluster occurrence from the opening, then trim the leading filler
-            # ("ใครที่เบื่อ" / "เบื่อ" / "อยากกิน" ...) so the sentence re-opens cleanly.
-            _rest = out.replace(_hit, " ", 1)
-            _rest = re.sub(r"^(?:ใครที่|ใคร|และ|ที่|ก็)?\s*(?:เบื่อ|ชอบ|อยาก|หิว|รสดี|กิน)?\s*", "", _rest, count=1)
-            _rest = re.sub(r"^กิน\s*", "", _rest, count=1)
-            _rest = re.sub(r"\s{2,}", " ", _rest).strip(" ,")
-            if _rest:
-                out = ("หิวใช่ไหม " + _noun + " " + _rest).strip()
-    except Exception:
-        pass
-    return out
-
+try:
+    from .thai_pronunciation import (
+        normalize_thai_spoken_script, THAI_ABBR, THAI_SYM, THAI_LATIN,
+        THAI_CLUSTER_FIX, THAI_HARD_OPENER,
+    )
+except ImportError:  # run as a top-level script, not a package
+    from thai_pronunciation import (
+        normalize_thai_spoken_script, THAI_ABBR, THAI_SYM, THAI_LATIN,
+        THAI_CLUSTER_FIX, THAI_HARD_OPENER,
+    )
 
 def _deepseek_key() -> str:
     """Resolve DeepSeek API key: env DEEPSEEK_API_KEY first, then openclaw.json."""

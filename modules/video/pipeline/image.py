@@ -62,7 +62,7 @@ def generate_image(
         product_image: URL ของรูปสินค้า (reference)
         aspect_ratio: 9:16 (TikTok portrait — owner direction, always 9:16)
         model: "nano-banana" (default) or "flux-2-klein" (klein 4B img2img)
-        placement: "hold" | "place" | "place_and_hold" — hold-vs-place (owner 2026-09-12)
+        placement: "hold" | "wear" | "place_and_hold" — hold-vs-wear-vs-place (owner 2026-09-14)
 
     Returns:
         tuple: (image_url, cost_usd)

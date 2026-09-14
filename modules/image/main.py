@@ -58,7 +58,7 @@ class ImageGenRequest(BaseModel):
     style: Optional[str] = "thai_realistic"
     model: Optional[str] = "nano-banana"
     aspectRatio: Optional[str] = "9:16"
-    placement: Optional[str] = "hold"  # hold | place | place_and_hold (owner 2026-09-12)
+    placement: Optional[str] = "hold"  # hold | wear | place_and_hold (owner 2026-09-14)
 
 
 class LipSyncRequest(BaseModel):
@@ -213,28 +213,28 @@ def _call_prodia(type_: str, config: dict, accept: str = "image/png", files: dic
 IMG2IMG_ANCHOR = (
     "Use the product from the reference image exactly as it is — same real color, shape, size "
     "and label text, unchanged, sharp and unblurred. Do not redesign or restyle the product. "
-    "Draw a newly generated realistic Thai woman in a fresh real scene with this exact product as the "
-    "clear focus. The woman and scene are new; the product is not."
+    "Draw a newly generated realistic Thai person in a fresh real scene with this exact product as the "
+    "clear focus. Keep the person's gender EXACTLY as described in the scene instructions that follow "
+    "(do not change man/woman to the other gender). The person and scene are new; the product is not."
 )
 
 # Placement directives appended AFTER the caller prompt (owner 2026-09-12: "วางด้วย ถือด้วย").
-# "place"  = product sits on a surface, no hand gripping it (hand may rest/reach beside it).
-# "place_and_hold" = the still shows BOTH: product placed on the surface, hand reaching in to pick up.
+# Live placements (owner 2026-09-14: the unused "place" directive was removed - no caller ever
+# sent it; orchestrator emits only wear / place_and_hold / hold):
+#   "hold"          = product held up in hand, centered, as the clear focus (default).
+#   "wear"          = wearable garment worn ON the body, hands empty/off it (never held).
+#   "place_and_hold" = product RESTING on a surface with a hand reaching in beside it.
 PLACEMENT_DIRECTIVES = {
     "hold": (
-        "The woman holds the product up, upright and centered, facing the camera, as the clear focus."
+        "The person holds the product up, upright and centered, facing the camera, as the clear focus. "
+        "Keep the person's gender exactly as described in the scene above."
     ),
     "wear": (
-        "She is WEARING the garment on her body as a normal outfit - it is ON HER, properly worn "
-        "(buttons/zippers as intended), styled naturally. BOTH of her HANDS stay EMPTY and off the "
-        "garment - hands relaxed at her sides or in her pockets. She does NOT hold, lift, drape or "
-        "show the garment with her hands. The worn garment is the clear hero; the camera frames the "
-        "fit and drape on her body."
-    ),
-    "place": (
-        "The product is RESTING ON A CLEAN FLAT SURFACE (table / vanity / counter) in front of her, "
-        "sitting upright with the label facing the camera. NO hand is gripping the product — her hands "
-        "rest relaxed on the surface beside it. Show the whole placed product clearly."
+        "The person is WEARING the garment on their body - it is ON THEM, properly worn "
+        "(buttons/zippers as intended), styled naturally, matching the gender stated in the scene "
+        "above. BOTH of their HANDS stay EMPTY and off the garment - hands relaxed at their sides or in "
+        "their pockets. They do NOT hold, lift, drape or show the garment with their hands. The worn "
+        "garment is the clear hero; the camera frames the fit and drape on the body."
     ),
     "place_and_hold": (
         "The product stays RESTING flat and fully seated ON A CLEAN FLAT SURFACE (table / counter) in "
@@ -259,7 +259,7 @@ def nano_banana_img2img(prompt: str, input_image: str, negative_prompt: str = ""
     Prodia sync model: POST /v2/job with multipart → image/png response.
     No polling. No async. Single call.
 
-    placement: "hold" (default) | "place" | "place_and_hold" — controls whether the
+    placement: "hold" (default) | "wear" | "place_and_hold" — controls whether the
     product is held up, resting on a surface, or placed-with-hand-reaching (owner 2026-09-12).
     """
     # Prodia img2img already SEES the reference product image. The anchor is the

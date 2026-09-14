@@ -221,13 +221,19 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
                    "dress", "skirt", "pants", "hoodie", "sweater", "blouse")
         _is_wearable_g = any(_t in _name_lc_g for _t in _wear_g)
         _gender_blob = _name_lc_g + " " + _desc_lc_g
-        _male_cue = any(_k in _gender_blob for _k in (
-            "ผู้ชาย", "ชาย", "หนุ่ม", "men's", "mens", " men", "man ", "unisex", "ผู้ชายและผู้หญิง",
-        )) and "ผู้หญิง" not in _name_lc_g
-        _female_cue = any(_k in _gender_blob for _k in (
-            "ผู้หญิง", "หญิง", "สาว", "สุภาพสตรี", "women's", "womens", "women", "ladies", "lady",
-        ))
-        if _g_lc in ("male", "man", "men", "ชาย", "ผู้ชาย") or (_male_cue and not _female_cue):
+        # owner 2026-09-14: explicit "for men and women" (ผู้ชาย…และ…ผู้หญิง / unisex wording) means
+        # UNISEX, not female. The jacket test payload is "เสื้อแจ็คเก็ตบอมเบอร์ สำหรับผู้ชายและผู้หญิง"
+        # (for men AND women) and the owner approved a MALE presenter for it (the product image shows a
+        # man). Treat an explicit male mention on a UNISEX item as a male cue, and only let ผู้หญิง/หญิง
+        # veto male when it appears WITHOUT an accompanying ผู้ชาย (i.e. a purely women's garment).
+        _has_male_word = any(_k in _gender_blob for _k in ("ผู้ชาย", "ชาย", "หนุ่ม", "men's", "mens", " men", "man "))
+        _has_female_word = any(_k in _gender_blob for _k in ("ผู้หญิง", "หญิง", "สาว", "สุภาพสตรี", "women's", "womens", "women", "ladies", "lady"))
+        _unisex_word = (any(_k in _gender_blob for _k in ("unisex", "ผู้ชายและผู้หญิง", "ชายและหญิง", "ทั้งชายและหญิง")) or
+                        ("ผู้ชาย" in _gender_blob and "ผู้หญิง" in _gender_blob) or
+                        (_has_male_word and _has_female_word))
+        _male_cue = _has_male_word or _unisex_word
+        _female_cue = _has_female_word and not _has_male_word
+        if _g_lc in ("male", "man", "men", "ชาย", "ผู้ชาย") or (_unisex_word and _has_male_word) or (_male_cue and not _female_cue):
             _gender_instr = (
                 "- CREATOR GENDER (HARD RULE - owner 2026-09-14): this product targets a MALE audience "
                 "(the name/description say so, or it is explicitly unisex). The creator MUST be a MALE "

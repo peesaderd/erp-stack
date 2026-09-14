@@ -169,6 +169,61 @@ def _sanitize_lighting_prompt(prompt: str) -> str:
     return out
 
 
+def _guard_overbright(data: dict, stat_hint: dict = None) -> dict:
+    """Prevent Mimo from BRIGHTENING a photo that is already bright.
+
+    Owner 2026-09-14: Mimo can override the statistical key (e.g. stat says the
+    photo is already bright/high, but Mimo answers low/normal and writes a
+    brighten-forward prompt) -> an already-bright photo gets washed out further.
+
+    The statistical detector is grounded (measured pixel means); Mimo is an LLM
+    and flip-flops (verified: same bright photo -> key/low vs high, strength
+    0.40 vs 0.45, and a different prompt each call). When the measured stats say
+    the photo is already bright, we CAP Mimo so it can only tame/keep, never
+    brighten:
+      - key 'low' is flipped up to 'high' (a bright photo is not underexposed)
+      - lighting_strength is clamped to <= 0.20 (gentle tame only)
+
+    Only applies when stat_hint is confident about 'high'. Dark/normal photos
+    keep Mimo's full adaptive range. Never fatal; returns data unchanged on error.
+    """
+    if not isinstance(data, dict) or not stat_hint:
+        return data
+    try:
+        stat_key = str(stat_hint.get("key") or "")
+        face_mean = float(stat_hint.get("face_mean") or 0)
+        # "Already bright" = statistical key is high AND the face is genuinely bright.
+        if stat_key == "high" and face_mean >= 170.0:
+            mkey = str(data.get("key") or "")
+            if mkey == "low":
+                logger.warning(
+                    "mimo_vision: over-brightening guard — stat=high(face=%.1f) but "
+                    "Mimo said low; clamping key low->high (no brighten)", face_mean)
+                data["key"] = "high"
+            elif mkey not in ("high", "normal"):
+                data["key"] = "high"
+            try:
+                s = float(data.get("lighting_strength", 0.2))
+            except Exception:
+                s = 0.2
+            if s > 0.20:
+                logger.warning(
+                    "mimo_vision: over-brightening guard — capping strength %.2f->0.20 "
+                    "(already-bright photo, tame only)", s)
+                data["lighting_strength"] = 0.20
+            data["guard"] = "already_bright_tame_only"
+        # Symmetric guard: dark photo must not be darkened further.
+        elif stat_key == "low" and face_mean <= 120.0 and str(data.get("key")) == "high":
+            logger.warning(
+                "mimo_vision: over-darkening guard — stat=low(face=%.1f) but Mimo "
+                "said high; clamping key high->low (no darken)", face_mean)
+            data["key"] = "low"
+            data["guard"] = "already_dark_brighten_only"
+    except Exception as e:
+        logger.warning(f"mimo_vision: guard failed (non-fatal): {e}")
+    return data
+
+
 def _cache_dir() -> str:
     """Disk cache dir for Mimo lighting results (per-photo determinism)."""
     d = os.path.join(os.path.dirname(os.path.abspath(__file__)), "storage", "mimo_cache")
@@ -284,6 +339,8 @@ def analyze_lighting(image_bytes: bytes, stat_hint: dict = None) -> dict:
         data["confidence"] = round(float(data.get("confidence", 0.7)), 2)
     except Exception:
         data["confidence"] = 0.7
+    # Anti-over-brightening / anti-over-darkening guard vs grounded statistics.
+    data = _guard_overbright(data, stat_hint)
     logger.info(f"mimo_vision: key={data.get('key')} strength={data['lighting_strength']} "
                 f"ctx={data.get('context','')!r}")
     # ── Store to cache so the same photo is deterministic next time ────────

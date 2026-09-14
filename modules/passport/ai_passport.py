@@ -534,6 +534,8 @@ def generate_passport(
             key_info["mimo_context"] = mimo_info.get("context", "")
             key_info["mimo_confirmed"] = True
             key_info["mimo_cached"] = bool(mimo_info.get("_cached"))
+            if mimo_info.get("guard"):
+                key_info["mimo_guard"] = mimo_info["guard"]
             info["mimo_lighting"] = {
                 "key": mimo_info.get("key"),
                 "context": mimo_info.get("context"),

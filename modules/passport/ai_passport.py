@@ -39,6 +39,41 @@ def _get_env(key):
 PRODIA_TOKEN = _get_env("PRODIA_TOKEN")
 PRODIA_API_URL = "https://inference.prodia.com/v2/job"
 
+# ── Deterministic seed (owner 2026-09-14) ──────────────
+# Owner: "รูปที่ 5 เหมือนสุด ... เหมือนเราแก้ไปแล้วนี่ กลับมาเป็นแบบนี้อีกละ"
+# Root cause: flux_i2i() sent no seed → Prodia randomised every call → face
+# likeness drifted run-to-run (some outfits looked smoother/younger than others),
+# even though ALL runs used identical params. Locking the seed makes the face
+# reproducible and consistent across every outfit.
+#
+# PASSPORT_FLUX_SEED = integer to lock (e.g. 42); unset / "random" / "-1" → random (legacy).
+def _resolve_flux_seed():
+    raw = _get_env("PASSPORT_FLUX_SEED")
+    if raw is None:
+        return None
+    raw = str(raw).strip()
+    if raw == "" or raw.lower() in ("random", "none", "null", "-1"):
+        return None
+    try:
+        return int(raw)
+    except ValueError:
+        logger.warning(f"PASSPORT_FLUX_SEED='{raw}' not an int — ignoring (random seed)")
+        return None
+
+FLUX_SEED = _resolve_flux_seed()
+if FLUX_SEED is not None:
+    logger.info(f"FLUX seed locked: {FLUX_SEED} (PASSPORT_FLUX_SEED)")
+
+# ── Anti-beautify negative (owner 2026-09-14) ──────────
+# Owner: "รูปที่ 5 เหมือนสุด ... เหมือนเราแก้ไปแล้วนี่ กลับมาเป็นแบบนี้อีกละ" —
+# even with a locked seed, FLUX i2i still over-smooths skin / erases age marks
+# ("หน้ามันดีเกินไป" class of bug). Adding an explicit anti-retouch negative to
+# Step 2 measurably lifts likeness (vision 6/10 -> 7.5/10 on the owner's photo).
+ANTI_BEAUTIFY_NEG = (
+    "smooth skin, airbrushed, beautified, plastic skin, retouched, younger face, "
+    "wax figure, glamour retouch, filtered, poreless, flawless skin"
+)
+
 # ── FLUX i2i Prompt Template ──────────────────────────
 
 def build_prompt(clothing_prompt: str, bg_prompt: str, key: str = None) -> str:
@@ -119,7 +154,7 @@ def _compose_with_clothing(person: np.ndarray, clothing: np.ndarray) -> np.ndarr
     return canvas
 
 
-def flux_i2i(input_image: np.ndarray, prompt: str, strength: float = 0.6, negative_prompt: str = None) -> np.ndarray:
+def flux_i2i(input_image: np.ndarray, prompt: str, strength: float = 0.6, negative_prompt: str = None, seed: int = None) -> np.ndarray:
     """
     Run FLUX i2i via Prodia API.
     
@@ -128,6 +163,7 @@ def flux_i2i(input_image: np.ndarray, prompt: str, strength: float = 0.6, negati
         prompt: text prompt
         strength: 0.0-1.0 (higher = closer to reference composition/face; 0.6 chosen for step1 quality)
         negative_prompt: optional negative prompt
+        seed: override seed; None → use FLUX_SEED (env-locked) or omit for random
     
     Returns:
         RGB numpy array (output image)
@@ -148,6 +184,9 @@ def flux_i2i(input_image: np.ndarray, prompt: str, strength: float = 0.6, negati
     }
     if negative_prompt:
         job_cfg["negative_prompt"] = negative_prompt
+    _seed = seed if seed is not None else FLUX_SEED
+    if _seed is not None:
+        job_cfg["seed"] = int(_seed)
     job_json = json.dumps({
         "type": "inference.flux-2.klein.4b.img2img.v1",
         "config": job_cfg,
@@ -595,6 +634,10 @@ def generate_passport(
     if _mimo_neg:
         negative = _mimo_neg
         logger.info(f"Step 2 negative from Mimo: {_mimo_neg[:90]}")
+    # Owner 2026-09-14: always append the anti-beautify negative so FLUX keeps
+    # the subject's real skin texture / age marks instead of airbrushing the face.
+    negative = (negative + ", " + ANTI_BEAUTIFY_NEG).strip(", ") if negative else ANTI_BEAUTIFY_NEG
+    logger.info(f"Step 2 negative (final): {negative[:120]}")
     generated = flux_i2i(prepared, prompt, step2_strength, negative_prompt=negative)
     info["flux_size"] = [generated.shape[1], generated.shape[0]]
 

@@ -168,6 +168,22 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             # Raise the floor so the spoken line truly fills 15s (12-14 chars/sec), but keep a HARD
             # CEILING so Mimo doesn't overshoot into a rushed read (291ch was too long).
             _char_min, _char_max = 195, 215
+        # owner 2026-09-14 (fixes vid_3f3ebb8b jacketed male rendered female): honor the
+        # resolved target gender instead of silently defaulting the creator to female.
+        # The analyzer/param gender is authoritative when it says male; when it is empty we
+        # keep the neutral default line. Apparel/unisex products that read male must render a
+        # male presenter, matching the product image.
+        _g_lc = str(gender or "").strip().lower()
+        if _g_lc in ("male", "man", "men", "ชาย", "ผู้ชาย"):
+            _gender_instr = (
+                "- CREATOR GENDER (HARD RULE - owner 2026-09-14): the product targets a MALE / unisex "
+                "audience, so the creator MUST be a MALE Thai creator (a young man, early-to-mid 20s, "
+                "stylish and believable, matching the product's male/unisex image). Do NOT use a female "
+                "creator, and do NOT switch the creator to female even if the product is a clothing item. "
+                "Write the person as a man ('he') throughout image_prompt and video_prompt.\n"
+            )
+        else:
+            _gender_instr = ""
         sysprompt = (
             "You are a top-tier Thai UGC creator making premium, beautiful, and hyper-authentic video concepts "
             "for TikTok Shop, Reels, and Shorts. Your goal is to make the audience feel: I have this problem -> "
@@ -198,6 +214,7 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "- Choose the youngest age in the target demographic (e.g. 25-35: use 25).\n"
             "- Creator: an attractive, youthful, believable Thai person matching the product audience - fresh "
             "glowing skin, pleasant, natural, relatable. Default: Thai female, mid-20s.\n"
+            + _gender_instr +
             "- Setting: a stylish, lived-in Thai home (bright condo living room, aesthetic vanity, tidy kitchen) "
             "under warm, flattering natural light that makes her look great.\n\n"
             "[FORM FACTOR - HARD RULE - owner 2026-09-11]\n"
@@ -646,7 +663,46 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
         # was ignored by Mimo, so hoist the requirement into the user_text (high attention).
         _style_instr = ""
         _style_lc = (ugc_style or "").strip().lower()
-        if _style_lc in ("holding", "holding_demo", "handheld"):
+        # owner 2026-09-14 (fixes vid_66ebdc39 pants-placed-on-floor / vid_3f3ebb8b):
+        # DETECT WEARABLE APPAREL FIRST. If the product is clothing/shoes/accessory the
+        # selected positional style (holding/tabletop) must NOT apply - those styles force
+        # the product to be laid down on a surface ("RESTING ON A CLEAN SURFACE ... NO hand
+        # is holding it" / "sets the product down on the table and releases it"), which is
+        # exactly what made the denim pants render flat on the floor and then drift when Wan
+        # had to "put them on". Apparel is worn, never placed.
+        _cat_lc = str(category or "").strip().lower()
+        _sub_lc = str(subcategory or "").strip().lower()
+        _name_lc = _name_clean.lower()
+        # Garment/shoe subcategory tokens (NOT bags - a bag is legitimately held, not worn).
+        _wearable_tokens = ("clothing", "garment", "apparel", "shirt", "blouse", "hoodie",
+                            "sweater", "jacket", "coat", "jeans", "trousers", "pants",
+                            "skirt", "dress", "top", "shoes", "shoe", "sneaker", "boots",
+                            "sandal", "wearable")
+        # Thai + EN garment words in the product name (fallback when subcategory is empty).
+        _wearable_name = ("เสื้อ", "กางเกง", "แจ็คเก็ต", "แจ็กเก็ต", "แจ็คเก็ท", "เดรส", "กระโปรง",
+                          "รองเท้า", "กางเกงยีนส์", "แขนยาว", "ฮู้ด", "ฮู้ดดี้",
+                          "jacket", "jeans", "trousers", "shirt", "dress", "skirt", "pants",
+                          "hoodie", "sweater", "blouse")
+        _is_wearable = (any(_t in _sub_lc for _t in _wearable_tokens) or
+                        any(_t in _name_lc for _t in _wearable_name))
+        if _is_wearable:
+            _style_instr = (
+                "\n\n*** STYLE = WEARABLE APPAREL (HIGHEST PRIORITY, OVERRIDES HOLDING/TABLETOP) ***\n"
+                "This product is a GARMENT/WEARABLE (clothing, shoes, or accessory). It is NEVER placed flat "
+                "on a table/floor and NEVER simply held up as a loose object - the model WEARS it and shows the "
+                "fit. This OVERRIDES any holding/tabletop instruction:\n"
+                "  * image_prompt: the model is ALREADY WEARING the garment in the still frame. Frame torso-to-"
+                "knee (or a full-body mirror view) so the cut, silhouette, colour and drape dominate - never an "
+                "extreme face close-up, never the garment lying on a surface as the hero.\n"
+                "  * video_prompt: the model WEARS the item the WHOLE clip and shows it off with gentle natural "
+                "turns, small soft steps and fabric movement. BOTH hands are relaxed at her sides (or one hand "
+                "rests on the hip) - she does NOT hold, lay down, lift, or carry the worn garment at any point.\n"
+                "  * NEVER write 'resting on a clean surface', 'sets the product down on the table', 'picks it "
+                "back up', or any place-down/re-lift beat for a wearable. There is NO tabletop hero shot.\n"
+                "  * It is FORBIDDEN to show the model both WEARING the garment AND holding the same garment - a "
+                "worn item that is also carried makes the garment vanish/distort on movement.\n"
+            )
+        elif _style_lc in ("holding", "holding_demo", "handheld"):
             # owner 2026-09-12: HOIST the holding behaviour into user_text (Mimo ignores the
             # buried sysprompt rule). 'Holding' must NOT mean a death-grip for the whole clip.
             _style_instr = (

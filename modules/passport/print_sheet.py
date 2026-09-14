@@ -270,6 +270,7 @@ def generate_multi_print_sheet(
     hairline: bool = False,
     photo_count: int = 0,
     cutlines: bool = False,
+    cell_mm: tuple | None = None,
 ) -> dict:
     """
     Generate a print sheet with multiple different photos.
@@ -284,6 +285,11 @@ def generate_multi_print_sheet(
         gap_mm: gap between photos
         border: "none" | "guidelines" | "frame"
         blade_mode: extra gap for cutting blade
+        cell_mm: optional (width_mm, height_mm) for the target cell size. When
+            given, every photo is scale-covered into this mm cell instead of the
+            raw pixel size of the source image. This is the SSOT for what the
+            owner asked for (e.g. 35x45 passport); without it a 1024x1024 source
+            yields an 86.7mm cell and only 1 photo fits the sheet.
     
     Returns:
         dict with ok, result, info
@@ -331,11 +337,17 @@ def generate_multi_print_sheet(
     if not raw_list:
         return {"ok": False, "error": "No photos to place"}
 
-    # Cell basis = SMALLEST-area photo: uniform pools unchanged, mixed pools
-    # keep a usable passport-sized grid instead of one giant tile.
-    _i0 = min(range(len(raw_list)),
-              key=lambda k: raw_list[k].shape[0] * raw_list[k].shape[1])
-    ref_h, ref_w = raw_list[_i0].shape[:2]
+    # Cell basis: prefer an explicit target mm (owner SSOT). Fall back to the
+    # smallest-area source image only when no target was supplied.
+    if cell_mm and cell_mm[0] > 0 and cell_mm[1] > 0:
+        ref_w = int(round(cell_mm[0] / 25.4 * dpi))
+        ref_h = int(round(cell_mm[1] / 25.4 * dpi))
+    else:
+        # Cell basis = SMALLEST-area photo: uniform pools unchanged, mixed pools
+        # keep a usable passport-sized grid instead of one giant tile.
+        _i0 = min(range(len(raw_list)),
+                  key=lambda k: raw_list[k].shape[0] * raw_list[k].shape[1])
+        ref_h, ref_w = raw_list[_i0].shape[:2]
     photo_list = [_fit_cover(im, ref_w, ref_h) for im in raw_list]
     cell_w = ref_w + border_px * 2   # owner: real white RING around each photo
     cell_h = ref_h + border_px * 2

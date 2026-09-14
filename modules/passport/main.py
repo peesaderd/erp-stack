@@ -907,6 +907,7 @@ class MultiPrintRequest(BaseModel):
     copies: int = 1    # copies per photo
     photo_count: int = 0  # total photos on sheet (0 = auto from copies)
     print_size: str = "4x6"
+    photo_size: str = "passport"  # "passport" | "25x35" | "30x40" | "50x50" | "50x70"
     border: str = "none"
     blade_mode: bool = False
     gap_mm: float = 0.0
@@ -927,7 +928,36 @@ async def multi_print(req: MultiPrintRequest):
     if len(req.session_ids) > 20:
         raise HTTPException(400, "Max 20 photos")
     
-    # Load all images — prefer cropped (35x45mm Thai passport), fall back to passport.jpg
+    # Target photo cell size in mm (same SSOT as print_sheet_v2). The source
+    # image from session state is a square 1024x1024 (or full-size) canvas, NOT
+    # already cut to passport mm — if we used its raw pixels as the cell size we
+    # got 86.7mm cells and only 1 photo fit on a 4x6 sheet (owner bug 2026-09-14).
+    PHOTO_SIZES = {
+        'passport': {'w': 35, 'h': 45},
+        '25x35': {'w': 25, 'h': 35},
+        '30x40': {'w': 30, 'h': 40},
+        '50x50': {'w': 50, 'h': 50},
+        '50x70': {'w': 50, 'h': 70},
+    }
+    photo_size = PHOTO_SIZES.get(req.photo_size, PHOTO_SIZES['passport'])
+    target_w_mm = photo_size['w']
+    target_h_mm = photo_size['h']
+
+    # Load all images and normalize each into the target cell size (mm -> px).
+    # TOP-CENTER cover: fill the cell, anchor the top so the head is never cut.
+    target_w_px = int(round(target_w_mm / 25.4 * req.dpi))
+    target_h_px = int(round(target_h_mm / 25.4 * req.dpi))
+
+    def _fit_cover_mm(img, tw, th):
+        ih, iw = img.shape[:2]
+        scale = max(tw / iw, th / ih)
+        nw = max(tw, int(round(iw * scale)))
+        nh = max(th, int(round(ih * scale)))
+        out = cv2.resize(img, (nw, nh), interpolation=cv2.INTER_LANCZOS4)
+        x0 = (nw - tw) // 2
+        y0 = 0  # anchor TOP (head safe)
+        return out[y0:y0 + th, x0:x0 + tw]
+
     images = []
     dims = []
     for sid in req.session_ids:
@@ -938,9 +968,9 @@ async def multi_print(req: MultiPrintRequest):
         if img is None:
             raise HTTPException(500, f"Failed to read: {sid}")
         img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        h, w = img_rgb.shape[:2]
+        img_rgb = _fit_cover_mm(img_rgb, target_w_px, target_h_px)
         images.append(img_rgb)
-        dims.append((w / req.dpi * 25.4, h / req.dpi * 25.4))
+        dims.append((target_w_mm, target_h_mm))
     
     # Generate multi-photo sheet
     result = generate_multi_print_sheet(
@@ -949,6 +979,7 @@ async def multi_print(req: MultiPrintRequest):
         border_width_mm=req.border_width_mm, border_color=req.border_color,
         hairline=req.hairline,
         cutlines=req.cutlines,
+        cell_mm=(target_w_mm, target_h_mm),
     )
     
     if not result["ok"]:

@@ -13,6 +13,7 @@ from .providers import (
 )
 from .prompts import (
     _deepseek_product_prompts, _normalize_negative_prompt, _sanitize_video_prompt,
+    is_wearable,
 )
 from .script import analyze_product, generate_script, _synthesize_script_beats
 from .prompts import _normalize_script_beats
@@ -274,7 +275,21 @@ def run_pipeline(
         # the owner asked for. "holding"/"handheld" styles use place_and_hold; tabletop/demo
         # also place. Any other style falls back to hold.
         _plc_style = (ugc_style or "").strip().lower()
-        if _plc_style in ("holding", "holding_demo", "handheld", "tabletop", "tabletop_demo", "demo", "review"):
+        # owner 2026-09-14 (fixes 'pants model still holding the jeans'): a WEARABLE garment must
+        # NEVER get the hold/place_and_hold placement directive - those append a literal "holds the
+        # product up" / "resting on a clean surface" clause that overrides the wear-style prompt and
+        # re-introduces the held pose. Route wearables to the dedicated "wear" placement.
+        _plc_name = ""
+        try:
+            _plc_name = (product_profile or {}).get("product_name") or product_name or ""
+        except Exception:
+            _plc_name = product_name or ""
+        _plc_cat = (product_profile or {}).get("category") or kwargs.get("category", "") or ""
+        _plc_sub = (product_profile or {}).get("subcategory") or kwargs.get("subcategory", "") or ""
+        if is_wearable(category=_plc_cat, subcategory=_plc_sub, product_name=_plc_name):
+            _placement = "wear"
+            logger.info("  👕 wearable detected → placement=wear (no hold/place directive)")
+        elif _plc_style in ("holding", "holding_demo", "handheld", "tabletop", "tabletop_demo", "demo", "review"):
             _placement = "place_and_hold"
         else:
             _placement = "hold"

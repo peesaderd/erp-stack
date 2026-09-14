@@ -224,6 +224,13 @@ PLACEMENT_DIRECTIVES = {
     "hold": (
         "The woman holds the product up, upright and centered, facing the camera, as the clear focus."
     ),
+    "wear": (
+        "She is WEARING the garment on her body as a normal outfit - it is ON HER, properly worn "
+        "(buttons/zippers as intended), styled naturally. BOTH of her HANDS stay EMPTY and off the "
+        "garment - hands relaxed at her sides or in her pockets. She does NOT hold, lift, drape or "
+        "show the garment with her hands. The worn garment is the clear hero; the camera frames the "
+        "fit and drape on her body."
+    ),
     "place": (
         "The product is RESTING ON A CLEAN FLAT SURFACE (table / vanity / counter) in front of her, "
         "sitting upright with the label facing the camera. NO hand is gripping the product — her hands "

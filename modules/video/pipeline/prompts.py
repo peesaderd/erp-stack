@@ -11,6 +11,30 @@ from .providers import (
     _hue_diverse_reference_index, _pick_variant_reference_index,
 )
 
+# owner 2026-09-14: shared wearable detector. Used both by _deepseek_product_prompts
+# (to force a wear-style prompt) AND by the orchestrator (to route image placement to
+# "wear" instead of "hold", so the appended hold directive does not re-introduce a held
+# pose - the real cause of "model wears the jeans and still holds them").
+_WEARABLE_SUB_TOKENS = ("clothing", "garment", "apparel", "fashion", "wear", "shirt", "blouse", "hoodie",
+                        "sweater", "jacket", "coat", "jeans", "trousers", "pants",
+                        "skirt", "dress", "top", "shoes", "shoe", "sneaker", "boots",
+                        "sandal", "wearable")
+_WEARABLE_NAME_TOKENS = ("เสื้อ", "กางเกง", "แจ็คเก็ต", "แจ็กเก็ต", "แจ็คเก็ท", "เดรส", "กระโปรง",
+                         "รองเท้า", "กางเกงยีนส์", "แขนยาว", "ฮู้ด", "ฮู้ดดี้",
+                         "jacket", "jeans", "trousers", "shirt", "dress", "skirt", "pants",
+                         "hoodie", "sweater", "blouse")
+
+
+def is_wearable(category: str = "", subcategory: str = "", product_name: str = "") -> bool:
+    """True if the product is apparel/shoes that must be WORN, never placed or held."""
+    sub_lc = str(subcategory or "").strip().lower()
+    name_lc = str(product_name or "").lower()
+    cat_lc = str(category or "").strip().lower()
+    return (any(t in sub_lc for t in _WEARABLE_SUB_TOKENS) or
+            any(t in cat_lc for t in _WEARABLE_SUB_TOKENS) or
+            any(t in name_lc for t in _WEARABLE_NAME_TOKENS))
+
+
 def _normalize_negative_prompt(neg: str) -> str:
     """owner 2026-09-10: EVERY comma item in the negative_prompt MUST carry an explicit
     negative word, otherwise the model renders the bare noun. Force 'no ' prefix where
@@ -180,35 +204,48 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
         # wearables we do NOT trust that default - instead we tell Mimo (who can SEE the
         # product image) to match the gender of the model shown wearing the garment, and to
         # use a MALE creator for men's/unisex apparel.
+        # owner 2026-09-14 v2 (fixes BOTH vid_3f3ebb8b AND a male-over-correction on women's
+        # jeans): gender must be EVIDENCE-BASED, never a blanket apparel preference.
+        #   * explicit male/unisex cue in name/desc  -> MALE creator
+        #   * explicit female cue in name/desc       -> female creator
+        #   * no cue / flat-lay with no wearer        -> MATCH the reference-image model if one is
+        #                                                visible; if still unknown, KEEP the analyzer
+        #                                                gender (do NOT force male or female).
+        # The previous rule hard-preferred MALE for jackets/shirts/jeans/trousers, which wrongly
+        # turned women's jeans into a male presenter. Jeans/trousers are commonly women's wear, so
+        # they must never default to male.
         _name_lc_g = str(product_name or "").lower()
+        _desc_lc_g = str(description or "").lower()
         _wear_g = ("เสื้อ", "กางเกง", "แจ็คเก็ต", "แจ็กเก็ต", "แจ็คเก็ท", "เดรส", "กระโปรง",
                    "รองเท้า", "แขนยาว", "ฮู้ด", "jacket", "jeans", "trousers", "shirt",
                    "dress", "skirt", "pants", "hoodie", "sweater", "blouse")
-        _desc_lc_g = str(description or "").lower()
         _is_wearable_g = any(_t in _name_lc_g for _t in _wear_g)
-        _unisex_or_male = ("ผู้ชาย" in _name_lc_g or "ผู้ชาย" in _desc_lc_g or
-                           "ชาย" in _name_lc_g or "men" in _name_lc_g or "man " in _name_lc_g or
-                           "unisex" in _name_lc_g or "unisex" in _desc_lc_g or
-                           "men's" in _desc_lc_g or "ผู้ชายและผู้หญิง" in _desc_lc_g)
-        if _g_lc in ("male", "man", "men", "ชาย", "ผู้ชาย") or (_is_wearable_g and _unisex_or_male):
+        _gender_blob = _name_lc_g + " " + _desc_lc_g
+        _male_cue = any(_k in _gender_blob for _k in (
+            "ผู้ชาย", "ชาย", "หนุ่ม", "men's", "mens", " men", "man ", "unisex", "ผู้ชายและผู้หญิง",
+        )) and "ผู้หญิง" not in _name_lc_g
+        _female_cue = any(_k in _gender_blob for _k in (
+            "ผู้หญิง", "หญิง", "สาว", "สุภาพสตรี", "women's", "womens", "women", "ladies", "lady",
+        ))
+        if _g_lc in ("male", "man", "men", "ชาย", "ผู้ชาย") or (_male_cue and not _female_cue):
             _gender_instr = (
-                "- CREATOR GENDER (HARD RULE - owner 2026-09-14): this garment/product targets a MALE or "
-                "UNISEX audience, so the creator MUST be a MALE Thai creator (a young man, early-to-mid 20s, "
-                "stylish and believable, matching the product's male/unisex look). Also MATCH the model gender "
-                "shown actually wearing the garment in the reference image - if the reference image shows a man "
-                "wearing it, the creator is a man. Do NOT use a female creator, and do NOT switch the creator "
-                "to female even though the product is clothing. Write the person as a man ('he') throughout "
-                "image_prompt and video_prompt.\n"
+                "- CREATOR GENDER (HARD RULE - owner 2026-09-14): this product targets a MALE audience "
+                "(the name/description say so, or it is explicitly unisex). The creator MUST be a MALE "
+                "Thai creator (a young man, early-to-mid 20s, stylish and believable). ALSO match the model "
+                "gender shown actually wearing the garment in the reference image - if the reference image "
+                "shows a man wearing it, use a man. Do NOT use a female creator. Write the person as a man "
+                "('he') throughout image_prompt and video_prompt.\n"
             )
-        elif _is_wearable_g and _g_lc in ("", "female", "woman"):
-            # Unisex/unspecified garment: DO NOT force female. Match the reference image model.
+        elif _is_wearable_g:
+            # Garment with no male cue: DO NOT assume male OR force female blindly - match the
+            # reference image model; if none, keep the given/resolved gender as-is.
             _gender_instr = (
-                "- CREATOR GENDER (HARD RULE - owner 2026-09-14): this is a garment. Set the creator's gender "
-                "to MATCH the model shown wearing the garment in the reference image - if the image shows a "
-                "man wearing it, use a MALE creator; if it shows a woman, use a female creator; if it is a "
-                "unisex/flat-lay garment with no clear wearer, prefer a MALE creator for jackets/shirts/jeans/"
-                "trousers and a female creator only for clearly feminine cuts. NEVER assume female by default "
-                "for a unisex garment.\n"
+                "- CREATOR GENDER (owner 2026-09-14): set the creator's gender to MATCH the model shown "
+                "wearing the garment in the reference image - if the image shows a man wearing it, use a "
+                "MALE creator; if it shows a woman, use a female creator. If the reference image is a "
+                "flat-lay / pack-shot with no visible wearer, KEEP the requested creator gender as given "
+                "(do not switch it) and, when the description mentions women (ผู้หญิง/หญิง/สาว/women) prefer "
+                "a female creator. NEVER change a clearly stated gender.\n"
             )
         else:
             _gender_instr = ""

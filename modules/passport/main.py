@@ -89,6 +89,26 @@ def _encode_image(img: np.ndarray, fmt: str = ".jpg") -> bytes:
         raise HTTPException(500, "Failed to encode image")
     return buf.tobytes()
 
+def _bust_frame_bgr(img: np.ndarray, preset: str = "standard") -> np.ndarray:
+    """Normalize a BGR photo to the owner-approved BUST framing (face 41%,
+    ~half chest) so the on-screen preview shows ``แค่อก`` instead of half body.
+
+    Owner 2026-09-14: the retouched preview must be the normalized crop, NOT the
+    raw FLUX frame. This reuses the exact same, already-approved crop logic that
+    builds ``_cropped.jpg`` (``crop_passport_auto(square=True)`` ->
+    ``normalize_face_size`` face_frac 0.41). Purely local (no Prodia), idempotent
+    enough, and a NO-OP fallback: if no face is found it returns the input as-is.
+    """
+    try:
+        from head_finder import crop_passport_auto
+        res = crop_passport_auto(img, preset=preset, dpi=300, square=True)
+        if res.get("ok") and res.get("result") is not None:
+            return res["result"]
+    except Exception as e:
+        logger.warning(f"bust-frame normalize skipped: {e}")
+    return img
+
+
 def _generate_sheet(img, w_mm, h_mm, size="4x6", dpi=300, gap_mm=0.0, border="guidelines", blade_mode=False, photo_count=0):
     from print_sheet import generate_print_sheet
     return generate_print_sheet(img, w_mm, mm_h, size, dpi, gap_mm, True, border, gap_mm, blade_mode, photo_count)
@@ -488,6 +508,9 @@ async def generate_passport_v2(req: GenerateRequest):
     out_bytes = _encode_image(out_img)
     pstate.save_current(session_id, out_bytes, "raw", STORAGE_DIR)
 
+    # Resolve crop preset once (used for the preview bust-frame AND _cropped.jpg)
+    crop_preset = req.crop_preset if req.crop_preset in ("standard", "compact", "relaxed") else "standard"
+
     # ── One-button transparent (owner 2026-09-11) ────────────────
     # Immediately cut the background so the user picks a BG color with ONE release
     # (no separate Transparent button / step). Failure here is non-fatal: the raw
@@ -506,6 +529,8 @@ async def generate_passport_v2(req: GenerateRequest):
             bg_hex = req.background_color or "#C4DCFF"
             colored = apply_background(pil_rgba, bg_hex)
             colored_np = np.array(colored.convert("RGB"))[:, :, ::-1].copy()
+            # Owner 2026-09-14: preview = BUST framing (face 41%), not raw half-body.
+            colored_np = _bust_frame_bgr(colored_np, crop_preset)
             pstate.save_current(session_id, colored_np, "bg", STORAGE_DIR)
             info_bg_applied = True
         except Exception as e:
@@ -514,7 +539,6 @@ async def generate_passport_v2(req: GenerateRequest):
         logger.warning(f"[{session_id}] one-button transparent failed (non-fatal): {e}")
 
     # Auto-crop with preset — SQUARE mode (no forced passport ratio, no chin cut)
-    crop_preset = req.crop_preset if req.crop_preset in ("standard", "compact", "relaxed") else "standard"
     try:
         from head_finder import crop_passport_auto
         crop_result = crop_passport_auto(out_img, preset=crop_preset, dpi=300, square=True)
@@ -678,6 +702,8 @@ async def remove_bg(req: RemoveBgRequest):
     # Apply background color (PIL local = FREE)
     result_img = apply_background(pil_image, req.background_color)
     result_np = np.array(result_img.convert("RGB"))[:, :, ::-1].copy()   # PIL RGB -> BGR
+    # Owner 2026-09-14: consumer preview = BUST framing (face 41%), not raw half-body.
+    result_np = _bust_frame_bgr(result_np)
     pstate.save_current(req.session_id, result_np, "bg", STORAGE_DIR)
     
     return {
@@ -699,6 +725,8 @@ async def apply_bg(req: ApplyBgRequest):
     pil_image = Image.open(transparent_path).convert('RGBA')
     result_img = apply_background(pil_image, req.background_color)
     result_np = np.array(result_img.convert("RGB"))[:, :, ::-1].copy()   # PIL RGB -> BGR
+    # Owner 2026-09-14: consumer preview = BUST framing (face 41%), not raw half-body.
+    result_np = _bust_frame_bgr(result_np)
     pstate.save_current(req.session_id, result_np, "bg", STORAGE_DIR)
     
     return {

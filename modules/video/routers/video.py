@@ -95,6 +95,25 @@ async def generate_video(req: VideoRequest):
         return {"success": False, "error": str(e)}
 
 
+@router.post("/api/v1/video/resume/{job_id}")
+async def resume_video(job_id: str):
+    """Resume a FAILED pipeline job WITHOUT regenerating the still image.
+
+    owner 2026-09-14: Prodia Wan 2.7 flakily fails; the still + prompts are already paid
+    for. This re-runs ONLY the video + compose steps against the SAME still image, so no
+    image credit is wasted. Reads image path / prompts / script from pipeline_logs.db.
+    """
+    from video.pipeline_affiliate import resume_pipeline
+
+    try:
+        async with _pipeline_lock:
+            result = resume_pipeline(job_id)
+        return {"success": True, "resumed_from": job_id, "result": result}
+    except Exception as e:
+        logger.error(f"Resume error ({job_id}): {e}")
+        return {"success": False, "job_id": job_id, "error": str(e)}
+
+
 @router.get("/api/v1/videos/gallery")
 async def video_gallery():
     """List generated videos from storage."""

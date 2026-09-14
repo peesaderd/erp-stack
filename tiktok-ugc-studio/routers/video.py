@@ -941,6 +941,16 @@ async def generate_video(req: VideoRequest):
         },
     }
 
+@router.post("/video/resume/{job_id}")
+async def video_resume(job_id: str):
+    """Resume a FAILED pipeline job from its existing still image (no image regen).
+
+    Proxies to the video module's /api/v1/video/resume/{job_id}.
+    """
+    result = await _proxy("POST", "video", f"/api/v1/video/resume/{job_id}", {})
+    return result
+
+
 @router.get("/video/status/{job_id}")
 def video_pipeline_status(job_id: str):
     result = _pipeline_results.get(job_id)

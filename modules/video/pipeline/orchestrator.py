@@ -5,7 +5,7 @@ from ._shared import (  # noqa: F401
     PRODIA_TOKEN, GEMINI_API_KEY, logger,
     IMAGE_GEN_URL, PROMPT_BUILDER_URL, STORAGE_DIR, TMP_DIR,
     get_default_style, get_style_config, validate_ugc_style, is_valid_style,
-    start_job, update_step, update_cost, complete_job, fail_job, update_prompts,
+    start_job, update_step, update_cost, complete_job, fail_job, update_prompts, get_job,
 )
 from .providers import (
     _extract_json_obj, _deepseek_key, _mimo_key, _mimo_image_ref,
@@ -266,65 +266,79 @@ def run_pipeline(
 
         # ── STEP 5: Generate Image ──
         step_start = time.time()
-        # Single 9:16 portrait (owner direction 2026-08-24).
-        # Always portrait; do NOT switch to 16:9 landscape no matter what the
-        # image_prompt text says.
-        img_aspect = "9:16"
-        # owner 2026-09-12: default placement = "place_and_hold" (product resting on the
-        # surface with a hand reaching in) so the still frame is the "วางด้วย ถือด้วย" shot
-        # the owner asked for. "holding"/"handheld" styles use place_and_hold; tabletop/demo
-        # also place. Any other style falls back to hold.
-        _plc_style = (ugc_style or "").strip().lower()
-        # owner 2026-09-14 (fixes 'pants model still holding the jeans'): a WEARABLE garment must
-        # NEVER get the hold/place_and_hold placement directive - those append a literal "holds the
-        # product up" / "resting on a clean surface" clause that overrides the wear-style prompt and
-        # re-introduces the held pose. Route wearables to the dedicated "wear" placement.
-        _plc_name = ""
-        try:
-            _plc_name = (product_profile or {}).get("product_name") or product_name or ""
-        except Exception:
-            _plc_name = product_name or ""
-        _plc_cat = (product_profile or {}).get("category") or kwargs.get("category", "") or ""
-        _plc_sub = (product_profile or {}).get("subcategory") or kwargs.get("subcategory", "") or ""
-        if is_wearable(category=_plc_cat, subcategory=_plc_sub, product_name=_plc_name):
-            _placement = "wear"
-            logger.info("  👕 wearable detected → placement=wear (no hold/place directive)")
-        elif _plc_style in ("holding", "holding_demo", "handheld", "tabletop", "tabletop_demo", "demo", "review"):
-            _placement = "place_and_hold"
+        # owner 2026-09-14 (resume): when resuming a failed job we already have a still
+        # image on disk - reuse it verbatim and SKIP nano-banana (do not burn image credit).
+        _resume_img = kwargs.get("resume_image_path") or None
+        if _resume_img:
+            _rp = Path(_resume_img)
+            if not _rp.exists():
+                raise FileNotFoundError(
+                    f"resume: image not found on disk: {_resume_img} (cannot resume)"
+                )
+            img_url = str(_rp)
+            cost_image = 0.0
+            img_path = _rp
+            logger.info(f"Step 5/9: REUSING existing still (resume) — ${0.0:.4f} image cost, no nano-banana call: {img_path}")
         else:
-            _placement = "hold"
-        # owner 2026-09-12: when a multi-variant set was supplied and Mimo picked a reference
-        # image (the one showing the most variants), use THAT as the img2img reference so the
-        # still shows the full colour/flavour set instead of only image[0].
-        _img_ref = product_image
-        try:
-            _ri = product_profile.get("_reference_image_index")
-            _pimgs = [u for u in (product_images or []) if isinstance(u, str) and u.strip()]
-            # owner 2026-09-12: Mimo's index refers to the ORIGINAL product_images order.
-            # Determine the group-shot image (the one showing the most variants) and always use it
-            # as the img2img anchor when available - this is what makes the still show the full
-            # coloured line instead of a single repeated pack.
-            _group_url = None
-            if len(_pimgs) > 1:
-                try:
-                    _gi = _pick_variant_reference_index(_pimgs)
-                    if _gi is not None and 0 <= _gi < len(_pimgs):
-                        _group_url = _pimgs[_gi]
-                except Exception:
-                    pass
-            if _group_url:
-                _img_ref = _group_url
-                logger.info(f"  🎨 reference image = group shot ({_group_url})")
-            elif _ri is not None and _pimgs and 0 <= int(_ri) < len(_pimgs):
-                _img_ref = _pimgs[int(_ri)]
-                logger.info(f"  🎨 reference image from Mimo index {_ri}: {_img_ref}")
-        except Exception as _e_ref:
-            logger.warning(f"  reference image override skipped: {_e_ref}")
-        img_url, cost_image = generate_image(
-            image_prompt, _img_ref, aspect_ratio=img_aspect, placement=_placement
-        )
-        img_path = TMP_DIR / f"image_{run_id}.png"
-        download_file(img_url, img_path)
+            # Single 9:16 portrait (owner direction 2026-08-24).
+            # Always portrait; do NOT switch to 16:9 landscape no matter what the
+            # image_prompt text says.
+            img_aspect = "9:16"
+            # owner 2026-09-12: default placement = "place_and_hold" (product resting on the
+            # surface with a hand reaching in) so the still frame is the "วางด้วย ถือด้วย" shot
+            # the owner asked for. "holding"/"handheld" styles use place_and_hold; tabletop/demo
+            # also place. Any other style falls back to hold.
+            _plc_style = (ugc_style or "").strip().lower()
+            # owner 2026-09-14 (fixes 'pants model still holding the jeans'): a WEARABLE garment must
+            # NEVER get the hold/place_and_hold placement directive - those append a literal "holds the
+            # product up" / "resting on a clean surface" clause that overrides the wear-style prompt and
+            # re-introduces the held pose. Route wearables to the dedicated "wear" placement.
+            _plc_name = ""
+            try:
+                _plc_name = (product_profile or {}).get("product_name") or product_name or ""
+            except Exception:
+                _plc_name = product_name or ""
+            _plc_cat = (product_profile or {}).get("category") or kwargs.get("category", "") or ""
+            _plc_sub = (product_profile or {}).get("subcategory") or kwargs.get("subcategory", "") or ""
+            if is_wearable(category=_plc_cat, subcategory=_plc_sub, product_name=_plc_name):
+                _placement = "wear"
+                logger.info("  👕 wearable detected → placement=wear (no hold/place directive)")
+            elif _plc_style in ("holding", "holding_demo", "handheld", "tabletop", "tabletop_demo", "demo", "review"):
+                _placement = "place_and_hold"
+            else:
+                _placement = "hold"
+            # owner 2026-09-12: when a multi-variant set was supplied and Mimo picked a reference
+            # image (the one showing the most variants), use THAT as the img2img reference so the
+            # still shows the full colour/flavour set instead of only image[0].
+            _img_ref = product_image
+            try:
+                _ri = product_profile.get("_reference_image_index")
+                _pimgs = [u for u in (product_images or []) if isinstance(u, str) and u.strip()]
+                # owner 2026-09-12: Mimo's index refers to the ORIGINAL product_images order.
+                # Determine the group-shot image (the one showing the most variants) and always use it
+                # as the img2img anchor when available - this is what makes the still show the full
+                # coloured line instead of a single repeated pack.
+                _group_url = None
+                if len(_pimgs) > 1:
+                    try:
+                        _gi = _pick_variant_reference_index(_pimgs)
+                        if _gi is not None and 0 <= _gi < len(_pimgs):
+                            _group_url = _pimgs[_gi]
+                    except Exception:
+                        pass
+                if _group_url:
+                    _img_ref = _group_url
+                    logger.info(f"  🎨 reference image = group shot ({_group_url})")
+                elif _ri is not None and _pimgs and 0 <= int(_ri) < len(_pimgs):
+                    _img_ref = _pimgs[int(_ri)]
+                    logger.info(f"  🎨 reference image from Mimo index {_ri}: {_img_ref}")
+            except Exception as _e_ref:
+                logger.warning(f"  reference image override skipped: {_e_ref}")
+            img_url, cost_image = generate_image(
+                image_prompt, _img_ref, aspect_ratio=img_aspect, placement=_placement
+            )
+            img_path = TMP_DIR / f"image_{run_id}.png"
+            download_file(img_url, img_path)
         image_duration = int((time.time() - step_start) * 1000)
 
         try:
@@ -511,3 +525,82 @@ def run_pipeline(
             logger.warning(f"Pipeline logger fail failed: {e2}")
         raise
 
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# RESUME: re-run a FAILED job from its existing still image (owner 2026-09-14)
+# ═══════════════════════════════════════════════════════════════════════════
+def resume_pipeline(job_id: str, **overrides) -> dict:
+    """Resume a FAILED pipeline job WITHOUT regenerating the still image.
+
+    WHY: Prodia Wan 2.7 flakily fails ("unknown error"). The still image (nano-banana)
+    and the analysis/script/prompts are already produced and PAID FOR by the time the
+    video step fails. This re-runs only video + compose against the SAME still, so no
+    image credit is wasted.
+
+    Reads the failed job's stored fields (image_path, video_prompts, script, negative,
+    duration, aspect, ugc_style) from pipeline_logs.db and calls run_pipeline() with
+    resume_image_path set so Step 5 is skipped.
+
+    Raises ValueError if the job is missing, not failed, has no still image, or the
+    image file no longer exists on disk.
+    """
+    job = get_job(job_id)
+    if not job:
+        raise ValueError(f"resume: job not found: {job_id}")
+
+    status = (job.get("status") or "").lower()
+    if status == "completed":
+        raise ValueError(f"resume: job {job_id} is already completed — nothing to resume")
+    if status not in ("failed", "error", ""):
+        raise ValueError(f"resume: job {job_id} status='{status}' is not resumable (expected failed)")
+
+    img = job.get("generated_image_path") or ""
+    if not img:
+        raise ValueError(f"resume: job {job_id} has no generated_image_path — cannot resume")
+    img_p = Path(img)
+    if not img_p.exists():
+        raise ValueError(f"resume: still image missing on disk: {img} — cannot resume")
+
+    # video_prompts is stored as a JSON string.
+    vps_raw = job.get("video_prompts") or ""
+    video_prompts = None
+    if vps_raw:
+        try:
+            parsed = json.loads(vps_raw) if isinstance(vps_raw, str) else vps_raw
+            if isinstance(parsed, list) and parsed:
+                video_prompts = [str(x) for x in parsed if x]
+        except Exception:
+            logger.warning(f"  resume: could not parse stored video_prompts; will re-derive")
+
+    dur = job.get("total_duration_seconds") or 0
+    try:
+        dur = int(float(dur)) if dur else 15
+    except Exception:
+        dur = 15
+    if dur not in (8, 15):
+        dur = 15
+
+    logger.info(f"{'='*60}")
+    logger.info(f"RESUME job {job_id} — reusing still {img} (NO image regen)")
+    logger.info(f"{'='*60}")
+
+    _bgm = overrides.pop("bgm_style", None) or "chill_loft"
+    kwargs = dict(
+        product_name=job.get("product_title") or "สินค้า",
+        product_image=job.get("product_image_path") or "",
+        description=job.get("product_description") or "",
+        recipe_name=job.get("recipe_name") or "tus",
+        voice=job.get("voice") or "Aoede",
+        bgm_style=_bgm,
+        ugc_style=job.get("ugc_style") or "holding",
+        external_job_id=job_id,
+        duration=dur,
+        image_prompt=job.get("image_prompt") or "",
+        video_prompts=video_prompts or [],
+        negative_prompt=job.get("negative_prompt") or "",
+        script=job.get("script") or "",
+        resume_image_path=img,
+    )
+    kwargs.update(overrides)
+    return run_pipeline(**kwargs)

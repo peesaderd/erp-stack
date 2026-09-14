@@ -8,7 +8,79 @@ from ._shared import (  # noqa: F401
 )
 
 # ── Shared Prodia v2 Async Client ──
-from prodia_client import ProdiaV2Client, ProdiaV2Error, ProdiaValidationError
+from prodia_client import (
+    ProdiaV2Client, ProdiaV2Error, ProdiaValidationError,
+    ProdiaJobFailedError, ProdiaTimeoutError, ProdiaRateLimitError,
+)
+
+# ── Wan auto-retry (owner 2026-09-14): Prodia Wan 2.7 flakily fails with
+# "unknown error" (upstream, transient). Previously a single failure killed the
+# WHOLE job after the still image was already generated (wasted image credit).
+# Retry the video call a few times, but NEVER retry a validation/4xx error
+# (that means a malformed request — retrying just burns time).
+# Tunable via env: WAN_MAX_RETRIES (default 3), WAN_RETRY_BACKOFF (default 20s).
+def _wan_max_retries() -> int:
+    try:
+        return max(1, int(os.getenv("WAN_MAX_RETRIES", "3")))
+    except Exception:
+        return 3
+
+def _wan_retry_backoff() -> float:
+    try:
+        return max(0.0, float(os.getenv("WAN_RETRY_BACKOFF", "20")))
+    except Exception:
+        return 20.0
+
+def _is_retryable_wan_error(exc: Exception) -> bool:
+    """True for transient/upstream failures worth retrying; False for validation."""
+    if isinstance(exc, (ProdiaValidationError,)):
+        return False
+    if isinstance(exc, (ProdiaJobFailedError, ProdiaTimeoutError, ProdiaRateLimitError)):
+        return True
+    # "unknown error" from Prodia is the classic transient failure.
+    msg = str(exc).lower()
+    if "unknown error" in msg:
+        return True
+    if any(k in msg for k in ("timeout", "timed out", "connection", "temporarily", "503", "502", "504", "429", "rate limit")):
+        return True
+    # Prodia-v2 generic errors when fetching result / polling are transient.
+    if isinstance(exc, ProdiaV2Error):
+        return True
+    return False
+
+def _call_prodia_with_retry(fn, *, label: str = "Wan video"):
+    """Run fn() with bounded retries on transient Prodia failures.
+
+    Returns fn()'s value. Re-raises the last exception if all attempts fail.
+    Logs loudly that an upstream outage (NOT our code) caused the failure.
+    """
+    attempts = _wan_max_retries()
+    backoff = _wan_retry_backoff()
+    last_exc = None
+    for i in range(1, attempts + 1):
+        try:
+            if i > 1:
+                logger.info(f"  ♻️  {label}: retry {i}/{attempts} (upstream Prodia transient)")
+            return fn()
+        except Exception as e:  # noqa: BLE001
+            last_exc = e
+            if not _is_retryable_wan_error(e):
+                logger.error(f"  ⛔ {label}: non-retryable error, aborting: {e}")
+                raise
+            if i >= attempts:
+                logger.error(
+                    f"  ⛔ {label}: upstream Prodia still failing after {attempts} attempts "
+                    f"(NOT a code bug — Prodia outage): {e}"
+                )
+                raise
+            logger.warning(
+                f"  ⚠️  {label} attempt {i}/{attempts} failed (Prodia upstream, retrying in "
+                f"{backoff:.0f}s): {e}"
+            )
+            if backoff > 0:
+                time.sleep(backoff)
+    if last_exc:
+        raise last_exc
 
 def has_audio_track(video_path: str) -> bool:
     """Check if video contains an audio stream using ffprobe.
@@ -402,22 +474,24 @@ def generate_video(
             logger.info(f"  🧾 Wan prompt dumped: {_dbg}")
         except Exception as _e_dbg:
             logger.warning(f"  prompt dump skipped: {_e_dbg}")
-        result = client.generate_video(
-            prompt=final_prompt,
-            input_image=image_data,
-            duration=duration,
-            resolution=resolution,
-            audio_bytes=audio_bytes,
-            job_type="inference.wan2-7.img2vid.v1",
-            negative_prompt=neg_p,
-            # FL2V SINGLE image (owner 2026-08-26): ส่งแค่ input_image รูปเดียว
-            # ต้องไม่ส่ง last_frame/reference — ไม่งั้น Wan ใช้เป็น start-end/ภาพหลัก
-            last_frame=None,
-            reference=None,
-            # prompt_extend: default True (VALIDATED 2026-08-19 job 26ae0b8f ต้อง True)
-            # แต่ให้ owner  override เป็น False ได้ (v10 ท้ายเปลี่ยนมุมกล้อง/ลิ้นชักขยับเอง
-            # = prompt_extend เติมเอง → ลองปิด 2026-08-21)
-            prompt_extend=prompt_extend,
+        result = _call_prodia_with_retry(
+            lambda: client.generate_video(
+                prompt=final_prompt,
+                input_image=image_data,
+                duration=duration,
+                resolution=resolution,
+                audio_bytes=audio_bytes,
+                job_type="inference.wan2-7.img2vid.v1",
+                negative_prompt=neg_p,
+                # FL2V SINGLE image (owner 2026-08-26): ส่งแค่ input_image รูปเดียว
+                # ต้องไม่ส่ง last_frame/reference — ไม่งั้น Wan ใช้เป็น start-end/ภาพหลัก
+                last_frame=None,
+                reference=None,
+                # prompt_extend: default True (VALIDATED 2026-08-19 job 26ae0b8f ต้อง True)
+                # แต่ให้ owner  override เป็น False ได้ (v10 ท้ายเปลี่ยนมุมกล้อง/ลิ้นชักขยับเอง
+                # = prompt_extend เติมเอง → ลองปิด 2026-08-21)
+                prompt_extend=prompt_extend,
+            )
         )
 
         output_url = result.get("output_url", "")

@@ -35,7 +35,7 @@ from ugc_schema_client import get_default_style, get_style_config, validate_ugc_
 _parent_dir = str(Path(__file__).resolve().parent.parent)
 if _parent_dir not in sys.path:
     sys.path.insert(0, _parent_dir)
-from pipeline_logger import start_job, update_step, update_cost, complete_job, fail_job, update_prompts
+from pipeline_logger import start_job, update_step, update_cost, complete_job, fail_job, update_prompts, get_job
 
 logger = logging.getLogger("tiktok-ugc.pipeline_affiliate")
 

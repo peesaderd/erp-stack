@@ -56,3 +56,18 @@ def test_urea_word():
     assert "อูเรีย" in n("อูรียาเก้าจุดเก้า")
     assert "อูเรีย" in n("ยูเรียเก้าจุดเก้า")
     assert "อูรียา" not in n("อูรียาเก้าจุดเก้า")
+
+
+def test_brand_doctor_pong_variants():
+    # owner 2026-09-14: Mimo also emits "พงค์" (ค) and a spaced "ด็อกเตอร์ พงษ์";
+    # every wrong spelling must normalize to the ONE-word "ด็อกเตอร์พงษ์",
+    # and the correct spelling must stay IDEMPOTENT (no พงษ์ษ์).
+    n1 = n("ด็อกเตอร์ พงค์ยูรีนิวัลครีม")
+    assert "ด็อกเตอร์พงษ์" in n1
+    assert "พงค์" not in n1
+    assert "ด็อกเตอร์พงษ์" in n("ด็อกเตอร์ พงศ์ อูรีนิวอัล")
+    assert "ด็อกเตอร์พงษ์" in n("ด็อกเตอร์พงศ์ มียูเรีย")
+    assert "ด็อกเตอร์พงษ์" in n("ดร. พงค์ ยูรีนิวอัล")
+    # idempotent on already-correct text
+    assert n("ด็อกเตอร์พงษ์ตัวนี้") == "ด็อกเตอร์พงษ์ตัวนี้"
+    assert "พงษ์ษ์" not in n("ด็อกเตอร์ พงษ์ตัวนี้")

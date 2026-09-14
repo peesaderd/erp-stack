@@ -77,7 +77,11 @@ THAI_HARD_OPENER = ("ก๋วย", "กวยเตี๋ยว", "ก๋วย
 #      * "อูรี..."/"ยูเรีย" -> "อูเรีย"  (urea = อูเรีย, not อูรียา).
 #    Order: run AFTER the abbreviation pass (which already split ดร -> "ด็อกเตอร์ ").
 THAI_WORD_FIX = [
-    (r"ด็อกเตอร์\s*พงศ์(?=[\u0E00-\u0E7F]{0,3})", "ด็อกเตอร์พงษ์"),
+    # "ด็อกเตอร์ พงศ์"/"ด็อกเตอร์ พงค์"/"ด็อกเตอร์พงค์" -> "ด็อกเตอร์พงษ์" (brand = ONE word,
+    # surname spelled ษ). Owner 2026-09-14: Mimo also emits "พงค์" (ค) and a spaced variant;
+    # cover all spellings + optionally absorb a following space so the brand stays one word.
+    (r"ด็อกเตอร์\s*พง[ศค]์?(?=[\u0E00-\u0E7F]{0,3})", "ด็อกเตอร์พงษ์"),
+    (r"ด็อกเตอร์\s*พงษ์์?(?=[\u0E00-\u0E7F]{0,3})", "ด็อกเตอร์พงษ์"),
     (r"อูรียา", "อูเรีย"),
     (r"ยูเรีย", "อูเรีย"),
 ]

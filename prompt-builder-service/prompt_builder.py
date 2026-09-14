@@ -1204,8 +1204,10 @@ def build_video_prompt(profile: dict, product_name: str, ugc_style: str = "holdi
                 ]
 
         video_prompt = (
-            "A Thai woman naturally speaks the following Thai lines aloud to camera "
-            "while keeping the product in a tight close-up throughout:\n\n"
+            # owner 2026-09-14 (SINGLE SOURCE OF SPEECH): the ONLY speech directive lives in the
+            # pipeline's _stop_rule (Thai timeline «»). Do NOT open the video prompt with a speech
+            # sentence here — a second speech instruction makes Wan hallucinate a second voice line.
+            "A Thai woman holds the product in a tight close-up throughout:\n\n"
             + "\n".join(beats)
             + "\n\nKeep the same woman and product in every scene, keeping the product in a tight close-up "
             "throughout, the product stays sharp and clearly readable, the model makes only small natural "

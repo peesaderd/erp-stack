@@ -174,13 +174,41 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
         # keep the neutral default line. Apparel/unisex products that read male must render a
         # male presenter, matching the product image.
         _g_lc = str(gender or "").strip().lower()
-        if _g_lc in ("male", "man", "men", "ชาย", "ผู้ชาย"):
+        # Wearable-aware gender (owner 2026-09-14 - fixes vid_3f3ebb8b male/unisex jacket
+        # rendered female): the analyzer defaults to 'female' when the name/desc do not state
+        # a gender, so a men's/unisex garment silently becomes a female presenter. For
+        # wearables we do NOT trust that default - instead we tell Mimo (who can SEE the
+        # product image) to match the gender of the model shown wearing the garment, and to
+        # use a MALE creator for men's/unisex apparel.
+        _name_lc_g = str(product_name or "").lower()
+        _wear_g = ("เสื้อ", "กางเกง", "แจ็คเก็ต", "แจ็กเก็ต", "แจ็คเก็ท", "เดรส", "กระโปรง",
+                   "รองเท้า", "แขนยาว", "ฮู้ด", "jacket", "jeans", "trousers", "shirt",
+                   "dress", "skirt", "pants", "hoodie", "sweater", "blouse")
+        _desc_lc_g = str(description or "").lower()
+        _is_wearable_g = any(_t in _name_lc_g for _t in _wear_g)
+        _unisex_or_male = ("ผู้ชาย" in _name_lc_g or "ผู้ชาย" in _desc_lc_g or
+                           "ชาย" in _name_lc_g or "men" in _name_lc_g or "man " in _name_lc_g or
+                           "unisex" in _name_lc_g or "unisex" in _desc_lc_g or
+                           "men's" in _desc_lc_g or "ผู้ชายและผู้หญิง" in _desc_lc_g)
+        if _g_lc in ("male", "man", "men", "ชาย", "ผู้ชาย") or (_is_wearable_g and _unisex_or_male):
             _gender_instr = (
-                "- CREATOR GENDER (HARD RULE - owner 2026-09-14): the product targets a MALE / unisex "
-                "audience, so the creator MUST be a MALE Thai creator (a young man, early-to-mid 20s, "
-                "stylish and believable, matching the product's male/unisex image). Do NOT use a female "
-                "creator, and do NOT switch the creator to female even if the product is a clothing item. "
-                "Write the person as a man ('he') throughout image_prompt and video_prompt.\n"
+                "- CREATOR GENDER (HARD RULE - owner 2026-09-14): this garment/product targets a MALE or "
+                "UNISEX audience, so the creator MUST be a MALE Thai creator (a young man, early-to-mid 20s, "
+                "stylish and believable, matching the product's male/unisex look). Also MATCH the model gender "
+                "shown actually wearing the garment in the reference image - if the reference image shows a man "
+                "wearing it, the creator is a man. Do NOT use a female creator, and do NOT switch the creator "
+                "to female even though the product is clothing. Write the person as a man ('he') throughout "
+                "image_prompt and video_prompt.\n"
+            )
+        elif _is_wearable_g and _g_lc in ("", "female", "woman"):
+            # Unisex/unspecified garment: DO NOT force female. Match the reference image model.
+            _gender_instr = (
+                "- CREATOR GENDER (HARD RULE - owner 2026-09-14): this is a garment. Set the creator's gender "
+                "to MATCH the model shown wearing the garment in the reference image - if the image shows a "
+                "man wearing it, use a MALE creator; if it shows a woman, use a female creator; if it is a "
+                "unisex/flat-lay garment with no clear wearer, prefer a MALE creator for jackets/shirts/jeans/"
+                "trousers and a female creator only for clearly feminine cuts. NEVER assume female by default "
+                "for a unisex garment.\n"
             )
         else:
             _gender_instr = ""

@@ -249,10 +249,20 @@ def analyze_product(product_name: str, product_image: str = None, description: s
                 # and a cooked bowl must never dominate -> append proven negatives so the model can't
                 # render "a bowl of noodles as the clear hero" (the bug the owner keeps seeing).
                 _cat_lc = (profile.get("category") or category or "").strip().lower()
-                _food_sig = any(k in (_cat_lc + " " + (product_name or "").lower()) for k in (
-                    "food", "snack", "noodle", "drink", "beverage", "ก๋วยเตี๋ยว", "instant",
-                    "บะหมี่", "มาม่า", "เครื่องดื่ม", "ขนม", "กาแฟ", "ชา", "นม", "เรือ",
+                # owner 2026-09-14 fix (vid_3f3ebb8b jacket got a noodle bowl): the short Thai token
+                # "ชา" (tea) was substring-matched inside "ผู้ชาย" (man) -> a jacket job was
+                # mis-flagged as food and had a bowl injected. Require a REAL food signal: category
+                # is food, or an EN token with a word boundary, or a long unambiguous Thai token.
+                _food_blob = _cat_lc + " " + (product_name or "").lower()
+                _food_en = any(re.search(r"\b" + re.escape(k) + r"\b", _food_blob) for k in (
+                    "food", "snack", "noodle", "noodles", "drink", "beverage", "instant",
+                    "soup", "tea", "coffee", "milk", "dessert", "meal", "cereal",
                 ))
+                _food_th = any(k in _food_blob for k in (
+                    "ก๋วยเตี๋ยว", "บะหมี่", "มาม่า", "เครื่องดื่ม", "ขนม", "กาแฟ", "ชาเขียว",
+                    "นมสด", "นมเปรี้ยว", "อาหาร", "เส้นหมี่", "เส้นเล็ก", "เกี๊ยว", "โจ๊ก", "ข้าว",
+                ))
+                _food_sig = (_cat_lc == "food") or _food_en or _food_th
                 if _food_sig:
                     # owner 2026-09-12 (neg<=500): lean, VOICE-FREE negative list.
                     # (a) ALL speech/voice items REMOVED - we never instruct voice, so there is
@@ -307,23 +317,26 @@ def analyze_product(product_name: str, product_image: str = None, description: s
                     # owner 2026-09-12 ("ควรจะมีก๋วยเตี๋ยว ใส่ชามวางไว้ด้วย"): rule 1e is MANDATORY but
                     # Mimo still drops the bowl from the image_prompt some runs -> the still has NO bowl,
                     # so Wan has none to work from. Hard-inject the prepared-dish prop deterministically.
+                    # owner 2026-09-14 fix (vid_3f3ebb8b): this was nested under `if _mimo_neg:` only, so
+                    # a jacket/shirt job got a "bowl of noodles" injected as a prop. Gate it on _food_sig.
                     try:
-                        _bowl_words = ("bowl", "ชาม", "cup of", "ก๋วยเตี๋ยว", "noodles in", "dish of",
-                                       "soup", "น้ำซุป", "พร้อมเสิร์ฟ", "prepared")
-                        _ip_now = (profile.get("_image_prompt") or "")
-                        _bowl_in_ip = any(w in _ip_now.lower() for w in _bowl_words)
-                        if _ip_now and not _bowl_in_ip:
-                            _bowl_clause = (" A small bowl of the prepared dish (a hot bowl of noodles/broth) "
-                                            "rests on the table beside the packs as a secondary prop - "
-                                            "appetising, sharp, in the lower foreground, NOT in front of the packs.")
-                            profile["_image_prompt"] = _ip_now.rstrip().rstrip(".") + "." + _bowl_clause
-                            logger.info("  🍜 image_prompt bowl injected (food prop mandatory - Mimo omitted it)")
-                        _vp_now = (profile.get("_video_prompt") or "")
-                        _bowl_in_vp = any(w in _vp_now.lower() for w in _bowl_words)
-                        if _vp_now and not _bowl_in_vp:
-                            profile["_video_prompt"] = (_vp_now.rstrip() + " A small bowl of the prepared "
-                                                        "noodles sits still on the table beside the packs throughout the shot.")
-                            logger.info("  🍜 video_prompt bowl injected (food prop mandatory - Mimo omitted it)")
+                        if _food_sig:
+                            _bowl_words = ("bowl", "ชาม", "cup of", "ก๋วยเตี๋ยว", "noodles in", "dish of",
+                                           "soup", "น้ำซุป", "พร้อมเสิร์ฟ", "prepared")
+                            _ip_now = (profile.get("_image_prompt") or "")
+                            _bowl_in_ip = any(w in _ip_now.lower() for w in _bowl_words)
+                            if _ip_now and not _bowl_in_ip:
+                                _bowl_clause = (" A small bowl of the prepared dish (a hot bowl of noodles/broth) "
+                                                "rests on the table beside the packs as a secondary prop - "
+                                                "appetising, sharp, in the lower foreground, NOT in front of the packs.")
+                                profile["_image_prompt"] = _ip_now.rstrip().rstrip(".") + "." + _bowl_clause
+                                logger.info("  🍜 image_prompt bowl injected (food prop mandatory - Mimo omitted it)")
+                            _vp_now = (profile.get("_video_prompt") or "")
+                            _bowl_in_vp = any(w in _vp_now.lower() for w in _bowl_words)
+                            if _vp_now and not _bowl_in_vp:
+                                profile["_video_prompt"] = (_vp_now.rstrip() + " A small bowl of the prepared "
+                                                            "noodles sits still on the table beside the packs throughout the shot.")
+                                logger.info("  🍜 video_prompt bowl injected (food prop mandatory - Mimo omitted it)")
                     except Exception as _e_bowl:
                         logger.warning(f"  bowl injection skipped: {_e_bowl}")
                 # owner 2026-09-12 (HARD 500 CAP): Prodia wan2-7.img2vid.v1 accepts a negative

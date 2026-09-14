@@ -5,20 +5,18 @@ AI UGC Video Generator: Script → TTS → Video Gen (Prodia/Fal) → Compose
 Part of Business OS, registered with ERP Modular.
 
 Port: 8111
+
+Monolith split into routers/ — setup + router assembly only (Phase B refactor).
 """
 
 import os
 import sys
-import asyncio
-import random
 import logging
 from pathlib import Path
-from typing import Optional
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, field_validator
 
 # ─── Path setup ───────────────────────────────────────────────────────
 _module_dir = os.path.dirname(os.path.abspath(__file__))
@@ -28,22 +26,10 @@ if _modules_dir not in sys.path:
 if _module_dir not in sys.path:
     sys.path.insert(0, _module_dir)
 
-# ─── Schema Engine UGC Style Client ─────────────────────────────────
-_ugc_client_dir = os.path.join(os.path.dirname(_modules_dir), "prompt-builder-service")
-if _ugc_client_dir not in sys.path:
-    sys.path.insert(0, _ugc_client_dir)
-from ugc_schema_client import validate_ugc_style
-
-# ─── Storage ──────────────────────────────────────────────────────────
-STORAGE_DIR = Path(__file__).parent / "storage"
-TTS_DIR = STORAGE_DIR / "tts"
-VIDEOS_DIR = STORAGE_DIR / "videos"
-COMPOSED_DIR = STORAGE_DIR / "composed"
+# ─── Storage (shared — see routers/deps.py for source of truth) ───────
+from routers.deps import STORAGE_DIR, TTS_DIR, VIDEOS_DIR, COMPOSED_DIR
 for d in [TTS_DIR, VIDEOS_DIR, COMPOSED_DIR]:
     d.mkdir(parents=True, exist_ok=True)
-
-# Config ควบคุมค่า default — แก้ที่ config.py ที่เดียว
-from config import DEFAULT_DURATION
 
 # ─── Logging ──────────────────────────────────────────────────────────
 logging.basicConfig(level=logging.INFO)
@@ -69,335 +55,21 @@ try:
 except Exception:
     pass
 
-# ─── Age Guard: pick LOWEST age from target_age range (owner 2026-09-08) ──
-import re as _re
+# ─── Routers ──────────────────────────────────────────────────────────
+from routers import health, scripts, video, product
 
-def _resolve_age(target_age: str) -> str:
-    """Guard: convert a target_age range (e.g. "25-40") to the SINGLE lowest
-    age so the on-camera creator reads as the youngest/most youthful target.
-    Rules:
-      - has a range "A-B" -> pick A (lowest bound)
-      - single int "30" -> use 30
-      - whitespace/variants ("25 ~ 40", "25-40 ปี") -> parse first integer as lowest
-      - empty / unparsable -> default 20
-    Handles Thai suffix text and multiple number tokens by taking the smallest integer found.
-    """
-    if not target_age:
-        return "20"
-    s = str(target_age).strip()
-    # Find every integer token (including negatives avoided):
-    nums = _re.findall(r"\d+", s)
-    if not nums:
-        return "20"
-    # Data is a range/lowest-bound intent -> use the MINIMUM (youngest) token
-    return str(min(int(n) for n in nums))
-
-# ─── Pydantic Models ──────────────────────────────────────────────────
-
-class ScriptRequest(BaseModel):
-    product_name: str
-    customer_problem: str = ""
-    main_benefit: str = ""
-    target_audience: str = ""
-    tone: str = ""
-    cta: str = ""
-    duration: str = f"{DEFAULT_DURATION}s"
-    extra_rules: str = ""
-    features: str = ""
-    product_appearance: str = ""
-    style: str = "review"
-    category: str = "other"
-
-class UGCRequest(BaseModel):
-    style: str = "ugc_review"
-    product_name: str
-    product_desc: str = ""
-    gender: str = ""
-    age: str = ""
-    scene: str = "home"
-    negative_prompt: Optional[str] = None
-
-class ConcatRequest(BaseModel):
-    video_urls: list[str]
-    output_duration: int = 16
-
-class SceneBlock(BaseModel):
-    script: str = ""
-    duration: int = DEFAULT_DURATION
-    mood: str = "energetic"
-    sound_style: str = "upbeat_pop"
-    style: str = "product_usage"
-
-class VideoRequest(BaseModel):
-    product_title: str = ""
-    product_name: Optional[str] = None
-    product_url: str = ""
-    product_image: str = ""
-    # owner 2026-09-12: ALL variant images (multi-flavour/colour) so Mimo vision sees the full set
-    product_images: list[str] = []
-    product_price: Optional[float] = None
-    product_commission: Optional[float] = None
-    gender: str = ""
-    age: str = ""
-    tags: list[str] = []
-    hook: str = ""
-    value: str = ""
-    cta: str = ""
-    content_type: str = "affiliate"
-    ugc_style: str = "holding"
-    aspect_ratio: str = "9:16"
-    duration: int = DEFAULT_DURATION
-    scenes: list[SceneBlock] = []
-    prompt: str = ""
-    provider: str = "prodia"
-    model_tier: str = "standard"
-    image_url: Optional[str] = None
-    script: Optional[str] = None
-    voice: Optional[str] = None
-    negative_prompt: Optional[str] = None
-    bgm_style: Optional[str] = None
-    product_description: Optional[str] = None
-    features: str = ""
-    recipe: Optional[str] = None
-    job_id: Optional[str] = None  # external job_id from caller — used to keep pipeline_logs.db in sync
-    image_prompt: str = ""
-    video_prompt: str = ""
-    video_prompts: list[str] = []
-    # ── First/Reference/Last frame + Thai script (Wan พูดเอง) ──
-    first_frame: Optional[str] = None
-    reference_image: Optional[str] = None
-    last_frame: Optional[str] = None
-    thai_script: Optional[str] = None
-    use_tus_voice: bool = True
-    # 🔴 prompt_extend DEFAULT = False (fixed 2026-09-09). ก่อนหน้านี้ค่า default เป็น True และ
-    # main.py ส่ง prompt_extend=req.prompt_extend ตรง ๆ → ทุก job ที่ยิงผ่าน /video/generate
-    # (โดยไม่ส่ง prompt_extend=false) จะได้ prompt_extend=True เข้า Prodia → Wan 2.7 ได้รับคำสั่ง
-    # ให้ EXTEND/เติมฉากเองจนครบ 15s → สร้างเสียง/ขยับปาก/มั่วแถมท้าย 2-3 วิ + พูดเนิบเพื่อยืดเวลา
-    # (ตรง studio template ปิด prompt_extend=false ไว้นานแล้ว physical เพี้ยนเมื่อเปิด เจอ validated
-    #  08:02 — แต่ path API นี้เคย default True => หลุดเปิดอยู่). Wan พูด thai_script เองในโหมด
-    # Voice-A ต้องให้ model หยุดพูดเมื่อจบบท ไม่ใช่ถูกสั่งให้เติมจนเต็มเวลา.
-    prompt_extend: bool = False
-    # ── FL2V+Audio (Wan 2.7 start-end interpolation + 16kHz mono WAV lip-sync) ──
-    audio: Optional[str] = None  # path/URL ของไฟล์เสียง 16kHz mono WAV (Prodia lip-sync)
-    # ── SSOT deep-analysis fields (จาก Product Analyzer 8106 → ส่งเข้า prompt-builder) ──
-    body_part: str = ""
-    special_target: str = ""
-    usage_howto: str = ""
-    ingredient_highlight: str = ""
-    # ── SSOT subcategory (cat → subcat → style ใน prompt_sources.json) ──
-    category: str = ""
-    subcategory: str = ""
-    # target_gender จาก product analyzer (สินค้าผู้หญิง→female) — override gender param
-    target_gender: str = ""
-    # target_age จาก product analyzer / studio (ช่วงอายุ target) — override age param
-    target_age: str = ""
-
-    @field_validator("duration")
-    @classmethod
-    def _duration_must_be_allowed(cls, v: int) -> int:
-        from config import ALLOWED_DURATIONS, MAX_WAN_DURATION
-        if v <= 0:
-            return DEFAULT_DURATION
-        if v not in ALLOWED_DURATIONS:
-            raise ValueError(f"duration ต้องเป็น {ALLOWED_DURATIONS} เท่านั้น (ส่ง {v})")
-        return v
-
-class AffiliateScriptRequest(ScriptRequest):
-    platforms: list[str] = []
-
-# ─── Pipeline Job Store (in-memory) ────────────────────────────────────
-# ─── Health ────────────────────────────────────────────────────────────
-
-@app.get("/health")
-def health():
-    return {"status": "ok", "service": "video-module", "version": "0.1.0"}
-
-# ─── Script Generation ────────────────────────────────────────────────
-
-@app.post("/api/v1/scripts/generate")
-async def generate_script(req: ScriptRequest):
-    """Generate TikTok UGC review script using AI."""
-    from video.script_gen import generate_tiktok_review_script
-    result = generate_tiktok_review_script(
-        product_name=req.product_name,
-        customer_problem=req.customer_problem,
-        main_benefit=req.main_benefit,
-        target_audience=req.target_audience,
-        tone=req.tone,
-        cta=req.cta,
-        duration=req.duration,
-        extra_rules=req.extra_rules,
-        features=req.features,
-        product_appearance=req.product_appearance,
-        style=req.style,
-        persona_category=req.category,
-    )
-    return {"success": True, "script": result}
-
-@app.post("/api/v1/scripts/ugc")
-async def generate_ugc_script(req: UGCRequest):
-    """Generate UGC-style script."""
-    from video.script_gen import generate_ugc_script
-    result = generate_ugc_script(
-        style=req.style,
-        product_name=req.product_name,
-        product_desc=req.product_desc,
-        gender=req.gender,
-        age=req.age,
-        scene=req.scene,
-    )
-    return {"success": True, "script": result, "style": req.style}
-
-@app.get("/api/v1/scripts/variations")
-async def get_script_variations():
-    """List available script variation templates."""
-    from video.script_gen import get_script_variations
-    return {"success": True, "variations": get_script_variations()}
-
-@app.get("/api/v1/scripts/templates")
-async def list_script_templates():
-    """List all available script templates."""
-    from video.script_gen import SCRIPT_TEMPLATES
-    return {"success": True, "templates": SCRIPT_TEMPLATES}
-
-@app.post("/api/v1/scripts/affiliate")
-async def generate_affiliate_script(req: AffiliateScriptRequest):
-    """Generate script with affiliate links."""
-    from video.script_gen import generate_tiktok_review_script
-    script = generate_tiktok_review_script(
-        product_name=req.product_name,
-        customer_problem=req.customer_problem,
-        main_benefit=req.main_benefit,
-        target_audience=req.target_audience,
-        tone=req.tone,
-        cta=req.cta,
-        duration=req.duration,
-        extra_rules=req.extra_rules + "\nInclude affiliate links",
-    )
-    return {"success": True, "script": script, "platforms": req.platforms}
-
-@app.get("/api/v1/affiliate/config")
-async def get_affiliate_config():
-    return {"success": True, "config": {}}
+for r in (
+    health.router,
+    scripts.router,
+    video.router,
+    product.router,
+):
+    app.include_router(r)
 
 # ─── TTS REMOVED (owner 2026-08-24) ──────────────────────────────────────
 # Gemini TTS endpoints (/api/v1/tts/generate, /api/v1/tts/script) removed from
 # TUS entirely. Voice = Wan 2.7 speaks thai_script directly in the pipeline.
 # No TTS generation lives here anymore.
-
-# ─── Video Generation ────────────────────────────────────────────────
-
-# Owner 2026-09-09 16:05: 8111 = single-process BLOCKING pipeline. Multiple concurrent
-# clients (web UI + API) used to fire jobs that preempted/interleaved each other, causing
-# stale/wrong-product output. Guard with a single global asyncio lock so jobs strictly run
-# one-at-a-time; concurrent requests queue and wait instead of colliding.
-_pipeline_lock = asyncio.Lock()
-
-
-@app.post("/api/v1/video/generate")
-async def generate_video(req: VideoRequest):
-    """Generate AI video via Affiliate Pipeline (unified).
-    
-    All content types now route through pipeline_affiliate.
-    The pipeline handles: Gemini Vision → SAM3 → Script Gen → TTS → Nano Banana → Wan 2.7 → FFmpeg
-    """
-    from video.pipeline_affiliate import run_pipeline
-    
-    # Build script from hook + value + cta if no explicit script provided.
-    # Owner 2026-09-06: NEVER fall back to product_title as the spoken Thai script.
-    # product_title is a long romanized name (e.g. "ลายกิ่งไม้ กางเกงยีนส์ขากว้าง... สไตล์อเมริกัน")
-    # that Wan mispronounces. If there is no real hook/value/cta/script, leave script empty
-    # so pipeline generate_script() writes a proper Thai sales line from the product profile.
-    script = req.script or ""
-    if not script:
-        parts = [p for p in [req.hook, req.value, req.cta] if p]
-        script = " ".join(parts)
-    
-    # Build scene prompts from request
-    scene_prompts = []
-    if req.scenes:
-        scene_prompts = [s.script or s.mood for s in req.scenes]
-    if not scene_prompts:
-        # Default: single scene from product title
-        scene_prompts = [req.product_title or "สินค้าน่าสนใจ วางบนพื้นผิวสวยงาม แสงธรรมชาติ"]
-    
-    product_image = req.product_image or req.image_url or ""
-    
-    try:
-        # Owner 2026-09-09: serialize pipeline runs — one job at a time globally.
-        # Holding the lock across the whole blocking run_pipeline queues concurrent
-        # /api/v1/video/generate requests so they never interleave.
-        async with _pipeline_lock:
-            result = run_pipeline(
-                product_name=req.product_name or req.product_title or (script[:60] if script else "สินค้า"),
-                product_image=product_image if product_image else None,
-                product_images=req.product_images or [],
-                recipe_name=req.recipe or "tus",
-                voice=req.voice or "Aoede",
-                bgm_style=req.bgm_style or random.choices(
-                    ["chill_loft", "luxury_jazz", "upbeat_pop", "energetic_edm", "informative_jazz", "asmr", "relaxing"],
-                    weights=[15, 15, 20, 12, 12, 4, 22], k=1
-                )[0],
-                description=req.product_description or "",
-                gender=(req.target_gender or req.gender or "female"),
-                age=_resolve_age(req.target_age or req.age or ""),
-                ugc_style=validate_ugc_style(req.ugc_style),
-                external_job_id=req.job_id,
-                duration=req.duration,
-                features=req.features or "",
-                # SSOT deep-analysis fields
-                body_part=req.body_part or "",
-                special_target=req.special_target or "",
-                usage_howto=req.usage_howto or "",
-                ingredient_highlight=req.ingredient_highlight or "",
-                category=req.category or "",
-                subcategory=req.subcategory or "",
-                image_prompt=req.image_prompt or "",
-                video_prompt=req.video_prompt or "",
-                video_prompts=req.video_prompts or [],
-                negative_prompt=req.negative_prompt or "",
-                script=script or "",
-                first_frame=req.first_frame or "",
-                reference_image=req.reference_image or "",
-                last_frame=req.last_frame or "",
-                thai_script=req.thai_script or "",
-                use_tus_voice=req.use_tus_voice,
-                prompt_extend=req.prompt_extend,
-                audio_path=req.audio or "",
-            )
-        return {"success": True, "result": result}
-    except Exception as e:
-        logger.error(f"Pipeline error: {e}")
-        return {"success": False, "error": str(e)}
-
-
-
-@app.get("/api/v1/videos/gallery")
-async def video_gallery():
-    """List generated videos from storage."""
-    files = []
-    for f in sorted(VIDEOS_DIR.glob("**/*.*"))[:50]:
-        if f.suffix.lower() in (".mp4", ".webm", ".mov"):
-            files.append({"name": f.name, "size": f.stat().st_size, "path": f"/static/videos/{f.name}"})
-    return {"success": True, "videos": files}
-
-# ─── Product Analysis (delegated to pipeline service port 8118) ────
-
-@app.post("/api/v1/product/analyze")
-async def analyze_product(req: dict):
-    """Analyze product using AI (Gemini/Mistral). Forward to pipeline service."""
-    from video.gemini_agent import analyze_product
-    result = analyze_product(
-        product_name=req.get("product_name", ""),
-        description=req.get("description", ""),
-        category=req.get("category", ""),
-        target_audience=req.get("target_audience", ""),
-        age_group=req.get("age_group") or req.get("age", "") or None,
-        gender=req.get("gender", ""),
-        image_url=req.get("image_url", ""),
-        image_base64=req.get("image_base64", ""),
-    )
-    return {"success": True, "analysis": result}
 
 # ─── Entry Point ──────────────────────────────────────────────────────
 

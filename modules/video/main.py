@@ -9,17 +9,13 @@ Port: 8111
 
 import os
 import sys
-import json
-import uuid
-import time
 import asyncio
 import random
 import logging
-import tempfile
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, field_validator
@@ -36,7 +32,7 @@ if _module_dir not in sys.path:
 _ugc_client_dir = os.path.join(os.path.dirname(_modules_dir), "prompt-builder-service")
 if _ugc_client_dir not in sys.path:
     sys.path.insert(0, _ugc_client_dir)
-from ugc_schema_client import get_default_style, validate_ugc_style
+from ugc_schema_client import validate_ugc_style
 
 # ─── Storage ──────────────────────────────────────────────────────────
 STORAGE_DIR = Path(__file__).parent / "storage"

@@ -64,7 +64,7 @@ except Exception:
 # ─── Routers ──────────────────────────────────────────────────────────────
 from routers import (
     auth, pipeline, video, product, ugc, tiktok, payment,
-    batch, aitoearn, publisher, monitor, scout,
+    batch, aitoearn, publisher, monitor, scout, bgm,
 )
 
 for r in (
@@ -80,6 +80,7 @@ for r in (
     publisher.router,
     monitor.router,
     scout.router,
+    bgm.router,
 ):
     app.include_router(r)
 
@@ -123,11 +124,7 @@ if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8105, reload=False)
 
 
-# ─── BGM Playlist API ────────────────────────────────────────────────────
-import shutil
-from fastapi import Body
-from pydantic import BaseModel
-
+# ─── BGM static mount (routes live in routers/bgm.py) ─────────────────────
 BGM_DIR = Path(__file__).resolve().parent / "bgm"
 BGM_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -136,32 +133,3 @@ try:
     app.mount("/bgm", StaticFiles(directory=str(BGM_DIR)), name="bgm")
 except Exception as e:
     logger.warning(f"BGM static mount: {e}")
-
-class SetBGMRequest(BaseModel):
-    file: str
-
-@app.post("/api/set-bgm")
-async def set_bgm(req: SetBGMRequest):
-    """Set the selected BGM file as the main bg_upbeat.mp3."""
-    src = BGM_DIR / req.file
-    if not src.exists():
-        return {"ok": False, "error": f"File not found: {req.file}"}
-    # Backup current bg_upbeat.mp3
-    dest = BGM_DIR / "bg_upbeat.mp3"
-    if dest.exists():
-        backup = BGM_DIR / "bg_upbeat_backup.mp3"
-        shutil.copy2(dest, backup)
-    shutil.copy2(src, dest)
-    return {"ok": True, "file": req.file, "message": f"BGM set to {req.file}"}
-
-@app.get("/api/bgm-list")
-async def bgm_list():
-    """List all BGM files with metadata."""
-    files = []
-    for f in sorted(BGM_DIR.glob("*.mp3")):
-        files.append({
-            "name": f.stem,
-            "file": f.name,
-            "size": f.stat().st_size,
-        })
-    return {"ok": True, "files": files}

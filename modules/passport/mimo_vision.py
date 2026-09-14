@@ -229,6 +229,7 @@ def analyze_lighting(image_bytes: bytes, stat_hint: dict = None) -> dict:
             with open(_cpath) as f:
                 cached = json.load(f)
             if cached:
+                cached["_cached"] = True
                 logger.info(f"mimo_vision: cache HIT ({_ckey[:8]}) key={cached.get('key')} "
                             f"strength={cached.get('lighting_strength')}")
                 return cached
@@ -292,4 +293,5 @@ def analyze_lighting(image_bytes: bytes, stat_hint: dict = None) -> dict:
         logger.info(f"mimo_vision: cached result ({_ckey[:8]})")
     except Exception as e:
         logger.warning(f"mimo_vision: cache write failed: {e}")
+    data["_cached"] = False
     return data

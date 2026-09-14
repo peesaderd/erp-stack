@@ -191,6 +191,10 @@ def flux_i2i(input_image: np.ndarray, prompt: str, strength: float = 0.6, negati
         "type": "inference.flux-2.klein.4b.img2img.v1",
         "config": job_cfg,
     })
+    logger.info(f"FLUXJOB strength={job_cfg.get('strength')} seed={job_cfg.get('seed')} "
+                f"neg={'Y' if job_cfg.get('negative_prompt') else 'N'}")
+    logger.debug(f"FLUXJOB prompt={prompt}")
+    logger.debug(f"FLUXJOB_NEG {job_cfg.get('negative_prompt')}")
 
     body = b""
     body += f"--{BOUNDARY}\r\n".encode()

@@ -169,9 +169,36 @@ def _sanitize_lighting_prompt(prompt: str) -> str:
     return out
 
 
+def _cache_dir() -> str:
+    """Disk cache dir for Mimo lighting results (per-photo determinism)."""
+    d = os.path.join(os.path.dirname(os.path.abspath(__file__)), "storage", "mimo_cache")
+    try:
+        os.makedirs(d, exist_ok=True)
+    except Exception:
+        pass
+    return d
+
+
+def _cache_key(image_bytes: bytes) -> str:
+    """Stable hash of the (downscaled) photo + stat hint so the same photo
+    always resolves to the same lighting prompt."""
+    import hashlib
+    try:
+        b64 = _b64_jpeg(image_bytes)
+    except Exception:
+        b64 = base64.b64encode(image_bytes).decode()
+    return hashlib.sha256(b64.encode()).hexdigest()[:32]
+
+
 def analyze_lighting(image_bytes: bytes, stat_hint: dict = None) -> dict:
     """
     Ask Mimo to (A) confirm the exposure key and (D) write a context-aware prompt.
+
+    Results are CACHED per photo (owner 2026-09-14: "Prompt ไม่เท่ากัน ... ลองดู").
+    Mimo is an LLM and writes a DIFFERENT lighting_prompt/negative_prompt on every
+    call, even for the same photo at temperature 0.2 — that made FLUX outputs
+    unstable run-to-run even with a locked seed. Caching by image hash makes the
+    lighting prompt deterministic: the same photo always yields the same prompt.
 
     Returns {} on failure (caller keeps statistical result). Otherwise:
         {
@@ -194,6 +221,19 @@ def analyze_lighting(image_bytes: bytes, stat_hint: dict = None) -> dict:
                 f"frame_mean={stat_hint.get('frame_mean')}, "
                 f"clipped_high={stat_hint.get('clipped_high_pct')}%, "
                 f"clipped_low={stat_hint.get('clipped_low_pct')}%.")
+    # ── Cache lookup (per-photo determinism) ──────────────────────────────
+    _ckey = _cache_key(image_bytes)
+    _cpath = os.path.join(_cache_dir(), _ckey + ".json")
+    try:
+        if os.path.exists(_cpath):
+            with open(_cpath) as f:
+                cached = json.load(f)
+            if cached:
+                logger.info(f"mimo_vision: cache HIT ({_ckey[:8]}) key={cached.get('key')} "
+                            f"strength={cached.get('lighting_strength')}")
+                return cached
+    except Exception as e:
+        logger.warning(f"mimo_vision: cache read failed: {e}")
     prompt_text = (
         "You are an expert ID-photo lighting technician. Look at this portrait and "
         "judge its exposure so we can normalise the lighting to a clean, evenly lit "
@@ -245,4 +285,11 @@ def analyze_lighting(image_bytes: bytes, stat_hint: dict = None) -> dict:
         data["confidence"] = 0.7
     logger.info(f"mimo_vision: key={data.get('key')} strength={data['lighting_strength']} "
                 f"ctx={data.get('context','')!r}")
+    # ── Store to cache so the same photo is deterministic next time ────────
+    try:
+        with open(_cpath, "w") as f:
+            json.dump(data, f, ensure_ascii=False)
+        logger.info(f"mimo_vision: cached result ({_ckey[:8]})")
+    except Exception as e:
+        logger.warning(f"mimo_vision: cache write failed: {e}")
     return data

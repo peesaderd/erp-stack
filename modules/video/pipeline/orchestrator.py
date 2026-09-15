@@ -315,9 +315,37 @@ def run_pipeline(
                 # so the ONLY placement control is here. Route the "usage/APPLY" style to
                 # place_and_hold so the still is "product RESTING on the surface, hand reaching
                 # in" — then Wan starts from a resting pose and APPLY physics can work.
+                #
+                # owner 2026-09-15 (card 8ea0954e - "ทำไมได้ style เดียว"): but a product whose
+                # real use is IN-HAND (hair-dye wand brushed onto hair, makeup brush sweeping a
+                # cheek - the DEMO branch in prompts.py) must NOT get place_and_hold (that
+                # directive forces the product to stay on the surface and NO hand grips it, which
+                # fights the demo action). Those get placement="hold" so the still starts with
+                # the product IN HER HAND, mid-use. Only the lotion/cream pump-apply keeps
+                # place_and_hold (bottle must stand on the table for the pump).
+                _pd_name = (_plc_name or "").lower()
+                _pd_sub = (_plc_sub or "").lower()
+                _pd_present_only_tokens = (
+                    "อาหาร", "ก๋วยเตี๋ยว", "บะหมี่", "มาม่า", "ขนม", "น้ำพริก", "น้ำปลา", "ซอส", "เครื่องดื่ม",
+                    "chocolate", "choc", "snack", "noodle", "instant", "coffee", "tea", "beverage", "drink",
+                    "เสื้อ", "กางเกง", "เดรส", "กระโปรง", "แจ็คเก็ต", " jacket", "dress", "jeans", "shirt", "skirt",
+                    "หูฟัง", "headphone", "earbud", "สมาร์ทวอทช์", "smartwatch", "watch", "handbag", "กระเป๋า",
+                    "พาวเวอร์แบงค์", "power bank", "charger", "สายชาร์จ", "cable", "mouse", "keyboard",
+                    "ตุ๊กตา", "ของเล่น", "toy",
+                )
+                _pd_is_present_only = any(_t in (_pd_sub + " " + _pd_name) for _t in _pd_present_only_tokens)
+                _pd_apply_tokens = ("body", "bodycare", "body-care", "lotion", "cream", "skincare", "skin",
+                                    "moisturizer", "moisturiser", "serum", "oil", "sunscreen", "sunblock",
+                                    "เจล", "ครีม", "โลชั่น", "เซรั่ม", "ออยล์", "กันแดด", "บอดี้", "ผิว")
+                _pd_is_apply = (any(_t in _pd_sub for _t in _pd_apply_tokens)
+                                or any(_t in _pd_name for _t in _pd_apply_tokens))
                 if _plc_style in ("usage", "apply", "howto", "how_to", "tutorial"):
-                    _placement = "place_and_hold"
-                    logger.info("  🧴 usage/APPLY style → placement=place_and_hold (product resting, hand reaches in — anti-hold anchor)")
+                    if _pd_is_apply or _pd_is_present_only:
+                        _placement = "place_and_hold"
+                        logger.info("  🧴 usage/APPLY style → placement=place_and_hold (product resting, hand reaches in — anti-hold anchor)")
+                    else:
+                        _placement = "hold"
+                        logger.info("  🎬 usage/DEMO style → placement=hold (product in hand, mid-use action)")
                 else:
                     _placement = "hold"
             # owner 2026-09-12: when a multi-variant set was supplied and Mimo picked a reference

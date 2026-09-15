@@ -280,9 +280,56 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
                 )
                 and not any(_t in (_sub_lc_a + " " + _name_lc_a) for _t in _apply_not_tokens)
             )
+            # owner 2026-09-15 (card 8ea0954e): TIGHTEN the APPLY gate - a beauty CATEGORY alone
+            # must NOT trigger the lotion pump-and-apply physics. Hair dye / makeup brush / any
+            # beauty item that is NOT a lotion/cream was wrongly eligible. Require a real
+            # body/skin application token in the subcategory or name (lotion/cream/serum/โลชั่น/ครีม...).
+            if _apply_ok:
+                _has_body_token = (any(_t in _sub_lc_a for _t in _apply_body_tokens)
+                                   or any(_t in _name_lc_a for _t in _apply_body_tokens))
+                if not _has_body_token:
+                    _apply_ok = False
         except Exception:
             _apply_ok = False
+        # owner 2026-09-15 (card 8ea0954e - "ทำไมได้ style เดียว / สินค้าอื่นถือและนั่งหมด"):
+        # ROOT CAUSE = binary HOLD vs APPLY. Everything that was not a lotion/cream fell into
+        # `_sys_held_rule` = "she simply HOLDS the product... does NOT apply, does NOT open" so
+        # the hair-dye product (ยาย้อมผม) just sits and turns the wand (ไม่ย้อมผม), the makeup
+        # brush just lifts and sets the brush (ไม่แต่งหน้า), etc. - every product looked identical.
+        # Fix (owner chose approach A - product-driven ONE action): for a USAGE/DEMO style we no
+        # longer force "HOLD" - we let Mimo write the product's REAL single use-action (ย้อมผม /
+        # ปัดแป้ง / คลุมรถ / ทาแขน ...), still short + physically correct + no speech text.
+        # "HOLD-only" is now reserved for a NARROW present-only set (food pack, sealed drink,
+        # fashion/accessory show, device/gadget showroom) where there is no visible use-action.
+        _demo_ok = False
+        try:
+            _style_lc_d = (ugc_style or "").strip().lower()
+            _sub_lc_d = (subcategory or "").strip().lower()
+            _cat_lc_d = (category or "").strip().lower()
+            _name_lc_d = (product_name or "").lower()
+            _demo_styles = ("usage", "usage_apply", "apply", "demo", "demo_apply", "tabletop",
+                            "tabletop_demo", "howto", "how_to", "tutorial", "unbox", "unboxing",
+                            "talking_head", "review", "skincare")
+            # Products that genuinely have NO visible in-clip use-action -> keep HOLD/present only.
+            _present_only_tokens = (
+                "อาหาร", "ก๋วยเตี๋ยว", "บะหมี่", "มาม่า", "ขนม", "น้ำพริก", "น้ำปลา", "ซอส", "เครื่องดื่ม",
+                "chocolate", "choc", "snack", "noodle", "instant", "coffee", "tea", "beverage", "drink",
+                "เสื้อ", "กางเกง", "เดรส", "กระโปรง", "แจ็คเก็ต", " jacket", "dress", "jeans", "shirt", "skirt",
+                "หูฟัง", "headphone", "earbud", "สมาร์ทวอทช์", "smartwatch", "watch", "handbag", "กระเป๋า",
+                "พาวเวอร์แบงค์", "power bank", "charger", "สายชาร์จ", "cable", "mouse", "keyboard",
+                "ตุ๊กตา", "ของเล่น", "toy",
+            )
+            _is_present_only = any(_t in (_sub_lc_d + " " + _name_lc_d) for _t in _present_only_tokens)
+            _demo_ok = (
+                _style_lc_d in _demo_styles
+                and not _is_present_only
+            )
+        except Exception:
+            _demo_ok = False
+        _action_ok = bool(_apply_ok or _demo_ok)
         logger.info("  🧴 APPLY mode " + ("ON" if _apply_ok else "OFF") + " (style=" + (ugc_style or "").strip() + ")")
+        logger.info("  🎬 product-driven ACTION " + ("ON" if _action_ok else "OFF (present-only/HOLD)") +
+                    ("" if _apply_ok else (" [demo]" if _demo_ok else "")))
         if _apply_ok:
             # v2 (owner 2026-09-15): วางขวดก่อน → มือว่างทาแขนอีกข้าง ระบุข้างชัด → ถือกลับ
             # ไม่ต้องบีบ-ล้วง-เปิดฝา (ตัดขั้นตอนที่ทำให้เพี้ยน) — positive สั้น ไม่ขัด negative
@@ -312,6 +359,38 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
                 "2026-09-13). Pressing the pump once (bottle standing on the table) is the ONLY allowed "
                 "dispensing action - never open the cap, never squeeze the bottle. The bottle stays on the "
                 "table during the apply."
+            )
+        elif _demo_ok:
+            # owner 2026-09-15 (card 8ea0954e, approach A): let Mimo pick the REAL single use-action
+            # for THIS product type (ยาย้อมผม -> ย้อม/ป้ายผม, แปรง -> ปัดแป้งที่แก้ม, ผ้าคลุม -> คลุมรถ).
+            # Still ONE short action, physically correct, no speech text (speech is SSOT in video.py).
+            _sys_main_action = ("the presenter performs the product's ONE real use-action on herself or the "
+                                "object - the single obvious action a real buyer would do with THIS product "
+                                "(e.g. for a hair-dye/ปิดหงอก product she actually brushes the dye onto her "
+                                "hair/roots or onto an older model's hair; for a makeup brush she actually "
+                                "sweeps the powder onto her cheek; for a cover/tarp she actually lays it over "
+                                "the object). Write the ONE action in one short flat sentence with a clear "
+                                "start and end. Do NOT write that she merely holds, turns or presents the "
+                                "product - she must USE it.")
+            _sys_held_rule = (
+                "PRODUCT-DRIVEN ACTION (owner 2026-09-15 - card 8ea0954e, fixes 'ทำไมได้ style เดียว / ถือและนั่งหมด'): "
+                "this product HAS a real, visible use-action - you MUST write that ONE action, not a hold. "
+                "Pick the single most natural action a real user performs with THIS product (hair dye -> brush "
+                "the colour onto the hair/roots; hair-grey cover -> apply to the grey hair; makeup brush -> sweep "
+                "powder/blush onto the cheek; body/facial product -> apply to the ONE stated spot; a cover/tarp -> "
+                "lay it over the object). CRITICAL RULES: (1) EXACTLY ONE action, short, with a clear start and "
+                "end - never a numbered list, never a long open->use->close sequence; (2) name WHICH hand does "
+                "WHAT and WHERE it touches (e.g. 'her RIGHT hand brushes along her hair at the left temple'); "
+                "(3) if the product is used ON the presenter, show it landing on that body area and keep the "
+                "area VISIBLE (bare skin / parted hair / no covered sleeve in the way); (4) the action must be "
+                "PHYSICALLY CORRECT and must NOT contradict the negative prompt; (5) end on a calm presented "
+                "settle with the product steady to camera. This is NOT a hold-only clip. Do NOT open the "
+                "container unless the real product genuinely requires opening to use it."
+            )
+            _sys_closed_rule = (
+                "Keep the action SIMPLE and physically correct; open the container ONLY if the real product "
+                "needs opening to be used, otherwise keep it closed (owner 2026-09-15 - no fragile "
+                "open/use/close loop)."
             )
         else:
             _sys_main_action = ("she simply HOLDS the product in her hand for the whole clip. No applying, "
@@ -469,10 +548,10 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "MOVE ONLY - the image stays fully lit and identical in exposure; it does NOT fade, dim or go "
             "black at any point. The final frame shows the complete product line, labels readable, person "
             "still in frame beside it, at full brightness.\n"
-            "- Camera: vertical 9:16 smartphone, STEADY and stable (tripod-like) " + ("with at most ONE slow smooth "
-            "move (a slow pull-back)" if not _apply_ok else "with NO camera move at all - LOCKED and fixed the "
+            "- Camera: vertical 9:16 smartphone, STEADY and stable (tripod-like) " + ("with NO camera move at all - LOCKED and fixed the "
             "whole clip, NO pull-back, NO zoom-out, NO pan - so the pump-and-apply action stays clearly "
-            "visible on the hand/forearm") + ", crisp focus on the product "
+            "visible on the hand/forearm" if _apply_ok else "with at most ONE slow smooth "
+            "move (a slow pull-back)") + ", crisp focus on the product "
             "while the person stays in frame with it. NEVER handheld wobble, shake, ripple or warp - the frame "
             "must stay rigid and photoreal. BOTH the person and the product are clearly visible in "
             "EVERY beat of the clip - never drop the person OR the product from frame.\n\n"
@@ -616,35 +695,41 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "   place sequence. Keep it SIMPLE (owner 2026-09-13).\n"
             "   KEEP IT SIMPLE - NO BEAT LIST (owner 2026-09-13 - fixes 'สั่งเยอะมันมั่ว'): do NOT write a \n"
             "   numbered list of steps or actions. Write ONE short flat description instead (2-3 sentences max) \n"
-            "   with a single idea: the presenter HOLDS the product to camera. Nothing else.\n"
-            "   THE ACTION " + ("IS JUST: HOLD (owner 2026-09-14): she is holding the product in her hand the \n"
-            "   whole clip. That is the whole visible action. She does NOT apply it, does NOT open it, does NOT \n"
-            "   squeeze it, does NOT set it down - the product simply stays in her hand the entire time.\n"
-            "   " if not _apply_ok else "IS A SINGLE SIMPLE APPLY (owner 2026-09-15 v4): she presses the \n"
-            "   pump once - lotion comes out - SETS THE BOTTLE DOWN on the table, then her right hand smooths \n"
-            "   the lotion onto her left forearm in one short gesture, then picks the bottle back up and \n"
-            "   presents it. No second pump, no second spot, nothing else.\n") +
+            "   with a single idea: " + ("she presses the pump ONCE - lotion comes out - SETS THE BOTTLE DOWN, then her right hand smooths it onto her left forearm in ONE short gesture, then picks it up and presents it. Nothing else.\n"
+            "   THE ACTION IS A SINGLE SIMPLE APPLY (owner 2026-09-15 v4).\n" if _apply_ok else
+            ("she performs the product's ONE real use-action ONCE, in the correct obvious way for THIS product, with a clear start and end. Nothing else.\n"
+             "   THE ACTION IS THE PRODUCT'S REAL USE-ACTION (owner 2026-09-15 - card 8ea0954e): she does NOT merely hold, turn or present it - she USES it once.\n" if _demo_ok else
+             "the presenter HOLDS the product to camera. Nothing else.\n"
+             "   THE ACTION IS JUST: HOLD (owner 2026-09-14): she is holding the product in her hand the \n"
+             "   whole clip. That is the whole visible action. She does NOT apply it, does NOT open it, does NOT \n"
+             "   squeeze it, does NOT set it down - the product simply stays in her hand the entire time.\n")) +
             "   DO NOT WRITE ANY SPEECH SIGNAL (owner 2026-09-14, SINGLE SOURCE OF SPEECH): do NOT write \n"
             "   'she speaks' / 'speaks her Thai line' / 'mouth moving' / 'still speaking' ANYWHERE in the \n"
             "   video_prompt - not as an opening sentence, not in the action, not in the closing. The system \n"
             "   appends the single speech directive (the Thai timeline) itself; a second speech sentence here \n"
             "   makes Wan drift and invent an extra line (owner: 'บทพูดมี 2 เส้นซ้อนกัน').\n"
-            "   " + ("Keep her body and hands CALM and still. Do not describe extra gestures, extra hands, extra \n"
-            "   objects, loose product on the surface, or any apply/open/close step." if not _apply_ok else
-            "   Keep the hands calm except the ONE smoothing gesture; no extra objects, no loose product on the \n"
-            "   surface, no second apply spot.") + "\n"
+            "   " + ("Keep the hands calm except the ONE smoothing gesture; no extra objects, no loose product on the \n"
+            "   surface, no second apply spot." if _apply_ok else
+            ("Keep the hands calm except the ONE product use-action; no extra objects, no loose product on the \n"
+             "   surface, no second use spot." if _demo_ok else
+             "Keep her body and hands CALM and still. Do not describe extra gestures, extra hands, extra \n"
+             "   objects, loose product on the surface, or any apply/open/close step.")) + "\n"
             "   HARD RULES: EXACTLY TWO hands (rule 6e); nothing floats or vanishes; the product stays in her \n"
             "   hand and visible through to the end.\n"
 
             "5b. ACTION = ONE SHORT FLAT DESCRIPTION, NO LIST (owner 2026-09-13 - fixes 'สั่งเยอะมันมั่ว'): \n"
             "   describe the single action in ONE short flat sentence or two (max 2-3 sentences). Do NOT write a \n"
-            "   numbered list of beats or steps. " + ("For a packaged product the action is simply: she HOLDS the \n"
-            "   product in her hand, staying calm and still, the product in hand the whole time. Her free hand \n"
-            "   stays relaxed and still and holds nothing else (rule 6e - prevents extra hands)." if not _apply_ok else
-            "   For a lotion/cream the action is simply: she presses the pump once - lotion comes out - \n"
+            "   numbered list of beats or steps. " + ("For a lotion/cream the action is simply: she presses the pump once - lotion comes out - \n"
             "   SETS THE BOTTLE DOWN on the table, then her right hand smooths the lotion onto her left \n"
             "   forearm in one short gesture, then picks the bottle back up and presents it. Her free hand \n"
-            "   stays relaxed (rule 6e). No second pump, no second spot.") + " \n"
+            "   stays relaxed (rule 6e). No second pump, no second spot." if _apply_ok else
+            ("For this product the action is simply the product's ONE real use-action on herself or the object \n"
+             "   (hair-dye -> onto the hair/roots; makeup brush -> sweep onto the cheek; cover -> lay over the \n"
+             "   object). ONE short action, clear start and end. Her free hand stays relaxed and does not hold \n"
+             "   another object (rule 6e - prevents extra hands)." if _demo_ok else
+             "For a packaged product the action is simply: she HOLDS the \n"
+             "   product in her hand, staying calm and still, the product in hand the whole time. Her free hand \n"
+             "   stays relaxed and still and holds nothing else (rule 6e - prevents extra hands).")) + " \n"
             "   Keep it simple and short - the model follows a short, clean description far better than a long \n"
             "   list of instructions.\n"
 
@@ -744,18 +829,26 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "   blurry, smeared, mushy, or plastic/CGI look. Say so in the video_prompt (e.g. 'noodles in \n"
             "   sharp natural focus with visible strand texture') and add negatives like 'no blurry noodles, \n"
             "   no smeared mushy food, no fake CGI food, no kettle, no pot, no pouring, no cooking'.\n"
-            "6c. JAR / TUB / POT CREAM - DO NOT SCOOP (owner 2026-09-13 - apply removed): the container \n"
-            "   stays CLOSED for the whole clip. " + ("Do NOT write that she opens the jar, dips a finger in, scoops \n"
-            "   cream, or applies it - keep the lid ON and simply HOLD + PRESENT the closed jar to camera \n"
-            "   (rule 2b)." if not _apply_ok else "Never scoop or open the lid. If the jar/tub has a PUMP she may \n"
-            "   press the pump once (jar on the table) and smooth the lotion onto her forearm as in APPLY MODE.") + "\n"
-            "6d. TUBE / BOTTLE SCALE + NO SQUEEZE (owner 2026-09-13 - apply removed): the product is a normal \n"
+            "6c. JAR / TUB / POT CREAM (owner 2026-09-15 - card 8ea0954e): " + ("Never scoop or open the lid. If the jar/tub has a PUMP she may \n"
+            "   press the pump once (jar on the table) and smooth the lotion onto her forearm as in APPLY MODE." if _apply_ok else
+            ("If the product's real use requires opening the jar (e.g. a balm/wax to apply), she may open it \n"
+             "   ONCE and apply a small amount to the stated spot - ONE action, simple, physically correct. If it \n"
+             "   is a present-only jar, keep the lid ON and simply HOLD + PRESENT it." if _demo_ok else
+             "the container \n"
+             "   stays CLOSED for the whole clip. Do NOT write that she opens the jar, dips a finger in, scoops \n"
+             "   cream, or applies it - keep the lid ON and simply HOLD + PRESENT the closed jar to camera \n"
+             "   (rule 2b).")) + "\n"
+            "6d. TUBE / BOTTLE SCALE (owner 2026-09-15 - card 8ea0954e): the product is a normal \n"
             "   handheld size, roughly the length of the person's palm/forearm - NEVER oversized or giant in the \n"
-            "   frame (no giant tube filling the shot). " + ("Do NOT write that she squeezes/pours/spreads the \n"
-            "   product onto skin - the tube/bottle stays CLOSED and is simply HELD and PRESENTED to camera \n"
-            "   (rule 2b)." if not _apply_ok else "Never squeeze or open the bottle. If it has a PUMP she may \n"
+            "   frame (no giant tube filling the shot). " + ("Never squeeze or open the bottle. If it has a PUMP she may \n"
             "   press the pump ONCE (bottle standing on the table) and smooth the lotion onto her forearm as \n"
-            "   in APPLY MODE - it is NOT merely held.") + "\n"
+            "   in APPLY MODE - it is NOT merely held." if _apply_ok else
+            ("If the product's real use requires squeezing/pouring (e.g. a dye or cream tube), she may squeeze \n"
+             "   ONCE and apply/dab a small amount to the stated spot - ONE simple correct action. If it is a \n"
+             "   present-only tube, keep it CLOSED and simply HOLD + PRESENT it." if _demo_ok else
+             "Do NOT write that she squeezes/pours/spreads the \n"
+             "   product onto skin - the tube/bottle stays CLOSED and is simply HELD and PRESENTED to camera \n"
+             "   (rule 2b).")) + "\n"
             "6e. HAND COUNT - EXACTLY TWO HANDS (owner 2026-09-12 - LYSE extra-hands bug): across the WHOLE clip \n"
             "   show EXACTLY two hands (one left, one right) - never a third hand, never duplicated fingers. If the \n"
             "   product must be held throughout, ONE hand holds it and the OTHER hand does the single action; never \n"

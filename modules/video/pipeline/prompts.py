@@ -286,25 +286,27 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
         if _apply_ok:
             # v2 (owner 2026-09-15): วางขวดก่อน → มือว่างทาแขนอีกข้าง ระบุข้างชัด → ถือกลับ
             # ไม่ต้องบีบ-ล้วง-เปิดฝา (ตัดขั้นตอนที่ทำให้เพี้ยน) — positive สั้น ไม่ขัด negative
-            _sys_main_action = ("she HOLDS the lotion bottle in her LEFT hand, presses the pump ONCE with "
-                                "her RIGHT hand - a small amount of lotion comes out onto the back of her "
-                                "left forearm/hand - then her RIGHT hand smooths it in with ONE short gentle "
-                                "gesture, then she holds/presents the bottle to camera again. No second pump, "
-                                "no second spot, no long sequence. The camera stays CLOSE and LOCKED - no "
-                                "pull-back, no zoom out - so the apply is clearly visible.")
+            _sys_main_action = ("she HOLDS the lotion bottle, presses the pump ONCE - a small amount of "
+                                "lotion comes out - then SETS THE BOTTLE DOWN on the table (release), then "
+                                "her RIGHT hand smooths the lotion onto her LEFT forearm with ONE short "
+                                "gentle gesture, then she picks the bottle back up and presents it to camera. "
+                                "No second pump, no second spot, no long sequence. The camera stays CLOSE "
+                                "and LOCKED - no pull-back, no zoom out - so the apply is clearly visible.")
             _sys_held_rule = (
-                "APPLY MODE v3 (owner 2026-09-15 - fixes 'ครีมออกมาเอง ต้องกดปั๊ม'): she HOLDS the pump "
-                "bottle in one hand (pump head on TOP), presses the pump ONCE with the other hand - a small "
-                "amount of lotion comes out of the pump onto the back of her OTHER hand/forearm - then she "
-                "smooths it onto that forearm with ONE short gentle gesture. That is the whole action: pump "
-                "once, apply once, present. Do NOT open the cap, do NOT squeeze the bottle, do NOT tilt it "
-                "upside down, no second pump, no second spot, no face/neck. The container stays CLOSED the "
-                "whole clip; only the pump is pressed."
+                "APPLY MODE v4 (owner 2026-09-15 - fixes 'ไม่วางแล้วมาทา'): she HOLDS the pump bottle in one "
+                "hand (pump head on TOP), presses the pump ONCE - a small amount of lotion comes out onto her "
+                "other hand/forearm - then she SETS THE BOTTLE DOWN on the table and RELEASES it (both hands "
+                "are then free), then her free hand smooths the lotion onto her forearm with ONE short gentle "
+                "gesture, then she PICKS THE BOTTLE BACK UP and presents it to camera. That is the whole "
+                "action: pump once, SET DOWN, apply once, pick up, present. This OVERRIDES any holding/never-"
+                "set-down instruction - setting the bottle down before applying is REQUIRED. Do NOT open the "
+                "cap, do NOT squeeze the bottle, do NOT tilt it upside down, no second pump, no second spot, "
+                "no face/neck. The container stays CLOSED the whole clip; only the pump is pressed."
             )
             _sys_closed_rule = (
                 "The product container stays CLOSED - never show an open/squeeze/close loop (owner "
-                "2026-09-13). Pressing the pump once (a small amount on her hand/forearm) is the ONLY "
-                "allowed dispensing action - never open the cap, never squeeze the bottle."
+                "2026-09-13). Pressing the pump once is the ONLY allowed dispensing action - never open the "
+                "cap, never squeeze the bottle. The bottle is SET DOWN on the table during the apply."
             )
         else:
             _sys_main_action = ("she simply HOLDS the product in her hand for the whole clip. No applying, "
@@ -603,10 +605,10 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "   THE ACTION " + ("IS JUST: HOLD (owner 2026-09-14): she is holding the product in her hand the \n"
             "   whole clip. That is the whole visible action. She does NOT apply it, does NOT open it, does NOT \n"
             "   squeeze it, does NOT set it down - the product simply stays in her hand the entire time.\n"
-            "   " if not _apply_ok else "IS A SINGLE SIMPLE APPLY (owner 2026-09-15 v3): she holds the pump \n"
-            "   bottle in her left hand, presses the pump once with her right hand - lotion comes out onto \n"
-            "   her left forearm - then her right hand smooths it in one short gesture. No opening, no second \n"
-            "   pump, no second spot, nothing else.\n") +
+            "   " if not _apply_ok else "IS A SINGLE SIMPLE APPLY (owner 2026-09-15 v4): she presses the \n"
+            "   pump once - lotion comes out - SETS THE BOTTLE DOWN on the table, then her right hand smooths \n"
+            "   the lotion onto her left forearm in one short gesture, then picks the bottle back up and \n"
+            "   presents it. No second pump, no second spot, nothing else.\n") +
             "   DO NOT WRITE ANY SPEECH SIGNAL (owner 2026-09-14, SINGLE SOURCE OF SPEECH): do NOT write \n"
             "   'she speaks' / 'speaks her Thai line' / 'mouth moving' / 'still speaking' ANYWHERE in the \n"
             "   video_prompt - not as an opening sentence, not in the action, not in the closing. The system \n"
@@ -624,10 +626,10 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "   numbered list of beats or steps. " + ("For a packaged product the action is simply: she HOLDS the \n"
             "   product in her hand, staying calm and still, the product in hand the whole time. Her free hand \n"
             "   stays relaxed and still and holds nothing else (rule 6e - prevents extra hands)." if not _apply_ok else
-            "   For a lotion/cream the action is simply: she holds the pump bottle in her left hand, presses \n"
-            "   the pump once with her right hand - lotion comes out onto her left forearm - then her right \n"
-            "   hand smooths it in one short gesture. Her free hand stays relaxed (rule 6e). No opening, no \n"
-            "   second pump, no second spot.") + " \n"
+            "   For a lotion/cream the action is simply: she presses the pump once - lotion comes out - \n"
+            "   SETS THE BOTTLE DOWN on the table, then her right hand smooths the lotion onto her left \n"
+            "   forearm in one short gesture, then picks the bottle back up and presents it. Her free hand \n"
+            "   stays relaxed (rule 6e). No second pump, no second spot.") + " \n"
             "   Keep it simple and short - the model follows a short, clean description far better than a long \n"
             "   list of instructions.\n"
 

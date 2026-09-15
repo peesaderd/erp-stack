@@ -286,23 +286,25 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
         if _apply_ok:
             # v2 (owner 2026-09-15): วางขวดก่อน → มือว่างทาแขนอีกข้าง ระบุข้างชัด → ถือกลับ
             # ไม่ต้องบีบ-ล้วง-เปิดฝา (ตัดขั้นตอนที่ทำให้เพี้ยน) — positive สั้น ไม่ขัด negative
-            _sys_main_action = ("she HOLDS the product to camera at the start, SETS it down on the table, "
-                                "then her RIGHT hand smooths a small amount of lotion onto her LEFT forearm "
-                                "in one short gesture, then she picks the product back up and presents it "
-                                "again. No opening, no squeezing, no second spot.")
+            _sys_main_action = ("she HOLDS the lotion bottle in her LEFT hand, presses the pump ONCE with "
+                                "her RIGHT hand - a small amount of lotion comes out onto the back of her "
+                                "left forearm/hand - then her RIGHT hand smooths it in with ONE short gentle "
+                                "gesture, then she holds/presents the bottle to camera again. No second pump, "
+                                "no second spot, no long sequence. The camera stays CLOSE and LOCKED - no "
+                                "pull-back, no zoom out - so the apply is clearly visible.")
             _sys_held_rule = (
-                "APPLY MODE v2 (owner 2026-09-15 - fixes 'ทาลมเบา ๆ ผิดข้างเพราะถือขวด'): the product is "
-                "SET DOWN on the table (released) BEFORE she applies. Then her RIGHT hand smooths a small "
-                "amount of lotion onto her LEFT forearm (or the back of her left hand) with ONE short gentle "
-                "gesture - the product is ALREADY on her hand, no opening/squeezing/pumping. Then she picks "
-                "the product back up and presents it to camera. Keep it to ONE spot, no face/neck, no second "
-                "apply, no long sequence. The container stays CLOSED the whole clip; the cap stays on, in "
-                "frame, the entire time."
+                "APPLY MODE v3 (owner 2026-09-15 - fixes 'ครีมออกมาเอง ต้องกดปั๊ม'): she HOLDS the pump "
+                "bottle in one hand (pump head on TOP), presses the pump ONCE with the other hand - a small "
+                "amount of lotion comes out of the pump onto the back of her OTHER hand/forearm - then she "
+                "smooths it onto that forearm with ONE short gentle gesture. That is the whole action: pump "
+                "once, apply once, present. Do NOT open the cap, do NOT squeeze the bottle, do NOT tilt it "
+                "upside down, no second pump, no second spot, no face/neck. The container stays CLOSED the "
+                "whole clip; only the pump is pressed."
             )
             _sys_closed_rule = (
-                "The product container stays CLOSED - never show an open/use/close loop (owner "
-                "2026-09-13). The product is set down before the apply; a small ONE-SPOT apply "
-                "(left forearm/hand) is allowed WITHOUT opening the container."
+                "The product container stays CLOSED - never show an open/squeeze/close loop (owner "
+                "2026-09-13). Pressing the pump once (a small amount on her hand/forearm) is the ONLY "
+                "allowed dispensing action - never open the cap, never squeeze the bottle."
             )
         else:
             _sys_main_action = ("she simply HOLDS the product in her hand for the whole clip. No applying, "
@@ -450,8 +452,10 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "MOVE ONLY - the image stays fully lit and identical in exposure; it does NOT fade, dim or go "
             "black at any point. The final frame shows the complete product line, labels readable, person "
             "still in frame beside it, at full brightness.\n"
-            "- Camera: vertical 9:16 smartphone, STEADY and stable (tripod-like) with at most ONE slow smooth "
-            "move (a slow pull-back), crisp focus on the product "
+            "- Camera: vertical 9:16 smartphone, STEADY and stable (tripod-like) " + ("with at most ONE slow smooth "
+            "move (a slow pull-back)" if not _apply_ok else "with NO camera move at all - LOCKED and fixed the "
+            "whole clip, NO pull-back, NO zoom-out, NO pan - so the pump-and-apply action stays clearly "
+            "visible on the hand/forearm") + ", crisp focus on the product "
             "while the person stays in frame with it. NEVER handheld wobble, shake, ripple or warp - the frame "
             "must stay rigid and photoreal. BOTH the person and the product are clearly visible in "
             "EVERY beat of the clip - never drop the person OR the product from frame.\n\n"
@@ -599,10 +603,10 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "   THE ACTION " + ("IS JUST: HOLD (owner 2026-09-14): she is holding the product in her hand the \n"
             "   whole clip. That is the whole visible action. She does NOT apply it, does NOT open it, does NOT \n"
             "   squeeze it, does NOT set it down - the product simply stays in her hand the entire time.\n"
-            "   " if not _apply_ok else "IS A SINGLE SIMPLE APPLY (owner 2026-09-15 v2): she SETS the product down \n"
-            "   on the table, then her RIGHT hand smooths a small amount of lotion onto her LEFT forearm in \n"
-            "   one short gesture, then picks the product back up and presents it. No opening, no squeezing, \n"
-            "   no second spot, nothing else.\n") +
+            "   " if not _apply_ok else "IS A SINGLE SIMPLE APPLY (owner 2026-09-15 v3): she holds the pump \n"
+            "   bottle in her left hand, presses the pump once with her right hand - lotion comes out onto \n"
+            "   her left forearm - then her right hand smooths it in one short gesture. No opening, no second \n"
+            "   pump, no second spot, nothing else.\n") +
             "   DO NOT WRITE ANY SPEECH SIGNAL (owner 2026-09-14, SINGLE SOURCE OF SPEECH): do NOT write \n"
             "   'she speaks' / 'speaks her Thai line' / 'mouth moving' / 'still speaking' ANYWHERE in the \n"
             "   video_prompt - not as an opening sentence, not in the action, not in the closing. The system \n"
@@ -620,10 +624,10 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "   numbered list of beats or steps. " + ("For a packaged product the action is simply: she HOLDS the \n"
             "   product in her hand, staying calm and still, the product in hand the whole time. Her free hand \n"
             "   stays relaxed and still and holds nothing else (rule 6e - prevents extra hands)." if not _apply_ok else
-            "   For a lotion/cream the action is simply: she SETS the product down on the table, her RIGHT hand \n"
-            "   smooths a small amount of lotion onto her LEFT forearm in one short gesture, then picks the \n"
-            "   product back up and presents it. Her free hand stays relaxed (rule 6e). No opening, no long \n"
-            "   sequence, no second spot.") + " \n"
+            "   For a lotion/cream the action is simply: she holds the pump bottle in her left hand, presses \n"
+            "   the pump once with her right hand - lotion comes out onto her left forearm - then her right \n"
+            "   hand smooths it in one short gesture. Her free hand stays relaxed (rule 6e). No opening, no \n"
+            "   second pump, no second spot.") + " \n"
             "   Keep it simple and short - the model follows a short, clean description far better than a long \n"
             "   list of instructions.\n"
 

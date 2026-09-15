@@ -306,7 +306,20 @@ def run_pipeline(
             elif _plc_style in ("holding", "holding_demo", "handheld", "tabletop", "tabletop_demo", "demo", "review"):
                 _placement = "place_and_hold"
             else:
-                _placement = "hold"
+                # owner 2026-09-15 (FIX holding anchor): the model was coming out HOLDING
+                # the bottle on the first frame, so Wan animated from a held pose and the
+                # product never rested on the table (owner: "holding มันติดอยู่ที่ไหนสักที่").
+                # Root cause: style "usage" (e.g. skincare/lotion APPLY) fell through to
+                # placement="hold" → image model drew her gripping the bottle. There is NO
+                # anchor on the Prodia side (last_frame is hardcoded None, owner rule 2026-08-26),
+                # so the ONLY placement control is here. Route the "usage/APPLY" style to
+                # place_and_hold so the still is "product RESTING on the surface, hand reaching
+                # in" — then Wan starts from a resting pose and APPLY physics can work.
+                if _plc_style in ("usage", "apply", "howto", "how_to", "tutorial"):
+                    _placement = "place_and_hold"
+                    logger.info("  🧴 usage/APPLY style → placement=place_and_hold (product resting, hand reaches in — anti-hold anchor)")
+                else:
+                    _placement = "hold"
             # owner 2026-09-12: when a multi-variant set was supplied and Mimo picked a reference
             # image (the one showing the most variants), use THAT as the img2img reference so the
             # still shows the full colour/flavour set instead of only image[0].

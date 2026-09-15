@@ -449,7 +449,7 @@ def generate_video(
         # (พี่สั่ง: เอาบรรทัด "ห้ามพูดคำอื่นนอก «»" ออก แล้วไปสั่งให้พูด Thai script อีกครั้ง
         #  แถว ๆ หัว prompt). เหตุผล: คำสั่งที่หัวคือสิ่งแรกที่ Wan อ่าน → ย้ำโฟกัสการพูด
         #  ให้ชัดตั้งแต่ต้น ไม่ต้องรอถึงท้าย. ไม่ใช่คำสั่งห้าม — เป็น positive directive สั้น ๆ
-        final_prompt = "พูดตาม Thai script ที่ให้ไว้ด้านล่างนี้เท่านั้น ห้ามพูดอย่างอื่น\n\n" + final_prompt
+        final_prompt = "[VOICE] ออกเสียงเฉพาะบท Thai script ด้านล่างนี้เท่านั้น ห้ามพูดอย่างอื่น\n\n" + final_prompt
         logger.info(f"  🎙 Voice mode A: speak-only-script + motion {'AFTER-script' if (_motion_on and _motion_txt) else 'OFF'} (owner fix 2026-09-10 05:52, len={len(final_prompt)}, motion={len(_motion_txt)}ch)")
 
 # ลบ comment เดิม "ห้ามฝัง" แล้วแทนด้วยโหมดฝังเมื่อเปิด

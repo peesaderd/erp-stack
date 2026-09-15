@@ -66,3 +66,36 @@ final_prompt ──► Prodia Wan 2.7 (img2vid)
 - 2026-09-10~11: timeline beats + [SETTLE] + «» + "ปิดปากเงียบ" (กันพูดต่อท้าย)
 - 2026-09-12: flat script = SSOT ของบท; ลบคำสั่งซ้อน/คำสั่งพูดใน motion
 - **2026-09-15**: SETTLE ตัด "นำเสนอสินค้า/ยิ้มให้กล้อง" (Wan แปลว่าให้พูดต่อ) → "เงียบสนิท ไม่พูด ไม่มีเสียง — ขยับร่างกายได้ตามปกติ" (commit 697aa449)
+
+## 6. นับให้ชัด: "ที่สั่งให้พูด" มีกี่ที่ กี่ไฟล์ (audit 2026-09-15 15:0x)
+
+> ตอบคำถามพี่: "เรื่องเสียงอ่ะ มันมีที่สั่งให้พูดกี่ที่กี่ไฟล์"
+
+### ✅ จุดที่ Wan อ่านเป็น **คำสั่งพูดจริง** = **1 ไฟล์ 1 ที่** (`video.py`)
+| ที่ | ไฟล์:บรรทัด | คือ |
+|---|---|---|
+| 1 | `video.py:287-320` | `_stop_rule` = คำสั่งพูด ("พูดตาม Thai script นี้เท่านั้น…" + `«บท»` + [SETTLE] + "ขยับปากทุกคำ/ปิดปากเงียบ") — **มี 2 ทรง: flat (L287) และ beats/timeline (L315) ใช้อย่างใดอย่างหนึ่ง** |
+| — | `video.py:334` | `final_prompt = _stop_rule + _speech_tail` — ประกอบเข้าด้วยกันแล้วส่ง Prodia |
+| — | `video.py:188` | `thai_voice_mode = bool(thai_script and use_tus_voice)` — สวิตช์เปิด/ปิด |
+
+➡️ **สรุป: เสียง/คำสั่งพูดของ Wan = ที่เดียวใน `video.py`** (`_stop_rule`). ที่อื่นไม่ใช่คำสั่งพูด
+
+### 🚫 ที่"ห้ามเขียนคำพูด" (ไม่ใช่คำสั่งพูด แต่เป็นคำสั่งให้ Mimo อย่าใส่) = `prompts.py`
+มี ~12 จุดที่บอก Mimo "MOTION ONLY - ห้ามเขียนคำพูด/script/mouth ลง video_prompt" (L429, L641-648, L672, L707, L872-878…) + L445 "ปากแง้มเล็กน้อย" (คำสั่งฝั่งภาพ) — ทั้งหมดนี้ **ไม่ใช่ที่สั่งพูด** แต่กันคำสั่งพูดซ้ำโผล่ใน prompt
+
+### 📝 ที่เป็น "บท" (ไม่ใช่คำสั่งพูด) = 2 ไฟล์
+| ที่ | ไฟล์ | บทบาท |
+|---|---|---|
+| ต้นทางบท | `script.py` (`_deepseek_product_prompts` → Mimo) | เขียน thai_script + script_beats |
+| auto-เปิด + normalize | `orchestrator.py:205-250` | ถ้ามี script → ตั้ง `thai_script` + `use_tus_voice=True` (Voice mode A) + sanitize |
+| สังเคราะห์ beat | `script.py: _synthesize_script_beats` | แปลง flat→beats |
+
+➡️ **รวมทั้งหมด: คำสั่งพูดจริง = 1 จุด (video.py `_stop_rule`); ที่เหลือเป็นบท (script.py/orchestrator.py) + คำสั่งห้ามซ้ำ (prompts.py)**
+
+### ⚠️ กับดักที่เคยทำ "เสียงเพี้ยน" (คำสั่งพูดซ้ำหลายที่)
+1. `video.py` `[MOVEMENT]` block — ถ้า Mimo เผลอเขียน "she speaks/her Thai line" → regex strip ทิ้งอัตโนมัติ (แต่ถ้า strip ไม่หมด = ซ้อน)
+2. `prompts.py` video_prompt template — ต้องมี L429 สั่ง Mimo ห้ามพูด
+3. เก่า: TTS Gemini (ถอดออกแล้ว 2026-08-24) เคยซ้อนกับเสียง Wan
+
+> **SSOT**: ถ้าจะแก้คำสั่งพูด → แก้ `video.py` `_stop_rule` ที่เดียวเท่านั้น
+> **พิสูจน์ว่า Wan เห็นอะไร** → เปิด `storage/tmp/wan_prompt_<hash8>.txt`

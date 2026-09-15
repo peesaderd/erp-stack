@@ -285,11 +285,9 @@ def generate_video(
             else:
                 _last_word_hint = _flat[-20:]
         _stop_rule = (
-            "พูดตาม Thai script นี้เท่านั้น:\n"
-            f"«{_script_clean}»\n"
-            "อ่านเฉพาะข้อความใน «» ครบทุกคำตามที่เขียน แล้วปิดปาก เงียบสนิท "
-            f"(คำสุดท้ายคือ '{_last_word_hint}')\n"
-            "เวลาอ่านข้อความใน «» ให้ขยับปากพูดตามเสียงให้ชัดทุกคำ ริมฝีปากอ้า-หุบเห็นการเคลื่อนไหว ตอนจบ/ช่วงเงียบจึงหุบปากสนิท"
+            "พูดเป็นภาษาไทยตามบทด้านล่างนี้เท่านั้น:\n"
+            f"{_script_clean}\n"
+            "อ่านบทภาษาไทยให้ครบทุกคำตามที่เขียน แล้วหยุดพูดเงียบสนิท"
         )
         # 🔴 owner 2026-09-11 08:0x (Fix C): STRUCTURED BEATS — send the script as a TIMED timeline
         # instead of one blob. Root cause of the CTA tail leak = a TIME-BUDGET problem: Wan must
@@ -305,19 +303,19 @@ def generate_video(
                 _secs = _b.get("seconds", 0)
                 _txt = (_b.get("text") or "").strip()
                 if _lbl == "settle" or not _txt:
-                    # owner 2026-09-15: SETTLE ต้องห้าม "พูด/ส่งเสียง" อย่างเดียว ไม่มีคำว่า "นำเสนอสินค้า"
-                    # (Wan ตีความ = ให้พูดต่อ) และไม่เน้น "ยิ้มให้กล้อง" (ปากขยับ = เสียง) — เหลือแค่หยุดพูด เงียบสนิท
-                    _lines.append(f"  - [SETTLE {_secs}s]: เงียบสนิท ไม่พูด ไม่มีเสียง — ขยับร่างกายได้ตามปกติ")
+                    # owner 2026-09-15: SETTLE = หยุดพูด เงียบสนิท (ไม่ให้ Wan ตีความเป็น 'พูดต่อ')
+                    _lines.append("  หยุดพูด เงียบสนิท ไม่มีเสียง")
                 else:
                     _spoken_secs += _secs
-                    _lines.append(f"  - [{_lbl} ~{_secs}s]: «{_txt}»")
+                    _lines.append(f"  {_txt}")
             _timeline = "\n".join(_lines)
+            # owner 2026-09-15 23:3x: Wan was reading the '«»' quotes and the '[hook ~4s]' labels
+            # as content -> garbled + slow delivery. Send the beats as a PLAIN numbered Thai list
+            # with NO quote marks and NO bracket labels; the Thai text itself is the only speech.
             _stop_rule = (
-                "พูดตาม Thai script นี้เท่านั้น ตามลำดับเวลา (timeline) ด้านล่าง:\n"
+                "พูดเป็นภาษาไทยตามบทด้านล่างนี้เท่านั้น ตามลำดับ:\n"
                 f"{_timeline}\n"
-                "อ่านเฉพาะข้อความใน «» ตามลำดับ — ห้ามออกเสียงป้ายกำกับ [ ] ใด ๆ\n"
-                "อ่านครบทุกคำจนจบช่วงสุดท้าย แล้วปิดปาก เงียบสนิท\n"
-                "เวลาอ่านข้อความใน «» ให้ขยับปากพูดตามเสียงให้ชัดทุกคำ ริมฝีปากอ้า-หุบเห็นการเคลื่อนไหว ตอนจบ/ช่วงเงียบจึงหุบปากสนิท"
+                "อ่านบทภาษาไทยให้ครบทุกคำจนจบ แล้วหยุดพูดเงียบสนิท"
             )
             logger.info(f"  🎙 Fix C beats: {len(_beats)} beats, spoken~{_spoken_secs}s + settle")
         # 🔴 owner 2026-09-11 00:54: Wan พูดแทรกก่อน CTA และหลัง CTA.
@@ -449,7 +447,7 @@ def generate_video(
         # (พี่สั่ง: เอาบรรทัด "ห้ามพูดคำอื่นนอก «»" ออก แล้วไปสั่งให้พูด Thai script อีกครั้ง
         #  แถว ๆ หัว prompt). เหตุผล: คำสั่งที่หัวคือสิ่งแรกที่ Wan อ่าน → ย้ำโฟกัสการพูด
         #  ให้ชัดตั้งแต่ต้น ไม่ต้องรอถึงท้าย. ไม่ใช่คำสั่งห้าม — เป็น positive directive สั้น ๆ
-        final_prompt = "[VOICE] ออกเสียงเฉพาะบท Thai script ด้านล่างนี้เท่านั้น ห้ามพูดอย่างอื่น\n\n" + final_prompt
+        final_prompt = "[VOICE] ออกเสียงบทภาษาไทยด้านล่างนี้เท่านั้น ห้ามพูดภาษาอื่น ห้ามพูดนอกบท\n\n" + final_prompt
         logger.info(f"  🎙 Voice mode A: speak-only-script + motion {'AFTER-script' if (_motion_on and _motion_txt) else 'OFF'} (owner fix 2026-09-10 05:52, len={len(final_prompt)}, motion={len(_motion_txt)}ch)")
 
 # ลบ comment เดิม "ห้ามฝัง" แล้วแทนด้วยโหมดฝังเมื่อเปิด

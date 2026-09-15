@@ -50,16 +50,27 @@ def _synthesize_script_beats(script: str, duration: int) -> list:
         _units = [u.strip() for u in _re.split(r"[,，、]+", _full) if u.strip()]
         if len(_units) < 3:
             # owner 2026-09-15: Thai has almost no commas/spaces -> would fall back to ONE unit and
-            # the hook/cta buckets end up empty. Split the flat whitespace-parts into ~3 balanced
-            # CHAR chunks so hook/value/cta always get real text.
-            _flat = _full.replace(" ", "")
-            _n = 3
-            _sz = max(1, len(_flat) // _n)
-            _units = [p.strip() for p in _parts if p.strip()]
-            # if whitespace parts are too few, chunk the flat string by size
-            if len(_units) < 3:
-                _units = [_flat[i * _sz:(i + 1) * _sz] for i in range(_n - 1)] + [_flat[(_n - 1) * _sz:]]
-                _units = [u for u in _units if u]
+            # the hook/cta buckets end up empty. Pack the whitespace WORDS greedily into ~3 balanced
+            # CHAR chunks. CRITICAL: never cut mid-word - Thai has no spaces so a raw char slice splits
+            # a word in half ('ไซต์มาตราฐาน' -> 'ไซต์มาตราฐ') which Wan then reads as garbage.
+            _words = [p.strip() for p in _parts if p.strip()]
+            if len(_words) >= 3:
+                _tot_w = max(1, sum(len(w) for w in _words))
+                _target = _tot_w / 3.0
+                _chunks, _cur, _curlen = [], [], 0
+                for _w in _words:
+                    # close the chunk just before overflowing the target (keep word whole)
+                    if _cur and _curlen + len(_w) > _target and len(_chunks) < 2:
+                        _chunks.append(" ".join(_cur))
+                        _cur, _curlen = [_w], len(_w)
+                    else:
+                        _cur.append(_w)
+                        _curlen += len(_w)
+                if _cur:
+                    _chunks.append(" ".join(_cur))
+                _units = _chunks
+            else:
+                _units = _words
     else:
         _full = _text
         _units = [u.strip() for u in _re.split(r"[,，、]+", _text) if u.strip()] or [_text]

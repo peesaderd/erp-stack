@@ -25,6 +25,30 @@ _WEARABLE_NAME_TOKENS = ("เสื้อ", "กางเกง", "แจ็ค�
                          "hoodie", "sweater", "blouse")
 
 
+def _token_hit(hay: str, token: str) -> bool:
+    """Boundary-aware token match (owner 2026-09-15).
+
+    ASCII tokens match as a plain substring (unchanged). Thai tokens must match on a
+    boundary (start of string or preceded by a NON-Thai char) so a token embedded inside a
+    longer Thai compound does NOT count -- e.g. "กันแดด" inside "ป้องกันแดด" must NOT trigger
+    an APPLY route on a motorcycle cover.
+    """
+    if not hay or not token:
+        return False
+    if token.isascii():
+        return token in hay
+    idx = hay.find(token)
+    while idx != -1:
+        if idx == 0 or not ("\u0e00" <= hay[idx - 1] <= "\u0e7f"):
+            return True
+        idx = hay.find(token, idx + 1)
+    return False
+
+
+def _any_token_hit(hay: str, tokens) -> bool:
+    return any(_token_hit(hay, t) for t in tokens)
+
+
 def is_wearable(category: str = "", subcategory: str = "", product_name: str = "") -> bool:
     """True if the product is apparel/shoes that must be WORN, never placed or held."""
     sub_lc = str(subcategory or "").strip().lower()
@@ -271,22 +295,24 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             _apply_not_tokens = ("cleanser", "face wash", "facial wash", "เจลล้างหน้า", "คลีนเซอร์",
                                  "ล้างหน้า", "แชมพู", "shampoo", "conditioner", "น้ำหอม", "perfume",
                                  "body wash", "เจลอาบน้ำ", "โฟมล้าง", "foam wash", "สบู่", "soap")
+            # owner 2026-09-15: Thai substring false-positive ("ป้องกันแดด" contains "กันแดด"
+            # -> motorcycle cover mis-routed to APPLY). Use the module boundary-aware matcher.
+            _hit = _any_token_hit
             _apply_ok = (
                 _style_lc_a in _apply_styles
                 and (
                     _cat_lc_a in ("beauty", "skincare", "body care", "body-care", "cosmetics", "personal care", "personal-care")
-                    or any(_t in _sub_lc_a for _t in _apply_body_tokens)
-                    or any(_t in _name_lc_a for _t in _apply_body_tokens)
+                    or _hit(_sub_lc_a, _apply_body_tokens)
+                    or _hit(_name_lc_a, _apply_body_tokens)
                 )
-                and not any(_t in (_sub_lc_a + " " + _name_lc_a) for _t in _apply_not_tokens)
+                and not _hit(_sub_lc_a + " " + _name_lc_a, _apply_not_tokens)
             )
             # owner 2026-09-15 (card 8ea0954e): TIGHTEN the APPLY gate - a beauty CATEGORY alone
             # must NOT trigger the lotion pump-and-apply physics. Hair dye / makeup brush / any
             # beauty item that is NOT a lotion/cream was wrongly eligible. Require a real
             # body/skin application token in the subcategory or name (lotion/cream/serum/โลชั่น/ครีม...).
             if _apply_ok:
-                _has_body_token = (any(_t in _sub_lc_a for _t in _apply_body_tokens)
-                                   or any(_t in _name_lc_a for _t in _apply_body_tokens))
+                _has_body_token = _hit(_sub_lc_a, _apply_body_tokens) or _hit(_name_lc_a, _apply_body_tokens)
                 if not _has_body_token:
                     _apply_ok = False
         except Exception:
@@ -319,7 +345,7 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
                 "พาวเวอร์แบงค์", "power bank", "charger", "สายชาร์จ", "cable", "mouse", "keyboard",
                 "ตุ๊กตา", "ของเล่น", "toy",
             )
-            _is_present_only = any(_t in (_sub_lc_d + " " + _name_lc_d) for _t in _present_only_tokens)
+            _is_present_only = _any_token_hit(_sub_lc_d + " " + _name_lc_d, _present_only_tokens)
             _demo_ok = (
                 _style_lc_d in _demo_styles
                 and not _is_present_only

@@ -337,8 +337,25 @@ def run_pipeline(
                 _pd_apply_tokens = ("body", "bodycare", "body-care", "lotion", "cream", "skincare", "skin",
                                     "moisturizer", "moisturiser", "serum", "oil", "sunscreen", "sunblock",
                                     "เจล", "ครีม", "โลชั่น", "เซรั่ม", "ออยล์", "กันแดด", "บอดี้", "ผิว")
-                _pd_is_apply = (any(_t in _pd_sub for _t in _pd_apply_tokens)
-                                or any(_t in _pd_name for _t in _pd_apply_tokens))
+                # owner 2026-09-15: Thai token substring false-positive ("ป้องกันแดด" contains
+                # "กันแดด" -> a motorcycle cover was mis-routed to APPLY/place_and_hold).
+                # Match Thai tokens on a boundary so a token inside a longer compound word
+                # (like ป้องกัน+แดด) does NOT count. ASCII/Latin tokens keep plain substring.
+                import re as _pd_re
+                def _pd_tok_hit(_hay, _tok):
+                    if _tok.isascii():
+                        return _tok in _hay
+                    # Thai: require the char before the match to be a non-Thai-letter (space/punct/start)
+                    for _m in _pd_re.finditer(_pd_re.escape(_tok), _hay):
+                        _i = _m.start()
+                        if _i == 0:
+                            return True
+                        _prev = _hay[_i - 1]
+                        if not ("\u0e00" <= _prev <= "\u0e7f"):
+                            return True
+                    return False
+                _pd_is_apply = (any(_pd_tok_hit(_pd_sub, _t) for _t in _pd_apply_tokens)
+                                or any(_pd_tok_hit(_pd_name, _t) for _t in _pd_apply_tokens))
                 if _plc_style in ("usage", "apply", "howto", "how_to", "tutorial"):
                     if _pd_is_apply or _pd_is_present_only:
                         _placement = "place_and_hold"

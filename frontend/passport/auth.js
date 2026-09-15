@@ -62,7 +62,7 @@
     else el.textContent='เข้าสู่ระบบ';
   }
   function saveSettings(){
-    var s={name:val('setName'),phone:val('setPhone'),addr:val('setAddr'),province:val('setProvince'),zip:val('setZip')};
+    var s={name:val('setName'),phone:val('setPhone'),addr:val('setAddr'),province:val('setProvince'),district:val('setDistrict'),subdistrict:val('setSubdistrict'),zip:val('setZip')};
     try{localStorage.setItem('passport_settings',JSON.stringify(s))}catch(e){}
     fillFormFromSettings();
     var t=document.getElementById('toast');
@@ -71,12 +71,12 @@
   function val(id){var e=document.getElementById(id);return e?e.value:''}
   function loadSettingsUI(){
     var s={};try{s=JSON.parse(localStorage.getItem('passport_settings')||'{}')}catch(e){}
-    ['setName','setPhone','setAddr','setProvince','setZip'].forEach(function(id){var e=document.getElementById(id);if(e)e.value=s[id.slice(3).toLowerCase()]||'';});
+    ['setName','setPhone','setAddr','setProvince','setDistrict','setSubdistrict','setZip'].forEach(function(id){var e=document.getElementById(id);if(e)e.value=s[id.slice(3).toLowerCase()]||'';});
     fillFormFromSettings();
   }
   function fillFormFromSettings(){
     var s={};try{s=JSON.parse(localStorage.getItem('passport_settings')||'{}')}catch(e){}
-    var map={recipientName:'name',name:'name',phone:'phone',address:'addr',addr:'addr',province:'province',postal:'zip',zip:'zip'};
+    var map={recipientName:'name',name:'name',phone:'phone',address:'addr',addr:'addr',province:'province',district:'district',subdistrict:'subdistrict',postal:'zip',zip:'zip'};
     for(var id in map){var e=document.getElementById(id);if(e&&!e.value&&s[map[id]])e.value=s[map[id]];}
   }
   function restoreSession(){

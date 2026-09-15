@@ -177,6 +177,7 @@ class PrintSheetRequest(BaseModel):
     hairline: bool = False
     border_width_mm: float = 3.0   # default 3mm frame
     cutlines: bool = False
+    orientation: str = "portrait"   # "portrait" | "landscape" — overrides print_size orientation
 
 
 # ── Commerce / Order & Delivery Models ────────────────────────────────
@@ -209,6 +210,8 @@ class CreateDeliveryRequest(BaseModel):
     phone: str
     address: str
     province: Optional[str] = None
+    district: Optional[str] = None
+    subdistrict: Optional[str] = None
     postal_code: Optional[str] = None
     courier: str = "thailand_post"
     shipping_fee: float = 0.0
@@ -289,6 +292,19 @@ def get_all_options():
         },
         "backgrounds": _list_bg(),
     }
+
+
+@app.get("/api/passport/thai-address/{postal_code}")
+def lookup_thai_address(postal_code: str):
+    """Look up Thai address by postal code → returns province/district/subdistrict."""
+    try:
+        from thai_postal import lookup as _postal_lookup
+        entry = _postal_lookup(postal_code)
+        if entry:
+            return {"ok": True, "postal_code": postal_code, **entry}
+        return {"ok": False, "error": f"Postal code {postal_code} not found"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
 
 
 @app.get("/api/passport/clothing")
@@ -583,9 +599,9 @@ async def generate_passport_v2(req: GenerateRequest):
             if req.blade_mode:
                 gap_mm = max(gap_mm, 5.0)
             probe = generate_print_sheet(
-                cropped, mm_w, mm_h, req.print_size, 300, gap_mm, True,
+                cropped, mm_w, mm_h, print_size, 300, gap_mm, True,
                 req.border, gap_mm, req.blade_mode, 0,
-                req.border_color, req.border_width_mm, hairline=req.hairline, cutlines=req.cutlines,
+                req.border_color, border_width_mm, hairline=req.hairline, cutlines=req.cutlines,
             )
             if probe.get("ok"):
                 max_per_sheet = probe["info"]["max_count"]
@@ -596,9 +612,9 @@ async def generate_passport_v2(req: GenerateRequest):
                     while remaining > 0:
                         this_count = min(remaining, max_per_sheet)
                         r = generate_print_sheet(
-                            cropped, mm_w, mm_h, req.print_size, 300, gap_mm, True,
+                            cropped, mm_w, mm_h, print_size, 300, gap_mm, True,
                             req.border, gap_mm, req.blade_mode, this_count,
-                            req.border_color, req.border_width_mm, hairline=req.hairline, cutlines=req.cutlines,
+                            req.border_color, border_width_mm, hairline=req.hairline, cutlines=req.cutlines,
                         )
                         if r.get("ok"):
                             sheets.append(r["result"])
@@ -618,9 +634,9 @@ async def generate_passport_v2(req: GenerateRequest):
                     probe["info"]["multi_sheet"] = True
                 else:
                     sheet = generate_print_sheet(
-                        cropped, mm_w, mm_h, req.print_size, 300, gap_mm, True,
+                        cropped, mm_w, mm_h, print_size, 300, gap_mm, True,
                         req.border, gap_mm, req.blade_mode, requested,
-                        req.border_color, req.border_width_mm, hairline=req.hairline, cutlines=req.cutlines,
+                        req.border_color, border_width_mm, hairline=req.hairline, cutlines=req.cutlines,
                     )
                     if sheet.get("ok"):
                         sheet_bytes = _encode_image(sheet["result"])
@@ -754,6 +770,18 @@ async def print_sheet_v2(req: PrintSheetRequest):
 
     dpi = req.dpi
     
+    # Apply orientation override: landscape swaps width/height for the sheet
+    print_size = req.print_size
+    if req.orientation == "landscape":
+        # Map portrait print_size to landscape equivalent
+        LANDSCAPE_MAP = {"4x6": "6x4", "5x7": "7x5", "a4": "a4_l", "a6": "a6_l"}
+        print_size = LANDSCAPE_MAP.get(print_size, print_size)
+    
+    # Override border_width when border is none
+    border_width_mm = req.border_width_mm
+    if req.border == "none":
+        border_width_mm = 0.0
+    
     # Photo sizes in mm
     PHOTO_SIZES = {
         'passport': {'w': 35, 'h': 45},
@@ -773,9 +801,23 @@ async def print_sheet_v2(req: PrintSheetRequest):
     current_h_mm = h / dpi * 25.4
     
     if abs(current_w_mm - target_w_mm) > 1 or abs(current_h_mm - target_h_mm) > 1:
-        # Resize to target size
+        # Center-crop to target aspect ratio FIRST, then resize (avoids stretching)
         target_w_px = int(round(target_w_mm / 25.4 * dpi))
         target_h_px = int(round(target_h_mm / 25.4 * dpi))
+        target_ratio = target_w_px / target_h_px
+        src_ratio = w / h
+        if abs(src_ratio - target_ratio) > 0.01:
+            # Need to crop to match target aspect ratio
+            if src_ratio > target_ratio:
+                # Source is wider → crop sides
+                new_w = int(round(h * target_ratio))
+                x_off = (w - new_w) // 2
+                img_rgb = img_rgb[:, x_off:x_off + new_w]
+            else:
+                # Source is taller → crop top/bottom
+                new_h = int(round(w / target_ratio))
+                y_off = (h - new_h) // 2
+                img_rgb = img_rgb[y_off:y_off + new_h, :]
         img_rgb = cv2.resize(img_rgb, (target_w_px, target_h_px), interpolation=cv2.INTER_LANCZOS4)
         mm_w = target_w_mm
         mm_h = target_h_mm
@@ -787,9 +829,9 @@ async def print_sheet_v2(req: PrintSheetRequest):
 
     # First call to learn max_count per sheet
     probe = generate_print_sheet(
-        img_rgb, mm_w, mm_h, req.print_size, dpi, req.gap_mm, True,
+        img_rgb, mm_w, mm_h, print_size, dpi, req.gap_mm, True,
         req.border, req.gap_mm, req.blade_mode, 0,  # 0 = auto-fill one sheet
-        req.border_color, req.border_width_mm, hairline=req.hairline, cutlines=req.cutlines,
+        req.border_color, border_width_mm, hairline=req.hairline, cutlines=req.cutlines,
     )
     if not probe["ok"]:
         raise HTTPException(400, probe.get("error", "Print sheet failed"))
@@ -807,9 +849,9 @@ async def print_sheet_v2(req: PrintSheetRequest):
         while remaining > 0:
             this_count = min(remaining, max_per_sheet)
             r = generate_print_sheet(
-                img_rgb, mm_w, mm_h, req.print_size, dpi, req.gap_mm, True,
+                img_rgb, mm_w, mm_h, print_size, dpi, req.gap_mm, True,
                 req.border, req.gap_mm, req.blade_mode, this_count,
-                req.border_color, req.border_width_mm, hairline=req.hairline, cutlines=req.cutlines,
+                req.border_color, border_width_mm, hairline=req.hairline, cutlines=req.cutlines,
             )
             if not r["ok"]:
                 raise HTTPException(400, r.get("error", "Print sheet failed"))
@@ -836,9 +878,9 @@ async def print_sheet_v2(req: PrintSheetRequest):
     else:
         # Single sheet
         result = generate_print_sheet(
-            img_rgb, mm_w, mm_h, req.print_size, dpi, req.gap_mm, True,
+            img_rgb, mm_w, mm_h, print_size, dpi, req.gap_mm, True,
             req.border, req.gap_mm, req.blade_mode, requested,
-            req.border_color, req.border_width_mm, hairline=req.hairline, cutlines=req.cutlines,
+            req.border_color, border_width_mm, hairline=req.hairline, cutlines=req.cutlines,
         )
         if not result["ok"]:
             raise HTTPException(400, result.get("error", "Print sheet failed"))
@@ -1002,9 +1044,9 @@ async def multi_print(req: MultiPrintRequest):
     
     # Generate multi-photo sheet
     result = generate_multi_print_sheet(
-        images, dims, req.copies, req.print_size, req.dpi,
+        images, dims, req.copies, print_size, req.dpi,
         req.gap_mm, req.border, req.blade_mode,
-        border_width_mm=req.border_width_mm, border_color=req.border_color,
+        border_width_mm=border_width_mm, border_color=req.border_color,
         hairline=req.hairline,
         cutlines=req.cutlines,
         cell_mm=(target_w_mm, target_h_mm),

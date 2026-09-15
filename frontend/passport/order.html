@@ -140,6 +140,14 @@ textarea.f-field{resize:vertical;min-height:72px}
       <input class="f-field" id="setProvince" placeholder="เช่น กรุงเทพฯ" value="">
     </div>
     <div class="f-group">
+      <label class="f-label">เขต/อำเภอ</label>
+      <input class="f-field" id="setDistrict" placeholder="เช่น บางรัก" value="">
+    </div>
+    <div class="f-group">
+      <label class="f-label">แขวง/ตำบล</label>
+      <input class="f-field" id="setSubdistrict" placeholder="เช่น สีลม" value="">
+    </div>
+    <div class="f-group">
       <label class="f-label">รหัสไปรษณีย์</label>
       <input class="f-field" id="setZip" placeholder="เช่น 10110" value="">
     </div>
@@ -197,8 +205,15 @@ textarea.f-field{resize:vertical;min-height:72px}
       <div class="f-group"><label class="f-label">ชื่อผู้รับ *</label><input class="f-field" id="recipientName" placeholder="ชื่อ-นามสกุล"></div>
       <div class="f-group"><label class="f-label">เบอร์โทร *</label><input class="f-field" id="phone" type="tel" placeholder="08X-XXX-XXXX"></div>
       <div class="f-group"><label class="f-label">ที่อยู่ *</label><textarea class="f-field" id="address" placeholder="บ้านเลขที่ ถนน แขวง/ตำบล เขต/อำเภอ"></textarea></div>
-      <div class="f-group"><label class="f-label">จังหวัด</label><input class="f-field" id="province" placeholder="เช่น กรุงเทพฯ"></div>
-      <div class="f-group"><label class="f-label">รหัสไปรษณีย์</label><input class="f-field" id="postal" inputmode="numeric" placeholder="เช่น 10110"></div>
+      <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
+        <div class="f-group" style="flex:1;min-width:140px"><label class="f-label">รหัสไปรษณีย์</label><input class="f-field" id="postal" inputmode="numeric" placeholder="เช่น 10110" oninput="lookupPostal(this.value)"></div>
+        <div class="f-group" style="flex:1;min-width:140px"><label class="f-label">จังหวัด</label><input class="f-field" id="province" placeholder="เช่น กรุงเทพฯ"></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
+        <div class="f-group" style="flex:1;min-width:140px"><label class="f-label">เขต/อำเภอ</label><input class="f-field" id="district" placeholder="เช่น บางรัก"></div>
+        <div class="f-group" style="flex:1;min-width:140px"><label class="f-label">แขวง/ตำบล</label><input class="f-field" id="subdistrict" placeholder="เช่น สีลม"></div>
+      </div>
+      <div class="f-group" style="margin-top:4px"><button type="button" class="acct-mini-btn" style="width:100%;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;padding:8px;border-radius:8px;font-size:.8rem;cursor:pointer" onclick="useCurrentLocation()">📍 ใช้ตำแหน่งปัจจุบัน</button></div>
       <div class="f-group"><label class="f-label">ขนส่ง</label><select class="f-field" id="courier">
         <option value="thailand_post">ไปรษณีย์ไทย</option>
         <option value="kerry">Kerry</option>
@@ -324,12 +339,18 @@ async function submitOrder(){
     var orderId=order._id||od.order_id;
 
     // 2) Create delivery
+    var district=ge('district'), subdistrict=ge('subdistrict');
+    var fullAddress=address;
+    if(subdistrict||district){fullAddress=address+(address?', ':'')+[subdistrict,district].filter(Boolean).join(', ')}
+    if(!address && (subdistrict||district)){fullAddress=[subdistrict,district].filter(Boolean).join(', ')}
     var delBody={
       order_id:orderId,
       recipient_name:name,
       phone:phone,
-      address:address,
+      address:fullAddress,
       province:ge('province'),
+      district:district,
+      subdistrict:subdistrict,
       postal_code:ge('postal'),
       courier:ge('courier'),
       shipping_fee:SHIPPING_FEE
@@ -383,7 +404,83 @@ function loadLatestPrint(){
   }).catch(function(){/* ignore network errors */});
 }
 loadLatestPrint();
+
+// ── Thai address lookup by postal code ──
+var postalTimer = null;
+function lookupPostal(code) {
+  clearTimeout(postalTimer);
+  if (!code || code.length < 5) return;
+  postalTimer = setTimeout(function() {
+    fetch(API + '/thai-address/' + code)
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.ok) {
+          var provEl = document.getElementById('province');
+          var distEl = document.getElementById('district');
+          var subEl = document.getElementById('subdistrict');
+          if (provEl && d.province) provEl.value = d.province;
+          if (distEl && d.district) distEl.value = d.district;
+          if (subEl && d.subdistrict) subEl.value = d.subdistrict;
+          toast('พบที่อยู่: ' + d.province + ' ' + d.district, 'ok');
+        }
+      })
+      .catch(function() {});
+  }, 300);
+}
+
+// ── Use current geolocation → reverse geocode ──
+function useCurrentLocation() {
+  if (!navigator.geolocation) {
+    toast('เบราว์เซอร์ไม่รองรับ GPS', 'err');
+    return;
+  }
+  toast('กำลังค้นหาตำแหน่ง...', '');
+  navigator.geolocation.getCurrentPosition(
+    function(pos) {
+      var lat = pos.coords.latitude;
+      var lng = pos.coords.longitude;
+      // Reverse geocode using free Nominatim API
+      fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng + '&accept-language=th')
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          if (d && d.address) {
+            var a = d.address;
+            var addrParts = [];
+            if (a.house_number) addrParts.push(a.house_number);
+            if (a.road) addrParts.push(a.road);
+            if (a.neighbourhood) addrParts.push(a.neighbourhood);
+            if (a.suburb) addrParts.push(a.suburb);
+            var addrEl = document.getElementById('address');
+            if (addrEl && addrParts.length) addrEl.value = addrParts.join(' ');
+            var provEl = document.getElementById('province');
+            if (provEl && a.state) provEl.value = a.state;
+            var distEl = document.getElementById('district');
+            if (distEl && a.county) distEl.value = a.county;
+            var subEl = document.getElementById('subdistrict');
+            if (subEl && a.suburb) subEl.value = a.suburb;
+            if (a.postcode) {
+              var postalEl = document.getElementById('postal');
+              if (postalEl) postalEl.value = a.postcode;
+            }
+            toast('ค้นพบตำแหน่งสำเร็จ!', 'ok');
+          } else {
+            toast('ไม่พบข้อมูลที่อยู่', 'err');
+          }
+        })
+        .catch(function() {
+          toast('ไม่สามารถค้นหาที่อยู่ได้', 'err');
+        });
+    },
+    function(err) {
+      toast('ไม่สามารถเข้าถึงตำแหน่งได้: ' + err.message, 'err');
+    },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+}
+
+// ── Auto-fill from saved settings on page load ──
+fillFormFromSettings();
 </script>
-<script src="auth.js"></script>
+<script src="auth.js?v=1789487255"></script>
 </body>
 </html>

@@ -29,23 +29,23 @@ MALE_CLOTHING = {
     },
     "white_shirt": {
         "name": "เสื้อเชิ้ตสีขาว",
-        "prompt": f"white formal dress shirt, crisp white collar, professional business attire, {POSEFRONT}",
+        "prompt": f"white formal dress shirt, crisp white collar, {POSEFRONT}",
     },
     "blue_shirt": {
         "name": "เสื้อเชิ้ตสีน้ำเงิน",
-        "prompt": f"light blue formal dress shirt, professional business attire, {POSEFRONT}",
+        "prompt": f"light blue formal dress shirt, {POSEFRONT}",
     },
     "black_suit": {
         "name": "สูทสีดำ + เนกไท",
-        "prompt": f"black formal suit jacket, white dress shirt, black necktie, professional business attire, {POSEFRONT}",
+        "prompt": f"black formal suit jacket, white dress shirt, black necktie, {POSEFRONT}",
     },
     "gray_blazer": {
         "name": "เบลเซอร์สีเทา",
-        "prompt": f"gray blazer jacket, white dress shirt, professional business attire, {POSEFRONT}",
+        "prompt": f"gray blazer jacket, white dress shirt, {POSEFRONT}",
     },
     "navy_suit": {
         "name": "สูทสีกรมท่า",
-        "prompt": f"navy blue suit jacket, white dress shirt, professional business attire, {POSEFRONT}",
+        "prompt": f"navy blue suit jacket, white dress shirt, {POSEFRONT}",
     },
 }
 
@@ -55,7 +55,7 @@ MALE_CLOTHING = {
 FEMALE_CLOTHING = {
     "white_blouse": {
         "name": "เสื้อเบลาส์สีขาว",
-        "prompt": f"white formal blouse, tailored fit, professional business attire, modest neckline, {POSEFRONT}",
+        "prompt": f"white formal blouse, tailored fit, modest neckline, {POSEFRONT}",
         "default": True,
     },
     "white_lace_blouse": {
@@ -71,19 +71,19 @@ FEMALE_CLOTHING = {
     },
     "black_blouse": {
         "name": "เสื้อเบลาส์สีดำ",
-        "prompt": f"black formal blouse, tailored fit, professional business attire, modest neckline, {POSEFRONT}",
+        "prompt": f"black formal blouse, tailored fit, modest neckline, {POSEFRONT}",
     },
     "cream_suit": {
         "name": "สูทครีม + เสื้อเชิ้ตขาว",
-        "prompt": f"oversized cream ivory suit blazer with white collared shirt underneath, professional fashion attire, modest, elegant, {POSEFRONT}",
+        "prompt": f"oversized cream ivory suit blazer with white collared shirt underneath, modest, elegant, {POSEFRONT}",
     },
     "navy_blazer": {
         "name": "เบลเซอร์กรมท่า + เสื้อเชิ้ตขาว",
-        "prompt": f"navy blue blazer jacket with white dress shirt underneath, professional business attire, modest neckline, {POSEFRONT}",
+        "prompt": f"navy blue blazer jacket with white dress shirt underneath, modest neckline, {POSEFRONT}",
     },
     "white_turtleneck": {
         "name": "เสื้อคอเต่าสีขาว",
-        "prompt": f"white turtleneck top, professional business attire, modest neckline, {POSEFRONT}",
+        "prompt": f"white turtleneck top, modest neckline, {POSEFRONT}",
     },
     "keep_original": {
         "name": "เก็บชุดเดิม",

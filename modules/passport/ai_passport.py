@@ -87,7 +87,7 @@ def build_prompt(clothing_prompt: str, bg_prompt: str, key: str = None) -> str:
     directives — the model naturally keeps realistic skin texture.
     """
     return (
-        f"professional portrait photo, "
+        f"portrait photo, "
         f"{clothing_prompt}, "
         f"{bg_prompt}, "
         f"soft even studio lighting, natural warm skin tones, realistic, high quality"

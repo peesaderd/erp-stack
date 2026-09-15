@@ -361,7 +361,11 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "glowing skin, pleasant, natural, relatable. Default: Thai female, mid-20s.\n"
             + _gender_instr +
             "- Setting: a stylish, lived-in Thai home (bright condo living room, aesthetic vanity, tidy kitchen) "
-            "under warm, flattering natural light that makes her look great.\n\n"
+            "under warm, flattering natural light that makes her look great.\n"
+            "- IMAGE LIP-SYNC READY (owner 2026-09-15 - fixes 'Wan พูดแต่ปากไม่ขยับ'): in the image_prompt the "
+            "presenter's mouth is SLIGHTLY PARTED (lips relaxed, as if mid-sentence / about to speak) - never "
+            "a tightly closed smile - so the video can animate visible natural lip movement while she speaks "
+            "the Thai script.\n\n"
             "[FORM FACTOR - HARD RULE - owner 2026-09-11]\n"
             "- If a reference product image is provided, you MUST read the product's EXACT FORM FACTOR and\n"
             "   physical shape from that image, and describe the product exactly as it appears. NEVER guess\n"

@@ -300,9 +300,28 @@ def run_pipeline(
                 _plc_name = product_name or ""
             _plc_cat = (product_profile or {}).get("category") or kwargs.get("category", "") or ""
             _plc_sub = (product_profile or {}).get("subcategory") or kwargs.get("subcategory", "") or ""
+
+            def _pd_is_cover(_cat, _sub, _name):
+                # owner 2026-09-15: mirror prompts.py `_is_cover` - a cover/tarp's real action is a
+                # drape-over, but the owner now wants a presenter-only stand-and-talk clip, so the
+                # still must keep her hands EMPTY (placement=present) to match the no-handling video_prompt.
+                _toks = ("cover", "tarp", "car cover", "bike cover", "motorcycle cover", "sheet",
+                         "awning", "\u0e1c\u0e49\u0e32\u0e04\u0e25\u0e38\u0e21", "\u0e1c\u0e49\u0e32\u0e04\u0e25\u0e38\u0e21\u0e23\u0e16",
+                         "\u0e04\u0e25\u0e38\u0e21\u0e23\u0e16", "\u0e1c\u0e49\u0e32\u0e04\u0e25\u0e38\u0e21\u0e21\u0e2d\u0e40\u0e15\u0e2d\u0e23\u0e4c\u0e44\u0e0b\u0e04\u0e25\u0e4c")
+                _hay = ((_sub or "") + " " + (_name or "")).lower()
+                return any(_t in _hay for _t in _toks)
+
             if is_wearable(category=_plc_cat, subcategory=_plc_sub, product_name=_plc_name):
                 _placement = "wear"
                 logger.info("  👕 wearable detected → placement=wear (no hold/place directive)")
+            elif _pd_is_cover(_plc_cat, _plc_sub, _plc_name):
+                # owner 2026-09-15 (fixes 'รูปมีฉือขวด แต่ตอน video มันหายไป' for covers/riders):
+                # a COVER (E0B8%9C%E0B9%89%E0B8%B2%E0B8%84%E0B8%A5%E0B8%B8%E0B8%A1) shown by a presenter/rider has NO
+                # use-action - she just STANDS and TALKS. If the still puts the product in her hands
+                # (placement=hold), the video_prompt (no-handling) disagrees → Wan drops the object
+                # and it VANISHES. So the still must have EMPTY/RELAXED hands → placement="present".
+                _placement = "present"
+                logger.info("  🧍 cover/presenter → placement=present (empty hands, no object to lose)")
             elif _plc_style in ("holding", "holding_demo", "handheld", "tabletop", "tabletop_demo", "demo", "review"):
                 _placement = "place_and_hold"
             else:

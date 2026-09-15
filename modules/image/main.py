@@ -243,6 +243,18 @@ PLACEMENT_DIRECTIVES = {
         "surface right beside the product, fingers open and relaxed, as if about to pick it up. The placed "
         "product stays the clear hero; the resting hand is secondary. Hand relaxed and real, not frozen."
     ),
+    # owner 2026-09-15 (fixes 'รูปมีถือขวด แต่ตอน video มันหายไป'): the PRESENTER / no-touch case.
+    # When the clip is a stand-and-talk presenter (e.g. the food-delivery rider showing a cover),
+    # the still MUST NOT put the product in her hands - otherwise the first frame shows her gripping
+    # something the video_prompt never tells her to hold, so Wan drops the object and it VANISHES.
+    # This directive keeps BOTH hands EMPTY so image and video agree (no object to lose).
+    "present": (
+        "The person is NOT holding the product at all - it is NOT in her hands and NOT gripped: for a "
+        "cover/tarp it is already draped over the object behind her; for a boxed item it sits on a nearby "
+        "surface. BOTH of her hands are EMPTY, free and relaxed, resting at her sides or making natural "
+        "open gestures as she presents to camera. It is FORBIDDEN for any hand to hold, grip, lift, carry "
+        "or present the product in the frame. Keep the person's gender exactly as described in the scene."
+    ),
 }
 
 THAI_NEGATIVE = (

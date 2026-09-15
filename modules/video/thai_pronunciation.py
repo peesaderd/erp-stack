@@ -63,6 +63,53 @@ THAI_CLUSTER_FIX = [
     (r"ก๋วยจั๊บ", "กวยจับ"),
 ]
 
+# 4b. Size / quantity written DIGIT-BY-DIGIT must be read as a CARDINAL number.
+#     owner 2026-09-15: real bug - the product title "ไซส์ 34-40 คัพ A-B" came out
+#     spoken as "ไซส์สามสี่ถึงสี่ศูนย์ เอ บี" (three-four to four-zero) instead of
+#     "ไซส์สามสิบสี่ถึงสี่สิบ คัพ เอ บี". The voice reads "สามสี่" as "3-4", which is
+#     nonsensical for a garment size. Mimo is TOLD to write cardinals in the system
+#     prompt, but a deterministic net guarantees it every run regardless of the model.
+#
+#     Thai digit words: ๐=ศูนย์ 1=หนึ่ง 2=สอง 3=สาม 4=สี่ 5=ห้า 6=หก 7=เจ็ด 8=แปด 9=เก้า.
+_SIZE_DIGIT = {
+    "ศูนย์": 0, "หนึ่ง": 1, "สอง": 2, "สาม": 3, "สี่": 4,
+    "ห้า": 5, "หก": 6, "เจ็ด": 7, "แปด": 8, "เก้า": 9,
+}
+_SIZE_UNITS = ["ศูนย์", "หนึ่ง", "สอง", "สาม", "สี่", "ห้า", "หก", "เจ็ด", "แปด", "เก้า"]
+
+def _thai_cardinal(n: int) -> str:
+    """Render an integer 0-999 as a Thai CARDINAL (spoken) number.
+    34 -> 'สามสิบสี่', 40 -> 'สี่สิบ', 100 -> 'หนึ่งร้อย', 105 -> 'หนึ่งร้อยห้า'.
+    """
+    if n == 0:
+        return "ศูนย์"
+    if n > 999:
+        return ""  # out of scope - leave the original text alone
+    out = []
+    hundreds = n // 100
+    tens = (n % 100) // 10
+    ones = n % 10
+    if hundreds:
+        out.append(_SIZE_UNITS[hundreds] + "ร้อย")
+    if tens == 1:
+        out.append("สิบ")
+    elif tens > 1:
+        out.append(_SIZE_UNITS[tens] + "สิบ")
+    if ones:
+        out.append("เอ็ด" if (ones == 1 and not hundreds and tens) else _SIZE_UNITS[ones])
+    return "".join(out)
+
+
+def _parse_thai_digits(seq: list) -> int:
+    """[3,4] -> 34 ; [4,0] -> 40 ; [3,4,5] -> 345. Returns -1 if it looks like a
+    list (e.g. 3 separate items) rather than ONE multi-digit number."""
+    if not seq or len(seq) < 2:
+        return -1
+    val = 0
+    for d in seq:
+        val = val * 10 + d
+    return val
+
 # Hard clusters that must NOT be the very first content word of the spoken script
 # (after the phonetic rewrite above, these are the "กวย*" forms).
 THAI_HARD_OPENER = ("ก๋วย", "กวยเตี๋ยว", "ก๋วยเตี๋ยว", "ก๋วยจั๊บ")
@@ -123,6 +170,41 @@ def _apply_word_fix(text: str) -> str:
     return text
 
 
+def _apply_size_digit_fix(text: str) -> str:
+    """Rewrite a run of 2+ Thai number-words that represents ONE multi-digit number
+    (e.g. 'สามสี่' -> 'สามสิบสี่', 'สี่ศูนย์' -> 'สี่สิบ') back to its CARDINAL reading.
+
+    Only touches a run that looks like a number AFTER a size/quantity cue
+    ('ไซส์', 'เบอร์', 'ขนาด', 'สัดส่วน') or a following unit ('คัพ', 'ซีซี', 'วัตต์',
+    'มล', 'กรัม'), so we never garble a genuine list of separate items.
+    Safe no-op when the text already reads as a cardinal (e.g. 'สามสิบสี่').
+    """
+    cues = ("ไซส์", "เบอร์", "ขนาด", "สัดส่วน", "คัพ", "ซีซี", "วัตต์")
+    words = _SIZE_UNITS
+    alt = "(?:%s)" % "|".join(words)
+    # We do NOT anchor on Thai word boundaries (the number often sits right after a
+    # Thai word, e.g. "ถึงสี่สิบ" = to forty). Scope tightly instead: a 2-3 word run
+    # that has a size/quantity CUE within a small window on EITHER side.
+    pat = re.compile(r"(%s{2,3})" % alt)
+
+    def _repl(m):
+        run = re.findall("|".join(words), m.group(1))
+        # Require a nearby cue so we only fix genuine size/quantity contexts.
+        start, end = m.start(), m.end()
+        ctx = text[max(0, start - 24):start] + " " + text[end:end + 24]
+        if not any(c in ctx for c in cues):
+            return m.group(0)
+        digits = [_SIZE_DIGIT[w] for w in run]
+        val = _parse_thai_digits(digits)
+        card = _thai_cardinal(val) if val >= 0 else ""
+        # Only rewrite when the cardinal is CLEARLY different and meaningful.
+        if card and card != m.group(0):
+            return card
+        return m.group(0)
+
+    return pat.sub(_repl, text)
+
+
 def _separate_glued_script(text: str) -> str:
     """Insert a space between Thai and adjacent Latin/digit runs so leftover
     Latin never fuses into a Thai word."""
@@ -171,6 +253,7 @@ def normalize_thai_spoken_script(text: str) -> str:
     out = _apply_symbols(out)           # % -> เปอร์เซ็นต์
     out = _apply_latin(out)             # spf -> เอสพีเอฟ, ...
     out = _apply_word_fix(out)          # ด็อกเตอร์พงศ์ -> ด็อกเตอร์พงษ์, อูรียา -> อูเรีย
+    out = _apply_size_digit_fix(out)    # 'สามสี่' -> 'สามสิบสี่' (size read as a cardinal)
     out = _separate_glued_script(out)   # keep Latin/digit from fusing to Thai
     out = _tidy_spaces(out)
     out = _guard_hard_opening(out)

@@ -71,3 +71,29 @@ def test_brand_doctor_pong_variants():
     # idempotent on already-correct text
     assert n("ด็อกเตอร์พงษ์ตัวนี้") == "ด็อกเตอร์พงษ์ตัวนี้"
     assert "พงษ์ษ์" not in n("ด็อกเตอร์ พงษ์ตัวนี้")
+
+
+def test_size_number_digit_by_digit_to_cardinal():
+    # owner 2026-09-15: real bug - "ไซส์ 34-40 คัพ A-B" was spoken as
+    # "ไซส์สามสี่ถึงสี่ศูนย์ เอ บี" (three-four to four-zero) instead of
+    # "ไซส์สามสิบสี่ถึงสี่สิบ". A size must be read as a CARDINAL number.
+    got = n("แนะนำกีย่า ไซส์สามสี่ถึงสี่ศูนย์ เอ บี ราคาดีมาก")
+    assert "สามสิบสี่ถึงสี่สิบ" in got
+    assert "สามสี่" not in got
+    assert "สี่ศูนย์" not in got
+
+
+def test_size_number_other_cues():
+    assert "เบอร์สามสิบหก" in n("เบอร์สามหก กับ เบอร์สี่สิบ")
+    assert "ขนาดสามสิบห้า" in n("ขนาดสามห้า ซีซี")
+
+
+def test_size_number_idempotent():
+    # already-correct cardinal text must NOT be re-mangled
+    assert n("ไซส์สามสิบสี่ถึงสี่สิบ คัพ เอ บี") == "ไซส์สามสิบสี่ถึงสี่สิบ คัพ เอ บี"
+
+
+def test_no_cue_leaves_numbers_alone():
+    # no size/quantity cue nearby -> a genuine list must stay untouched
+    assert n("มีสามสีให้เลือก ดำ ขาว แดง") == "มีสามสีให้เลือก ดำ ขาว แดง"
+    assert n("ราคาสองร้อยเก้าสิบเก้าบาท") == "ราคาสองร้อยเก้าสิบเก้าบาท"

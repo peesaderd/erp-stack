@@ -472,7 +472,7 @@ def generate_script(
             customer_problem=product_profile.get("customer_problem", ""),
             main_benefit=product_profile.get("main_benefit", ""),
             target_audience=product_profile.get("target_audience", ""),
-            tone="เป็นกันเอง พูดเร็ว",
+            tone="เป็นกันเอง พูดช้า ชัดเจน",
             duration=f"{recipe.get('total_duration', 8)}s",
             features=product_profile.get("features", ""),
             product_appearance=product_profile.get("product_appearance", ""),

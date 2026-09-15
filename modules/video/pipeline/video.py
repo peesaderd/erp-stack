@@ -288,7 +288,8 @@ def generate_video(
             "พูดตาม Thai script นี้เท่านั้น:\n"
             f"«{_script_clean}»\n"
             "อ่านเฉพาะข้อความใน «» ครบทุกคำตามที่เขียน แล้วปิดปาก เงียบสนิท "
-            f"(คำสุดท้ายคือ '{_last_word_hint}')"
+            f"(คำสุดท้ายคือ '{_last_word_hint}')\n"
+            "เวลาพูด ให้ขยับปากให้ตรงกับเสียงพูด"
         )
         # 🔴 owner 2026-09-11 08:0x (Fix C): STRUCTURED BEATS — send the script as a TIMED timeline
         # instead of one blob. Root cause of the CTA tail leak = a TIME-BUDGET problem: Wan must
@@ -315,7 +316,8 @@ def generate_video(
                 "พูดตาม Thai script นี้เท่านั้น ตามลำดับเวลา (timeline) ด้านล่าง:\n"
                 f"{_timeline}\n"
                 "อ่านเฉพาะข้อความใน «» ตามลำดับ — ห้ามออกเสียงป้ายกำกับ [ ] ใด ๆ\n"
-                "อ่านครบทุกคำจนจบช่วงสุดท้าย แล้วปิดปาก เงียบสนิท"
+                "อ่านครบทุกคำจนจบช่วงสุดท้าย แล้วปิดปาก เงียบสนิท\n"
+                "เวลาพูด ให้ขยับปากให้ตรงกับเสียงพูด"
             )
             logger.info(f"  🎙 Fix C beats: {len(_beats)} beats, spoken~{_spoken_secs}s + settle")
         # 🔴 owner 2026-09-11 00:54: Wan พูดแทรกก่อน CTA และหลัง CTA.

@@ -284,24 +284,25 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             _apply_ok = False
         logger.info("  🧴 APPLY mode " + ("ON" if _apply_ok else "OFF") + " (style=" + (ugc_style or "").strip() + ")")
         if _apply_ok:
-            _sys_main_action = ("she HOLDS the product to camera for the first part, then applies a small "
-                                "amount to ONE spot (her hand or forearm) with a single short smoothing "
-                                "gesture, then holds/presents it again. No opening the container, no long "
-                                "sequence, no second spot.")
+            # v2 (owner 2026-09-15): วางขวดก่อน → มือว่างทาแขนอีกข้าง ระบุข้างชัด → ถือกลับ
+            # ไม่ต้องบีบ-ล้วง-เปิดฝา (ตัดขั้นตอนที่ทำให้เพี้ยน) — positive สั้น ไม่ขัด negative
+            _sys_main_action = ("she HOLDS the product to camera at the start, SETS it down on the table, "
+                                "then her RIGHT hand smooths a small amount of lotion onto her LEFT forearm "
+                                "in one short gesture, then she picks the product back up and presents it "
+                                "again. No opening, no squeezing, no second spot.")
             _sys_held_rule = (
-                "APPLY MODE (owner 2026-09-15 card 42f58fb4 - skincare/body-care lotion/cream, style=usage): "
-                "the default is HOLDING and PRESENTING to camera, but she MAY apply a SMALL amount to "
-                "exactly ONE body spot - her hand or forearm - with ONE short simple smoothing gesture (a "
-                "gentle rub or pat, 2-3 seconds). Do NOT open the container: the product is ALREADY on her "
-                "hand/fingers (as if pumped/dispensed just before the shot). Do NOT write a long "
-                "open->squeeze->apply sequence, do NOT apply to a second spot, do NOT touch the face/neck. "
-                "She may lift it, hold it, turn it, set it down and pick it up again as natural beats. The "
-                "container stays CLOSED the whole clip; the cap stays on, in frame, the entire time."
+                "APPLY MODE v2 (owner 2026-09-15 - fixes 'ทาลมเบา ๆ ผิดข้างเพราะถือขวด'): the product is "
+                "SET DOWN on the table (released) BEFORE she applies. Then her RIGHT hand smooths a small "
+                "amount of lotion onto her LEFT forearm (or the back of her left hand) with ONE short gentle "
+                "gesture - the product is ALREADY on her hand, no opening/squeezing/pumping. Then she picks "
+                "the product back up and presents it to camera. Keep it to ONE spot, no face/neck, no second "
+                "apply, no long sequence. The container stays CLOSED the whole clip; the cap stays on, in "
+                "frame, the entire time."
             )
             _sys_closed_rule = (
-                "The product container stays CLOSED - never show an open/squeeze/close loop (owner "
-                "2026-09-13). A small ONE-SPOT apply (hand/forearm) is allowed WITHOUT opening the "
-                "container - the product is already on her hand."
+                "The product container stays CLOSED - never show an open/use/close loop (owner "
+                "2026-09-13). The product is set down before the apply; a small ONE-SPOT apply "
+                "(left forearm/hand) is allowed WITHOUT opening the container."
             )
         else:
             _sys_main_action = ("she simply HOLDS the product in her hand for the whole clip. No applying, "
@@ -598,9 +599,10 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "   THE ACTION " + ("IS JUST: HOLD (owner 2026-09-14): she is holding the product in her hand the \n"
             "   whole clip. That is the whole visible action. She does NOT apply it, does NOT open it, does NOT \n"
             "   squeeze it, does NOT set it down - the product simply stays in her hand the entire time.\n"
-            "   " if not _apply_ok else "IS A SINGLE SIMPLE APPLY (owner 2026-09-15 card 42f58fb4): she holds the product \n"
-            "   briefly, applies a small amount to ONE spot (hand/forearm) with ONE short smoothing gesture, then \n"
-            "   holds/presents it again. No opening the container, no long sequence, no second spot, nothing else.\n") +
+            "   " if not _apply_ok else "IS A SINGLE SIMPLE APPLY (owner 2026-09-15 v2): she SETS the product down \n"
+            "   on the table, then her RIGHT hand smooths a small amount of lotion onto her LEFT forearm in \n"
+            "   one short gesture, then picks the product back up and presents it. No opening, no squeezing, \n"
+            "   no second spot, nothing else.\n") +
             "   DO NOT WRITE ANY SPEECH SIGNAL (owner 2026-09-14, SINGLE SOURCE OF SPEECH): do NOT write \n"
             "   'she speaks' / 'speaks her Thai line' / 'mouth moving' / 'still speaking' ANYWHERE in the \n"
             "   video_prompt - not as an opening sentence, not in the action, not in the closing. The system \n"
@@ -618,9 +620,10 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "   numbered list of beats or steps. " + ("For a packaged product the action is simply: she HOLDS the \n"
             "   product in her hand, staying calm and still, the product in hand the whole time. Her free hand \n"
             "   stays relaxed and still and holds nothing else (rule 6e - prevents extra hands)." if not _apply_ok else
-            "   For a lotion/cream the action is simply: she HOLDS the product briefly, applies a small amount to \n"
-            "   ONE spot (hand/forearm) with ONE short smoothing gesture, then holds/presents it again. Her free \n"
-            "   hand stays relaxed (rule 6e). No opening, no long sequence, no second spot.") + " \n"
+            "   For a lotion/cream the action is simply: she SETS the product down on the table, her RIGHT hand \n"
+            "   smooths a small amount of lotion onto her LEFT forearm in one short gesture, then picks the \n"
+            "   product back up and presents it. Her free hand stays relaxed (rule 6e). No opening, no long \n"
+            "   sequence, no second spot.") + " \n"
             "   Keep it simple and short - the model follows a short, clean description far better than a long \n"
             "   list of instructions.\n"
 

@@ -50,6 +50,22 @@ def _synthesize_script_beats(script: str, duration: int) -> list:
     else:
         _hook, _value, _cta = _text, "", ""
     _beats = []
+    # owner 2026-09-15: HARD VALUE cap - the owner found the VALUE beat kept overshooting
+    # (85ch vs the ~4-6s / ~60ch budget) so Wan rushed the tail and the CTA got garbled.
+    # Prompt-only rules ('ONE benefit + ONE ease clause') were NOT obeyed by Mimo, so we
+    # enforce it deterministically here: trim the VALUE portion to ~60 chars by dropping
+    # trailing clauses (keep the leading benefit phrase), never touching hook or CTA.
+    _VALUE_CAP = 60
+    if _value and len(_value) > _VALUE_CAP:
+        _vparts = [p.strip() for p in re.split(r"[ ,]+", _value) if p.strip()]
+        _trimmed = _value
+        while _vparts and len(" ".join(_vparts)) > _VALUE_CAP:
+            _vparts.pop()
+        if _vparts:
+            _trimmed = " ".join(_vparts)
+        if _trimmed and len(_trimmed) <= _VALUE_CAP:
+            logger.info(f"  ✂️ VALUE beat capped: {len(_value)}ch -> {len(_trimmed)}ch (cap {_VALUE_CAP})")
+            _value = _trimmed
     # owner 2026-09-12: allocate beat SECONDS by CHARACTER COUNT, not word count.
     # Thai has few spaces, so a word-count split gave value/cta more seconds than the
     # text needs -> Wan had to STRETCH the words to fill the beat -> "เสียงยืด/เพี้ยน".

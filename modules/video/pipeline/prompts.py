@@ -1043,27 +1043,32 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
                 "worn item that is also carried makes the garment vanish/distort on movement.\n"
             )
         elif _is_cover:
-            # owner 2026-09-15 (fixes vid_d221794c 'ไม่คลุมรถ, คลี่ผ้าบนโต๊ะ'): a COVER/TARP's real
-            # use-action is to be DRAPED OVER the object it protects - NOT unfolded flat on a table.
-            # The generic tabletop first-frame ('still must be a tabletop shot') plus the strong
-            # no-camera-move rule made Mimo pick a safe tabletop display. This override forces the
-            # first frame to show the TARGET OBJECT (motorcycle) with the cover going over it, and the
-            # video to be the real drape-over action.
+            # owner 2026-09-15 (revised): for a COVER (ผ้าคลุมรถ) the owner wants NO touching/wiping/
+            # draping action at all - the model simply STANDS and TALKS, styled as a food-delivery
+            # RIDER (ไรเดอร์ส่งอาหาร) with the motorbike in frame as a lifestyle prop. The physical
+            # action was hard for Wan (hand/anatomy melt, cover covering the bike). So the cover is
+            # now a PRESENTER-ONLY product shown in a rider context.
             _style_instr = (
-                "\n\n*** STYLE = COVER / DRAPE-OVER (HIGHEST PRIORITY, OVERRIDES TABLETOP/HOLDING) ***\n"
-                "This product is a COVER/TARP/SHEET (ผ้าคลุม). Its ONLY real use-action is to be DRAPED OVER "
-                "the object it protects (e.g. a motorcycle). It is NEVER unfolded and laid flat on a table as "
-                "the hero - a tabletop display is WRONG for a cover. This OVERRIDES any tabletop/holding "
-                "instruction:\n"
-                "  * image_prompt: the STILL FRAME MUST show the TARGET OBJECT (the motorcycle) clearly in "
-                "frame - the cover is being carried/lifted over it or just laid over it, NOT sitting folded on "
-                "a table. The object must be VISIBLE in the first frame so the clip has somewhere to drape. Do "
-                "NOT write a tabletop hero shot, do NOT write 'product resting on a clean surface'.\n"
-                "  * video_prompt: the presenter performs the ONE real drape action - she lifts the cover and "
-                "drapes it OVER the object (front to back, guiding it over handlebars and down over the seat), "
-                "then smooths it into place. The object (motorcycle) stays in frame the whole time.\n"
-                "  * NEVER write 'unfolds it on the table', 'sets it down on the table', 'lays it flat on a "
-                "surface', or any tabletop/fold-on-table beat for a cover. There is NO tabletop display.\n"
+                "\n\n*** STYLE = PRESENTER / RIDER (HIGHEST PRIORITY, OVERRIDES TABLETOP/HOLDING/ACTION) ***\n"
+                "This product is a COVER (ผ้าคลุม) shown by a FOOD-DELIVERY RIDER. The presenter does NOT "
+                "touch, wipe, unfold, drape or apply the product at any point. She simply STANDS and TALKS "
+                "to the camera for the whole clip, presenting naturally. This OVERRIDES any tabletop/holding/"
+                "apply instruction:\n"
+                "  * image_prompt: the still frame shows the presenter (a food-delivery rider - casual "
+                "delivery-rider look, e.g. a simple jacket/tee, rider bag or helmet nearby) STANDING beside "
+                "her MOTORCYCLE, the motorcycle clearly visible in the frame. The cover may be draped over "
+                "the motorcycle already (done, in the background) as a lifestyle shot - but she is NOT holding "
+                "it, NOT unfolding it, NOT touching it. Do NOT write a tabletop hero shot, do NOT put the "
+                "folder cover on a table."
+                "\n"
+                "  * video_prompt: the presenter STANDS and TALKS to camera with calm natural gestures, "
+                "slight head movement and a warm smile - she presents with her HANDS, no product handling. "
+                "She NEVER picks up, unfolds, drapes, wipes or applies the cover. The motorcycle stays in "
+                "frame the whole time. There is NO use-action and NO tabletop beat."
+                "\n"
+                "  * NEVER write 'unfolds it on the table', 'sets it down on the table', 'drapes it over', "
+                "'wipes', 'smooths it into place', or any handling/tabletop beat for this cover."
+                "\n"
             )
         elif _style_lc in ("holding", "holding_demo", "handheld"):
             # owner 2026-09-12: HOIST the holding behaviour into user_text (Mimo ignores the

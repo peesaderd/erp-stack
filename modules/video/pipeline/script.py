@@ -40,13 +40,57 @@ def _synthesize_script_beats(script: str, duration: int) -> list:
     import re as _re
     _parts = [p.strip() for p in _re.split(r"\s+", _text) if p.strip()]
     _spoken_total = max(1, _dur - 2)  # reserve ~2s silent settle
+    # owner 2026-09-15 (fixes 'value ยังเกิน 60ch / พูดเพี้ยน'): word-count split is WRONG for Thai
+    # (few spaces -> hook swallowed 106ch/7s = 15 ch/s and the value cap never triggered because
+    # the LONG chunk landed in 'hook', not 'value'). Split by CHARACTER share instead so the three
+    # beats get balanced text, then apply the 60ch cap to whichever beat is the LONG MIDDLE one.
     if len(_parts) >= 3:
-        _hook_w, _cta_w = 0.30, 0.25
-        _hook_end = max(1, round(len(_parts) * _hook_w))
-        _cta_start = max(_hook_end + 1, len(_parts) - max(1, round(len(_parts) * _cta_w)))
-        _hook = " ".join(_parts[:_hook_end]).strip()
-        _value = " ".join(_parts[_hook_end:_cta_start]).strip()
-        _cta = " ".join(_parts[_cta_start:]).strip()
+        _full = " ".join(_parts)
+        # also break on commas / Thai sentence enders if present, to get finer clause units
+        _units = [u.strip() for u in _re.split(r"[,，、]+", _full) if u.strip()]
+        if len(_units) < 3:
+            # owner 2026-09-15: Thai has almost no commas/spaces -> would fall back to ONE unit and
+            # the hook/cta buckets end up empty. Split the flat whitespace-parts into ~3 balanced
+            # CHAR chunks so hook/value/cta always get real text.
+            _flat = _full.replace(" ", "")
+            _n = 3
+            _sz = max(1, len(_flat) // _n)
+            _units = [p.strip() for p in _parts if p.strip()]
+            # if whitespace parts are too few, chunk the flat string by size
+            if len(_units) < 3:
+                _units = [_flat[i * _sz:(i + 1) * _sz] for i in range(_n - 1)] + [_flat[(_n - 1) * _sz:]]
+                _units = [u for u in _units if u]
+    else:
+        _full = _text
+        _units = [u.strip() for u in _re.split(r"[,，、]+", _text) if u.strip()] or [_text]
+    # allocate the atomic units to hook/value/cta by CUMULATIVE CHARACTER share (25% / 50% / 25%)
+    if len(_units) >= 3:
+        _tot = max(1, sum(len(u) for u in _units))
+        _hook_cap = _tot * 0.25
+        # reserve the LAST unit for CTA (closing call-to-action), and as many trailing units
+        # as needed to reach ~25% of total for the CTA bucket.
+        _cta_u = [_units[-1]]
+        _cta_len = len(_units[-1])
+        _j = len(_units) - 2
+        while _j >= 0 and _cta_len < _tot * 0.25 and (len(_units) - _j) < 3:
+            _cta_u.insert(0, _units[_j])
+            _cta_len += len(_units[_j])
+            _j -= 1
+        _mid = _units[:_j + 1]
+        _hook_u, _value_u = [], []
+        _acc = 0
+        for _i, u in enumerate(_mid):
+            _acc += len(u)
+            if not _value_u and (_acc <= _hook_cap or _i == 0) and _i < len(_mid) - 1:
+                _hook_u.append(u)
+            else:
+                _value_u.append(u)
+        _hook = " ".join(_hook_u).strip()
+        _value = " ".join(_value_u).strip()
+        _cta = " ".join(_cta_u).strip()
+        if not _value:
+            _value = _cta
+            _cta = ""
     else:
         _hook, _value, _cta = _text, "", ""
     _beats = []
@@ -66,17 +110,58 @@ def _synthesize_script_beats(script: str, duration: int) -> list:
         if _trimmed and len(_trimmed) <= _VALUE_CAP:
             logger.info(f"  ✂️ VALUE beat capped: {len(_value)}ch -> {len(_trimmed)}ch (cap {_VALUE_CAP})")
             _value = _trimmed
+    # owner 2026-09-15 (fixes 'พูดเพี้ยน / บทยังเกิน'): hard TOTAL cap so the whole spoken line
+    # fits the real Thai rate (~12 ch/s) inside the spoken window WITHOUT rushing.
+    # Budget = (dur-2s settle) * 12 ch/s. Trim the VALUE (then CTA tail) until the total fits;
+    # never touch the HOOK (it carries the attention grab).
+    _rate_cap = max(40, int(_spoken_total * 12))
+    for _guard in range(40):
+        _tot_now = len(_hook) + len(_value) + len(_cta)
+        if _tot_now <= _rate_cap:
+            break
+        _target = _value if _value else _cta
+        _tp = [p.strip() for p in re.split(r"[ ,]+", _target) if p.strip()]
+        if len(_tp) <= 2:
+            _tp2 = [p.strip() for p in re.split(r"[ ,]+", _cta) if p.strip()]
+            if len(_tp2) <= 2:
+                break
+            _cta = " ".join(_tp2[:-1]).strip()
+            continue
+        _new = " ".join(_tp[:-1]).strip()
+        if _value:
+            _value = _new
+        else:
+            _cta = _new
+    if len(_hook) + len(_value) + len(_cta) < len(_text):
+        logger.info(f"  ✂️ total capped to {len(_hook)+len(_value)+len(_cta)}ch (cap {_rate_cap}ch @12ch/s), hook={len(_hook)} value={len(_value)} cta={len(_cta)}")
     # owner 2026-09-12: allocate beat SECONDS by CHARACTER COUNT, not word count.
     # Thai has few spaces, so a word-count split gave value/cta more seconds than the
     # text needs -> Wan had to STRETCH the words to fill the beat -> "เสียงยืด/เพี้ยน".
     # Anchor on the real Thai read rate (12-14 chars/sec) and only use the beat text
     # length as the relative weight inside the spoken window.
     _total_chars = max(1, len(_hook) + len(_value) + len(_cta))
-    for _lbl, _txt in (("hook", _hook), ("value", _value), ("cta", _cta)):
-        if not _txt:
-            continue
-        _secs = max(1, round(_spoken_total * len(_txt) / _total_chars))
-        _beats.append({"label": _lbl, "seconds": _secs, "text": _txt})
+    # owner 2026-09-15: also guarantee each beat is >= its OWN min seconds (len/13 ch/s) so no
+    # beat gets squeezed into a rushed window (the real cause of 'พูดเพี้ยน'). Compute a raw
+    # char-share estimate, then push any beat that is under its min up to the min and borrow
+    # the extra seconds from the beat(s) that have slack.
+    _trio = [(_lbl, _txt) for _lbl, _txt in (("hook", _hook), ("value", _value), ("cta", _cta)) if _txt]
+    _mins = {_lbl: max(1, round(len(_txt) / 13.0)) for _lbl, _txt in _trio}
+    _raw = {_lbl: max(1, round(_spoken_total * len(_txt) / _total_chars)) for _lbl, _txt in _trio}
+    for _lbl, _ in _trio:
+        if _raw[_lbl] < _mins[_lbl]:
+            _raw[_lbl] = _mins[_lbl]
+    _used = sum(_raw.values())
+    if _used > _spoken_total:
+        # trim the beats with the most slack (largest raw - min) first until it fits
+        while _used > _spoken_total:
+            _cand = max(_trio, key=lambda x: _raw[x[0]] - _mins[x[0]])
+            if _raw[_cand[0]] - 1 < _mins[_cand[0]]:
+                break
+            _raw[_cand[0]] -= 1
+            _used -= 1
+    for _lbl, _txt in _trio:
+        _beats.append({"label": _lbl, "seconds": _raw[_lbl], "text": _txt})
+        logger.info(f"  ⏱ {_lbl}: {len(_txt)}ch / {_raw[_lbl]}s = {len(_txt)/max(1,_raw[_lbl]):.1f} ch/s (min {_mins[_lbl]}s)")
     if _beats:
         _beats.append({"label": "settle", "seconds": max(1, _dur - sum(b["seconds"] for b in _beats)), "text": ""})
     return _beats

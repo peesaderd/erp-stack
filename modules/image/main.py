@@ -215,7 +215,13 @@ IMG2IMG_ANCHOR = (
     "and label text, unchanged, sharp and unblurred. Do not redesign or restyle the product. "
     "Draw a newly generated realistic Thai person in a fresh real scene with this exact product as the "
     "clear focus. Keep the person's gender EXACTLY as described in the scene instructions that follow "
-    "(do not change man/woman to the other gender). The person and scene are new; the product is not."
+    "(do not change man/woman to the other gender). The person and scene are new; the product is not. "
+    # owner 2026-09-15 (fixes 'ภาพมีตัวหนังสือแปลกๆ'): the reference image sometimes carries
+    # unreadable AI-gibberish text. Do NOT reproduce garbled text - keep any REAL, legible label
+    # text only, and render every other surface clean without invented letters.
+    "If the reference image contains unreadable, garbled or nonsensical text/letters, do NOT copy "
+    "that gibberish: render the product surface clean and plain with NO fake text. "
+    "Never invent brand names, captions or letters that are not clearly legible in the reference."
 )
 
 # Placement directives appended AFTER the caller prompt (owner 2026-09-12: "วางด้วย ถือด้วย").
@@ -261,7 +267,11 @@ THAI_NEGATIVE = (
     "Chinese face, Korean face, East Asian anime style, plastic surgery face, "
     "V-shaped chin, double eyelid surgery, glass skin, k-pop style, Japanese face, "
     "white skin bleaching, caucasian features, western face, 3D render, illustration, cartoon, "
-    "low quality, blurry, distorted face, unnatural proportions, blemish"
+    "low quality, blurry, distorted face, unnatural proportions, blemish, "
+    # owner 2026-09-15 (fixes 'ภาพมีตัวหนังสือแปลกๆ'): kill invented/AI-slop caption text and
+    # garbled brand text on the image - the reference product's real label is the only text allowed.
+    "gibberish text, random caption text, watermark, subtitle text, fake brand logo, "
+    "garbled letters, misspelled text, extra text overlay, sign text, poster text"
 )
 
 

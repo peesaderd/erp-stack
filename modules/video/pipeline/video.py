@@ -304,7 +304,9 @@ def generate_video(
                 _secs = _b.get("seconds", 0)
                 _txt = (_b.get("text") or "").strip()
                 if _lbl == "settle" or not _txt:
-                    _lines.append(f"  - [SETTLE {_secs}s]: เงียบสนิท ไม่มีเสียงพูด — ยังขยับตัว นำเสนอสินค้า และยิ้มให้กล้อง")
+                    # owner 2026-09-15: SETTLE ต้องห้าม "พูด/ส่งเสียง" อย่างเดียว ไม่มีคำว่า "นำเสนอสินค้า"
+                    # (Wan ตีความ = ให้พูดต่อ) และไม่เน้น "ยิ้มให้กล้อง" (ปากขยับ = เสียง) — เหลือแค่หยุดพูด เงียบสนิท
+                    _lines.append(f"  - [SETTLE {_secs}s]: เงียบสนิท ไม่พูด ไม่มีเสียง — ขยับร่างกายได้ตามปกติ")
                 else:
                     _spoken_secs += _secs
                     _lines.append(f"  - [{_lbl} ~{_secs}s]: «{_txt}»")

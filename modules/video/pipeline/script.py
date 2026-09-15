@@ -262,7 +262,21 @@ def analyze_product(product_name: str, product_image: str = None, description: s
                     "ก๋วยเตี๋ยว", "บะหมี่", "มาม่า", "เครื่องดื่ม", "ขนม", "กาแฟ", "ชาเขียว",
                     "นมสด", "นมเปรี้ยว", "อาหาร", "เส้นหมี่", "เส้นเล็ก", "เกี๊ยว", "โจ๊ก", "ข้าว",
                 ))
-                _food_sig = (_cat_lc == "food") or _food_en or _food_th
+                # owner 2026-09-15 (vid_e3a25b54 — ชามก๋วยเตี๋ยวหลุดบนงานเจลล้างหน้า):
+                # "White Tea Facial Cleanser" เจอ EN keyword 'tea' (word-boundary) → flag เป็น food
+                # → ยัด bowl ใส่ภาพ skincare. คลาสเดียวกับ vid_3f3ebb8b (ชา ใน ผู้ชาย) แต่คราวนี้
+                # 'Tea' เป็นคำจริงในชื่อสินค้า (ส่วนผสม ไม่ใช่เครื่องดื่ม). กฎ: ถ้ามีคำบอกใบ้
+                # beauty/skincare ชัด → tea/coffee/milk เป็นส่วนผสม/กลิ่น ไม่ใช่ food.
+                _beauty_sig = (_cat_lc in ("beauty", "skincare", "cosmetics", "personal care", "personal-care")) or any(
+                    k in _food_blob for k in (
+                        "cleanser", "face wash", "facial", "serum", "lotion", "cream", "moisturizer",
+                        "toner", "sunscreen", "shampoo", "conditioner", "soap", "scrub",
+                        "makeup", "lipstick", "perfume", "fragrance", "deodorant", "skin", "face",
+                        "เจลล้างหน้า", "คลีนเซอร์", "ครีม", "โลชั่น", "เซรั่ม", "แชมพู", "สบู่",
+                        "สครับ", "โทนเนอร์", "กันแดด", "ล้างหน้า", "บำรุงผิว", "เครื่องสำอาง",
+                    )
+                )
+                _food_sig = (_cat_lc == "food") or ((_food_en or _food_th) and not _beauty_sig)
                 if _food_sig:
                     # owner 2026-09-12 (neg<=500): lean, VOICE-FREE negative list.
                     # (a) ALL speech/voice items REMOVED - we never instruct voice, so there is

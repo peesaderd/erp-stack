@@ -255,6 +255,70 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             )
         else:
             _gender_instr = ""
+        # owner 2026-09-15 (card 42f58fb4 - "ทำท่า APPLY ให้ทำได้จริง"): APPLY mode สำหรับ
+        # skincare/body-care lotion/cream เฉพาะ style=usage → เปิดให้ Mimo เขียน "ทา 1 จุด"
+        # (มือ/แขน) แทน "ถือเฉย ๆ" กันคลิปนิ่ง; style อื่น/สินค้าล้าง (cleanser/shampoo) คง HOLD
+        _apply_ok = False
+        try:
+            _style_lc_a = (ugc_style or "").strip().lower()
+            _sub_lc_a = (subcategory or "").strip().lower()
+            _cat_lc_a = (category or "").strip().lower()
+            _name_lc_a = (product_name or "").lower()
+            _apply_styles = ("usage", "usage_apply", "apply", "demo_apply", "skincare")
+            _apply_body_tokens = ("body", "bodycare", "body-care", "lotion", "cream", "skincare", "skin",
+                                  "moisturizer", "moisturiser", "serum", "oil", "sunscreen", "sunblock",
+                                  "เจล", "ครีม", "โลชั่น", "เซรั่ม", "ออยล์", "กันแดด", "บอดี้", "ผิว")
+            _apply_not_tokens = ("cleanser", "face wash", "facial wash", "เจลล้างหน้า", "คลีนเซอร์",
+                                 "ล้างหน้า", "แชมพู", "shampoo", "conditioner", "น้ำหอม", "perfume",
+                                 "body wash", "เจลอาบน้ำ", "โฟมล้าง", "foam wash", "สบู่", "soap")
+            _apply_ok = (
+                _style_lc_a in _apply_styles
+                and (
+                    _cat_lc_a in ("beauty", "skincare", "body care", "body-care", "cosmetics", "personal care", "personal-care")
+                    or any(_t in _sub_lc_a for _t in _apply_body_tokens)
+                    or any(_t in _name_lc_a for _t in _apply_body_tokens)
+                )
+                and not any(_t in (_sub_lc_a + " " + _name_lc_a) for _t in _apply_not_tokens)
+            )
+        except Exception:
+            _apply_ok = False
+        logger.info("  🧴 APPLY mode " + ("ON" if _apply_ok else "OFF") + " (style=" + (ugc_style or "").strip() + ")")
+        if _apply_ok:
+            _sys_main_action = ("she HOLDS the product to camera for the first part, then applies a small "
+                                "amount to ONE spot (her hand or forearm) with a single short smoothing "
+                                "gesture, then holds/presents it again. No opening the container, no long "
+                                "sequence, no second spot.")
+            _sys_held_rule = (
+                "APPLY MODE (owner 2026-09-15 card 42f58fb4 - skincare/body-care lotion/cream, style=usage): "
+                "the default is HOLDING and PRESENTING to camera, but she MAY apply a SMALL amount to "
+                "exactly ONE body spot - her hand or forearm - with ONE short simple smoothing gesture (a "
+                "gentle rub or pat, 2-3 seconds). Do NOT open the container: the product is ALREADY on her "
+                "hand/fingers (as if pumped/dispensed just before the shot). Do NOT write a long "
+                "open->squeeze->apply sequence, do NOT apply to a second spot, do NOT touch the face/neck. "
+                "She may lift it, hold it, turn it, set it down and pick it up again as natural beats. The "
+                "container stays CLOSED the whole clip; the cap stays on, in frame, the entire time."
+            )
+            _sys_closed_rule = (
+                "The product container stays CLOSED - never show an open/squeeze/close loop (owner "
+                "2026-09-13). A small ONE-SPOT apply (hand/forearm) is allowed WITHOUT opening the "
+                "container - the product is already on her hand."
+            )
+        else:
+            _sys_main_action = ("she simply HOLDS the product in her hand for the whole clip. No applying, "
+                                "no opening, no set-down, no extra gestures.")
+            _sys_held_rule = (
+                "APPLYING IS FORBIDDEN (owner 2026-09-13: 'เอา apply ออก...ถ้า Wan สับสน เสียงจะเพี้ยนอีก'): "
+                "never write that she squeezes, dispenses, dabs, spreads, smooths, rubs or applies the "
+                "product - not to her face, arm, hand or anywhere. Show the presenter HOLDING and PRESENTING "
+                "the product to camera while she presents it - that is the whole action (rule 2b). She may "
+                "lift it, hold it, turn it, set it down and pick it up again - any natural gesture, but NEVER "
+                "open, squeeze or apply it. The container stays CLOSED the whole clip; the cap stays on the "
+                "container, in frame, the entire time."
+            )
+            _sys_closed_rule = (
+                "The product container stays CLOSED - never show an open/use/close loop for a packaged "
+                "product (owner 2026-09-13: apply removed)."
+            )
         sysprompt = (
             "You are a top-tier Thai UGC creator making premium, beautiful, and hyper-authentic video concepts "
             "for TikTok Shop, Reels, and Shorts. Your goal is to make the audience feel: I have this problem -> "
@@ -273,7 +337,7 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             " ],\n"
             " \"image_prompt\": \"<Rich, concrete still-frame anchor, ~60-90 words>\",\n"
             " \"reference_image_index\": <int: 0-based index of the supplied reference image that BEST shows the product to copy - for a multi-variant set pick the image that shows the MOST variants/packs together>,\n"
-            " \"video_prompt\": \"<ONE continuous shot. MOTION ONLY - do NOT mention speaking, talking, voice, audio or the script anywhere in the video_prompt (owner 2026-09-14: the system appends the speech directive itself; a speech instruction inside the video_prompt duplicates it and makes Wan hallucinate a SECOND speech line). START WITH the OPENING framing/camera. MAIN ACTION: ONE short flat sentence (NO numbered list of steps) - she simply HOLDS the product in her hand for the whole clip. No applying, no opening, no set-down, no extra gestures. No filler adjectives, no flowing prose. CLOSING: one short sentence ending on a calm fully-lit settle, holding the product steady to camera.>\"\n"
+            " \"video_prompt\": \"<ONE continuous shot. MOTION ONLY - do NOT mention speaking, talking, voice, audio or the script anywhere in the video_prompt (owner 2026-09-14: the system appends the speech directive itself; a speech instruction inside the video_prompt duplicates it and makes Wan hallucinate a SECOND speech line). START WITH the OPENING framing/camera. MAIN ACTION: ONE short flat sentence (NO numbered list of steps) - " + _sys_main_action + " No filler adjectives, no flowing prose. CLOSING: one short sentence ending on a calm fully-lit settle, holding the product steady to camera.>\"\n"
             " \"negative_prompt\": \"<comma-separated list where EVERY item MUST start with a negative word - 'no ...' or 'don't ...'. ~60-120 chars. Example: no distorted fingers, no extra hands, no warped product, no blurry label, no melted face>\"\n"
             "}\n\n"
             "[SCRIPT_BEATS - owner 2026-09-12] DO NOT write \"script_beats\" yourself. The SYSTEM splits your "
@@ -370,13 +434,7 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "(torso turn / back view) is written in the video_prompt, not here. Match the still framing to the "
             "action: a tight waist-up crop shows the garment by torso turns, a full-length framing may also show "
             "the back.\n"
-            "- HELD / PRESENTED (skincare/cosmetics - owner 2026-09-13): the default is NOT to apply, and \n"
-            "APPLYING IS FORBIDDEN (owner 2026-09-13: 'a apply ออกนั่นแหละ ... ถ้า wan สับสน เสียงจะเพี้ยนอีก'): \n"
-            "never write that she squeezes, dispenses, dabs, spreads, smooths, rubs or applies the product - not \n"
-            "to her face, arm, hand or anywhere. Show the presenter HOLDING and PRESENTING the product to camera \n"
-            "while she presents it - that is the whole action (rule 2b). She may lift it, hold it, turn it, set it down \n"
-            "and pick it up again - any natural gesture, but NEVER open, squeeze or apply it. The container stays \n"
-            "CLOSED the whole clip; the cap stays on the container, in frame, the entire time.\n"
+            "- HELD / PRESENTED (skincare/cosmetics): " + _sys_held_rule + "\n"
             "- THE ENDING BEAT: the final 2-3 seconds must stay BRIGHT and FULLY LIT with the product clearly "
             "presented AND the demonstrator still fully visible in frame - LIGHTING AND EXPOSURE STAY "
             "CONSTANT to the very last frame (owner 2026-09-13: never fade to black / never darken / never "
@@ -537,32 +595,38 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
             "   KEEP IT SIMPLE - NO BEAT LIST (owner 2026-09-13 - fixes 'สั่งเยอะมันมั่ว'): do NOT write a \n"
             "   numbered list of steps or actions. Write ONE short flat description instead (2-3 sentences max) \n"
             "   with a single idea: the presenter HOLDS the product to camera. Nothing else.\n"
-            "   THE ACTION IS JUST: HOLD (owner 2026-09-14): she is holding the product in her hand \n"
-            "   the whole clip. That is the whole visible action. She does NOT apply it, does NOT open it, \n"
-            "   does NOT squeeze it, does NOT set it down - the product simply stays in her hand the entire \n"
-            "   time.\n"
+            "   THE ACTION " + ("IS JUST: HOLD (owner 2026-09-14): she is holding the product in her hand the \n"
+            "   whole clip. That is the whole visible action. She does NOT apply it, does NOT open it, does NOT \n"
+            "   squeeze it, does NOT set it down - the product simply stays in her hand the entire time.\n"
+            "   " if not _apply_ok else "IS A SINGLE SIMPLE APPLY (owner 2026-09-15 card 42f58fb4): she holds the product \n"
+            "   briefly, applies a small amount to ONE spot (hand/forearm) with ONE short smoothing gesture, then \n"
+            "   holds/presents it again. No opening the container, no long sequence, no second spot, nothing else.\n") +
             "   DO NOT WRITE ANY SPEECH SIGNAL (owner 2026-09-14, SINGLE SOURCE OF SPEECH): do NOT write \n"
             "   'she speaks' / 'speaks her Thai line' / 'mouth moving' / 'still speaking' ANYWHERE in the \n"
             "   video_prompt - not as an opening sentence, not in the action, not in the closing. The system \n"
             "   appends the single speech directive (the Thai timeline) itself; a second speech sentence here \n"
             "   makes Wan drift and invent an extra line (owner: 'บทพูดมี 2 เส้นซ้อนกัน').\n"
-            "   Keep her body and hands CALM and still. Do not describe extra gestures, extra hands, extra \n"
-            "   objects, loose product on the surface, or any apply/open/close step.\n"
+            "   " + ("Keep her body and hands CALM and still. Do not describe extra gestures, extra hands, extra \n"
+            "   objects, loose product on the surface, or any apply/open/close step." if not _apply_ok else
+            "   Keep the hands calm except the ONE smoothing gesture; no extra objects, no loose product on the \n"
+            "   surface, no second apply spot.") + "\n"
             "   HARD RULES: EXACTLY TWO hands (rule 6e); nothing floats or vanishes; the product stays in her \n"
             "   hand and visible through to the end.\n"
 
             "5b. ACTION = ONE SHORT FLAT DESCRIPTION, NO LIST (owner 2026-09-13 - fixes 'สั่งเยอะมันมั่ว'): \n"
             "   describe the single action in ONE short flat sentence or two (max 2-3 sentences). Do NOT write a \n"
-            "   numbered list of beats or steps. For a packaged product the action is simply: she HOLDS the \n"
-            "   product in her hand, staying calm and still, the product in hand the whole \n"
-            "   time. Her free hand stays relaxed and still and holds nothing else (rule 6e - prevents extra hands). \n"
+            "   numbered list of beats or steps. " + ("For a packaged product the action is simply: she HOLDS the \n"
+            "   product in her hand, staying calm and still, the product in hand the whole time. Her free hand \n"
+            "   stays relaxed and still and holds nothing else (rule 6e - prevents extra hands)." if not _apply_ok else
+            "   For a lotion/cream the action is simply: she HOLDS the product briefly, applies a small amount to \n"
+            "   ONE spot (hand/forearm) with ONE short smoothing gesture, then holds/presents it again. Her free \n"
+            "   hand stays relaxed (rule 6e). No opening, no long sequence, no second spot.") + " \n"
             "   Keep it simple and short - the model follows a short, clean description far better than a long \n"
             "   list of instructions.\n"
 
             "3. ONE MAIN ACTION ONLY - a single simple action with a clear start, middle, and end. NEVER chain a \n"
             "   sequence of steps (do not show open->pour->stir->lift). One action, described in full physical detail, \n"
-            "   every beat grounded. End on a calm, settled beat. The product container stays CLOSED - never \n"
-            "   show an open/use/close loop for a packaged product (owner 2026-09-13: apply removed).\n"
+            "   every beat grounded. End on a calm, settled beat. " + _sys_closed_rule + "\n"
             "3b. SET-DOWN IS ALLOWED EXACTLY ONCE (owner 2026-09-13 - fixes 'holding too strong, never puts it \n"
             "   down, hand melts'): the presenter MAY set the product down on the clean surface ONE time as a real \n"
             "   physical beat, and MAY pick ONE pack back up to present. So these TWO beats ARE allowed: \n"

@@ -1043,32 +1043,34 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
                 "worn item that is also carried makes the garment vanish/distort on movement.\n"
             )
         elif _is_cover:
-            # owner 2026-09-15 (revised): for a COVER (ผ้าคลุมรถ) the owner wants NO touching/wiping/
-            # draping action at all - the model simply STANDS and TALKS, styled as a food-delivery
-            # RIDER (ไรเดอร์ส่งอาหาร) with the motorbike in frame as a lifestyle prop. The physical
-            # action was hard for Wan (hand/anatomy melt, cover covering the bike). So the cover is
-            # now a PRESENTER-ONLY product shown in a rider context.
+            # owner 2026-09-15 23:2x (FIX): the owner rejected the FOOD-DELIVERY RIDER persona - the
+            # script came out talking about 'ส่งอาหาร' (food delivery) instead of the cover, and the CTA
+            # was a generic 'โปร/คุ้มสุดๆ' line. The presenter must be a NEUTRAL lifestyle presenter who
+            # talks about the COVER's benefits (sun/rain protection, full-body coverage, easy install) and
+            # closes with a CTA to buy THIS cover. No rider backstory, no persona storytelling.
             _style_instr = (
-                "\n\n*** STYLE = PRESENTER / RIDER (HIGHEST PRIORITY, OVERRIDES TABLETOP/HOLDING/ACTION) ***\n"
-                "This product is a COVER (ผ้าคลุม) shown by a FOOD-DELIVERY RIDER. The presenter does NOT "
-                "touch, wipe, unfold, drape or apply the product at any point. She simply STANDS and TALKS "
-                "to the camera for the whole clip, presenting naturally. This OVERRIDES any tabletop/holding/"
-                "apply instruction:\n"
-                "  * image_prompt: the still frame shows the presenter (a food-delivery rider - casual "
-                "delivery-rider look, e.g. a simple jacket/tee, rider bag or helmet nearby) STANDING beside "
-                "her MOTORCYCLE, the motorcycle clearly visible in the frame. The cover may be draped over "
-                "the motorcycle already (done, in the background) as a lifestyle shot - but she is NOT holding "
-                "it, NOT unfolding it, NOT touching it. Do NOT write a tabletop hero shot, do NOT put the "
-                "folder cover on a table."
-                "\n"
+                "\n\n*** STYLE = PRESENTER (HIGHEST PRIORITY, OVERRIDES TABLETOP/HOLDING/ACTION) ***\n"
+                "This product is a COVER (ผ้าคลุม). The presenter does NOT touch, wipe, unfold, drape or "
+                "apply the product at any point. She simply STANDS and TALKS to the camera for the whole "
+                "clip, presenting naturally. This OVERRIDES any tabletop/holding/apply instruction:\n"
+                "  * SCRIPT CONTENT (CRITICAL): the spoken Thai script must talk ONLY about THIS COVER and "
+                "its benefits - e.g. protects the motorcycle from sun/rain, covers the whole bike, prevents "
+                "scratches/rust, easy to put on. It must NOT invent a persona, a job, or a backstory "
+                "(NEVER 'หนูทำงานส่งอาหาร', NEVER 'ไรเดอร์', NEVER delivery/driver stories). It must NOT be "
+                "a generic promo line (NEVER 'โปร', NEVER 'คุ้มสุดๆ') - the CTA must invite the viewer to "
+                "buy THIS cover (e.g. 'สั่งผ้าคลุมคันนี้ไปเลย' / 'กดสั่งซื้อผ้าคลุมได้เลย'). Plain, product-"
+                "focused, natural Thai.\n"
+                "  * image_prompt: the still frame shows a NEUTRAL lifestyle presenter (casual modern "
+                "everyday outfit) STANDING beside her MOTORCYCLE, the motorcycle clearly visible in the "
+                "frame. The cover may be draped over the motorcycle already (done, in the background) as a "
+                "lifestyle shot - but she is NOT holding it, NOT unfolding it, NOT touching it. Do NOT write "
+                "a tabletop hero shot, do NOT put the cover on a table.\n"
                 "  * video_prompt: the presenter STANDS and TALKS to camera with calm natural gestures, "
                 "slight head movement and a warm smile - she presents with her HANDS, no product handling. "
                 "She NEVER picks up, unfolds, drapes, wipes or applies the cover. The motorcycle stays in "
-                "frame the whole time. There is NO use-action and NO tabletop beat."
-                "\n"
+                "frame the whole time. There is NO use-action and NO tabletop beat.\n"
                 "  * NEVER write 'unfolds it on the table', 'sets it down on the table', 'drapes it over', "
-                "'wipes', 'smooths it into place', or any handling/tabletop beat for this cover."
-                "\n"
+                "'wipes', 'smooths it into place', or any handling/tabletop beat for this cover.\n"
             )
         elif _style_lc in ("holding", "holding_demo", "handheld"):
             # owner 2026-09-12: HOIST the holding behaviour into user_text (Mimo ignores the

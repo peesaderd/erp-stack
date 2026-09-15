@@ -101,37 +101,40 @@ def _synthesize_script_beats(script: str, duration: int) -> list:
     # trailing clauses (keep the leading benefit phrase), never touching hook or CTA.
     _VALUE_CAP = 60
     if _value and len(_value) > _VALUE_CAP:
-        _vparts = [p.strip() for p in re.split(r"[ ,]+", _value) if p.strip()]
-        _trimmed = _value
-        while _vparts and len(" ".join(_vparts)) > _VALUE_CAP:
-            _vparts.pop()
-        if _vparts:
-            _trimmed = " ".join(_vparts)
-        if _trimmed and len(_trimmed) <= _VALUE_CAP:
-            logger.info(f"  ✂️ VALUE beat capped: {len(_value)}ch -> {len(_trimmed)}ch (cap {_VALUE_CAP})")
-            _value = _trimmed
-    # owner 2026-09-15 (fixes 'พูดเพี้ยน / บทยังเกิน'): hard TOTAL cap so the whole spoken line
-    # fits the real Thai rate (~12 ch/s) inside the spoken window WITHOUT rushing.
-    # Budget = (dur-2s settle) * 12 ch/s. Trim the VALUE (then CTA tail) until the total fits;
-    # never touch the HOOK (it carries the attention grab).
-    _rate_cap = max(40, int(_spoken_total * 12))
-    for _guard in range(40):
+        # owner 2026-09-15 23:2x: Thai has almost no spaces, so a clause-level trim drops a whole
+        # phrase (owner: 'เกินไม่กี่คำเอง'). Trim by CHARACTERS instead - cut the overflow + a small
+        # margin and strip a dangling connector, so only a few chars are removed.
+        _cut = _value[:_VALUE_CAP].rstrip()
+        for _d in ("และ", "ที่", "ก็", "ให้", "ของ", "ใน", "แล้ว", "จาก"):
+            if _cut.endswith(_d) and len(_cut) - len(_d) > _VALUE_CAP * 0.6:
+                _cut = _cut[: -len(_d)].rstrip()
+                break
+        if _cut:
+            logger.info(f"  ✂️ VALUE beat capped: {len(_value)}ch -> {len(_cut)}ch (cap {_VALUE_CAP})")
+            _value = _cut
+    # owner 2026-09-15 23:2x: the earlier 12 ch/s cap trimmed TOO MUCH (owner: 'มันสั้นไป จริง ๆ
+    # มันเกินไม่กี่คำเอง'). Real Thai read rate is ~13-14 ch/s, and the beats already have per-beat
+    # min seconds, so relax the total cap to 13.5 ch/s and only trim the SMALL overflow (drop one
+    # short trailing clause at a time) - do NOT slash whole phrases.
+    _rate_cap = max(40, int(_spoken_total * 13.5))
+    for _guard in range(60):
         _tot_now = len(_hook) + len(_value) + len(_cta)
         if _tot_now <= _rate_cap:
             break
-        _target = _value if _value else _cta
-        _tp = [p.strip() for p in re.split(r"[ ,]+", _target) if p.strip()]
-        if len(_tp) <= 2:
-            _tp2 = [p.strip() for p in re.split(r"[ ,]+", _cta) if p.strip()]
-            if len(_tp2) <= 2:
+        # trim the last spoken beat (cta tail, else value) by CHARACTERS - only the overflow + 2
+        _target = _cta if _cta else _value
+        _over = _tot_now - _rate_cap
+        if len(_target) - _over - 2 < 6:
+            break
+        _new = _target[: len(_target) - _over - 2].rstrip()
+        for _d in ("และ", "ที่", "ก็", "ให้", "ของ", "ใน", "แล้ว", "จาก"):
+            if _new.endswith(_d) and len(_new) - len(_d) > 6:
+                _new = _new[: -len(_d)].rstrip()
                 break
-            _cta = " ".join(_tp2[:-1]).strip()
-            continue
-        _new = " ".join(_tp[:-1]).strip()
-        if _value:
-            _value = _new
-        else:
+        if _cta:
             _cta = _new
+        else:
+            _value = _new
     if len(_hook) + len(_value) + len(_cta) < len(_text):
         logger.info(f"  ✂️ total capped to {len(_hook)+len(_value)+len(_cta)}ch (cap {_rate_cap}ch @12ch/s), hook={len(_hook)} value={len(_value)} cta={len(_cta)}")
     # owner 2026-09-12: allocate beat SECONDS by CHARACTER COUNT, not word count.

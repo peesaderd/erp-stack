@@ -1016,6 +1016,15 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
                           "hoodie", "sweater", "blouse")
         _is_wearable = (any(_t in _sub_lc for _t in _wearable_tokens) or
                         any(_t in _name_lc for _t in _wearable_name))
+        # owner 2026-09-15 (fixes vid_d221794c cover unfolded on a table): COVER/TARP detector.
+        # A cover protects an OBJECT (motorcycle/car/bike/grill) - its real action is a drape-over,
+        # never a flat tabletop display. Detected from the product name/subcategory.
+        _cover_tokens = ("cover", "tarp", "car cover", "bike cover", "motorcycle cover", "sheet",
+                         "awning", "ผ้าคลุม", "ผ้าคลุมรถ", "คลุมรถ", "ผ้าคลุมมอเตอร์ไซค์")
+        _cover_name = ("ผ้าคลุม", "คลุมรถ", "คลุมมอเตอร์ไซค์", "คลุมจักรยาน", "ผ้าคลุมรถ",
+                       "cover", "tarp")
+        _is_cover = (any(_t in _sub_lc for _t in _cover_tokens) or
+                     any(_t in _name_lc for _t in _cover_name))
         if _is_wearable:
             _style_instr = (
                 "\n\n*** STYLE = WEARABLE APPAREL (HIGHEST PRIORITY, OVERRIDES HOLDING/TABLETOP) ***\n"
@@ -1032,6 +1041,29 @@ def _deepseek_product_prompts(product_name: str, description: str, ugc_style: st
                 "back up', or any place-down/re-lift beat for a wearable. There is NO tabletop hero shot.\n"
                 "  * It is FORBIDDEN to show the model both WEARING the garment AND holding the same garment - a "
                 "worn item that is also carried makes the garment vanish/distort on movement.\n"
+            )
+        elif _is_cover:
+            # owner 2026-09-15 (fixes vid_d221794c 'ไม่คลุมรถ, คลี่ผ้าบนโต๊ะ'): a COVER/TARP's real
+            # use-action is to be DRAPED OVER the object it protects - NOT unfolded flat on a table.
+            # The generic tabletop first-frame ('still must be a tabletop shot') plus the strong
+            # no-camera-move rule made Mimo pick a safe tabletop display. This override forces the
+            # first frame to show the TARGET OBJECT (motorcycle) with the cover going over it, and the
+            # video to be the real drape-over action.
+            _style_instr = (
+                "\n\n*** STYLE = COVER / DRAPE-OVER (HIGHEST PRIORITY, OVERRIDES TABLETOP/HOLDING) ***\n"
+                "This product is a COVER/TARP/SHEET (ผ้าคลุม). Its ONLY real use-action is to be DRAPED OVER "
+                "the object it protects (e.g. a motorcycle). It is NEVER unfolded and laid flat on a table as "
+                "the hero - a tabletop display is WRONG for a cover. This OVERRIDES any tabletop/holding "
+                "instruction:\n"
+                "  * image_prompt: the STILL FRAME MUST show the TARGET OBJECT (the motorcycle) clearly in "
+                "frame - the cover is being carried/lifted over it or just laid over it, NOT sitting folded on "
+                "a table. The object must be VISIBLE in the first frame so the clip has somewhere to drape. Do "
+                "NOT write a tabletop hero shot, do NOT write 'product resting on a clean surface'.\n"
+                "  * video_prompt: the presenter performs the ONE real drape action - she lifts the cover and "
+                "drapes it OVER the object (front to back, guiding it over handlebars and down over the seat), "
+                "then smooths it into place. The object (motorcycle) stays in frame the whole time.\n"
+                "  * NEVER write 'unfolds it on the table', 'sets it down on the table', 'lays it flat on a "
+                "surface', or any tabletop/fold-on-table beat for a cover. There is NO tabletop display.\n"
             )
         elif _style_lc in ("holding", "holding_demo", "handheld"):
             # owner 2026-09-12: HOIST the holding behaviour into user_text (Mimo ignores the

@@ -115,7 +115,14 @@ def _synthesize_script_beats(script: str, duration: int) -> list:
         # owner 2026-09-15 23:2x: Thai has almost no spaces, so a clause-level trim drops a whole
         # phrase (owner: 'เกินไม่กี่คำเอง'). Trim by CHARACTERS instead - cut the overflow + a small
         # margin and strip a dangling connector, so only a few chars are removed.
-        _cut = _value[:_VALUE_CAP].rstrip()
+        # owner 2026-09-15 23:5x: Thai has almost no spaces, so trimming to a raw char index cuts a
+        # word in half ('ไว้เลย' -> 'ไว้เล') and Wan then reads garbage. Cut on the nearest SPACE
+        # (snap down) so the last word stays whole; fall back to char slice only if no space.
+        _cut = _value[:_VALUE_CAP]
+        _sp = _cut.rfind(" ")
+        if _sp > _VALUE_CAP * 0.6 and len(_cut) - _sp <= 10:
+            _cut = _cut[:_sp]
+        _cut = _cut.rstrip()
         for _d in ("และ", "ที่", "ก็", "ให้", "ของ", "ใน", "แล้ว", "จาก"):
             if _cut.endswith(_d) and len(_cut) - len(_d) > _VALUE_CAP * 0.6:
                 _cut = _cut[: -len(_d)].rstrip()
@@ -137,7 +144,16 @@ def _synthesize_script_beats(script: str, duration: int) -> list:
         _over = _tot_now - _rate_cap
         if len(_target) - _over - 2 < 6:
             break
-        _new = _target[: len(_target) - _over - 2].rstrip()
+        _new_try = _target[: len(_target) - _over - 2]
+        # owner 2026-09-15 23:5x: never cut mid-word. Thai has almost no spaces, so a raw char cut
+        # makes Wan speak a fragment ('ไว้เลย'->'ไว้เล'). If there is a space within ~10 chars, snap
+        # to it; OTHERWISE keep the text whole (accept the small overflow) - dropping/chopping a
+        # clause is worse than the tiny over-budget (owner: 'เกินไม่กี่คำเอง').
+        _sp = _new_try.rfind(" ")
+        if _sp > 0 and len(_new_try) - _sp <= 10:
+            _new = _new_try[:_sp].rstrip()
+        else:
+            _new = _target  # keep whole - do not chop the final word
         for _d in ("และ", "ที่", "ก็", "ให้", "ของ", "ใน", "แล้ว", "จาก"):
             if _new.endswith(_d) and len(_new) - len(_d) > 6:
                 _new = _new[: -len(_d)].rstrip()

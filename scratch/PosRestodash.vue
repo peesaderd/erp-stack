@@ -572,10 +572,30 @@
               <span class="pill-arrow">▾</span>
             </button>
 
+            <!-- Quick Unpaid Orders Pill (Brought directly to Topbar) -->
+            <button
+              @click="showOrdersModal = true"
+              class="quick-unpaid-btn"
+              title="บิลค้างชำระ & ประวัติการขาย"
+            >
+              <span>📋 บิลค้าง</span>
+              <span v-if="unpaidOrdersCount > 0" class="unpaid-badge-pill">{{ unpaidOrdersCount }}</span>
+            </button>
+
             <!-- Quick Kitchen KDS View -->
             <button @click="showKitchenModal = true" class="quick-kds-btn">
-              <span>🍳 จอครัว (KDS)</span>
+              <span>🍳 จอครัว</span>
               <span v-if="kitchenOrders.length" class="kds-badge">{{ kitchenOrders.length }}</span>
+            </button>
+
+            <!-- Quick Direct Checkout Button when active order exists or cart has items -->
+            <button
+              v-if="cart.length > 0 || activeCheckoutOrder"
+              @click="openPaymentModal('Cash')"
+              class="quick-checkout-header-btn"
+              title="คิดเงินทันที"
+            >
+              💳 คิดเงิน
             </button>
 
             <!-- Quick Full Page Settings Button -->
@@ -891,8 +911,22 @@
               <span v-else-if="tb.status === 'occupied'" class="status-dot red"></span>
               <span v-else class="status-dot green"></span>
               <span :class="{ 'text-served-bold': tb.status === 'served' }">
-                {{ tb.status === 'served' ? '🟢 เสิร์ฟครบแล้ว (พร้อมคิดเงิน)' : (tb.status === 'occupied' ? 'กำลังทาน / รอเสิร์ฟ' : 'ว่าง') }}
+                {{ tb.status === 'served' ? '🟢 เสิร์ฟครบแล้ว' : (tb.status === 'occupied' ? 'กำลังทาน' : 'ว่าง') }}
               </span>
+            </div>
+
+            <!-- Direct Table Checkout Action if Unpaid Order Exists -->
+            <div v-if="getTableActiveOrder(tb.id)" class="table-card-unpaid-box">
+              <div class="table-unpaid-sum">
+                ฿{{ formatBaht(getTableActiveOrder(tb.id).total || getTableActiveOrder(tb.id).grand_total) }}
+              </div>
+              <button
+                @click.stop="checkoutTableDirect(tb.id)"
+                class="btn-table-checkout-direct"
+                title="คิดเงินโต๊ะนี้ทันที"
+              >
+                💳 คิดเงิน
+              </button>
             </div>
           </div>
         </div>
@@ -1512,14 +1546,22 @@
                   </span>
                 </td>
                 <td class="action-buttons-cell">
-                  <!-- Load Unpaid Order into Cart for Checkout or Modification -->
+                  <!-- Direct Checkout and Edit Order Buttons -->
+                  <button
+                    v-if="ord.status !== 'paid' && ord.status !== 'cancelled'"
+                    @click="payOrderDirect(ord)"
+                    class="btn-sm-checkout"
+                    title="เปิดหน้าต่างคิดเงินทันที"
+                  >
+                    💳 คิดเงินทันที
+                  </button>
                   <button
                     v-if="ord.status !== 'paid' && ord.status !== 'cancelled'"
                     @click="loadOrderIntoCart(ord)"
-                    class="btn-sm-checkout"
-                    title="ดึงออเดอร์นี้เข้าตะกร้าเพื่อคิดเงินหรือแก้ไข"
+                    class="btn-sm-edit-order"
+                    title="ดึงเข้าตะกร้าเพื่อสั่งอาหารเพิ่ม"
                   >
-                    💳 ชำระ / ดึงเข้าตะกร้า
+                    ➕ สั่งเพิ่ม
                   </button>
                   <button @click="viewReceiptForOrder(ord)" class="btn-sm-view" title="ดูใบเสร็จ">
                     🧾 ใบเสร็จ
@@ -1789,8 +1831,67 @@
       </div>
     </transition>
 
+  
+
+    <!-- ── MOBILE BOTTOM NAVIGATION BAR (PWA UX) ───────────────────── -->
+    <nav class="pos-mobile-bottom-nav">
+      <button
+        class="m-nav-tab"
+        :class="{ 'is-active': viewMode === 'pos' && !showTableModal && !showOrdersModal && !showKitchenModal }"
+        @click="viewMode = 'pos'; showTableModal = false; showOrdersModal = false; showKitchenModal = false"
+      >
+        <span class="m-nav-icon">🍽️</span>
+        <span class="m-nav-label">สั่งอาหาร</span>
+      </button>
+
+      <button
+        class="m-nav-tab"
+        :class="{ 'is-active': showTableModal }"
+        @click="showTableModal = true; viewMode = 'pos'"
+      >
+        <span class="m-nav-icon">🪑</span>
+        <span class="m-nav-label">{{ selectedTableId ? `โต๊ะ ${selectedTableId}` : 'เลือกโต๊ะ' }}</span>
+      </button>
+
+      <button
+        class="m-nav-tab m-nav-unpaid-tab"
+        :class="{ 'is-active': showOrdersModal }"
+        @click="showOrdersModal = true"
+      >
+        <div class="m-nav-icon-wrap">
+          <span class="m-nav-icon">📋</span>
+          <span v-if="unpaidOrdersCount > 0" class="m-nav-badge">{{ unpaidOrdersCount }}</span>
+        </div>
+        <span class="m-nav-label">บิลค้างชำระ</span>
+      </button>
+
+      <button
+        class="m-nav-tab"
+        :class="{ 'is-active': showKitchenModal }"
+        @click="showKitchenModal = true"
+      >
+        <div class="m-nav-icon-wrap">
+          <span class="m-nav-icon">🍳</span>
+          <span v-if="kitchenOrders.length > 0" class="m-nav-badge kds-pulse">{{ kitchenOrders.length }}</span>
+        </div>
+        <span class="m-nav-label">จอครัว KDS</span>
+      </button>
+
+      <button
+        class="m-nav-tab"
+        :class="{ 'is-active': viewMode === 'settings' }"
+        @click="viewMode = 'settings'; showTableModal = false; showOrdersModal = false; showKitchenModal = false"
+      >
+        <span class="m-nav-icon">⚙️</span>
+        <span class="m-nav-label">ตั้งค่า</span>
+      </button>
+    </nav>
+
   </div>
-</template>
+
+    
+
+  </template>
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
@@ -2204,18 +2305,63 @@ function setOrderType(type) {
   }
 }
 
+// Helper: get active unpaid order for a table
+function getTableActiveOrder(tableId) {
+  if (!tableId) return null
+  return unpaidOrders.value.find(o => String(o.table_id) === String(tableId)) || null
+}
+
 function selectTakeaway() {
   orderType.value = 'takeaway'
   selectedTableId.value = null
   showTableModal.value = false
-  showToast('เลือก: 📦 สั่งกลับบ้าน (Takeaway) เรียบร้อย')
+
+  const existingOrder = getTableActiveOrder('takeaway')
+  if (existingOrder) {
+    loadOrderIntoCart(existingOrder)
+    showToast(`ดึงบิลสั่งกลับบ้าน (#${existingOrder.order_id.slice(-6)}) ยอด ฿${formatBaht(existingOrder.total || existingOrder.grand_total)} เรียบร้อย 💳`)
+    if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+      isMobileCartOpen.value = true
+    }
+  } else {
+    showToast('เลือก: 📦 สั่งกลับบ้าน (Takeaway) เรียบร้อย')
+  }
 }
 
 function selectTable(tableId) {
   selectedTableId.value = tableId
   orderType.value = 'dinein'
   showTableModal.value = false
-  showToast(`เลือก: โต๊ะ ${tableId} เรียบร้อย`)
+
+  const existingOrder = getTableActiveOrder(tableId)
+  if (existingOrder) {
+    loadOrderIntoCart(existingOrder)
+    showToast(`ดึงบิลโต๊ะ ${tableId} (#${existingOrder.order_id.slice(-6)}) ยอด ฿${formatBaht(existingOrder.total || existingOrder.grand_total)} เรียบร้อย 💳`)
+    if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+      isMobileCartOpen.value = true
+    }
+  } else {
+    showToast(`เลือก: โต๊ะ ${tableId} เรียบร้อย ✨`)
+  }
+}
+
+// Quick checkout directly for a table (Opens payment modal directly)
+function checkoutTableDirect(tableId) {
+  const existingOrder = getTableActiveOrder(tableId)
+  if (existingOrder) {
+    loadOrderIntoCart(existingOrder)
+    showTableModal.value = false
+    openPaymentModal('Cash')
+  } else {
+    selectTable(tableId)
+  }
+}
+
+// Quick direct payment from unpaid orders list (Opens payment modal directly)
+function payOrderDirect(ord) {
+  loadOrderIntoCart(ord)
+  showOrdersModal.value = false
+  openPaymentModal('Cash')
 }
 
 // Cart Management
@@ -7179,6 +7325,90 @@ onUnmounted(() => {
   border-color: #2563EB !important;
 }
 
+
+/* ── Direct Table Checkout in Modal ─────────────────────────────── */
+.table-card-unpaid-box {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px dashed #CBD5E1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.table-unpaid-sum {
+  font-size: 12px;
+  font-weight: 800;
+  color: #1E40AF;
+}
+.btn-table-checkout-direct {
+  padding: 4px 8px;
+  background: linear-gradient(135deg, #10B981, #059669);
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-table-checkout-direct:hover {
+  transform: scale(1.03);
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.4);
+}
+
+/* ── Topbar Quick Buttons ────────────────────────────────────────── */
+.quick-unpaid-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 12px;
+  border-radius: 9px;
+  border: 1px solid #CBD5E1;
+  background: #FFFBEB;
+  color: #B45309;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.quick-unpaid-btn:hover {
+  background: #FEF3C7;
+  border-color: #F59E0B;
+}
+
+.quick-checkout-header-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 14px;
+  border-radius: 9px;
+  border: none;
+  background: linear-gradient(135deg, #10B981, #059669);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 13px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.35);
+}
+
+.btn-sm-edit-order {
+  padding: 4px 8px;
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  border-radius: 6px;
+  color: #1D4ED8;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-left: 4px;
+}
+
+/* ── Bottom Nav default hidden on Desktop ────────────────────────── */
+.pos-mobile-bottom-nav {
+  display: none;
+}
+
 /* ── MOBILE RESPONSIVE STYLES (max-width: 768px) ────────────────────── */
 @media (max-width: 768px) {
   /* CONTAINER FLEX DIRECTION ON MOBILE */
@@ -7244,7 +7474,7 @@ onUnmounted(() => {
     display: none !important;
   }
 
-  /* 2. CENTER MAIN: FULL 100vw ON MOBILE WITH THUMB-SCROLL PADDING */
+  /* 2. CENTER MAIN: FULL 100vw ON MOBILE */
   .pos-center-main {
     width: 100vw !important;
     max-width: 100vw !important;
@@ -7273,41 +7503,57 @@ onUnmounted(() => {
     width: 100% !important;
     order: 1 !important;
     gap: 6px !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
   }
 
   .quick-pill-btn {
     flex: 1 !important;
-    padding: 7px 10px !important;
-    font-size: 13px !important;
+    padding: 6px 10px !important;
+    font-size: 12px !important;
     font-weight: 700 !important;
     white-space: nowrap !important;
     text-overflow: ellipsis !important;
     overflow: hidden !important;
   }
 
-  .quick-kds-btn {
-    padding: 7px 10px !important;
-    font-size: 12px !important;
+  .quick-unpaid-btn {
+    padding: 6px 9px !important;
+    font-size: 11.5px !important;
     font-weight: 700 !important;
     white-space: nowrap !important;
+    flex-shrink: 0 !important;
+  }
+
+  .quick-kds-btn {
+    padding: 6px 9px !important;
+    font-size: 11.5px !important;
+    font-weight: 700 !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+  }
+
+  .quick-checkout-header-btn {
+    padding: 6px 10px !important;
+    font-size: 12px !important;
+    font-weight: 800 !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
   }
 
   .quick-settings-btn {
-    padding: 7px 10px !important;
-    font-size: 12px !important;
-    font-weight: 700 !important;
-    white-space: nowrap !important;
+    display: none !important; /* Managed via bottom nav on mobile */
   }
 
   .search-box-wrapper {
     order: 2 !important;
     width: 100% !important;
     max-width: 100% !important;
-    height: 38px !important;
+    height: 36px !important;
     margin-top: 2px !important;
   }
 
-  /* 4. HORIZONTAL CATEGORY SLIDER: SMOOTH THUMB SCROLLING */
+  /* 4. HORIZONTAL CATEGORY SLIDER */
   .category-slide-bar {
     display: flex !important;
     align-items: center !important;
@@ -7322,17 +7568,17 @@ onUnmounted(() => {
   }
 
   .slide-cat-tab {
-    padding: 5px 12px !important;
-    font-size: 12px !important;
+    padding: 4px 10px !important;
+    font-size: 11.5px !important;
     font-weight: 600 !important;
     border-radius: 20px !important;
     flex-shrink: 0 !important;
   }
 
-  /* 5. FOOD GRID: BEAUTIFUL 2 COLUMNS ON MOBILE */
+  /* 5. FOOD GRID: COMPACT & SHORTER FOR MORE SCREEN REAL ESTATE */
   .food-scroll-container {
     flex: 1 !important;
-    padding: 10px 10px 90px 10px !important;
+    padding: 8px 8px 130px 8px !important; /* Space for floating cart & bottom nav */
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
   }
@@ -7340,22 +7586,22 @@ onUnmounted(() => {
   .food-grid {
     display: grid !important;
     grid-template-columns: repeat(2, 1fr) !important;
-    gap: 10px !important;
+    gap: 8px !important;
     width: 100% !important;
   }
 
   .food-card {
-    border-radius: 12px !important;
+    border-radius: 10px !important;
     overflow: hidden !important;
     background: #ffffff !important;
     border: 1px solid #E2E8F0 !important;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04) !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04) !important;
     display: flex !important;
     flex-direction: column !important;
   }
 
   .food-thumb-wrap {
-    height: 110px !important;
+    height: 85px !important; /* Shorter card image */
     width: 100% !important;
     position: relative !important;
   }
@@ -7367,7 +7613,7 @@ onUnmounted(() => {
   }
 
   .food-info {
-    padding: 8px 10px 10px 10px !important;
+    padding: 6px 8px 8px 8px !important;
     display: flex !important;
     flex-direction: column !important;
     flex: 1 !important;
@@ -7375,16 +7621,16 @@ onUnmounted(() => {
   }
 
   .food-name {
-    font-size: 12.5px !important;
+    font-size: 11.5px !important;
     font-weight: 700 !important;
-    line-height: 1.3 !important;
-    height: 32px !important;
+    line-height: 1.25 !important;
+    height: 28px !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
     display: -webkit-box !important;
     -webkit-line-clamp: 2 !important;
     -webkit-box-orient: vertical !important;
-    margin-bottom: 6px !important;
+    margin-bottom: 4px !important;
   }
 
   .food-meta {
@@ -7395,25 +7641,24 @@ onUnmounted(() => {
   }
 
   .food-price {
-    font-size: 15px !important;
+    font-size: 13.5px !important;
     font-weight: 800 !important;
     color: #2563EB !important;
   }
 
   .food-add-btn {
-    width: 32px !important;
-    height: 32px !important;
-    border-radius: 8px !important;
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 6px !important;
     background: #2563EB !important;
     color: #ffffff !important;
     border: none !important;
-    font-size: 18px !important;
+    font-size: 16px !important;
     font-weight: 700 !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     cursor: pointer !important;
-    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3) !important;
   }
 
   /* 6. RIGHT CART: MOBILE SLIDE-OVER DRAWER */
@@ -7456,24 +7701,24 @@ onUnmounted(() => {
     margin-left: 6px !important;
   }
 
-  /* 7. FLOATING BOTTOM CART BAR ON MOBILE */
+  /* 7. FLOATING BOTTOM CART BAR (FLOATS ABOVE BOTTOM NAV) */
   .mobile-floating-cart-btn {
     display: flex !important;
     align-items: center !important;
     justify-content: space-between !important;
     position: fixed !important;
-    bottom: 14px !important;
+    bottom: 64px !important; /* Floats above the 56px bottom nav */
     right: 12px !important;
     left: 12px !important;
     background: linear-gradient(135deg, #2563EB, #1D4ED8) !important;
     color: #ffffff !important;
     border: none !important;
-    border-radius: 14px !important;
-    padding: 12px 16px !important;
-    font-size: 14px !important;
+    border-radius: 12px !important;
+    padding: 10px 14px !important;
+    font-size: 13.5px !important;
     font-weight: 800 !important;
     font-family: 'Prompt', sans-serif !important;
-    box-shadow: 0 8px 24px rgba(37, 99, 235, 0.5) !important;
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45) !important;
     z-index: 99999 !important;
     cursor: pointer !important;
     animation: pop-up-bounce 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
@@ -7484,255 +7729,226 @@ onUnmounted(() => {
     align-items: center !important;
     gap: 8px !important;
   }
-
+  .m-cart-icon {
+    font-size: 16px !important;
+  }
+  .m-cart-text {
+    font-size: 13px !important;
+    font-weight: 800 !important;
+  }
   .m-cart-right {
     display: flex !important;
     align-items: center !important;
-    gap: 10px !important;
+    gap: 8px !important;
   }
-
-  .m-cart-arrow {
-    background: rgba(255, 255, 255, 0.22) !important;
-    padding: 4px 10px !important;
-    border-radius: 8px !important;
-    font-size: 12px !important;
-    font-weight: 700 !important;
-  }
-
-  @keyframes pop-up-bounce {
-    0% { transform: translateY(40px); opacity: 0; }
-    100% { transform: translateY(0); opacity: 1; }
-  }
-
   .m-cart-total {
-    background: rgba(255, 255, 255, 0.22) !important;
-    padding: 3px 12px !important;
-    border-radius: 20px !important;
-    font-size: 14px !important;
+    font-size: 14.5px !important;
+    font-weight: 900 !important;
+  }
+  .m-cart-arrow {
+    background: rgba(255, 255, 255, 0.25) !important;
+    padding: 3px 8px !important;
+    border-radius: 6px !important;
+    font-size: 11.5px !important;
     font-weight: 800 !important;
   }
 
-  /* 8. MODALS ON MOBILE */
-  .pos-modal-box,
-  .orders-modal-box,
-  .payment-modal,
-  .attach-member-modal,
-  .kds-modal-box,
-  .table-select-modal {
-    width: 95vw !important;
-    max-width: 95vw !important;
-    max-height: 92vh !important;
-    margin: 8px !important;
-    padding: 14px !important;
+  /* 8. PWA MOBILE BOTTOM NAVIGATION BAR */
+  .pos-mobile-bottom-nav {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-around !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100vw !important;
+    height: 56px !important;
+    background: #ffffff !important;
+    border-top: 1px solid #E2E8F0 !important;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.08) !important;
+    z-index: 100010 !important;
+    padding: 0 4px !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
   }
 
-  .tables-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 8px !important;
-  }
-
-  .kds-tickets-grid {
-    grid-template-columns: 1fr !important;
-    gap: 10px !important;
-  }
-
-  .kds-header-flex {
+  .m-nav-tab {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    width: 20% !important;
+    display: flex !important;
     flex-direction: column !important;
-    align-items: flex-start !important;
-    gap: 8px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 100% !important;
+    background: transparent !important;
+    border: none !important;
+    color: #64748B !important;
+    font-family: 'Prompt', sans-serif !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+    padding: 2px !important;
+    position: relative !important;
   }
 
-  .kds-header-controls {
-    width: 100% !important;
-    justify-content: space-between !important;
+  .m-nav-tab.is-active {
+    color: #2563EB !important;
+    font-weight: 700 !important;
   }
 
-  .orders-filter-bar {
+  .m-nav-icon-wrap {
+    position: relative !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .m-nav-icon {
+    font-size: 19px !important;
+    line-height: 1 !important;
+    margin-bottom: 2px !important;
+  }
+
+  .m-nav-label {
+    font-size: 10px !important;
+    font-weight: 600 !important;
+    letter-spacing: -0.2px !important;
+    white-space: nowrap !important;
+  }
+
+  .m-nav-badge {
+    position: absolute !important;
+    top: -4px !important;
+    right: -8px !important;
+    background: #EF4444 !important;
+    color: #ffffff !important;
+    font-size: 9px !important;
+    font-weight: 900 !important;
+    padding: 1px 4px !important;
+    border-radius: 10px !important;
+    min-width: 14px !important;
+    text-align: center !important;
+    line-height: 1.2 !important;
+  }
+
+  .m-nav-badge.kds-pulse {
+    background: #F97316 !important;
+  }
+
+  /* 9. SETTINGS FULLPAGE: MOBILE RESPONSIVE OVERHAUL */
+  .settings-fullpage {
+    width: 100vw !important;
+    height: 100vh !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  .settings-topbar {
+    padding: 10px 14px !important;
     flex-direction: column !important;
     align-items: stretch !important;
     gap: 8px !important;
-    padding: 10px 12px !important;
   }
-
-  .orders-search-wrap,
-  .orders-tabs-toggle,
-  .orders-channel-toggle,
-  .orders-date-wrap {
+  .settings-topbar-left {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
     width: 100% !important;
   }
-
-  .orders-tabs-toggle,
-  .orders-channel-toggle {
-    display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
+  .settings-main-title {
+    font-size: 16px !important;
   }
-  .orders-channel-toggle {
-    grid-template-columns: 1fr 1fr 1fr !important;
+  .settings-sub-title {
+    display: none !important;
   }
-
-  .orders-history-table {
-    min-width: 680px !important;
+  .settings-topbar-right {
+    display: none !important;
   }
-
-  .quick-add-inputs-grid {
+  .settings-body-layout {
+    flex-direction: column !important;
+    overflow-y: auto !important;
+  }
+  .settings-nav-sidebar {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    padding: 6px 10px !important;
+    gap: 6px !important;
+    border-right: none !important;
+    border-bottom: 1px solid #E2E8F0 !important;
+    background: #ffffff !important;
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  .settings-nav-item {
+    padding: 6px 12px !important;
+    border-radius: 20px !important;
+    flex-shrink: 0 !important;
+    gap: 6px !important;
+    border: 1px solid #E2E8F0 !important;
+  }
+  .settings-nav-item .nav-item-icon {
+    font-size: 16px !important;
+  }
+  .settings-nav-item .nav-item-desc {
+    display: none !important;
+  }
+  .settings-nav-item .nav-item-title {
+    font-size: 12px !important;
+  }
+  .settings-content-panel {
+    padding: 12px 12px 90px 12px !important;
+  }
+  .settings-card {
+    padding: 14px !important;
+    border-radius: 12px !important;
+  }
+  .card-header-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+  .card-title {
+    font-size: 16px !important;
+  }
+  .card-subtitle {
+    font-size: 12px !important;
+  }
+  .btn-primary-save {
+    width: 100% !important;
+    justify-content: center !important;
+    padding: 10px !important;
+  }
+  .form-grid-2 {
     grid-template-columns: 1fr !important;
+    gap: 10px !important;
   }
-}
+  .form-group.span-2 {
+    grid-column: span 1 !important;
+  }
 
-@keyframes slide-in-right {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
-}
-
-
-
-/* ── KDS Header Controls & Sound Toggle ──────────────────────────────── */
-.kds-header-flex {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: space-between !important;
-  gap: 12px !important;
-}
-
-.kds-header-controls {
-  display: flex !important;
-  align-items: center !important;
-  gap: 8px !important;
-}
-
-.kds-sound-toggle-btn {
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 6px !important;
-  background: #ECFDF5 !important;
-  color: #065F46 !important;
-  border: 1.5px solid #A7F3D0 !important;
-  padding: 6px 14px !important;
-  border-radius: 8px !important;
-  font-size: 13px !important;
-  font-weight: 600 !important;
-  cursor: pointer !important;
-  transition: all 0.2s ease !important;
-  user-select: none !important;
-}
-
-.kds-sound-toggle-btn:hover {
-  background: #D1FAE5 !important;
-  transform: translateY(-1px) !important;
-}
-
-.kds-sound-toggle-btn.is-muted {
-  background: #F3F4F6 !important;
-  color: #6B7280 !important;
-  border-color: #E5E7EB !important;
-}
-
-.kds-test-sound-btn {
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 5px !important;
-  background: #EFF6FF !important;
-  color: #1D4ED8 !important;
-  border: 1.5px solid #BFDBFE !important;
-  padding: 6px 12px !important;
-  border-radius: 8px !important;
-  font-size: 13px !important;
-  font-weight: 600 !important;
-  cursor: pointer !important;
-  transition: all 0.2s ease !important;
-}
-
-.kds-test-sound-btn:hover {
-  background: #DBEAFE !important;
-  transform: translateY(-1px) !important;
-}
-
-/* ── KDS Appended Item Highlight & Badge ─────────────────────────────── */
-.item-name-row {
-  display: flex !important;
-  align-items: center !important;
-  flex-wrap: wrap !important;
-  gap: 6px !important;
-}
-
-.badge-new-item-pill {
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 3px !important;
-  background: linear-gradient(135deg, #F59E0B, #D97706) !important;
-  color: #FFFFFF !important;
-  font-size: 10.5px !important;
-  font-weight: 800 !important;
-  padding: 2px 8px !important;
-  border-radius: 999px !important;
-  box-shadow: 0 2px 6px rgba(217, 119, 6, 0.4) !important;
-  letter-spacing: 0.3px !important;
-  animation: pulse-gold-glow 2s infinite ease-in-out !important;
-}
-
-@keyframes pulse-gold-glow {
-  0% { transform: scale(1); box-shadow: 0 2px 6px rgba(217, 119, 6, 0.4); }
-  50% { transform: scale(1.06); box-shadow: 0 4px 12px rgba(217, 119, 6, 0.65); }
-  100% { transform: scale(1); box-shadow: 0 2px 6px rgba(217, 119, 6, 0.4); }
-}
-
-.ticket-item-row.is-appended-new {
-  background: #FFFBEB !important;
-  border-left: 3.5px solid #F59E0B !important;
-}
-
-/* ── Top Alarm Banner Variants (Served & Appended) ───────────────────── */
-.pos-alarm-banner.is-served-banner {
-  background: linear-gradient(135deg, #059669, #047857) !important;
-  border-color: #34D399 !important;
-  box-shadow: 0 6px 20px rgba(5, 150, 105, 0.35) !important;
-}
-
-.pos-alarm-banner.is-appended-banner {
-  background: linear-gradient(135deg, #D97706, #B45309) !important;
-  border-color: #FBBF24 !important;
-}
-
-.alarm-btn-checkout {
-  background: #FFFFFF !important;
-  color: #065F46 !important;
-  border: none !important;
-  padding: 8px 16px !important;
-  border-radius: 8px !important;
-  font-size: 13.5px !important;
-  font-weight: 800 !important;
-  cursor: pointer !important;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15) !important;
-  transition: all 0.2s ease !important;
-}
-
-.alarm-btn-checkout:hover {
-  transform: translateY(-1px) scale(1.02) !important;
-  background: #F0FDF4 !important;
-}
-
-/* ── Table Map 'Served' State ────────────────────────────────────────── */
-.table-card.is-served {
-  border: 2px solid #10B981 !important;
-  background: #ECFDF5 !important;
-  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.2) !important;
-}
-
-.status-dot.served-green-pulse {
-  background: #10B981 !important;
-  box-shadow: 0 0 0 rgba(16, 185, 129, 0.7) !important;
-  animation: pulse-green-dot 1.6s infinite !important;
-}
-
-.text-served-bold {
-  color: #047857 !important;
-  font-weight: 800 !important;
-}
-
-@keyframes pulse-green-dot {
-  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-  70% { transform: scale(1.15); box-shadow: 0 0 0 7px rgba(16, 185, 129, 0); }
-  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+  /* 10. MODALS RESPONSIVE ON MOBILE */
+  .table-select-modal,
+  .orders-modal-box,
+  .payment-modal-wide {
+    width: 96vw !important;
+    max-width: 96vw !important;
+    max-height: 92vh !important;
+    overflow-y: auto !important;
+  }
+  .tables-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+    padding: 10px !important;
+  }
+  .orders-filter-bar {
+    padding: 8px 10px !important;
+    gap: 6px !important;
+  }
 }
 
 </style>

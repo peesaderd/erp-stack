@@ -98,124 +98,154 @@ function getElapsedMinutes(createdAt) {
 
 function formatElapsed(createdAt) {
   const mins = getElapsedMinutes(createdAt)
-  if (mins < 1) return 'เมื่อสักครู่'
+  if (mins < 1) return '< 1 นาที'
   if (mins < 60) return `${mins} นาที`
-  const hrs = Math.floor(mins / 60)
-  return `${hrs} ชม. ${mins % 60} น.`
+  const hours = Math.floor(mins / 60)
+  const remMins = mins % 60
+  return `${hours} ชม. ${remMins} น.`
 }
 
 function getTimerClass(createdAt) {
   const mins = getElapsedMinutes(createdAt)
-  if (mins < 10) return 'timer-green'
-  if (mins < 20) return 'timer-yellow'
-  return 'timer-red-pulse'
+  if (mins >= 20) return 'timer-red-pulse'
+  if (mins >= 10) return 'timer-yellow'
+  return 'timer-green'
 }
 
-function formatTime(createdAt) {
-  if (!createdAt) return ''
-  return new Date(createdAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
+function formatTime(isoString) {
+  if (!isoString) return ''
+  const d = new Date(isoString)
+  return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
 }
 
-// Detect if order has new items
-function hasNewItems(order) {
-  return order.items && order.items.some(i => i.is_new_item && !i.item_served)
-}
-
-// Count of total unserved items in an order
-function getUnservedCount(order) {
-  if (!order.items) return 0
-  return order.items.filter(i => !i.item_served).length
-}
-
-// Fetch kitchen orders
+// Load KDS Orders
 async function loadKitchenOrders(isPoll = false) {
   if (!isPoll) loading.value = true
   try {
     const data = await getKitchenOrders()
-    const newOrders = data || []
+    const incomingOrders = Array.isArray(data) ? data : (data.orders || [])
 
-    // Sound detection for newly arrived tickets or appended items
-    if (isPoll && knownOrderIds.value.size > 0) {
-      let soundTriggered = false
+    // Detect new orders or appended items to trigger sound alert
+    let triggerAlert = false
 
-      for (const ord of newOrders) {
-        // Condition 1: Brand new order ID
-        if (!knownOrderIds.value.has(ord.order_id) && ord.status === 'preparing') {
-          playKitchenChime()
-          soundTriggered = true
+    if (isPoll && isAudioEnabled.value) {
+      for (const order of incomingOrders) {
+        const oId = order.order_id
+        const itemCount = (order.items || []).length
+
+        // Case 1: Brand new order
+        if (!knownOrderIds.value.has(oId)) {
+          triggerAlert = true
           break
         }
-        // Condition 2: Existing order had items appended
-        const prevCount = knownItemCounts.value.get(ord.order_id) || 0
-        const currentCount = ord.items ? ord.items.length : 0
-        if (currentCount > prevCount || hasNewItems(ord)) {
-          playKitchenChime()
-          soundTriggered = true
+
+        // Case 2: Existing order got appended items
+        const prevCount = knownItemCounts.value.get(oId) || 0
+        if (itemCount > prevCount) {
+          triggerAlert = true
           break
         }
       }
     }
 
-    // Update tracking
-    const idSet = new Set()
-    const countMap = new Map()
-    for (const ord of newOrders) {
-      idSet.add(ord.order_id)
-      countMap.set(ord.order_id, ord.items ? ord.items.length : 0)
+    if (triggerAlert) {
+      playKitchenChime()
     }
-    knownOrderIds.value = idSet
-    knownItemCounts.value = countMap
-    lastKnownOrderCount.value = newOrders.filter(o => o.status === 'preparing').length
 
-    orders.value = newOrders
+    // Update tracking
+    const newKnownIds = new Set()
+    const newCounts = new Map()
+    incomingOrders.forEach(o => {
+      newKnownIds.add(o.order_id)
+      newCounts.set(o.order_id, (o.items || []).length)
+    })
+    knownOrderIds.value = newKnownIds
+    knownItemCounts.value = newCounts
+    lastKnownOrderCount.value = incomingOrders.length
+
+    orders.value = incomingOrders
     error.value = ''
   } catch (err) {
-    error.value = 'ไม่สามารถเชื่อมต่อระบบครัวได้ กรุณาตรวจสอบอินเทอร์เน็ต'
     console.error('KDS load error:', err)
+    error.value = 'ไม่สามารถดึงข้อมูลครัวได้ กรุณาตรวจสอบการเชื่อมต่อ'
   } finally {
     if (!isPoll) loading.value = false
   }
 }
 
-// Actions
-async function handleMarkItemServed(order, item, index) {
-  try {
-    const lineIndex = item.line !== undefined ? item.line : index
-    await markItemServed(order.order_id, lineIndex)
-    // Update local state immediately for snappy response
-    item.item_served = true
-    item.is_new_item = false
+// Check if an order has newly appended items
+function hasNewItems(order) {
+  if (!order || !order.items) return false
+  return order.items.some(i => i.is_new_item && !i.item_served)
+}
 
-    // If all items served, prompt or auto mark order served
-    const remaining = order.items.filter(i => !i.item_served)
-    if (remaining.length === 0) {
-      await handleMarkOrderServed(order)
-    } else {
-      await loadKitchenOrders(true)
+function isAllServed(order) {
+  if (!order || !order.items || order.items.length === 0) return false
+  return order.items.every(i => i.item_served)
+}
+
+function getUnservedCount(order) {
+  if (!order || !order.items) return 0
+  return order.items.filter(i => !i.item_served).length
+}
+
+// Actions
+async function handleMarkItemServed(order, item, itemIndex) {
+  const line = item.line !== undefined ? item.line : itemIndex
+  try {
+    await markItemServed(order.order_id, line)
+    item.item_served = true
+
+    // Check if all served
+    if (isAllServed(order) && order.status === 'preparing') {
+      await updateOrderStatus(order.order_id, 'served')
+      order.status = 'served'
     }
   } catch (err) {
-    console.error('Error marking item served:', err)
+    console.error('Mark item served failed:', err)
+    alert('ไม่สามารถอัปเดตรายการนี้ได้: ' + (err.message || ''))
   }
 }
 
 async function handleMarkOrderServed(order) {
   try {
+    // 1. Mark all items served locally & on server
+    if (order.items && order.items.length > 0) {
+      for (let idx = 0; idx < order.items.length; idx++) {
+        const it = order.items[idx]
+        if (!it.item_served) {
+          const line = it.line !== undefined ? it.line : idx
+          try {
+            await markItemServed(order.order_id, line)
+          } catch (e) {
+            console.warn('Item served err:', e)
+          }
+          it.item_served = true
+        }
+      }
+    }
+
+    // 2. Mark order status as 'served'
     await updateOrderStatus(order.order_id, 'served')
-    // Play quick feedback chime
-    playKitchenChime()
-    await loadKitchenOrders(true)
+    order.status = 'served'
+
+    // Refresh after short delay
+    setTimeout(() => {
+      loadKitchenOrders(true)
+    }, 800)
   } catch (err) {
-    console.error('Error marking order served:', err)
+    console.error('Complete order served failed:', err)
+    alert('เกิดข้อผิดพลาดในการเสิร์ฟ: ' + (err.message || ''))
   }
 }
 
-// Filtered Orders
+// Computed Filters
 const filteredOrders = computed(() => {
   if (activeFilter.value === 'preparing') {
-    return orders.value.filter(o => o.status === 'preparing')
+    return orders.value.filter(o => o.status === 'preparing' || o.status === 'pending')
   }
   if (activeFilter.value === 'new_appended') {
-    return orders.value.filter(o => o.status === 'preparing' && hasNewItems(o))
+    return orders.value.filter(o => hasNewItems(o))
   }
   if (activeFilter.value === 'served') {
     return orders.value.filter(o => o.status === 'served')
@@ -223,9 +253,17 @@ const filteredOrders = computed(() => {
   return orders.value
 })
 
-const preparingCount = computed(() => orders.value.filter(o => o.status === 'preparing').length)
-const appendedCount = computed(() => orders.value.filter(o => o.status === 'preparing' && hasNewItems(o)).length)
-const servedCount = computed(() => orders.value.filter(o => o.status === 'served').length)
+const preparingCount = computed(() => {
+  return orders.value.filter(o => o.status === 'preparing' || o.status === 'pending').length
+})
+
+const appendedCount = computed(() => {
+  return orders.value.filter(o => hasNewItems(o)).length
+})
+
+const servedCount = computed(() => {
+  return orders.value.filter(o => o.status === 'served').length
+})
 
 onMounted(() => {
   const savedAudio = localStorage.getItem('pos_kds_audio_enabled')
@@ -262,7 +300,7 @@ onUnmounted(() => {
           <span class="kds-brand-icon">🍳</span>
           <div class="kds-brand-text">
             <h1 class="kds-title">หน้าจอห้องครัว (KDS)</h1>
-            <span class="kds-sub">Kitchen Display System • Live Real-time</span>
+            <span class="kds-sub">Kitchen Display System • Bakehouse POS</span>
           </div>
         </div>
 
@@ -309,7 +347,7 @@ onUnmounted(() => {
           :class="{ 'is-active': activeFilter === 'all' }"
         >
           <span>📋 ทั้งหมด</span>
-          <span class="kds-tab-badge">{{ orders.length }}</span>
+          <span class="kds-tab-badge badge-slate">{{ orders.length }}</span>
         </button>
       </div>
 
@@ -365,7 +403,7 @@ onUnmounted(() => {
         </div>
         <h2 class="empty-title">ไม่มีออเดอร์ที่ต้องทำในขณะนี้</h2>
         <p class="empty-desc">
-          {{ activeFilter === 'preparing' ? 'ทุกออเดอร์ปรุงและเสิร์ฟเรียบร้อยแล้ว เมื่อมีออเดอร์ใหม่เข้ามาจะมีเสียงเตือนทันที' : 'ไม่พบรายการออเดอร์ในหมวดหมู่นี้' }}
+          {{ activeFilter === 'preparing' ? 'ทุกออเดอร์ปรุงและเสิร์ฟเรียบร้อยแล้ว เมื่อมีออเดอร์ใหม่เข้ามาจะมีเสียงกระดิ่งเตือนทันที' : 'ไม่พบรายการออเดอร์ในหมวดหมู่นี้' }}
         </p>
         <button @click="loadKitchenOrders()" class="btn-empty-refresh">
           🔄 รีเฟรชข้อมูล
@@ -480,8 +518,7 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap');
-
+/* ── RESTODASH / BAKEHOUSE CLEAN MODERN THEME ───────────────────────── */
 .kds-standalone-app {
   position: fixed !important;
   top: 0 !important;
@@ -493,8 +530,8 @@ onUnmounted(() => {
   z-index: 99999 !important;
   display: flex !important;
   flex-direction: column !important;
-  background: #0B1120 !important;
-  color: #F8FAFC !important;
+  background: #F8FAFC !important;
+  color: #0F172A !important;
   font-family: 'Prompt', sans-serif !important;
   overflow: hidden !important;
   user-select: none !important;
@@ -503,15 +540,15 @@ onUnmounted(() => {
 /* ── KDS HEADER ───────────────────────────────────────────────────── */
 .kds-header {
   height: 68px;
-  background: #0F172A;
-  border-bottom: 2px solid #1E293B;
+  background: #FFFFFF;
+  border-bottom: 1.5px solid #E2E8F0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
   gap: 16px;
   flex-shrink: 0;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
 }
 
 .kds-header-left {
@@ -531,7 +568,7 @@ onUnmounted(() => {
   margin: 0;
   font-size: 18px;
   font-weight: 800;
-  color: #F8FAFC;
+  color: #0F172A;
   line-height: 1.2;
 }
 .kds-sub {
@@ -544,9 +581,9 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: rgba(16, 185, 129, 0.15);
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  color: #34D399;
+  background: #ECFDF5;
+  border: 1px solid #A7F3D0;
+  color: #059669;
   font-size: 11px;
   font-weight: 700;
   padding: 4px 10px;
@@ -569,8 +606,9 @@ onUnmounted(() => {
 .kds-filter-tabs {
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: #1E293B;
+  gap: 6px;
+  background: #F1F5F9;
+  border: 1px solid #E2E8F0;
   padding: 4px 6px;
   border-radius: 12px;
 }
@@ -581,7 +619,7 @@ onUnmounted(() => {
   padding: 8px 14px;
   border: none;
   background: transparent;
-  color: #94A3B8;
+  color: #64748B;
   font-family: 'Prompt', sans-serif;
   font-size: 13.5px;
   font-weight: 700;
@@ -590,33 +628,36 @@ onUnmounted(() => {
   transition: all 0.15s ease;
 }
 .kds-tab-btn:hover {
-  color: #F8FAFC;
-  background: rgba(255, 255, 255, 0.05);
+  color: #0F172A;
+  background: rgba(255, 255, 255, 0.6);
 }
 .kds-tab-btn.is-active {
-  background: #2563EB;
-  color: #ffffff;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
+  background: #FFFFFF;
+  color: #2563EB;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  font-weight: 800;
 }
 .kds-tab-badge {
-  background: rgba(255, 255, 255, 0.2);
-  color: #ffffff;
   font-size: 11px;
   font-weight: 800;
   padding: 2px 7px;
   border-radius: 10px;
   min-width: 18px;
   text-align: center;
+  color: #FFFFFF;
 }
 .badge-orange {
   background: #F97316;
 }
 .badge-purple {
-  background: #A855F7;
+  background: #8B5CF6;
   animation: bounce-badge 1s infinite alternate;
 }
 .badge-green {
   background: #10B981;
+}
+.badge-slate {
+  background: #94A3B8;
 }
 
 @keyframes bounce-badge {
@@ -636,9 +677,9 @@ onUnmounted(() => {
   gap: 6px;
   padding: 8px 12px;
   border-radius: 8px;
-  border: 1px solid #334155;
-  background: #1E293B;
-  color: #E2E8F0;
+  border: 1px solid #CBD5E1;
+  background: #FFFFFF;
+  color: #334155;
   font-family: 'Prompt', sans-serif;
   font-size: 12.5px;
   font-weight: 700;
@@ -646,106 +687,111 @@ onUnmounted(() => {
   transition: all 0.15s ease;
 }
 .kds-action-btn:hover {
-  background: #334155;
-  border-color: #475569;
+  background: #F8FAFC;
+  border-color: #94A3B8;
 }
 .btn-audio-toggle {
-  background: rgba(16, 185, 129, 0.15);
-  border-color: rgba(16, 185, 129, 0.4);
-  color: #34D399;
+  background: #ECFDF5;
+  border-color: #A7F3D0;
+  color: #059669;
 }
 .btn-audio-toggle.is-muted {
-  background: rgba(239, 68, 68, 0.15);
-  border-color: rgba(239, 68, 68, 0.4);
-  color: #F87171;
+  background: #FEF2F2;
+  border-color: #FECACA;
+  color: #DC2626;
 }
 .btn-sound-test {
-  background: #1E293B;
-  color: #FBBF24;
+  background: #FFFBEB;
+  border-color: #FDE68A;
+  color: #B45309;
 }
 .kds-clock {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 800;
-  color: #38BDF8;
-  background: #020617;
+  color: #0F172A;
+  background: #F1F5F9;
   padding: 6px 12px;
   border-radius: 8px;
-  border: 1px solid #1E293B;
-  letter-spacing: 1px;
+  border: 1px solid #E2E8F0;
+  letter-spacing: 0.5px;
 }
 .kds-btn-pos {
   display: flex;
   align-items: center;
-  padding: 8px 12px;
+  padding: 8px 14px;
   border-radius: 8px;
-  background: #1E3A8A;
-  color: #93C5FD;
-  font-size: 12px;
-  font-weight: 700;
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  color: #1D4ED8;
+  font-size: 12.5px;
+  font-weight: 800;
   text-decoration: none;
   transition: all 0.15s;
 }
 .kds-btn-pos:hover {
   background: #2563EB;
-  color: #ffffff;
+  color: #FFFFFF;
+  border-color: #2563EB;
 }
 
 /* ── KDS MAIN GRID ────────────────────────────────────────────────── */
 .kds-main-grid {
   flex: 1;
-  padding: 18px 20px;
+  padding: 20px;
   overflow-y: auto;
-  background: #070D1B;
+  background: #F8FAFC;
 }
 
 .kds-cards-container {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  gap: 16px;
+  gap: 18px;
   align-items: start;
 }
 
 /* ── TICKET CARD ──────────────────────────────────────────────────── */
 .kds-ticket-card {
-  background: #111C33;
-  border: 2px solid #1E2E4E;
+  background: #FFFFFF;
+  border: 1.5px solid #E2E8F0;
   border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05);
   display: flex;
   flex-direction: column;
   transition: all 0.2s ease;
 }
 .kds-ticket-card:hover {
-  border-color: #3B82F6;
+  border-color: #93C5FD;
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.08);
   transform: translateY(-2px);
 }
 
 .kds-ticket-card.is-appended {
-  border-color: #A855F7;
-  box-shadow: 0 0 25px rgba(168, 85, 247, 0.35);
+  border-color: #8B5CF6;
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.15);
 }
 
 .kds-ticket-card.is-urgent {
   border-color: #EF4444;
-  box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.2);
   animation: pulse-urgent-card 2s infinite alternate;
 }
 @keyframes pulse-urgent-card {
   from { border-color: #EF4444; }
-  to { border-color: #DC2626; box-shadow: 0 0 30px rgba(239, 68, 68, 0.6); }
+  to { border-color: #DC2626; box-shadow: 0 0 26px rgba(239, 68, 68, 0.35); }
 }
 
 .kds-ticket-card.is-served {
   border-color: #10B981;
-  opacity: 0.85;
+  background: #F0FDF4;
+  opacity: 0.9;
 }
 
 /* ── TICKET HEADER ────────────────────────────────────────────────── */
 .ticket-header {
-  background: #162444;
-  border-bottom: 1px solid #1E2E4E;
+  background: #F8FAFC;
+  border-bottom: 1.5px solid #E2E8F0;
   padding: 12px 16px;
 }
 .ticket-table-row {
@@ -755,9 +801,9 @@ onUnmounted(() => {
   margin-bottom: 6px;
 }
 .ticket-table-name {
-  font-size: 20px;
+  font-size: 19px;
   font-weight: 800;
-  color: #F8FAFC;
+  color: #0F172A;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -767,26 +813,26 @@ onUnmounted(() => {
 }
 
 .ticket-timer-badge {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
+  font-family: 'Prompt', monospace;
+  font-size: 12.5px;
   font-weight: 800;
   padding: 4px 10px;
   border-radius: 20px;
 }
 .timer-green {
-  background: rgba(16, 185, 129, 0.2);
-  color: #34D399;
-  border: 1px solid rgba(16, 185, 129, 0.4);
+  background: #ECFDF5;
+  color: #059669;
+  border: 1px solid #A7F3D0;
 }
 .timer-yellow {
-  background: rgba(245, 158, 11, 0.2);
-  color: #FBBF24;
-  border: 1px solid rgba(245, 158, 11, 0.4);
+  background: #FEF3C7;
+  color: #B45309;
+  border: 1px solid #FDE68A;
 }
 .timer-red-pulse {
-  background: rgba(239, 68, 68, 0.25);
-  color: #F87171;
-  border: 1px solid rgba(239, 68, 68, 0.5);
+  background: #FEE2E2;
+  color: #DC2626;
+  border: 1px solid #FCA5A5;
   animation: pulse-timer 1s infinite alternate;
 }
 @keyframes pulse-timer {
@@ -798,33 +844,35 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 11.5px;
-  color: #94A3B8;
+  font-size: 12px;
+  color: #64748B;
 }
 .ticket-id {
   font-family: 'JetBrains Mono', monospace;
-  font-weight: 700;
-  color: #CBD5E1;
+  font-weight: 800;
+  color: #1E293B;
 }
 .ticket-channel-pill {
   padding: 2px 7px;
   border-radius: 6px;
   font-weight: 700;
-  font-size: 10.5px;
+  font-size: 11px;
 }
 .ticket-channel-pill.shop {
-  background: rgba(59, 130, 246, 0.2);
-  color: #60A5FA;
+  background: #EFF6FF;
+  border: 1px solid #DBEAFE;
+  color: #1D4ED8;
 }
 .ticket-channel-pill.online {
-  background: rgba(168, 85, 247, 0.2);
-  color: #C084FC;
+  background: #F5F3FF;
+  border: 1px solid #DDD6FE;
+  color: #6D28D9;
 }
 
 .ticket-appended-banner {
   margin-top: 8px;
   background: linear-gradient(135deg, #7C3AED, #A855F7);
-  color: #ffffff;
+  color: #FFFFFF;
   padding: 4px 10px;
   border-radius: 6px;
   font-size: 12px;
@@ -850,6 +898,7 @@ onUnmounted(() => {
   gap: 8px;
   max-height: 380px;
   overflow-y: auto;
+  background: #FFFFFF;
 }
 
 .ticket-item-row {
@@ -858,19 +907,19 @@ onUnmounted(() => {
   justify-content: space-between;
   gap: 10px;
   padding: 8px 10px;
-  background: #162444;
-  border: 1px solid #1E335E;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
   border-radius: 10px;
   transition: all 0.15s ease;
 }
 .ticket-item-row.item-is-new {
-  background: rgba(168, 85, 247, 0.15);
-  border-color: rgba(168, 85, 247, 0.4);
+  background: #FAF5FF;
+  border-color: #E9D5FF;
 }
 .ticket-item-row.item-is-served {
-  background: rgba(16, 185, 129, 0.08);
-  border-color: rgba(16, 185, 129, 0.2);
-  opacity: 0.55;
+  background: #F0FDF4;
+  border-color: #DCFCE7;
+  opacity: 0.65;
 }
 
 .item-left-col {
@@ -880,18 +929,21 @@ onUnmounted(() => {
   flex: 1;
 }
 .item-qty-badge {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 16px;
+  font-family: 'Prompt', monospace;
+  font-size: 15px;
   font-weight: 900;
-  color: #38BDF8;
-  background: #0B1324;
-  padding: 4px 8px;
+  color: #1D4ED8;
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  padding: 3px 8px;
   border-radius: 6px;
-  min-width: 34px;
+  min-width: 32px;
   text-align: center;
 }
 .item-is-new .item-qty-badge {
-  color: #C084FC;
+  color: #6D28D9;
+  background: #F5F3FF;
+  border-color: #DDD6FE;
 }
 
 .item-details {
@@ -907,16 +959,16 @@ onUnmounted(() => {
 .item-name {
   font-size: 14.5px;
   font-weight: 700;
-  color: #F8FAFC;
+  color: #0F172A;
 }
 .item-is-served .item-name {
   text-decoration: line-through;
-  color: #64748B;
+  color: #94A3B8;
 }
 
 .item-new-pill {
-  background: #9333EA;
-  color: #ffffff;
+  background: #7C3AED;
+  color: #FFFFFF;
   font-size: 10px;
   font-weight: 800;
   padding: 1px 6px;
@@ -926,8 +978,9 @@ onUnmounted(() => {
 .item-notes-pill {
   font-size: 11.5px;
   font-weight: 600;
-  color: #FBBF24;
-  background: rgba(245, 158, 11, 0.15);
+  color: #B45309;
+  background: #FFFBEB;
+  border: 1px solid #FDE68A;
   padding: 2px 6px;
   border-radius: 4px;
   display: inline-block;
@@ -938,10 +991,10 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 .btn-item-serve {
-  padding: 6px 10px;
-  background: #1E3A8A;
-  border: 1px solid #3B82F6;
-  color: #93C5FD;
+  padding: 6px 12px;
+  background: #ECFDF5;
+  border: 1px solid #A7F3D0;
+  color: #059669;
   border-radius: 8px;
   font-family: 'Prompt', sans-serif;
   font-size: 12px;
@@ -950,21 +1003,22 @@ onUnmounted(() => {
   transition: all 0.15s ease;
 }
 .btn-item-serve:hover {
-  background: #2563EB;
-  color: #ffffff;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
+  background: #10B981;
+  color: #FFFFFF;
+  border-color: #10B981;
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);
 }
 .item-served-check {
   font-size: 12px;
   font-weight: 800;
-  color: #34D399;
+  color: #059669;
 }
 
 /* ── TICKET FOOTER ────────────────────────────────────────────────── */
 .ticket-footer {
   padding: 12px 14px;
-  background: #0F1A30;
-  border-top: 1px solid #1E2E4E;
+  background: #F8FAFC;
+  border-top: 1.5px solid #E2E8F0;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -975,21 +1029,21 @@ onUnmounted(() => {
   justify-content: space-between;
   font-size: 12px;
   font-weight: 700;
-  color: #94A3B8;
+  color: #64748B;
 }
 
 .btn-order-complete-serve {
   width: 100%;
-  padding: 12px;
+  padding: 11px;
   border-radius: 10px;
   border: none;
   background: linear-gradient(135deg, #10B981, #059669);
-  color: #ffffff;
+  color: #FFFFFF;
   font-family: 'Prompt', sans-serif;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 800;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
   transition: all 0.15s ease;
   display: flex;
   align-items: center;
@@ -998,15 +1052,15 @@ onUnmounted(() => {
 }
 .btn-order-complete-serve:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(16, 185, 129, 0.5);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.35);
 }
 
 .ticket-completed-badge {
   text-align: center;
   padding: 8px;
-  background: rgba(16, 185, 129, 0.15);
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  color: #34D399;
+  background: #ECFDF5;
+  border: 1px solid #A7F3D0;
+  color: #059669;
   border-radius: 8px;
   font-size: 13px;
   font-weight: 800;
@@ -1026,12 +1080,13 @@ onUnmounted(() => {
   width: 90px;
   height: 90px;
   border-radius: 50%;
-  background: #111C33;
-  border: 2px solid #1E2E4E;
+  background: #FFFFFF;
+  border: 2px solid #E2E8F0;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 16px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
 }
 .empty-icon {
   font-size: 42px;
@@ -1039,7 +1094,7 @@ onUnmounted(() => {
 .empty-title {
   font-size: 20px;
   font-weight: 800;
-  color: #E2E8F0;
+  color: #0F172A;
   margin: 0 0 8px;
 }
 .empty-desc {
@@ -1050,14 +1105,19 @@ onUnmounted(() => {
 }
 .btn-empty-refresh {
   padding: 8px 18px;
-  background: #1E293B;
-  border: 1px solid #334155;
+  background: #FFFFFF;
+  border: 1.5px solid #CBD5E1;
   border-radius: 8px;
-  color: #93C5FD;
+  color: #1D4ED8;
   font-family: 'Prompt', sans-serif;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+}
+.btn-empty-refresh:hover {
+  background: #EFF6FF;
+  border-color: #93C5FD;
 }
 
 /* ── RESPONSIVE STYLES ────────────────────────────────────────────── */
@@ -1082,7 +1142,7 @@ onUnmounted(() => {
     overflow-x: auto;
   }
   .kds-cards-container {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr !important;
   }
 }
 
@@ -1092,10 +1152,10 @@ onUnmounted(() => {
   height: 6px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
+  background: #F1F5F9;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: #CBD5E1;
   border-radius: 3px;
 }
 </style>

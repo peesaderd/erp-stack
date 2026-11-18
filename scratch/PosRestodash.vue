@@ -2323,15 +2323,12 @@ function getTableActiveOrder(tableId) {
 function selectTakeaway() {
   orderType.value = 'takeaway'
   selectedTableId.value = null
-  showTableModal.value = false
+  closeAllModals()
 
   const existingOrder = getTableActiveOrder('takeaway')
   if (existingOrder) {
     loadOrderIntoCart(existingOrder)
     showToast(`ดึงบิลสั่งกลับบ้าน (#${existingOrder.order_id.slice(-6)}) ยอด ฿${formatBaht(existingOrder.total || existingOrder.grand_total)} เรียบร้อย 💳`)
-    if (typeof window !== 'undefined' && window.innerWidth <= 768) {
-      isMobileCartOpen.value = true
-    }
   } else {
     showToast('เลือก: 📦 สั่งกลับบ้าน (Takeaway) เรียบร้อย')
   }
@@ -2340,36 +2337,31 @@ function selectTakeaway() {
 function selectTable(tableId) {
   selectedTableId.value = tableId
   orderType.value = 'dinein'
-  showTableModal.value = false
+  closeAllModals()
 
   const existingOrder = getTableActiveOrder(tableId)
   if (existingOrder) {
     loadOrderIntoCart(existingOrder)
     showToast(`ดึงบิลโต๊ะ ${tableId} (#${existingOrder.order_id.slice(-6)}) ยอด ฿${formatBaht(existingOrder.total || existingOrder.grand_total)} เรียบร้อย 💳`)
-    if (typeof window !== 'undefined' && window.innerWidth <= 768) {
-      isMobileCartOpen.value = true
-    }
   } else {
     showToast(`เลือก: โต๊ะ ${tableId} เรียบร้อย ✨`)
   }
 }
 
-// Quick checkout directly for a table (Opens payment modal directly)
+// Quick checkout directly for a table (Opens payment modal directly without overlap)
 function checkoutTableDirect(tableId) {
   const existingOrder = getTableActiveOrder(tableId)
   if (existingOrder) {
     loadOrderIntoCart(existingOrder)
-    showTableModal.value = false
     openPaymentModal('Cash')
   } else {
     selectTable(tableId)
   }
 }
 
-// Quick direct payment from unpaid orders list (Opens payment modal directly)
+// Quick direct payment from unpaid orders list (Opens payment modal directly without overlap)
 function payOrderDirect(ord) {
   loadOrderIntoCart(ord)
-  showOrdersModal.value = false
   openPaymentModal('Cash')
 }
 
@@ -2550,6 +2542,7 @@ function removeMemberFromOrder() {
 }
 
 function openUnpaidOrdersModal() {
+  closeAllModals()
   orderStatusFilter.value = 'unpaid'
   showOrdersModal.value = true
 }
@@ -2610,7 +2603,8 @@ function getSmartCashOptions(total) {
 
 // Checkout & Payments
 function openPaymentModal(method) {
-  selectedPaymentMethod.value = method
+  closeAllModals()
+  selectedPaymentMethod.value = method || 'Cash'
   cashReceived.value = cartGrandTotal.value
   showPaymentModal.value = true
 }
@@ -2627,6 +2621,9 @@ async function submitPayment() {
     }))
 
     let finalOrderId = null
+    const paymentMethodParam = selectedPaymentMethod.value === 'Credit' ? 'Card' : selectedPaymentMethod.value
+    const amountParam = paymentMethodParam === 'Cash' ? Number(cashReceived.value || cartGrandTotal.value) : Number(cartGrandTotal.value)
+    const memberIdParam = (activeCheckoutOrder.value && activeCheckoutOrder.value.member_id) ? activeCheckoutOrder.value.member_id : null
 
     if (activeCheckoutOrder.value && activeCheckoutOrder.value.order_id) {
       // 1. Paying an EXISTING unpaid order!
@@ -2639,8 +2636,9 @@ async function submitPayment() {
       // Process payment directly on existing order (NO createOrder -> NO New Order Notification!)
       await processPayment(
         finalOrderId,
-        selectedPaymentMethod.value,
-        selectedPaymentMethod.value === 'Cash' ? cashReceived.value : cartGrandTotal.value
+        paymentMethodParam,
+        amountParam,
+        memberIdParam
       )
     } else {
       // 2. Creating and paying a fresh new walk-in order
@@ -2648,8 +2646,9 @@ async function submitPayment() {
       finalOrderId = newOrder.order_id
       await processPayment(
         finalOrderId,
-        selectedPaymentMethod.value,
-        selectedPaymentMethod.value === 'Cash' ? cashReceived.value : cartGrandTotal.value
+        paymentMethodParam,
+        amountParam,
+        memberIdParam
       )
     }
 
@@ -2667,7 +2666,7 @@ async function submitPayment() {
       created_at: new Date().toISOString()
     }
 
-    showPaymentModal.value = false
+    closeAllModals()
     showReceiptModal.value = true
     cart.value = []
     activeCheckoutOrder.value = null
@@ -6084,6 +6083,21 @@ onUnmounted(() => {
   background: #FEE2E2;
 }
 
+
+/* Settings Mobile Elements (Hidden on Desktop) */
+.settings-mobile-menu-header {
+  display: none;
+}
+.settings-mobile-back-bar {
+  display: none;
+}
+.settings-nav-item .nav-item-arrow {
+  display: none;
+}
+.mobile-floating-cart-bar {
+  display: none;
+}
+
 /* ── WIDE PAYMENT MODAL & TOP-RIGHT OUTSTANDING BALANCE HERO ───────── */
 .payment-modal.payment-modal-wide {
   width: 860px !important;
@@ -7916,44 +7930,120 @@ onUnmounted(() => {
   .settings-topbar-right {
     display: none !important;
   }
+  /* ── 9. MOBILE SETTINGS 2-STEP DRILL-DOWN NAVIGATION ── */
   .settings-body-layout {
     flex-direction: column !important;
     overflow-y: auto !important;
+    flex: 1 !important;
+    background: #F8FAFC !important;
   }
   .settings-nav-sidebar {
     width: 100% !important;
     min-width: 100% !important;
     max-width: 100% !important;
     height: auto !important;
-    flex-direction: row !important;
-    overflow-x: auto !important;
-    padding: 6px 10px !important;
-    gap: 6px !important;
+    flex-direction: column !important;
+    overflow-y: auto !important;
+    padding: 14px 14px 110px 14px !important;
+    gap: 8px !important;
     border-right: none !important;
-    border-bottom: 1px solid #E2E8F0 !important;
-    background: #ffffff !important;
-    flex-shrink: 0 !important;
-    white-space: nowrap !important;
-    -webkit-overflow-scrolling: touch !important;
+    background: #F8FAFC !important;
   }
-  .settings-nav-item {
-    padding: 6px 12px !important;
-    border-radius: 20px !important;
-    flex-shrink: 0 !important;
-    gap: 6px !important;
-    border: 1px solid #E2E8F0 !important;
-  }
-  .settings-nav-item .nav-item-icon {
-    font-size: 16px !important;
-  }
-  .settings-nav-item .nav-item-desc {
+  .settings-nav-sidebar.mobile-hidden {
     display: none !important;
   }
-  .settings-nav-item .nav-item-title {
+  .settings-mobile-menu-header {
+    display: block !important;
+    margin-bottom: 10px !important;
+    padding: 4px 2px 8px 2px !important;
+    border-bottom: 1px solid #E2E8F0 !important;
+  }
+  .settings-mobile-title {
+    font-size: 17px !important;
+    font-weight: 800 !important;
+    color: #0F172A !important;
+    margin: 0 0 4px !important;
+  }
+  .settings-mobile-sub {
     font-size: 12px !important;
+    color: #64748B !important;
+    margin: 0 !important;
+  }
+  .settings-nav-item {
+    display: flex !important;
+    align-items: center !important;
+    padding: 12px 14px !important;
+    background: #FFFFFF !important;
+    border: 1.5px solid #E2E8F0 !important;
+    border-radius: 14px !important;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.03) !important;
+    gap: 12px !important;
+    width: 100% !important;
+    text-align: left !important;
+  }
+  .settings-nav-item:active {
+    background: #EFF6FF !important;
+    border-color: #BFDBFE !important;
+  }
+  .settings-nav-item .nav-item-icon {
+    font-size: 22px !important;
+  }
+  .settings-nav-item .nav-item-text {
+    flex: 1 !important;
+  }
+  .settings-nav-item .nav-item-title {
+    font-size: 14px !important;
+    font-weight: 800 !important;
+    color: #0F172A !important;
+  }
+  .settings-nav-item .nav-item-desc {
+    display: block !important;
+    font-size: 11.5px !important;
+    color: #64748B !important;
+    margin-top: 1px !important;
+  }
+  .settings-nav-item .nav-item-arrow {
+    display: block !important;
+    font-size: 20px !important;
+    color: #94A3B8 !important;
+    font-weight: 700 !important;
+  }
+  .settings-content-panel.mobile-hidden {
+    display: none !important;
   }
   .settings-content-panel {
-    padding: 12px 12px 90px 12px !important;
+    padding: 12px 14px 110px 14px !important;
+    width: 100% !important;
+  }
+  .settings-mobile-back-bar {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    margin-bottom: 12px !important;
+    padding-bottom: 10px !important;
+    border-bottom: 1.5px solid #E2E8F0 !important;
+  }
+  .btn-settings-back {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    padding: 8px 12px !important;
+    background: #EFF6FF !important;
+    border: 1px solid #BFDBFE !important;
+    color: #1D4ED8 !important;
+    border-radius: 10px !important;
+    font-family: 'Prompt', sans-serif !important;
+    font-size: 13px !important;
+    font-weight: 800 !important;
+    cursor: pointer !important;
+  }
+  .current-tab-badge {
+    font-size: 12px !important;
+    font-weight: 800 !important;
+    color: #64748B !important;
+    background: #F1F5F9 !important;
+    padding: 4px 10px !important;
+    border-radius: 12px !important;
   }
   .settings-card {
     padding: 14px !important;
@@ -7983,10 +8073,9 @@ onUnmounted(() => {
     grid-column: span 1 !important;
   }
 
-  /* 10. MODALS RESPONSIVE ON MOBILE */
+  /* ── 10. MODALS & PAYMENT RESPONSIVE ON MOBILE ── */
   .table-select-modal,
-  .orders-modal-box,
-  .payment-modal-wide {
+  .orders-modal-box {
     width: 96vw !important;
     max-width: 96vw !important;
     max-height: 92vh !important;
@@ -8000,6 +8089,155 @@ onUnmounted(() => {
   .orders-filter-bar {
     padding: 8px 10px !important;
     gap: 6px !important;
+  }
+
+  /* KDS IN POS ON MOBILE: 1 COLUMN GRID FOR CLEAR VISIBILITY */
+  .kds-tickets-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  /* PAYMENT MODAL ON MOBILE: NO STRETCH, SCROLLABLE BODY, FIXED BOTTOM FOOTER */
+  .payment-modal.payment-modal-wide {
+    width: 96vw !important;
+    max-width: 96vw !important;
+    height: 90vh !important;
+    max-height: 90vh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    border-radius: 16px !important;
+    padding: 0 !important;
+  }
+  .payment-modal-header {
+    padding: 12px 14px !important;
+    flex-shrink: 0 !important;
+    background: #FFFFFF !important;
+    border-bottom: 1px solid #E2E8F0 !important;
+  }
+  .header-outstanding-balance-box {
+    padding: 4px 10px !important;
+  }
+  .header-outstanding-balance-box .due-amount-hero {
+    font-size: 18px !important;
+  }
+  .payment-modal-body-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 !important;
+    overflow-y: auto !important;
+    min-height: 0 !important;
+  }
+  .payment-order-summary-panel {
+    border-right: none !important;
+    border-bottom: 1.5px solid #E2E8F0 !important;
+    padding: 10px 14px !important;
+    flex-shrink: 0 !important;
+    background: #F8FAFC !important;
+  }
+  .payment-summary-items-list {
+    max-height: 100px !important;
+    overflow-y: auto !important;
+  }
+  .payment-tender-panel {
+    padding: 12px 14px 20px 14px !important;
+    flex: 1 !important;
+  }
+  .payment-modal-footer {
+    position: sticky !important;
+    bottom: 0 !important;
+    background: #FFFFFF !important;
+    border-top: 1.5px solid #E2E8F0 !important;
+    padding: 10px 14px !important;
+    z-index: 20 !important;
+    flex-shrink: 0 !important;
+    box-shadow: 0 -4px 14px rgba(0,0,0,0.06) !important;
+    display: flex !important;
+    gap: 8px !important;
+  }
+  .payment-modal-footer .btn-cancel {
+    flex: 1 !important;
+    padding: 10px !important;
+  }
+  .payment-modal-footer .btn-confirm-pay {
+    flex: 2 !important;
+    padding: 12px 10px !important;
+    font-size: 13.5px !important;
+  }
+
+  /* ── 11. MOBILE FLOATING CART BAR (WITH DIRECT CHECKOUT) ── */
+  .mobile-floating-cart-btn {
+    display: none !important;
+  }
+  .mobile-floating-cart-bar {
+    position: fixed !important;
+    bottom: 64px !important; /* Above bottom nav */
+    left: 10px !important;
+    right: 10px !important;
+    z-index: 105 !important;
+    background: linear-gradient(135deg, #0F172A, #1E293B) !important;
+    border-radius: 14px !important;
+    padding: 7px 10px !important;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.4) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 10px !important;
+  }
+  .m-cart-summary-btn {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    flex: 1 !important;
+    cursor: pointer !important;
+    min-width: 0 !important;
+  }
+  .m-cart-summary-btn .m-cart-icon {
+    font-size: 20px !important;
+  }
+  .m-cart-summary-btn .m-cart-info {
+    display: flex !important;
+    flex-direction: column !important;
+    min-width: 0 !important;
+  }
+  .m-cart-summary-btn .m-cart-text {
+    font-size: 11px !important;
+    color: #94A3B8 !important;
+    font-weight: 600 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  .m-cart-summary-btn .m-cart-total {
+    font-size: 15px !important;
+    font-weight: 900 !important;
+    color: #38BDF8 !important;
+    font-family: 'Prompt', monospace !important;
+    line-height: 1.2 !important;
+  }
+  .m-cart-summary-btn .m-cart-arrow {
+    font-size: 10px !important;
+    color: #64748B !important;
+    margin-left: 2px !important;
+  }
+  .m-cart-direct-pay-btn {
+    background: linear-gradient(135deg, #10B981, #059669) !important;
+    border: none !important;
+    border-radius: 10px !important;
+    color: #FFFFFF !important;
+    font-family: 'Prompt', sans-serif !important;
+    font-size: 13.5px !important;
+    font-weight: 800 !important;
+    padding: 9px 14px !important;
+    cursor: pointer !important;
+    white-space: nowrap !important;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35) !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+  }
+  .m-cart-direct-pay-btn:active {
+    transform: scale(0.97) !important;
   }
 }
 

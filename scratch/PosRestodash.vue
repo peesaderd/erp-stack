@@ -80,13 +80,17 @@
       </header>
 
       <!-- Settings Layout: Left Nav + Right Content Area -->
-      <div class="settings-body-layout">
-        <!-- Settings Left Sub-Navigation -->
-        <aside class="settings-nav-sidebar">
+      <div class="settings-body-layout" :class="{ 'is-mobile-detail': mobileSettingsView === 'detail' }">
+        <!-- Settings Left Sub-Navigation (List Menu on Mobile) -->
+        <aside class="settings-nav-sidebar" :class="{ 'mobile-hidden': mobileSettingsView === 'detail' }">
+          <div class="settings-mobile-menu-header">
+            <h2 class="settings-mobile-title">⚙️ ตั้งค่าระบบ</h2>
+            <p class="settings-mobile-sub">เลือกหัวข้อการตั้งค่าที่ต้องการจัดการ</p>
+          </div>
           <button
             v-for="tab in settingsTabs"
             :key="tab.id"
-            @click="activeSettingsTab = tab.id"
+            @click="selectSettingsTab(tab.id)"
             class="settings-nav-item"
             :class="{ 'is-active': activeSettingsTab === tab.id }"
           >
@@ -95,11 +99,19 @@
               <div class="nav-item-title">{{ tab.title }}</div>
               <div class="nav-item-desc">{{ tab.desc }}</div>
             </div>
+            <span class="nav-item-arrow">›</span>
           </button>
         </aside>
 
-        <!-- Settings Main Content Panel -->
-        <main class="settings-content-panel custom-scrollbar">
+        <!-- Settings Main Content Panel (Detail View on Mobile) -->
+        <main class="settings-content-panel custom-scrollbar" :class="{ 'mobile-hidden': mobileSettingsView === 'menu' }">
+          <!-- Mobile Back Navigation Button -->
+          <div class="settings-mobile-back-bar">
+            <button @click="mobileSettingsView = 'menu'" class="btn-settings-back">
+              ← ย้อนกลับไปเมนูตั้งค่า
+            </button>
+            <span class="current-tab-badge">{{ currentSettingsTabTitle }}</span>
+          </div>
 
           <!-- 1. ร้านค้า (Shop Information) -->
           <section v-if="activeSettingsTab === 'shop'" class="settings-card">
@@ -670,21 +682,31 @@
           </div>
         </div>
 
-        <!-- Floating Cart Trigger Button for Mobile (Bottom Sticky Bar) -->
-        <button
+        <!-- Floating Cart Bar for Mobile (Bottom Sticky Bar with Direct Checkout) -->
+        <div
           v-if="viewMode === 'pos' && cart.length > 0"
-          @click="isMobileCartOpen = true"
-          class="mobile-floating-cart-btn"
+          class="mobile-floating-cart-bar"
         >
-          <div class="m-cart-left">
+          <!-- Left: View Cart Items -->
+          <div @click="isMobileCartOpen = true" class="m-cart-summary-btn" role="button">
             <span class="m-cart-icon">🛒</span>
-            <span class="m-cart-text">ดูตะกร้า ({{ cartTotalQty }} จาน)</span>
+            <div class="m-cart-info">
+              <span class="m-cart-text">ตะกร้า ({{ cartTotalQty }} จาน)</span>
+              <span class="m-cart-total">฿{{ formatBaht(cartGrandTotal) }}</span>
+            </div>
+            <span class="m-cart-arrow">▲ ดูตะกร้า</span>
           </div>
-          <div class="m-cart-right">
-            <span class="m-cart-total">฿{{ formatBaht(cartGrandTotal) }}</span>
-            <span class="m-cart-arrow">สั่งอาหาร ▶</span>
-          </div>
-        </button>
+
+          <!-- Right: DIRECT CHECKOUT BUTTON (NO DRAWER NEEDED!) -->
+          <button
+            type="button"
+            @click.stop="openPaymentModal('Cash')"
+            class="m-cart-direct-pay-btn"
+            title="คิดเงินทันทีโดยไม่ต้องเปิดตะกร้า"
+          >
+            <span>💳 คิดเงิน</span>
+          </button>
+        </div>
       </main>
 
       <!-- ── RIGHT SIDEBAR: Order Summary / Cart ───────────────────────── -->
@@ -775,11 +797,23 @@
               <div class="cart-item-details">
                 <div class="cart-item-name">{{ item.name }}</div>
                 <div class="cart-item-sub">฿{{ formatBaht(item.price) }} / จาน</div>
-                <input
-                  v-model="item.notes"
-                  placeholder="📝 ระบุหมายเหตุ (เช่น เผ็ดน้อย)..."
-                  class="cart-item-notes-input"
-                />
+                <!-- Note Trigger Button -->
+                <button
+                  type="button"
+                  @click="openItemNoteModal(item, idx)"
+                  class="cart-item-note-btn"
+                  :class="{ 'has-note': !!item.notes }"
+                >
+                  <span v-if="item.notes" class="note-btn-content">
+                    <span class="note-icon">📝</span>
+                    <span class="note-text-snippet">{{ item.notes }}</span>
+                    <span class="note-edit-tag">แก้ไข</span>
+                  </span>
+                  <span v-else class="note-btn-content">
+                    <span class="note-icon">➕</span>
+                    <span>เพิ่มโน้ต / รายละเอียด</span>
+                  </span>
+                </button>
               </div>
 
               <div class="cart-item-control">
@@ -843,6 +877,58 @@
     </template>
 
     <!-- =================================================================== -->
+    <!-- MODAL 0: ITEM NOTES & SPECIAL REQUESTS POPUP                        -->
+    <!-- =================================================================== -->
+    <div v-if="showNoteModal" class="pos-modal-overlay note-modal-overlay" @click.self="showNoteModal = false">
+      <div class="pos-modal-box note-modal-box">
+        <div class="modal-header">
+          <div>
+            <div class="modal-title">📝 ระบุโน้ต / รายละเอียดพิเศษ</div>
+            <div class="modal-sub">{{ editingItem?.name }} (฿{{ formatBaht(editingItem?.price) }})</div>
+          </div>
+          <button @click="showNoteModal = false" class="modal-close-btn" title="ปิด">✕</button>
+        </div>
+
+        <div class="modal-body note-modal-body">
+          <!-- Quick Preset Chips -->
+          <div class="quick-notes-label">ตัวเลือกด่วนยอดนิยม (แตะเพื่อเพิ่ม):</div>
+          <div class="quick-notes-chips custom-scrollbar">
+            <button
+              v-for="chip in quickNoteChips"
+              :key="chip"
+              type="button"
+              @click="toggleQuickNote(chip)"
+              class="quick-note-chip"
+              :class="{ 'is-selected': isChipSelected(chip) }"
+            >
+              {{ chip }}
+            </button>
+          </div>
+
+          <!-- Note Input Field -->
+          <div class="note-input-group">
+            <label class="note-field-label">ข้อความหมายเหตุ:</label>
+            <textarea
+              v-model="itemNoteText"
+              class="note-textarea custom-scrollbar"
+              rows="3"
+              placeholder="เช่น ไม่ใส่ผัก, เผ็ดน้อย, หวาน 50%, แยกน้ำ..."
+            ></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer note-modal-footer">
+          <button type="button" @click="clearCurrentNote" class="btn-clear-note">
+            🗑️ ลบโน้ต
+          </button>
+          <button type="button" @click="saveItemNote" class="btn-save-note">
+            ✓ บันทึกโน้ต
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- =================================================================== -->
     <!-- MODAL 1: SELECT TABLE OR TAKEAWAY FIRST                             -->
     <!-- =================================================================== -->
     <div v-if="showTableModal" class="pos-modal-overlay" @click.self="showTableModal = false">
@@ -866,7 +952,19 @@
             <div class="takeaway-title">สั่งกลับบ้าน (Takeaway)</div>
             <div class="takeaway-desc">สำหรับลูกค้ารับหน้าร้าน หรือสั่งใส่กล่องกลับบ้าน</div>
           </div>
-          <button class="takeaway-select-btn">
+          <div v-if="getTableActiveOrder('takeaway')" class="table-card-unpaid-box">
+            <div class="table-unpaid-sum">
+              ฿{{ formatBaht(getTableActiveOrder('takeaway').total || getTableActiveOrder('takeaway').grand_total) }}
+            </div>
+            <button
+              @click.stop="checkoutTableDirect('takeaway')"
+              class="btn-table-checkout-direct"
+              title="คิดเงินสั่งกลับบ้านทันที"
+            >
+              💳 คิดเงิน
+            </button>
+          </div>
+          <button v-else class="takeaway-select-btn">
             {{ orderType === 'takeaway' ? '✓ เลือกอยู่' : 'เลือกกลับบ้าน' }}
           </button>
         </div>
@@ -1846,8 +1944,8 @@
     <nav class="pos-mobile-bottom-nav">
       <button
         class="m-nav-tab"
-        :class="{ 'is-active': viewMode === 'pos' && !showTableModal && !showOrdersModal && !showKitchenModal }"
-        @click="viewMode = 'pos'; showTableModal = false; showOrdersModal = false; showKitchenModal = false"
+        :class="{ 'is-active': viewMode === 'pos' && !showTableModal && !showOrdersModal && !showKitchenModal && !showPaymentModal }"
+        @click="viewMode = 'pos'; closeAllModals()"
       >
         <span class="m-nav-icon">🍽️</span>
         <span class="m-nav-label">สั่งอาหาร</span>
@@ -1856,16 +1954,16 @@
       <button
         class="m-nav-tab"
         :class="{ 'is-active': showTableModal }"
-        @click="showTableModal = true; viewMode = 'pos'"
+        @click="openTableModal()"
       >
         <span class="m-nav-icon">🪑</span>
-        <span class="m-nav-label">{{ selectedTableId ? `โต๊ะ ${selectedTableId}` : 'เลือกโต๊ะ' }}</span>
+        <span class="m-nav-label">{{ orderType === 'takeaway' ? 'กลับบ้าน' : (selectedTableId ? `โต๊ะ ${selectedTableId}` : 'เลือกโต๊ะ') }}</span>
       </button>
 
       <button
         class="m-nav-tab m-nav-unpaid-tab"
         :class="{ 'is-active': showOrdersModal }"
-        @click="showOrdersModal = true"
+        @click="openUnpaidOrdersModal()"
       >
         <div class="m-nav-icon-wrap">
           <span class="m-nav-icon">📋</span>
@@ -1877,7 +1975,7 @@
       <button
         class="m-nav-tab"
         :class="{ 'is-active': showKitchenModal }"
-        @click="showKitchenModal = true"
+        @click="openKitchenModal()"
       >
         <div class="m-nav-icon-wrap">
           <span class="m-nav-icon">🍳</span>
@@ -1889,7 +1987,7 @@
       <button
         class="m-nav-tab"
         :class="{ 'is-active': viewMode === 'settings' }"
-        @click="viewMode = 'settings'; showTableModal = false; showOrdersModal = false; showKitchenModal = false"
+        @click="openMobileSettings()"
       >
         <span class="m-nav-icon">⚙️</span>
         <span class="m-nav-label">ตั้งค่า</span>
@@ -1938,7 +2036,108 @@ const apiNotif = axios.create({ baseURL: '/api' })
 
 // ── View Mode: 'pos' or 'settings' ─────────────────────────────────────
 const viewMode = ref(route.query.tab === 'settings' ? 'settings' : 'pos')
+const mobileSettingsView = ref('menu') // 'menu' | 'detail'
 const isSidebarCollapsed = ref(false)
+
+// Item Notes Modal State
+const showNoteModal = ref(false)
+const editingItem = ref(null)
+const editingItemIndex = ref(-1)
+const itemNoteText = ref('')
+const quickNoteChips = [
+  'ไม่เผ็ด', 'เผ็ดน้อย', 'เผ็ดมาก',
+  'ไม่ใส่ผัก', 'ไม่ใส่กระเทียม', 'ไม่ใส่ต้นหอม/ผักชี',
+  'หวานน้อย', 'ไม่หวาน',
+  'แยกน้ำ', 'แยกน้ำแข็ง',
+  'ไข่ดาวไม่สุก', 'ไข่ดาวสุก',
+  'กรอบๆ', 'ไม่ใส่ผงชูรส'
+]
+
+function openItemNoteModal(item, idx) {
+  editingItem.value = item
+  editingItemIndex.value = idx
+  itemNoteText.value = item.notes || ''
+  showNoteModal.value = true
+}
+
+function isChipSelected(chip) {
+  if (!itemNoteText.value) return false
+  return itemNoteText.value.includes(chip)
+}
+
+function toggleQuickNote(chip) {
+  if (!itemNoteText.value) {
+    itemNoteText.value = chip
+    return
+  }
+  const parts = itemNoteText.value.split(',').map(s => s.trim()).filter(Boolean)
+  if (parts.includes(chip)) {
+    itemNoteText.value = parts.filter(p => p !== chip).join(', ')
+  } else {
+    parts.push(chip)
+    itemNoteText.value = parts.join(', ')
+  }
+}
+
+function clearCurrentNote() {
+  itemNoteText.value = ''
+  if (editingItem.value) {
+    editingItem.value.notes = ''
+  }
+  showNoteModal.value = false
+  showToast('ลบโน้ตเรียบร้อย')
+}
+
+function saveItemNote() {
+  if (editingItem.value) {
+    editingItem.value.notes = itemNoteText.value.trim()
+  }
+  showNoteModal.value = false
+  showToast('บันทึกโน้ตเรียบร้อย 📝')
+}
+
+// Settings Navigation
+function selectSettingsTab(tabId) {
+  activeSettingsTab.value = tabId
+  mobileSettingsView.value = 'detail'
+}
+
+const currentSettingsTabTitle = computed(() => {
+  const t = settingsTabs.find(tab => tab.id === activeSettingsTab.value)
+  return t ? t.title : ''
+})
+
+// Centralized Modal Management
+function closeAllModals() {
+  showTableModal.value = false
+  showOrdersModal.value = false
+  showPaymentModal.value = false
+  showKitchenModal.value = false
+  showReceiptModal.value = false
+  showAttachMemberModal.value = false
+  showNoteModal.value = false
+  showReportsModal.value = false
+  showSystemMenu.value = false
+  isMobileCartOpen.value = false
+}
+
+function openTableModal() {
+  closeAllModals()
+  viewMode.value = 'pos'
+  showTableModal.value = true
+}
+
+function openKitchenModal() {
+  closeAllModals()
+  viewMode.value = 'pos'
+  showKitchenModal.value = true
+}
+
+function openMobileSettings() {
+  closeAllModals()
+  viewMode.value = 'settings'
+  mobileSettingsView.value = 'menu'
+}
 
 // ── State ─────────────────────────────────────────────────────────────
 const menu = ref([])
@@ -2324,13 +2523,14 @@ function selectTakeaway() {
   orderType.value = 'takeaway'
   selectedTableId.value = null
   closeAllModals()
+  viewMode.value = 'pos'
 
   const existingOrder = getTableActiveOrder('takeaway')
   if (existingOrder) {
     loadOrderIntoCart(existingOrder)
     showToast(`ดึงบิลสั่งกลับบ้าน (#${existingOrder.order_id.slice(-6)}) ยอด ฿${formatBaht(existingOrder.total || existingOrder.grand_total)} เรียบร้อย 💳`)
   } else {
-    showToast('เลือก: 📦 สั่งกลับบ้าน (Takeaway) เรียบร้อย')
+    showToast('เลือก: 📦 สั่งกลับบ้าน (Takeaway) เรียบร้อย ✨ แตะเลือกเมนูได้เลย')
   }
 }
 
@@ -2338,13 +2538,14 @@ function selectTable(tableId) {
   selectedTableId.value = tableId
   orderType.value = 'dinein'
   closeAllModals()
+  viewMode.value = 'pos'
 
   const existingOrder = getTableActiveOrder(tableId)
   if (existingOrder) {
     loadOrderIntoCart(existingOrder)
     showToast(`ดึงบิลโต๊ะ ${tableId} (#${existingOrder.order_id.slice(-6)}) ยอด ฿${formatBaht(existingOrder.total || existingOrder.grand_total)} เรียบร้อย 💳`)
   } else {
-    showToast(`เลือก: โต๊ะ ${tableId} เรียบร้อย ✨`)
+    showToast(`เลือก: โต๊ะ ${tableId} เรียบร้อย ✨ แตะเลือกเมนูได้เลย`)
   }
 }
 
@@ -6096,6 +6297,181 @@ onUnmounted(() => {
 }
 .mobile-floating-cart-bar {
   display: none;
+}
+
+
+/* ── CART ITEM NOTE BUTTON & LARGE CART TYPOGRAPHY ──────────────────── */
+.cart-item-details {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cart-item-name {
+  font-size: 16.5px !important;
+  font-weight: 800 !important;
+  color: #0F172A !important;
+  line-height: 1.3 !important;
+}
+.cart-item-sub {
+  font-size: 14.5px !important;
+  color: #2563EB !important;
+  font-weight: 700 !important;
+}
+.cart-item-note-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #F1F5F9;
+  border: 1px dashed #CBD5E1;
+  border-radius: 8px;
+  color: #475569;
+  font-family: 'Prompt', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  margin-top: 3px;
+  max-width: fit-content;
+  transition: all 0.15s ease;
+}
+.cart-item-note-btn:hover {
+  background: #E2E8F0;
+  border-color: #94A3B8;
+  color: #0F172A;
+}
+.cart-item-note-btn.has-note {
+  background: #FEF3C7;
+  border: 1px solid #FCD34D;
+  color: #92400E;
+  font-weight: 700;
+}
+.note-btn-content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.note-text-snippet {
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.note-edit-tag {
+  font-size: 11px;
+  background: rgba(146, 64, 14, 0.15);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 800;
+}
+
+/* ── NOTE POPUP MODAL STYLES ────────────────────────────────────────── */
+.note-modal-box {
+  width: 480px !important;
+  max-width: 95vw !important;
+  background: #FFFFFF !important;
+  border-radius: 18px !important;
+  overflow: hidden !important;
+  box-shadow: 0 10px 40px rgba(15, 23, 42, 0.25) !important;
+}
+.note-modal-body {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.quick-notes-label {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #64748B;
+}
+.quick-notes-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-height: 140px;
+  overflow-y: auto;
+}
+.quick-note-chip {
+  padding: 7px 14px;
+  border-radius: 20px;
+  background: #F1F5F9;
+  border: 1.5px solid #E2E8F0;
+  color: #334155;
+  font-family: 'Prompt', sans-serif;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.quick-note-chip:hover {
+  background: #E2E8F0;
+}
+.quick-note-chip.is-selected {
+  background: #EFF6FF;
+  border-color: #2563EB;
+  color: #1D4ED8;
+  font-weight: 800;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.15);
+}
+.note-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.note-field-label {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #0F172A;
+}
+.note-textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 2px solid #CBD5E1;
+  border-radius: 12px;
+  font-family: 'Prompt', sans-serif;
+  font-size: 16px;
+  color: #0F172A;
+  line-height: 1.5;
+  resize: vertical;
+}
+.note-textarea:focus {
+  border-color: #2563EB;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+.note-modal-footer {
+  padding: 12px 20px;
+  background: #F8FAFC;
+  border-top: 1px solid #E2E8F0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.btn-clear-note {
+  padding: 10px 16px;
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  color: #DC2626;
+  border-radius: 10px;
+  font-family: 'Prompt', sans-serif;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn-save-note {
+  padding: 10px 22px;
+  background: linear-gradient(135deg, #2563EB, #1D4ED8);
+  border: none;
+  color: #FFFFFF;
+  border-radius: 10px;
+  font-family: 'Prompt', sans-serif;
+  font-size: 14.5px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
 }
 
 /* ── WIDE PAYMENT MODAL & TOP-RIGHT OUTSTANDING BALANCE HERO ───────── */

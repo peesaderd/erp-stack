@@ -1252,6 +1252,15 @@
             </div>
           </div>
           <div class="kds-header-controls">
+            <!-- Open Standalone Screen in new window/tab -->
+            <a
+              href="/pos/kds"
+              target="_blank"
+              class="btn-open-standalone-kds"
+              title="เปิดจอครัวเต็มจอในแท็บใหม่ หรือบนจอแท็บเล็ตแยก (Standalone KDS)"
+            >
+              <span>↗ จอครัวแยก (Standalone)</span>
+            </a>
             <button
               @click="toggleKdsSound"
               class="kds-sound-toggle-btn"
@@ -5231,6 +5240,49 @@ onUnmounted(() => {
 }
 
 /* ── KDS Kitchen Display Modal (840px) ─────────────────────────────── */
+.btn-open-standalone-kds {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: #2563EB;
+  color: #ffffff !important;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-open-standalone-kds:hover {
+  background: #1D4ED8;
+  transform: translateY(-1px);
+}
+.kds-sound-toggle-btn {
+  padding: 6px 12px;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #059669;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.kds-sound-toggle-btn.is-muted {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #DC2626;
+}
+.kds-test-sound-btn {
+  padding: 6px 12px;
+  background: #FFFBEB;
+  border: 1px solid #FDE68A;
+  color: #D97706;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
 .kds-modal-box {
   width: 840px;
 }

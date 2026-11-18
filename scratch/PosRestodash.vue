@@ -461,17 +461,7 @@
             </div>
           </section>
 
-          <!-- Floating Cart Trigger Button for Mobile -->
-        <button
-          v-if="viewMode === 'pos' && cart.length > 0"
-          @click="isMobileCartOpen = true"
-          class="mobile-floating-cart-btn"
-        >
-          <span class="m-cart-icon">🛒</span>
-          <span class="m-cart-text">ดูตะกร้า ({{ cartTotalQty }})</span>
-          <span class="m-cart-total">฿{{ formatBaht(cartGrandTotal) }}</span>
-        </button>
-      </main>
+</main>
       </div>
     </div>
 
@@ -659,6 +649,22 @@
             </div>
           </div>
         </div>
+
+        <!-- Floating Cart Trigger Button for Mobile (Bottom Sticky Bar) -->
+        <button
+          v-if="viewMode === 'pos' && cart.length > 0"
+          @click="isMobileCartOpen = true"
+          class="mobile-floating-cart-btn"
+        >
+          <div class="m-cart-left">
+            <span class="m-cart-icon">🛒</span>
+            <span class="m-cart-text">ดูตะกร้า ({{ cartTotalQty }} จาน)</span>
+          </div>
+          <div class="m-cart-right">
+            <span class="m-cart-total">฿{{ formatBaht(cartGrandTotal) }}</span>
+            <span class="m-cart-arrow">สั่งอาหาร ▶</span>
+          </div>
+        </button>
       </main>
 
       <!-- ── RIGHT SIDEBAR: Order Summary / Cart ───────────────────────── -->
@@ -3120,7 +3126,7 @@ onUnmounted(() => {
 
 /* ── Top Alarm Banner ─────────────────────────────────────────────── */
 .pos-alarm-banner {
-  position: fixed;
+  position: sticky;
   top: 0;
   left: 0;
   right: 0;
@@ -7175,49 +7181,256 @@ onUnmounted(() => {
 
 /* ── MOBILE RESPONSIVE STYLES (max-width: 768px) ────────────────────── */
 @media (max-width: 768px) {
-  /* Center Main on Mobile */
+  /* CONTAINER FLEX DIRECTION ON MOBILE */
+  .pos-restodash {
+    flex-direction: column !important;
+  }
+
+  /* 0. COMPACT ALARM BANNER ON MOBILE */
+  .pos-alarm-banner {
+    padding: 8px 12px !important;
+    border-radius: 0 0 12px 12px !important;
+  }
+  .alarm-content {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 6px !important;
+  }
+  .alarm-icon-box {
+    display: none !important;
+  }
+  .alarm-text-box {
+    width: 100% !important;
+  }
+  .alarm-title {
+    font-size: 13.5px !important;
+    font-weight: 800 !important;
+    white-space: normal !important;
+    line-height: 1.3 !important;
+  }
+  .alarm-desc {
+    font-size: 11.5px !important;
+    white-space: normal !important;
+    line-height: 1.3 !important;
+    opacity: 0.9 !important;
+  }
+  .alarm-actions {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 8px !important;
+    width: 100% !important;
+    margin-top: 2px !important;
+  }
+  .alarm-btn-checkout,
+  .alarm-btn-accept,
+  .alarm-btn-dismiss {
+    padding: 5px 12px !important;
+    font-size: 12px !important;
+    border-radius: 6px !important;
+  }
+
+  /* 1. HIDE LEFT SIDEBAR AND EXPAND BUTTON COMPLETELY ON MOBILE */
+  .pos-sidebar-left {
+    display: none !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    overflow: hidden !important;
+    position: absolute !important;
+    pointer-events: none !important;
+  }
+  .floating-sidebar-expand-btn {
+    display: none !important;
+  }
+
+  /* 2. CENTER MAIN: FULL 100vw ON MOBILE WITH THUMB-SCROLL PADDING */
   .pos-center-main {
     width: 100vw !important;
+    max-width: 100vw !important;
     height: 100vh !important;
+    overflow-x: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
   }
 
+  /* 3. CLEAN 2-ROW TOP BAR ON MOBILE */
   .center-topbar {
-    flex-wrap: wrap !important;
-    padding: 8px 12px !important;
-    gap: 8px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 8px 10px !important;
+    gap: 6px !important;
+    background: #ffffff !important;
+    border-bottom: 1px solid #E2E8F0 !important;
+    height: auto !important;
+    flex-shrink: 0 !important;
   }
+
+  .topbar-actions {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    order: 1 !important;
+    gap: 6px !important;
+  }
+
+  .quick-pill-btn {
+    flex: 1 !important;
+    padding: 7px 10px !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+    overflow: hidden !important;
+  }
+
+  .quick-kds-btn {
+    padding: 7px 10px !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    white-space: nowrap !important;
+  }
+
+  .quick-settings-btn {
+    padding: 7px 10px !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    white-space: nowrap !important;
+  }
+
   .search-box-wrapper {
+    order: 2 !important;
     width: 100% !important;
     max-width: 100% !important;
-    order: 2 !important;
-  }
-  .topbar-actions {
-    width: 100% !important;
-    justify-content: space-between !important;
-    order: 1 !important;
+    height: 38px !important;
+    margin-top: 2px !important;
   }
 
-  /* Food Grid: 2 columns on mobile */
-  .menu-grid {
+  /* 4. HORIZONTAL CATEGORY SLIDER: SMOOTH THUMB SCROLLING */
+  .category-slide-bar {
+    display: flex !important;
+    align-items: center !important;
+    padding: 6px 10px !important;
+    gap: 6px !important;
+    background: #F8FAFC !important;
+    border-bottom: 1px solid #E2E8F0 !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+  }
+
+  .slide-cat-tab {
+    padding: 5px 12px !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    border-radius: 20px !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* 5. FOOD GRID: BEAUTIFUL 2 COLUMNS ON MOBILE */
+  .food-scroll-container {
+    flex: 1 !important;
+    padding: 10px 10px 90px 10px !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .food-grid {
+    display: grid !important;
     grid-template-columns: repeat(2, 1fr) !important;
-    gap: 8px !important;
-    padding: 8px !important;
+    gap: 10px !important;
+    width: 100% !important;
   }
 
-  /* Right Cart as Mobile Slide-over Drawer */
+  .food-card {
+    border-radius: 12px !important;
+    overflow: hidden !important;
+    background: #ffffff !important;
+    border: 1px solid #E2E8F0 !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04) !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .food-thumb-wrap {
+    height: 110px !important;
+    width: 100% !important;
+    position: relative !important;
+  }
+
+  .food-img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+  }
+
+  .food-info {
+    padding: 8px 10px 10px 10px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 !important;
+    justify-content: space-between !important;
+  }
+
+  .food-name {
+    font-size: 12.5px !important;
+    font-weight: 700 !important;
+    line-height: 1.3 !important;
+    height: 32px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    margin-bottom: 6px !important;
+  }
+
+  .food-meta {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    margin-top: auto !important;
+  }
+
+  .food-price {
+    font-size: 15px !important;
+    font-weight: 800 !important;
+    color: #2563EB !important;
+  }
+
+  .food-add-btn {
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 8px !important;
+    background: #2563EB !important;
+    color: #ffffff !important;
+    border: none !important;
+    font-size: 18px !important;
+    font-weight: 700 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3) !important;
+  }
+
+  /* 6. RIGHT CART: MOBILE SLIDE-OVER DRAWER */
   .pos-sidebar-right {
     display: none !important;
   }
+
   .pos-sidebar-right.is-mobile-open {
     display: flex !important;
     position: fixed !important;
     top: 0 !important;
     right: 0 !important;
     bottom: 0 !important;
-    width: 90vw !important;
-    max-width: 380px !important;
+    width: 88vw !important;
+    max-width: 400px !important;
     z-index: 100020 !important;
-    box-shadow: -8px 0 30px rgba(0,0,0,0.3) !important;
+    box-shadow: -8px 0 30px rgba(0, 0, 0, 0.3) !important;
     background: #ffffff !important;
     animation: slide-in-right 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
   }
@@ -7235,7 +7448,7 @@ onUnmounted(() => {
     border: none !important;
     background: #F1F5F9 !important;
     color: #475569 !important;
-    padding: 4px 8px !important;
+    padding: 4px 10px !important;
     border-radius: 6px !important;
     font-size: 12px !important;
     font-weight: 800 !important;
@@ -7243,61 +7456,102 @@ onUnmounted(() => {
     margin-left: 6px !important;
   }
 
-  /* Floating Cart Button on Mobile */
+  /* 7. FLOATING BOTTOM CART BAR ON MOBILE */
   .mobile-floating-cart-btn {
     display: flex !important;
     align-items: center !important;
     justify-content: space-between !important;
     position: fixed !important;
-    bottom: 16px !important;
-    right: 16px !important;
-    left: 16px !important;
-    background: #2563EB !important;
+    bottom: 14px !important;
+    right: 12px !important;
+    left: 12px !important;
+    background: linear-gradient(135deg, #2563EB, #1D4ED8) !important;
     color: #ffffff !important;
     border: none !important;
     border-radius: 14px !important;
-    padding: 12px 18px !important;
-    font-size: 15px !important;
+    padding: 12px 16px !important;
+    font-size: 14px !important;
     font-weight: 800 !important;
     font-family: 'Prompt', sans-serif !important;
-    box-shadow: 0 8px 24px rgba(37, 99, 235, 0.45) !important;
-    z-index: 9999 !important;
+    box-shadow: 0 8px 24px rgba(37, 99, 235, 0.5) !important;
+    z-index: 99999 !important;
     cursor: pointer !important;
+    animation: pop-up-bounce 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
   }
+
+  .m-cart-left {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+
+  .m-cart-right {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+  }
+
+  .m-cart-arrow {
+    background: rgba(255, 255, 255, 0.22) !important;
+    padding: 4px 10px !important;
+    border-radius: 8px !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+  }
+
+  @keyframes pop-up-bounce {
+    0% { transform: translateY(40px); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
+  }
+
   .m-cart-total {
-    background: rgba(255, 255, 255, 0.2) !important;
-    padding: 2px 10px !important;
+    background: rgba(255, 255, 255, 0.22) !important;
+    padding: 3px 12px !important;
     border-radius: 20px !important;
     font-size: 14px !important;
+    font-weight: 800 !important;
   }
 
-  /* Left Sidebar Overlay on Mobile */
-  .pos-sidebar-left {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    bottom: 0 !important;
-    width: 270px !important;
-    z-index: 100010 !important;
-    box-shadow: 8px 0 30px rgba(0,0,0,0.3) !important;
-  }
-
-  /* Modals on Mobile */
+  /* 8. MODALS ON MOBILE */
   .pos-modal-box,
   .orders-modal-box,
   .payment-modal,
-  .attach-member-modal {
+  .attach-member-modal,
+  .kds-modal-box,
+  .table-select-modal {
     width: 95vw !important;
     max-width: 95vw !important;
     max-height: 92vh !important;
     margin: 8px !important;
+    padding: 14px !important;
+  }
+
+  .tables-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  .kds-tickets-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .kds-header-flex {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+  }
+
+  .kds-header-controls {
+    width: 100% !important;
+    justify-content: space-between !important;
   }
 
   .orders-filter-bar {
     flex-direction: column !important;
     align-items: stretch !important;
     gap: 8px !important;
-    padding: 10px 14px !important;
+    padding: 10px 12px !important;
   }
 
   .orders-search-wrap,

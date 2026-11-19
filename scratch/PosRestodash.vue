@@ -954,7 +954,7 @@
           </div>
           <div v-if="getTableActiveOrder('takeaway')" class="table-card-unpaid-box">
             <div class="table-unpaid-sum">
-              ฿{{ formatBaht(getTableActiveOrder('takeaway').total || getTableActiveOrder('takeaway').grand_total) }}
+              ฿{{ formatBaht(getOrderDisplayTotal(getTableActiveOrder('takeaway'))) }}
             </div>
             <button
               @click.stop="checkoutTableDirect('takeaway')"
@@ -1016,7 +1016,7 @@
             <!-- Direct Table Checkout Action if Unpaid Order Exists -->
             <div v-if="getTableActiveOrder(tb.id)" class="table-card-unpaid-box">
               <div class="table-unpaid-sum">
-                ฿{{ formatBaht(getTableActiveOrder(tb.id).total || getTableActiveOrder(tb.id).grand_total) }}
+                ฿{{ formatBaht(getOrderDisplayTotal(getTableActiveOrder(tb.id))) }}
               </div>
               <button
                 @click.stop="checkoutTableDirect(tb.id)"
@@ -1036,9 +1036,10 @@
     <!-- =================================================================== -->
     <div v-if="showPaymentModal" class="pos-modal-overlay" @click.self="showPaymentModal = false">
       <div class="pos-modal-box payment-modal payment-modal-wide">
-        <!-- Modal Header with Top-Right Outstanding Balance Hero Badge -->
+        <!-- Modal Header with Single-Row Mobile Layout & Top-Right Balance Hero on Desktop -->
         <div class="modal-header payment-modal-header">
-          <div class="payment-header-left">
+          <!-- Desktop Left Header Block -->
+          <div class="payment-header-left desktop-only-header-block">
             <div class="modal-title">💳 ชำระเงิน / เช็คบิล</div>
             <div class="modal-sub">
               {{ orderType === 'takeaway' ? '📦 สั่งกลับบ้าน' : `🪑 โต๊ะ ${selectedTableId}` }}
@@ -1049,8 +1050,17 @@
             </div>
           </div>
 
-          <!-- YOD KHANG JAI TOP RIGHT (Hero Badge - Never Disappears) -->
-          <div class="header-outstanding-balance-box">
+          <!-- Mobile Single-Row Header Block (Clean, uncompressed single row) -->
+          <div class="payment-header-mobile-single-row mobile-only-header-block">
+            <span class="m-header-title">💳 ชำระเงิน</span>
+            <span class="m-header-sep">•</span>
+            <span class="m-header-target-chip">{{ orderType === 'takeaway' ? '📦 กลับบ้าน' : `🪑 โต๊ะ ${selectedTableId}` }}</span>
+            <span class="m-header-sep">•</span>
+            <span class="m-header-total-chip">฿{{ formatBaht(cartGrandTotal) }}</span>
+          </div>
+
+          <!-- YOD KHANG JAI TOP RIGHT (Hero Badge - Desktop Only) -->
+          <div class="header-outstanding-balance-box desktop-only-hero">
             <div class="due-tag">ยอดค้างจ่าย (Total Due)</div>
             <div class="due-amount-hero">฿{{ formatBaht(cartGrandTotal) }}</div>
           </div>
@@ -1218,7 +1228,7 @@
         <div class="modal-footer payment-modal-footer">
           <button @click="showPaymentModal = false" class="btn-cancel">ยกเลิก</button>
           <button
-            :disabled="isSubmitting || (selectedPaymentMethod === 'Cash' && cashChange < 0)"
+            :disabled="isSubmitting || (selectedPaymentMethod === 'Cash' && cashChange < -0.50)"
             @click="submitPayment"
             class="btn-confirm-pay"
           >
@@ -1343,11 +1353,14 @@
     <div v-if="showKitchenModal" class="pos-modal-overlay" @click.self="showKitchenModal = false">
       <div class="pos-modal-box kds-modal-box">
         <div class="modal-header kds-header-flex">
-          <div>
-            <div class="modal-title">🍳 หน้าจอห้องครัว (Kitchen Display System)</div>
-            <div class="modal-sub">
-              ออเดอร์รอปรุง: <b>{{ kitchenOrders.length }} ตั๋ว</b> • คลิกที่ชื่ออาหารเพื่อติ๊ก <b>"เสิร์ฟแล้ว"</b>
+          <div class="kds-header-top-row">
+            <div class="kds-title-sub-wrap">
+              <div class="modal-title">🍳 หน้าจอห้องครัว (KDS)</div>
+              <div class="modal-sub">
+                รอปรุง: <b>{{ kitchenOrders.length }} ตั๋ว</b> • คลิกที่ชื่ออาหารเพื่อติ๊กเสิร์ฟ
+              </div>
             </div>
+            <button @click="showKitchenModal = false" class="modal-close-btn kds-mobile-close-btn">✕</button>
           </div>
           <div class="kds-header-controls">
             <!-- Open Standalone Screen in new window/tab -->
@@ -1357,7 +1370,7 @@
               class="btn-open-standalone-kds"
               title="เปิดจอครัวเต็มจอในแท็บใหม่ หรือบนจอแท็บเล็ตแยก (Standalone KDS)"
             >
-              <span>↗ จอครัวแยก (Standalone)</span>
+              <span>↗ จอครัวแยก</span>
             </a>
             <button
               @click="toggleKdsSound"
@@ -1365,7 +1378,7 @@
               :class="{ 'is-muted': !isKdsSoundEnabled }"
               :title="isKdsSoundEnabled ? 'คลิกเพื่อปิดเสียงเตือนครัว' : 'คลิกเพื่อเปิดเสียงเตือนครัว'"
             >
-              {{ isKdsSoundEnabled ? '🔊 เสียงเตือนครัว: เปิด' : '🔇 เสียงเตือนครัว: ปิด' }}
+              {{ isKdsSoundEnabled ? '🔊 เสียงเตือน: เปิด' : '🔇 เสียงเตือน: ปิด' }}
             </button>
             <button
               @click="playKdsChime"
@@ -1374,7 +1387,7 @@
             >
               🔔 ทดสอบเสียง
             </button>
-            <button @click="showKitchenModal = false" class="modal-close-btn">✕</button>
+            <button @click="showKitchenModal = false" class="modal-close-btn kds-desktop-close-btn">✕</button>
           </div>
         </div>
 
@@ -1582,109 +1595,197 @@
             <div class="orders-empty-sub">ไม่มีออเดอร์ตรงตามเงื่อนไขการค้นหา</div>
           </div>
 
-          <table v-else class="orders-history-table">
-            <thead>
-              <tr>
-                <th>เลขที่บิล</th>
-                <th>เวลาสั่ง</th>
-                <th>โต๊ะ / ประเภท</th>
-                <th>ลูกค้า / สมาชิก</th>
-                <th>ยอดเงิน</th>
-                <th>สถานะ</th>
-                <th>การจัดการ</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
+          <template v-else>
+            <!-- Desktop Table View (Hidden on mobile) -->
+            <table class="orders-history-table desktop-only-orders-table">
+              <thead>
+                <tr>
+                  <th>เลขที่บิล</th>
+                  <th>เวลาสั่ง</th>
+                  <th>โต๊ะ / ประเภท</th>
+                  <th>ลูกค้า / สมาชิก</th>
+                  <th>ยอดเงิน</th>
+                  <th>สถานะ</th>
+                  <th>การจัดการ</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="ord in sortedFilteredOrders"
+                  :key="ord.order_id"
+                  :class="{ 'is-unpaid-row': ord.status !== 'paid' && ord.status !== 'cancelled' }"
+                >
+                  <td class="font-mono font-bold">#{{ ord.order_id.slice(-6) }}</td>
+                  <td>
+                    <div class="time-main">{{ formatTimeOnly(ord.created_at) }}</div>
+                    <div class="time-sub">{{ elapsedMinutes(ord.created_at) }}</div>
+                  </td>
+                  <td>
+                    <div class="order-channel-table-cell">
+                      <span
+                        class="channel-badge-pill"
+                        :class="getOrderChannel(ord)"
+                      >
+                        {{ getOrderChannel(ord) === 'online' ? '📱 ออนไลน์' : '🏪 หน้าร้าน' }}
+                      </span>
+                      <span class="table-pill">
+                        {{ ord.table_name || (ord.table_id === 'takeaway' ? '📦 กลับบ้าน' : `โต๊ะ ${ord.table_id}`) }}
+                      </span>
+                    </div>
+                  </td>
+                  <td>
+                    <!-- Member Linked -->
+                    <div v-if="ord.member_name || ord.customer_name" class="customer-info-cell">
+                      <div class="customer-name-row">
+                        <span class="customer-badge-star">⭐</span>
+                        <span class="customer-name-text">{{ ord.member_name || ord.customer_name }}</span>
+                        <span class="member-tag-badge">สมาชิก</span>
+                      </div>
+                      <div class="customer-sub-row">
+                        <span v-if="ord.member_phone || ord.customer_phone" class="customer-phone">📞 {{ ord.member_phone || ord.customer_phone }}</span>
+                        <button @click="openAttachMemberModal(ord)" class="btn-change-member" title="เปลี่ยนสมาชิกหรือแก้ไข">เปลี่ยน</button>
+                      </div>
+                    </div>
+                    <!-- Guest (Default) with Link Member Button -->
+                    <div v-else class="customer-info-cell">
+                      <div class="guest-row">
+                        <span class="guest-avatar">👤</span>
+                        <span class="guest-name">Guest</span>
+                        <button
+                          @click="openAttachMemberModal(ord)"
+                          class="btn-link-member"
+                          title="ผูกออเดอร์นี้กับสมาชิกเพื่อสะสมแต้ม"
+                        >
+                          + ผูกสมาชิก
+                        </button>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="font-bold text-blue">฿{{ formatBaht(getOrderDisplayTotal(ord)) }}</td>
+                  <td>
+                    <span class="status-pill" :class="ord.status">
+                      {{ ord.status === 'paid' ? '✓ ชำระแล้ว' : (ord.status === 'cancelled' ? '✕ ยกเลิก' : '⏳ รอชำระเงิน') }}
+                    </span>
+                  </td>
+                  <td class="action-buttons-cell">
+                    <!-- Direct Checkout and Edit Order Buttons -->
+                    <button
+                      v-if="ord.status !== 'paid' && ord.status !== 'cancelled'"
+                      @click="payOrderDirect(ord)"
+                      class="btn-sm-checkout"
+                      title="เปิดหน้าต่างคิดเงินทันที"
+                    >
+                      💳 คิดเงินทันที
+                    </button>
+                    <button
+                      v-if="ord.status !== 'paid' && ord.status !== 'cancelled'"
+                      @click="loadOrderIntoCart(ord)"
+                      class="btn-sm-edit-order"
+                      title="ดึงเข้าตะกร้าเพื่อสั่งอาหารเพิ่ม"
+                    >
+                      ➕ สั่งเพิ่ม
+                    </button>
+                    <button @click="viewReceiptForOrder(ord)" class="btn-sm-view" title="ดูใบเสร็จ">
+                      🧾 ใบเสร็จ
+                    </button>
+                    <button
+                      v-if="ord.status !== 'cancelled'"
+                      @click="voidSpecificOrder(ord)"
+                      class="btn-sm-void"
+                      title="ยกเลิกบิลนี้เพื่อนำกลับไปแก้ไขในตะกร้า"
+                    >
+                      🚫 เปิดแก้ไข
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- Mobile Card View (Visible only on mobile <= 768px) -->
+            <div class="orders-mobile-cards-list mobile-only-orders-cards">
+              <div
                 v-for="ord in sortedFilteredOrders"
                 :key="ord.order_id"
-                :class="{ 'is-unpaid-row': ord.status !== 'paid' && ord.status !== 'cancelled' }"
+                class="order-mobile-card"
+                :class="{ 'is-unpaid-card': ord.status !== 'paid' && ord.status !== 'cancelled' }"
               >
-                <td class="font-mono font-bold">#{{ ord.order_id.slice(-6) }}</td>
-                <td>
-                  <div class="time-main">{{ formatTimeOnly(ord.created_at) }}</div>
-                  <div class="time-sub">{{ elapsedMinutes(ord.created_at) }}</div>
-                </td>
-                <td>
-                  <div class="order-channel-table-cell">
-                    <span
-                      class="channel-badge-pill"
-                      :class="getOrderChannel(ord)"
-                    >
+                <!-- Card Top Bar: Bill No, Table, Channel, Status -->
+                <div class="card-top-bar">
+                  <div class="card-id-table">
+                    <span class="card-order-id font-mono">#{{ ord.order_id.slice(-6) }}</span>
+                    <span class="card-table-badge">
+                      {{ ord.table_name || (ord.table_id === 'takeaway' ? '📦 กลับบ้าน' : `🪑 โต๊ะ ${ord.table_id}`) }}
+                    </span>
+                    <span class="card-channel-pill" :class="getOrderChannel(ord)">
                       {{ getOrderChannel(ord) === 'online' ? '📱 ออนไลน์' : '🏪 หน้าร้าน' }}
                     </span>
-                    <span class="table-pill">
-                      {{ ord.table_name || (ord.table_id === 'takeaway' ? '📦 กลับบ้าน' : `โต๊ะ ${ord.table_id}`) }}
-                    </span>
                   </div>
-                </td>
-                <td>
-                  <!-- Member Linked -->
-                  <div v-if="ord.member_name || ord.customer_name" class="customer-info-cell">
-                    <div class="customer-name-row">
-                      <span class="customer-badge-star">⭐</span>
-                      <span class="customer-name-text">{{ ord.member_name || ord.customer_name }}</span>
-                      <span class="member-tag-badge">สมาชิก</span>
-                    </div>
-                    <div class="customer-sub-row">
-                      <span v-if="ord.member_phone || ord.customer_phone" class="customer-phone">📞 {{ ord.member_phone || ord.customer_phone }}</span>
-                      <button @click="openAttachMemberModal(ord)" class="btn-change-member" title="เปลี่ยนสมาชิกหรือแก้ไข">เปลี่ยน</button>
-                    </div>
-                  </div>
-                  <!-- Guest (Default) with Link Member Button -->
-                  <div v-else class="customer-info-cell">
-                    <div class="guest-row">
-                      <span class="guest-avatar">👤</span>
-                      <span class="guest-name">Guest</span>
-                      <button
-                        @click="openAttachMemberModal(ord)"
-                        class="btn-link-member"
-                        title="ผูกออเดอร์นี้กับสมาชิกเพื่อสะสมแต้ม"
-                      >
-                        + ผูกสมาชิก
-                      </button>
-                    </div>
-                  </div>
-                </td>
-                <td class="font-bold text-blue">฿{{ formatBaht(ord.total || ord.grand_total) }}</td>
-                <td>
                   <span class="status-pill" :class="ord.status">
                     {{ ord.status === 'paid' ? '✓ ชำระแล้ว' : (ord.status === 'cancelled' ? '✕ ยกเลิก' : '⏳ รอชำระเงิน') }}
                   </span>
-                </td>
-                <td class="action-buttons-cell">
-                  <!-- Direct Checkout and Edit Order Buttons -->
-                  <button
-                    v-if="ord.status !== 'paid' && ord.status !== 'cancelled'"
-                    @click="payOrderDirect(ord)"
-                    class="btn-sm-checkout"
-                    title="เปิดหน้าต่างคิดเงินทันที"
-                  >
-                    💳 คิดเงินทันที
-                  </button>
-                  <button
-                    v-if="ord.status !== 'paid' && ord.status !== 'cancelled'"
-                    @click="loadOrderIntoCart(ord)"
-                    class="btn-sm-edit-order"
-                    title="ดึงเข้าตะกร้าเพื่อสั่งอาหารเพิ่ม"
-                  >
-                    ➕ สั่งเพิ่ม
-                  </button>
-                  <button @click="viewReceiptForOrder(ord)" class="btn-sm-view" title="ดูใบเสร็จ">
-                    🧾 ใบเสร็จ
-                  </button>
-                  <button
-                    v-if="ord.status !== 'cancelled'"
-                    @click="voidSpecificOrder(ord)"
-                    class="btn-sm-void"
-                    title="ยกเลิกบิลนี้เพื่อนำกลับไปแก้ไขในตะกร้า"
-                  >
-                    🚫 เปิดแก้ไข
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                </div>
+
+                <!-- Card Info Row: Time & Customer/Member -->
+                <div class="card-info-row">
+                  <div class="card-time-block">
+                    <span class="time-clock-icon">🕒</span>
+                    <span class="time-main-txt">{{ formatTimeOnly(ord.created_at) }}</span>
+                    <span class="time-elapsed-badge">({{ elapsedMinutes(ord.created_at) }})</span>
+                  </div>
+                  <div class="card-customer-block">
+                    <div v-if="ord.member_name || ord.customer_name" class="customer-info-cell">
+                      <div class="customer-name-row">
+                        <span class="customer-badge-star">⭐</span>
+                        <span class="customer-name-text">{{ ord.member_name || ord.customer_name }}</span>
+                      </div>
+                      <button @click="openAttachMemberModal(ord)" class="btn-change-member-card">เปลี่ยน</button>
+                    </div>
+                    <div v-else class="customer-info-cell">
+                      <div class="guest-row">
+                        <span class="guest-avatar">👤</span>
+                        <span class="guest-name">Guest</span>
+                      </div>
+                      <button @click="openAttachMemberModal(ord)" class="btn-link-member-card">+ ผูกสมาชิก</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Card Items Summary (if items exist) -->
+                <div v-if="ord.items && ord.items.length" class="card-items-preview">
+                  <span class="items-count-badge">🍽️ {{ ord.items.reduce((s, i) => s + (i.quantity || 1), 0) }} รายการ</span>
+                  <span class="items-preview-text">
+                    {{ ord.items.slice(0, 2).map(i => `${i.quantity}x ${i.name}`).join(', ') }}{{ ord.items.length > 2 ? ` และอีก ${ord.items.length - 2} อย่าง` : '' }}
+                  </span>
+                </div>
+
+                <!-- Card Total & Actions Bar -->
+                <div class="card-bottom-bar">
+                  <div class="card-total-group">
+                    <span class="card-total-label">ยอดสุทธิ:</span>
+                    <span class="card-total-value">฿{{ formatBaht(getOrderDisplayTotal(ord)) }}</span>
+                  </div>
+                  <div class="card-actions-group">
+                    <template v-if="ord.status !== 'paid' && ord.status !== 'cancelled'">
+                      <button @click="payOrderDirect(ord)" class="btn-card-pay">
+                        💳 คิดเงินทันที
+                      </button>
+                      <button @click="loadOrderIntoCart(ord)" class="btn-card-add" title="สั่งเพิ่ม">
+                        ➕ เพิ่ม
+                      </button>
+                      <button @click="voidSpecificOrder(ord)" class="btn-card-void" title="เปิดแก้ไข">
+                        🚫 แก้ไข
+                      </button>
+                    </template>
+                    <template v-else>
+                      <button @click="viewReceiptForOrder(ord)" class="btn-card-receipt">
+                        🧾 ดูใบเสร็จ
+                      </button>
+                    </template>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
         </div>
       </div>
     </div>
@@ -2513,6 +2614,19 @@ function setOrderType(type) {
   }
 }
 
+function getOrderDisplayTotal(order) {
+  if (!order) return 0
+  if (order.items && order.items.length > 0) {
+    const subtotal = order.items.reduce((sum, it) => sum + ((Number(it.price) || 0) * (Number(it.quantity) || 1)), 0)
+    const scPct = Number(shopSettings.value.service_charge || 0) / 100
+    const vatPct = Number(shopSettings.value.vat || 7) / 100
+    const sc = Math.round(subtotal * scPct * 100) / 100
+    const vat = Math.round((subtotal + sc) * vatPct * 100) / 100
+    return Math.round((subtotal + sc + vat) * 100) / 100
+  }
+  return Number(order.total || order.grand_total || 0)
+}
+
 // Helper: get active unpaid order for a table
 function getTableActiveOrder(tableId) {
   if (!tableId) return null
@@ -2528,7 +2642,7 @@ function selectTakeaway() {
   const existingOrder = getTableActiveOrder('takeaway')
   if (existingOrder) {
     loadOrderIntoCart(existingOrder)
-    showToast(`ดึงบิลสั่งกลับบ้าน (#${existingOrder.order_id.slice(-6)}) ยอด ฿${formatBaht(existingOrder.total || existingOrder.grand_total)} เรียบร้อย 💳`)
+    showToast(`ดึงบิลสั่งกลับบ้าน (#${existingOrder.order_id.slice(-6)}) ยอด ฿${formatBaht(getOrderDisplayTotal(existingOrder))} เรียบร้อย 💳`)
   } else {
     showToast('เลือก: 📦 สั่งกลับบ้าน (Takeaway) เรียบร้อย ✨ แตะเลือกเมนูได้เลย')
   }
@@ -2543,7 +2657,7 @@ function selectTable(tableId) {
   const existingOrder = getTableActiveOrder(tableId)
   if (existingOrder) {
     loadOrderIntoCart(existingOrder)
-    showToast(`ดึงบิลโต๊ะ ${tableId} (#${existingOrder.order_id.slice(-6)}) ยอด ฿${formatBaht(existingOrder.total || existingOrder.grand_total)} เรียบร้อย 💳`)
+    showToast(`ดึงบิลโต๊ะ ${tableId} (#${existingOrder.order_id.slice(-6)}) ยอด ฿${formatBaht(getOrderDisplayTotal(existingOrder))} เรียบร้อย 💳`)
   } else {
     showToast(`เลือก: โต๊ะ ${tableId} เรียบร้อย ✨ แตะเลือกเมนูได้เลย`)
   }
@@ -2806,7 +2920,7 @@ function getSmartCashOptions(total) {
 function openPaymentModal(method) {
   closeAllModals()
   selectedPaymentMethod.value = method || 'Cash'
-  cashReceived.value = cartGrandTotal.value
+  cashReceived.value = Number(cartGrandTotal.value)
   showPaymentModal.value = true
 }
 
@@ -2823,7 +2937,7 @@ async function submitPayment() {
 
     let finalOrderId = null
     const paymentMethodParam = selectedPaymentMethod.value === 'Credit' ? 'Card' : selectedPaymentMethod.value
-    const amountParam = paymentMethodParam === 'Cash' ? Number(cashReceived.value || cartGrandTotal.value) : Number(cartGrandTotal.value)
+    const amountParam = paymentMethodParam === 'Cash' ? Math.max(Number(cashReceived.value || 0), Number(cartGrandTotal.value || 0)) : Number(cartGrandTotal.value)
     const memberIdParam = (activeCheckoutOrder.value && activeCheckoutOrder.value.member_id) ? activeCheckoutOrder.value.member_id : null
 
     if (activeCheckoutOrder.value && activeCheckoutOrder.value.order_id) {
@@ -6368,13 +6482,28 @@ onUnmounted(() => {
 }
 
 /* ── NOTE POPUP MODAL STYLES ────────────────────────────────────────── */
+/* ── High Priority Note Modal Over Mobile Cart Drawer ── */
+.pos-modal-overlay.note-modal-overlay {
+  z-index: 200050 !important;
+  position: fixed !important;
+  inset: 0 !important;
+  background: rgba(15, 23, 42, 0.72) !important;
+  backdrop-filter: blur(4px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 16px !important;
+}
+
 .note-modal-box {
+  position: relative !important;
+  z-index: 200051 !important;
   width: 480px !important;
   max-width: 95vw !important;
   background: #FFFFFF !important;
   border-radius: 18px !important;
   overflow: hidden !important;
-  box-shadow: 0 10px 40px rgba(15, 23, 42, 0.25) !important;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.45) !important;
 }
 .note-modal-body {
   padding: 16px 20px;
@@ -6479,6 +6608,27 @@ onUnmounted(() => {
   width: 860px !important;
   max-width: 95vw !important;
 }
+
+/* Payment Modal Desktop/Mobile Display Rules */
+.mobile-only-header-block {
+  display: none !important;
+}
+.desktop-only-header-block,
+.desktop-only-hero {
+  display: block;
+}
+.kds-header-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.kds-mobile-close-btn {
+  display: none !important;
+}
+.kds-desktop-close-btn {
+  display: flex !important;
+}
+
 .payment-modal-header {
   display: flex;
   align-items: center;
@@ -8209,7 +8359,7 @@ onUnmounted(() => {
     background: #ffffff !important;
     border-top: 1px solid #E2E8F0 !important;
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.08) !important;
-    z-index: 100010 !important;
+    z-index: 900 !important;
     padding: 0 4px !important;
     padding-bottom: env(safe-area-inset-bottom, 0px) !important;
   }
@@ -8477,25 +8627,69 @@ onUnmounted(() => {
   .payment-modal.payment-modal-wide {
     width: 96vw !important;
     max-width: 96vw !important;
-    height: 90vh !important;
-    max-height: 90vh !important;
+    max-height: calc(100vh - 40px) !important;
+    height: auto !important;
     display: flex !important;
     flex-direction: column !important;
     overflow: hidden !important;
-    border-radius: 16px !important;
+    border-radius: 18px !important;
     padding: 0 !important;
+    margin-bottom: 20px !important;
   }
   .payment-modal-header {
-    padding: 12px 14px !important;
+    padding: 10px 14px !important;
     flex-shrink: 0 !important;
     background: #FFFFFF !important;
     border-bottom: 1px solid #E2E8F0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    min-height: 48px !important;
   }
-  .header-outstanding-balance-box {
-    padding: 4px 10px !important;
+  .desktop-only-header-block,
+  .desktop-only-hero {
+    display: none !important;
   }
-  .header-outstanding-balance-box .due-amount-hero {
-    font-size: 18px !important;
+  .mobile-only-header-block {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    flex: 1 !important;
+    min-width: 0 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+  }
+  .payment-header-mobile-single-row .m-header-title {
+    font-size: 14.5px !important;
+    font-weight: 800 !important;
+    color: #0F172A !important;
+    white-space: nowrap !important;
+  }
+  .payment-header-mobile-single-row .m-header-sep {
+    color: #94A3B8 !important;
+    font-weight: 700 !important;
+    font-size: 12px !important;
+  }
+  .payment-header-mobile-single-row .m-header-target-chip {
+    background: #EFF6FF !important;
+    color: #1D4ED8 !important;
+    padding: 3px 7px !important;
+    border-radius: 6px !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+    overflow: hidden !important;
+    max-width: 120px !important;
+  }
+  .payment-header-mobile-single-row .m-header-total-chip {
+    background: #ECFDF5 !important;
+    color: #059669 !important;
+    padding: 3px 8px !important;
+    border-radius: 6px !important;
+    font-size: 13.5px !important;
+    font-weight: 800 !important;
+    white-space: nowrap !important;
   }
   .payment-modal-body-grid {
     display: flex !important;
@@ -8524,9 +8718,8 @@ onUnmounted(() => {
     bottom: 0 !important;
     background: #FFFFFF !important;
     border-top: 1.5px solid #E2E8F0 !important;
-    padding: 10px 14px !important;
+    padding: 12px 14px max(14px, env(safe-area-inset-bottom, 14px)) !important;
     z-index: 20 !important;
-    flex-shrink: 0 !important;
     box-shadow: 0 -4px 14px rgba(0,0,0,0.06) !important;
     display: flex !important;
     gap: 8px !important;
@@ -8539,6 +8732,55 @@ onUnmounted(() => {
     flex: 2 !important;
     padding: 12px 10px !important;
     font-size: 13.5px !important;
+  }
+
+  /* KDS MODAL HEADER ON MOBILE */
+  .kds-modal-box {
+    width: 96vw !important;
+    max-width: 96vw !important;
+  }
+  .kds-header-flex {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    padding: 12px 14px !important;
+  }
+  .kds-header-top-row {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+  }
+  .kds-title-sub-wrap .modal-title {
+    font-size: 15px !important;
+    font-weight: 800 !important;
+    margin: 0 !important;
+  }
+  .kds-title-sub-wrap .modal-sub {
+    font-size: 11.5px !important;
+    color: #64748B !important;
+  }
+  .kds-mobile-close-btn {
+    display: flex !important;
+  }
+  .kds-desktop-close-btn {
+    display: none !important;
+  }
+  .kds-header-controls {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    width: 100% !important;
+    overflow-x: auto !important;
+    padding-bottom: 2px !important;
+  }
+  .btn-open-standalone-kds,
+  .kds-sound-toggle-btn,
+  .kds-test-sound-btn {
+    font-size: 11.5px !important;
+    padding: 6px 10px !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
   }
 
   /* ── 11. MOBILE FLOATING CART BAR (WITH DIRECT CHECKOUT) ── */
@@ -8614,6 +8856,260 @@ onUnmounted(() => {
   }
   .m-cart-direct-pay-btn:active {
     transform: scale(0.97) !important;
+  }
+}
+
+
+
+  /* ── NOTE MODAL FLOATS EXCLUSIVELY ABOVE MOBILE CART DRAWER ── */
+  .pos-modal-overlay.note-modal-overlay {
+    z-index: 200050 !important;
+    padding: 12px !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  .note-modal-box {
+    width: 94vw !important;
+    max-width: 420px !important;
+    max-height: 88vh !important;
+    border-radius: 16px !important;
+    z-index: 200051 !important;
+  }
+  .note-modal-body {
+    padding: 14px 16px !important;
+    gap: 12px !important;
+    overflow-y: auto !important;
+  }
+  .quick-notes-chips {
+    gap: 6px !important;
+    max-height: 120px !important;
+  }
+  .quick-note-chip {
+    padding: 6px 12px !important;
+    font-size: 13px !important;
+  }
+  .note-textarea {
+    font-size: 16.5px !important;
+    padding: 12px 14px !important;
+    min-height: 100px !important;
+  }
+  .note-modal-footer {
+    padding: 12px 16px !important;
+    gap: 10px !important;
+  }
+  .btn-save-note {
+    font-size: 14.5px !important;
+    padding: 10px 20px !important;
+  }
+
+/* ── Unpaid Orders Mobile Cards Styling ───────────────────────────── */
+.desktop-only-orders-table {
+  display: table !important;
+  width: 100% !important;
+}
+.mobile-only-orders-cards {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  .desktop-only-orders-table {
+    display: none !important;
+  }
+  .mobile-only-orders-cards {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    padding: 10px 4px !important;
+  }
+  .order-mobile-card {
+    background: #FFFFFF !important;
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 14px !important;
+    padding: 14px !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    transition: all 0.2s !important;
+  }
+  .order-mobile-card.is-unpaid-card {
+    border-left: 5px solid #F59E0B !important;
+    background: #FFFDF9 !important;
+  }
+  .card-top-bar {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+  .card-id-table {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    flex-wrap: wrap !important;
+  }
+  .card-order-id {
+    font-size: 14.5px !important;
+    font-weight: 800 !important;
+    color: #0F172A !important;
+  }
+  .card-table-badge {
+    background: #EFF6FF !important;
+    color: #1D4ED8 !important;
+    font-size: 11.5px !important;
+    font-weight: 700 !important;
+    padding: 2px 8px !important;
+    border-radius: 6px !important;
+    border: 1px solid #BFDBFE !important;
+  }
+  .card-channel-pill {
+    font-size: 10.5px !important;
+    font-weight: 700 !important;
+    padding: 2px 6px !important;
+    border-radius: 4px !important;
+  }
+  .card-channel-pill.shop {
+    background: #F1F5F9 !important;
+    color: #475569 !important;
+  }
+  .card-channel-pill.online {
+    background: #ECFDF5 !important;
+    color: #059669 !important;
+  }
+  .card-info-row {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 8px !important;
+    font-size: 12px !important;
+    color: #64748B !important;
+  }
+  .card-time-block {
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+  }
+  .time-main-txt {
+    font-weight: 700 !important;
+    color: #334155 !important;
+  }
+  .time-elapsed-badge {
+    color: #94A3B8 !important;
+    font-size: 11px !important;
+  }
+  .card-customer-block {
+    display: flex !important;
+    align-items: center !important;
+  }
+  .btn-change-member-card,
+  .btn-link-member-card {
+    background: #F1F5F9 !important;
+    border: 1px solid #CBD5E1 !important;
+    color: #2563EB !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    padding: 2px 6px !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+    margin-left: 6px !important;
+  }
+  .card-items-preview {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    font-size: 11.5px !important;
+    background: #F8FAFC !important;
+    padding: 6px 10px !important;
+    border-radius: 8px !important;
+    border: 1px dashed #CBD5E1 !important;
+    overflow: hidden !important;
+  }
+  .items-count-badge {
+    font-weight: 700 !important;
+    color: #0F172A !important;
+    white-space: nowrap !important;
+  }
+  .items-preview-text {
+    color: #64748B !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+  .card-bottom-bar {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 10px !important;
+    padding-top: 8px !important;
+    border-top: 1px solid #F1F5F9 !important;
+  }
+  .card-total-group {
+    display: flex !important;
+    align-items: baseline !important;
+    gap: 6px !important;
+  }
+  .card-total-label {
+    font-size: 12px !important;
+    color: #64748B !important;
+    font-weight: 600 !important;
+  }
+  .card-total-value {
+    font-size: 17px !important;
+    font-weight: 900 !important;
+    color: #2563EB !important;
+    font-family: 'Prompt', sans-serif !important;
+  }
+  .card-actions-group {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+  }
+  .btn-card-pay {
+    background: linear-gradient(135deg, #10B981, #059669) !important;
+    color: #FFFFFF !important;
+    font-size: 12.5px !important;
+    font-weight: 800 !important;
+    padding: 7px 14px !important;
+    border-radius: 8px !important;
+    border: none !important;
+    cursor: pointer !important;
+    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3) !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+  }
+  .btn-card-pay:active {
+    transform: scale(0.97) !important;
+  }
+  .btn-card-add {
+    background: #F8FAFC !important;
+    color: #334155 !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    padding: 7px 10px !important;
+    border-radius: 8px !important;
+    border: 1px solid #CBD5E1 !important;
+    cursor: pointer !important;
+  }
+  .btn-card-void {
+    background: #FEF2F2 !important;
+    color: #DC2626 !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    padding: 7px 8px !important;
+    border-radius: 8px !important;
+    border: 1px solid #FECACA !important;
+    cursor: pointer !important;
+  }
+  .btn-card-receipt {
+    background: #EFF6FF !important;
+    color: #2563EB !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    padding: 7px 12px !important;
+    border-radius: 8px !important;
+    border: 1px solid #BFDBFE !important;
+    cursor: pointer !important;
   }
 }
 

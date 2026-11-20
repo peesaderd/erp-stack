@@ -384,84 +384,85 @@
   </div>
 
   
-      <!-- ================= FLOATING BOTTOM NAV (MATH ACTIVE) ================= -->
-  <nav id="mathSpeedBottomNav" class="fixed bottom-3 left-3 right-3 max-w-[430px] mx-auto bg-white/95 backdrop-blur-md shadow-[0_10px_30px_rgba(60,30,90,.18)] rounded-full px-2 py-2 flex justify-between border border-[#F3EDF8] z-50 transition-all duration-200" aria-label="Main navigation">
+        <!-- ================= FLOATING BOTTOM NAV (RESPONSIVE 6 TABS) ================= -->
+  <nav id="mathSpeedBottomNav" class="fixed bottom-3 left-1/2 -translate-x-1/2 w-[calc(100%-24px)] max-w-[430px] bg-white/95 backdrop-blur-md shadow-[0_10px_30px_rgba(60,30,90,.18)] rounded-full px-1.5 py-2 flex items-center justify-between border border-[#F3EDF8] z-50 transition-all duration-200" aria-label="Main navigation">
     <!-- 1. Home -->
-    <button onclick="window.location.href='theme_home.html'" class="flex flex-col items-center gap-0.5 min-w-[48px] sm:min-w-[52px]" aria-label="Home">
-      <span class="w-10 h-10 grid place-items-center rounded-full transition text-[#9A8FA8] hover:bg-slate-50">
-        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"></path>
-          <path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+    <button onclick="window.location.href='theme_home.html'" class="flex-1 min-w-0 flex flex-col items-center gap-0.5" aria-label="Home">
+      <span class="w-9 h-9 sm:w-10 sm:h-10 grid place-items-center rounded-full text-[#9A8FA8] hover:bg-slate-50 hover:text-black transition">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
         </svg>
       </span>
-      <span class="text-[10px] font-extrabold text-[#9A8FA8]">Home</span>
+      <span class="text-[10px] font-extrabold text-[#9A8FA8] truncate max-w-full text-center">Home</span>
     </button>
 
     <!-- 2. Phonics -->
-    <button onclick="window.location.href='theme_phonics_map.html'" class="flex flex-col items-center gap-0.5 min-w-[48px] sm:min-w-[52px]" aria-label="Phonics">
-      <span class="w-10 h-10 grid place-items-center rounded-full transition text-[#9A8FA8] hover:bg-slate-50">
-        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 7v14"></path>
-          <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"></path>
+    <button onclick="window.location.href='theme_phonics_map.html'" class="flex-1 min-w-0 flex flex-col items-center gap-0.5" aria-label="Phonics">
+      <span class="w-9 h-9 sm:w-10 sm:h-10 grid place-items-center rounded-full text-[#9A8FA8] hover:bg-slate-50 hover:text-[#8B7CFF] transition">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/>
+          <path d="M6 6h10"/>
+          <path d="M6 10h10"/>
         </svg>
       </span>
-      <span class="text-[10px] font-extrabold text-[#9A8FA8]">Phonics</span>
+      <span class="text-[10px] font-extrabold text-[#9A8FA8] truncate max-w-full text-center">Phonics</span>
     </button>
 
-    <!-- 3. Math (Active) -->
-    <button onclick="window.location.href='theme_math_map.html'" class="flex flex-col items-center gap-0.5 min-w-[48px] sm:min-w-[52px]" aria-label="Math">
-      <span class="w-10 h-10 grid place-items-center rounded-full transition bg-[#FF7A00] text-white shadow">
-        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect width="16" height="20" x="4" y="2" rx="2"></rect>
-          <line x1="8" x2="16" y1="6" y2="6"></line>
-          <line x1="16" x2="16" y1="14" y2="18"></line>
-          <path d="M16 10h.01"></path>
-          <path d="M12 10h.01"></path>
-          <path d="M8 10h.01"></path>
-          <path d="M12 14h.01"></path>
-          <path d="M8 14h.01"></path>
-          <path d="M12 18h.01"></path>
-          <path d="M8 18h.01"></path>
+    <!-- 3. Math (Links directly to theme_math_map.html) -->
+    <button onclick="window.location.href='theme_math_map.html'" class="flex-1 min-w-0 flex flex-col items-center gap-0.5" aria-label="Math">
+      <span class="w-9 h-9 sm:w-10 sm:h-10 grid place-items-center rounded-full bg-[#FF7A00] text-white shadow-sm">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="16" height="20" x="4" y="2" rx="2"/>
+          <line x1="8" x2="16" y1="6" y2="6"/>
+          <line x1="16" x2="16" y1="14" y2="18"/>
+          <path d="M16 10h.01"/>
+          <path d="M12 10h.01"/>
+          <path d="M8 10h.01"/>
+          <path d="M12 14h.01"/>
+          <path d="M8 14h.01"/>
+          <path d="M12 18h.01"/>
+          <path d="M8 18h.01"/>
         </svg>
       </span>
-      <span class="text-[10px] font-extrabold text-[#FF7A00]">Math</span>
+      <span class="text-[10px] font-black text-[#FF7A00] truncate max-w-full text-center">Math</span>
     </button>
 
     <!-- 4. Chinese -->
-    <button onclick="window.location.href='theme_chinese_lobby.html'" class="flex flex-col items-center gap-0.5 min-w-[48px] sm:min-w-[52px]" aria-label="Chinese">
-      <span class="w-10 h-10 grid place-items-center rounded-full transition text-[#9A8FA8] hover:bg-slate-50">
-        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"></circle>
-          <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path>
-          <path d="M2 12h20"></path>
+    <button onclick="window.location.href='theme_chinese_lobby.html'" class="flex-1 min-w-0 flex flex-col items-center gap-0.5" aria-label="Chinese">
+      <span class="w-9 h-9 sm:w-10 sm:h-10 grid place-items-center rounded-full text-[#9A8FA8] hover:bg-slate-50 hover:text-[#E53935] transition">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/>
+          <path d="M2 12h20"/>
         </svg>
       </span>
-      <span class="text-[10px] font-extrabold text-[#9A8FA8]">Chinese</span>
+      <span class="text-[10px] font-extrabold text-[#9A8FA8] truncate max-w-full text-center">Chinese</span>
     </button>
 
     <!-- 5. Games -->
-    <button onclick="window.location.href='theme_games.html'" class="flex flex-col items-center gap-0.5 min-w-[48px] sm:min-w-[52px]" aria-label="Games">
-      <span class="w-10 h-10 grid place-items-center rounded-full transition text-[#9A8FA8] hover:bg-slate-50">
-        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="6" x2="10" y1="11" y2="11"></line>
-          <line x1="8" x2="8" y1="9" y2="13"></line>
-          <line x1="15" x2="15.01" y1="12" y2="12"></line>
-          <line x1="18" x2="18.01" y1="10" y2="10"></line>
-          <path d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.545-.604-6.584-.685-7.258-.007-.05-.011-.1-.017-.151A4 4 0 0 0 17.32 5z"></path>
+    <button onclick="window.location.href='theme_games.html'" class="flex-1 min-w-0 flex flex-col items-center gap-0.5" aria-label="Games">
+      <span class="w-9 h-9 sm:w-10 sm:h-10 grid place-items-center rounded-full text-[#9A8FA8] hover:bg-slate-50 hover:text-black transition">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="6" x2="10" y1="11" y2="11"/>
+          <line x1="8" x2="8" y1="9" y2="13"/>
+          <line x1="15" x2="15.01" y1="12" y2="12"/>
+          <line x1="18" x2="18.01" y1="10" y2="10"/>
+          <path d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.545-.604-6.584-.685-7.258-.007-.05-.011-.1-.017-.151A4 4 0 0 0 17.32 5z"/>
         </svg>
       </span>
-      <span class="text-[10px] font-extrabold text-[#9A8FA8]">Games</span>
+      <span class="text-[10px] font-extrabold text-[#9A8FA8] truncate max-w-full text-center">Games</span>
     </button>
 
     <!-- 6. Profile -->
-    <button onclick="window.location.href='theme_profile.html'" class="flex flex-col items-center gap-0.5 min-w-[48px] sm:min-w-[52px]" aria-label="Profile">
-      <span class="w-10 h-10 grid place-items-center rounded-full transition text-[#9A8FA8] hover:bg-slate-50">
-        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
-          <circle cx="12" cy="7" r="4"></circle>
+    <button onclick="window.location.href='theme_profile.html'" class="flex-1 min-w-0 flex flex-col items-center gap-0.5" aria-label="Profile">
+      <span class="w-9 h-9 sm:w-10 sm:h-10 grid place-items-center rounded-full text-[#9A8FA8] hover:bg-slate-50 hover:text-black transition">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
+          <circle cx="12" cy="7" r="4"/>
         </svg>
       </span>
-      <span class="text-[10px] font-extrabold text-[#9A8FA8]">Profile</span>
+      <span class="text-[10px] font-extrabold text-[#9A8FA8] truncate max-w-full text-center">Profile</span>
     </button>
   </nav>
 

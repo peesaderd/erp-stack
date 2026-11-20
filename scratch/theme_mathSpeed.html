@@ -219,13 +219,21 @@
               ⚡
             </div>
             <div>
-              <h4 class="font-bold text-slate-800 text-sm">Mental Sprint (รวมมิตร 20 ข้อ)</h4>
-              <p class="text-xs text-slate-500 mt-0.5">ทดสอบความเร็วระดับ Grand Champion</p>
+              <div class="flex items-center gap-2">
+                <h4 class="font-bold text-slate-800 text-sm">Mental Sprint (รวมมิตร)</h4>
+                <button onclick="event.stopPropagation(); openStrategyModal(6);" class="text-[10px] font-bold text-emerald-600 hover:underline">💡 เทคนิค</button>
+              </div>
+              <p class="text-xs text-slate-500 mt-0.5">ทดสอบความเร็วระดับ Grand Champion 15 ข้อ</p>
             </div>
           </div>
-          <div class="text-right">
-            <span class="text-xs font-black text-emerald-600 block">&lt; 40 วินาที</span>
-            <span class="text-[10px] text-slate-400">ทั้งชุด</span>
+          <div class="flex items-center gap-2.5 shrink-0">
+            <div class="text-right hidden sm:block">
+              <span class="text-xs font-black text-emerald-600 block">&lt; 30 วินาที</span>
+              <span class="text-[10px] text-slate-400">ทั้งชุด</span>
+            </div>
+            <span class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-sm flex items-center gap-1 transition">
+              เริ่มเล่น ›
+            </span>
           </div>
         </div>
 
@@ -339,13 +347,18 @@
           </div>
         </div>
 
-        <div class="flex gap-2.5">
-          <button onclick="startStage(currentSelectedStage)" class="flex-1 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-sm shadow-md transition">
-            🔄 ฝึกด่านนี้อีกรอบ
+        <div class="space-y-2 mt-4">
+          <button id="btnNextStage" onclick="startStage(currentSelectedStage < 6 ? currentSelectedStage + 1 : 1)" class="w-full py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-sm shadow-md transition flex items-center justify-center gap-1.5">
+            ▶️ ไปลุย Stage ถัดไป ›
           </button>
-          <button onclick="backToSelector()" class="flex-1 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-sm transition">
-            🏠 กลับหน้าหลัก
-          </button>
+          <div class="flex gap-2">
+            <button onclick="startStage(currentSelectedStage)" class="flex-1 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs transition">
+              🔄 ฝึกด่านนี้อีกรอบ
+            </button>
+            <button onclick="window.location.href='theme_math_map.html'" class="flex-1 py-3 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 font-extrabold text-xs transition">
+              🗺️ แผนที่โลก Math
+            </button>
+          </div>
         </div>
       </div>
     </section>
@@ -609,6 +622,7 @@
       // Reset timer bar
       resetTimerBar();
       questionStartTime = Date.now();
+      if (isShowingHint) renderTenFrameHint();
     }
 
     function resetTimerBar() {
@@ -743,6 +757,24 @@
       coins += 150;
       localStorage.setItem('kidobits_math_coins', coins.toString());
       document.getElementById('totalCoins').textContent = coins;
+
+      // Advance stage & update resume button
+      const nextStage = currentSelectedStage < 6 ? currentSelectedStage + 1 : 1;
+      localStorage.setItem('kidobits_last_math_stage', nextStage.toString());
+      updateResumeButton();
+
+      const nextBtn = document.getElementById('btnNextStage');
+      if (nextBtn) {
+        if (currentSelectedStage < 6) {
+          nextBtn.textContent = `▶️ ไปลุย Stage ${nextStage} (${STAGE_NAMES[nextStage]}) ›`;
+          nextBtn.onclick = () => startStage(nextStage);
+          nextBtn.classList.remove('hidden');
+        } else {
+          nextBtn.textContent = `🏆 จบครบทุก Stage แล้ว! เริ่มรอบใหม่ (Stage 1)`;
+          nextBtn.onclick = () => startStage(1);
+          nextBtn.classList.remove('hidden');
+        }
+      }
     }
 
     function exitArena() {
@@ -762,6 +794,7 @@
       const modal = document.getElementById('strategyModal');
       const title = document.getElementById('modalTitle');
       const content = document.getElementById('modalContent');
+      currentSelectedStage = stageNum;
 
       if (stageNum === 1) {
         title.textContent = "กลยุทธ์ 1: คู่ 10 มหัศจรรย์ (Friends of 10)";
@@ -788,7 +821,7 @@
           </div>
           <p class="text-[11px] text-slate-500">💡 สมองจะเห็นภาพ 10 ทันที ไม่ต้องไล่นับ 9, 10, 11, 12, 13</p>
         `;
-      } else {
+      } else if (stageNum === 3) {
         title.textContent = "กลยุทธ์ 3: Doubles & Near-Doubles (คู่แฝด)";
         content.innerHTML = `
           <p><b>🔑 หัวใจสำคัญ:</b> จำเลขเบิ้ลคู่แฝด แล้วปรับ +1 หรือ -1</p>
@@ -797,6 +830,37 @@
             <div class="text-indigo-600 font-bold">• เรารู้ว่า 7 + 7 = 14</div>
             <div class="text-indigo-600 font-bold">• 8 มากกว่า 7 อยู่ 1</div>
             <div class="text-emerald-600 font-black text-sm">• ตอบ 14 + 1 = 15 ทันที!</div>
+          </div>
+        `;
+      } else if (stageNum === 4) {
+        title.textContent = "กลยุทธ์ 4: Bridging Tens (ข้ามหลักสิบ)";
+        content.innerHTML = `
+          <p><b>🔑 หัวใจสำคัญ:</b> บวกให้ถึงหลักสิบถัดไปก่อน แล้วบวกเศษที่เหลือ</p>
+          <div class="p-3 bg-white rounded-xl border border-indigo-200 space-y-1.5">
+            <div>ตัวอย่าง: <b>38 + 5</b></div>
+            <div class="text-indigo-600 font-bold">• 38 ขาดอีก 2 จะถึง 40</div>
+            <div class="text-indigo-600 font-bold">• แบ่ง 5 เป็น (2 + 3)</div>
+            <div class="text-emerald-600 font-black text-sm">• 40 + 3 = 43 ไวมาก!</div>
+          </div>
+        `;
+      } else if (stageNum === 5) {
+        title.textContent = "กลยุทธ์ 5: Round & Adjust (ปัดกลมแล้วทอน)";
+        content.innerHTML = `
+          <p><b>🔑 หัวใจสำคัญ:</b> เลขที่ลงท้ายด้วย 8 หรือ 9 ให้ปัดเป็น 0 แล้วค่อยทอนออก 1 หรือ 2</p>
+          <div class="p-3 bg-white rounded-xl border border-indigo-200 space-y-1.5">
+            <div>ตัวอย่าง: <b>49 + 25</b></div>
+            <div class="text-indigo-600 font-bold">• ปัด 49 ขึ้นเป็น 50 ชั่วคราว</div>
+            <div class="text-indigo-600 font-bold">• 50 + 25 = 75</div>
+            <div class="text-emerald-600 font-black text-sm">• ทอนออก 1 เหลือ 74 เป๊ะ!</div>
+          </div>
+        `;
+      } else {
+        title.textContent = "กลยุทธ์ 6: Mental Sprint (สปีดแชมเปี้ยน)";
+        content.innerHTML = `
+          <p><b>🔑 หัวใจสำคัญ:</b> ผสมผสานทุกกลยุทธ์ ความเร็วเฉลี่ย &lt; 2 วินาทีต่อข้อ</p>
+          <div class="p-3 bg-white rounded-xl border border-indigo-200 space-y-1.5 text-center">
+            <div class="text-emerald-600 font-extrabold text-base">⚡ สมาธิ + ความมั่นใจ</div>
+            <p class="text-xs text-slate-600">เห็นโจทย์ปุ๊บ ภาพคำตอบจะลอยขึ้นมาในหัวทันที ไม่นับนิ้ว ไม่ลังเล!</p>
           </div>
         `;
       }
@@ -809,7 +873,47 @@
     }
 
     function toggleVisualHint() {
-      // Toggle Ten-Frame visuals if needed
+      const tf = document.getElementById('tenFrameContainer');
+      const ht = document.getElementById('hintToggleText');
+      if (!tf) return;
+      isShowingHint = !isShowingHint;
+      if (isShowingHint) {
+        tf.classList.remove('hidden');
+        if (ht) ht.textContent = 'ซ่อนภาพช่วยจำ';
+        renderTenFrameHint();
+      } else {
+        tf.classList.add('hidden');
+        if (ht) ht.textContent = 'เปิดภาพ Ten-Frame ช่วยจำ';
+      }
+    }
+
+    function renderTenFrameHint() {
+      const q = questions[currentIndex];
+      const tf = document.getElementById('tenFrameContainer');
+      if (!tf || !q) return;
+
+      let aCount = q.a || 0;
+      let bCount = q.b || 0;
+      let html = '<div class="flex flex-col items-center gap-1.5 p-2.5 bg-indigo-50/80 rounded-2xl border border-indigo-200 mb-2">';
+      html += '<div class="text-[11px] font-extrabold text-indigo-700">💡 Ten-Frame กรอบสิบ (คิดเป็นภาพ):</div>';
+      
+      html += '<div class="grid grid-cols-5 gap-1.5 p-2 bg-white rounded-xl border-2 border-indigo-300 shadow-inner">';
+      for (let i = 0; i < 10; i++) {
+        if (i < aCount) {
+          html += '<div class="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center text-white text-[10px] font-bold shadow-xs">●</div>';
+        } else if (i < 10) {
+          html += '<div class="w-6 h-6 rounded-full bg-amber-400 flex items-center justify-center text-amber-900 text-[10px] font-extrabold shadow-xs">?</div>';
+        } else {
+          html += '<div class="w-6 h-6 rounded-full bg-slate-100 border border-dashed border-slate-300"></div>';
+        }
+      }
+      html += '</div>';
+
+      if (aCount <= 10) {
+        html += '<div class="text-[10px] text-indigo-600 font-bold">มีอยู่ ' + aCount + ' ขาดอีก ' + (10 - aCount) + ' จะเต็มสิบ</div>';
+      }
+      html += '</div>';
+      tf.innerHTML = html;
     }
   </script>
 </body>

@@ -16,8 +16,16 @@ if ('serviceWorker' in navigator) {
   })
 }
 
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import PosRestodash from './pages/PosRestodash.jsx';
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <App />
+    <BrowserRouter>
+      <Routes>
+        <Route path="/pos/restodash" element={<PosRestodash />} />
+        <Route path="/*" element={<App />} />
+      </Routes>
+    </BrowserRouter>
   </StrictMode>,
 )

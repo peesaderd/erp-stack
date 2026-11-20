@@ -295,7 +295,8 @@ onUnmounted(() => {
 
     <!-- ── TOP KDS HEADER BAR ────────────────────────────────────────── -->
     <header class="kds-header">
-      <div class="kds-header-left">
+      <!-- Top Row on Mobile / Left on Desktop -->
+      <div class="kds-header-top-bar">
         <div class="kds-brand">
           <span class="kds-brand-icon">🍳</span>
           <div class="kds-brand-text">
@@ -309,10 +310,39 @@ onUnmounted(() => {
           <span class="live-dot-pulse"></span>
           <span>ระบบออนไลน์</span>
         </div>
+
+        <!-- Mobile Quick Actions -->
+        <div class="kds-mobile-quick-actions">
+          <button
+            @click="toggleAudio"
+            class="kds-mini-btn"
+            :class="{ 'is-muted': !isAudioEnabled }"
+            :title="isAudioEnabled ? 'ปิดเสียงเตือน' : 'เปิดเสียงเตือน'"
+          >
+            {{ isAudioEnabled ? '🔊' : '🔇' }}
+          </button>
+          <button
+            @click="testSound"
+            class="kds-mini-btn"
+            title="ทดสอบเสียงกระดิ่ง"
+          >
+            🔔
+          </button>
+          <button
+            @click="toggleFullscreen"
+            class="kds-mini-btn"
+            :title="isFullscreen ? 'ย่อจอ' : 'เต็มจอ'"
+          >
+            ⛶
+          </button>
+          <a href="/pos/restodash" class="kds-mini-btn btn-pos-link" title="หน้าร้าน POS">
+            POS ↗
+          </a>
+        </div>
       </div>
 
       <!-- Center: Filter Tabs -->
-      <div class="kds-filter-tabs">
+      <div class="kds-filter-tabs custom-scrollbar">
         <button
           @click="activeFilter = 'preparing'"
           class="kds-tab-btn"
@@ -351,8 +381,8 @@ onUnmounted(() => {
         </button>
       </div>
 
-      <!-- Right: Audio Controls, Clock, Fullscreen & POS Link -->
-      <div class="kds-header-right">
+      <!-- Right: Desktop Audio Controls, Clock, Fullscreen & POS Link -->
+      <div class="kds-header-right desktop-only-kds-actions">
         <!-- Audio Alarm Toggle -->
         <button
           @click="toggleAudio"
@@ -551,10 +581,18 @@ onUnmounted(() => {
   box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
 }
 
-.kds-header-left {
+.kds-header-top-bar {
   display: flex;
   align-items: center;
   gap: 16px;
+}
+.kds-mobile-quick-actions {
+  display: none;
+}
+.desktop-only-kds-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 .kds-brand {
   display: flex;
@@ -1123,23 +1161,93 @@ onUnmounted(() => {
 /* ── RESPONSIVE STYLES ────────────────────────────────────────────── */
 @media (max-width: 900px) {
   .kds-header {
-    height: auto;
-    padding: 10px 14px;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
+    height: auto !important;
+    min-height: 84px !important;
+    padding: 8px 12px !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+    flex-shrink: 0 !important;
+    box-sizing: border-box !important;
   }
-  .kds-header-left {
-    justify-content: space-between;
+  .kds-header-top-bar {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    gap: 8px !important;
+  }
+  .kds-brand {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    min-width: 0 !important;
+  }
+  .kds-brand-icon {
+    font-size: 22px !important;
+  }
+  .kds-title {
+    font-size: 15px !important;
+    font-weight: 800 !important;
+    white-space: nowrap !important;
+  }
+  .kds-sub {
+    display: none !important;
+  }
+  .kds-live-pill {
+    display: none !important;
+  }
+  .kds-mobile-quick-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    flex-shrink: 0 !important;
+  }
+  .kds-mini-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    padding: 0 6px !important;
+    border-radius: 8px !important;
+    border: 1px solid #CBD5E1 !important;
+    background: #F8FAFC !important;
+    color: #334155 !important;
+    font-size: 14px !important;
+    font-family: 'Prompt', sans-serif !important;
+    cursor: pointer !important;
+    text-decoration: none !important;
+  }
+  .kds-mini-btn.is-muted {
+    background: #FEF2F2 !important;
+    border-color: #FECACA !important;
+    color: #DC2626 !important;
+  }
+  .kds-mini-btn.btn-pos-link {
+    background: #EFF6FF !important;
+    border-color: #BFDBFE !important;
+    color: #2563EB !important;
+    font-size: 11.5px !important;
+    font-weight: 700 !important;
+  }
+  .desktop-only-kds-actions {
+    display: none !important;
   }
   .kds-filter-tabs {
-    overflow-x: auto;
-    width: 100%;
-    justify-content: flex-start;
+    overflow-x: auto !important;
+    width: 100% !important;
+    justify-content: flex-start !important;
+    gap: 6px !important;
+    padding-bottom: 2px !important;
+    -webkit-overflow-scrolling: touch !important;
   }
-  .kds-header-right {
-    justify-content: space-between;
-    overflow-x: auto;
+  .kds-tab-btn {
+    padding: 6px 12px !important;
+    border-radius: 8px !important;
+    font-size: 12.5px !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
   }
   .kds-cards-container {
     grid-template-columns: 1fr !important;

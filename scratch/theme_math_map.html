@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Kidobits • Math World Map (แผนที่โลกคณิตศาสตร์)</title>
+  
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#FFFFFF">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700;800&family=Prompt:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Prompt', -apple-system, sans-serif;
+      background: #F0F4F8;
+      color: #1E293B;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .font-fredoka { font-family: 'Fredoka', 'Prompt', sans-serif; }
+    
+    @keyframes floatSlow {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-6px); }
+    }
+    .floating-island { animation: floatSlow 3.5s ease-in-out infinite; }
+    
+    .island-card {
+      transition: all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .island-card:active {
+      transform: scale(0.97);
+    }
+  </style>
+  <link rel="stylesheet" href="/theme/kidobits_fonts.css">
+</head>
+<body class="flex justify-center min-h-screen bg-slate-100 pb-20">
+
+  <!-- Mobile Frame (Max 430px) -->
+  <div class="w-full max-w-[430px] min-h-screen bg-gradient-to-b from-sky-100 via-indigo-50/40 to-slate-100 relative flex flex-col px-4 pt-4 shadow-xl">
+
+    <!-- TOP BAR -->
+    <header class="flex items-center justify-between gap-2 py-2 mb-3">
+      <button onclick="window.location.href='theme_home.html'" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white shadow-sm border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition active:scale-95" title="กลับหน้าแรก">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 12H5"></path>
+          <path d="M12 19l-7-7 7-7"></path>
+        </svg>
+        <span>หน้าหลัก</span>
+      </button>
+
+      <div class="flex items-center gap-1.5">
+        <div class="flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-[11px] font-black text-amber-600 shadow-2xs">
+          <span>🔥</span>
+          <span id="streakChip">7 วัน</span>
+        </div>
+        <div class="flex items-center gap-1 px-2.5 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-[11px] font-black text-indigo-600 shadow-2xs">
+          <span>⭐</span>
+          <span id="starsChip">24</span>
+        </div>
+        <!-- Share button -->
+        <button onclick="shareMathWorld()" class="w-8 h-8 rounded-full bg-sky-100 border border-sky-200 text-sky-600 flex items-center justify-center transition active:scale-95 shadow-sm" title="แชร์">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="18" cy="5" r="3"></circle>
+            <circle cx="6" cy="12" r="3"></circle>
+            <circle cx="18" cy="19" r="3"></circle>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- TITLE BANNER -->
+    <div class="mb-4 text-center">
+      <span class="inline-block px-3 py-1 rounded-full bg-indigo-600 text-white text-[10px] font-black uppercase tracking-wider mb-1.5 shadow-sm">
+        🗺️ Kidobits Math Universe
+      </span>
+      <h1 class="text-2xl font-black text-slate-800 tracking-tight leading-tight">Math World Map</h1>
+      <p class="text-xs text-slate-500 mt-0.5">เลือกโลกการเรียนรู้เพื่อเริ่มต้นการผจญภัยคณิตศาสตร์ 🚀</p>
+    </div>
+
+    <!-- WORLD MAP PATH / ISLANDS -->
+    <div class="space-y-4 relative">
+
+      <!-- PATH DECORATION LINE -->
+      <div class="absolute left-8 top-10 bottom-10 w-1 bg-gradient-to-b from-indigo-300 via-amber-300 to-slate-200 rounded-full -z-0"></div>
+
+      <!-- WORLD 2 (HERO): SPEED MATH ARENA -->
+      <div onclick="window.location.href='theme_mathSpeed.html'" class="island-card relative z-10 w-full rounded-3xl p-5 text-white shadow-xl shadow-indigo-500/20 cursor-pointer overflow-hidden" style="background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);">
+        <div class="flex items-start justify-between">
+          <div class="flex items-center gap-3.5">
+            <div class="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center text-3xl shadow-inner shrink-0 floating-island">
+              ⚡
+            </div>
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="px-2 py-0.5 rounded-full bg-amber-400 text-slate-900 text-[10px] font-black uppercase tracking-wider">
+                  🔥 NEW • แนะนำสำหรับ ป.3
+                </span>
+                <span class="text-[10px] text-indigo-200 font-bold">Level 1–6</span>
+              </div>
+              <h2 class="text-lg font-black leading-tight text-white">Speed Math Arena</h2>
+              <p class="text-xs text-indigo-100 mt-1 leading-snug">เกาะฝึกคิดเลขเร็วอัตโนมัติ (หยุดนับนิ้ว) วันละ 15 ข้อ</p>
+            </div>
+          </div>
+          <span class="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center text-white font-bold shrink-0 text-sm">
+            ›
+          </span>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-white/20 flex items-center justify-between text-xs">
+          <div class="flex items-center gap-1.5 font-bold text-amber-300">
+            <span>🎯 เป้าหมาย: คิดไว &lt; 2 วินาที</span>
+          </div>
+          <a href="/docs/kidobits_mental_math_curriculum.pdf" target="_blank" onclick="event.stopPropagation();" class="px-2.5 py-1 rounded-xl bg-white/15 hover:bg-white/25 text-white text-[11px] font-bold flex items-center gap-1 transition">
+            📄 แผนการสอน PDF
+          </a>
+        </div>
+      </div>
+
+      <!-- WORLD 1: SAFARI SINGAPORE MATH -->
+      <div onclick="window.location.href='theme_math_lobby.html'" class="island-card relative z-10 w-full rounded-3xl p-5 text-white shadow-lg shadow-orange-500/15 cursor-pointer overflow-hidden" style="background: linear-gradient(135deg, #FF8A00 0%, #FF5A00 100%);">
+        <div class="flex items-start justify-between">
+          <div class="flex items-center gap-3.5">
+            <div class="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center text-3xl shadow-inner shrink-0">
+              🦁
+            </div>
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="px-2 py-0.5 rounded-full bg-white/25 text-white text-[10px] font-black uppercase tracking-wider backdrop-blur-xs">
+                  CPA METHOD • K ถึง ป.6
+                </span>
+                <span class="text-[10px] text-orange-200 font-bold">12 ยูนิต</span>
+              </div>
+              <h2 class="text-lg font-black leading-tight text-white">Safari Singapore Math</h2>
+              <p class="text-xs text-orange-100 mt-1 leading-snug">ปูพื้นฐานคณิตศาสตร์ผ่าน 4 มินิเกม (พิซซ่า, บ้านเลข, ตราชั่ง, กรอบสิบ)</p>
+            </div>
+          </div>
+          <span class="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center text-white font-bold shrink-0 text-sm">
+            ›
+          </span>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-white/20 flex items-center justify-between text-xs font-bold text-orange-100">
+          <span>🍕 หั่นพิซซ่า • 🌳 แยกเลข • ⚖️ ตราชั่ง</span>
+          <span class="px-3 py-1 rounded-xl bg-white text-orange-600 font-black text-xs shadow-sm">
+            เข้าเล่น ›
+          </span>
+        </div>
+      </div>
+
+      <!-- WORLD 3: LOGIC & PUZZLE LAB (COMING SOON) -->
+      <div class="relative z-10 w-full rounded-3xl p-5 bg-white border border-slate-200 text-slate-400 shadow-sm overflow-hidden opacity-85">
+        <div class="flex items-start justify-between">
+          <div class="flex items-center gap-3.5">
+            <div class="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center text-3xl shrink-0 grayscale">
+              🧩
+            </div>
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[10px] font-black uppercase tracking-wider">
+                  🔒 เร็วๆ นี้
+                </span>
+              </div>
+              <h2 class="text-lg font-bold leading-tight text-slate-600">Logic & Math Puzzles</h2>
+              <p class="text-xs text-slate-400 mt-1 leading-snug">เกมเชาวน์ปัญญา ตารางตัวเลขมหัศจรรย์ และปริศนาฝึกคิด</p>
+            </div>
+          </div>
+          <span class="text-lg text-slate-300 font-bold">🔒</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- DAILY MATH QUEST WIDGET -->
+    <div class="mt-6 p-4 rounded-2xl bg-amber-50 border border-amber-200 shadow-sm flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="text-2xl">🎯</span>
+        <div>
+          <h4 class="text-xs font-black text-amber-900">ภารกิจคิดเลขเร็ววันนี้</h4>
+          <p class="text-[11px] text-amber-700">ฝึก Speed Math 1 เซ็ต (15 ข้อ) รับ 150 เหรียญทอง</p>
+        </div>
+      </div>
+      <button onclick="window.location.href='theme_mathSpeed.html'" class="px-3.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-900 font-black text-xs shadow-sm active:scale-95 transition">
+        เริ่มเลย ⚡
+      </button>
+    </div>
+
+  </div>
+
+  
+      <!-- ================= FLOATING BOTTOM NAV (MATH ACTIVE) ================= -->
+  <nav id="mathMapBottomNav" class="fixed bottom-3 left-3 right-3 max-w-[430px] mx-auto bg-white/95 backdrop-blur-md shadow-[0_10px_30px_rgba(60,30,90,.18)] rounded-full px-2 py-2 flex justify-between border border-[#F3EDF8] z-50 transition-all duration-200" aria-label="Main navigation">
+    <!-- 1. Home -->
+    <button onclick="window.location.href='theme_home.html'" class="flex flex-col items-center gap-0.5 min-w-[48px] sm:min-w-[52px]" aria-label="Home">
+      <span class="w-10 h-10 grid place-items-center rounded-full transition text-[#9A8FA8] hover:bg-slate-50">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"></path>
+          <path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+        </svg>
+      </span>
+      <span class="text-[10px] font-extrabold text-[#9A8FA8]">Home</span>
+    </button>
+
+    <!-- 2. Phonics -->
+    <button onclick="window.location.href='theme_phonics_map.html'" class="flex flex-col items-center gap-0.5 min-w-[48px] sm:min-w-[52px]" aria-label="Phonics">
+      <span class="w-10 h-10 grid place-items-center rounded-full transition text-[#9A8FA8] hover:bg-slate-50">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 7v14"></path>
+          <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"></path>
+        </svg>
+      </span>
+      <span class="text-[10px] font-extrabold text-[#9A8FA8]">Phonics</span>
+    </button>
+
+    <!-- 3. Math (Active) -->
+    <button onclick="window.location.href='theme_math_map.html'" class="flex flex-col items-center gap-0.5 min-w-[48px] sm:min-w-[52px]" aria-label="Math">
+      <span class="w-10 h-10 grid place-items-center rounded-full transition bg-[#FF7A00] text-white shadow">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="16" height="20" x="4" y="2" rx="2"></rect>
+          <line x1="8" x2="16" y1="6" y2="6"></line>
+          <line x1="16" x2="16" y1="14" y2="18"></line>
+          <path d="M16 10h.01"></path>
+          <path d="M12 10h.01"></path>
+          <path d="M8 10h.01"></path>
+          <path d="M12 14h.01"></path>
+          <path d="M8 14h.01"></path>
+          <path d="M12 18h.01"></path>
+          <path d="M8 18h.01"></path>
+        </svg>
+      </span>
+      <span class="text-[10px] font-extrabold text-[#FF7A00]">Math</span>
+    </button>
+
+    <!-- 4. Chinese -->
+    <button onclick="window.location.href='theme_chinese_lobby.html'" class="flex flex-col items-center gap-0.5 min-w-[48px] sm:min-w-[52px]" aria-label="Chinese">
+      <span class="w-10 h-10 grid place-items-center rounded-full transition text-[#9A8FA8] hover:bg-slate-50">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path>
+          <path d="M2 12h20"></path>
+        </svg>
+      </span>
+      <span class="text-[10px] font-extrabold text-[#9A8FA8]">Chinese</span>
+    </button>
+
+    <!-- 5. Games -->
+    <button onclick="window.location.href='theme_games.html'" class="flex flex-col items-center gap-0.5 min-w-[48px] sm:min-w-[52px]" aria-label="Games">
+      <span class="w-10 h-10 grid place-items-center rounded-full transition text-[#9A8FA8] hover:bg-slate-50">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="6" x2="10" y1="11" y2="11"></line>
+          <line x1="8" x2="8" y1="9" y2="13"></line>
+          <line x1="15" x2="15.01" y1="12" y2="12"></line>
+          <line x1="18" x2="18.01" y1="10" y2="10"></line>
+          <path d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.545-.604-6.584-.685-7.258-.007-.05-.011-.1-.017-.151A4 4 0 0 0 17.32 5z"></path>
+        </svg>
+      </span>
+      <span class="text-[10px] font-extrabold text-[#9A8FA8]">Games</span>
+    </button>
+
+    <!-- 6. Profile -->
+    <button onclick="window.location.href='theme_profile.html'" class="flex flex-col items-center gap-0.5 min-w-[48px] sm:min-w-[52px]" aria-label="Profile">
+      <span class="w-10 h-10 grid place-items-center rounded-full transition text-[#9A8FA8] hover:bg-slate-50">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+      </span>
+      <span class="text-[10px] font-extrabold text-[#9A8FA8]">Profile</span>
+    </button>
+  </nav>
+
+    <!-- TOAST NOTIFICATION -->
+  <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-4 py-2 rounded-2xl text-xs font-bold shadow-2xl opacity-0 pointer-events-none transition-all duration-300 z-50">
+    คัดลอกลิงก์สำเร็จแล้ว! 📋✨
+  </div>
+
+  <script>
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      if (t) {
+        t.textContent = msg;
+        t.classList.remove('opacity-0', 'pointer-events-none');
+        setTimeout(() => {
+          t.classList.add('opacity-0', 'pointer-events-none');
+        }, 2200);
+      }
+    }
+
+    function shareMathWorld() {
+      const shareData = {
+        title: 'Kidobits Math World Map • แผนที่โลกคณิตศาสตร์',
+        text: 'ชวนมาผจญภัยใน Math World Map ฝึกคิดเลขเร็วและสิงคโปร์แมทด้วย Kidobits 🚀',
+        url: window.location.origin + '/theme/theme_math_map.html'
+      };
+      if (navigator.share) {
+        navigator.share(shareData).catch(e => console.log('Share error:', e));
+      } else {
+        navigator.clipboard.writeText(shareData.url).then(() => {
+          showToast('คัดลอกลิงก์สำเร็จแล้ว! ส่งต่อให้เพื่อนได้เลย 📋✨');
+        }).catch(() => {
+          prompt('คัดลอกลิงก์:', shareData.url);
+        });
+      }
+    }
+  </script>
+</body>
+</html>

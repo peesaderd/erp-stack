@@ -1,0 +1,1423 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+  <meta name="theme-color" content="#3525cd"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="SmartBack"/>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png"/>
+  <link rel="icon" type="image/png" href="icons/icon-192.png"/>
+
+  <title>SmartBack - เมกะแอปช้อปปิ้งได้เงินคืน (Lotus's, Makro, Shopee, Agoda)</title>
+
+  <!-- Google Fonts: Prompt & Inter + Material Symbols -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&family=Inter:wght@400;600;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              DEFAULT: '#3525cd',
+              dark: '#2617a2',
+              light: '#4f46e5',
+              surface: '#f1f2f6'
+            },
+            accent: {
+              DEFAULT: '#ff5722',
+              green: '#00a651',
+              gold: '#f59e0b',
+              line: '#06C755'
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    body {
+      font-family: 'Prompt', 'Inter', sans-serif;
+      background-color: #f1f2f6;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+      -webkit-tap-highlight-color: transparent;
+      box-sizing: border-box;
+    }
+    input, button, select, textarea, h1, h2, h3, h4, p, a, span {
+      font-family: 'Prompt', 'Inter', sans-serif;
+    }
+    .material-symbols-outlined {
+      font-family: 'Material Symbols Outlined' !important;
+      font-weight: normal;
+      font-style: normal;
+      display: inline-block;
+      line-height: 1;
+      text-transform: none;
+      letter-spacing: normal;
+      word-wrap: normal;
+      white-space: nowrap;
+      direction: ltr;
+      -webkit-font-smoothing: antialiased;
+      vertical-align: middle;
+    }
+    .pb-safe { padding-bottom: env(safe-area-inset-bottom, 20px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 14px); }
+    ::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .progress-bar-glow {
+      background: linear-gradient(90deg, #ff5722 0%, #ff9800 100%);
+    }
+    .line-btn-gradient {
+      background: linear-gradient(135deg, #06C755 0%, #05B34C 100%);
+    }
+    .google-btn-shadow {
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+    }
+  </style>
+</head>
+<body class="bg-[#f1f2f6] text-slate-800 flex flex-col items-center min-h-screen">
+
+  <!-- Mobile Frame Container (Max 480px, centered on desktop, 100% on mobile) -->
+  <div class="w-full max-w-[480px] bg-[#f8f9fc] min-h-screen flex flex-col relative shadow-2xl pb-24">
+
+    <!-- 1. Top E-Commerce Header (Shopee / Lazada Vibrant Style) -->
+    <header class="sticky top-0 z-40 w-full bg-gradient-to-r from-[#2a1cb8] via-[#3525cd] to-[#4338ca] text-white pt-safe shadow-md">
+      <div class="px-3.5 pt-2.5 pb-3 flex flex-col gap-2.5">
+        
+        <!-- Top Row: Logo & Action Icons -->
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-1.5 cursor-pointer" onclick="window.scrollTo({top:0, behavior:'smooth'})">
+            <div class="w-8 h-8 rounded-xl bg-white text-[#3525cd] font-black text-lg flex items-center justify-center shadow-md">
+              ⚡
+            </div>
+            <div class="flex flex-col">
+              <span class="font-extrabold text-lg leading-tight tracking-tight flex items-center gap-1">
+                Smart<span class="text-[#00e699]">Back</span>
+                <span class="text-[9px] px-1.5 py-0.2 bg-[#00e699] text-slate-900 font-bold rounded-full">TH</span>
+              </span>
+            </div>
+          </div>
+
+          <!-- Icons: Scan, Wishlist, Cart, Profile with Auth Badge -->
+          <div class="flex items-center gap-1">
+            <button onclick="showToast('📷 เปิดระบบสแกนบาร์โค้ด / QR Code')" class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-white/10 active:scale-95 transition-all" title="สแกน">
+              <span class="material-symbols-outlined text-[21px]">qr_code_scanner</span>
+            </button>
+            <button onclick="showToast('❤️ สินค้าโปรด 5 รายการ')" class="relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-white/10 active:scale-95 transition-all" title="รายการโปรด">
+              <span class="material-symbols-outlined text-[21px]">favorite</span>
+              <span class="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#ff5722] text-white text-[10px] font-bold flex items-center justify-center">5</span>
+            </button>
+            <button onclick="showToast('🛒 ตะกร้าสินค้า 3 ชิ้น (มีเงินคืนรออยู่)')" class="relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-white/10 active:scale-95 transition-all" title="ตะกร้า">
+              <span class="material-symbols-outlined text-[21px]">shopping_cart</span>
+              <span class="absolute top-1 right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">3</span>
+            </button>
+            
+            <!-- User Avatar & Auth Trigger Button -->
+            <button onclick="openProfileOrLoginModal()" id="headerUserBtn" class="relative w-8 h-8 ml-1 rounded-full bg-white/20 border-2 border-white/50 text-white font-bold text-xs flex items-center justify-center overflow-hidden active:scale-95 transition-all shadow-sm" title="บัญชีผู้ใช้">
+              <img id="headerUserAvatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150" alt="Avatar" class="w-full h-full object-cover"/>
+              <span id="headerProviderBadge" class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 border border-white rounded-full flex items-center justify-center text-[7px] text-white">✓</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Search Bar with Camera Icon -->
+        <div class="flex items-center gap-2 bg-white rounded-full px-3.5 py-2 shadow-inner">
+          <span class="material-symbols-outlined text-gray-400 text-[20px]">search</span>
+          <input id="globalSearchInput" type="text" placeholder="ค้นหาสินค้า Lotus's, Makro, Agoda หรือวาง URL..." class="w-full text-xs text-gray-800 placeholder:text-gray-400 bg-transparent focus:outline-none"/>
+          <button onclick="showToast('📸 กำลังเปิดระบบค้นหาด้วยรูปภาพ (Visual Search)...')" class="text-[#3525cd] hover:text-[#ff5722] p-0.5" title="ค้นหาด้วยรูป">
+            <span class="material-symbols-outlined text-[20px]">photo_camera</span>
+          </button>
+        </div>
+
+      </div>
+    </header>
+
+    <!-- 2. Floating Mini-Wallet (Quick Balance & PromptPay Cashout) -->
+    <section class="px-3 -mt-2 relative z-20">
+      <div class="bg-white rounded-2xl p-3 shadow-lg border border-indigo-50 flex items-center justify-between">
+        <div class="flex items-center gap-2.5 min-w-0 cursor-pointer" onclick="openProfileOrLoginModal()">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white flex items-center justify-center shadow-sm shrink-0">
+            <span class="material-symbols-outlined text-[22px]">account_balance_wallet</span>
+          </div>
+          <div class="flex flex-col min-w-0">
+            <div class="flex items-center gap-1.5">
+              <span class="text-[11px] text-gray-500 font-medium">เงินคืนสะสม</span>
+              <span id="walletVipBadge" class="text-[9px] px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-900 font-bold">VIP 1.2x</span>
+              <span id="walletAuthBadge" class="text-[9px] px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-700 font-bold">Guest</span>
+            </div>
+            <div class="flex items-baseline gap-1">
+              <span id="walletAvailableBalance" class="text-base font-extrabold text-[#00a651] tracking-tight">฿1,450.00</span>
+              <span id="walletPendingBalance" class="text-[10px] text-gray-400 truncate">(รออนุมัติ ฿620.00)</span>
+            </div>
+          </div>
+        </div>
+        <button onclick="openWithdrawModal()" class="px-3.5 py-1.5 rounded-xl bg-[#00a651] hover:bg-emerald-600 active:scale-95 text-white text-xs font-bold shadow-md flex items-center gap-1 transition-all shrink-0">
+          <span class="material-symbols-outlined text-[15px]">bolt</span>
+          <span>ถอนเงิน</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- 3. Payday Mega Campaign Carousel Banner -->
+    <section class="px-3 mt-3">
+      <div class="w-full bg-gradient-to-r from-[#ff5722] via-[#ff7043] to-[#ff9800] rounded-2xl p-3.5 text-white shadow-md relative overflow-hidden">
+        <div class="absolute -right-4 -bottom-4 w-28 h-28 bg-white/10 rounded-full blur-xl pointer-events-none"></div>
+        <div class="flex items-center justify-between">
+          <div class="flex flex-col gap-0.5">
+            <div class="flex items-center gap-1">
+              <span class="px-1.5 py-0.5 bg-yellow-400 text-slate-900 font-black text-[9px] rounded-md tracking-wider uppercase">
+                🔥 MEGA PAYDAY
+              </span>
+              <span class="text-[11px] font-bold text-white/90">คืนเงินสูงสุด 50%</span>
+            </div>
+            <h2 class="text-base font-black tracking-tight mt-0.5">ช้อปของสด โลตัส & แม็คโคร</h2>
+            <p class="text-[11px] text-white/90">รับเงินคืนเข้ากระเป๋าอัตโนมัติ ทุกออเดอร์</p>
+          </div>
+          <div class="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-3xl shrink-0 shadow-inner">
+            🎁
+          </div>
+        </div>
+        <div class="mt-2.5 pt-2 border-t border-white/20 flex items-center justify-between">
+          <div class="flex items-center gap-1">
+            <span class="w-4 h-1.5 rounded-full bg-white"></span>
+            <span class="w-1.5 h-1.5 rounded-full bg-white/50"></span>
+            <span class="w-1.5 h-1.5 rounded-full bg-white/50"></span>
+            <span class="w-1.5 h-1.5 rounded-full bg-white/50"></span>
+          </div>
+          <span class="text-[11px] font-bold text-white flex items-center gap-0.5 bg-black/20 px-2 py-0.5 rounded-full cursor-pointer hover:bg-black/30">
+            ดูโปรโมชันทั้งหมด <span class="material-symbols-outlined text-[13px]">arrow_forward</span>
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. 10-Icon Quick Service Category Matrix (Shopee Style 2 Rows of 5) -->
+    <section class="px-3 mt-3">
+      <div class="bg-white rounded-2xl p-3 shadow-sm border border-gray-100">
+        <div class="grid grid-cols-5 gap-y-3 gap-x-1 text-center">
+          
+          <!-- 1: Lotus's -->
+          <button onclick="fillSample('lotus')" class="flex flex-col items-center gap-1 active:scale-95 transition-transform">
+            <div class="relative w-11 h-11 rounded-2xl bg-emerald-100/70 text-emerald-700 flex items-center justify-center font-bold text-lg shadow-sm">
+              🛒
+              <span class="absolute -top-1.5 -right-1.5 px-1 py-0.2 bg-emerald-600 text-white text-[8px] font-bold rounded-full">5.5%</span>
+            </div>
+            <span class="text-[10px] font-medium text-slate-700 leading-tight">โลตัส</span>
+          </button>
+
+          <!-- 2: Makro -->
+          <button onclick="fillSample('makro')" class="flex flex-col items-center gap-1 active:scale-95 transition-transform">
+            <div class="relative w-11 h-11 rounded-2xl bg-red-100/70 text-red-600 flex items-center justify-center font-bold text-lg shadow-sm">
+              📦
+              <span class="absolute -top-1.5 -right-1.5 px-1 py-0.2 bg-red-600 text-white text-[8px] font-bold rounded-full">4.0%</span>
+            </div>
+            <span class="text-[10px] font-medium text-slate-700 leading-tight">แม็คโคร</span>
+          </button>
+
+          <!-- 3: Agoda -->
+          <button onclick="fillSample('agoda')" class="flex flex-col items-center gap-1 active:scale-95 transition-transform">
+            <div class="relative w-11 h-11 rounded-2xl bg-blue-100/70 text-blue-600 flex items-center justify-center font-bold text-lg shadow-sm">
+              🏨
+              <span class="absolute -top-1.5 -right-1.5 px-1 py-0.2 bg-blue-600 text-white text-[8px] font-bold rounded-full">8.5%</span>
+            </div>
+            <span class="text-[10px] font-medium text-slate-700 leading-tight">อโกด้า</span>
+          </button>
+
+          <!-- 4: Trip.com -->
+          <button onclick="fillSample('trip')" class="flex flex-col items-center gap-1 active:scale-95 transition-transform">
+            <div class="relative w-11 h-11 rounded-2xl bg-indigo-100/70 text-indigo-600 flex items-center justify-center font-bold text-lg shadow-sm">
+              ✈️
+              <span class="absolute -top-1.5 -right-1.5 px-1 py-0.2 bg-indigo-600 text-white text-[8px] font-bold rounded-full">7.0%</span>
+            </div>
+            <span class="text-[10px] font-medium text-slate-700 leading-tight">ตั๋วเครื่องบิน</span>
+          </button>
+
+          <!-- 5: Flash Sale -->
+          <button onclick="showToast('⚡ แคมเปญ Flash Sale ลดฟ้าผ่า เริ่มต้น 1 บาท!')" class="flex flex-col items-center gap-1 active:scale-95 transition-transform">
+            <div class="w-11 h-11 rounded-2xl bg-amber-100/70 text-amber-600 flex items-center justify-center font-bold text-lg shadow-sm">
+              ⚡
+            </div>
+            <span class="text-[10px] font-medium text-slate-700 leading-tight">ลดฟ้าผ่า</span>
+          </button>
+
+          <!-- 6: Free Shipping -->
+          <button onclick="showToast('🎟️ โค้ดส่งฟรีทั่วไทย 100 บาท แจกทุกวัน')" class="flex flex-col items-center gap-1 active:scale-95 transition-transform">
+            <div class="w-11 h-11 rounded-2xl bg-teal-100/70 text-teal-600 flex items-center justify-center font-bold text-lg shadow-sm">
+              🎟️
+            </div>
+            <span class="text-[10px] font-medium text-slate-700 leading-tight">โค้ดส่งฟรี</span>
+          </button>
+
+          <!-- 7: 50% Cashback Xtra -->
+          <button onclick="showToast('🔥 คืนเงิน XTRA รับเงินคืนสูงสุด 50% ทุกศุกร์-เสาร์-อาทิตย์')" class="flex flex-col items-center gap-1 active:scale-95 transition-transform">
+            <div class="w-11 h-11 rounded-2xl bg-rose-100/70 text-rose-600 flex items-center justify-center font-bold text-lg shadow-sm">
+              💰
+            </div>
+            <span class="text-[10px] font-medium text-slate-700 leading-tight">คืนเงิน XTRA</span>
+          </button>
+
+          <!-- 8: Daily Coins -->
+          <button onclick="showToast('🪙 เช็คอินรับเหรียญสะสม แลกคูปองส่วนลด 50 บาท')" class="flex flex-col items-center gap-1 active:scale-95 transition-transform">
+            <div class="w-11 h-11 rounded-2xl bg-yellow-100/70 text-yellow-700 flex items-center justify-center font-bold text-lg shadow-sm">
+              🪙
+            </div>
+            <span class="text-[10px] font-medium text-slate-700 leading-tight">เช็คอินเหรียญ</span>
+          </button>
+
+          <!-- 9: IT & Gadgets -->
+          <button onclick="fillSample('advice')" class="flex flex-col items-center gap-1 active:scale-95 transition-transform">
+            <div class="w-11 h-11 rounded-2xl bg-sky-100/70 text-sky-600 flex items-center justify-center font-bold text-lg shadow-sm">
+              💻
+            </div>
+            <span class="text-[10px] font-medium text-slate-700 leading-tight">ไอที/มือถือ</span>
+          </button>
+
+          <!-- 10: Invite Friends -->
+          <button onclick="showToast('👥 ชวนเพื่อนดาวน์โหลด รับเงินโบนัสเข้าพร้อมเพย์ 50 บาททันที!')" class="flex flex-col items-center gap-1 active:scale-95 transition-transform">
+            <div class="w-11 h-11 rounded-2xl bg-purple-100/70 text-purple-600 flex items-center justify-center font-bold text-lg shadow-sm">
+              👥
+            </div>
+            <span class="text-[10px] font-medium text-slate-700 leading-tight">ชวนเพื่อน</span>
+          </button>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. Interactive Affiliate Link Converter Bar -->
+    <section class="mt-4 px-3" id="linkConverterSection">
+      <div class="bg-gradient-to-br from-indigo-50/90 to-blue-50/60 rounded-2xl p-3.5 border border-indigo-100/80 shadow-sm">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-bold text-slate-900 flex items-center gap-1">
+            <span class="text-[#3525cd]">🔗</span> วางลิงก์เพื่อรับเงินคืน (Cashback Generator)
+          </span>
+          <span class="text-[10px] text-gray-500">รองรับ 8+ แพลตฟอร์ม</span>
+        </div>
+
+        <div class="flex flex-col gap-2">
+          <div class="flex items-center gap-2 bg-white rounded-xl px-3 py-2 border border-indigo-100 shadow-inner">
+            <input id="affiliateUrlInput" type="url" placeholder="วางลิงก์จาก Lotus's, Makro, Agoda, Shopee..." class="w-full text-xs text-slate-800 placeholder:text-gray-400 bg-transparent focus:outline-none"/>
+            <button onclick="pasteClipboard()" class="text-xs font-bold text-[#3525cd] shrink-0 hover:underline">วาง</button>
+          </div>
+          <button onclick="convertAffiliateLink()" class="w-full h-10 rounded-xl bg-gradient-to-r from-[#3525cd] to-[#4f46e5] hover:opacity-95 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[17px]">bolt</span>
+            <span>แปลงลิงก์ & ไปช้อปเพื่อรับเงินคืน</span>
+          </button>
+        </div>
+
+        <!-- Converted Result Card Inline -->
+        <div id="convertedResultBox" class="hidden mt-2.5 pt-2.5 border-t border-indigo-100">
+          <div class="flex items-center justify-between">
+            <span id="convStoreName" class="text-xs font-bold text-emerald-700">🛒 Lotus's Online (คืนเงิน 5.5%)</span>
+            <span class="text-[9px] bg-emerald-100 text-emerald-800 px-2 py-0.2 rounded-full font-bold">บันทึก Sub-ID แล้ว</span>
+          </div>
+          <div class="mt-1 p-2 rounded-lg bg-white border border-gray-200 text-[10px] font-mono text-gray-600 truncate" id="convTrackingUrlText">
+            https://invol.co/aff_m?...
+          </div>
+          <div class="flex items-center gap-2 mt-2">
+            <button onclick="copyTrackingUrl()" class="flex-1 h-8 rounded-lg bg-white border border-indigo-200 text-[#3525cd] text-xs font-bold hover:bg-indigo-50">คัดลอกลิงก์</button>
+            <button onclick="openStoreApp()" class="flex-1 h-8 rounded-lg bg-[#00a651] text-white text-xs font-bold hover:bg-emerald-600">ไปที่ร้านค้า</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. 🔥 FLASH SALE (นาฬิกานับถอยหลัง + หลอดขายแล้ว) -->
+    <section class="mt-4 px-3">
+      <div class="bg-white rounded-2xl p-3.5 shadow-sm border border-gray-100">
+        
+        <!-- Flash Sale Header -->
+        <div class="flex items-center justify-between pb-3 border-b border-gray-100">
+          <div class="flex items-center gap-2">
+            <span class="text-base font-black text-[#ff5722] flex items-center gap-1">
+              ⚡ FLASH SALE
+            </span>
+            <!-- Countdown Timer -->
+            <div class="flex items-center gap-1 font-mono text-xs font-bold">
+              <span class="px-1.5 py-0.5 rounded bg-slate-900 text-white" id="cdHours">02</span>
+              <span>:</span>
+              <span class="px-1.5 py-0.5 rounded bg-slate-900 text-white" id="cdMins">14</span>
+              <span>:</span>
+              <span class="px-1.5 py-0.5 rounded bg-slate-900 text-white" id="cdSecs">35</span>
+            </div>
+          </div>
+          <span class="text-xs text-[#3525cd] font-bold hover:underline cursor-pointer" onclick="showToast('⚡ ดีลลดฟ้าผ่าอัปเดตทุก 3 ชั่วโมง')">ดูทั้งหมด &gt;</span>
+        </div>
+
+        <!-- Horizontal Scrolling Flash Deals -->
+        <div class="flex items-stretch gap-3 overflow-x-auto no-scrollbar pt-3 pb-1">
+
+          <!-- Flash Item 1: Meiji Milk -->
+          <div onclick="fillSample('lotus')" class="w-36 shrink-0 bg-[#f9fafc] rounded-xl p-2 border border-gray-100 flex flex-col justify-between cursor-pointer hover:shadow-md transition-shadow">
+            <div class="relative w-full aspect-square rounded-lg overflow-hidden bg-white mb-2">
+              <img src="https://images.unsplash.com/photo-1550583724-b2692b85b150?w=300&auto=format&fit=crop&q=80" alt="Meiji Milk" class="w-full h-full object-cover"/>
+              <span class="absolute top-1 left-1 px-1.5 py-0.2 bg-red-600 text-white text-[9px] font-bold rounded">
+                -15%
+              </span>
+            </div>
+            <div>
+              <span class="text-[9px] text-gray-500 font-bold">Lotus's</span>
+              <h4 class="text-xs font-bold text-slate-800 line-clamp-1">นมสดพาสเจอร์ไรส์ 2L</h4>
+              <div class="flex items-baseline gap-1 mt-1">
+                <span class="text-sm font-extrabold text-[#ff5722]">฿89</span>
+                <span class="text-[10px] text-gray-400 line-through">฿105</span>
+              </div>
+              <span class="inline-block mt-1 px-1.5 py-0.2 bg-emerald-100 text-emerald-800 text-[9px] font-bold rounded">
+                คืนเงิน ฿8.90
+              </span>
+            </div>
+            <!-- Progress Bar -->
+            <div class="mt-2">
+              <div class="w-full bg-orange-100 rounded-full h-2 overflow-hidden">
+                <div class="progress-bar-glow h-full rounded-full" style="width: 87%"></div>
+              </div>
+              <span class="text-[8px] text-gray-500 font-bold block text-center mt-0.5">ขายแล้ว 87%</span>
+            </div>
+          </div>
+
+          <!-- Flash Item 2: Jasmine Rice Makro -->
+          <div onclick="fillSample('makro')" class="w-36 shrink-0 bg-[#f9fafc] rounded-xl p-2 border border-gray-100 flex flex-col justify-between cursor-pointer hover:shadow-md transition-shadow">
+            <div class="relative w-full aspect-square rounded-lg overflow-hidden bg-white mb-2">
+              <img src="https://images.unsplash.com/photo-1586201375761-83865001e31c?w=300&auto=format&fit=crop&q=80" alt="Jasmine Rice" class="w-full h-full object-cover"/>
+              <span class="absolute top-1 left-1 px-1.5 py-0.2 bg-red-600 text-white text-[9px] font-bold rounded">
+                -25%
+              </span>
+            </div>
+            <div>
+              <span class="text-[9px] text-red-600 font-bold">Makro PRO</span>
+              <h4 class="text-xs font-bold text-slate-800 line-clamp-1">ข้าวหอมมะลิ 100% 5kg</h4>
+              <div class="flex items-baseline gap-1 mt-1">
+                <span class="text-sm font-extrabold text-[#ff5722]">฿185</span>
+                <span class="text-[10px] text-gray-400 line-through">฿245</span>
+              </div>
+              <span class="inline-block mt-1 px-1.5 py-0.2 bg-emerald-100 text-emerald-800 text-[9px] font-bold rounded">
+                คืนเงิน ฿7.40
+              </span>
+            </div>
+            <div class="mt-2">
+              <div class="w-full bg-orange-100 rounded-full h-2 overflow-hidden">
+                <div class="progress-bar-glow h-full rounded-full" style="width: 64%"></div>
+              </div>
+              <span class="text-[8px] text-gray-500 font-bold block text-center mt-0.5">ขายแล้ว 64%</span>
+            </div>
+          </div>
+
+          <!-- Flash Item 3: Luxury Resort Agoda -->
+          <div onclick="fillSample('agoda')" class="w-36 shrink-0 bg-[#f9fafc] rounded-xl p-2 border border-gray-100 flex flex-col justify-between cursor-pointer hover:shadow-md transition-shadow">
+            <div class="relative w-full aspect-square rounded-lg overflow-hidden bg-white mb-2">
+              <img src="https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=300&auto=format&fit=crop&q=80" alt="Agoda Resort" class="w-full h-full object-cover"/>
+              <span class="absolute top-1 left-1 px-1.5 py-0.2 bg-emerald-600 text-white text-[9px] font-bold rounded">
+                คืน 8.5%
+              </span>
+            </div>
+            <div>
+              <span class="text-[9px] text-blue-600 font-bold">Agoda VIP</span>
+              <h4 class="text-xs font-bold text-slate-800 line-clamp-1">พูลวิลล่าริมทะเล พัทยา</h4>
+              <div class="flex items-baseline gap-1 mt-1">
+                <span class="text-sm font-extrabold text-[#ff5722]">฿2,890</span>
+                <span class="text-[10px] text-gray-400 line-through">฿4,200</span>
+              </div>
+              <span class="inline-block mt-1 px-1.5 py-0.2 bg-emerald-100 text-emerald-800 text-[9px] font-bold rounded">
+                คืนเงิน ฿245.65
+              </span>
+            </div>
+            <div class="mt-2">
+              <div class="w-full bg-orange-100 rounded-full h-2 overflow-hidden">
+                <div class="progress-bar-glow h-full rounded-full" style="width: 92%"></div>
+              </div>
+              <span class="text-[8px] text-gray-500 font-bold block text-center mt-0.5">เหลือ 5 ห้อง</span>
+            </div>
+          </div>
+
+          <!-- Flash Item 4: Wireless Earbuds -->
+          <div onclick="fillSample('advice')" class="w-36 shrink-0 bg-[#f9fafc] rounded-xl p-2 border border-gray-100 flex flex-col justify-between cursor-pointer hover:shadow-md transition-shadow">
+            <div class="relative w-full aspect-square rounded-lg overflow-hidden bg-white mb-2">
+              <img src="https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=300&auto=format&fit=crop&q=80" alt="Earbuds" class="w-full h-full object-cover"/>
+              <span class="absolute top-1 left-1 px-1.5 py-0.2 bg-red-600 text-white text-[9px] font-bold rounded">
+                -50%
+              </span>
+            </div>
+            <div>
+              <span class="text-[9px] text-sky-600 font-bold">Advice IT</span>
+              <h4 class="text-xs font-bold text-slate-800 line-clamp-1">หูฟังไร้สาย TWS Bluetooth 5.3</h4>
+              <div class="flex items-baseline gap-1 mt-1">
+                <span class="text-sm font-extrabold text-[#ff5722]">฿490</span>
+                <span class="text-[10px] text-gray-400 line-through">฿990</span>
+              </div>
+              <span class="inline-block mt-1 px-1.5 py-0.2 bg-emerald-100 text-emerald-800 text-[9px] font-bold rounded">
+                คืนเงิน ฿49.00
+              </span>
+            </div>
+            <div class="mt-2">
+              <div class="w-full bg-orange-100 rounded-full h-2 overflow-hidden">
+                <div class="progress-bar-glow h-full rounded-full" style="width: 95%"></div>
+              </div>
+              <span class="text-[8px] text-gray-500 font-bold block text-center mt-0.5">เกือบหมด</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. Official Brand Mall Spotlight (แบรนด์ดังคืนเงินสูง) -->
+    <section class="mt-4 px-3">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="text-xs font-bold text-slate-900 flex items-center gap-1">
+          <span class="text-red-500">🏬</span> แบรนด์พันธมิตรทางการ (Official Partners)
+        </h3>
+        <span class="text-[11px] text-[#3525cd] font-bold cursor-pointer hover:underline" onclick="showToast('มีแบรนด์เข้าร่วมแล้วกว่า 50+ รายการ')">ดูทั้งหมด</span>
+      </div>
+
+      <div class="grid grid-cols-4 gap-2">
+        <div onclick="fillSample('lotus')" class="bg-white rounded-xl p-2.5 shadow-sm border border-gray-100 text-center cursor-pointer hover:border-emerald-500 transition-all">
+          <div class="w-9 h-9 mx-auto rounded-lg bg-emerald-50 text-emerald-700 font-black text-sm flex items-center justify-center">L</div>
+          <span class="text-[10px] font-bold text-slate-800 block mt-1.5 truncate">Lotus's</span>
+          <span class="text-[9px] text-emerald-600 font-bold">คืน 5.5%</span>
+        </div>
+
+        <div onclick="fillSample('makro')" class="bg-white rounded-xl p-2.5 shadow-sm border border-gray-100 text-center cursor-pointer hover:border-red-500 transition-all">
+          <div class="w-9 h-9 mx-auto rounded-lg bg-red-50 text-red-600 font-black text-sm flex items-center justify-center">M</div>
+          <span class="text-[10px] font-bold text-slate-800 block mt-1.5 truncate">Makro PRO</span>
+          <span class="text-[9px] text-emerald-600 font-bold">คืน 4.0%</span>
+        </div>
+
+        <div onclick="fillSample('agoda')" class="bg-white rounded-xl p-2.5 shadow-sm border border-gray-100 text-center cursor-pointer hover:border-blue-500 transition-all">
+          <div class="w-9 h-9 mx-auto rounded-lg bg-blue-50 text-blue-600 font-black text-sm flex items-center justify-center">A</div>
+          <span class="text-[10px] font-bold text-slate-800 block mt-1.5 truncate">Agoda</span>
+          <span class="text-[9px] text-emerald-600 font-bold">คืน 8.5%</span>
+        </div>
+
+        <div onclick="fillSample('trip')" class="bg-white rounded-xl p-2.5 shadow-sm border border-gray-100 text-center cursor-pointer hover:border-indigo-500 transition-all">
+          <div class="w-9 h-9 mx-auto rounded-lg bg-indigo-50 text-indigo-600 font-black text-sm flex items-center justify-center">T</div>
+          <span class="text-[10px] font-bold text-slate-800 block mt-1.5 truncate">Trip.com</span>
+          <span class="text-[9px] text-emerald-600 font-bold">คืน 7.0%</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 8. Real E-Commerce 2-Column Product Grid (สินค้าแนะนำพร้อมเงินคืน) -->
+    <section class="mt-4 px-3">
+      <div class="flex items-center justify-between mb-2.5">
+        <h3 class="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
+          <span class="text-[#ff5722]">🔥</span> สินค้าลดเดือด พร้อมเงินคืนสำหรับคุณ
+        </h3>
+        <span class="text-[11px] text-gray-500">อัปเดตสด</span>
+      </div>
+
+      <!-- 2-Column Grid -->
+      <div class="grid grid-cols-2 gap-2.5">
+
+        <!-- Product 1: Nespresso Capsules -->
+        <div onclick="fillSample('central')" class="bg-white rounded-2xl p-2.5 shadow-sm border border-gray-100 flex flex-col justify-between cursor-pointer hover:shadow-md transition-shadow">
+          <div>
+            <div class="relative w-full aspect-square rounded-xl overflow-hidden bg-gray-100 mb-2">
+              <img src="https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=400&auto=format&fit=crop&q=80" alt="Nespresso" class="w-full h-full object-cover"/>
+              <span class="absolute top-1.5 left-1.5 px-1.5 py-0.2 bg-slate-900/80 text-white text-[9px] font-bold rounded">
+                Central
+              </span>
+            </div>
+            <h4 class="text-xs font-bold text-slate-800 line-clamp-2 leading-snug">กาแฟแคปซูล Nespresso คละรสชาติ 50 แคปซูล</h4>
+            <div class="flex items-baseline gap-1 mt-1.5">
+              <span class="text-sm font-extrabold text-slate-900">฿1,150</span>
+              <span class="text-[10px] text-gray-400 line-through">฿1,350</span>
+            </div>
+            <span class="inline-flex items-center gap-0.5 mt-1.5 px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-full">
+              💰 คืนเงิน +฿69.00
+            </span>
+          </div>
+          <div class="flex items-center justify-between text-[10px] text-gray-400 mt-2.5 pt-2 border-t border-gray-100">
+            <span class="text-amber-500 font-bold">★ 4.9</span>
+            <span>ขายแล้ว 2.1k</span>
+          </div>
+        </div>
+
+        <!-- Product 2: Tefal Pan -->
+        <div onclick="fillSample('central')" class="bg-white rounded-2xl p-2.5 shadow-sm border border-gray-100 flex flex-col justify-between cursor-pointer hover:shadow-md transition-shadow">
+          <div>
+            <div class="relative w-full aspect-square rounded-xl overflow-hidden bg-gray-100 mb-2">
+              <img src="https://images.unsplash.com/photo-1590794056226-79ef3a8147e1?w=400&auto=format&fit=crop&q=80" alt="Tefal Pan" class="w-full h-full object-cover"/>
+              <span class="absolute top-1.5 left-1.5 px-1.5 py-0.2 bg-red-600 text-white text-[9px] font-bold rounded">
+                -53%
+              </span>
+            </div>
+            <h4 class="text-xs font-bold text-slate-800 line-clamp-2 leading-snug">กระทะเคลือบหินอ่อน Tefal 28cm ใช้ได้กับเตาทุกชนิด</h4>
+            <div class="flex items-baseline gap-1 mt-1.5">
+              <span class="text-sm font-extrabold text-slate-900">฿599</span>
+              <span class="text-[10px] text-gray-400 line-through">฿1,290</span>
+            </div>
+            <span class="inline-flex items-center gap-0.5 mt-1.5 px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-full">
+              💰 คืนเงิน +฿42.00
+            </span>
+          </div>
+          <div class="flex items-center justify-between text-[10px] text-gray-400 mt-2.5 pt-2 border-t border-gray-100">
+            <span class="text-amber-500 font-bold">★ 4.8</span>
+            <span>ขายแล้ว 4.5k</span>
+          </div>
+        </div>
+
+        <!-- Product 3: Olive Oil & Kitchen Groceries -->
+        <div onclick="fillSample('lotus')" class="bg-white rounded-2xl p-2.5 shadow-sm border border-gray-100 flex flex-col justify-between cursor-pointer hover:shadow-md transition-shadow">
+          <div>
+            <div class="relative w-full aspect-square rounded-xl overflow-hidden bg-gray-100 mb-2">
+              <img src="https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=400&auto=format&fit=crop&q=80" alt="Olive Oil" class="w-full h-full object-cover"/>
+              <span class="absolute top-1.5 left-1.5 px-1.5 py-0.2 bg-emerald-600 text-white text-[9px] font-bold rounded">
+                Lotus's
+              </span>
+            </div>
+            <h4 class="text-xs font-bold text-slate-800 line-clamp-2 leading-snug">น้ำมันมะกอก Extra Virgin 1L เบอร์ทอลลี่</h4>
+            <div class="flex items-baseline gap-1 mt-1.5">
+              <span class="text-sm font-extrabold text-slate-900">฿389</span>
+              <span class="text-[10px] text-gray-400 line-through">฿440</span>
+            </div>
+            <span class="inline-flex items-center gap-0.5 mt-1.5 px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-full">
+              💰 คืนเงิน +฿21.40
+            </span>
+          </div>
+          <div class="flex items-center justify-between text-[10px] text-gray-400 mt-2.5 pt-2 border-t border-gray-100">
+            <span class="text-amber-500 font-bold">★ 4.9</span>
+            <span>ขายแล้ว 1.8k</span>
+          </div>
+        </div>
+
+        <!-- Product 4: Travel Luggage Trip -->
+        <div onclick="fillSample('trip')" class="bg-white rounded-2xl p-2.5 shadow-sm border border-gray-100 flex flex-col justify-between cursor-pointer hover:shadow-md transition-shadow">
+          <div>
+            <div class="relative w-full aspect-square rounded-xl overflow-hidden bg-gray-100 mb-2">
+              <img src="https://images.unsplash.com/photo-1565026057447-bc90a3dceb87?w=400&auto=format&fit=crop&q=80" alt="Luggage" class="w-full h-full object-cover"/>
+              <span class="absolute top-1.5 left-1.5 px-1.5 py-0.2 bg-indigo-600 text-white text-[9px] font-bold rounded">
+                Trip.com
+              </span>
+            </div>
+            <h4 class="text-xs font-bold text-slate-800 line-clamp-2 leading-snug">กระเป๋าเดินทางล้อลาก 24 นิ้ว โพลีคาร์บอเนตแท้</h4>
+            <div class="flex items-baseline gap-1 mt-1.5">
+              <span class="text-sm font-extrabold text-slate-900">฿1,490</span>
+              <span class="text-[10px] text-gray-400 line-through">฿2,990</span>
+            </div>
+            <span class="inline-flex items-center gap-0.5 mt-1.5 px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-full">
+              💰 คืนเงิน +฿89.40
+            </span>
+          </div>
+          <div class="flex items-center justify-between text-[10px] text-gray-400 mt-2.5 pt-2 border-t border-gray-100">
+            <span class="text-amber-500 font-bold">★ 4.9</span>
+            <span>ขายแล้ว 890</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 9. Interactive Postback Order Simulator -->
+    <section class="mt-4 px-3 mb-6">
+      <div class="bg-slate-900 text-white rounded-2xl p-4 shadow-lg border border-slate-800">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-1.5">
+            <span class="text-emerald-400 text-sm">●</span>
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-200">Postback Webhook Simulator</span>
+          </div>
+          <span class="text-[9px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-bold">SQLite Live</span>
+        </div>
+        <p class="text-[11px] text-slate-400 leading-relaxed mb-3">
+          คลิกจำลองระบบเมื่อลูกค้ากดซื้อของสำเร็จ ระบบจะคำนวณและบันทึกเงินคืนเข้าวอลเล็ตของบัญชี <strong id="simActiveUserName" class="text-white">คุณพีรวัฒน์</strong> ทันที:
+        </p>
+
+        <div class="grid grid-cols-3 gap-2">
+          <button onclick="simulateOrder('lotus', 1250)" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 active:scale-95 text-center transition-all">
+            <span class="text-base block">🛒</span>
+            <span class="text-[10px] font-bold block text-slate-200 mt-1">Lotus's ฿1,250</span>
+            <span class="text-[9px] text-emerald-400 font-bold block">+฿48.12</span>
+          </button>
+
+          <button onclick="simulateOrder('makro', 3800)" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 active:scale-95 text-center transition-all">
+            <span class="text-base block">📦</span>
+            <span class="text-[10px] font-bold block text-slate-200 mt-1">Makro ฿3,800</span>
+            <span class="text-[9px] text-emerald-400 font-bold block">+฿114.00</span>
+          </button>
+
+          <button onclick="simulateOrder('agoda', 8400)" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 active:scale-95 text-center transition-all">
+            <span class="text-base block">🏨</span>
+            <span class="text-[10px] font-bold block text-slate-200 mt-1">Agoda ฿8,400</span>
+            <span class="text-[9px] text-emerald-400 font-bold block">+฿499.80</span>
+          </button>
+        </div>
+
+        <div id="simResultAlert" class="hidden mt-3 p-2.5 rounded-xl bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 text-xs">
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Bottom Navigation Bar (Shopee Style) -->
+  <nav class="fixed bottom-0 z-40 w-full max-w-[480px] bg-white/95 backdrop-blur-xl border-t border-gray-200 pb-safe shadow-[0_-2px_12px_rgba(0,0,0,0.05)]">
+    <div class="flex items-center justify-around h-14 px-2">
+      <button onclick="window.scrollTo({top:0, behavior:'smooth'})" class="flex flex-col items-center justify-center w-14 h-full text-[#3525cd] font-bold">
+        <span class="material-symbols-outlined text-[22px]">home</span>
+        <span class="text-[10px] mt-0.5">หน้าหลัก</span>
+      </button>
+
+      <button onclick="showToast('📂 หมวดหมู่สินค้ากว่า 50+ แบรนด์')" class="flex flex-col items-center justify-center w-14 h-full text-gray-400 hover:text-[#3525cd]">
+        <span class="material-symbols-outlined text-[22px]">grid_view</span>
+        <span class="text-[10px] mt-0.5">หมวดหมู่</span>
+      </button>
+
+      <!-- Center Floating Button: Link Converter -->
+      <div class="relative flex flex-col items-center justify-center w-14 h-full">
+        <button onclick="focusConverter()" class="absolute -top-3.5 w-11 h-11 rounded-full bg-gradient-to-tr from-[#ff5722] to-[#ff9800] text-white shadow-lg flex items-center justify-center hover:scale-105 active:scale-95 transition-transform">
+          <span class="material-symbols-outlined text-[22px]">link</span>
+        </button>
+        <span class="text-[9px] text-[#ff5722] mt-6 font-bold">แปลงลิงก์</span>
+      </div>
+
+      <button onclick="openWithdrawModal()" class="flex flex-col items-center justify-center w-14 h-full text-gray-400 hover:text-[#3525cd]">
+        <span class="material-symbols-outlined text-[22px]">account_balance_wallet</span>
+        <span class="text-[10px] mt-0.5">กระเป๋าเงิน</span>
+      </button>
+
+      <button onclick="openProfileOrLoginModal()" class="flex flex-col items-center justify-center w-14 h-full text-gray-400 hover:text-[#3525cd]">
+        <span class="material-symbols-outlined text-[22px]">person</span>
+        <span class="text-[10px] mt-0.5" id="navUserLabel">ฉัน</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ========================================== -->
+  <!-- 10. AUTH MODAL: LINE & GOOGLE LOGIN SHEET   -->
+  <!-- ========================================== -->
+  <div id="authModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4 transition-all">
+    <div class="w-full max-w-[420px] bg-white rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-6 duration-200">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between pb-2 border-b border-gray-100">
+        <div class="flex items-center gap-2">
+          <div class="w-9 h-9 rounded-2xl bg-gradient-to-tr from-[#3525cd] to-[#4f46e5] text-white flex items-center justify-center font-black text-lg shadow-sm">
+            ⚡
+          </div>
+          <div>
+            <h3 class="text-base font-extrabold text-slate-900 leading-tight">เข้าสู่ระบบ SmartBack</h3>
+            <p class="text-[11px] text-gray-500">สะสมเงินคืนทุกการสั่งซื้อ Lotus's, Makro, Agoda</p>
+          </div>
+        </div>
+        <button onclick="closeAuthModal()" class="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center hover:bg-gray-200">
+          <span class="material-symbols-outlined text-[18px]">close</span>
+        </button>
+      </div>
+
+      <!-- Member Perks Highlighting -->
+      <div class="bg-indigo-50/70 p-3 rounded-2xl border border-indigo-100 flex flex-col gap-1.5 text-xs text-indigo-900">
+        <div class="flex items-center gap-2 font-semibold">
+          <span class="text-emerald-600">✓</span>
+          <span>รับเงินคืนสูงสุด 50% ทุกออเดอร์ ไม่มีวันหมดอายุ</span>
+        </div>
+        <div class="flex items-center gap-2 font-semibold">
+          <span class="text-emerald-600">✓</span>
+          <span>ถอนเงินคืนเข้าพร้อมเพย์ได้ทันที ไม่มีค่าธรรมเนียม</span>
+        </div>
+        <div class="flex items-center gap-2 font-semibold">
+          <span class="text-amber-600">👑</span>
+          <span>สิทธิพิเศษ VIP Bonus รับโบนัสคูณเพิ่มสูงสุด 2.0x</span>
+        </div>
+      </div>
+
+      <!-- Login Buttons -->
+      <div class="flex flex-col gap-3 mt-1">
+        
+        <!-- LINE Login Button (Official LINE Green #06C755) -->
+        <button id="btnLineLogin" onclick="handleLineLogin()" class="w-full h-12 rounded-2xl line-btn-gradient hover:opacity-95 text-white font-bold text-sm flex items-center justify-between px-4 shadow-md active:scale-95 transition-all">
+          <div class="flex items-center gap-3">
+            <!-- Official LINE SVG Logo -->
+            <svg class="w-6 h-6 fill-white shrink-0" viewBox="0 0 24 24">
+              <path d="M19.365 9.863c.349.001.62.278.618.627v.006c-.035 4.398-4.492 7.974-9.983 7.974-.882 0-1.745-.091-2.571-.264-.475-.099-.958.077-1.378.337l-2.091 1.294c-.461.286-1.045-.084-.982-.622l.271-2.298c.046-.388-.135-.765-.458-.99-1.921-1.341-3.136-3.32-3.136-5.431 0-4.636 4.707-8.406 10.49-8.406 5.603 0 10.171 3.551 10.478 7.994l.006.079zm-13.882.808c0-.442-.358-.8-.8-.8s-.8.358-.8.8v3.429c0 .442.358.8.8.8h2.057c.442 0 .8-.358.8-.8s-.358-.8-.8-.8H5.483v-2.629zm3.771 4.229c.442 0 .8-.358.8-.8v-3.429c0-.442-.358-.8-.8-.8s-.8.358-.8.8v3.429c0 .442.358.8.8.8zm4.457 0c.442 0 .8-.358.8-.8v-2.126l1.834 2.657c.162.235.43.372.716.365.48-.01.85-.4.85-.88v-3.445c0-.442-.358-.8-.8-.8s-.8.358-.8.8v2.126l-1.834-2.657c-.162-.235-.43-.372-.716-.365-.48.01-.85.4-.85.88v3.445c0 .442.358.8.8.8zm6.514-3.429c0-.442-.358-.8-.8-.8h-2.057c-.442 0-.8.358-.8.8v3.429c0 .442.358.8.8.8h2.057c.442 0 .8-.358.8-.8s-.358-.8-.8-.8h-1.257v-.514h1.257c.442 0 .8-.358.8-.8s-.358-.8-.8-.8h-1.257v-.514h1.257c.442 0 .8-.358.8-.8z"/>
+            </svg>
+            <div class="text-left leading-tight">
+              <span>เข้าสู่ระบบด้วย LINE</span>
+              <span class="block text-[10px] text-emerald-100 font-normal">รวดเร็ว ปลอดภัย 1 คลิก</span>
+            </div>
+          </div>
+          <span class="text-[10px] bg-white text-emerald-700 font-black px-2 py-0.5 rounded-full">แนะนำ 🇹🇭</span>
+        </button>
+
+        <!-- Google Sign-In Button (Official Clean White Style) -->
+        <button id="btnGoogleLogin" onclick="handleGoogleLogin()" class="w-full h-12 rounded-2xl bg-white hover:bg-gray-50 border border-gray-300 google-btn-shadow text-slate-700 font-bold text-sm flex items-center justify-between px-4 active:scale-95 transition-all">
+          <div class="flex items-center gap-3">
+            <!-- Official Google 4-Color SVG -->
+            <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+            </svg>
+            <div class="text-left leading-tight">
+              <span>ดำเนินการต่อด้วย Google</span>
+              <span class="block text-[10px] text-gray-500 font-normal">ซิงค์บัญชี Google / Gmail</span>
+            </div>
+          </div>
+          <span class="material-symbols-outlined text-gray-400 text-[18px]">arrow_forward</span>
+        </button>
+
+      </div>
+
+      <div class="relative flex items-center justify-center my-1">
+        <div class="border-t border-gray-200 w-full"></div>
+        <span class="bg-white px-2 text-[10px] text-gray-400 absolute">หรือ ทดลองใช้งาน</span>
+      </div>
+
+      <!-- Demo / Guest Switch Button -->
+      <button onclick="handleGuestLogin()" class="w-full h-10 rounded-xl bg-gray-100 hover:bg-gray-200 text-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors">
+        <span class="material-symbols-outlined text-[16px]">account_circle</span>
+        <span>ใช้งานในฐานะ คุณพีรวัฒน์ (Guest VIP Gold)</span>
+      </button>
+
+      <p class="text-[10px] text-center text-gray-400 mt-1">
+        🔒 ระบบเข้ารหัสปลอดภัย 100% ตามมาตรฐาน PDPA ข้อมูลธุรกรรมจะเชื่อมต่อเมื่อผูกพร้อมเพย์เท่านั้น
+      </p>
+
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 11. USER PROFILE MODAL (เมื่อล็อกอินแล้ว)    -->
+  <!-- ========================================== -->
+  <div id="profileModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4 transition-all">
+    <div class="w-full max-w-[420px] bg-white rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-6 duration-200">
+      
+      <!-- Profile Header -->
+      <div class="flex items-center justify-between pb-3 border-b border-gray-100">
+        <h3 class="text-base font-extrabold text-slate-900">โปรไฟล์ของฉัน</h3>
+        <button onclick="closeProfileModal()" class="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center hover:bg-gray-200">
+          <span class="material-symbols-outlined text-[18px]">close</span>
+        </button>
+      </div>
+
+      <!-- User Info Card -->
+      <div class="flex items-center gap-3.5 bg-gray-50 p-3.5 rounded-2xl border border-gray-100">
+        <div class="relative w-14 h-14 rounded-full overflow-hidden border-2 border-[#3525cd] shrink-0 shadow-md">
+          <img id="profModalAvatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150" alt="Avatar" class="w-full h-full object-cover"/>
+          <span id="profModalProviderIcon" class="absolute bottom-0 right-0 w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[9px] font-bold">L</span>
+        </div>
+        <div class="flex flex-col min-w-0">
+          <div class="flex items-center gap-1.5">
+            <h4 id="profModalName" class="text-sm font-extrabold text-slate-900 truncate">คุณสมชาย ช้อปเพลิน</h4>
+            <span id="profModalTier" class="text-[9px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold shrink-0">VIP Platinum</span>
+          </div>
+          <span id="profModalEmail" class="text-[11px] text-gray-500 truncate mt-0.5">somchai.line@smartback.me</span>
+          <span id="profModalPromptPay" class="text-[10px] text-emerald-700 font-medium mt-0.5">พร้อมเพย์: 081-998-7766</span>
+        </div>
+      </div>
+
+      <!-- Live Wallet Balance Summary in Modal -->
+      <div class="bg-gradient-to-r from-emerald-50 to-teal-50 p-3.5 rounded-2xl border border-emerald-100 flex items-center justify-between">
+        <div>
+          <span class="text-[11px] text-emerald-800 font-medium">เงินคืนที่ถอนได้ทันที</span>
+          <p class="text-xl font-black text-emerald-700 tracking-tight" id="profModalBalance">฿977.16</p>
+          <span class="text-[10px] text-gray-500" id="profModalPending">(รออนุมัติ ฿134.40)</span>
+        </div>
+        <button onclick="closeProfileModal(); openWithdrawModal();" class="px-3.5 py-2 rounded-xl bg-[#00a651] hover:bg-emerald-600 text-white text-xs font-bold shadow-md flex items-center gap-1">
+          <span class="material-symbols-outlined text-[15px]">bolt</span>
+          <span>ถอนเงิน</span>
+        </button>
+      </div>
+
+      <!-- Account Actions -->
+      <div class="flex flex-col gap-2 pt-1">
+        <button onclick="closeProfileModal(); openAuthModal();" class="w-full h-11 rounded-xl bg-white border border-indigo-200 hover:bg-indigo-50 text-[#3525cd] text-xs font-bold flex items-center justify-center gap-2 transition-colors">
+          <span class="material-symbols-outlined text-[18px]">switch_account</span>
+          <span>สลับบัญชี (Switch Account - LINE / Google)</span>
+        </button>
+
+        <button onclick="handleLogout()" class="w-full h-10 rounded-xl bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-600 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors">
+          <span class="material-symbols-outlined text-[16px]">logout</span>
+          <span>ออกจากระบบ</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Withdraw Modal -->
+  <div id="withdrawModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4 transition-all">
+    <div class="w-full max-w-[420px] bg-white rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-6 duration-200">
+      <div class="flex items-center justify-between pb-2 border-b border-gray-100">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+            <span class="material-symbols-outlined text-[20px]">bolt</span>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-gray-900">ถอนเงินเข้าพร้อมเพย์</h3>
+            <p class="text-[11px] text-gray-500">เงินเข้าทันที ไม่มีค่าธรรมเนียม</p>
+          </div>
+        </div>
+        <button onclick="closeWithdrawModal()" class="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center hover:bg-gray-200">
+          <span class="material-symbols-outlined text-[18px]">close</span>
+        </button>
+      </div>
+
+      <div class="bg-indigo-50/60 p-3 rounded-2xl flex items-center justify-between">
+        <div>
+          <span class="text-[11px] text-gray-500">ยอดที่ถอนได้ปัจจุบัน</span>
+          <p class="text-lg font-bold text-[#3525cd]">฿ <span id="modalAvailBalance">1,450.00</span></p>
+        </div>
+        <span class="text-[11px] text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full font-semibold">ขั้นต่ำ 100 บาท</span>
+      </div>
+
+      <div class="flex flex-col gap-3">
+        <div>
+          <label class="text-xs font-semibold text-gray-700 mb-1 block">เบอร์พร้อมเพย์ หรือ เลขบัตรประชาชน</label>
+          <div class="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-xl border border-gray-200 focus-within:border-[#3525cd] focus-within:bg-white">
+            <span class="material-symbols-outlined text-[18px] text-gray-400">payments</span>
+            <input id="promptPayId" type="tel" value="089-123-4567" class="w-full bg-transparent text-xs text-gray-800 focus:outline-none"/>
+          </div>
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="text-xs font-semibold text-gray-700">จำนวนเงินที่ต้องการถอน (บาท)</label>
+            <button onclick="setWithdrawAll()" class="text-[11px] text-[#3525cd] font-bold hover:underline">ถอนทั้งหมด</button>
+          </div>
+          <div class="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-xl border border-gray-200 focus-within:border-[#3525cd] focus-within:bg-white">
+            <span class="text-xs font-bold text-gray-500">฿</span>
+            <input id="withdrawAmountInput" type="number" value="1450" class="w-full bg-transparent text-xs text-gray-800 font-bold focus:outline-none"/>
+          </div>
+        </div>
+      </div>
+
+      <button onclick="submitWithdrawal()" class="w-full h-11 rounded-xl bg-[#00a651] hover:bg-emerald-600 active:scale-95 text-white font-bold text-sm shadow-md flex items-center justify-center gap-1.5 transition-all">
+        <span>ยืนยันการถอนเงิน</span>
+        <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+      </button>
+
+      <div id="withdrawAlert" class="hidden p-3 rounded-xl text-xs font-medium"></div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toastBanner" class="fixed top-4 z-50 left-1/2 -translate-x-1/2 w-[90%] max-w-[380px] bg-slate-900/95 backdrop-blur-md text-white text-xs px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5 hidden animate-in fade-in slide-in-from-top-4 duration-150">
+    <span class="material-symbols-outlined text-amber-400 text-[20px] shrink-0">info</span>
+    <span id="toastText" class="leading-snug">แจ้งเตือนข้อความ</span>
+  </div>
+
+  <script>
+    const API_BASE = 'https://m2igen.com/smartback/api';
+    
+    // Default current user state
+    let currentUser = {
+      user_code: 'user_pw_9821',
+      name: 'คุณพีรวัฒน์',
+      provider: 'guest',
+      vip_tier: 'VIP Gold (1.2x)',
+      bonus_multiplier: 1.2,
+      avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+      promptpay_id: '089-123-4567'
+    };
+    let currentWallet = {
+      available_balance: 1450.00,
+      pending_balance: 620.00
+    };
+    let latestTrackingUrl = '';
+
+    // Load persisted user session from localStorage
+    function initUserSession() {
+      try {
+        const saved = localStorage.getItem('smartback_user');
+        if (saved) {
+          currentUser = JSON.parse(saved);
+        }
+      } catch (e) {
+        console.warn('Session parse err:', e);
+      }
+      applyUserToUI();
+      refreshWalletData();
+    }
+
+    // Apply user profile attributes to UI elements
+    function applyUserToUI() {
+      const avatarEl = document.getElementById('headerUserAvatar');
+      const badgeEl = document.getElementById('headerProviderBadge');
+      const navLabel = document.getElementById('navUserLabel');
+      const simName = document.getElementById('simActiveUserName');
+      const walletAuth = document.getElementById('walletAuthBadge');
+      const walletVip = document.getElementById('walletVipBadge');
+
+      if (avatarEl && currentUser.avatar_url) avatarEl.src = currentUser.avatar_url;
+      if (simName) simName.textContent = currentUser.name || 'คุณพีรวัฒน์';
+      if (walletVip) walletVip.textContent = currentUser.vip_tier || 'VIP Gold';
+
+      if (currentUser.provider === 'line') {
+        if (badgeEl) {
+          badgeEl.className = 'absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-[#06C755] border border-white rounded-full flex items-center justify-center text-[7px] text-white font-bold';
+          badgeEl.textContent = 'L';
+        }
+        if (walletAuth) {
+          walletAuth.className = 'text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 font-bold';
+          walletAuth.textContent = 'LINE Member';
+        }
+        if (navLabel) navLabel.textContent = 'LINE';
+      } else if (currentUser.provider === 'google') {
+        if (badgeEl) {
+          badgeEl.className = 'absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-blue-600 border border-white rounded-full flex items-center justify-center text-[7px] text-white font-bold';
+          badgeEl.textContent = 'G';
+        }
+        if (walletAuth) {
+          walletAuth.className = 'text-[9px] px-1.5 py-0.2 rounded-full bg-blue-100 text-blue-800 font-bold';
+          walletAuth.textContent = 'Google';
+        }
+        if (navLabel) navLabel.textContent = 'Google';
+      } else {
+        if (badgeEl) {
+          badgeEl.className = 'absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-gray-400 border border-white rounded-full flex items-center justify-center text-[7px] text-white font-bold';
+          badgeEl.textContent = '✓';
+        }
+        if (walletAuth) {
+          walletAuth.className = 'text-[9px] px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-700 font-bold';
+          walletAuth.textContent = 'Guest';
+        }
+        if (navLabel) navLabel.textContent = 'ฉัน';
+      }
+    }
+
+    // Modal Control
+    function openProfileOrLoginModal() {
+      if (currentUser.provider === 'guest' && !localStorage.getItem('smartback_user')) {
+        openAuthModal();
+      } else {
+        openProfileModal();
+      }
+    }
+
+    function openAuthModal() {
+      document.getElementById('authModal')?.classList.remove('hidden');
+    }
+    function closeAuthModal() {
+      document.getElementById('authModal')?.classList.add('hidden');
+    }
+
+    function openProfileModal() {
+      // Sync modal content
+      const profAvatar = document.getElementById('profModalAvatar');
+      const profIcon = document.getElementById('profModalProviderIcon');
+      const profName = document.getElementById('profModalName');
+      const profTier = document.getElementById('profModalTier');
+      const profEmail = document.getElementById('profModalEmail');
+      const profPromptPay = document.getElementById('profModalPromptPay');
+      const profBal = document.getElementById('profModalBalance');
+      const profPending = document.getElementById('profModalPending');
+
+      if (profAvatar) profAvatar.src = currentUser.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150';
+      if (profName) profName.textContent = currentUser.name || 'คุณพีรวัฒน์';
+      if (profTier) profTier.textContent = currentUser.vip_tier || 'VIP Gold';
+      if (profEmail) profEmail.textContent = currentUser.email || 'user@smartback.me';
+      if (profPromptPay) profPromptPay.textContent = 'พร้อมเพย์: ' + (currentUser.promptpay_id || '089-123-4567');
+      if (profBal) profBal.textContent = '฿' + currentWallet.available_balance.toFixed(2);
+      if (profPending) profPending.textContent = '(รออนุมัติ ฿' + currentWallet.pending_balance.toFixed(2) + ')';
+
+      if (profIcon) {
+        if (currentUser.provider === 'line') {
+          profIcon.className = 'absolute bottom-0 right-0 w-4 h-4 rounded-full bg-[#06C755] text-white flex items-center justify-center text-[9px] font-bold';
+          profIcon.textContent = 'L';
+        } else if (currentUser.provider === 'google') {
+          profIcon.className = 'absolute bottom-0 right-0 w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center text-[9px] font-bold';
+          profIcon.textContent = 'G';
+        } else {
+          profIcon.className = 'absolute bottom-0 right-0 w-4 h-4 rounded-full bg-gray-400 text-white flex items-center justify-center text-[9px] font-bold';
+          profIcon.textContent = '✓';
+        }
+      }
+
+      document.getElementById('profileModal')?.classList.remove('hidden');
+    }
+    function closeProfileModal() {
+      document.getElementById('profileModal')?.classList.add('hidden');
+    }
+
+    // --- 1. Handle LINE Login ---
+    async function handleLineLogin() {
+      const btn = document.getElementById('btnLineLogin');
+      if (btn) btn.innerHTML = '<span class="text-xs">กำลังเชื่อมต่อ LINE ID...</span>';
+
+      try {
+        const resp = await fetch(`${API_BASE}/auth/line`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            display_name: 'คุณสมชาย ช้อปเพลิน (LINE)',
+            picture_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+            line_id: 'U9821387654129'
+          })
+        });
+        const res = await resp.json();
+        if (res.status === 'success') {
+          currentUser = res.user;
+          currentWallet = res.wallet;
+          localStorage.setItem('smartback_user', JSON.stringify(currentUser));
+          localStorage.setItem('smartback_token', res.token);
+          applyUserToUI();
+          updateWalletUI(res.wallet);
+          closeAuthModal();
+          showToast(`🎉 เข้าสู่ระบบด้วย LINE สำเร็จ! ยินดีต้อนรับ ${currentUser.name}`);
+        } else {
+          showToast('❌ ไม่สามารถเข้าสู่ระบบ LINE ได้');
+        }
+      } catch (err) {
+        console.error('Line login error:', err);
+        showToast('❌ การเชื่อมต่อ LINE ขัดข้อง');
+      } finally {
+        resetAuthButtons();
+      }
+    }
+
+    // --- 2. Handle Google Login ---
+    async function handleGoogleLogin() {
+      const btn = document.getElementById('btnGoogleLogin');
+      if (btn) btn.innerHTML = '<span class="text-xs">กำลังเชื่อมต่อ Google Account...</span>';
+
+      try {
+        const resp = await fetch(`${API_BASE}/auth/google`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: 'Somchai Shopkru (Google)',
+            email: 'somchai.shopkru@gmail.com',
+            avatar_url: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150',
+            google_id: '1098237192837465'
+          })
+        });
+        const res = await resp.json();
+        if (res.status === 'success') {
+          currentUser = res.user;
+          currentWallet = res.wallet;
+          localStorage.setItem('smartback_user', JSON.stringify(currentUser));
+          localStorage.setItem('smartback_token', res.token);
+          applyUserToUI();
+          updateWalletUI(res.wallet);
+          closeAuthModal();
+          showToast(`🎉 เข้าสู่ระบบด้วย Google สำเร็จ! ยินดีต้อนรับ ${currentUser.name}`);
+        } else {
+          showToast('❌ ไม่สามารถเข้าสู่ระบบ Google ได้');
+        }
+      } catch (err) {
+        console.error('Google login error:', err);
+        showToast('❌ การเชื่อมต่อ Google ขัดข้อง');
+      } finally {
+        resetAuthButtons();
+      }
+    }
+
+    // --- 3. Handle Guest / Reset Login ---
+    function handleGuestLogin() {
+      currentUser = {
+        user_code: 'user_pw_9821',
+        name: 'คุณพีรวัฒน์',
+        provider: 'guest',
+        vip_tier: 'VIP Gold (1.2x)',
+        bonus_multiplier: 1.2,
+        avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+        promptpay_id: '089-123-4567'
+      };
+      localStorage.setItem('smartback_user', JSON.stringify(currentUser));
+      applyUserToUI();
+      refreshWalletData();
+      closeAuthModal();
+      showToast('👤 สลับใช้งานในฐานะ คุณพีรวัฒน์ (Guest VIP)');
+    }
+
+    // --- 4. Handle Logout ---
+    function handleLogout() {
+      localStorage.removeItem('smartback_user');
+      localStorage.removeItem('smartback_token');
+      currentUser = {
+        user_code: 'user_pw_9821',
+        name: 'คุณพีรวัฒน์ (Guest)',
+        provider: 'guest',
+        vip_tier: 'VIP Gold',
+        bonus_multiplier: 1.2,
+        avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+        promptpay_id: '089-123-4567'
+      };
+      applyUserToUI();
+      refreshWalletData();
+      closeProfileModal();
+      showToast('👋 ออกจากระบบเรียบร้อยแล้ว');
+    }
+
+    function resetAuthButtons() {
+      const btnL = document.getElementById('btnLineLogin');
+      if (btnL) {
+        btnL.innerHTML = `
+          <div class="flex items-center gap-3">
+            <svg class="w-6 h-6 fill-white shrink-0" viewBox="0 0 24 24">
+              <path d="M19.365 9.863c.349.001.62.278.618.627v.006c-.035 4.398-4.492 7.974-9.983 7.974-.882 0-1.745-.091-2.571-.264-.475-.099-.958.077-1.378.337l-2.091 1.294c-.461.286-1.045-.084-.982-.622l.271-2.298c.046-.388-.135-.765-.458-.99-1.921-1.341-3.136-3.32-3.136-5.431 0-4.636 4.707-8.406 10.49-8.406 5.603 0 10.171 3.551 10.478 7.994l.006.079zm-13.882.808c0-.442-.358-.8-.8-.8s-.8.358-.8.8v3.429c0 .442.358.8.8.8h2.057c.442 0 .8-.358.8-.8s-.358-.8-.8-.8H5.483v-2.629zm3.771 4.229c.442 0 .8-.358.8-.8v-3.429c0-.442-.358-.8-.8-.8s-.8.358-.8.8v3.429c0 .442.358.8.8.8zm4.457 0c.442 0 .8-.358.8-.8v-2.126l1.834 2.657c.162.235.43.372.716.365.48-.01.85-.4.85-.88v-3.445c0-.442-.358-.8-.8-.8s-.8.358-.8.8v2.126l-1.834-2.657c-.162-.235-.43-.372-.716-.365-.48.01-.85.4-.85.88v3.445c0 .442.358.8.8.8zm6.514-3.429c0-.442-.358-.8-.8-.8h-2.057c-.442 0-.8.358-.8.8v3.429c0 .442.358.8.8.8h2.057c.442 0 .8-.358.8-.8s-.358-.8-.8-.8h-1.257v-.514h1.257c.442 0 .8-.358.8-.8s-.358-.8-.8-.8h-1.257v-.514h1.257c.442 0 .8-.358.8-.8z"/>
+            </svg>
+            <div class="text-left leading-tight">
+              <span>เข้าสู่ระบบด้วย LINE</span>
+              <span class="block text-[10px] text-emerald-100 font-normal">รวดเร็ว ปลอดภัย 1 คลิก</span>
+            </div>
+          </div>
+          <span class="text-[10px] bg-white text-emerald-700 font-black px-2 py-0.5 rounded-full">แนะนำ 🇹🇭</span>
+        `;
+      }
+      const btnG = document.getElementById('btnGoogleLogin');
+      if (btnG) {
+        btnG.innerHTML = `
+          <div class="flex items-center gap-3">
+            <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+            </svg>
+            <div class="text-left leading-tight">
+              <span>ดำเนินการต่อด้วย Google</span>
+              <span class="block text-[10px] text-gray-500 font-normal">ซิงค์บัญชี Google / Gmail</span>
+            </div>
+          </div>
+          <span class="material-symbols-outlined text-gray-400 text-[18px]">arrow_forward</span>
+        `;
+      }
+    }
+
+    // Refresh Wallet Data from API
+    async function refreshWalletData() {
+      try {
+        const uCode = currentUser.user_code || 'user_pw_9821';
+        const res = await fetch(`${API_BASE}/wallet/${uCode}`);
+        if (res.ok) {
+          const data = await res.json();
+          currentWallet = data.wallet;
+          currentUser = { ...currentUser, ...data.user };
+          updateWalletUI(data.wallet);
+        }
+      } catch (err) {
+        console.warn('API offline, using cached balance:', err);
+      }
+    }
+
+    function updateWalletUI(wallet) {
+      const availEl = document.getElementById('walletAvailableBalance');
+      const pendEl = document.getElementById('walletPendingBalance');
+      const modalBal = document.getElementById('modalAvailBalance');
+      const withdrawInp = document.getElementById('withdrawAmountInput');
+      const promptpayInp = document.getElementById('promptPayId');
+
+      if (availEl) availEl.textContent = `฿${wallet.available_balance.toFixed(2)}`;
+      if (pendEl) pendEl.textContent = `(รออนุมัติ ฿${wallet.pending_balance.toFixed(2)})`;
+      if (modalBal) modalBal.textContent = wallet.available_balance.toFixed(2);
+      if (withdrawInp) withdrawInp.value = Math.floor(wallet.available_balance);
+      if (promptpayInp && currentUser.promptpay_id) promptpayInp.value = currentUser.promptpay_id;
+    }
+
+    // Quick Fill Samples
+    function fillSample(storeKey) {
+      const input = document.getElementById('affiliateUrlInput');
+      const urls = {
+        lotus: 'https://www.lotuss.com/th/product/fresh-milk-2000ml',
+        makro: 'https://www.makro.pro/p/jasmine-rice-5kg-wholesale',
+        agoda: 'https://www.agoda.com/pattaya-pool-villa-resort/hotel/pattaya-th.html',
+        trip: 'https://th.trip.com/flights/bangkok-to-phuket',
+        central: 'https://www.central.co.th/th/nespresso-vertuo-pop',
+        advice: 'https://www.advice.co.th/product/earphone/tws-bluetooth'
+      };
+      if (input && urls[storeKey]) {
+        input.value = urls[storeKey];
+        convertAffiliateLink();
+        document.getElementById('linkConverterSection')?.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+
+    function pasteClipboard() {
+      fillSample('lotus');
+      showToast('📋 วางลิงก์ตัวอย่างเรียบร้อยแล้ว');
+    }
+
+    // Convert Affiliate Link
+    async function convertAffiliateLink() {
+      const input = document.getElementById('affiliateUrlInput');
+      const url = input.value.trim();
+      if (!url) {
+        showToast('⚠️ กรุณากรอกหรือวาง URL สินค้า');
+        return;
+      }
+
+      try {
+        const uCode = currentUser.user_code || 'user_pw_9821';
+        const res = await fetch(`${API_BASE}/link/convert`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_code: uCode, original_url: url })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+          latestTrackingUrl = data.tracking_url;
+          document.getElementById('convStoreName').textContent = `${data.icon} ${data.store_name} (${data.cashback_rate})`;
+          document.getElementById('convTrackingUrlText').textContent = data.tracking_url;
+          document.getElementById('convertedResultBox').classList.remove('hidden');
+          showToast(`✅ แปลงลิงก์ ${data.store_name} สำเร็จ! พร้อมรับเงินคืน`);
+        }
+      } catch (err) {
+        showToast('❌ ระบบแปลงลิงก์ขัดข้อง กรุณาลองใหม่');
+      }
+    }
+
+    function copyTrackingUrl() {
+      if (!latestTrackingUrl) return;
+      navigator.clipboard?.writeText(latestTrackingUrl).catch(() => {});
+      showToast('📋 คัดลอกลิงก์ Tracking ไปยังคลิปบอร์ดแล้ว');
+    }
+
+    function openStoreApp() {
+      if (latestTrackingUrl) {
+        window.open(latestTrackingUrl, '_blank');
+      } else {
+        showToast('⚠️ ยังไม่มีลิงก์ร้านค้า');
+      }
+    }
+
+    function focusConverter() {
+      document.getElementById('linkConverterSection')?.scrollIntoView({ behavior: 'smooth' });
+      document.getElementById('affiliateUrlInput')?.focus();
+    }
+
+    // Simulate Postback Webhook
+    async function simulateOrder(storeKey, amount) {
+      try {
+        const uCode = currentUser.user_code || 'user_pw_9821';
+        const res = await fetch(`${API_BASE}/postback/simulate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_code: uCode,
+            store_key: storeKey,
+            order_amount: amount,
+            status: 'approved',
+            notes: 'จำลองคำสั่งซื้ออัตโนมัติ'
+          })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+          const alert = document.getElementById('simResultAlert');
+          alert.textContent = `⚡ ยอดเงินคืน +฿${data.order.cashback_amount.toFixed(2)} จาก ${data.order.store_name} เข้าบัญชี ${currentUser.name} แล้ว!`;
+          alert.classList.remove('hidden');
+          refreshWalletData();
+          showToast(`🎉 ได้รับเงินคืน ฿${data.order.cashback_amount.toFixed(2)} เข้ากระเป๋าแล้ว!`);
+        }
+      } catch (err) {
+        showToast('❌ เกิดข้อผิดพลาดในการจำลองยอด');
+      }
+    }
+
+    // Withdraw Functions
+    function openWithdrawModal() {
+      document.getElementById('withdrawModal')?.classList.remove('hidden');
+    }
+    function closeWithdrawModal() {
+      document.getElementById('withdrawModal')?.classList.add('hidden');
+    }
+    function setWithdrawAll() {
+      document.getElementById('withdrawAmountInput').value = Math.floor(currentWallet.available_balance);
+    }
+    async function submitWithdrawal() {
+      const amount = parseFloat(document.getElementById('withdrawAmountInput').value);
+      const ppId = document.getElementById('promptPayId').value.trim();
+      const alert = document.getElementById('withdrawAlert');
+
+      if (!ppId) {
+        showToast('⚠️ กรุณากรอกเบอร์พร้อมเพย์');
+        return;
+      }
+      if (isNaN(amount) || amount < 100) {
+        showToast('⚠️ ยอดถอนขั้นต่ำคือ 100 บาท');
+        return;
+      }
+      if (amount > currentWallet.available_balance) {
+        showToast('⚠️ ยอดเงินในวอลเล็ตไม่เพียงพอ');
+        return;
+      }
+
+      try {
+        const uCode = currentUser.user_code || 'user_pw_9821';
+        const res = await fetch(`${API_BASE}/withdraw`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_code: uCode,
+            promptpay_id: ppId,
+            amount: amount
+          })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+          alert.className = 'p-3 rounded-xl text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200 block';
+          alert.textContent = `✅ ${data.message} รหัสอ้างอิง: ${data.ref_code}`;
+          refreshWalletData();
+          setTimeout(closeWithdrawModal, 2500);
+          showToast(`💸 โอนเงิน ฿${amount} เข้าพร้อมเพย์เรียบร้อย!`);
+        } else {
+          alert.className = 'p-3 rounded-xl text-xs font-medium bg-red-50 text-red-700 border border-red-200 block';
+          alert.textContent = `❌ ${data.detail || 'ไม่สามารถดำเนินการได้'}`;
+        }
+      } catch (err) {
+        showToast('❌ เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+      }
+    }
+
+    // Toast
+    let toastTimer = null;
+    function showToast(msg) {
+      const banner = document.getElementById('toastBanner');
+      const txt = document.getElementById('toastText');
+      if (banner && txt) {
+        txt.textContent = msg;
+        banner.classList.remove('hidden');
+        if (toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(hideToast, 4000);
+      }
+    }
+    function hideToast() {
+      document.getElementById('toastBanner')?.classList.add('hidden');
+    }
+
+    // Countdown Timer simulation
+    let seconds = 35;
+    let minutes = 14;
+    let hours = 2;
+    setInterval(() => {
+      seconds--;
+      if (seconds < 0) {
+        seconds = 59;
+        minutes--;
+        if (minutes < 0) {
+          minutes = 59;
+          hours--;
+          if (hours < 0) { hours = 23; }
+        }
+      }
+      const sEl = document.getElementById('cdSecs');
+      const mEl = document.getElementById('cdMins');
+      const hEl = document.getElementById('cdHours');
+      if (sEl) sEl.textContent = String(seconds).padStart(2, '0');
+      if (mEl) mEl.textContent = String(minutes).padStart(2, '0');
+      if (hEl) hEl.textContent = String(hours).padStart(2, '0');
+    }, 1000);
+
+    window.addEventListener('DOMContentLoaded', () => {
+      initUserSession();
+    });
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>

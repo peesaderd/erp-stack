@@ -34,10 +34,22 @@ def generate_affiliate_link(user_code: str, original_url: str) -> Dict[str, Any]
     click_id = f"sb_{user_code}_{int(time.time())}_{uuid.uuid4().hex[:6]}"
     encoded_dest = urllib.parse.quote(raw_url, safe='')
 
+    # Check if offer is a verified live campaign (to avoid AccessTrade "OK" blank page on unmatched domains)
+    offer_id = matched.get("offer_id", "")
+    is_live = offer_id and not offer_id.startswith("pending_") and offer_id not in ["10928", "10502", "12300", "13410", "14821", "8910", "9812"]
+
     if matched["network"] == "accesstrade":
-        tracking_url = f"https://click.accesstrade.in.th/adv.php?rk={matched['offer_id']}&sub_id={click_id}&url={encoded_dest}"
+        if is_live:
+            tracking_url = f"https://click.accesstrade.in.th/adv.php?rk={offer_id}&sub_id={click_id}&url={encoded_dest}"
+        else:
+            sep = "&" if "?" in raw_url else "?"
+            tracking_url = f"{raw_url}{sep}utm_source=smartback&aff_sub={click_id}"
     else: # Involve Asia
-        tracking_url = f"https://invol.co/aff_m?offer_id={matched['offer_id']}&aff_sub={click_id}&url={encoded_dest}"
+        if is_live:
+            tracking_url = f"https://invol.co/aff_m?offer_id={offer_id}&aff_sub={click_id}&url={encoded_dest}"
+        else:
+            sep = "&" if "?" in raw_url else "?"
+            tracking_url = f"{raw_url}{sep}utm_source=smartback&aff_sub={click_id}"
 
     # Log click to DB
     cursor.execute("""

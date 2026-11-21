@@ -109,7 +109,7 @@ STORE_CATALOG = {
         "commission_rate": 0.050,
         "cashback_share": 0.70,
         "icon": "🏪",
-        "offer_id": "0041fn002a0a"
+        "offer_id": "pending_7eleven"
     },
     "shopee": {
         "name": "Shopee Thailand",
@@ -477,12 +477,26 @@ def convert_link(payload: ConvertLinkRequest):
     click_id = f"sb_{payload.user_code}_{int(time.time())}_{uuid.uuid4().hex[:6]}"
     encoded_destination = urllib.parse.quote(raw_url, safe='')
 
-    if matched_key in ["lotus", "bigc", "central", "advice", "7eleven", "shopee"]:
+    # Determine tracking URL based on network and live campaign readiness
+    offer_id = store_info.get("offer_id", "")
+    is_live_campaign = offer_id and not offer_id.startswith("pending_") and offer_id not in ["10928", "10502", "12300", "13410", "14821", "8910", "9812"]
+
+    if matched_key in ["shopee", "7eleven", "lotus", "bigc", "central", "advice"]:
         affiliate_network = "accesstrade"
-        tracking_url = f"https://click.accesstrade.in.th/adv.php?rk={store_info['offer_id']}&sub_id={click_id}&url={encoded_destination}"
+        if is_live_campaign:
+            # Active verified AccessTrade campaign with domain match
+            tracking_url = f"https://click.accesstrade.in.th/adv.php?rk={offer_id}&sub_id={click_id}&url={encoded_destination}"
+        else:
+            # Safe Fallback: Direct store URL with tracking sub_id appended (prevents AccessTrade "OK" blank page on unmatched campaigns)
+            sep = "&" if "?" in raw_url else "?"
+            tracking_url = f"{raw_url}{sep}utm_source=smartback&aff_sub={click_id}"
     else:
         affiliate_network = "involve_asia"
-        tracking_url = f"https://invol.co/aff_m?offer_id={store_info['offer_id']}&aff_sub={click_id}&url={encoded_destination}"
+        if is_live_campaign:
+            tracking_url = f"https://invol.co/aff_m?offer_id={offer_id}&aff_sub={click_id}&url={encoded_destination}"
+        else:
+            sep = "&" if "?" in raw_url else "?"
+            tracking_url = f"{raw_url}{sep}utm_source=smartback&aff_sub={click_id}"
 
     conn = get_db()
     cursor = conn.cursor()

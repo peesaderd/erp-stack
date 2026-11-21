@@ -11,11 +11,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from database import get_db, init_db
+from affiliate.main import router as affiliate_router
 
 # Initialize database on startup
 init_db()
 
-app = FastAPI(title="SmartBack Cashback API", version="1.1.0")
+app = FastAPI(title="SmartBack Cashback API & ERP Module", version="1.2.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,6 +25,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount ERP Affiliate & Cashback Command Center
+app.include_router(affiliate_router)
 
 STORE_CATALOG = {
     "lotus": {

@@ -101,6 +101,24 @@ STORE_CATALOG = {
         "cashback_share": 0.70,
         "icon": "💻",
         "offer_id": "13410"
+    },
+    "7eleven": {
+        "name": "7-Eleven (ALL ONLINE)",
+        "domain": "7eleven.co.th",
+        "rate": "คืน 5.0%",
+        "commission_rate": 0.050,
+        "cashback_share": 0.70,
+        "icon": "🏪",
+        "offer_id": "0041fn002a0a"
+    },
+    "shopee": {
+        "name": "Shopee Thailand",
+        "domain": "shopee.co.th",
+        "rate": "คืน 5.0%",
+        "commission_rate": 0.050,
+        "cashback_share": 0.70,
+        "icon": "🧡",
+        "offer_id": "0041fn002a0a"
     }
 }
 
@@ -459,7 +477,7 @@ def convert_link(payload: ConvertLinkRequest):
     click_id = f"sb_{payload.user_code}_{int(time.time())}_{uuid.uuid4().hex[:6]}"
     encoded_destination = urllib.parse.quote(raw_url, safe='')
 
-    if matched_key in ["lotus", "bigc", "central", "advice"]:
+    if matched_key in ["lotus", "bigc", "central", "advice", "7eleven", "shopee"]:
         affiliate_network = "accesstrade"
         tracking_url = f"https://click.accesstrade.in.th/adv.php?rk={store_info['offer_id']}&sub_id={click_id}&url={encoded_destination}"
     else:

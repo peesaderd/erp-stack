@@ -78,7 +78,9 @@ def init_affiliate_tables():
     if cursor.fetchone()[0] == 0:
         campaigns = [
             ('lotus', "Lotus's Online", 'lotuss.com', 'accesstrade', '10928', 0.055, 0.70, 'groceries', '🛒'),
+            ('7eleven', "7-Eleven (ALL ONLINE)", '7eleven.co.th', 'accesstrade', '0041fn002a0a', 0.050, 0.70, 'convenience', '🏪'),
             ('makro', "Makro PRO", 'makro.pro', 'involve_asia', '14821', 0.040, 0.75, 'wholesale', '📦'),
+            ('shopee', "Shopee Thailand", 'shopee.co.th', 'accesstrade', '0041fn002a0a', 0.050, 0.70, 'ecommerce', '🧡'),
             ('agoda', "Agoda", 'agoda.com', 'involve_asia', '8910', 0.085, 0.70, 'travel', '🏨'),
             ('trip', "Trip.com", 'trip.com', 'involve_asia', '9812', 0.070, 0.70, 'travel', '✈️'),
             ('central', "Central Online", 'central.co.th', 'accesstrade', '12300', 0.060, 0.70, 'department', '🏬'),

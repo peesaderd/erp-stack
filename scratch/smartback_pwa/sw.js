@@ -1,10 +1,10 @@
-const CACHE_NAME = 'smartback-v1.0.0';
+const CACHE_NAME = 'smartback-v1.0.1';
+const isSub = self.location.hostname.includes('smartback.');
+const BASE_PATH = isSub ? '' : '/smartback';
+
 const ASSETS = [
-  '/smartback/',
-  '/smartback/index.html',
-  '/smartback/manifest.json',
-  '/smartback/icons/icon-192.png',
-  '/smartback/icons/icon-512.png',
+  BASE_PATH + '/',
+  BASE_PATH + '/index.html',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap',
   'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200',
   'https://cdn.tailwindcss.com'
@@ -47,7 +47,7 @@ self.addEventListener('fetch', (event) => {
         return networkResponse;
       }).catch(() => {
         if (event.request.destination === 'document') {
-          return caches.match('/smartback/index.html');
+          return caches.match(BASE_PATH + '/index.html') || caches.match('/index.html');
         }
       });
     })

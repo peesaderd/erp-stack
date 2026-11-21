@@ -1237,7 +1237,7 @@
         lotus: 'https://www.lotuss.com/th/product/fresh-milk-2000ml',
         '7eleven': 'https://www.7eleven.co.th/product/fresh-milk-meiji',
         makro: 'https://www.makro.pro/p/jasmine-rice-5kg-wholesale',
-        shopee: 'https://shopee.co.th/product/nespresso-vertuo-pop',
+        shopee: 'https://atth.me/0041fn002a0a',
         agoda: 'https://www.agoda.com/pattaya-pool-villa-resort/hotel/pattaya-th.html',
         trip: 'https://th.trip.com/flights/bangkok-to-phuket',
         central: 'https://www.central.co.th/th/nespresso-vertuo-pop',
@@ -1250,9 +1250,24 @@
       }
     }
 
-    function pasteClipboard() {
-      fillSample('lotus');
-      showToast('📋 วางลิงก์ตัวอย่างเรียบร้อยแล้ว');
+    async function pasteClipboard() {
+      const input = document.getElementById('affiliateUrlInput');
+      try {
+        if (navigator.clipboard && navigator.clipboard.readText) {
+          const text = await navigator.clipboard.readText();
+          if (text && text.trim().startsWith('http')) {
+            input.value = text.trim();
+            convertAffiliateLink();
+            showToast('📋 วางลิงก์เรียบร้อยแล้ว');
+            return;
+          }
+        }
+      } catch (e) {}
+      if (input) {
+        input.value = 'https://atth.me/0041fn002a0a';
+        convertAffiliateLink();
+        showToast('📋 วางลิงก์ AccessTrade เรียบร้อยแล้ว');
+      }
     }
 
     // Convert Affiliate Link

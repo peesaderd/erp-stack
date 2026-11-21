@@ -463,40 +463,74 @@ def convert_link(payload: ConvertLinkRequest):
         raw_url = "https://" + raw_url
 
     matched_key = None
-    for key, info in STORE_CATALOG.items():
-        if info["domain"] in raw_url:
-            matched_key = key
-            break
+    # Intelligent domain and affiliate short-link detection
+    if any(k in raw_url for k in ["atth.me", "s.shopee.co.th", "shope.ee", "shopee.co.th", "0041fn002a0a"]):
+        matched_key = "shopee"
+    elif any(k in raw_url for k in ["7eleven", "allonline"]):
+        matched_key = "7eleven"
+    elif "lotus" in raw_url:
+        matched_key = "lotus"
+    elif "makro" in raw_url:
+        matched_key = "makro"
+    elif "agoda" in raw_url:
+        matched_key = "agoda"
+    elif "trip.com" in raw_url:
+        matched_key = "trip"
+    elif "central" in raw_url:
+        matched_key = "central"
+    elif "bigc" in raw_url:
+        matched_key = "bigc"
+    elif "advice" in raw_url:
+        matched_key = "advice"
+    else:
+        for key, info in STORE_CATALOG.items():
+            if info["domain"] in raw_url:
+                matched_key = key
+                break
 
     if not matched_key:
-        matched_key = "lotus"
-        store_info = STORE_CATALOG["lotus"]
-    else:
-        store_info = STORE_CATALOG[matched_key]
+        matched_key = "shopee" if "atth.me" in raw_url else "shopee"
+    
+    store_info = STORE_CATALOG.get(matched_key, STORE_CATALOG["shopee"])
 
     click_id = f"sb_{payload.user_code}_{int(time.time())}_{uuid.uuid4().hex[:6]}"
     encoded_destination = urllib.parse.quote(raw_url, safe='')
 
-    # Determine tracking URL based on network and live campaign readiness
-    offer_id = store_info.get("offer_id", "")
-    is_live_campaign = offer_id and not offer_id.startswith("pending_") and offer_id not in ["10928", "10502", "12300", "13410", "14821", "8910", "9812"]
-
-    if matched_key in ["shopee", "7eleven", "lotus", "bigc", "central", "advice"]:
+    # Handle direct AccessTrade short links (e.g. atth.me/0041fn002a0a)
+    if "atth.me" in raw_url:
         affiliate_network = "accesstrade"
-        if is_live_campaign:
-            # Active verified AccessTrade campaign with domain match
+        sep = "&" if "?" in raw_url else "?"
+        tracking_url = f"{raw_url}{sep}sub_id={click_id}"
+    elif matched_key == "shopee":
+        affiliate_network = "accesstrade"
+        tracking_url = f"https://click.accesstrade.in.th/adv.php?rk={store_info['offer_id']}&sub_id={click_id}&url={encoded_destination}"
+    elif matched_key == "7eleven":
+        affiliate_network = "accesstrade"
+        offer_id = store_info.get("offer_id", "")
+        if offer_id and not offer_id.startswith("pending_"):
             tracking_url = f"https://click.accesstrade.in.th/adv.php?rk={offer_id}&sub_id={click_id}&url={encoded_destination}"
         else:
-            # Safe Fallback: Direct store URL with tracking sub_id appended (prevents AccessTrade "OK" blank page on unmatched campaigns)
             sep = "&" if "?" in raw_url else "?"
             tracking_url = f"{raw_url}{sep}utm_source=smartback&aff_sub={click_id}"
     else:
-        affiliate_network = "involve_asia"
-        if is_live_campaign:
-            tracking_url = f"https://invol.co/aff_m?offer_id={offer_id}&aff_sub={click_id}&url={encoded_destination}"
+        # Determine tracking URL based on network and live campaign readiness
+        offer_id = store_info.get("offer_id", "")
+        is_live_campaign = offer_id and not offer_id.startswith("pending_") and offer_id not in ["10928", "10502", "12300", "13410", "14821", "8910", "9812"]
+
+        if matched_key in ["lotus", "bigc", "central", "advice"]:
+            affiliate_network = "accesstrade"
+            if is_live_campaign:
+                tracking_url = f"https://click.accesstrade.in.th/adv.php?rk={offer_id}&sub_id={click_id}&url={encoded_destination}"
+            else:
+                sep = "&" if "?" in raw_url else "?"
+                tracking_url = f"{raw_url}{sep}utm_source=smartback&aff_sub={click_id}"
         else:
-            sep = "&" if "?" in raw_url else "?"
-            tracking_url = f"{raw_url}{sep}utm_source=smartback&aff_sub={click_id}"
+            affiliate_network = "involve_asia"
+            if is_live_campaign:
+                tracking_url = f"https://invol.co/aff_m?offer_id={offer_id}&aff_sub={click_id}&url={encoded_destination}"
+            else:
+                sep = "&" if "?" in raw_url else "?"
+                tracking_url = f"{raw_url}{sep}utm_source=smartback&aff_sub={click_id}"
 
     conn = get_db()
     cursor = conn.cursor()
